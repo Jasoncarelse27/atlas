@@ -2,9 +2,9 @@ import React from 'react';
 import { Menu, MessageSquare, Headphones, Image as ImageIcon, PlusSquare } from 'lucide-react';
 import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
-import { SoundType } from '../hooks/useSoundEffects';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
+import type { SoundType } from '../hooks/useSoundEffects';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '../types/subscription';
 import StatusIndicator from './StatusIndicator';
 
 interface SimplifiedHeaderProps {

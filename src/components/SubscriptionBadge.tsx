@@ -1,6 +1,7 @@
 import React from 'react';
 import { Crown, Clock, Zap, Star } from 'lucide-react';
-   import { UserProfile, TIER_CONFIGS } from "../types/subscription";
+import type { UserProfile } from "../types/subscription";
+import { TIER_CONFIGS } from "../types/subscription";
 import Tooltip from '../components/Tooltip';
 
 interface SubscriptionBadgeProps {

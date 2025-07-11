@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '../types/subscription';
 import { supabase } from '../lib/supabase';
 import { 
   X, 
@@ -24,7 +24,7 @@ import {
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import Tooltip from './Tooltip';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface AccountModalProps {
   isOpen: boolean;

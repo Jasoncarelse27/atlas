@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Wifi, WifiOff, Download, Upload, RotateCcw, ExternalLink, Maximize2, Minimize2, Clock, Server, Globe, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
+import { X, Wifi, Download, Upload, RotateCcw, ExternalLink, Maximize2, Minimize2, Clock, Server, Globe, AlertTriangle, CheckCircle } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import Tooltip from './Tooltip';
-import { SoundType } from '../hooks/useSoundEffects';
-import ProgressBar from './ProgressBar';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface NetworkCheckModalProps {
   isOpen: boolean;
@@ -679,7 +678,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
           
           {/* Test Results */}
           <div className="space-y-4">
-            {testResults.map((result, index) => (
+            {testResults.map((result, _index) => (
               <div 
                 key={result.name} 
                 className={`p-4 rounded-lg border ${getStatusColor(result.status)}`}

@@ -1,13 +1,13 @@
 import React from 'react';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '../types/subscription';
 import { 
   X, User as UserIcon, Settings, Grid3X3, History, Wifi, WifiOff, LogOut, 
   HelpCircle, Volume2, VolumeX, Crown, MessageSquare, Headphones, Image as ImageIcon,
   TrendingUp, Clock, HardDrive, Moon, Sun, Monitor
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 import SubscriptionBadge from './SubscriptionBadge';
 import StatusIndicator from './StatusIndicator';
 import ThemeToggle from './ThemeToggle';

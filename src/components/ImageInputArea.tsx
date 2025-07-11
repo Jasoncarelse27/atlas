@@ -4,7 +4,7 @@ import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import Tooltip from './Tooltip';
 import DismissibleExplainer from './DismissibleExplainer';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 import InputModeWrapper from './InputModeWrapper';
 
 interface ImageInputAreaProps {

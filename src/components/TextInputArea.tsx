@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, forwardRef } from 'react';
 import { Send, Paperclip, Smile, Headphones, Image as ImageIcon, X, Zap, Clock, Sparkles, Command } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import Tooltip from './Tooltip';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 import AnimatedBackground from './AnimatedBackground';
 import InputModeWrapper from './InputModeWrapper';
 

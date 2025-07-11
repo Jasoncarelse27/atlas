@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react';
 import { MessageSquare, Headphones, Image as ImageIcon } from 'lucide-react';
 import Tooltip from './Tooltip';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface ModeSwitcherProps {
   currentMode: 'text' | 'voice' | 'image';

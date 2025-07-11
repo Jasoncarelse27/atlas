@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '../types/subscription';
 import { 
   Plus, 
   X, 

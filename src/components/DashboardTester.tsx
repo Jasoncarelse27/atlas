@@ -1,68 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
 import { 
   TestTube, 
   Grid3X3, 
   Sliders, 
-  Settings, 
-  User as UserIcon,
-  BarChart3,
   Zap,
-  MessageSquare,
   Clock,
-  Target,
-  Brain,
-  Edit3,
-  Calculator,
   Globe,
-  Bookmark,
   Play,
-  Pause,
   RotateCcw,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Eye,
-  EyeOff,
   Palette,
-  Layout,
   Monitor,
-  Smartphone,
-  Tablet,
-  Keyboard,
-  Volume2,
-  Download,
-  Upload,
-  RefreshCw,
-  Activity,
-  Cpu,
-  HardDrive,
-  Wifi,
-  WifiOff,
-  Database,
-  Code,
-  Bug,
-  Shield,
-  Lock,
-  Unlock,
-  Search,
-  Filter,
-  TrendingUp,
-  TrendingDown,
-  Info,
-  Star,
-  Heart,
-  ThumbsUp,
-  ThumbsDown,
-  Share2,
-  Copy,
-  ExternalLink,
-  Maximize2,
-  Minimize2,
-  MoreHorizontal,
-  Menu,
-  X
+  Menu
 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import Tooltip from './Tooltip';
@@ -70,8 +22,6 @@ import ProgressBar from './ProgressBar';
 import ImageCard from './ImageCard';
 
 interface DashboardTesterProps {
-  user: User;
-  profile: UserProfile;
   onClose: () => void;
   onShowWidgets: () => void;
   onShowControlCenter: () => void;
@@ -99,8 +49,6 @@ interface PerformanceMetrics {
 }
 
 const DashboardTester: React.FC<DashboardTesterProps> = ({
-  user,
-  profile,
   onClose,
   onShowWidgets,
   onShowControlCenter
