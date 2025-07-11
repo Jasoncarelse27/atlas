@@ -1,33 +1,8 @@
 import React, { useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
-import { useCustomization } from '../hooks/useCustomization';
-import { useSoundEffects, SoundTheme } from '../hooks/useSoundEffects';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '../types/subscription';
 import { 
-  X, 
-  Sliders, 
-  Palette, 
-  Layout, 
-  Settings, 
-  Monitor, 
-  Moon, 
-  Sun, 
-  Check, 
-  RefreshCw, 
-  Save, 
-  Volume2, 
-  Eye, 
-  Smartphone, 
-  Laptop, 
-  Globe, 
-  Clock, 
-  Calendar, 
-  Languages, 
-  Keyboard, 
-  Undo, 
-  Download, 
-  Upload, 
-  AlertTriangle
+  Settings
 } from 'lucide-react';
 import Logo from './Logo';
 import Tooltip from './Tooltip';
@@ -36,7 +11,7 @@ import SubscriptionBadge from './SubscriptionBadge';
 import UsageIndicator from './UsageIndicator';
 import AccountModal from './AccountModal';
 import { Volume2 as VolumeIcon, VolumeX, HelpCircle, LogOut, User as UserIcon, Menu, X as XIcon, Crown, TrendingUp, Grid3X3, Sliders as SlidersIcon, Wifi, WifiOff, History, MessageSquare, PlusSquare } from 'lucide-react';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface HeaderProps {
   currentMode: 'text' | 'voice' | 'image';

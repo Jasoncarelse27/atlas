@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { X, Check, Crown, Zap, Star, ArrowRight, CreditCard, Shield, AlertCircle, CheckCircle } from 'lucide-react';
-import { UserProfile, TIER_CONFIGS } from '../types/subscription';
+import type { UserProfile } from '../types/subscription';
 import Tooltip from './Tooltip';
 import LoadingSpinner from './LoadingSpinner';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
+import { TIER_CONFIGS } from '../types/subscription';
 
 interface UpgradeModalProps {
   isOpen: boolean;

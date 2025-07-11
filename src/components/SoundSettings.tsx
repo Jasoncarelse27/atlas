@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Volume2, VolumeX, Volume1, Play, Check, Settings, Headphones } from 'lucide-react';
-import { SoundTheme, SoundType } from '../hooks/useSoundEffects';
+import type { SoundTheme, SoundType } from '../hooks/useSoundEffects';
 import Tooltip from './Tooltip';
 
 interface SoundSettingsProps {

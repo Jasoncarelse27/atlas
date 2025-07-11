@@ -1,7 +1,7 @@
+import type { SoundType } from '../hooks/useSoundEffects';
 import React from 'react';
 import { Moon, Sun, Monitor } from 'lucide-react';
 import Tooltip from './Tooltip';
-import { SoundType } from '../hooks/useSoundEffects';
 
 interface ThemeToggleProps {
   themeMode: 'light' | 'dark' | 'auto';
@@ -23,14 +23,6 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
       onSoundPlay('click'); 
     }
     onThemeChange(mode);
-  };
-
-  const getIcon = () => {
-    switch (themeMode) {
-      case 'light': return <Sun className="w-5 h-5" />;
-      case 'dark': return <Moon className="w-5 h-5" />;
-      case 'auto': return <Monitor className="w-5 h-5" />;
-    }
   };
 
   const getTooltipContent = () => {

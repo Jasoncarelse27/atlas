@@ -1,6 +1,7 @@
 import React from 'react';
 import { BarChart3, Clock, HardDrive, MessageSquare } from 'lucide-react';
-import { UserProfile, TIER_CONFIGS } from '../types/subscription';
+import type { UserProfile } from '../types/subscription';
+import { TIER_CONFIGS } from '../types/subscription';
 import ProgressBar from './ProgressBar';
 import Tooltip from './Tooltip';
 

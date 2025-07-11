@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle, X, RefreshCw } from 'lucide-react';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface ErrorMessageProps {
   title?: string;

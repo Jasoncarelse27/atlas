@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { Conversation, Message, createNewConversation, generateConversationTitle } from '../types/chat';
+import type { Conversation, Message } from '../types/chat';
+import { createNewConversation, generateConversationTitle } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
 
 interface UseConversationsReturn {
@@ -428,4 +429,3 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
   };
 };
 
-export default useConversations;

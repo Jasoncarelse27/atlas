@@ -1,31 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '../types/subscription';
 import { useCustomization } from '../hooks/useCustomization';
-import { useSoundEffects, SoundTheme } from '../hooks/useSoundEffects';
+import { useSoundEffects } from '../hooks/useSoundEffects';
+import type { SoundTheme, SoundType } from '../hooks/useSoundEffects';
 import { 
   X, 
   Sliders, 
   Palette, 
   Layout, 
   Settings, 
-  Monitor, 
   Moon, 
   Sun, 
-  Check, 
   RefreshCw, 
   Save, 
   Volume2, 
-  Eye, 
-  Smartphone, 
-  Laptop, 
-  Globe, 
-  Clock, 
-  Calendar, 
-  Languages, 
-  Keyboard, 
-  Undo, 
   Download, 
   Upload, 
   AlertTriangle
@@ -41,8 +31,6 @@ interface ControlCenterProps {
 }
 
 const ControlCenter: React.FC<ControlCenterProps> = ({ 
-  user, 
-  profile, 
   isOpen, 
   onClose 
 }) => {

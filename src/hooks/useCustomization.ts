@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 interface UserCustomization {
   id: string;
@@ -60,15 +61,16 @@ interface UseCustomizationReturn {
 }
 
 // Helper function to deep clone objects
-const deepClone = (obj: any): any => {
+type AnyObject = Record<string, unknown>;
+const deepClone = (obj: unknown): unknown => {
   if (obj === null || typeof obj !== 'object') return obj;
   if (obj instanceof Date) return new Date(obj.getTime());
-  if (obj instanceof Array) return obj.map(item => deepClone(item));
+  if (Array.isArray(obj)) return obj.map(item => deepClone(item));
   
-  const cloned: any = {};
-  for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      cloned[key] = deepClone(obj[key]);
+  const cloned: AnyObject = {};
+  for (const key in obj as AnyObject) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      cloned[key] = deepClone((obj as AnyObject)[key]);
     }
   }
   return cloned;
@@ -177,13 +179,13 @@ const safeDbOperation = async <T>(operation: () => Promise<T>, fallback: T): Pro
 };
 
 // Helper function to compare objects deeply
-const isEqual = (obj1: any, obj2: any): boolean => {
+const isEqual = (obj1: unknown, obj2: unknown): boolean => {
   if (obj1 === obj2) return true;
   if (obj1 === null || obj2 === null) return false;
   if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return obj1 === obj2;
   
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
+  const keys1 = Object.keys(obj1 as AnyObject);
+  const keys2 = Object.keys(obj2 as AnyObject);
   
   if (keys1.length !== keys2.length) {
     console.log('🔍 Objects have different number of keys:', keys1.length, keys2.length);
@@ -195,10 +197,10 @@ const isEqual = (obj1: any, obj2: any): boolean => {
       console.log('🔍 Key missing in second object:', key);
       return false;
     }
-    if (!isEqual(obj1[key], obj2[key])) {
+    if (!isEqual((obj1 as AnyObject)[key], (obj2 as AnyObject)[key])) {
       console.log('🔍 Values different for key:', key);
-      console.log('🔍 Value in obj1:', JSON.stringify(obj1[key]));
-      console.log('🔍 Value in obj2:', JSON.stringify(obj2[key]));
+      console.log('🔍 Value in obj1:', JSON.stringify((obj1 as AnyObject)[key]));
+      console.log('🔍 Value in obj2:', JSON.stringify((obj2 as AnyObject)[key]));
       return false;
     }
   }
@@ -322,7 +324,7 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       console.log('🔍 Initial customization:', loadedCustomization);
       setCustomization(loadedCustomization);
       
-      const clonedOriginal = deepClone(loadedCustomization);
+      const clonedOriginal = deepClone(loadedCustomization) as UserCustomization;
       console.log('🔍 Original customization (cloned):', clonedOriginal);
       setOriginalCustomization(clonedOriginal);
       
@@ -356,14 +358,14 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
         }
         
         setCustomization(fallbackCustomization);
-        setOriginalCustomization(deepClone(fallbackCustomization));
+        setOriginalCustomization(deepClone(fallbackCustomization) as UserCustomization);
         applyCustomization(fallbackCustomization);
       } else {
         setError('Failed to load your customization settings');
         // Use default customization
         const defaultCustomization = createDefaultCustomization(user.id);
         setCustomization(defaultCustomization);
-        setOriginalCustomization(deepClone(defaultCustomization));
+        setOriginalCustomization(deepClone(defaultCustomization) as UserCustomization);
         applyCustomization(defaultCustomization);
       }
     } finally {
@@ -381,6 +383,7 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
     try {
       const updatedCustomization = {
         ...customization,
+        user_id: user.id, // Ensure user_id is always set correctly
         updated_at: new Date().toISOString()
       };
 
@@ -417,7 +420,7 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       });
 
       setCustomization(updatedCustomization);
-      const clonedUpdated = deepClone(updatedCustomization);
+      const clonedUpdated = deepClone(updatedCustomization) as UserCustomization;
       console.log('🔍 Setting new original customization after save:', clonedUpdated);
       setOriginalCustomization(clonedUpdated);
       applyCustomization(updatedCustomization);
@@ -446,11 +449,11 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
     console.log('🔄 Updating customization:', path, '=', value);
 
     // Deep clone the entire customization object
-    const updated = deepClone(customization);
+    const updated = deepClone(customization) as UserCustomization;
     
     // Navigate to the correct nested property
     const keys = path.split('.');
-    let current = updated;
+    let current: any = updated;
 
     for (let i = 0; i < keys.length - 1; i++) {
       current = current[keys[i]];
@@ -477,7 +480,7 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
 
     console.log('🎨 Updating theme colors:', { primaryColor, accentColor });
 
-    const updated = deepClone(customization);
+    const updated = deepClone(customization) as UserCustomization;
     updated.theme.primaryColor = primaryColor;
     updated.theme.accentColor = accentColor;
 

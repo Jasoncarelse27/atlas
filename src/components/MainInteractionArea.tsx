@@ -4,7 +4,7 @@ import VoiceInputArea from './VoiceInputArea';
 import TextInputArea from './TextInputArea';
 import ImageInputArea from './ImageInputArea';
 import UnifiedInputBar from './UnifiedInputBar';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface MainInteractionAreaProps {
   mode: 'text' | 'voice' | 'image';

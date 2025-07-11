@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Lightbulb, Zap, ArrowRight, X } from 'lucide-react';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface ContextualSuggestionsProps {
   message?: string;

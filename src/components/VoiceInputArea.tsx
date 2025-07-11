@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, forwardRef } from 'react';
 import { Volume2, VolumeX, Settings, Zap } from 'lucide-react';
 import VoiceVisualizer from './VoiceVisualizer';
 import Tooltip from './Tooltip';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 import ConversationModeButton from './ConversationModeButton';
 
 interface VoiceInputAreaProps {

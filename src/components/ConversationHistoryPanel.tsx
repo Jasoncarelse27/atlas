@@ -6,26 +6,16 @@ import {
   MessageSquare, 
   Trash2, 
   Edit3, 
-  MoreHorizontal, 
   Pin, 
   Clock, 
   Check, 
-  ChevronRight,
-  PlusSquare,
-  Folder,
-  FolderPlus,
-  Archive,
-  ArchiveX,
-  Bookmark,
-  BookmarkPlus,
   Trash,
   Download,
   Upload,
-  Settings,
   AlertTriangle
 } from 'lucide-react';
-import { Conversation } from '../types/chat';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { Conversation } from '../types/chat';
+import type { SoundType } from '../hooks/useSoundEffects';
 import Tooltip from './Tooltip';
 import LoadingSpinner from './LoadingSpinner';
 

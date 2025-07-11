@@ -6,7 +6,7 @@ import AudioPlayer from './AudioPlayer';
 import TypingIndicator from './TypingIndicator';
 import ContextualSuggestions from './ContextualSuggestions';
 import StatusIndicator from './StatusIndicator';
-import { SoundType } from '../hooks/useSoundEffects';
+import type { SoundType } from '../hooks/useSoundEffects';
 
 interface EnhancedResponseAreaProps {
   response: string;

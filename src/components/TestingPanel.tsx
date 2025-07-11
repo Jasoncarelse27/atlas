@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
-import { UserProfile } from '../types/subscription';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '../types/subscription';
 import { supabase } from '../lib/supabase';
 import { useSubscription } from '../hooks/useSubscription';
 import { 
@@ -8,19 +8,13 @@ import {
   Database, 
   User as UserIcon, 
   Clock, 
-  MessageSquare, 
-  Volume2, 
-  Image, 
-  RefreshCw,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Settings,
-  TrendingUp,
-  Plus
+  TrendingUp
 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
-import Tooltip from './Tooltip';
 
 interface TestingPanelProps {
   user: User | null;
@@ -32,7 +26,7 @@ interface TestResult {
   test: string;
   status: 'pass' | 'fail' | 'warning' | 'running' | 'pending';
   message: string;
-  details?: any;
+  details?: unknown;
   timestamp?: string;
 }
 
@@ -98,7 +92,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       console.log('🧪 Testing basic Supabase connection...');
       
       // Test 1: Basic connection
-      const { data: healthCheck, error: healthError } = await supabase
+      const { error: healthError } = await supabase
         .from('user_profiles')
         .select('count')
         .limit(0);
@@ -136,7 +130,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       // Test 3: RPC functions
       let rpcWorking = false;
       try {
-        const { data: rpcTest, error: rpcError } = await supabase
+        const { error: rpcError } = await supabase
           .rpc('check_tier_limits', { user_id: user?.id || '00000000-0000-0000-0000-000000000000', action_type: 'request' });
         
         if (!rpcError) {
@@ -648,10 +642,17 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     { id: 'database-connection', label: 'Database Connection', icon: Database },
     { id: 'profile-creation', label: 'Profile Creation', icon: UserIcon },
     { id: 'usage-limits', label: 'Usage Limits', icon: Settings },
-    { id: 'feature-access', label: 'Feature Access', icon: Image },
+    { id: 'feature-access', label: 'Feature Access', icon: UserIcon },
     { id: 'trial-expiry', label: 'Trial Expiry', icon: Clock },
     { id: 'usage-updates', label: 'Usage Updates', icon: TrendingUp }
   ];
+
+  // Compute detailsString before the return to ensure it's always a string
+  const getDetailsString = (details: unknown): string => {
+    if (typeof details === 'string') return details;
+    if (typeof details === 'object' && details !== null) return JSON.stringify(details, null, 2);
+    return String(details);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -804,7 +805,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
                             View Details
                           </summary>
                           <pre className="mt-2 p-3 bg-gray-100 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto text-gray-800">
-                            {JSON.stringify(result.details, null, 2)}
+                            {getDetailsString(result.details)}
                           </pre>
                         </details>
                       )}
