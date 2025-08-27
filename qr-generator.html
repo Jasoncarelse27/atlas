@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas QR Code Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .clear-btn {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e1e5e9;
+        }
+
+        .clear-btn:hover {
+            background: #e9ecef;
+        }
+
+        .qr-container {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            border: 2px dashed #e1e5e9;
+            border-radius: 15px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qr-container.empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .qr-code {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .download-btn {
+            margin-top: 20px;
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        .download-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            padding: 6px 12px;
+            border: 1px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .preset-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .preset-btn.active {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Atlas QR Generator</h1>
+            <p>Generate QR codes for your Atlas AI app</p>
+        </div>
+
+        <div class="form-group">
+            <label for="qrType">QR Code Type:</label>
+            <select id="qrType">
+                <option value="url">Website URL</option>
+                <option value="text">Plain Text</option>
+                <option value="email">Email</option>
+                <option value="phone">Phone Number</option>
+                <option value="wifi">WiFi Network</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="qrContent">Content:</label>
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="setPreset('https://atlas-ai-app.vercel.app')">Atlas App</button>
+                <button class="preset-btn" onclick="setPreset('https://github.com/yourusername/atlas')">GitHub</button>
+                <button class="preset-btn" onclick="setPreset('mailto:contact@atlas-ai.com')">Email</button>
+                <button class="preset-btn" onclick="setPreset('tel:+1234567890')">Phone</button>
+            </div>
+            <textarea id="qrContent" placeholder="Enter the content for your QR code..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="qrSize">QR Code Size:</label>
+            <select id="qrSize">
+                <option value="200">Small (200px)</option>
+                <option value="300" selected>Medium (300px)</option>
+                <option value="400">Large (400px)</option>
+                <option value="500">Extra Large (500px)</option>
+            </select>
+        </div>
+
+        <div class="button-group">
+            <button class="generate-btn" onclick="generateQR()">Generate QR Code</button>
+            <button class="clear-btn" onclick="clearQR()">Clear</button>
+        </div>
+
+        <div class="qr-container empty" id="qrContainer">
+            <p>Your QR code will appear here</p>
+        </div>
+
+        <button class="download-btn" id="downloadBtn" onclick="downloadQR()" disabled>Download QR Code</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        let currentQRData = null;
+
+        function setPreset(content) {
+            document.getElementById('qrContent').value = content;
+            // Update active preset button
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function generateQR() {
+            const content = document.getElementById('qrContent').value.trim();
+            const size = parseInt(document.getElementById('qrSize').value);
+            const type = document.getElementById('qrType').value;
+
+            if (!content) {
+                alert('Please enter some content for the QR code');
+                return;
+            }
+
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '';
+            container.classList.remove('empty');
+
+            // Generate QR code
+            QRCode.toCanvas(container, content, {
+                width: size,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error(error);
+                    container.innerHTML = '<p style="color: red;">Error generating QR code</p>';
+                    container.classList.add('empty');
+                } else {
+                    currentQRData = content;
+                    document.getElementById('downloadBtn').disabled = false;
+                }
+            });
+        }
+
+        function clearQR() {
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '<p>Your QR code will appear here</p>';
+            container.classList.add('empty');
+            document.getElementById('qrContent').value = '';
+            document.getElementById('downloadBtn').disabled = true;
+            currentQRData = null;
+            
+            // Clear active preset buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+        }
+
+        function downloadQR() {
+            if (!currentQRData) return;
+
+            const canvas = document.querySelector('#qrContainer canvas');
+            if (!canvas) return;
+
+            const link = document.createElement('a');
+            link.download = 'atlas-qr-code.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Auto-generate QR code when content changes
+        document.getElementById('qrContent').addEventListener('input', function() {
+            if (this.value.trim()) {
+                // Clear active preset buttons when user types
+                document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            }
+        });
+
+        // Set default content
+        document.getElementById('qrContent').value = 'https://atlas-ai-app.vercel.app';
+        document.querySelector('.preset-btn').classList.add('active');
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

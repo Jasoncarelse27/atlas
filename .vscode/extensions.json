@@ -1,0 +1,188 @@
+{
+  "recommendations": [
+    // Essential React/TypeScript extensions
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-vscode.vscode-json",
+    
+    // React specific
+    "ms-vscode.vscode-react-native",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-css-peek",
+    
+    // Productivity
+    "ms-vscode.vscode-git-graph",
+    "eamodio.gitlens",
+    "ms-vscode.vscode-github",
+    "ms-vscode.vscode-pull-request-github",
+    
+    // Code quality
+    "streetsidesoftware.code-spell-checker",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+    
+    // Testing
+    "ms-vscode.vscode-jest",
+    "ms-playwright.playwright",
+    
+    // Performance and debugging
+    "ms-vscode.vscode-js-profile-flame",
+    "ms-vscode.vscode-js-profile-table",
+    "ms-vscode.vscode-chrome-debug",
+    
+    // AI assistance (optional)
+    "github.copilot",
+    "github.copilot-chat",
+    
+    // Theme and icons
+    "pkief.material-icon-theme",
+    "zhuangtongfa.material-theme",
+    
+    // Utilities
+    "ms-vscode.vscode-todo-highlight",
+    "gruntfuggly.todo-tree",
+    "ms-vscode.vscode-markdownlint",
+    "yzhang.markdown-all-in-one",
+    
+    // Database (for Supabase)
+    "ms-mssql.mssql",
+    "cweijan.vscode-postgresql-client2",
+    
+    // Terminal
+    "ms-vscode.vscode-terminal-here",
+    
+    // Code snippets
+    "ms-vscode.vscode-react-native-snippets",
+    "burkeholland.simple-react-snippets",
+    
+    // Error lens
+    "usernamehw.errorlens",
+    
+    // Import cost
+    "wix.vscode-import-cost",
+    
+    // Auto close tag
+    "formulahendry.auto-close-tag",
+    
+    // Bracket pair colorizer
+    "coenraads.bracket-pair-colorizer-2",
+    
+    // Indent rainbow
+    "oderwat.indent-rainbow",
+    
+    // Better comments
+    "aaron-bond.better-comments",
+    
+    // Git history
+    "donjayamanne.githistory",
+    
+    // REST client
+    "humao.rest-client",
+    
+    // Thunder client
+    "rangav.vscode-thunder-client",
+    
+    // Code spell checker
+    "streetsidesoftware.code-spell-checker",
+    
+    // Error gutters
+    "usernamehw.errorlens",
+    
+    // Import cost
+    "wix.vscode-import-cost",
+    
+    // Auto rename tag
+    "formulahendry.auto-rename-tag",
+    
+    // Path intellisense
+    "christian-kohler.path-intellisense",
+    
+    // CSS peek
+    "ms-vscode.vscode-css-peek",
+    
+    // HTML CSS support
+    "ecmel.vscode-html-css-support",
+    
+    // IntelliSense for CSS class names
+    "zignd.html-css-class-completion",
+    
+    // Color highlight
+    "naumovs.color-highlight",
+    
+    // Color info
+    "bierner.color-info",
+    
+    // Material icon theme
+    "pkief.material-icon-theme",
+    
+    // One dark pro
+    "zhuangtongfa.material-theme",
+    
+    // Dracula official
+    "dracula-theme.theme-dracula",
+    
+    // Night owl
+    "sdras.night-owl",
+    
+    // Winter is coming
+    "johnpapa.winteriscoming",
+    
+    // Tokyo night
+    "enkia.tokyo-night",
+    
+    // Ayu
+    "teabyii.ayu",
+    
+    // Monokai pro
+    "monokai.theme-monokai-pro-vscode",
+    
+    // Synthwave '84
+    "robbowen.synthwave-vscode",
+    
+    // Cobalt2
+    "wesbos.theme-cobalt2",
+    
+    // Palenight theme
+    "whizkydee.material-palenight-theme",
+    
+    // One dark pro
+    "zhuangtongfa.material-theme",
+    
+    // Dracula official
+    "dracula-theme.theme-dracula",
+    
+    // Night owl
+    "sdras.night-owl",
+    
+    // Winter is coming
+    "johnpapa.winteriscoming",
+    
+    // Tokyo night
+    "enkia.tokyo-night",
+    
+    // Ayu
+    "teabyii.ayu",
+    
+    // Monokai pro
+    "monokai.theme-monokai-pro-vscode",
+    
+    // Synthwave '84
+    "robbowen.synthwave-vscode",
+    
+    // Cobalt2
+    "wesbos.theme-cobalt2",
+    
+    // Palenight theme
+    "whizkydee.material-palenight-theme"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript",
+    "ms-vscode.vscode-javascript",
+    "ms-vscode.vscode-json",
+    "ms-vscode.vscode-css",
+    "ms-vscode.vscode-html"
+  ]
+}

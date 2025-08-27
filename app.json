@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Atlas",
+    "slug": "atlas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./public/vite.svg",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./public/vite.svg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./public/vite.svg",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./public/vite.svg"
+    }
+  }
+} 
