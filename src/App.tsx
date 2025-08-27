@@ -61,14 +61,16 @@ function App() {
   // Create a mock profile
   const mockProfile = {
     id: 'mock-user-id',
-    tier: 'pro',
-    trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    tier: 'free',
+    trial_ends_at: null,
     subscription_status: 'active',
-    subscription_id: 'mock-subscription-id',
+    subscription_id: null,
     usage_stats: {
-      requests_this_month: 45,
-      audio_minutes_this_month: 12,
-      storage_used_mb: 250,
+      mood_tracking_days: 15,
+      emotional_insights_this_month: 2,
+      journal_entries_this_month: 3,
+      ai_prompts_this_month: 12,
+      streak_days: 5,
       last_reset_date: new Date().toISOString().slice(0, 7)
     },
     created_at: new Date().toISOString(),

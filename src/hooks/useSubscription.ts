@@ -14,7 +14,7 @@ interface UseSubscriptionReturn {
   getDaysRemaining: () => number | null;
   isTrialExpired: () => boolean;
   canAccessFeature: (feature: string) => boolean;
-  getUsagePercentage: (type: 'requests' | 'audio' | 'storage') => number;
+  getUsagePercentage: (type: 'mood_tracking' | 'emotional_insights' | 'journal_entries' | 'ai_prompts') => number;
   updateSubscriptionTier: (tier: string) => Promise<void>;
 }
 
@@ -26,14 +26,16 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
   const createDefaultProfile = (userId: string): UserProfile => {
     return {
       id: userId,
-      tier: 'basic',
-      trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      subscription_status: 'trial',
+      tier: 'free',
+      trial_ends_at: null, // Free tier doesn't have a trial
+      subscription_status: 'active',
       subscription_id: null,
       usage_stats: {
-        requests_this_month: 0,
-        audio_minutes_this_month: 0,
-        storage_used_mb: 0,
+        mood_tracking_days: 0,
+        emotional_insights_this_month: 0,
+        journal_entries_this_month: 0,
+        ai_prompts_this_month: 0,
+        streak_days: 0,
         last_reset_date: null
       },
       created_at: new Date().toISOString(),
@@ -43,107 +45,113 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
 
   const fetchProfile = async () => {
     if (!user) {
-      setProfile(null);
       setIsLoading(false);
-      setError(null);
       return;
     }
 
     try {
-      setIsLoading(true);
-      setError(null);
-
       console.log('📊 Fetching user profile for:', user.id);
 
       // Check if supabase is properly configured
       if (!supabase || typeof supabase.from !== 'function') {
-        console.warn('⚠️ Supabase not configured, using default profile');
-        const defaultProfile = createDefaultProfile(user.id);
-        setProfile(defaultProfile);
+        console.warn('⚠️ Supabase not configured, using mock profile');
+        const mockProfile = createDefaultProfile(user.id);
+        setProfile(mockProfile);
         setIsLoading(false);
         return;
       }
 
-      // Try to fetch profile with timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout')), 5000);
-      });
-
-      const fetchPromise = supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      const { data, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-      if (fetchError) {
-        // Handle specific Supabase errors
-        if (fetchError.message?.includes('Failed to fetch') || fetchError.message?.includes('timeout')) {
-          console.warn('⚠️ Database connection failed, using default profile');
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist, create default
+          console.log('📊 Creating default profile for new user');
           const defaultProfile = createDefaultProfile(user.id);
-          setProfile(defaultProfile);
-          setError('Using offline mode - some features may be limited');
-          setIsLoading(false);
-          return;
-        }
-
-        if (fetchError.message?.includes('JWT') || fetchError.message?.includes('Invalid API key')) {
-          console.warn('⚠️ Authentication failed, using default profile');
-          const defaultProfile = createDefaultProfile(user.id);
-          setProfile(defaultProfile);
-          setError('Authentication issue - using offline mode');
-          setIsLoading(false);
-          return;
-        }
-
-        if (fetchError.code === 'PGRST116') {
-          // Profile doesn't exist, try to create one
-          console.log('📊 Profile not found, creating default profile...');
           
-          try {
-            const { data: newProfile, error: createError } = await supabase
+          const { error: insertError } = await supabase
               .from('user_profiles')
-              .insert([createDefaultProfile(user.id)])
-              .select()
-              .single();
+            .insert(defaultProfile);
 
-            if (createError) {
-              console.warn('⚠️ Error creating profile, using default:', createError);
-              const defaultProfile = createDefaultProfile(user.id);
-              setProfile(defaultProfile);
-              setError('Using offline mode - profile creation failed');
+          if (insertError) {
+            console.error('❌ Error creating profile:', insertError);
+            setError(insertError.message);
             } else {
-              console.log('✅ Profile created successfully:', newProfile);
-              setProfile(newProfile);
-            }
-          } catch (createErr) {
-            console.warn('⚠️ Error in profile creation, using default:', createErr);
-            const defaultProfile = createDefaultProfile(user.id);
             setProfile(defaultProfile);
-            setError('Using offline mode - database unavailable');
           }
         } else {
-          console.warn('⚠️ Database error, using default profile:', fetchError);
-          const defaultProfile = createDefaultProfile(user.id);
-          setProfile(defaultProfile);
-          setError('Using offline mode - database error');
+          console.error('❌ Error fetching profile:', error);
+          setError(error.message);
         }
       } else {
         console.log('✅ Profile fetched successfully:', data);
         setProfile(data);
-        setError(null);
       }
     } catch (err) {
-      console.warn('⚠️ Error in fetchProfile, using default profile:', err);
-      
-      // Always provide a default profile to keep the app functional
-      const defaultProfile = createDefaultProfile(user.id);
-      setProfile(defaultProfile);
-      setError('Using offline mode - connection failed');
+      console.error('❌ Unexpected error in fetchProfile:', err);
+      setError('Failed to fetch user profile');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const clientSideUsageCheck = (actionType: string): UsageCheck => {
+    if (!profile) {
+      return { allowed: false, reason: 'Profile not found' };
+    }
+
+    console.log('📊 Client-side usage check for:', actionType, 'Profile:', profile);
+
+    const tierConfig = TIER_CONFIGS[profile.tier];
+    if (!tierConfig) {
+      return { allowed: false, reason: 'Invalid tier' };
+    }
+
+    const usage = profile.usage_stats;
+
+    // Check specific action limits
+    switch (actionType) {
+      case 'mood_tracking':
+        if (tierConfig.limits.mood_tracking_days_per_month !== -1 && 
+            usage.mood_tracking_days >= tierConfig.limits.mood_tracking_days_per_month) {
+          return { allowed: false, reason: 'Monthly mood tracking limit exceeded' };
+        }
+        break;
+      case 'emotional_insight':
+        if (tierConfig.limits.emotional_insights_per_month !== -1 && 
+            usage.emotional_insights_this_month >= tierConfig.limits.emotional_insights_per_month) {
+          return { allowed: false, reason: 'Monthly emotional insights limit exceeded' };
+        }
+        break;
+      case 'journal_entry':
+        if (tierConfig.limits.journal_entries_per_month !== -1 && 
+            usage.journal_entries_this_month >= tierConfig.limits.journal_entries_per_month) {
+          return { allowed: false, reason: 'Monthly journal entries limit exceeded' };
+        }
+        break;
+      case 'ai_prompt': {
+        if (tierConfig.limits.ai_prompts_per_day !== -1) {
+          // Check daily limit - would need to track daily usage
+          // For now, using monthly as approximation
+          const monthlyLimit = tierConfig.limits.ai_prompts_per_day * 30;
+          if (usage.ai_prompts_this_month >= monthlyLimit) {
+            return { allowed: false, reason: 'Daily AI prompts limit exceeded' };
+          }
+        }
+        break;
+      }
+    }
+
+    return {
+      allowed: true,
+      tier: profile.tier,
+      limits: tierConfig.limits,
+      usage: usage
+    };
   };
 
   const checkUsageLimit = async (actionType: string): Promise<UsageCheck> => {
@@ -170,7 +178,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         action_type: actionType
       });
 
-      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
+      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as { data: UsageCheck; error: any };
 
       if (error) {
         console.warn('⚠️ RPC function failed, using client-side check:', error);
@@ -185,55 +193,32 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     }
   };
 
-  const clientSideUsageCheck = (actionType: string): UsageCheck => {
-    if (!profile) {
-      return { allowed: false, reason: 'Profile not found' };
-    }
+  const clientSideUsageUpdate = async (actionType: string, amount: number = 1): Promise<void> => {
+    if (!profile) return;
 
-    console.log('📊 Client-side usage check for:', actionType, 'Profile:', profile);
+    console.log('📊 Client-side usage update:', actionType, 'amount:', amount);
 
-    // Check if trial has expired for basic users
-    if (profile.tier === 'basic' && profile.subscription_status === 'trial' && profile.trial_ends_at) {
-      const trialEnd = new Date(profile.trial_ends_at);
-      if (trialEnd < new Date()) {
-        return { allowed: false, reason: 'Trial expired' };
-      }
-    }
+    const updatedUsage = { ...profile.usage_stats };
 
-    const tierConfig = TIER_CONFIGS[profile.tier];
-    if (!tierConfig) {
-      return { allowed: false, reason: 'Invalid tier' };
-    }
-
-    const usage = profile.usage_stats;
-
-    // Check specific action limits
     switch (actionType) {
-      case 'request':
-        if (tierConfig.limits.requests_per_month !== -1 && 
-            usage.requests_this_month >= tierConfig.limits.requests_per_month) {
-          return { allowed: false, reason: 'Monthly request limit exceeded' };
-        }
+      case 'mood_tracking':
+        updatedUsage.mood_tracking_days += amount;
         break;
-      case 'audio':
-        if (tierConfig.limits.audio_minutes_per_month !== -1 && 
-            usage.audio_minutes_this_month >= tierConfig.limits.audio_minutes_per_month) {
-          return { allowed: false, reason: 'Monthly audio limit exceeded' };
-        }
+      case 'emotional_insight':
+        updatedUsage.emotional_insights_this_month += amount;
         break;
-      case 'storage':
-        if (usage.storage_used_mb >= tierConfig.limits.storage_limit_mb) {
-          return { allowed: false, reason: 'Storage limit exceeded' };
-        }
+      case 'journal_entry':
+        updatedUsage.journal_entries_this_month += amount;
+        break;
+      case 'ai_prompt':
+        updatedUsage.ai_prompts_this_month += amount;
+        break;
+      case 'streak_update':
+        updatedUsage.streak_days = amount; // Set to new streak value
         break;
     }
 
-    return {
-      allowed: true,
-      tier: profile.tier,
-      limits: tierConfig.limits,
-      usage: usage
-    };
+    setProfile(prev => prev ? { ...prev, usage_stats: updatedUsage } : null);
   };
 
   const updateUsage = async (actionType: string, amount: number = 1): Promise<void> => {
@@ -260,7 +245,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         amount: amount
       });
 
-      const { error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
+      const { error } = await Promise.race([rpcPromise, timeoutPromise]) as { error: any };
 
       if (error) {
         console.warn('⚠️ RPC update failed, using client-side update:', error);
@@ -273,74 +258,6 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     } catch (err) {
       console.warn('⚠️ Error updating usage stats, falling back to client-side:', err);
       await clientSideUsageUpdate(actionType, amount);
-    }
-  };
-
-  const clientSideUsageUpdate = async (actionType: string, amount: number): Promise<void> => {
-    if (!profile) return;
-
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-    let newUsage = { ...profile.usage_stats };
-
-    // Reset monthly stats if it's a new month
-    if (!newUsage.last_reset_date || newUsage.last_reset_date !== currentMonth) {
-      newUsage = {
-        requests_this_month: 0,
-        audio_minutes_this_month: 0,
-        storage_used_mb: newUsage.storage_used_mb || 0, // Keep storage across months
-        last_reset_date: currentMonth
-      };
-    }
-
-    // Update specific usage
-    switch (actionType) {
-      case 'request':
-        newUsage.requests_this_month = (newUsage.requests_this_month || 0) + amount;
-        break;
-      case 'audio':
-        newUsage.audio_minutes_this_month = (newUsage.audio_minutes_this_month || 0) + amount;
-        break;
-      case 'storage':
-        newUsage.storage_used_mb = (newUsage.storage_used_mb || 0) + amount;
-        break;
-    }
-
-    console.log('📊 Client-side usage update:', { actionType, amount, newUsage });
-
-    try {
-      // Check if supabase is properly configured
-      if (!supabase || typeof supabase.from !== 'function') {
-        console.warn('⚠️ Supabase not configured, updating local state only');
-        setProfile(prev => prev ? { ...prev, usage_stats: newUsage } : null);
-        return;
-      }
-
-      // Try to update the profile with timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Update timeout')), 3000);
-      });
-
-      const updatePromise = supabase
-        .from('user_profiles')
-        .update({ 
-          usage_stats: newUsage, 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', user.id);
-
-      const { error } = await Promise.race([updatePromise, timeoutPromise]) as any;
-
-      if (error) {
-        console.warn('⚠️ Error updating profile, using local state:', error);
-        setProfile(prev => prev ? { ...prev, usage_stats: newUsage } : null);
-      } else {
-        console.log('✅ Profile updated successfully');
-        // Update local state
-        setProfile(prev => prev ? { ...prev, usage_stats: newUsage } : null);
-      }
-    } catch (err) {
-      console.warn('⚠️ Error in clientSideUsageUpdate, using local state:', err);
-      setProfile(prev => prev ? { ...prev, usage_stats: newUsage } : null);
     }
   };
 
@@ -369,8 +286,8 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
           tier, 
           subscription_status: 'active',
           updated_at: new Date().toISOString(),
-          // If upgrading from trial, set a subscription ID
-          ...(profile.subscription_status === 'trial' ? { 
+          // If upgrading from free, set a subscription ID
+          ...(profile.tier === 'free' ? { 
             subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
           } : {})
         })
@@ -387,7 +304,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
           tier, 
           subscription_status: 'active',
           updated_at: new Date().toISOString(),
-          ...(prev.subscription_status === 'trial' ? { 
+          ...(prev.tier === 'free' ? { 
             subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
           } : {})
         } : null);
@@ -404,25 +321,13 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
   };
 
   const getDaysRemaining = (): number | null => {
-    if (!profile || profile.tier !== 'basic' || profile.subscription_status !== 'trial' || !profile.trial_ends_at) {
+    // Free tier doesn't have trial days
       return null;
-    }
-
-    const trialEnd = new Date(profile.trial_ends_at);
-    const now = new Date();
-    const diffTime = trialEnd.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    return Math.max(0, diffDays);
   };
 
   const isTrialExpired = (): boolean => {
-    if (!profile || profile.tier !== 'basic' || profile.subscription_status !== 'trial') {
+    // Free tier doesn't have trial
       return false;
-    }
-
-    const daysRemaining = getDaysRemaining();
-    return daysRemaining !== null && daysRemaining <= 0;
   };
 
   const canAccessFeature = (feature: string): boolean => {
@@ -437,15 +342,10 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     const tierConfig = TIER_CONFIGS[profile.tier];
     if (!tierConfig) return false;
 
-    // Check if trial has expired for basic users
-    if (profile.tier === 'basic' && isTrialExpired()) {
-      return false;
-    }
-
     return tierConfig.limits.features.includes(feature);
   };
 
-  const getUsagePercentage = (type: 'requests' | 'audio' | 'storage'): number => {
+  const getUsagePercentage = (type: 'mood_tracking' | 'emotional_insights' | 'journal_entries' | 'ai_prompts'): number => {
     if (!profile) return 0;
 
     const tierConfig = TIER_CONFIGS[profile.tier];
@@ -454,16 +354,25 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     const usage = profile.usage_stats;
     
     switch (type) {
-      case 'requests':
-        if (tierConfig.limits.requests_per_month === -1) return 0; // Unlimited
-        return Math.min(100, (usage.requests_this_month / tierConfig.limits.requests_per_month) * 100);
+      case 'mood_tracking':
+        if (tierConfig.limits.mood_tracking_days_per_month === -1) return 0; // Unlimited
+        return Math.min(100, (usage.mood_tracking_days / tierConfig.limits.mood_tracking_days_per_month) * 100);
       
-      case 'audio':
-        if (tierConfig.limits.audio_minutes_per_month === -1) return 0; // Unlimited
-        return Math.min(100, (usage.audio_minutes_this_month / tierConfig.limits.audio_minutes_per_month) * 100);
+      case 'emotional_insights':
+        if (tierConfig.limits.emotional_insights_per_month === -1) return 0; // Unlimited
+        return Math.min(100, (usage.emotional_insights_this_month / tierConfig.limits.emotional_insights_per_month) * 100);
       
-      case 'storage':
-        return Math.min(100, (usage.storage_used_mb / tierConfig.limits.storage_limit_mb) * 100);
+      case 'journal_entries':
+        if (tierConfig.limits.journal_entries_per_month === -1) return 0; // Unlimited
+        return Math.min(100, (usage.journal_entries_this_month / tierConfig.limits.journal_entries_per_month) * 100);
+      
+      case 'ai_prompts': {
+        if (tierConfig.limits.ai_prompts_per_day === -1) return 0; // Unlimited
+        // Using monthly as approximation for daily limit
+        const dailyLimit = tierConfig.limits.ai_prompts_per_day;
+        const monthlyLimit = dailyLimit * 30;
+        return Math.min(100, (usage.ai_prompts_this_month / monthlyLimit) * 100);
+      }
       
       default:
         return 0;

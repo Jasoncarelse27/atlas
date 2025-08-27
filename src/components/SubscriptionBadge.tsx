@@ -1,19 +1,17 @@
 import React from 'react';
-import { Crown, Clock, Zap, Star } from 'lucide-react';
-import type { UserProfile } from "../types/subscription";
-import { TIER_CONFIGS } from "../types/subscription";
-import Tooltip from '../components/Tooltip';
+import { Zap, Crown, Star } from 'lucide-react';
+import type { UserProfile } from '../types/subscription';
+import { TIER_CONFIGS } from '../types/subscription';
+import Tooltip from './Tooltip';
 
 interface SubscriptionBadgeProps {
   profile: UserProfile;
-  daysRemaining?: number | null;
   className?: string;
   showDetails?: boolean;
 }
 
 const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({ 
   profile, 
-  daysRemaining, 
   className = '',
   showDetails = false 
 }) => {
@@ -21,26 +19,26 @@ const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({
   
   const getBadgeIcon = () => {
     switch (profile.tier) {
-      case 'basic':
-        return <Clock className="w-3 h-3" />;
-      case 'standard':
-        return <Zap className="w-3 h-3" />;
+      case 'free':
+        return <Star className="w-3 h-3" />;
       case 'pro':
+        return <Zap className="w-3 h-3" />;
+      case 'pro_max':
         return <Crown className="w-3 h-3" />;
       default:
         return <Star className="w-3 h-3" />;
     }
   };
 
-  const getTierClasses = (tier: string, isCurrentTier: boolean) => {
+  const getTierClasses = (tier: string) => {
     const baseClasses = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border';
     
     switch (tier) {
-      case 'basic':
+      case 'free':
         return `${baseClasses} bg-gray-100 border-gray-300 text-gray-700`;
-      case 'standard':
-        return `${baseClasses} bg-blue-100 border-blue-300 text-blue-700`;
       case 'pro':
+        return `${baseClasses} bg-blue-100 border-blue-300 text-blue-700`;
+      case 'pro_max':
         return `${baseClasses} bg-gradient-to-r from-purple-100 to-pink-100 border-purple-300 text-purple-700`;
       default:
         return `${baseClasses} bg-gray-100 border-gray-300 text-gray-700`;
@@ -50,12 +48,10 @@ const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({
   const getTooltipContent = () => {
     let content = `${tierConfig.displayName} Plan`;
     
-    if (profile.tier === 'basic' && profile.subscription_status === 'trial' && daysRemaining !== null) {
-      if (daysRemaining > 0) {
-        content += ` • ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`;
-      } else {
-        content += ' • Trial expired';
-      }
+    if (profile.tier === 'free') {
+      content += ' • Always-on access';
+    } else if (profile.subscription_status === 'active') {
+      content += ' • Active subscription';
     }
     
     return content;
@@ -63,26 +59,17 @@ const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({
 
   const getDisplayText = () => {
     if (showDetails) {
-      if (profile.tier === 'basic' && profile.subscription_status === 'trial' && daysRemaining !== null) {
-        if (daysRemaining > 0) {
-          return `${tierConfig.displayName} (${daysRemaining}d left)`;
-        } else {
-          return `${tierConfig.displayName} (Expired)`;
-        }
-      }
+      return tierConfig.displayName;
     }
     
     return tierConfig.displayName;
   };
 
   return (
-    <Tooltip content={getTooltipContent()} position="bottom">
-      <div className={`subscription-badge-container ${getTierClasses(profile.tier, false)} ${className} min-w-[80px] flex-shrink-0`}>
+    <Tooltip content={getTooltipContent()} position="top">
+      <div className={`${getTierClasses(profile.tier)} ${className}`}>
         {getBadgeIcon()}
-        <span className="whitespace-nowrap">{getDisplayText()}</span>
-        {profile.tier === 'basic' && profile.subscription_status === 'trial' && daysRemaining !== null && daysRemaining <= 0 && (
-          <div className="subscription-indicator-dot expired" />
-        )}
+        <span>{getDisplayText()}</span>
       </div>
     </Tooltip>
   );

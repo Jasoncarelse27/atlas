@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Crown, Zap, Star, ArrowRight, CreditCard, Shield, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Check, Crown, Zap, Star, ArrowRight, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
 import type { UserProfile } from '../types/subscription';
 import Tooltip from './Tooltip';
 import LoadingSpinner from './LoadingSpinner';
@@ -22,6 +22,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
   onSoundPlay
 }) => {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const [selectedBilling, setSelectedBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'select-plan' | 'payment-details' | 'confirmation'>('select-plan');
   const [paymentDetails, setPaymentDetails] = useState({
@@ -32,7 +33,6 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
     promoCode: ''
   });
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -85,7 +85,6 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
       
       // Simulate successful payment
       setPaymentStep('confirmation');
-      setSuccess(`Successfully upgraded to ${TIER_CONFIGS[selectedTier!].displayName} plan!`);
       
       // Play success sound
       if (onSoundPlay) {
@@ -134,11 +133,11 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
   const getTierIcon = (tier: string) => {
     switch (tier) {
-      case 'basic':
+      case 'free':
         return <Star className="w-6 h-6" />;
-      case 'standard':
-        return <Zap className="w-6 h-6" />;
       case 'pro':
+        return <Zap className="w-6 h-6" />;
+      case 'pro_max':
         return <Crown className="w-6 h-6" />;
       default:
         return <Star className="w-6 h-6" />;
@@ -157,9 +156,9 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
     }
     
     switch (tier) {
-      case 'standard':
-        return `${baseClasses} border-blue-200 hover:border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-lg transform hover:scale-105`;
       case 'pro':
+        return `${baseClasses} border-blue-200 hover:border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-lg transform hover:scale-105`;
+      case 'pro_max':
         return `${baseClasses} border-purple-200 hover:border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50 hover:shadow-lg transform hover:scale-105`;
       default:
         return `${baseClasses} border-gray-200 hover:border-gray-300 bg-white hover:shadow-lg transform hover:scale-105`;
@@ -176,13 +175,50 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
     }
     
     switch (tier) {
-      case 'standard':
-        return 'w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 transform hover:scale-105';
       case 'pro':
+        return 'w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 transform hover:scale-105';
+      case 'pro_max':
         return 'w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2 transform hover:scale-105';
       default:
         return 'w-full px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 transform hover:scale-105';
     }
+  };
+
+  const getPriceDisplay = (tier: string) => {
+    const tierConfig = TIER_CONFIGS[tier];
+    if (!tierConfig) return '';
+
+    if (tier === 'free') {
+      return tierConfig.price;
+    }
+
+    if (selectedBilling === 'yearly' && tierConfig.yearlyPrice) {
+      return tierConfig.yearlyPrice;
+    }
+
+    return tierConfig.price;
+  };
+
+  const getSavingsText = (tier: string) => {
+    const tierConfig = TIER_CONFIGS[tier];
+    if (!tierConfig || tier === 'free' || !tierConfig.yearlyPrice) return null;
+
+    // Calculate savings
+    const monthlyPrice = tierConfig.price;
+    const yearlyPrice = tierConfig.yearlyPrice;
+    
+    // Extract numbers from strings like "R149/month" and "R999/year"
+    const monthlyNum = parseInt(monthlyPrice.replace(/[^\d]/g, ''));
+    const yearlyNum = parseInt(yearlyPrice.replace(/[^\d]/g, ''));
+    
+    const yearlyTotal = monthlyNum * 12;
+    const savings = yearlyTotal - yearlyNum;
+    
+    if (savings > 0) {
+      return `Save R${savings}/year`;
+    }
+    
+    return null;
   };
 
   const renderPlanSelectionStep = () => (
@@ -190,7 +226,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
       <div className="p-6 border-b border-gray-200 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Choose Your Plan</h2>
-          <p className="text-gray-600 mt-1">Upgrade to unlock more features and higher limits</p>
+          <p className="text-gray-600 mt-1">Upgrade to unlock more emotional wellness features</p>
         </div>
         <Tooltip content="Close" position="left">
           <button
@@ -203,11 +239,41 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
       </div>
 
       <div className="p-6">
+        {/* Billing Toggle */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setSelectedBilling('monthly')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedBilling === 'monthly'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setSelectedBilling('yearly')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedBilling === 'yearly'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Yearly
+              <span className="ml-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                Save
+              </span>
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Object.entries(TIER_CONFIGS).map(([tierKey, tierInfo]) => {
             const isCurrentTier = currentProfile?.tier === tierKey;
             const isPopular = tierInfo.popular;
             const isSelected = selectedTier === tierKey;
+            const savingsText = getSavingsText(tierKey);
             
             return (
               <div 
@@ -245,15 +311,18 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                 {/* Plan Header */}
                 <div className="text-center mb-6">
                   <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-4 ${
-                    tierKey === 'basic' ? 'bg-gray-200 text-gray-600' :
-                    tierKey === 'standard' ? 'bg-blue-200 text-blue-600' :
+                    tierKey === 'free' ? 'bg-gray-200 text-gray-600' :
+                    tierKey === 'pro' ? 'bg-blue-200 text-blue-600' :
                     'bg-purple-200 text-purple-600'
                   }`}>
                     {getTierIcon(tierKey)}
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{tierInfo.displayName}</h3>
                   <p className="text-gray-600 text-sm mb-4">{tierInfo.description}</p>
-                  <div className="text-3xl font-bold text-gray-900">{tierInfo.price}</div>
+                  <div className="text-3xl font-bold text-gray-900">{getPriceDisplay(tierKey)}</div>
+                  {savingsText && (
+                    <div className="text-sm text-green-600 font-medium mt-1">{savingsText}</div>
+                  )}
                 </div>
 
                 {/* Features List */}
@@ -316,7 +385,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
           <div className="text-center space-y-2">
             <h4 className="font-semibold text-gray-900">Need help choosing?</h4>
             <p className="text-gray-600 text-sm">
-              All plans include secure authentication, conversation history, and 24/7 support.
+              All plans include secure authentication, emotional wellness tracking, and 24/7 support.
               You can upgrade or downgrade at any time.
             </p>
             <div className="flex items-center justify-center gap-4 mt-4 text-sm text-gray-600">
@@ -333,29 +402,46 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                 <span>Instant activation</span>
               </div>
             </div>
+            
+            {/* Refund Policy Notice */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <div className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0">
+                  <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">7-Day Money-Back Guarantee</p>
+                  <p className="text-xs">Not satisfied? Get a full refund within 7 days of your first payment. No questions asked.</p>
+                  <button 
+                    onClick={() => {
+                      // TODO: Add state to show refund policy modal
+                      console.log('Show refund policy modal');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 underline text-xs mt-1"
+                  >
+                    View full refund policy
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </>
   );
 
-  const renderPaymentDetailsStep = () => (
+  const renderPaymentStep = () => (
     <>
       <div className="p-6 border-b border-gray-200 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Payment Details</h2>
-          <p className="text-gray-600 mt-1">
-            Upgrading to {selectedTier && TIER_CONFIGS[selectedTier].displayName} plan
-          </p>
+          <p className="text-gray-600 mt-1">Complete your subscription upgrade</p>
         </div>
-        <Tooltip content="Back to plans" position="left">
+        <Tooltip content="Close" position="left">
           <button
-            onClick={() => {
-              if (onSoundPlay) {
-                onSoundPlay('click');
-              }
-              setPaymentStep('select-plan');
-            }}
+            onClick={handleClose}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
@@ -369,8 +455,8 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-start gap-4">
               <div className={`p-3 rounded-full ${
-                selectedTier === 'standard' ? 'bg-blue-200 text-blue-600' :
-                selectedTier === 'pro' ? 'bg-purple-200 text-purple-600' :
+                selectedTier === 'pro' ? 'bg-blue-200 text-blue-600' :
+                selectedTier === 'pro_max' ? 'bg-purple-200 text-purple-600' :
                 'bg-gray-200 text-gray-600'
               }`}>
                 {selectedTier && getTierIcon(selectedTier)}
@@ -385,7 +471,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                 </p>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-bold text-gray-900">
-                    {selectedTier && TIER_CONFIGS[selectedTier].price}
+                    {selectedTier && getPriceDisplay(selectedTier)}
                   </span>
                   <button
                     type="button"
@@ -400,98 +486,91 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                     Change plan
                   </button>
                 </div>
+                {selectedTier && getSavingsText(selectedTier) && (
+                  <div className="text-sm text-green-600 font-medium mt-1">
+                    {getSavingsText(selectedTier)}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Card Details */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Card Information</h3>
-            
             <div>
-              <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Card Number
               </label>
               <input
                 type="text"
-                id="cardNumber"
                 name="cardNumber"
                 value={paymentDetails.cardNumber}
                 onChange={handleInputChange}
                 placeholder="1234 5678 9012 3456"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 maxLength={19}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="cardName" className="block text-sm font-medium text-gray-700 mb-1">
-                Name on Card
-              </label>
-              <input
-                type="text"
-                id="cardName"
-                name="cardName"
-                value={paymentDetails.cardName}
-                onChange={handleInputChange}
-                placeholder="John Smith"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Expiry Date
                 </label>
                 <input
                   type="text"
-                  id="expiry"
                   name="expiry"
                   value={paymentDetails.expiry}
                   onChange={handleInputChange}
                   placeholder="MM/YY"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   maxLength={5}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
                 />
               </div>
               
               <div>
-                <label htmlFor="cvc" className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   CVC
                 </label>
                 <input
                   type="text"
-                  id="cvc"
                   name="cvc"
                   value={paymentDetails.cvc}
                   onChange={handleInputChange}
                   placeholder="123"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   maxLength={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
                 />
               </div>
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cardholder Name
+              </label>
+              <input
+                type="text"
+                name="cardName"
+                value={paymentDetails.cardName}
+                onChange={handleInputChange}
+                placeholder="John Doe"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
           </div>
 
-          {/* Promo Code */}
           <div>
-            <label htmlFor="promoCode" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
               Promo Code (Optional)
             </label>
             <input
               type="text"
-              id="promoCode"
               name="promoCode"
               value={paymentDetails.promoCode}
               onChange={handleInputChange}
               placeholder="Enter promo code"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            </div>
           </div>
 
           {/* Error Message */}
@@ -504,52 +583,40 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
             </div>
           )}
 
-          {/* Security Notice */}
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h4 className="text-sm font-medium text-gray-900">Secure Payment</h4>
-                <p className="text-xs text-gray-600 mt-1">
-                  Your payment information is encrypted and secure. We never store your full card details.
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Submit Button */}
-          <div className="flex justify-end">
             <button
               type="submit"
               disabled={isProcessing}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-70 flex items-center gap-2"
+            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isProcessing ? (
                 <>
-                  <LoadingSpinner size="sm" color="white" />
-                  <span>Processing...</span>
+                <LoadingSpinner size="sm" />
+                Processing Payment...
                 </>
               ) : (
                 <>
                   <CreditCard className="w-5 h-5" />
-                  <span>Complete Payment</span>
+                Complete Payment
                 </>
               )}
             </button>
-          </div>
         </form>
       </div>
     </>
   );
 
-  const renderConfirmationStep = () => (
+  const renderConfirmationStep = () => {
+    const tierConfig = selectedTier ? TIER_CONFIGS[selectedTier] : null;
+    const nextBillingDate = new Date();
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+    return (
     <>
       <div className="p-6 border-b border-gray-200 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Upgrade Complete</h2>
-          <p className="text-gray-600 mt-1">
-            Thank you for upgrading to {selectedTier && TIER_CONFIGS[selectedTier].displayName}
-          </p>
+            <h2 className="text-2xl font-bold text-gray-900">Payment Successful!</h2>
+            <p className="text-gray-600 mt-1">Welcome to your new plan</p>
         </div>
         <Tooltip content="Close" position="left">
           <button
@@ -562,48 +629,87 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
       </div>
 
       <div className="p-6">
-        <div className="text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full">
-            <CheckCircle className="w-10 h-10 text-green-600" />
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-2xl font-bold text-gray-900">
-              Welcome to {selectedTier && TIER_CONFIGS[selectedTier].displayName}!
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Welcome to {tierConfig?.displayName}!
             </h3>
             <p className="text-gray-600">
-              Your account has been successfully upgraded. You now have access to all {selectedTier && TIER_CONFIGS[selectedTier].displayName} features.
+              Your subscription has been activated successfully. You now have access to all {tierConfig?.displayName} features.
             </p>
           </div>
           
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left">
-            <h4 className="font-medium text-blue-900 mb-2">What's included in your plan:</h4>
-            <ul className="space-y-2 text-blue-800">
-              {selectedTier && TIER_CONFIGS[selectedTier].features.map((feature, index) => (
-                <li key={index} className="flex items-start gap-2">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span>{feature}</span>
-                </li>
+          {/* Subscription Details */}
+          <div className="bg-gray-50 rounded-lg p-6 mb-6">
+            <h4 className="font-semibold text-gray-900 mb-4">Subscription Details</h4>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                <span className="text-gray-600">Plan</span>
+                <span className="font-medium text-gray-900">{tierConfig?.displayName}</span>
+              </div>
+              
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                <span className="text-gray-600">Price</span>
+                <span className="font-medium text-gray-900">{getPriceDisplay(selectedTier!)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                <span className="text-gray-600">Billing Cycle</span>
+                <span className="font-medium text-gray-900">{selectedBilling === 'yearly' ? 'Yearly' : 'Monthly'}</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Next Billing Date</span>
+                <span className="font-medium text-gray-900">{nextBillingDate.toLocaleDateString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Features List */}
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-4">What's Included</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {tierConfig?.features.map((feature, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">{feature}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
           
+          {/* Action Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleClose}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
           >
-            Start Using {selectedTier && TIER_CONFIGS[selectedTier].displayName} Features
+              Start Using Atlas
+            </button>
+            
+            <button
+              onClick={() => {
+                // Handle account settings or billing portal
+                handleClose();
+              }}
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              Manage Subscription
           </button>
         </div>
       </div>
     </>
   );
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-gray-300 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {paymentStep === 'select-plan' && renderPlanSelectionStep()}
-        {paymentStep === 'payment-details' && renderPaymentDetailsStep()}
+        {paymentStep === 'payment-details' && renderPaymentStep()}
         {paymentStep === 'confirmation' && renderConfirmationStep()}
       </div>
     </div>
