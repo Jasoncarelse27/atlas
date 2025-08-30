@@ -1,0 +1,13 @@
+{
+  "watch": ["backend"],
+  "ext": "mjs,js,json",
+  "execMap": { "mjs": "node" },
+  "ignore": ["dist", "out", "renderer", "assets", "node_modules", "public", "src"],
+  "signal": "SIGTERM",
+  "delay": "200ms",
+  "legacyWatch": true,
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
+
