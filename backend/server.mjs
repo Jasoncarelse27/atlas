@@ -41,6 +41,16 @@ app.get('/healthz', (req, res) => {
   });
 });
 
+// Test ping endpoint
+app.get('/ping', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Atlas backend is alive!',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // API routes
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -74,6 +84,7 @@ app.get('*', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
       health: '/healthz',
+      ping: '/ping',
       api_health: '/api/health',
       api_status: '/api/status'
     }
@@ -94,5 +105,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Atlas Backend Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/healthz`);
+  console.log(`🏓 Ping test: http://localhost:${PORT}/ping`);
   console.log(`🌐 API status: http://localhost:${PORT}/api/status`);
 });
