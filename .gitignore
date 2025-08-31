@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 node_modules/
 .env
+
+# Environment files with secrets
+.env.backup*
+.env.local
+.env.production
