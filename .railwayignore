@@ -1,3 +1,7 @@
+# Mobile app (causing build issues)
+atlas-mobile/
+atlas-mobile/**/*
+
 # Frontend files (not needed for backend)
 src/
 public/
@@ -11,7 +15,6 @@ postcss.config.cjs
 .github/
 .vercel/
 .expo/
-atlas-mobile/
 deploy/
 
 # Build artifacts
@@ -47,3 +50,7 @@ Thumbs.db
 # Git
 .git/
 .gitignore
+
+# Other backend files that might conflict
+server.cjs
+server.py
