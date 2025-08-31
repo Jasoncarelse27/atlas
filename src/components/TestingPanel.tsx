@@ -40,7 +40,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     'usage-limits',
     'feature-access',
     'trial-expiry',
-    'usage-updates'
+    'usage-updates',
+    'railway-backend'
   ]);
 
   const {
@@ -547,6 +548,117 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     }
   };
 
+  const testRailwayBackend = async () => {
+    const testName = 'railway-backend';
+    console.log('🧪 Running test:', testName);
+    setCurrentTest(testName);
+    
+    addTestResult({
+      test: testName,
+      status: 'running',
+      message: 'Testing Railway backend /ping endpoint...'
+    });
+
+    try {
+      console.log('🧪 Testing Railway backend connection...');
+      
+      const railwayUrl = 'https://atlas-production-14090287.up.railway.app';
+      const pingUrl = `${railwayUrl}/ping`;
+      
+      console.log('🧪 Railway ping URL:', pingUrl);
+      
+      const response = await fetch(pingUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'Atlas-TestingPanel/1.0'
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+
+      console.log('🧪 Railway response status:', response.status, response.statusText);
+      console.log('🧪 Railway response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('🧪 Railway ping response:', data);
+
+      // Validate response structure
+      const isValidResponse = data && 
+        typeof data.status === 'string' && 
+        typeof data.message === 'string' && 
+        typeof data.timestamp === 'string' && 
+        typeof data.uptime === 'number';
+
+      if (!isValidResponse) {
+        updateTestResult(testName, {
+          status: 'fail',
+          message: 'Railway backend returned invalid response format',
+          details: { 
+            response: data, 
+            expectedFields: ['status', 'message', 'timestamp', 'uptime'],
+            actualFields: Object.keys(data)
+          }
+        });
+        return;
+      }
+
+      // Check if response matches expected format
+      if (data.status !== 'ok' || data.message !== 'Atlas backend is alive!') {
+        updateTestResult(testName, {
+          status: 'warning',
+          message: `Railway backend responded but with unexpected content - Status: ${data.status}, Message: ${data.message}`,
+          details: { 
+            response: data,
+            expected: { status: 'ok', message: 'Atlas backend is alive!' }
+          }
+        });
+        return;
+      }
+
+      updateTestResult(testName, {
+        status: 'pass',
+        message: `Railway backend is alive! ✓ - Uptime: ${data.uptime.toFixed(2)}s, Response time: ${new Date(data.timestamp).toLocaleString()}`,
+        details: { 
+          response: data,
+          backendUrl: railwayUrl,
+          uptimeSeconds: data.uptime,
+          responseTimestamp: data.timestamp
+        }
+      });
+
+    } catch (error) {
+      console.error('🧪 Railway backend test failed:', error);
+      
+      let errorMessage = 'Unknown error occurred';
+      let errorDetails = { error };
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timeout (10 seconds) - Railway backend may be down or slow';
+        } else if (error instanceof TypeError && error.message.includes('fetch')) {
+          errorMessage = 'Network error - Unable to reach Railway backend';
+          errorDetails = { 
+            error, 
+            suggestion: 'Check if Railway service is deployed and URL is correct' 
+          };
+        }
+      }
+      
+      updateTestResult(testName, {
+        status: 'fail',
+        message: `Railway backend test failed: ${errorMessage}`,
+        details: errorDetails
+      });
+    }
+  };
+
   const runAllTests = async () => {
     console.log('🧪 --- Starting all tests ---');
     console.log('🧪 Selected tests:', selectedTests);
@@ -563,7 +675,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       'usage-limits': testUsageLimits,
       'feature-access': testFeatureAccess,
       'trial-expiry': testTrialExpiry,
-      'usage-updates': testUsageUpdates
+      'usage-updates': testUsageUpdates,
+      'railway-backend': testRailwayBackend
     };
 
     try {

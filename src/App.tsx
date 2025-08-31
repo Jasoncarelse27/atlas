@@ -207,6 +207,32 @@ function App() {
             handleAuthError(result.error);
           }
         }
+
+        // Test Railway backend connection
+        try {
+          console.log('🚀 Testing Railway backend connection...');
+          const railwayUrl = 'https://atlas-production-14090287.up.railway.app';
+          const response = await fetch(`${railwayUrl}/ping`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'Atlas-App/1.0'
+            },
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Railway backend is alive:', data);
+            console.log(`📊 Backend uptime: ${data.uptime?.toFixed(2)}s`);
+          } else {
+            console.warn('⚠️ Railway backend responded with error:', response.status, response.statusText);
+          }
+        } catch (railwayError) {
+          console.warn('⚠️ Railway backend test failed:', railwayError);
+          console.log('💡 Railway backend may be down or not deployed yet');
+        }
       } catch (error) {
         console.error('❌ Connection test error:', error); 
         setConnectionStatus('offline');
