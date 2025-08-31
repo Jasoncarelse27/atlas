@@ -1,70 +1,56 @@
-# React + TypeScript + Vite
+# Atlas Backend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Node.js backend server for the Atlas AI application, optimized for Railway deployment.
 
-Currently, two official plugins are available:
+## 🚀 Railway Deployment
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This backend is configured for easy deployment on Railway:
 
-## Expanding the ESLint configuration
+### Quick Deploy
+1. Connect your GitHub repository to Railway
+2. Railway will automatically detect the Node.js backend
+3. Set environment variables in Railway dashboard
+4. Deploy!
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Environment Variables
+Set these in your Railway project:
+- `PORT` - Railway sets this automatically
+- `NODE_ENV` - Set to `production`
+- `ALLOWED_ORIGINS` - Comma-separated list of allowed origins
+- `SUPABASE_URL` - Your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Health Check
+The backend includes a health check endpoint at `/healthz` that Railway uses to verify the deployment.
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+## 🛠 Local Development
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Start production server
+npm start
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 📡 API Endpoints
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `GET /healthz` - Health check endpoint
+- `GET /api/health` - API health status
+- `GET /api/status` - Detailed server status
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-# Test comment for workflow
+## 🔧 Configuration
+
+The server automatically:
+- Uses Railway's `PORT` environment variable
+- Enables CORS for production origins
+- Includes security headers with Helmet
+- Compresses responses
+- Logs requests with Morgan
+
+## 📦 Build Process
+
+No build step required - this is a pure Node.js backend that runs directly.
