@@ -41,7 +41,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     'feature-access',
     'trial-expiry',
     'usage-updates',
-    'railway-backend'
+    'railway-backend',
+    'backend-health-suite'
   ]);
 
   const {
@@ -556,105 +557,341 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     addTestResult({
       test: testName,
       status: 'running',
-      message: 'Testing Railway backend /ping endpoint...'
+      message: 'Testing Railway backend /ping endpoint with retries...'
     });
 
     try {
       console.log('🧪 Testing Railway backend connection...');
       
       const railwayUrl = 'https://atlas-production-14090287.up.railway.app';
-      const pingUrl = `${railwayUrl}/ping`;
+      const endpoint = { path: '/ping', name: 'Railway Ping', expectedStatus: 'ok' };
       
-      console.log('🧪 Railway ping URL:', pingUrl);
-      
-      const response = await fetch(pingUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'Atlas-TestingPanel/1.0'
-        },
-        signal: AbortSignal.timeout(10000) // 10 second timeout
-      });
+      // Use the same test function as the health suite for consistency
+      const testEndpoint = async (baseUrl: string, endpoint: any, timeout: number = 8000, retries: number = 3) => {
+        const testUrl = `${baseUrl}${endpoint.path}`;
+        let lastError = '';
+        
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            console.log(`🧪 Testing ${endpoint.name} - Attempt ${attempt}/${retries}`);
+            console.log(`📍 URL: ${testUrl}`);
+            
+            const response = await fetch(testUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'User-Agent': 'Atlas-TestingPanel/1.0'
+              },
+              signal: AbortSignal.timeout(timeout)
+            });
 
-      console.log('🧪 Railway response status:', response.status, response.statusText);
-      console.log('🧪 Railway response headers:', Object.fromEntries(response.headers.entries()));
+            console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
+            console.log(`📋 Response Headers:`, Object.fromEntries(response.headers.entries()));
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
 
-      const data = await response.json();
-      console.log('🧪 Railway ping response:', data);
+            const data = await response.json();
+            console.log(`✅ Response:`, data);
 
-      // Validate response structure
-      const isValidResponse = data && 
-        typeof data.status === 'string' && 
-        typeof data.message === 'string' && 
-        typeof data.timestamp === 'string' && 
-        typeof data.uptime === 'number';
+            // Validate response structure
+            const isValidResponse = data && 
+              typeof data.status === 'string' && 
+              typeof data.message === 'string' && 
+              typeof data.timestamp === 'string' && 
+              typeof data.uptime === 'number';
 
-      if (!isValidResponse) {
-        updateTestResult(testName, {
-          status: 'fail',
-          message: 'Railway backend returned invalid response format',
-          details: { 
-            response: data, 
-            expectedFields: ['status', 'message', 'timestamp', 'uptime'],
-            actualFields: Object.keys(data)
+            if (!isValidResponse) {
+              throw new Error('Invalid response format - missing required fields');
+            }
+
+            return {
+              success: true,
+              data,
+              responseTime: Date.now(),
+              attempt
+            };
+
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            lastError = errorMessage;
+            
+            console.error(`❌ Attempt ${attempt} failed:`, error);
+            
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.error(`⏰ Timeout after ${timeout}ms`);
+            } else if (error instanceof TypeError && error.message.includes('fetch')) {
+              console.error(`🌐 Network error`);
+            }
+
+            if (attempt < retries) {
+              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
+              console.log(`⏳ Waiting ${delay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
           }
-        });
-        return;
-      }
+        }
 
-      // Check if response matches expected format
-      if (data.status !== 'ok' || data.message !== 'Atlas backend is alive!') {
+        return {
+          success: false,
+          error: lastError,
+          attempt: retries
+        };
+      };
+
+      const result = await testEndpoint(railwayUrl, endpoint, 8000, 3);
+
+      if (result.success && result.data) {
+        const data = result.data;
+        
+        // Check if response matches expected format
+        if (data.status !== 'ok' || data.message !== 'Atlas backend is alive!') {
+          updateTestResult(testName, {
+            status: 'warning',
+            message: `Railway backend responded but with unexpected content - Status: ${data.status}, Message: ${data.message}`,
+            details: { 
+              response: data,
+              expected: { status: 'ok', message: 'Atlas backend is alive!' },
+              attempts: result.attempt
+            }
+          });
+          return;
+        }
+
         updateTestResult(testName, {
-          status: 'warning',
-          message: `Railway backend responded but with unexpected content - Status: ${data.status}, Message: ${data.message}`,
+          status: 'pass',
+          message: `Railway backend is alive! ✓ - Uptime: ${data.uptime.toFixed(2)}s, Attempts: ${result.attempt}`,
           details: { 
             response: data,
-            expected: { status: 'ok', message: 'Atlas backend is alive!' }
+            backendUrl: railwayUrl,
+            uptimeSeconds: data.uptime,
+            responseTimestamp: data.timestamp,
+            attempts: result.attempt
           }
         });
-        return;
+
+      } else {
+        let errorMessage = result.error || 'Unknown error occurred';
+        let errorDetails = { error: result.error, attempts: result.attempt };
+        
+        if (result.error?.includes('timeout')) {
+          errorMessage = 'Request timeout - Railway backend may be down or slow';
+        } else if (result.error?.includes('fetch')) {
+          errorMessage = 'Network error - Unable to reach Railway backend';
+          errorDetails = { 
+            error: result.error, 
+            attempts: result.attempt,
+            suggestion: 'Check if Railway service is deployed and URL is correct' 
+          };
+        }
+        
+        updateTestResult(testName, {
+          status: 'fail',
+          message: `Railway backend test failed: ${errorMessage}`,
+          details: errorDetails
+        });
+      }
+
+    } catch (error) {
+      console.error('🧪 Railway backend test failed:', error);
+      updateTestResult(testName, {
+        status: 'fail',
+        message: `Railway backend test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: { error }
+      });
+    }
+  };
+
+  const testBackendHealthSuite = async () => {
+    const testName = 'backend-health-suite';
+    console.log('🧪 Running test:', testName);
+    setCurrentTest(testName);
+    
+    addTestResult({
+      test: testName,
+      status: 'running',
+      message: 'Testing all backend health endpoints with retries and timeouts...'
+    });
+
+    const railwayUrl = 'https://atlas-production-14090287.up.railway.app';
+    const localUrl = 'http://localhost:8000';
+    const endpoints = [
+      { path: '/ping', name: 'Ping Endpoint', expectedStatus: 'ok' },
+      { path: '/healthz', name: 'Health Check', expectedStatus: 'healthy' },
+      { path: '/api/health', name: 'API Health', expectedStatus: 'healthy' }
+    ];
+
+    const testEndpoint = async (baseUrl: string, endpoint: typeof endpoints[0], timeout: number = 5000, retries: number = 3) => {
+      const testUrl = `${baseUrl}${endpoint.path}`;
+      let lastError = '';
+      
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          console.log(`🧪 Testing ${endpoint.name} (${baseUrl}) - Attempt ${attempt}/${retries}`);
+          console.log(`📍 URL: ${testUrl}`);
+          
+          const response = await fetch(testUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'Atlas-TestingPanel/1.0'
+            },
+            signal: AbortSignal.timeout(timeout)
+          });
+
+          console.log(`📡 ${endpoint.name} Response Status: ${response.status} ${response.statusText}`);
+          console.log(`📋 ${endpoint.name} Response Headers:`, Object.fromEntries(response.headers.entries()));
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          console.log(`✅ ${endpoint.name} Response:`, data);
+
+          // Validate response structure
+          const isValidResponse = data && typeof data === 'object';
+          if (!isValidResponse) {
+            throw new Error('Invalid JSON response');
+          }
+
+          // Check for expected status field
+          const hasExpectedStatus = data.status === endpoint.expectedStatus || data.backend === 'ok';
+          if (!hasExpectedStatus) {
+            console.warn(`⚠️ ${endpoint.name} returned unexpected status: ${data.status || data.backend}`);
+          }
+
+          return {
+            success: true,
+            data,
+            responseTime: Date.now(),
+            attempt
+          };
+
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          lastError = errorMessage;
+          
+          console.error(`❌ ${endpoint.name} attempt ${attempt} failed:`, error);
+          
+          if (error instanceof Error && error.name === 'AbortError') {
+            console.error(`⏰ ${endpoint.name} timeout after ${timeout}ms`);
+          } else if (error instanceof TypeError && error.message.includes('fetch')) {
+            console.error(`🌐 ${endpoint.name} network error`);
+          }
+
+          if (attempt < retries) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
+            console.log(`⏳ Waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+
+      return {
+        success: false,
+        error: lastError,
+        attempt: retries
+      };
+    };
+
+    try {
+      const results = {
+        railway: {} as Record<string, any>,
+        local: {} as Record<string, any>,
+        summary: {
+          totalEndpoints: endpoints.length * 2, // railway + local
+          successfulTests: 0,
+          failedTests: 0,
+          totalResponseTime: 0
+        }
+      };
+
+      // Test Railway endpoints
+      console.log('🧪 --- Testing Railway Backend ---');
+      updateTestResult(testName, {
+        status: 'running',
+        message: 'Testing Railway backend endpoints...',
+        details: { step: 'railway_testing' }
+      });
+
+      for (const endpoint of endpoints) {
+        const result = await testEndpoint(railwayUrl, endpoint, 8000, 2);
+        results.railway[endpoint.path] = result;
+        
+        if (result.success) {
+          results.summary.successfulTests++;
+          results.summary.totalResponseTime += result.responseTime || 0;
+        } else {
+          results.summary.failedTests++;
+        }
+      }
+
+      // Test Local endpoints
+      console.log('🧪 --- Testing Local Backend ---');
+      updateTestResult(testName, {
+        status: 'running',
+        message: 'Testing local backend endpoints...',
+        details: { step: 'local_testing', railwayResults: results.railway }
+      });
+
+      for (const endpoint of endpoints) {
+        const result = await testEndpoint(localUrl, endpoint, 3000, 2);
+        results.local[endpoint.path] = result;
+        
+        if (result.success) {
+          results.summary.successfulTests++;
+          results.summary.totalResponseTime += result.responseTime || 0;
+        } else {
+          results.summary.failedTests++;
+        }
+      }
+
+      // Generate summary
+      const successRate = (results.summary.successfulTests / results.summary.totalEndpoints) * 100;
+      const avgResponseTime = results.summary.totalResponseTime / results.summary.successfulTests;
+
+      console.log('🧪 --- Backend Health Suite Results ---');
+      console.log('📊 Summary:', results.summary);
+      console.log('🚀 Railway Results:', results.railway);
+      console.log('🏠 Local Results:', results.local);
+
+      let status: 'pass' | 'fail' | 'warning' = 'pass';
+      let message = '';
+
+      if (successRate === 100) {
+        status = 'pass';
+        message = `All backend endpoints healthy! ✓ - Success rate: ${successRate.toFixed(1)}%, Avg response: ${avgResponseTime.toFixed(0)}ms`;
+      } else if (successRate >= 70) {
+        status = 'warning';
+        message = `Most backend endpoints working - Success rate: ${successRate.toFixed(1)}% (${results.summary.successfulTests}/${results.summary.totalEndpoints})`;
+      } else {
+        status = 'fail';
+        message = `Multiple backend endpoints failing - Success rate: ${successRate.toFixed(1)}% (${results.summary.successfulTests}/${results.summary.totalEndpoints})`;
       }
 
       updateTestResult(testName, {
-        status: 'pass',
-        message: `Railway backend is alive! ✓ - Uptime: ${data.uptime.toFixed(2)}s, Response time: ${new Date(data.timestamp).toLocaleString()}`,
-        details: { 
-          response: data,
-          backendUrl: railwayUrl,
-          uptimeSeconds: data.uptime,
-          responseTimestamp: data.timestamp
+        status,
+        message,
+        details: {
+          summary: results.summary,
+          railway: results.railway,
+          local: results.local,
+          successRate,
+          avgResponseTime: avgResponseTime || 0,
+          endpoints: endpoints.map(e => e.path)
         }
       });
 
     } catch (error) {
-      console.error('🧪 Railway backend test failed:', error);
-      
-      let errorMessage = 'Unknown error occurred';
-      let errorDetails = { error };
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        
-        if (error.name === 'AbortError') {
-          errorMessage = 'Request timeout (10 seconds) - Railway backend may be down or slow';
-        } else if (error instanceof TypeError && error.message.includes('fetch')) {
-          errorMessage = 'Network error - Unable to reach Railway backend';
-          errorDetails = { 
-            error, 
-            suggestion: 'Check if Railway service is deployed and URL is correct' 
-          };
-        }
-      }
-      
+      console.error('🧪 Backend health suite test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
-        message: `Railway backend test failed: ${errorMessage}`,
-        details: errorDetails
+        message: `Backend health suite failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: { error }
       });
     }
   };
@@ -676,7 +913,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       'feature-access': testFeatureAccess,
       'trial-expiry': testTrialExpiry,
       'usage-updates': testUsageUpdates,
-      'railway-backend': testRailwayBackend
+      'railway-backend': testRailwayBackend,
+      'backend-health-suite': testBackendHealthSuite
     };
 
     try {

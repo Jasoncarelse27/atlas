@@ -9,12 +9,20 @@ interface PingResponse {
 
 interface RailwayPingTestProps {
   railwayUrl?: string;
+  endpoint?: string;
+  timeout?: number;
+  retries?: number;
   onTestComplete?: (success: boolean, data?: PingResponse, error?: string) => void;
+  autoTest?: boolean;
 }
 
 const RailwayPingTest: React.FC<RailwayPingTestProps> = ({ 
   railwayUrl = 'https://atlas-production-14090287.up.railway.app',
-  onTestComplete 
+  endpoint = '/ping',
+  timeout = 10000,
+  retries = 3,
+  onTestComplete,
+  autoTest = true
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -22,26 +30,25 @@ const RailwayPingTest: React.FC<RailwayPingTestProps> = ({
     data?: PingResponse;
     error?: string;
     timestamp: string;
+    attempts: number;
   } | null>(null);
 
-  const testRailwayPing = async () => {
-    setIsLoading(true);
-    const testTimestamp = new Date().toISOString();
+  const testEndpoint = async (attempt: number = 1): Promise<{ success: boolean; data?: PingResponse; error?: string }> => {
+    const testUrl = `${railwayUrl}${endpoint}`;
     
     try {
-      console.log('🚀 Testing Railway backend /ping endpoint...');
-      console.log(`📍 URL: ${railwayUrl}/ping`);
+      console.log(`🏓 Testing backend endpoint (attempt ${attempt}/${retries})...`);
+      console.log(`📍 URL: ${testUrl}`);
       console.log('⏳ Sending fetch request...');
 
-      const response = await fetch(`${railwayUrl}/ping`, {
+      const response = await fetch(testUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'User-Agent': 'Atlas-Frontend-Test/1.0'
         },
-        // Add timeout
-        signal: AbortSignal.timeout(10000) // 10 second timeout
+        signal: AbortSignal.timeout(timeout)
       });
 
       console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
@@ -53,52 +60,82 @@ const RailwayPingTest: React.FC<RailwayPingTestProps> = ({
 
       const data: PingResponse = await response.json();
       
-      console.log('✅ Railway Ping Response:');
+      console.log('✅ Backend Response:');
       console.log(JSON.stringify(data, null, 2));
 
-      const result = {
-        success: true,
-        data,
-        timestamp: testTimestamp
-      };
-
-      setTestResult(result);
-      onTestComplete?.(true, data);
-      
-      console.log('🎉 SUCCESS: Railway backend /ping endpoint is working!');
-      console.log(`📊 Backend uptime: ${data.uptime.toFixed(2)} seconds`);
-      console.log(`🕐 Response timestamp: ${data.timestamp}`);
+      return { success: true, data };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
-      console.error('❌ FAILED: Railway backend ping test failed');
-      console.error('Error details:', error);
+      console.error(`❌ Attempt ${attempt} failed:`, error);
       
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error('⏰ Timeout: Request took longer than 10 seconds');
+        console.error('⏰ Timeout: Request took longer than expected');
       } else if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('🌐 Network Error: Unable to reach Railway backend');
-        console.error('💡 Check if the Railway URL is correct and the service is deployed');
+        console.error('🌐 Network Error: Unable to reach backend');
       }
 
-      const result = {
-        success: false,
-        error: errorMessage,
-        timestamp: testTimestamp
-      };
-
-      setTestResult(result);
-      onTestComplete?.(false, undefined, errorMessage);
-    } finally {
-      setIsLoading(false);
+      return { success: false, error: errorMessage };
     }
   };
 
+  const testWithRetries = async () => {
+    setIsLoading(true);
+    const testTimestamp = new Date().toISOString();
+    let lastError = '';
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      const result = await testEndpoint(attempt);
+      
+      if (result.success && result.data) {
+        const finalResult = {
+          success: true,
+          data: result.data,
+          timestamp: testTimestamp,
+          attempts: attempt
+        };
+
+        setTestResult(finalResult);
+        onTestComplete?.(true, result.data);
+        
+        console.log('🎉 SUCCESS: Backend endpoint is working!');
+        console.log(`📊 Backend uptime: ${result.data.uptime.toFixed(2)} seconds`);
+        console.log(`🕐 Response timestamp: ${result.data.timestamp}`);
+        console.log(`🔄 Attempts needed: ${attempt}`);
+        
+        return;
+      } else {
+        lastError = result.error || 'Unknown error';
+        console.log(`⚠️ Attempt ${attempt} failed, ${attempt < retries ? 'retrying...' : 'giving up'}`);
+        
+        if (attempt < retries) {
+          // Wait before retry (exponential backoff)
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // All attempts failed
+    const finalResult = {
+      success: false,
+      error: lastError,
+      timestamp: testTimestamp,
+      attempts: retries
+    };
+
+    setTestResult(finalResult);
+    onTestComplete?.(false, undefined, lastError);
+    
+    console.log('❌ FAILED: All attempts to reach backend failed');
+  };
+
   useEffect(() => {
-    // Auto-test on component mount
-    testRailwayPing();
-  }, []);
+    if (autoTest) {
+      testWithRetries();
+    }
+  }, [railwayUrl, endpoint, timeout, retries, autoTest]);
 
   return (
     <div className="railway-ping-test" style={{
@@ -111,16 +148,20 @@ const RailwayPingTest: React.FC<RailwayPingTestProps> = ({
       fontSize: '14px'
     }}>
       <h3 style={{ margin: '0 0 12px 0', color: '#333' }}>
-        🚀 Railway Backend Ping Test
+        🚀 Backend Health Test
       </h3>
       
       <div style={{ marginBottom: '12px' }}>
-        <strong>URL:</strong> {railwayUrl}/ping
+        <strong>URL:</strong> {railwayUrl}{endpoint}
+      </div>
+
+      <div style={{ marginBottom: '12px', fontSize: '12px', color: '#666' }}>
+        <strong>Config:</strong> Timeout: {timeout}ms, Retries: {retries}, Auto-test: {autoTest ? 'Yes' : 'No'}
       </div>
 
       {isLoading && (
         <div style={{ color: '#007bff' }}>
-          ⏳ Testing Railway backend...
+          ⏳ Testing backend endpoint...
         </div>
       )}
 
@@ -143,12 +184,14 @@ const RailwayPingTest: React.FC<RailwayPingTestProps> = ({
               <div><strong>Message:</strong> {testResult.data.message}</div>
               <div><strong>Uptime:</strong> {testResult.data.uptime.toFixed(2)}s</div>
               <div><strong>Timestamp:</strong> {new Date(testResult.data.timestamp).toLocaleString()}</div>
+              <div><strong>Attempts:</strong> {testResult.attempts}</div>
             </div>
           )}
           
           {!testResult.success && testResult.error && (
             <div>
               <div><strong>Error:</strong> {testResult.error}</div>
+              <div><strong>Attempts:</strong> {testResult.attempts}</div>
             </div>
           )}
           
@@ -164,7 +207,7 @@ const RailwayPingTest: React.FC<RailwayPingTestProps> = ({
       )}
 
       <button 
-        onClick={testRailwayPing}
+        onClick={testWithRetries}
         disabled={isLoading}
         style={{
           marginTop: '12px',
