@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./public/vite.svg",
     "userInterfaceStyle": "automatic",
+    "entryPoint": "./main.js",
     "splash": {
       "image": "./public/vite.svg",
       "resizeMode": "contain",
