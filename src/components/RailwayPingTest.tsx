@@ -1,227 +1,225 @@
-import React, { useEffect, useState } from 'react';
+import { Activity, AlertCircle, CheckCircle, Wifi, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
 
-interface PingResponse {
-  status: string;
-  message: string;
-  timestamp: string;
-  uptime: number;
+interface PingResult {
+  endpoint: string;
+  status: 'success' | 'error' | 'loading';
+  responseTime?: number;
+  error?: string;
+  data?: any;
 }
 
-interface RailwayPingTestProps {
-  railwayUrl?: string;
-  endpoint?: string;
-  timeout?: number;
-  retries?: number;
-  onTestComplete?: (success: boolean, data?: PingResponse, error?: string) => void;
-  autoTest?: boolean;
-}
+const RailwayPingTest: React.FC = () => {
+  const [pingResults, setPingResults] = useState<PingResult[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [lastRun, setLastRun] = useState<Date | null>(null);
 
-const RailwayPingTest: React.FC<RailwayPingTestProps> = ({ 
-  railwayUrl = 'https://atlas-production-14090287.up.railway.app',
-  endpoint = '/ping',
-  timeout = 10000,
-  retries = 3,
-  onTestComplete,
-  autoTest = true
-}) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    success: boolean;
-    data?: PingResponse;
-    error?: string;
-    timestamp: string;
-    attempts: number;
-  } | null>(null);
+  const endpoints = [
+    { name: 'Health Check', url: '/healthz' },
+    { name: 'Ping Test', url: '/ping' },
+    { name: 'API Health', url: '/api/health' },
+    { name: 'API Status', url: '/api/status' }
+  ];
 
-  const testEndpoint = async (attempt: number = 1): Promise<{ success: boolean; data?: PingResponse; error?: string }> => {
-    const testUrl = `${railwayUrl}${endpoint}`;
+  const pingEndpoint = async (endpoint: { name: string; url: string }): Promise<PingResult> => {
+    const startTime = Date.now();
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
     
     try {
-      console.log(`🏓 Testing backend endpoint (attempt ${attempt}/${retries})...`);
-      console.log(`📍 URL: ${testUrl}`);
-      console.log('⏳ Sending fetch request...');
-
-      const response = await fetch(testUrl, {
+      const response = await fetch(`${backendUrl}${endpoint.url}`, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'User-Agent': 'Atlas-Frontend-Test/1.0'
         },
-        signal: AbortSignal.timeout(timeout)
       });
 
-      console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
-      console.log(`📋 Response Headers:`, Object.fromEntries(response.headers.entries()));
-
+      const responseTime = Date.now() - startTime;
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data: PingResponse = await response.json();
+      const data = await response.json();
       
-      console.log('✅ Backend Response:');
-      console.log(JSON.stringify(data, null, 2));
-
-      return { success: true, data };
-
+      return {
+        endpoint: endpoint.name,
+        status: 'success',
+        responseTime,
+        data
+      };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      
-      console.error(`❌ Attempt ${attempt} failed:`, error);
-      
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.error('⏰ Timeout: Request took longer than expected');
-      } else if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('🌐 Network Error: Unable to reach backend');
-      }
-
-      return { success: false, error: errorMessage };
+      const responseTime = Date.now() - startTime;
+      return {
+        endpoint: endpoint.name,
+        status: 'error',
+        responseTime,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   };
 
-  const testWithRetries = async () => {
-    setIsLoading(true);
-    const testTimestamp = new Date().toISOString();
-    let lastError = '';
-    
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      const result = await testEndpoint(attempt);
-      
-      if (result.success && result.data) {
-        const finalResult = {
-          success: true,
-          data: result.data,
-          timestamp: testTimestamp,
-          attempts: attempt
-        };
+  const runPingTest = async () => {
+    setIsRunning(true);
+    setPingResults([]);
 
-        setTestResult(finalResult);
-        onTestComplete?.(true, result.data);
-        
-        console.log('🎉 SUCCESS: Backend endpoint is working!');
-        console.log(`📊 Backend uptime: ${result.data.uptime.toFixed(2)} seconds`);
-        console.log(`🕐 Response timestamp: ${result.data.timestamp}`);
-        console.log(`🔄 Attempts needed: ${attempt}`);
-        
-        return;
-      } else {
-        lastError = result.error || 'Unknown error';
-        console.log(`⚠️ Attempt ${attempt} failed, ${attempt < retries ? 'retrying...' : 'giving up'}`);
-        
-        if (attempt < retries) {
-          // Wait before retry (exponential backoff)
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
+    const results: PingResult[] = [];
+    
+    for (const endpoint of endpoints) {
+      // Add loading state
+      setPingResults(prev => [...prev, {
+        endpoint: endpoint.name,
+        status: 'loading'
+      }]);
+
+      const result = await pingEndpoint(endpoint);
+      results.push(result);
+      
+      // Update with result
+      setPingResults(prev => prev.map(r => 
+        r.endpoint === endpoint.name ? result : r
+      ));
+      
+      // Small delay between requests
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    // All attempts failed
-    const finalResult = {
-      success: false,
-      error: lastError,
-      timestamp: testTimestamp,
-      attempts: retries
-    };
-
-    setTestResult(finalResult);
-    onTestComplete?.(false, undefined, lastError);
-    
-    console.log('❌ FAILED: All attempts to reach backend failed');
+    setLastRun(new Date());
+    setIsRunning(false);
   };
 
-  useEffect(() => {
-    if (autoTest) {
-      testWithRetries();
+  const getStatusIcon = (status: PingResult['status']) => {
+    switch (status) {
+      case 'success':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'error':
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'loading':
+        return <Activity className="w-5 h-5 text-blue-500 animate-spin" />;
+      default:
+        return <AlertCircle className="w-5 h-5 text-gray-500" />;
     }
-  }, [railwayUrl, endpoint, timeout, retries, autoTest]);
+  };
+
+  const getStatusColor = (status: PingResult['status']) => {
+    switch (status) {
+      case 'success':
+        return 'text-green-600 bg-green-50 border-green-200';
+      case 'error':
+        return 'text-red-600 bg-red-50 border-red-200';
+      case 'loading':
+        return 'text-blue-600 bg-blue-50 border-blue-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
 
   return (
-    <div className="railway-ping-test" style={{
-      padding: '16px',
-      margin: '16px',
-      border: '1px solid #e0e0e0',
-      borderRadius: '8px',
-      backgroundColor: '#f9f9f9',
-      fontFamily: 'monospace',
-      fontSize: '14px'
-    }}>
-      <h3 style={{ margin: '0 0 12px 0', color: '#333' }}>
-        🚀 Backend Health Test
-      </h3>
-      
-      <div style={{ marginBottom: '12px' }}>
-        <strong>URL:</strong> {railwayUrl}{endpoint}
+    <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Wifi className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Backend Connectivity Test</h3>
+            <p className="text-sm text-gray-600">Test Railway backend endpoints</p>
+          </div>
+        </div>
+        
+        <button
+          onClick={runPingTest}
+          disabled={isRunning}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        >
+          {isRunning ? (
+            <>
+              <Activity className="w-4 h-4 animate-spin" />
+              Testing...
+            </>
+          ) : (
+            <>
+              <Wifi className="w-4 h-4" />
+              Run Test
+            </>
+          )}
+        </button>
       </div>
 
-      <div style={{ marginBottom: '12px', fontSize: '12px', color: '#666' }}>
-        <strong>Config:</strong> Timeout: {timeout}ms, Retries: {retries}, Auto-test: {autoTest ? 'Yes' : 'No'}
+      {/* Results */}
+      <div className="space-y-3">
+        {pingResults.map((result, index) => (
+          <div
+            key={index}
+            className={`p-4 rounded-lg border ${getStatusColor(result.status)}`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {getStatusIcon(result.status)}
+                <div>
+                  <h4 className="font-medium">{result.endpoint}</h4>
+                  {result.responseTime !== undefined && (
+                    <p className="text-sm opacity-75">
+                      Response time: {result.responseTime}ms
+                    </p>
+                  )}
+                  {result.error && (
+                    <p className="text-sm opacity-75">
+                      Error: {result.error}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              {result.data && (
+                <div className="text-xs bg-white/50 px-2 py-1 rounded">
+                  <pre className="whitespace-pre-wrap">
+                    {JSON.stringify(result.data, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {isLoading && (
-        <div style={{ color: '#007bff' }}>
-          ⏳ Testing backend endpoint...
+      {/* Summary */}
+      {lastRun && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">
+                Last test: {lastRun.toLocaleTimeString()}
+              </p>
+              <p className="text-sm text-gray-600">
+                Backend URL: {import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}
+              </p>
+            </div>
+            
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-900">
+                {pingResults.filter(r => r.status === 'success').length} / {pingResults.length} endpoints
+              </p>
+              <p className="text-xs text-gray-600">successful</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {testResult && (
-        <div style={{ 
-          marginTop: '12px',
-          padding: '12px',
-          borderRadius: '4px',
-          backgroundColor: testResult.success ? '#d4edda' : '#f8d7da',
-          border: `1px solid ${testResult.success ? '#c3e6cb' : '#f5c6cb'}`,
-          color: testResult.success ? '#155724' : '#721c24'
-        }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-            {testResult.success ? '✅ SUCCESS' : '❌ FAILED'}
-          </div>
-          
-          {testResult.success && testResult.data && (
+      {/* Instructions */}
+      {pingResults.length === 0 && (
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
-              <div><strong>Status:</strong> {testResult.data.status}</div>
-              <div><strong>Message:</strong> {testResult.data.message}</div>
-              <div><strong>Uptime:</strong> {testResult.data.uptime.toFixed(2)}s</div>
-              <div><strong>Timestamp:</strong> {new Date(testResult.data.timestamp).toLocaleString()}</div>
-              <div><strong>Attempts:</strong> {testResult.attempts}</div>
+              <h4 className="font-medium text-blue-900 mb-1">Ready to Test</h4>
+              <p className="text-sm text-blue-800">
+                Click "Run Test" to check connectivity with the Railway backend. 
+                This will test all available endpoints and show response times.
+              </p>
             </div>
-          )}
-          
-          {!testResult.success && testResult.error && (
-            <div>
-              <div><strong>Error:</strong> {testResult.error}</div>
-              <div><strong>Attempts:</strong> {testResult.attempts}</div>
-            </div>
-          )}
-          
-          <div style={{ 
-            marginTop: '8px', 
-            fontSize: '12px', 
-            color: '#666',
-            fontStyle: 'italic'
-          }}>
-            Test completed at: {new Date(testResult.timestamp).toLocaleString()}
           </div>
         </div>
       )}
-
-      <button 
-        onClick={testWithRetries}
-        disabled={isLoading}
-        style={{
-          marginTop: '12px',
-          padding: '8px 16px',
-          backgroundColor: '#007bff',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-          opacity: isLoading ? 0.6 : 1
-        }}
-      >
-        {isLoading ? 'Testing...' : '🔄 Retest'}
-      </button>
     </div>
   );
 };

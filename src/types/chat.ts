@@ -3,10 +3,14 @@ import { v4 as uuidv4 } from 'uuid';
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  content: {
+    type: 'text' | 'image';
+    text?: string;
+    imageUrl?: string;
+  };
   timestamp: string;
-  audioUrl?: string;
-  imageUrl?: string;
+  error?: string;
+  status?: 'sending' | 'sent' | 'failed';
 }
 
 export interface Conversation {
