@@ -485,22 +485,15 @@ app.get('/api/conversations/:conversationId/messages', verifyJWT, async (req, re
   }
 });
 
+// Serve built Vite frontend
+app.use(express.static(path.join(__dirname, '..', 'dist')));
+
 // Serve static files (if any)
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Fallback route - serve a simple status page
+// Fallback route - serve the frontend app
 app.get('*', (req, res) => {
-  res.json({
-    message: 'Atlas Backend Server',
-    status: 'running',
-    timestamp: new Date().toISOString(),
-    endpoints: {
-      health: '/healthz',
-      ping: '/ping',
-      api_health: '/api/health',
-      api_status: '/api/status'
-    }
-  });
+  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
 });
 
 // Graceful shutdown

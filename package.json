@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node backend/server.mjs",
     "dev": "nodemon backend/server.mjs",
-    "build": "echo 'No build step required for Node.js backend'",
+    "build": "vite build",
+    "preview": "vite preview",
     "postinstall": "echo 'Backend dependencies installed successfully'",
     "health": "curl http://localhost:$PORT/healthz || echo 'Health check failed'"
   },
