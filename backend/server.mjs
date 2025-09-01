@@ -44,11 +44,12 @@ const writeSSE = (res, payload) => {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 };
 
-// Stream Anthropic response
+// Stream Anthropic response with pipe for better performance
 async function streamAnthropicResponse({ content, model, res }) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error('Missing Anthropic API key');
   }
+  
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -70,43 +71,22 @@ async function streamAnthropicResponse({ content, model, res }) {
     throw new Error(errText);
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let assistantText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      const dataStr = trimmed.slice(5).trim();
-      if (dataStr === '[DONE]') continue;
-      try {
-        const evt = JSON.parse(dataStr);
-        // Content deltas
-        if (evt.type === 'content_block_delta' && evt.delta && evt.delta.text) {
-          assistantText += evt.delta.text;
-          writeSSE(res, { chunk: evt.delta.text });
-        }
-        // Some events deliver final text
-        if (evt.type === 'message_delta' && evt.delta && evt.delta.stop_reason) {
-          // no-op here; final handled after loop
-        }
-      } catch {}
-    }
-  }
-
-  return assistantText || '(no content)';
+  // Use pipe for more efficient streaming
+  response.body.pipe(res);
+  
+  // Return a promise that resolves when the stream ends
+  return new Promise((resolve, reject) => {
+    response.body.on('end', () => resolve('Stream completed'));
+    response.body.on('error', reject);
+  });
 }
 
-// Stream Groq response (OpenAI-compatible SSE)
+// Stream Groq response with pipe for better performance
 async function streamGroqResponse({ content, res }) {
   if (!GROQ_API_KEY) {
     throw new Error('Missing Groq API key');
   }
+  
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -126,32 +106,14 @@ async function streamGroqResponse({ content, res }) {
     throw new Error(errText);
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let assistantText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      const dataStr = trimmed.slice(5).trim();
-      if (dataStr === '[DONE]') continue;
-      try {
-        const evt = JSON.parse(dataStr);
-        const delta = evt.choices?.[0]?.delta?.content;
-        if (delta) {
-          assistantText += delta;
-          writeSSE(res, { chunk: delta });
-        }
-      } catch {}
-    }
-  }
-
-  return assistantText || '(no content)';
+  // Use pipe for more efficient streaming
+  response.body.pipe(res);
+  
+  // Return a promise that resolves when the stream ends
+  return new Promise((resolve, reject) => {
+    response.body.on('end', () => resolve('Stream completed'));
+    response.body.on('error', reject);
+  });
 }
 
 // JWT verification middleware
