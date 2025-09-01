@@ -1,17 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useState } from 'react';
 import ErrorMessage from '../../../components/ErrorMessage';
-import TypingIndicator from '../../../components/TypingIndicator';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
-import { appendMessage as cacheAppend, loadConversation as cacheLoad, toCachedMessage } from '../../../lib/conversationStore';
-import type { Message } from '../../types/chat';
-import type { Subscription } from '../../types/subscription';
-import messageService from '../services/messageService';
+import useChatLogic from '../hooks/useChatLogic';
+import AssistantResponse from './AssistantResponse';
+import ChatInput from './ChatInput';
 import InsightsDashboard from './InsightsDashboard';
-import MessageRenderer from './MessageRenderer';
+import MessageList from './MessageList';
 import QuickStartSuggestions from './QuickStartSuggestions';
-import SubscriptionGate from './SubscriptionGate';
-import VoiceInput from './VoiceInput';
+import TierGate from './TierGate';
+type Subscription = any;
 
 interface ChatScreenProps {
   userId: string;
@@ -20,175 +17,26 @@ interface ChatScreenProps {
 }
 
 export default function ChatScreen({ userId, subscription, onUpgrade }: ChatScreenProps) {
-  const { user, accessToken, tier } = useSupabaseAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [limitExceeded, setLimitExceeded] = useState<boolean>(false);
-  const [showErrorToast, setShowErrorToast] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(true);
+  const { user, tier } = useSupabaseAuth();
   const [showInsights, setShowInsights] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<'claude' | 'groq' | 'opus'>('claude');
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Hydrate cached conversation on first ID set
-  useEffect(() => {
-    if (currentConversationId) {
-      (async () => {
-        const cached = await cacheLoad(currentConversationId);
-        if (cached && (cached as any).messages?.length) {
-          setMessages((cached as any).messages as Message[]);
-        }
-      })();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentConversationId]);
-
-  // After reconnect/resume, fetch incremental messages since latest cached
-  useEffect(() => {
-    let timer: any;
-    const fetchIncrements = async () => {
-      if (!currentConversationId) return;
-      const cached = await cacheLoad(currentConversationId);
-      const latestTs = cached && (cached as any).messages?.length
-        ? Date.parse((cached as any).messages[(cached as any).messages.length - 1].timestamp)
-        : 0;
-      if (!latestTs) return;
-      try {
-        const newMsgs = await messageService.getConversationMessagesSince(currentConversationId, latestTs);
-        if (newMsgs && newMsgs.length) {
-          // Merge into Dexie and UI
-          for (const m of newMsgs) {
-            await cacheAppend(currentConversationId, {
-              id: m.id,
-              conversation_id: currentConversationId,
-              role: m.role,
-              content: m.content as any,
-              timestamp: m.timestamp,
-              status: 'sent'
-            } as any);
-          }
-          const hydrated = await cacheLoad(currentConversationId);
-          if (hydrated && (hydrated as any).messages) {
-            setMessages((hydrated as any).messages as Message[]);
-          }
-        }
-      } catch (e) {
-        // ignore fetch errors
-      }
-    };
-    // Poll occasionally or you could hook into visibilitychange/network events
-    timer = setInterval(fetchIncrements, 5000);
-    return () => clearInterval(timer);
-  }, [currentConversationId]);
-
-  const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
-    
-    setIsLoading(true);
-    setError(null);
-    setShowSuggestions(false);
-    
-    // Create optimistic user message
-    const userMessage: Message = {
-      id: uuidv4(),
-      role: 'user',
-      content: {
-        type: 'text',
-        text: text.trim()
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-    
-    try {
-      // Streaming path
-      let assistantId = uuidv4();
-      let runningText = '';
-      const tempAssistant: Message = {
-        id: assistantId,
-        role: 'assistant',
-        content: { type: 'text', text: '' },
-        timestamp: new Date().toISOString()
-      };
-
-      setMessages(prev => [...prev, tempAssistant]);
-
-      const response = await messageService.sendMessageStream({
-        message: text.trim(),
-        conversationId: currentConversationId || undefined,
-        model: selectedModel,
-        userTier: (tier as any) || 'free',
-        userId: user?.id || userId
-      }, (chunk) => {
-        runningText += chunk;
-        setMessages(prev => prev.map(m => m.id === assistantId ? ({ ...m, content: { type: 'text', text: runningText } }) : m));
-      });
-      
-      // Update conversation ID if this is a new conversation
-      if (!currentConversationId) {
-        setCurrentConversationId(response.conversationId);
-      }
-      
-      // Replace the assistant temp with stored response
-      setMessages(prev => prev.map(m => m.id === assistantId ? response.response : m));
-      // cache both user and assistant messages
-      const convoId = response.conversationId;
-      cacheAppend(convoId, toCachedMessage(userMessage));
-      cacheAppend(convoId, toCachedMessage(response.response));
-      
-    } catch (err) {
-      // Add error to the optimistic message
-      // remove temp assistant bubble on failure
-      setMessages(prev => prev.filter(m => m.id !== userMessage.id && (!m.content || (m.content as any).text !== '')));
-      const messageError = err instanceof Error ? err.message : 'Failed to send message';
-      setError(messageError);
-      setLimitExceeded(messageError.toLowerCase().includes('daily limit'));
-      setShowErrorToast(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendMessage = () => {
-    sendMessage(inputText);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleVoiceTranscription = (transcription: string) => {
-    setInputText(transcription);
-    sendMessage(transcription);
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    sendMessage(suggestion);
-  };
-
-  const handleRetryMessage = (messageId: string) => {
-    const message = messages.find(m => m.id === messageId);
-    if (message && message.content.type === 'text' && message.content.text) {
-      sendMessage(message.content.text);
-    }
-  };
+  const {
+    messages,
+    currentConversationId,
+    inputText,
+    isLoading,
+    error,
+    limitExceeded,
+    showErrorToast,
+    showSuggestions,
+    selectedModel,
+    setInputText,
+    setShowErrorToast,
+    setSelectedModel,
+    sendMessage,
+    retryMessage,
+    handleSuggestionClick,
+    handleVoiceTranscription
+  } = useChatLogic({ userId: user?.id || userId, userTier: (tier as any) || 'free' });
 
   const mockInsights = {
     totalMessages: messages.length,
@@ -202,12 +50,7 @@ export default function ChatScreen({ userId, subscription, onUpgrade }: ChatScre
   };
 
   return (
-    <SubscriptionGate
-      subscription={subscription}
-      messageCount={messages.length}
-      maxFreeMessages={10}
-      onUpgrade={onUpgrade}
-    >
+    <TierGate subscription={subscription as any} messageCount={messages.length} maxFreeMessages={10} onUpgrade={onUpgrade}>
       <div className="flex flex-col h-full max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -246,7 +89,7 @@ export default function ChatScreen({ userId, subscription, onUpgrade }: ChatScre
                 type={limitExceeded ? 'warning' : 'error'}
                 dismissible
                 onDismiss={() => setShowErrorToast(false)}
-                onRetry={!limitExceeded ? () => { setShowErrorToast(false); handleSendMessage(inputText); } : undefined}
+                onRetry={!limitExceeded ? () => { setShowErrorToast(false); sendMessage(inputText); } : undefined}
                 retryText="Retry"
               />
             </div>
@@ -265,56 +108,20 @@ export default function ChatScreen({ userId, subscription, onUpgrade }: ChatScre
               isVisible={showSuggestions}
             />
           ) : (
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <MessageRenderer
-                  key={message.id}
-                  message={message}
-                  isLastMessage={index === messages.length - 1}
-                  onRetry={() => handleRetryMessage(message.id)}
-                />
-              ))}
-              
-              {isLoading && (
-                <TypingIndicator isVisible message="Atlas is thinking..." />
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
+            <>
+              <MessageList messages={messages} onRetryMessage={retryMessage as any} />
+              <AssistantResponse isLoading={isLoading} />
+            </>
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message..."
-                className="w-full border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-                disabled={isLoading}
-              />
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleSendMessage}
-                disabled={isLoading || !inputText.trim()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? 'Sending...' : 'Send'}
-              </button>
-              
-              <VoiceInput
-                onTranscriptionComplete={handleVoiceTranscription}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-        </div>
+        <ChatInput
+          value={inputText}
+          onChange={setInputText}
+          onSend={() => sendMessage(inputText)}
+          onVoiceTranscription={handleVoiceTranscription}
+          disabled={isLoading}
+        />
 
         {/* Insights Dashboard */}
         <InsightsDashboard
@@ -323,6 +130,6 @@ export default function ChatScreen({ userId, subscription, onUpgrade }: ChatScre
           onClose={() => setShowInsights(false)}
         />
       </div>
-    </SubscriptionGate>
+    </TierGate>
   );
 }
