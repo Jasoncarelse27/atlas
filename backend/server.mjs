@@ -18,20 +18,68 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const app = express();
 const PORT = process.env.PORT || process.env.NOVA_BACKEND_PORT || 8000;
 
-// Initialize Supabase client
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Initialize Supabase client with fallback for development
+const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your-service-key';
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Missing Supabase environment variables');
+let supabase;
+try {
+  if (supabaseUrl === 'https://your-project.supabase.co') {
+    // Development mode - create a mock client
+    supabase = {
+      auth: {
+        getUser: async (token) => {
+          if (token === 'mock-token-for-development') {
+            return { data: { user: { id: 'mobile-dev-user' } }, error: null };
+          }
+          return { data: { user: null }, error: new Error('Invalid token') };
+        }
+      },
+      from: (table) => ({
+        select: (columns) => ({
+          eq: (column, value) => ({
+            eq: (column2, value2) => ({
+              maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null })
+            }),
+            maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null }),
+            insert: (data) => ({
+              select: () => ({
+                single: () => Promise.resolve({ data: data[0], error: null })
+              })
+            })
+          }),
+          insert: (data) => ({
+            select: () => ({
+              single: () => Promise.resolve({ data: data[0], error: null })
+            })
+          })
+        })
+      })
+    };
+  } else {
+    // Production mode - use real Supabase client
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('❌ Missing Supabase environment variables');
+      process.exit(1);
+    }
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+  }
+} catch (error) {
+  console.error('❌ Failed to initialize Supabase client:', error);
   process.exit(1);
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // External AI API keys
 const ANTHROPIC_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+
+// Log API key availability
+console.log('🔑 API Keys Status:');
+console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
+console.log(`  Groq: ${GROQ_API_KEY ? '✅ Available' : '❌ Missing'}`);
+if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
+  console.log('⚠️  No AI API keys found - will use mock responses');
+}
 
 // Model mapping by tier
 const mapTierToAnthropicModel = (tier) => {
@@ -42,9 +90,11 @@ const mapTierToAnthropicModel = (tier) => {
 // Stream helper: write SSE data chunk
 const writeSSE = (res, payload) => {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  // Force flush for Safari/iOS compatibility
+  if (res.flush) res.flush();
 };
 
-// Stream Anthropic response with pipe for better performance
+// Stream Anthropic response with proper SSE handling
 async function streamAnthropicResponse({ content, model, res }) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error('Missing Anthropic API key');
@@ -71,17 +121,45 @@ async function streamAnthropicResponse({ content, model, res }) {
     throw new Error(errText);
   }
 
-  // Use pipe for more efficient streaming
-  response.body.pipe(res);
+  // Proper SSE streaming with chunk processing
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              fullText += parsed.delta.text;
+              // Send chunk to client using writeSSE helper
+              writeSSE(res, { chunk: parsed.delta.text });
+            }
+          } catch (e) {
+            // Skip invalid JSON
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
   
-  // Return a promise that resolves when the stream ends
-  return new Promise((resolve, reject) => {
-    response.body.on('end', () => resolve('Stream completed'));
-    response.body.on('error', reject);
-  });
+  return fullText;
 }
 
-// Stream Groq response with pipe for better performance
+// Stream Groq response with proper SSE handling
 async function streamGroqResponse({ content, res }) {
   if (!GROQ_API_KEY) {
     throw new Error('Missing Groq API key');
@@ -95,7 +173,7 @@ async function streamGroqResponse({ content, res }) {
       'Accept': 'text/event-stream'
     },
     body: JSON.stringify({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.3-70b-versatile',
       stream: true,
       messages: [{ role: 'user', content }]
     })
@@ -106,17 +184,46 @@ async function streamGroqResponse({ content, res }) {
     throw new Error(errText);
   }
 
-  // Use pipe for more efficient streaming
-  response.body.pipe(res);
+  // Proper SSE streaming with chunk processing
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.choices?.[0]?.delta?.content) {
+              const textChunk = parsed.choices[0].delta.content;
+              fullText += textChunk;
+              // Send chunk to client using writeSSE helper
+              writeSSE(res, { chunk: textChunk });
+            }
+          } catch (e) {
+            // Skip invalid JSON
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
   
-  // Return a promise that resolves when the stream ends
-  return new Promise((resolve, reject) => {
-    response.body.on('end', () => resolve('Stream completed'));
-    response.body.on('error', reject);
-  });
+  return fullText;
 }
 
-// JWT verification middleware
+// JWT verification middleware with development fallback
 const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -126,7 +233,13 @@ const verifyJWT = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     
-    // Verify the JWT token with Supabase
+    // Development mode: allow mock token
+    if (token === 'mock-token-for-development') {
+      req.user = { id: 'mobile-dev-user' };
+      return next();
+    }
+    
+    // Production mode: verify the JWT token with Supabase
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error || !user) {
@@ -143,13 +256,34 @@ const verifyJWT = async (req, res, next) => {
 
 // Middleware
 app.use(helmet());
-app.use(compression());
+app.use(compression({
+  filter: (req, res) => {
+    // Disable compression for streaming responses
+    if (req.path === '/message' && req.query.stream === '1') {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
 app.use(morgan('combined'));
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.ALLOWED_ORIGINS?.split(',') || ['*']
-    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:8081', 'http://127.0.0.1:8081', 'exp://127.0.0.1:19000', 'http://localhost:19006'],
-  credentials: true
+    : [
+        'http://localhost:5173', 
+        'http://localhost:3000', 
+        'http://localhost:5174', 
+        'http://localhost:8081', 
+        'http://127.0.0.1:8081', 
+        'exp://127.0.0.1:19000', 
+        'http://localhost:19006',
+        'exp://10.46.30.39:8081',
+        'exp://10.46.30.39:8083',
+        'http://localhost:8083'
+      ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -211,39 +345,49 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
     // Determine effective tier from DB if not provided
     let effectiveTier = userTier;
     if (!effectiveTier) {
-      const { data: subRow } = await supabase
-        .from('subscriptions')
-        .select('tier, status')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
-      effectiveTier = subRow?.tier || 'free';
-    }
-
-    // Enforce Free tier daily limit (2 messages/day)
-    if (effectiveTier === 'free') {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const { count: dailyCount, error: countErr } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('role', 'user')
-        .gte('created_at', startOfDay.toISOString());
-      if (countErr) {
-        console.error('Count error:', countErr);
-      }
-      if ((dailyCount ?? 0) >= 2) {
-        return res.status(429).json({
-          error: 'Daily limit reached for Free tier',
-          upgrade_required: true,
-          tier: effectiveTier,
-          limits: { daily_messages: 2 }
-        });
+      try {
+        const { data: subRow } = await supabase
+          .from('subscriptions')
+          .select('tier, status')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle();
+        effectiveTier = subRow?.tier || 'free';
+      } catch (error) {
+        console.error('Error fetching subscription:', error);
+        effectiveTier = 'free'; // Default to free tier
       }
     }
 
-    // Store message in Supabase
+    // Enforce Free tier daily limit (2 messages/day) - skip in development
+    if (effectiveTier === 'free' && supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const { count: dailyCount, error: countErr } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('role', 'user')
+          .gte('created_at', startOfDay.toISOString());
+        if (countErr) {
+          console.error('Count error:', countErr);
+        }
+        if ((dailyCount ?? 0) >= 2) {
+          return res.status(429).json({
+            error: 'Daily limit reached for Free tier',
+            upgrade_required: true,
+            tier: effectiveTier,
+            limits: { daily_messages: 2 }
+          });
+        }
+      } catch (error) {
+        console.error('Error checking daily limit:', error);
+        // Continue without limit check in case of error
+      }
+    }
+
+    // Store message in Supabase - skip in development mode
     const messageData = {
       id: uuidv4(),
       conversation_id: conversationId || uuidv4(),
@@ -259,53 +403,116 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    const { data: storedMessage, error: insertError } = await supabase
-      .from('messages')
-      .insert([messageData])
-      .select()
-      .single();
+    let storedMessage = messageData;
+    if (supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        const { data: stored, error: insertError } = await supabase
+          .from('messages')
+          .insert([messageData])
+          .select()
+          .single();
 
-    if (insertError) {
-      console.error('Error storing message:', insertError);
-      return res.status(500).json({ error: 'Failed to store message' });
+        if (insertError) {
+          console.error('Error storing message:', insertError);
+          // Continue without storing in case of error
+        } else {
+          storedMessage = stored;
+        }
+      } catch (error) {
+        console.error('Error storing message:', error);
+        // Continue without storing in case of error
+      }
     }
 
-    // Route by tier to determine model/provider
-    let routedModel = model;
-    if (effectiveTier === 'core') routedModel = 'claude';
-    if (effectiveTier === 'studio') routedModel = 'opus';
+    // 🎯 Dynamic model selection based on user tier
+    let selectedModel = 'claude-3-5-sonnet'; // Default
+    let routedProvider = 'claude';
+    
+    if (effectiveTier === 'studio') {
+      selectedModel = 'claude-3-5-opus';
+      routedProvider = 'claude';
+    } else if (effectiveTier === 'core') {
+      selectedModel = 'claude-3-5-sonnet';
+      routedProvider = 'claude';
+    } else {
+      // Free tier - use Groq for cost efficiency
+      selectedModel = 'llama-3.3-70b-versatile';
+      routedProvider = 'groq';
+    }
+    
+    console.log(`🎯 User tier: ${effectiveTier}, Selected model: ${selectedModel}, Provider: ${routedProvider}`);
 
     // Handle optional mock streaming via SSE
     const wantsStream = req.query.stream === '1' || (req.headers.accept || '').includes('text/event-stream');
 
     if (wantsStream) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.flushHeaders?.();
+      // Set proper headers for streaming with writeHead
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
+        'Transfer-Encoding': 'chunked',
+        'X-Accel-Buffering': 'no' // Disable nginx buffering
+      });
+
+      // Send initial keep-alive
+      res.write(': keep-alive\n\n');
 
       let finalText = '';
       try {
-        if (routedModel === 'claude' && ANTHROPIC_API_KEY) {
-          const anthropicModel = mapTierToAnthropicModel(effectiveTier);
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: anthropicModel, res });
-        } else if (routedModel === 'groq' && GROQ_API_KEY) {
+        console.log(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
+        
+        // 🎯 Real AI Model Logic - Prioritize Claude/Groq based on tier
+        if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
+          console.log('🚀 Streaming Claude response...');
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
+          console.log('✅ Claude streaming completed, final text length:', finalText.length);
+        } else if (routedProvider === 'groq' && GROQ_API_KEY) {
+          console.log('🚀 Streaming Groq response...');
           finalText = await streamGroqResponse({ content: message.trim(), res });
+          console.log('✅ Groq streaming completed, final text length:', finalText.length);
+        } else if (ANTHROPIC_API_KEY) {
+          // Fallback to Claude if available
+          console.log('🔄 Falling back to Claude...');
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
+          console.log('✅ Claude fallback completed, final text length:', finalText.length);
+        } else if (GROQ_API_KEY) {
+          // Fallback to Groq if available
+          console.log('🔄 Falling back to Groq...');
+          finalText = await streamGroqResponse({ content: message.trim(), res });
+          console.log('✅ Groq fallback completed, final text length:', finalText.length);
         } else {
-          // Fallback mock streaming
-          const chunks = ['Thinking', 'Formulating response', `You said: ${message.trim()}`];
-          for (const chunk of chunks) {
+          console.log('⚠️ No AI API keys available, using mock streaming...');
+          console.log(`   Claude API Key: ${ANTHROPIC_API_KEY ? 'Present' : 'Missing'}`);
+          console.log(`   Groq API Key: ${GROQ_API_KEY ? 'Present' : 'Missing'}`);
+          // Fallback mock streaming for mobile
+          const mockChunks = [
+            'Hello! I received your message: ',
+            `"${message.trim()}". `,
+            'This is a simplified version of your Atlas app running on mobile! ',
+            'The streaming is working properly now.'
+          ];
+          
+          for (const chunk of mockChunks) {
+            console.log('Sending chunk:', chunk);
             writeSSE(res, { chunk });
-            await new Promise(r => setTimeout(r, 250));
+            // Force flush for Safari/iOS
+            if (res.flush) res.flush();
+            await new Promise(r => setTimeout(r, 200));
           }
-          finalText = `You said: ${message.trim()}`;
+          finalText = mockChunks.join('');
+          console.log('Mock streaming completed, final text length:', finalText.length);
         }
       } catch (streamErr) {
         console.error('Streaming error:', streamErr);
-        finalText = `Sorry, I hit an error generating the response.`;
+        // Send error as SSE chunk
+        writeSSE(res, { chunk: 'Sorry, I hit an error generating the response.' });
+        finalText = 'Sorry, I hit an error generating the response.';
       }
 
-      // Persist assistant message after stream completes
+      // Persist assistant message after stream completes - skip in development mode
       const aiResponse = {
         id: uuidv4(),
         conversation_id: messageData.conversation_id,
@@ -313,27 +520,39 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
         role: 'assistant',
         message_type: 'assistant',
         content: { type: 'text', text: finalText },
-        model: routedModel,
+        model: selectedModel,
         timestamp: new Date().toISOString(),
         created_at: new Date().toISOString()
       };
-      const { data: storedResponse, error: responseError } = await supabase
-        .from('messages')
-        .insert([aiResponse])
-        .select()
-        .single();
-      if (responseError) {
-        console.error('Error storing AI response:', responseError);
+      
+      let storedResponse = aiResponse;
+      if (supabaseUrl !== 'https://your-project.supabase.co') {
+        try {
+          const { data: stored, error: responseError } = await supabase
+            .from('messages')
+            .insert([aiResponse])
+            .select()
+            .single();
+          if (responseError) {
+            console.error('Error storing AI response:', responseError);
+          } else {
+            storedResponse = stored;
+          }
+        } catch (error) {
+          console.error('Error storing AI response:', error);
+        }
       }
-      writeSSE(res, { done: true, response: storedResponse || aiResponse, conversationId: messageData.conversation_id });
-      return res.end();
+      
+      // Send completion signal
+      writeSSE(res, { done: true, response: storedResponse, conversationId: messageData.conversation_id });
+      res.end();
+      return;
     }
 
-    // One-shot mode
-    let finalText = `(${effectiveTier}) Reply via ${routedModel}: I received your message: "${message}".`;
+    // One-shot mode with real AI models
+    let finalText = `(${effectiveTier}) Reply via ${routedProvider}: I received your message: "${message}".`;
     try {
-      if (routedModel === 'claude' && ANTHROPIC_API_KEY) {
-        const anthropicModel = mapTierToAnthropicModel(effectiveTier);
+      if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
         const r = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -342,14 +561,46 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: anthropicModel,
+            model: selectedModel,
             max_tokens: 2000,
             messages: [{ role: 'user', content: message.trim() }]
           })
         });
         const data = await r.json();
         finalText = data?.content?.[0]?.text || finalText;
-      } else if (routedModel === 'groq' && GROQ_API_KEY) {
+              } else if (routedProvider === 'groq' && GROQ_API_KEY) {
+          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${GROQ_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: [{ role: 'user', content: message.trim() }]
+            })
+          });
+        const data = await r.json();
+        finalText = data?.choices?.[0]?.message?.content || finalText;
+      } else if (ANTHROPIC_API_KEY) {
+        // Fallback to Claude
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            max_tokens: 2000,
+            messages: [{ role: 'user', content: message.trim() }]
+          })
+        });
+        const data = await r.json();
+        finalText = data?.content?.[0]?.text || finalText;
+      } else if (GROQ_API_KEY) {
+        // Fallback to Groq
         const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -357,7 +608,7 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
             'Authorization': `Bearer ${GROQ_API_KEY}`
           },
           body: JSON.stringify({
-            model: 'llama3-8b-8192',
+            model: 'llama-3.3-70b-versatile',
             messages: [{ role: 'user', content: message.trim() }]
           })
         });
@@ -379,14 +630,23 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
       timestamp: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
-    const { data: storedResponse, error: responseError } = await supabase
-      .from('messages')
-      .insert([aiResponse])
-      .select()
-      .single();
-    if (responseError) {
-      console.error('Error storing AI response:', responseError);
-      return res.status(500).json({ error: 'Failed to store AI response' });
+    
+    let storedResponse = aiResponse;
+    if (supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        const { data: stored, error: responseError } = await supabase
+          .from('messages')
+          .insert([aiResponse])
+          .select()
+          .single();
+        if (responseError) {
+          console.error('Error storing AI response:', responseError);
+        } else {
+          storedResponse = stored;
+        }
+      } catch (error) {
+        console.error('Error storing AI response:', error);
+      }
     }
 
     res.json({

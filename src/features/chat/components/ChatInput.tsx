@@ -1,5 +1,5 @@
+import { Send } from 'lucide-react';
 import React from 'react';
-import { Send, Mic } from 'lucide-react';
 import VoiceInput from './VoiceInput';
 
 interface ChatInputProps {
@@ -29,9 +29,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ value, onChange, onSend, onVoiceT
             onChange={(e) => onChange(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
-            className="w-full border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={3}
+            className="w-full border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32 overflow-y-auto"
+            rows={1}
             disabled={disabled}
+            style={{ minHeight: '44px', maxHeight: '128px' }}
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -39,18 +40,12 @@ const ChatInput: React.FC<ChatInputProps> = ({ value, onChange, onSend, onVoiceT
             <button
               onClick={onSend}
               disabled={disabled}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+              className="w-10 h-10 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center flex-shrink-0"
             >
               {disabled ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Sending...
-                </div>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <Send className="w-4 h-4" />
-                  Send
-                </div>
+                <Send className="w-4 h-4" />
               )}
             </button>
           ) : (

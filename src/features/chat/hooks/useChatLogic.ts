@@ -122,9 +122,19 @@ export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseC
         userTier: (userTier as any) || 'free',
         userId
       }, (chunk) => {
+        // Optimized word-by-word streaming
         runningText += chunk;
         if (opts?.onStreamChunk) opts.onStreamChunk(chunk);
-        setMessages(prev => prev.map(m => m.id === assistantId ? ({ ...m, content: { type: 'text', text: runningText }, status: 'sending' }) : m));
+        // Update UI immediately for each chunk
+        setMessages(prev => prev.map(m => 
+          m.id === assistantId 
+            ? { 
+                ...m, 
+                content: { type: 'text', text: runningText }, 
+                status: 'sending' 
+              } 
+            : m
+        ));
       });
 
       if (!currentConversationId) {
