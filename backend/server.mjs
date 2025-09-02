@@ -626,7 +626,7 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
       role: 'assistant',
       message_type: 'assistant',
       content: { type: 'text', text: finalText },
-      model: routedModel,
+      model: selectedModel,
       timestamp: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
@@ -704,6 +704,168 @@ app.get('/api/conversations/:conversationId/messages', verifyJWT, async (req, re
   } catch (error) {
     console.error('Error fetching conversation:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// MailerLite webhook route for event automation
+app.post('/api/mailerlite/event', async (req, res) => {
+  try {
+    const { email, event, properties = {} } = req.body;
+    
+    if (!email || !event) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: email and event' 
+      });
+    }
+
+    console.log(`📧 MailerLite event triggered: ${event} for ${email}`);
+
+    // Get MailerLite API key from environment
+    const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
+    
+    if (!MAILERLITE_API_KEY) {
+      console.warn('MailerLite API key not configured');
+      return res.status(500).json({ 
+        error: 'MailerLite service not configured' 
+      });
+    }
+
+    // Trigger event via MailerLite v2 API
+    const response = await fetch(`https://api.mailerlite.com/api/v2/subscribers/${email}/actions/${event}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+      },
+      body: JSON.stringify({
+        properties: {
+          ...properties,
+          timestamp: new Date().toISOString(),
+          source: 'atlas_backend',
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `MailerLite API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    console.log(`✅ MailerLite event ${event} triggered successfully for ${email}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Event ${event} triggered successfully`,
+      data: result 
+    });
+
+  } catch (error) {
+    console.error('❌ MailerLite webhook error:', error);
+    
+    res.status(500).json({ 
+      error: 'Failed to trigger MailerLite event',
+      details: error.message 
+    });
+  }
+});
+
+// MailerLite subscriber sync route
+app.post('/api/mailerlite/subscriber', async (req, res) => {
+  try {
+    const { email, name, tier, conversations_today, total_conversations } = req.body;
+    
+    if (!email || !tier) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: email and tier' 
+      });
+    }
+
+    console.log(`📧 Syncing subscriber: ${email} (${tier})`);
+
+    const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
+    
+    if (!MAILERLITE_API_KEY) {
+      console.warn('MailerLite API key not configured');
+      return res.status(500).json({ 
+        error: 'MailerLite service not configured' 
+      });
+    }
+
+    // Tier group mapping
+    const tierGroupMapping = {
+      free: 'atlas_free_users',
+      core: 'atlas_premium_monthly',
+      studio: 'atlas_premium_yearly',
+      complete: 'atlas_complete_bundle',
+    };
+
+    const targetGroup = tierGroupMapping[tier];
+    
+    // Create or update subscriber via v2 API
+    const subscriberData = {
+      email,
+      name: name || '',
+      fields: {
+        tier,
+        conversations_today: conversations_today || 0,
+        total_conversations: total_conversations || 0,
+        last_active: new Date().toISOString(),
+        signup_date: new Date().toISOString(),
+        subscription_status: 'active',
+      },
+      resubscribe: true,
+    };
+
+    // Check if subscriber exists and create/update
+    const createResponse = await fetch('https://api.mailerlite.com/api/v2/subscribers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+      },
+      body: JSON.stringify(subscriberData),
+    });
+
+    if (!createResponse.ok) {
+      const errorData = await createResponse.json().catch(() => ({}));
+      throw new Error(`Failed to create/update subscriber: ${createResponse.status} - ${errorData.message || 'Unknown error'}`);
+    }
+
+    const result = await createResponse.json();
+    console.log(`✅ Subscriber ${email} synced successfully`);
+
+    // Add to appropriate group
+    if (targetGroup) {
+      try {
+        await fetch(`https://api.mailerlite.com/api/v2/groups/${targetGroup}/subscribers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+          body: JSON.stringify({ email }),
+        });
+        console.log(`✅ Subscriber ${email} added to group ${targetGroup}`);
+      } catch (groupError) {
+        console.warn(`⚠️ Failed to add subscriber to group ${targetGroup}:`, groupError);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Subscriber synced successfully',
+      data: result 
+    });
+
+  } catch (error) {
+    console.error('❌ MailerLite subscriber sync error:', error);
+    
+    res.status(500).json({ 
+      error: 'Failed to sync subscriber',
+      details: error.message 
+    });
   }
 });
 
