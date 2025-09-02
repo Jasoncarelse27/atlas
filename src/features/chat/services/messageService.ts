@@ -1,199 +1,429 @@
-import { createClient } from '@supabase/supabase-js';
-import { appendMessage as cacheAppend, setMessageStatus, toCachedMessage } from '../../../lib/conversationStore';
-import getBaseUrl from '../../../utils/getBaseUrl';
-import type { Message } from '../../types/chat';
+import { supabase } from '../../../lib/supabase';
+import type { Message } from '../../../types/chat';
+import { createChatError } from '../lib/errorHandler';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Extended message types for media support
+export interface MediaMessage extends Message {
+  messageType: 'voice' | 'image' | 'text';
+  metadata?: {
+    // Voice metadata
+    audioUrl?: string;
+    duration?: number;
+    transcript?: string;
+    // Image metadata
+    imageUrl?: string;
+    dimensions?: { width: number; height: number };
+    filename?: string;
+    size?: number;
+  };
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 export interface SendMessageRequest {
-  message: string;
-  conversationId?: string;
-  model?: 'claude' | 'groq' | 'opus';
-  userTier?: 'free' | 'core' | 'studio';
-  userId?: string;
+  content: string;
+  conversationId: string;
+  userId: string;
+  messageType: 'voice' | 'image' | 'text';
+  metadata?: any;
 }
 
 export interface SendMessageResponse {
-  success: boolean;
-  message: Message;
-  response: Message;
-  conversationId: string;
+  id: string;
+  content: string;
+  messageType: string;
+  metadata?: any;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface GetMessagesResponse {
-  messages: Message[];
-}
+const getEnvVar = (key: string): string => {
+  // Handle different module systems
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || '';
+  }
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env[key] || '';
+  }
+  return '';
+};
 
 class MessageService {
   private async getAuthToken(): Promise<string | null> {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.access_token || null;
+    } catch (error) {
+      console.warn('Failed to get auth token:', error);
+      return null;
+    }
   }
 
-  private async makeAuthenticatedRequest(
-    url: string, 
-    options: RequestInit = {}
-  ): Promise<Response> {
+  private async makeAuthenticatedRequest(url: string, options: RequestInit = {}): Promise<Response> {
     const token = await this.getAuthToken();
     
-    if (!token) {
-      throw new Error('No authentication token available');
-    }
-
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || getBaseUrl();
-    
-    return fetch(`${backendUrl}${url}`, {
+    const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
     });
-  }
-
-  async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
-    // cache outgoing user message as sending
-    const conversationId = request.conversationId || crypto.randomUUID();
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: { type: 'text', text: request.message },
-      timestamp: new Date().toISOString()
-    } as Message;
-    await cacheAppend(toCachedMessage(conversationId, userMsg, 'sending'));
-
-    const response = await this.makeAuthenticatedRequest('/message', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to send message');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    // mark user message sent and cache assistant
-    await setMessageStatus(userMsg.id, 'sent');
-    await cacheAppend(toCachedMessage(data.conversationId, data.response, 'sent'));
-    return data;
+    return response;
   }
 
-  async sendMessageStream(request: SendMessageRequest, onChunk: (chunk: string) => void): Promise<SendMessageResponse> {
-    const token = await this.getAuthToken();
-    if (!token) throw new Error('No authentication token available');
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || getBaseUrl();
-    const conversationId = request.conversationId || crypto.randomUUID();
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: { type: 'text', text: request.message },
-      timestamp: new Date().toISOString()
-    } as Message;
-    await cacheAppend(toCachedMessage(conversationId, userMsg, 'sending'));
-    const response = await fetch(`${backendUrl}/message?stream=1`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'text/event-stream'
-      },
-      body: JSON.stringify(request)
-    });
-    if (!response.ok || !response.body) {
-      const errText = await response.text().catch(() => '');
-      await setMessageStatus(userMsg.id, 'failed');
-      throw new Error(errText || 'Failed to stream message');
+  /**
+   * Get messages for a conversation
+   */
+  async getMessages(conversationId: string): Promise<MediaMessage[]> {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map(msg => ({
+        ...msg,
+        messageType: msg.message_type || 'text',
+        metadata: msg.metadata || {},
+      })) as MediaMessage[];
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'getMessages',
+        conversationId,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
     }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffered = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffered += decoder.decode(value, { stream: true });
-      const parts = buffered.split('\n\n');
-      buffered = parts.pop() || '';
-      for (const part of parts) {
-        if (part.startsWith('data:')) {
-          const payload = part.slice(5).trim();
-          try {
-            const json = JSON.parse(payload);
-            if (json.chunk) onChunk(json.chunk);
-            if (json.done) {
-              await setMessageStatus(userMsg.id, 'sent');
-              await cacheAppend(toCachedMessage(json.conversationId, json.response, 'sent'));
-              return {
-                success: true,
-                message: {
-                  id: 'temp',
-                  role: 'user',
-                  content: { type: 'text', text: request.message },
-                  timestamp: new Date().toISOString()
-                } as any,
-                response: json.response,
-                conversationId: json.conversationId
-              } as SendMessageResponse;
-            }
-          } catch {}
+  }
+
+  /**
+   * Get messages since a specific timestamp
+   */
+  async getMessagesSince(conversationId: string, since: number): Promise<MediaMessage[]> {
+    try {
+      const sinceDate = new Date(since).toISOString();
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .gt('created_at', sinceDate)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map(msg => ({
+        ...msg,
+        messageType: msg.message_type || 'text',
+        metadata: msg.metadata || {},
+      })) as MediaMessage[];
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'getMessagesSince',
+        conversationId,
+        since,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
+   * Send a message (text, voice, or image)
+   */
+  async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
+    try {
+      // Prepare message data
+      const messageData = {
+        conversation_id: request.conversationId,
+        user_id: request.userId,
+        role: 'user',
+        content: request.content,
+        message_type: request.messageType,
+        metadata: request.metadata || {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Insert message into database
+      const { data, error } = await supabase
+        .from('messages')
+        .insert([messageData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        content: data.content,
+        messageType: data.message_type,
+        metadata: data.metadata,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      };
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'sendMessage',
+        request,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
+   * Send a streaming message
+   */
+  async sendMessageStream(request: SendMessageRequest, onChunk: (chunk: string) => void): Promise<SendMessageResponse> {
+    try {
+      // First, create the message in the database
+      const messageResponse = await this.sendMessage(request);
+
+      // Then, make the streaming request to the AI backend
+      const backendUrl = getEnvVar('VITE_BACKEND_URL') || 'http://localhost:3000';
+      const response = await this.makeAuthenticatedRequest(`${backendUrl}/api/chat/stream`, {
+        method: 'POST',
+        body: JSON.stringify({
+          messageId: messageResponse.id,
+          content: request.content,
+          messageType: request.messageType,
+          metadata: request.metadata,
+          conversationId: request.conversationId,
+          userId: request.userId,
+        }),
+      });
+
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          onChunk(chunk);
         }
       }
+
+      return messageResponse;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'sendMessageStream',
+        request,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
     }
-    await setMessageStatus(userMsg.id, 'failed');
-    throw new Error('Stream ended unexpectedly');
   }
 
-  async getConversationMessages(conversationId: string): Promise<Message[]> {
-    const response = await this.makeAuthenticatedRequest(
-      `/api/conversations/${conversationId}/messages`
-    );
+  /**
+   * Delete a message
+   */
+  async deleteMessage(messageId: string, conversationId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('conversation_id', conversationId);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch messages');
+      if (error) throw error;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'deleteMessage',
+        messageId,
+        conversationId,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
     }
-
-    const data: GetMessagesResponse = await response.json();
-    return data.messages;
   }
 
-  async getConversationMessagesSince(conversationId: string, since: number): Promise<Message[]> {
-    const response = await this.makeAuthenticatedRequest(
-      `/api/conversations/${conversationId}/messages?since=${encodeURIComponent(String(since))}`
-    );
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || 'Failed to fetch incremental messages');
+  /**
+   * Retry a failed message
+   */
+  async retryMessage(messageId: string, conversationId: string): Promise<MediaMessage> {
+    try {
+      // Get the original message
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('id', messageId)
+        .eq('conversation_id', conversationId)
+        .single();
+
+      if (error) throw error;
+
+      // Create a new message with the same content
+      const retryData = {
+        conversation_id: conversationId,
+        user_id: data.user_id,
+        role: 'user',
+        content: data.content,
+        message_type: data.message_type,
+        metadata: data.metadata,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: newMessage, error: insertError } = await supabase
+        .from('messages')
+        .insert([retryData])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      return {
+        ...newMessage,
+        messageType: newMessage.message_type || 'text',
+        metadata: newMessage.metadata || {},
+      } as MediaMessage;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'retryMessage',
+        messageId,
+        conversationId,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
     }
-    const data: GetMessagesResponse = await response.json();
-    return data.messages;
   }
 
-  async storeMessageLocally(message: Message): Promise<void> {
-    // Store in local storage for offline support
-    const key = `message_${message.id}`;
-    localStorage.setItem(key, JSON.stringify(message));
+  /**
+   * Store message locally (for offline support)
+   */
+  async storeMessageLocally(message: Partial<MediaMessage>): Promise<void> {
+    try {
+      // This would integrate with the offline store
+      // For now, we'll just log it
+      console.log('Storing message locally:', message);
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'storeMessageLocally',
+        message,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
   }
 
-  async getStoredMessage(messageId: string): Promise<Message | null> {
-    const key = `message_${messageId}`;
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : null;
+  /**
+   * Get stored message from local storage
+   */
+  async getStoredMessage(messageId: string): Promise<MediaMessage | null> {
+    try {
+      // This would integrate with the offline store
+      // For now, we'll return null
+      return null;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'getStoredMessage',
+        messageId,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
   }
 
+  /**
+   * Clear all stored messages
+   */
   async clearStoredMessages(): Promise<void> {
-    // Clear all stored messages
-    const keys = Object.keys(localStorage);
-    const messageKeys = keys.filter(key => key.startsWith('message_'));
-    messageKeys.forEach(key => localStorage.removeItem(key));
+    try {
+      // This would integrate with the offline store
+      // For now, we'll just log it
+      console.log('Clearing stored messages');
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'clearStoredMessages',
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
+   * Update message metadata
+   */
+  async updateMessageMetadata(messageId: string, metadata: any): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ 
+          metadata,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', messageId);
+
+      if (error) throw error;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'updateMessageMetadata',
+        messageId,
+        metadata,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
+   * Get message statistics
+   */
+  async getMessageStats(conversationId: string): Promise<{
+    total: number;
+    byType: Record<string, number>;
+    lastMessageAt?: string;
+  }> {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('message_type, created_at')
+        .eq('conversation_id', conversationId);
+
+      if (error) throw error;
+
+      const stats = {
+        total: data?.length || 0,
+        byType: {} as Record<string, number>,
+        lastMessageAt: undefined as string | undefined,
+      };
+
+      if (data && data.length > 0) {
+        // Count by type
+        data.forEach(msg => {
+          const type = msg.message_type || 'text';
+          stats.byType[type] = (stats.byType[type] || 0) + 1;
+        });
+
+        // Get last message timestamp
+        const sorted = data.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        stats.lastMessageAt = sorted[0]?.created_at;
+      }
+
+      return stats;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'getMessageStats',
+        conversationId,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
   }
 }
 

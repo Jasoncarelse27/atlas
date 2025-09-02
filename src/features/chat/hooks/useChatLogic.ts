@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { appendMessage as cacheAppend, loadConversation as cacheLoad } from '../../../lib/conversationStore';
-import type { Message } from '../../../types/chat';
-import messageService from '../services/messageService';
+import { loadConversation as cacheLoad } from '../../../lib/conversationStore';
+import { useAIProvider } from './useAIProvider';
+import { useConversationStream } from './useConversationStream';
+import { useSubscriptionAccess } from './useSubscriptionAccess';
 
 export type SupportedModel = 'claude' | 'groq' | 'opus';
 
@@ -12,24 +12,49 @@ interface UseChatLogicParams {
   initialModel?: SupportedModel;
 }
 
-interface StreamResult {
-  conversationId: string;
-  response: Message;
-}
-
 export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseChatLogicParams) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Core state
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [limitExceeded, setLimitExceeded] = useState<boolean>(false);
-  const [showErrorToast, setShowErrorToast] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [selectedModel, setSelectedModel] = useState<SupportedModel>(initialModel);
 
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Custom hooks
+  const {
+    messages,
+    isStreaming,
+    error: streamError,
+    sendMessage: streamSendMessage,
+    retryMessage,
+    clearError: clearStreamError
+  } = useConversationStream({
+    conversationId: currentConversationId,
+    userId,
+    userTier: userTier as 'free' | 'core' | 'studio',
+    selectedModel
+  });
+
+  const {
+    currentTier,
+    canSendMessage,
+    remainingMessages,
+    showUpgradePrompt,
+    incrementMessageCount
+  } = useSubscriptionAccess({ userId });
+
+  const {
+    currentProvider,
+    supportsFeature,
+    getProviderCapabilities
+  } = useAIProvider({
+    userTier: userTier as 'free' | 'core' | 'studio',
+    selectedModel
+  });
+
+  // Scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -46,116 +71,57 @@ export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseC
     (async () => {
       const cached = await cacheLoad(currentConversationId);
       if (cached && (cached as any).messages?.length) {
-        setMessages((cached as any).messages as Message[]);
+        // Note: This will be handled by useConversationStream now
+        // Keeping for backward compatibility
       }
     })();
   }, [currentConversationId]);
 
-  // Poll for incremental messages since latest cached
-  useEffect(() => {
-    if (!currentConversationId) return;
-    let timer: any;
-    const fetchIncrements = async () => {
-      const cached = await cacheLoad(currentConversationId);
-      const latestTs = cached && (cached as any).messages?.length
-        ? Date.parse((cached as any).messages[(cached as any).messages.length - 1].timestamp)
-        : 0;
-      if (!latestTs) return;
-      try {
-        const newMsgs = await messageService.getConversationMessagesSince(currentConversationId, latestTs);
-        if (newMsgs && newMsgs.length) {
-          for (const m of newMsgs) {
-            await cacheAppend({
-              id: m.id,
-              conversation_id: currentConversationId,
-              role: m.role,
-              content: m.content as any,
-              timestamp: m.timestamp,
-              status: 'sent'
-            } as any);
-          }
-          const hydrated = await cacheLoad(currentConversationId);
-          if (hydrated && (hydrated as any).messages) {
-            setMessages((hydrated as any).messages as Message[]);
-          }
-        }
-      } catch {
-        // ignore
-      }
-    };
-    timer = setInterval(fetchIncrements, 5000);
-    return () => clearInterval(timer);
-  }, [currentConversationId]);
+  // Enhanced send message with subscription checks
+  const sendMessage = useCallback(async (
+    text: string, 
+    opts?: { onStreamChunk?: (chunk: string) => void }
+  ) => {
+    // Check if user can send message
+    if (!canSendMessage) {
+      throw new Error('Daily message limit reached. Please upgrade your plan.');
+    }
 
-  const sendMessage = useCallback(async (text: string, opts?: { onStreamChunk?: (chunk: string) => void }): Promise<StreamResult | null> => {
     const trimmed = text.trim();
     if (!trimmed) return null;
-    setIsLoading(true);
-    setError(null);
-    setShowSuggestions(false);
 
-    const userMessage: Message = {
-      id: uuidv4(),
-      role: 'user',
-      content: { type: 'text', text: trimmed },
-      timestamp: new Date().toISOString()
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
+    // Clear any previous errors
+    clearStreamError();
 
     try {
-      let assistantId = uuidv4();
-      let runningText = '';
-      const tempAssistant: Message = {
-        id: assistantId,
-        role: 'assistant',
-        content: { type: 'text', text: '' },
-        timestamp: new Date().toISOString(),
-        status: 'sending'
-      } as Message;
-      setMessages(prev => [...prev, tempAssistant]);
-
-      const response = await messageService.sendMessageStream({
-        message: trimmed,
-        conversationId: currentConversationId || undefined,
-        model: selectedModel,
-        userTier: (userTier as any) || 'free',
-        userId
-      }, (chunk) => {
-        // Optimized word-by-word streaming
-        runningText += chunk;
-        if (opts?.onStreamChunk) opts.onStreamChunk(chunk);
-        // Update UI immediately for each chunk
-        setMessages(prev => prev.map(m => 
-          m.id === assistantId 
-            ? { 
-                ...m, 
-                content: { type: 'text', text: runningText }, 
-                status: 'sending' 
-              } 
-            : m
-        ));
-      });
-
-      if (!currentConversationId) {
-        setCurrentConversationId(response.conversationId);
+      // Send message using streaming hook
+      const result = await streamSendMessage(trimmed, opts);
+      
+      if (result) {
+        // Increment usage count on successful send
+        await incrementMessageCount();
+        
+        // Set conversation ID if this is a new conversation
+        if (!currentConversationId) {
+          setCurrentConversationId(result.conversationId);
+        }
       }
 
-      setMessages(prev => prev.map(m => m.id === assistantId ? ({ ...response.response, status: 'sent' }) : m));
-      return { conversationId: response.conversationId, response: response.response };
+      return result;
     } catch (err) {
-      setMessages(prev => prev.map(m => (m.id === userMessage.id ? { ...m, status: 'failed', error: (err instanceof Error ? err.message : 'Failed to send') } : m)));
-      const messageError = err instanceof Error ? err.message : 'Failed to send message';
-      setError(messageError);
-      setLimitExceeded(messageError.toLowerCase().includes('daily limit'));
-      setShowErrorToast(true);
-      return null;
-    } finally {
-      setIsLoading(false);
+      // Error handling is done in useConversationStream
+      throw err;
     }
-  }, [currentConversationId, selectedModel, userId, userTier]);
+  }, [
+    canSendMessage,
+    clearStreamError,
+    streamSendMessage,
+    incrementMessageCount,
+    currentConversationId
+  ]);
 
-  const retryMessage = useCallback((messageId: string) => {
+  // Enhanced retry message
+  const handleRetryMessage = useCallback((messageId: string) => {
     const message = messages.find(m => m.id === messageId);
     if (message && message.content.type === 'text' && message.content.text) {
       return sendMessage(message.content.text);
@@ -163,39 +129,59 @@ export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseC
     return Promise.resolve(null);
   }, [messages, sendMessage]);
 
+  // Handle suggestion clicks
   const handleSuggestionClick = useCallback((suggestion: string) => {
     void sendMessage(suggestion);
   }, [sendMessage]);
 
+  // Handle voice transcription
   const handleVoiceTranscription = useCallback((transcription: string) => {
     setInputText(transcription);
     void sendMessage(transcription);
   }, [sendMessage]);
 
+  // Check if current provider supports voice/image features
+  const canUseVoice = supportsFeature('voice');
+  const canUseImage = supportsFeature('image');
+
   return {
-    // state
+    // State
     messages,
     currentConversationId,
     inputText,
-    isLoading,
-    error,
-    limitExceeded,
-    showErrorToast,
+    isLoading: isStreaming,
+    error: streamError,
+    limitExceeded: !canSendMessage,
+    showUpgradePrompt,
     showSuggestions,
     selectedModel,
     messagesEndRef,
-    // setters
+    
+    // Subscription info
+    currentTier,
+    remainingMessages,
+    canSendMessage,
+    
+    // AI provider info
+    currentProvider,
+    providerCapabilities: getProviderCapabilities(),
+    canUseVoice,
+    canUseImage,
+    
+    // Setters
     setInputText,
-    setShowErrorToast,
     setShowSuggestions,
     setSelectedModel,
     setCurrentConversationId,
-    // actions
+    
+    // Actions
     sendMessage,
-    retryMessage,
+    retryMessage: handleRetryMessage,
     handleSuggestionClick,
     handleVoiceTranscription,
-    // utils
+    clearError: clearStreamError,
+    
+    // Utils
     scrollToBottom
   };
 }
