@@ -16,6 +16,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import SafeModeTest from './components/SafeModeTest';
 import { SafeModeProvider } from './context/SafeModeContext';
 import AuthPage from './pages/AuthPage';
+import './utils/testRunner'; // Load test utilities
 
 function App() {
   // Auth state
