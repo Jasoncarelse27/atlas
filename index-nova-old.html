@@ -1,0 +1,149 @@
+
+
+npx expo start --clear<!DOCTYPE html>
+<html>
+<head>
+    <title>Nova Voice Assistant</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .chat { 
+            background: rgba(255,255,255,0.1); 
+            padding: 20px; 
+            border-radius: 10px; 
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        input { width: 70%; padding: 10px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; background: #2ed573; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 0 5px; }
+        .user-message { text-align: right; margin: 10px 0; }
+        .nova-message { margin: 10px 0; }
+        .loading { text-align: center; color: #ccc; font-style: italic; }
+        .error { color: #ff6b6b; }
+        .status { text-align: center; margin: 10px 0; font-size: 14px; color: #ddd; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎤 Nova Voice Assistant</h1>
+        <p>Your offline AI voice assistant is ready!</p>
+        <div class="status" id="status">Ready</div>
+    </div>
+    <div class="chat" id="chatArea">
+        <p class="nova-message"><strong>Nova:</strong> Hello! I'm Nova, your offline AI assistant. How can I help you today?</p>
+    </div>
+    <div style="margin-top: 20px;">
+        <input type="text" id="message" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="speakReply()">Speak Reply</button>
+    </div>
+    <audio id="player" style="display: none;"></audio>
+    
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const player = document.getElementById('player');
+        
+        async function speak(text) {
+            try {
+                const fd = new FormData();
+                fd.append("text", text);
+                const r = await fetch(`${API_BASE}/tts`, { method: "POST", body: fd });
+                if (r.ok) {
+                    const blob = await r.blob();
+                    player.src = URL.createObjectURL(blob);
+                    await player.play().catch(() => {});
+                } else {
+                    console.log('TTS not available, skipping speech');
+                }
+            } catch (error) {
+                console.log('TTS error:', error);
+            }
+        } 
+        
+        async function sendMessage() {
+            const message = document.getElementById('message').value;
+            if (!message.trim()) return;
+            
+            const chatArea = document.getElementById('chatArea');
+            const statusEl = document.getElementById('status');
+            
+            // Show user message
+            chatArea.innerHTML += '<p class="user-message"><strong>You:</strong> ' + message + '</p>';
+            
+            // Clear input
+            document.getElementById('message').value = '';
+            
+            // Show loading
+            statusEl.textContent = 'Streaming...';
+            
+            try {
+                // Use SSE streaming endpoint
+                const u = new URL(`${API_BASE}/chat_stream`);
+                u.searchParams.set("prompt", message);
+                
+                const es = new EventSource(u);
+                let novaResponse = '';
+                
+                es.addEventListener("start", () => { 
+                    novaResponse = '';
+                    chatArea.innerHTML += '<p class="nova-message"><strong>Nova:</strong> <span id="nova-response"></span></p>';
+                });
+                
+                es.addEventListener("token", (e) => { 
+                    novaResponse += e.data;
+                    document.getElementById('nova-response').textContent = novaResponse;
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                });
+                
+                es.addEventListener("done", async () => {
+                    statusEl.textContent = 'Speaking...';
+                    if (novaResponse.trim()) {
+                        await speak(novaResponse.trim());
+                    }
+                });
+                
+                es.addEventListener("error", (e) => {
+                    statusEl.textContent = 'Error streaming.';
+                    chatArea.innerHTML += '<p class="error"><strong>Error:</strong> Could not connect to Nova backend.</p>';
+                    es.close();
+                });
+                
+                es.addEventListener("end", () => {
+                    statusEl.textContent = 'Done.';
+                    es.close();
+                });
+                
+            } catch (error) {
+                statusEl.textContent = 'Error.';
+                chatArea.innerHTML += '<p class="error"><strong>Error:</strong> Could not connect to Nova backend. Is the server running?</p>';
+                chatArea.scrollTop = chatArea.scrollHeight;
+            }
+        }
+        
+        async function speakReply() {
+            const text = document.getElementById('message').value.trim() || 
+                        document.querySelector('.nova-message:last-child')?.textContent?.replace('Nova:', '').trim();
+            if (!text) return;
+            
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Speaking...';
+            await speak(text);
+            statusEl.textContent = 'Done.';
+        }
+        
+        // Allow Enter key to send
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
