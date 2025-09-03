@@ -1,8 +1,8 @@
 import { Bookmark, Bot, Check, Clock, Copy, Edit3, MessageSquare, Share2, Trash2, User, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import AudioPlayer from '../../components/AudioPlayer';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import Tooltip from '../../components/Tooltip';
+import AudioPlayer from '@/components/AudioPlayer';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 import type { Message } from '../types/chat';
 
 interface ConversationViewProps {

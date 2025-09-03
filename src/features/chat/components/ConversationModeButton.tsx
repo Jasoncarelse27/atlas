@@ -1,6 +1,6 @@
-import React from 'react';
 import { Car, Heading as Headset, ToggleLeft, ToggleRight } from 'lucide-react';
-import Tooltip from './Tooltip';
+import React from 'react';
+import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 
 interface ConversationModeButtonProps {

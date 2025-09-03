@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, forwardRef } from 'react';
+import React, { forwardRef, useEffect, useState } from 'react';
 import { Volume2, VolumeX, Settings, Zap } from 'lucide-react';
 import VoiceVisualizer from './VoiceVisualizer';
-import Tooltip from './Tooltip';
+import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 import ConversationModeButton from './ConversationModeButton';
 

@@ -5,10 +5,10 @@ import {
     Upload
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { Conversation } from '../types/chat';
-import LoadingSpinner from './LoadingSpinner';
-import Tooltip from './Tooltip';
 
 interface ConversationFooterProps {
   conversations: Conversation[];

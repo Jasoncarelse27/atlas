@@ -8,9 +8,9 @@ import {
     X
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { Conversation } from '../types/chat';
-import Tooltip from './Tooltip';
 
 interface ConversationItemProps {
   conversation: Conversation;

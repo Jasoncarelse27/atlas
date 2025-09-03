@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef, forwardRef } from 'react';
-import { Send, Paperclip, Smile, Headphones, Image as ImageIcon, X, Zap, Clock, Sparkles, Command } from 'lucide-react';
-import LoadingSpinner from './LoadingSpinner';
-import Tooltip from './Tooltip';
+import { Clock, Headphones, Paperclip, Send, Smile, Sparkles, Zap } from 'lucide-react';
+import React, { forwardRef, useEffect, useRef, useState } from 'react';
+import AnimatedBackground from '@/components/AnimatedBackground';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
-import AnimatedBackground from './AnimatedBackground';
-import InputModeWrapper from './InputModeWrapper';
 
 interface TextInputAreaProps {
   onSendMessage: (message: string) => void;

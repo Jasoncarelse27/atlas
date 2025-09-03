@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Camera, X, Image as ImageIcon, Paperclip, MoreHorizontal, Settings, Volume2, VolumeX } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Image as ImageIcon, Mic, MoreHorizontal, Paperclip, Send, Settings, Volume2, VolumeX, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import type { SoundType } from '../hooks/useSoundEffects';
-import LoadingSpinner from './LoadingSpinner';
 
 interface UnifiedInputBarProps { 
   currentMode: 'text' | 'voice' | 'image';

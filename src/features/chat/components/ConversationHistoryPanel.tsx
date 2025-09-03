@@ -1,23 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, 
-  Search, 
-  Plus, 
-  MessageSquare, 
-  Trash2, 
-  Edit3, 
-  Pin, 
-  Clock, 
-  Check, 
-  Trash,
-  Download,
-  Upload,
-  AlertTriangle
+import {
+    AlertTriangle,
+    Check,
+    Clock,
+    Download,
+    Edit3,
+    MessageSquare,
+    Pin,
+    Plus,
+    Search,
+    Trash,
+    Trash2,
+    Upload,
+    X
 } from 'lucide-react';
-import type { Conversation } from '../types/chat';
+import React, { useEffect, useRef, useState } from 'react';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
-import Tooltip from './Tooltip';
-import LoadingSpinner from './LoadingSpinner';
+import type { Conversation } from '../types/chat';
 
 interface ConversationHistoryPanelProps {
   isOpen: boolean;
