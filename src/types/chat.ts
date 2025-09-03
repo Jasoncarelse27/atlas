@@ -3,11 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: {
-    type: 'text' | 'image';
-    text?: string;
-    imageUrl?: string;
-  };
+  content: string;
   timestamp: string;
   error?: string;
   status?: 'sending' | 'sent' | 'failed';

@@ -1,4 +1,4 @@
-import Dexie, { Table } from 'dexie';
+import Dexie, { type Table as DexieTable } from 'dexie';
 import type { Conversation, Message } from '../types/chat';
 
 // Define the database schema
@@ -13,8 +13,8 @@ interface LocalConversation extends Conversation {
 
 // Extend Dexie to include our tables
 class LocalMessageDatabase extends Dexie {
-  messages!: Table<LocalMessage>;
-  conversations!: Table<LocalConversation>;
+  messages!: DexieTable<LocalMessage>;
+  conversations!: DexieTable<LocalConversation>;
 
   constructor() {
     super('AtlasLocalMessages');
@@ -110,10 +110,7 @@ export class LocalMessageStore {
     const messages = await db.messages.toArray();
     return messages
       .filter(msg => {
-        if (msg.content.type === 'text') {
-          return msg.content.text?.toLowerCase().includes(query.toLowerCase());
-        }
-        return false;
+        return msg.content.toLowerCase().includes(query.toLowerCase());
       })
       .map(({ conversationId, ...message }) => message);
   }

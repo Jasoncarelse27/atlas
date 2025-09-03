@@ -29,10 +29,7 @@ export class ChatService {
       const message: Message = {
         id: uuidv4(),
         role: 'user',
-        content: {
-          type: 'text',
-          text: content
-        },
+        content: content,
         timestamp: new Date().toISOString(),
         status: 'sent'
       };
@@ -57,10 +54,7 @@ export class ChatService {
         const assistantMessage: Message = {
           id: uuidv4(),
           role: 'assistant',
-          content: {
-            type: 'text',
-            text: `[SafeSpace Mode] Your message "${content}" has been stored locally and will not be sent to any external servers. This is a privacy-focused response.`
-          },
+          content: `[SafeSpace Mode] Your message "${content}" has been stored locally and will not be sent to any external servers. This is a privacy-focused response.`,
           timestamp: new Date().toISOString(),
           status: 'sent'
         };

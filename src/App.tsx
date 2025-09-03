@@ -13,9 +13,8 @@ import type { Message } from './types/chat';
 // Components
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
-import SafeModeTest from './components/SafeModeTest';
-import { SafeModeProvider } from './context/SafeModeContext';
 import AuthPage from './pages/AuthPage';
+import DashboardPage from './pages/DashboardPage';
 
 function App() {
   // Auth state
@@ -593,45 +592,20 @@ function App() {
 
   return (
     <>
-      <div className="bg-red-500 text-white p-4 text-2xl">Tailwind Test</div>
-      <Router>
-        <Routes>
-          {/* Always use your custom AuthPage for /login */}
-          <Route path="/login" element={<AuthPage />} />
-          <Route
-            path="*"
-            element={user ? (
-              <SafeModeProvider>
-                {/* Main app content goes here (the rest of your App JSX) */}
-                <div className="min-h-screen bg-gray-900 text-white p-8">
-                  <h1 className="text-3xl font-bold mb-4">Atlas AI - SafeSpace Mode Active</h1>
-                  <p className="text-gray-300 mb-4">
-                    The SafeSpace mode toggle has been added to the header. 
-                    When enabled, messages will not be saved to the server for enhanced privacy.
-                  </p>
-                  
-                  {/* SafeSpace Test Component */}
-                  <div className="mb-8">
-                    <SafeModeTest />
-                  </div>
-                  
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    <h2 className="text-xl font-semibold mb-2">SafeSpace Features:</h2>
-                    <ul className="list-disc list-inside space-y-1 text-gray-300">
-                      <li>🔒 Privacy-first chat mode</li>
-                      <li>🚫 No server-side message storage when enabled</li>
-                      <li>💬 Local-only conversations</li>
-                      <li>🔄 Easy toggle in header</li>
-                    </ul>
-                  </div>
-                </div>
-              </SafeModeProvider>
-            ) : (
-              <Navigate to="/login" replace />
-            )}
-          />
-        </Routes>
-      </Router>
+              <Router>
+          <Routes>
+            {/* Always use your custom AuthPage for /login */}
+            <Route path="/login" element={<AuthPage />} />
+            <Route
+              path="/dashboard"
+              element={user ? <DashboardPage user={user} /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="*"
+              element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />}
+            />
+          </Routes>
+        </Router>
     </>
   );
 }

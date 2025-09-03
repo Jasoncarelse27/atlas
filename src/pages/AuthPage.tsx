@@ -1,109 +1,179 @@
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import React, { useState } from 'react';
-import { User, Lock, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
-const AuthPage = () => {
+// Login Toggle Component
+const LoginToggle = ({ mode, setMode }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void }) => (
+  <div className="flex justify-center space-x-1 bg-gray-100 rounded-full p-1 mb-6">
+    <button
+      onClick={() => setMode('login')}
+      className={`px-4 py-2 rounded-full font-medium transition-all duration-200 ${
+        mode === 'login'
+          ? 'bg-[#B2BDA3] text-white shadow-sm'
+          : 'text-gray-500 hover:text-gray-700'
+      }`}
+    >
+      Login
+    </button>
+    <button
+      onClick={() => setMode('signup')}
+      className={`px-4 py-2 rounded-full font-medium transition-all duration-200 ${
+        mode === 'signup'
+          ? 'bg-[#B2BDA3] text-white shadow-sm'
+          : 'text-gray-500 hover:text-gray-700'
+      }`}
+    >
+      Sign Up
+    </button>
+  </div>
+);
+
+// Auth Form Component
+const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const togglePassword = () => setShowPassword((prev) => !prev);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
-    setLoading(false);
+
+    try {
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setError(error.message);
+        } else {
+          console.log('Login successful');
+          // Redirect to dashboard after successful login
+          navigate('/dashboard');
+        }
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+          setError(error.message);
+        } else {
+          setError('Check your email for verification link');
+        }
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-4">
-      <div className="w-full max-w-md">
-        {/* Main Card */}
-        <div className="bg-white/20 backdrop-blur-lg rounded-3xl p-10 shadow-2xl border border-white/30">
-          {/* User Icon */}
-          <div className="flex justify-center mb-8">
-            <div className="w-20 h-20 rounded-full border-2 border-white/40 flex items-center justify-center bg-white/10">
-              <User className="w-10 h-10 text-white/80" strokeWidth={1.5} />
-            </div>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Email Input */}
+      <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#B2BDA3] focus-within:border-[#B2BDA3] transition-all duration-200">
+        <Mail className="w-5 h-5 text-gray-400 mr-3" />
+        <input
+          type="email"
+          placeholder="jasonc.jpg@gmail.com"
+          className="w-full outline-none text-gray-700 placeholder-gray-400"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="username"
+        />
+      </div>
 
-          <form onSubmit={handleLogin}>
-            {/* Email Input */}
-            <div className="mb-6">
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" strokeWidth={1.5} />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/30 border border-white/40 rounded-lg py-4 pl-12 pr-4 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/60 focus:border-transparent backdrop-blur-md transition-all duration-200"
-                  required
-                  autoComplete="username"
-                />
-              </div>
-            </div>
+      {/* Password Input */}
+      <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#B2BDA3] focus-within:border-[#B2BDA3] transition-all duration-200">
+        <Lock className="w-5 h-5 text-gray-400 mr-3" />
+        <input
+          type={showPassword ? 'text' : 'password'}
+          placeholder="Password"
+          className="w-full outline-none text-gray-700 placeholder-gray-400"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+        />
+        <button
+          type="button"
+          onClick={togglePassword}
+          className="ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </button>
+      </div>
 
-            {/* Password Input */}
-            <div className="mb-6">
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" strokeWidth={1.5} />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/30 border border-white/40 rounded-lg py-4 pl-12 pr-4 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/60 focus:border-transparent backdrop-blur-md transition-all duration-200"
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && <div className="text-red-300 text-center mb-4">{error}</div>}
-
-            {/* Login Button */}
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold py-4 px-6 rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all duration-200 shadow-lg mb-6 disabled:opacity-60 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              {loading ? 'Logging in...' : 'LOGIN'}
-            </button>
-          </form>
-
-          {/* Remember Me and Forgot Password */}
-          <div className="flex items-center justify-between text-sm mt-2">
-            <label className="flex items-center text-white/80 cursor-pointer">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`w-5 h-5 rounded border-2 border-white/50 flex items-center justify-center ${rememberMe ? 'bg-white/30' : 'bg-transparent'} transition-all duration-200`}>
-                  {rememberMe && <Check className="w-3 h-3 text-white" strokeWidth={2} />}
-                </div>
-              </div>
-              <span className="ml-2">Remember me</span>
-            </label>
-            <a href="#" className="text-white/60 hover:text-white/90 transition-colors">
-              Forgot your password?
-            </a>
-          </div>
+      {/* Error Message */}
+      {error && (
+        <div className="text-red-500 text-sm text-center bg-red-50 border border-red-200 rounded-lg py-2">
+          {error}
         </div>
+      )}
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-white/60 text-sm">
-            designed by <span className="text-white/80">🤍 otium</span>
+      {/* Forgot Password - Right Aligned */}
+      <div className="flex justify-end">
+        <a href="#" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
+          Forgot Password?
+        </a>
+      </div>
+
+      {/* Login Button - Full Width, Green Background */}
+      <button
+        type="submit"
+        className="w-full bg-[#B2BDA3] hover:bg-[#A0AD8F] text-white py-3 rounded-xl font-semibold flex justify-center items-center transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+        disabled={loading}
+      >
+        {loading ? 'Signing In...' : (
+          <>
+            {mode === 'login' ? 'Login' : 'Sign Up'} <span className="ml-2">→</span>
+          </>
+        )}
+      </button>
+    </form>
+  );
+};
+
+// Main Login Screen Component
+const AuthPage = () => {
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#F4E5D9] to-[#B2BDA3] flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 space-y-6">
+        {/* Atlas Logo and Branding */}
+        <div className="text-center">
+          <img
+            src="/atlas-logo.png"
+            alt="Atlas AI Logo"
+            className="mx-auto mb-4 h-16 w-16"
+          />
+          <h1 className="text-2xl font-bold text-gray-800">Atlas</h1>
+          <p className="text-sm text-gray-500">
+            Your AI-Powered Emotional Intelligence Companion
           </p>
         </div>
+
+        {/* Login/Signup Toggle */}
+        <LoginToggle mode={mode} setMode={setMode} />
+
+        {/* Auth Form */}
+        <AuthForm mode={mode} />
+
+        {/* Policy Text - Bottom, Centered */}
+        <p className="text-center text-xs text-gray-400 mt-4">
+          By continuing, you agree to our{' '}
+          <a href="#" className="text-gray-500 underline hover:text-gray-700 transition-colors">
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="#" className="text-gray-500 underline hover:text-gray-700 transition-colors">
+            Privacy Policy
+          </a>
+        </p>
       </div>
     </div>
   );

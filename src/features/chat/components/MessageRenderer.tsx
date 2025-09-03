@@ -16,22 +16,8 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, isLastMessag
   const hasError = message.error || message.status === 'failed';
 
   const renderContent = () => {
-    if (message.content.type === 'text') {
-      return message.content.text || '';
-    }
-    
-    if (message.content.type === 'image') {
-      return (
-        <div>
-          <span>📷 Image uploaded</span>
-          {message.content.text && (
-            <div style={{ marginTop: 8 }}>{message.content.text}</div>
-          )}
-        </div>
-      );
-    }
-    
-    return null;
+    // Content is a string, so we can render it directly
+    return message.content || '';
   };
 
   return (
