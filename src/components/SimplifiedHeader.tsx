@@ -1,11 +1,11 @@
+import type { User } from '@supabase/supabase-js';
+import { Headphones, Image as ImageIcon, Lock, Menu, MessageSquare, PlusSquare, Unlock } from 'lucide-react';
 import React from 'react';
-import { Menu, MessageSquare, Headphones, Image as ImageIcon, PlusSquare } from 'lucide-react';
+import { useSafeMode } from '../context/SafeModeContext';
+import type { SoundType } from '../hooks/useSoundEffects';
+import type { UserProfile } from '../types/subscription';
 import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
-import type { SoundType } from '../hooks/useSoundEffects';
-import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '../types/subscription';
-import StatusIndicator from './StatusIndicator';
 
 interface SimplifiedHeaderProps {
   currentMode: 'text' | 'voice' | 'image';
@@ -69,6 +69,9 @@ const SimplifiedHeader: React.FC<SimplifiedHeaderProps> = ({
 
         {/* Right: New Conversation Button */}
         <div className="flex items-center gap-2">
+          {/* SafeMode Toggle */}
+          <SafeModeToggle onSoundPlay={onSoundPlay} />
+          
           {onThemeChange && (
             <ThemeToggle
               themeMode={themeMode}
@@ -141,6 +144,31 @@ const SimplifiedHeader: React.FC<SimplifiedHeaderProps> = ({
         </button>
       </div>
     </div>
+  );
+};
+
+// SafeMode Toggle Component
+const SafeModeToggle: React.FC<{ onSoundPlay?: (soundType: SoundType) => void }> = ({ onSoundPlay }) => {
+  const { isSafeMode, toggleSafeMode } = useSafeMode();
+  
+  const handleToggle = () => {
+    toggleSafeMode();
+    if (onSoundPlay) onSoundPlay('toggle');
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      className={`p-2 rounded-full transition-colors ${
+        isSafeMode 
+          ? 'bg-red-600/90 border border-red-500 shadow-sm hover:bg-red-700 text-white' 
+          : 'bg-gray-800/90 border border-gray-700 shadow-sm hover:bg-gray-700 text-gray-300'
+      }`}
+      aria-label={isSafeMode ? 'Disable SafeSpace mode' : 'Enable SafeSpace mode'}
+      title={isSafeMode ? 'SafeSpace Mode: ON - Messages not saved to server' : 'SafeSpace Mode: OFF - Messages saved normally'}
+    >
+      {isSafeMode ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+    </button>
   );
 };
 

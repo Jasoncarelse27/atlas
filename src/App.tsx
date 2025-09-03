@@ -1,36 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase, testConnection } from './lib/supabase';
+import { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useSubscription } from './hooks/useSubscription';
+import { useConversations } from './hooks/useConversations';
 import { useCustomization } from './hooks/useCustomization';
 import { useSoundEffects } from './hooks/useSoundEffects';
-     import useThemeMode from './hooks/useThemeMode';
+import { useSubscription } from './hooks/useSubscription';
+import useThemeMode from './hooks/useThemeMode';
 import useVoiceRecognition from './hooks/useVoiceRecognition';
-import { useConversations } from './hooks/useConversations';
-import type { Message, Conversation } from './types/chat';
+import { supabase, testConnection } from './lib/supabase';
+import type { Message } from './types/chat';
 
 // Components
-import SimplifiedHeader from './components/SimplifiedHeader';
-import SideMenu from './components/SideMenu';
-import Background from './components/Background';
-import MainInteractionArea from './components/MainInteractionArea';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
-import ErrorMessage from "./components/ErrorMessage";
-import UpgradeModal from './components/UpgradeModal';
-import PaymentSuccessModal from './components/PaymentSuccessModal';
-import WidgetSystem from './components/WidgetSystem';
-import ControlCenter from './components/ControlCenter';
-import TestingPanel from './components/TestingPanel';
-import DashboardTester from './components/DashboardTester';
-import NetworkCheckModal from './components/NetworkCheckModal';
-import SpeedTestModal from './components/SpeedTestModal';
-import ConversationView from './components/ConversationView';
-import ConversationHistoryPanel from './components/ConversationHistoryPanel'; 
-import AccountModal from './components/AccountModal';
-import UnifiedInputBar from './components/UnifiedInputBar';
+import SafeModeTest from './components/SafeModeTest';
+import { SafeModeProvider } from './context/SafeModeContext';
 import AuthPage from './pages/AuthPage';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 function App() {
   // Auth state
@@ -616,11 +601,31 @@ function App() {
           <Route
             path="*"
             element={user ? (
-              // Main app content goes here (the rest of your App JSX)
-              <>
-                {/* Place your main app JSX here, e.g. headers, menus, main content, etc. */}
-                {/* ...existing main app code... */}
-              </>
+              <SafeModeProvider>
+                {/* Main app content goes here (the rest of your App JSX) */}
+                <div className="min-h-screen bg-gray-900 text-white p-8">
+                  <h1 className="text-3xl font-bold mb-4">Atlas AI - SafeSpace Mode Active</h1>
+                  <p className="text-gray-300 mb-4">
+                    The SafeSpace mode toggle has been added to the header. 
+                    When enabled, messages will not be saved to the server for enhanced privacy.
+                  </p>
+                  
+                  {/* SafeSpace Test Component */}
+                  <div className="mb-8">
+                    <SafeModeTest />
+                  </div>
+                  
+                  <div className="bg-gray-800 p-4 rounded-lg">
+                    <h2 className="text-xl font-semibold mb-2">SafeSpace Features:</h2>
+                    <ul className="list-disc list-inside space-y-1 text-gray-300">
+                      <li>🔒 Privacy-first chat mode</li>
+                      <li>🚫 No server-side message storage when enabled</li>
+                      <li>💬 Local-only conversations</li>
+                      <li>🔄 Easy toggle in header</li>
+                    </ul>
+                  </div>
+                </div>
+              </SafeModeProvider>
             ) : (
               <Navigate to="/login" replace />
             )}
