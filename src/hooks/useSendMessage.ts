@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useSafeMode } from '../context/SafeModeContext';
-import ChatService, { type SendMessageOptions, type StreamMessageOptions } from '../services/chatService';
+import { chatService } from '../services';
 import type { Message } from '../types/chat';
 
 export interface UseSendMessageReturn {
@@ -33,15 +33,23 @@ export const useSendMessage = (
     setError(null);
 
     try {
-      const options: SendMessageOptions = {
-        content: content.trim(),
-        conversationId,
-        isSafeMode,
-        onMessageAdded,
-        onError: setError
+      // Create message object
+      const message: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: {
+          type: 'text',
+          text: content.trim()
+        },
+        timestamp: new Date().toISOString(),
+        status: 'sent'
       };
 
-      await ChatService.sendMessage(options);
+      // Send message using chatService
+      const savedMessage = await chatService.sendMessage(message, conversationId || 'default', isSafeMode);
+      
+      // Notify callback
+      onMessageAdded?.(savedMessage);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMessage);
@@ -58,16 +66,33 @@ export const useSendMessage = (
     setError(null);
 
     try {
-      const options: StreamMessageOptions = {
-        message: content.trim(),
-        conversationId,
-        isSafeMode,
-        onChunk: onStreamChunk,
-        onComplete: onStreamComplete,
-        onError: setError
+      // Create message object
+      const message: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: {
+          type: 'text',
+          text: content.trim()
+        },
+        timestamp: new Date().toISOString(),
+        status: 'sent'
       };
 
-      await ChatService.streamMessage(options);
+      // Stream message using chatService
+      const streamedMessage = await chatService.streamMessage(
+        message, 
+        conversationId || 'default', 
+        onStreamChunk || (() => {}), 
+        isSafeMode
+      );
+      
+      // Notify completion callback
+      if (onStreamComplete && streamedMessage.content.type === 'text') {
+        onStreamComplete(streamedMessage.content.text || '');
+      }
+      
+      // Notify message added callback
+      onMessageAdded?.(streamedMessage);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to stream message';
       setError(errorMessage);
@@ -75,7 +100,7 @@ export const useSendMessage = (
     } finally {
       setIsStreaming(false);
     }
-  }, [isSafeMode, onStreamChunk, onStreamComplete]);
+  }, [isSafeMode, onStreamChunk, onStreamComplete, onMessageAdded]);
 
   return {
     sendMessage,

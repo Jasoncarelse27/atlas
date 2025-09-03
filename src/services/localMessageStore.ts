@@ -66,7 +66,7 @@ export class LocalMessageStore {
   }
 
   // Message methods
-  static async addMessage(conversationId: string, message: Message): Promise<void> {
+  static async addMessage(conversationId: string, message: Message): Promise<Message> {
     const localMessage: LocalMessage = {
       ...message,
       conversationId,
@@ -79,6 +79,12 @@ export class LocalMessageStore {
     await db.conversations.update(conversationId, { 
       lastUpdated: new Date().toISOString() 
     });
+
+    // Return the message with the generated ID
+    return {
+      ...message,
+      id: localMessage.id
+    };
   }
 
   static async getMessages(conversationId: string): Promise<Message[]> {
