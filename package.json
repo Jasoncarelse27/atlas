@@ -11,10 +11,15 @@
   "scripts": {
     "start": "node backend/server.mjs",
     "dev": "nodemon backend/server.mjs",
+    "dev:backend": "node scripts/kill-port-and-run-backend.js",
+    "dev:frontend": "vite",
+    "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "vite build",
     "preview": "vite preview",
     "postinstall": "echo 'Backend dependencies installed successfully'",
-    "health": "curl http://localhost:$PORT/healthz || echo 'Health check failed'"
+    "health": "curl http://localhost:$PORT/healthz || echo 'Health check failed'",
+    "kill-port": "node scripts/kill-port-and-run-backend.js",
+    "port-clear": "lsof -ti :8000 | xargs kill -9 2>/dev/null || echo 'Port 8000 is free'"
   },
   "dependencies": {
     "@supabase/auth-ui-react": "^0.4.7",
@@ -41,6 +46,7 @@
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
     "eslint": "^9.34.0",
     "nodemon": "^3.1.10",
     "postcss": "^8.5.6",
