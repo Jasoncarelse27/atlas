@@ -7,6 +7,8 @@ export interface Message {
   timestamp: string;
   error?: string;
   status?: 'sending' | 'sent' | 'failed';
+  audioUrl?: string;
+  imageUrl?: string;
 }
 
 export interface Conversation {
