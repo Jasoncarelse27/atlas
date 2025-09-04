@@ -1,0 +1,78 @@
+import React, { useState } from 'react';
+import { View, TextInput, Button, FlatList, Text, StyleSheet } from 'react-native';
+import { useMessageStore } from '../stores/useMessageStore';
+import { sendMessageToSupabase } from '../services/chatService';
+import { v4 as uuid } from 'uuid';
+
+export default function ChatScreen() {
+  const [input, setInput] = useState('');
+  const { messages, addMessage, updateAssistantMessage } = useMessageStore();
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const userMessage = {
+      id: uuid(),
+      role: 'user',
+      content: input,
+      createdAt: new Date().toISOString(),
+    };
+
+    addMessage(userMessage);
+    setInput('');
+
+    try {
+      await sendMessageToSupabase({
+        conversationId: 'demo', // Replace with actual ID
+        message: input,
+        accessToken: 'your-supabase-access-token', // Replace with actual token
+        onMessage: (partial: string) => {
+          updateAssistantMessage(partial);
+        },
+        onComplete: (full: string) => {
+          // Message is already updated via onMessage
+          console.log('Streaming complete:', full);
+        },
+        onError: (error: string) => {
+          console.error('Streaming error:', error);
+          updateAssistantMessage('[Error generating response]');
+        },
+      });
+    } catch (err: any) {
+      console.error('Streaming error:', err.message);
+      updateAssistantMessage('[Error generating response]');
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <Text style={item.role === 'user' ? styles.userText : styles.assistantText}>
+            {item.content}
+          </Text>
+        )}
+      />
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Type your message"
+        />
+        <Button title="Send" onPress={handleSend} />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  inputContainer: { flexDirection: 'row', gap: 10 },
+  input: { flex: 1, borderColor: '#ccc', borderWidth: 1, padding: 10, borderRadius: 4 },
+  userText: { alignSelf: 'flex-end', marginVertical: 4, color: '#333' },
+  assistantText: { alignSelf: 'flex-start', marginVertical: 4, color: '#007AFF' },
+});

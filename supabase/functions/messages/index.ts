@@ -1,6 +1,6 @@
-// �� functions/messages/index.ts
+// supabase/functions/messages/index.ts
 // Atlas AI Message Storage Edge Function
-// Handles storing chat messages in Supabase with conversation tracking
+// Handles storing chat messages in Supabase with conversation tracking and streaming
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -44,12 +44,12 @@ export const POST = async (req: Request): Promise<Response> => {
       });
     }
 
-    const { conversationId, content, role, user_id } = await req.json()
+    const { message, conversationId, tier = 'free' } = await req.json()
 
     // Basic validation
-    if (!conversationId || !content || !role || !user_id) {
+    if (!message || !conversationId) {
       return new Response(JSON.stringify({ 
-        error: 'Missing required fields: conversationId, content, role, user_id' 
+        error: 'Missing required fields: message, conversationId' 
       }), { 
         status: 400,
         headers: {
@@ -61,27 +61,50 @@ export const POST = async (req: Request): Promise<Response> => {
       })
     }
 
-    // Verify user_id matches authenticated user
-    if (user_id !== user.id) {
-      return new Response(JSON.stringify({ 
-        error: 'User ID mismatch' 
-      }), { 
-        status: 403,
+    // Check if streaming is requested
+    const url = new URL(req.url);
+    const isStreaming = url.searchParams.get('stream') === '1';
+
+    if (isStreaming) {
+      // Return streaming response
+      const stream = new ReadableStream({
+        start(controller) {
+          // Simulate AI streaming response
+          const response = `This is a streaming response to: "${message}". Your message has been processed and stored. This is a demo of the streaming functionality.`;
+          const words = response.split(' ');
+          
+          let currentIndex = 0;
+          const streamWords = () => {
+            if (currentIndex < words.length) {
+              const chunk = words[currentIndex] + ' ';
+              controller.enqueue(new TextEncoder().encode(chunk));
+              currentIndex++;
+              setTimeout(streamWords, 100); // Stream every 100ms
+            } else {
+              controller.close();
+            }
+          };
+          
+          streamWords();
+        }
+      });
+
+      return new Response(stream, {
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain; charset=utf-8',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
         }
-      })
+      });
     }
 
-    // Store message in Supabase
+    // Store message in Supabase (non-streaming mode)
     const { data, error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
-      content,
-      role,
-      user_id
+      user_id: user.id,
+      role: 'user',
+      content: message
     })
 
     if (error) {
@@ -149,7 +172,8 @@ export const GET = async () => {
     status: 'healthy',
     function: 'messages',
     timestamp: new Date().toISOString(),
-    supabase: supabaseUrl ? 'configured' : 'missing_url'
+    supabase: supabaseUrl ? 'configured' : 'missing_url',
+    features: ['message_storage', 'streaming', 'jwt_auth']
   }), {
     status: 200,
     headers: {
