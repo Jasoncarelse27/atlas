@@ -1,0 +1,5 @@
+# supabase/functions/messages/config.toml
+# This file configures the messages Edge Function
+
+# No environment variables needed - they're handled via Deno.env.get in index.ts
+# The service role key is automatically injected at runtime
