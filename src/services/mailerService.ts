@@ -61,6 +61,14 @@ export const mailerService = {
    */
   async sendWelcomeEmail(recipient: EmailRecipient): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
+      // Validate email
+      if (!recipient.email || !recipient.email.trim()) {
+        return { 
+          success: false, 
+          error: 'Email address is required' 
+        };
+      }
+
       const response = await mailerLite.post('/campaigns', {
         subject: 'Welcome to Atlas AI 🌱',
         name: 'Atlas Welcome Flow',
@@ -395,17 +403,17 @@ The Atlas AI Team
 
             <h3>🎯 Your Top Topics This Week:</h3>
             <div>
-              ${data.topTopics.map(topic => `<span class="topic">${topic}</span>`).join('')}
+              ${(data?.topTopics || ['General Topics']).map(topic => `<span class="topic">${topic}</span>`).join('')}
             </div>
 
             <h3>💡 Insights:</h3>
-            ${data.insights.map(insight => `<div class="insight">${insight}</div>`).join('')}
+            ${(data?.insights || ['Keep up the great conversations!']).map(insight => `<div class="insight">${insight}</div>`).join('')}
 
             <h3>📊 Usage Stats:</h3>
             <ul>
-              <li>Total Messages: ${data.usageStats.totalMessages}</li>
-              <li>Average Response Time: ${data.usageStats.averageResponseTime}s</li>
-              <li>Favorite Model: ${data.usageStats.favoriteModel}</li>
+              <li>Total Messages: ${data?.usageStats?.totalMessages || 0}</li>
+              <li>Average Response Time: ${data?.usageStats?.averageResponseTime || 0}s</li>
+              <li>Favorite Model: ${data?.usageStats?.favoriteModel || 'Claude'}</li>
             </ul>
 
             <p>Keep up the great conversations! 🚀</p>
@@ -429,17 +437,17 @@ Hi${recipient.name ? ` ${recipient.name}` : ''}!
 Here's what you accomplished this week:
 
 📊 Stats:
-- Messages Sent: ${data.messageCount}
-- Conversations: ${data.conversationCount}
-- Total Messages: ${data.usageStats.totalMessages}
-- Average Response Time: ${data.usageStats.averageResponseTime}s
-- Favorite Model: ${data.usageStats.favoriteModel}
+- Messages Sent: ${data?.messageCount || 0}
+- Conversations: ${data?.conversationCount || 0}
+- Total Messages: ${data?.usageStats?.totalMessages || 0}
+- Average Response Time: ${data?.usageStats?.averageResponseTime || 0}s
+- Favorite Model: ${data?.usageStats?.favoriteModel || 'Claude'}
 
 🎯 Your Top Topics This Week:
-${data.topTopics.map(topic => `- ${topic}`).join('\n')}
+${(data?.topTopics || ['General Topics']).map(topic => `- ${topic}`).join('\n')}
 
 💡 Insights:
-${data.insights.map(insight => `- ${insight}`).join('\n')}
+${(data?.insights || ['Keep up the great conversations!']).map(insight => `- ${insight}`).join('\n')}
 
 Keep up the great conversations! 🚀
 
