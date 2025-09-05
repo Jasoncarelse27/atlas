@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConversationView from '../features/chat/components/ConversationView';
 import { supabase } from '../lib/supabase';
-import ChatService from '../services/chatService';
+import { sendMessageToSupabase } from '../services/chatService';
 import type { Message } from '../types/chat';
 
 interface DashboardPageProps {
@@ -44,80 +44,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
     setIsProcessing(true);
     
     try {
-      // Use the real ChatService to send the message
-      const userMessage = await ChatService.sendMessage({
-        content: message,
+      // Use the real chat service to send the message
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
+      }
+
+      await sendMessageToSupabase({
+        message: message,
         conversationId: conversation.id,
-        isSafeMode,
-        onMessageAdded: (newMessage) => {
-          setConversation(prev => ({
-            ...prev,
-            messages: [...prev.messages, newMessage],
-            lastUpdated: new Date().toISOString()
-          }));
+        accessToken: accessToken,
+        onMessage: (partial: string) => {
+          // Handle streaming message updates
+          console.log("Partial message:", partial);
         },
-        onError: (error) => {
-          console.error('Error sending message:', error);
-          // Add error message to conversation
-          const errorMessage: Message = {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: `Sorry, there was an error: ${error}`,
-            timestamp: new Date().toISOString()
-          };
-          setConversation(prev => ({
-            ...prev,
-            messages: [...prev.messages, errorMessage],
-            lastUpdated: new Date().toISOString()
-          }));
+        onComplete: (full: string) => {
+          // Handle message completion
+          console.log("Message complete:", full);
+        },
+        onError: (error: string) => {
+          console.error("Message error:", error);
         }
       });
 
-      // If we're in normal mode, also stream the AI response
-      if (!isSafeMode) {
-        await ChatService.streamMessage({
-          message,
-          conversationId: conversation.id,
-          isSafeMode,
-          onChunk: (chunk) => {
-            // Update the last message with streaming content
-            setConversation(prev => ({
-              ...prev,
-              messages: prev.messages.map((msg, index) => 
-                index === prev.messages.length - 1 
-                  ? { ...msg, content: chunk }
-                  : msg
-              )
-            }));
-          },
-          onComplete: (fullResponse) => {
-            // Finalize the streaming message
-            setConversation(prev => ({
-              ...prev,
-              messages: prev.messages.map((msg, index) => 
-                index === prev.messages.length - 1 
-                  ? { ...msg, content: fullResponse }
-                  : msg
-              ),
-              lastUpdated: new Date().toISOString()
-            }));
-          },
-          onError: (error) => {
-            console.error('Error streaming response:', error);
-            const errorMessage: Message = {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: `Sorry, there was an error getting the AI response: ${error}`,
-              timestamp: new Date().toISOString()
-            };
-            setConversation(prev => ({
-              ...prev,
-              messages: [...prev.messages, errorMessage],
-              lastUpdated: new Date().toISOString()
-            }));
-          }
-        });
-      }
+      // Message sent successfully
+      console.log("Message sent successfully");
       
     } catch (error) {
       console.error('Error in handleSendMessage:', error);

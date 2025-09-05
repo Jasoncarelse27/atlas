@@ -24,13 +24,13 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your-servic
 
 let supabase;
 try {
-  if (supabaseUrl === 'https://your-project.supabase.co') {
+  if (supabaseUrl === 'https://your-project.supabase.co' || process.env.NODE_ENV === 'development') {
     // Development mode - create a mock client
     supabase = {
       auth: {
         getUser: async (token) => {
           if (token === 'mock-token-for-development') {
-            return { data: { user: { id: 'mobile-dev-user' } }, error: null };
+            return { data: { user: { id: '550e8400-e29b-41d4-a716-446655440000' } }, error: null };
           }
           return { data: { user: null }, error: new Error('Invalid token') };
         }
@@ -42,16 +42,13 @@ try {
               maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null })
             }),
             maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null }),
-            insert: (data) => ({
-              select: () => ({
-                single: () => Promise.resolve({ data: data[0], error: null })
-              })
-            })
+            single: () => Promise.resolve({ data: null, error: { code: 'PGRST116' } })
           }),
-          insert: (data) => ({
-            select: () => ({
-              single: () => Promise.resolve({ data: data[0], error: null })
-            })
+          single: () => Promise.resolve({ data: null, error: { code: 'PGRST116' } })
+        }),
+        insert: (data) => ({
+          select: () => ({
+            single: () => Promise.resolve({ data: data[0], error: null })
           })
         })
       })
@@ -235,7 +232,7 @@ const verifyJWT = async (req, res, next) => {
     
     // Development mode: allow mock token
     if (token === 'mock-token-for-development') {
-      req.user = { id: 'mobile-dev-user' };
+      req.user = { id: '550e8400-e29b-41d4-a716-446655440000' };
       return next();
     }
     
@@ -255,7 +252,29 @@ const verifyJWT = async (req, res, next) => {
 };
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        "https://*.supabase.co",
+        "https://openrouter.ai",
+        "https://api.anthropic.com",
+        "https://api.groq.com",
+        "ws://localhost:*",
+        "wss://localhost:*"
+      ],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  }
+}));
 app.use(compression({
   filter: (req, res) => {
     // Disable compression for streaming responses
@@ -866,6 +885,137 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
       error: 'Failed to sync subscriber',
       details: error.message 
     });
+  }
+});
+
+// User profile endpoint with fallback creation
+app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    console.log('🔍 User profile endpoint called for user:', userId);
+
+    if (!userId) {
+      return res.status(400).json({ error: "Missing user ID" });
+    }
+
+    // Extract the Bearer token from the Authorization header
+    const token = req.headers['authorization']?.replace('Bearer ', '').trim();
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided.' });
+    }
+
+    // Pass token explicitly to Supabase client
+    const { data: authUser, error: authError } = await supabase.auth.getUser(token);
+    
+    // Handle Supabase errors or missing user
+    if (authError || !authUser?.user?.id) {
+      console.error('Supabase getUser error:', authError);
+      return res.status(401).json({ error: 'Missing or invalid authenticated user.' });
+    }
+
+    // Then fetch or create user_profile safely
+    console.log('🔍 Checking if profile exists for user:', userId);
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    console.log('🔍 Profile fetch result:', { profile, error });
+
+    if (error && error.code === 'PGRST116') {
+      // Create fallback profile if missing
+      console.log(`Creating fallback profile for user: ${userId}`);
+      const profileData = {
+        id: userId,
+        email: `user-${userId}@atlas.dev`,
+        preferences: {},
+        subscription_tier: 'free'
+      };
+      console.log('🔍 Creating profile with data:', profileData);
+      
+      const { data: newProfile, error: createError } = await supabase
+        .from('user_profiles')
+        .insert([profileData])
+        .select()
+        .single();
+
+      console.log('🔍 Profile creation result:', { newProfile, createError });
+
+      if (createError) {
+        console.error('Error creating user profile:', createError);
+        return res.status(500).json({ error: "Failed to create user profile", details: createError });
+      }
+
+      console.log(`✅ Created fallback profile for user: ${userId}`);
+      return res.status(200).json(newProfile);
+    }
+
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return res.status(500).json({ error: "Database error", details: error });
+    }
+
+    return res.status(200).json(profile);
+  } catch (error) {
+    console.error('User profile endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create user profile endpoint
+app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    console.log('🔍 Create user profile endpoint called for user:', user_id);
+
+    if (!user_id) {
+      return res.status(400).json({ error: "Missing user_id" });
+    }
+
+    // Extract the Bearer token from the Authorization header
+    const token = req.headers['authorization']?.replace('Bearer ', '').trim();
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided.' });
+    }
+
+    // Pass token explicitly to Supabase client
+    const { data: authUser, error: authError } = await supabase.auth.getUser(token);
+    
+    // Handle Supabase errors or missing user
+    if (authError || !authUser?.user?.id) {
+      console.error('Supabase getUser error:', authError);
+      return res.status(401).json({ error: 'Missing or invalid authenticated user.' });
+    }
+
+    const profileData = {
+      id: user_id,
+      email: `user-${user_id}@atlas.dev`,
+      preferences: {},
+      subscription_tier: 'free'
+    };
+    console.log('🔍 Creating profile with data:', profileData);
+
+    const { data: newProfile, error: createError } = await supabase
+      .from("user_profiles")
+      .insert([profileData])
+      .select()
+      .single();
+
+    console.log('🔍 Profile creation result:', { newProfile, createError });
+
+    if (createError) {
+      console.error('Error creating user profile:', createError);
+      return res.status(500).json({ error: "Failed to create user profile", details: createError });
+    }
+
+    console.log(`✅ Created user profile for user: ${user_id}`);
+    return res.status(201).json(newProfile);
+  } catch (error) {
+    console.error('Create user profile endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

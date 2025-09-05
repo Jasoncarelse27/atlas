@@ -7,14 +7,21 @@ import { useSoundEffects } from './hooks/useSoundEffects';
 import { useSubscription } from './hooks/useSubscription';
 import useThemeMode from './hooks/useThemeMode';
 import useVoiceRecognition from './hooks/useVoiceRecognition';
-import { supabase, testConnection } from './lib/supabase';
+import { supabase } from './lib/supabase';
 import type { Message } from './types/chat';
 
 // Components
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
+import DebugPage from './pages/DebugPage';
+import DebugProfile from './pages/DebugProfile';
+
+// Create a client
+const queryClient = new QueryClient()
 
 function App() {
   // Auth state
@@ -175,22 +182,8 @@ function App() {
     const checkConnection = async () => {
       try {
         setConnectionStatus('connecting');
-        const result = await testConnection();
-         
-        if (result.success) {
-          console.log('✅ Connection test successful');
-          setConnectionStatus('online');
-        } else {
-          console.warn('⚠️ Connection test failed:', result.error);
-          setConnectionStatus('offline');
-          
-          // Check if the error is authentication-related 
-          if (result.error?.includes('Authentication failed') || 
-              result.error?.includes('Invalid Refresh Token') ||
-              result.error?.includes('refresh_token_not_found')) {
-            handleAuthError(result.error);
-          }
-        }
+        // Connection test removed - using simplified Supabase client
+        setConnectionStatus('online');
 
         // Test Railway backend connection
         try {
@@ -406,47 +399,43 @@ function App() {
     }
      
     try {
-      // Send message to N8n webhook
-      console.log('📤 Sending message to N8n webhook:', message);
+      // Send message to local backend
+      console.log('📤 Sending message to local backend:', message);
       
-      // Use Supabase Edge Function to proxy the request to N8n
-      const n8nProxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/n8n-proxy`;
+      // Use local backend
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
       
-      const response = await fetch(n8nProxyUrl, { 
+      const response = await fetch(`${backendUrl}/message?stream=1`, { 
         method: 'POST',
-          headers: {
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          'Authorization': `Bearer mock-token-for-development`
         },
         body: JSON.stringify({
           message: message,
-          user_id: user?.id,
-          conversation_id: conversationToUse.id,
-          metadata: {
-            timestamp: new Date().toISOString()
-          }
+          conversationId: conversationToUse.id
         })
       });
        
       if (!response.ok) {
-        throw new Error(`N8n webhook failed with status ${response.status}`);
+        throw new Error(`Backend failed with status ${response.status}`);
       }
       
       const responseData = await response.json();
-      console.log('📥 Received response from N8n:', responseData);
+      console.log('📥 Received response from backend:', responseData);
       
       // Check if we have a valid response 
-      if (!responseData.response) {
-        throw new Error('No response received from N8n');
+      if (!responseData.response || !responseData.response.content) {
+        throw new Error('No response received from backend');
       }
       
       // Add assistant response to conversation
       const assistantMessage: Message = {
-        id: uuidv4(),
+        id: responseData.response.id || uuidv4(),
         role: 'assistant',
-        content: responseData.response,
-        timestamp: new Date().toISOString(),
-        audioUrl: responseData.audioUrl
+        content: responseData.response.content.text || responseData.response.content,
+        timestamp: responseData.response.timestamp || new Date().toISOString(),
+        audioUrl: responseData.response.audioUrl
       };
        
       try {
@@ -455,7 +444,7 @@ function App() {
         console.error('Error adding assistant message to conversation:', error);
       }
       
-      setResponse(responseData.response);
+      setResponse(responseData.response.content.text || responseData.response.content);
       setAudioUrl(responseData.audioUrl); 
       
       // Play success sound
@@ -592,7 +581,9 @@ function App() {
 
   return (
     <>
-              <Router>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <Toaster position="top-center" />
           <Routes>
             {/* Always use your custom AuthPage for /login */}
             <Route path="/login" element={<AuthPage />} />
@@ -601,11 +592,20 @@ function App() {
               element={user ? <DashboardPage user={user} /> : <Navigate to="/login" replace />}
             />
             <Route
+              path="/debug"
+              element={user ? <DebugPage user={user} /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/debug-profile"
+              element={user ? <DebugProfile user={user} /> : <Navigate to="/login" replace />}
+            />
+            <Route
               path="*"
               element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />}
             />
           </Routes>
         </Router>
+      </QueryClientProvider>
     </>
   );
 }

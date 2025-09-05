@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import type { UserProfile, UsageCheck } from '../types/subscription';
+import type { UsageCheck, UserProfile } from '../types/subscription';
 import { TIER_CONFIGS } from '../types/subscription';
 
 interface UseSubscriptionReturn {
@@ -52,7 +52,62 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     try {
       console.log('📊 Fetching user profile for:', user.id);
 
-      // Check if supabase is properly configured
+      // First check if the user ID exists in auth.users
+      const { data: authUser, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser?.user?.id) {
+        throw new Error("Missing or invalid authenticated user.");
+      }
+
+      // Try backend endpoint first with fallback creation
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+        const session = await supabase.auth.getSession();
+        const accessToken = session.data.session?.access_token;
+        
+        if (!accessToken) {
+          throw new Error("No access token available");
+        }
+        
+        const res = await fetch(`${backendUrl}/v1/user_profiles/${user.id}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (res.ok) {
+          const profileData = await res.json();
+          console.log('✅ Profile fetched from backend:', profileData);
+          setProfile(profileData);
+          setIsLoading(false);
+          return;
+        } else if (res.status === 400) {
+          // Profile missing, auto-create fallback profile
+          console.warn('No profile found. Creating fallback profile...');
+          const createRes = await fetch(`${backendUrl}/v1/user_profiles`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              user_id: user.id
+            })
+          });
+
+          if (createRes.ok) {
+            const newProfile = await createRes.json();
+            console.log('✅ Created fallback profile:', newProfile);
+            setProfile(newProfile);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Backend profile fetch failed, falling back to direct Supabase:', backendError);
+      }
+
+      // Fallback to direct Supabase client
       if (!supabase || typeof supabase.from !== 'function') {
         console.warn('⚠️ Supabase not configured, using mock profile');
         const mockProfile = createDefaultProfile(user.id);
@@ -61,35 +116,34 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         return;
       }
 
-      const { data, error } = await supabase
+      // Then fetch or create user_profile safely
+      const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist, create default
-          console.log('📊 Creating default profile for new user');
-          const defaultProfile = createDefaultProfile(user.id);
-          
-          const { error: insertError } = await supabase
-              .from('user_profiles')
-            .insert(defaultProfile);
+      if (error && error.code === 'PGRST116') {
+        // Create fallback profile if missing
+        console.log('📊 Creating fallback profile for new user');
+        const defaultProfile = createDefaultProfile(user.id);
+        
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert(defaultProfile);
 
-          if (insertError) {
-            console.error('❌ Error creating profile:', insertError);
-            setError(insertError.message);
-            } else {
-            setProfile(defaultProfile);
-          }
+        if (insertError) {
+          console.error('❌ Error creating profile:', insertError);
+          setError(insertError.message);
         } else {
-          console.error('❌ Error fetching profile:', error);
-          setError(error.message);
+          setProfile(defaultProfile);
         }
+      } else if (error) {
+        console.error('❌ Error fetching profile:', error);
+        setError(error.message);
       } else {
-        console.log('✅ Profile fetched successfully:', data);
-        setProfile(data);
+        console.log('✅ Profile fetched successfully:', profile);
+        setProfile(profile);
       }
     } catch (err) {
       console.error('❌ Unexpected error in fetchProfile:', err);
