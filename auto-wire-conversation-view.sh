@@ -8,25 +8,20 @@ warn(){ printf "\033[1;33m%s\033[0m\n" "$1"; }
 # 0) Repo root
 git rev-parse --show-toplevel >/dev/null 2>&1 && cd "$(git rev-parse --show-toplevel)"
 
-# 1) Locate ControlCenter.tsx
-TARGET="$(git ls-files | grep -E 'ControlCenter\.tsx$' | head -n1 || true)"
-if [ -z "$TARGET" ]; then
-  TARGET="src/features/chat/ControlCenter.tsx"
-fi
+# 1) Locate ConversationView.tsx
+TARGET="src/features/chat/components/ConversationView.tsx"
 [ -f "$TARGET" ] || { echo "❌ File not found: $TARGET"; exit 1; }
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 mkdir -p backups/refactor
-cp -f "$TARGET" "backups/refactor/ControlCenter.$STAMP.backup.tsx"
-ok "Backup saved → backups/refactor/ControlCenter.$STAMP.backup.tsx"
+cp -f "$TARGET" "backups/refactor/ConversationView.$STAMP.backup.tsx"
+ok "Backup saved → backups/refactor/ConversationView.$STAMP.backup.tsx"
 
 # 2) Insert import block after the last import (if not already present)
 TARGET="$TARGET" node - <<'NODE'
 const fs = require('fs');
-const path = require('path');
-
 const TARGET = process.env.TARGET;
-const IMPORT_LINE = `import { ControlHeader, MessageList, Composer, SafeModeToggle, UpgradePrompt } from "@/features/chat/components/control-center";`;
+const IMPORT_LINE = `import { ConversationHeader, MessageBubble, LoadingMessage } from "@/features/chat/components/conversation";`;
 
 let src = fs.readFileSync(TARGET, 'utf8');
 
@@ -45,7 +40,7 @@ if (!src.includes(IMPORT_LINE)) {
     src = IMPORT_LINE + '\n' + src;
   }
   fs.writeFileSync(TARGET, src, 'utf8');
-  console.log('✅ Added imports for control-center components');
+  console.log('✅ Added imports for conversation components');
 } else {
   console.log('ℹ️ Imports already present — skipping');
 }
@@ -64,41 +59,54 @@ if (src.includes('PHASE3_AUTOWIRE_SCAFFOLD')) {
 
 const scaffold = `
 /* PHASE3_AUTOWIRE_SCAFFOLD (non-executing)
-  How to migrate ControlCenter.tsx with new components:
+  How to migrate ConversationView.tsx with new components:
 
-  1) Lift state up here (if not already):
-     const [safeMode, setSafeMode] = useState(true);
-     const bottomRef = useRef<HTMLDivElement>(null);
+  1) State management (already exists):
+     const [copiedId, setCopiedId] = useState<string | null>(null);
+     const [isEditingTitle, setIsEditingTitle] = useState(false);
+     const [editedTitle, setEditedTitle] = useState(conversation.title);
 
   2) Use the components (drop this block into your JSX and remove the {false && …} guard):
      {false && (
-       <div className="flex flex-col h-full">
-         <ControlHeader
-           title="Conversation"
-           onBack={() => {/* navigate back *\/}}
-           rightSlot={<SafeModeToggle value={safeMode} onChange={setSafeMode} />}
+       <div className="w-full space-y-6">
+         <ConversationHeader
+           title={conversation.title}
+           isEditing={isEditingTitle}
+           editedTitle={editedTitle}
+           onStartEdit={() => setIsEditingTitle(true)}
+           onSaveEdit={() => {
+             if (editedTitle.trim() && onUpdateTitle) {
+               onUpdateTitle(editedTitle.trim());
+             }
+             setIsEditingTitle(false);
+           }}
+           onCancelEdit={() => setIsEditingTitle(false)}
+           onTitleChange={setEditedTitle}
          />
-         <UpgradePrompt show={false} tierLabel="Free" onUpgrade={() => {/* open upgrade *\/}} />
-         <MessageList messages={messages /* your list *\/} bottomRef={bottomRef} />
-         <Composer
-           onSend={(text) => {/* send message *\/}}
-           placeholder="Type your message…"
-           rightSlot={<button className="border rounded-xl px-3 py-1">Send</button>}
-         />
+         
+         {conversation.messages.filter(m => m.role !== 'system').map((message) => (
+           <MessageBubble
+             key={message.id}
+             message={message}
+             copiedId={copiedId}
+             onCopy={handleCopy}
+             onDelete={onDeleteMessage}
+           />
+         ))}
+         
+         {isLoading && <LoadingMessage />}
        </div>
      )}
   3) Migrate gradually:
-     - Move header bits → ControlHeader
-     - Render bubbles/virtualization → MessageList
-     - Input/mic/attachments → Composer
-     - Safe mode toggle → SafeModeToggle
-     - Upsell strip → UpgradePrompt
-  4) Keep this file as the orchestrator (target < 300 lines).
+     - Move title editing logic → ConversationHeader
+     - Move message rendering → MessageBubble
+     - Move loading state → LoadingMessage
+  4) Keep this file as the orchestrator (target < 200 lines).
 */
 `;
 
 fs.writeFileSync(TARGET, src + '\n' + scaffold, 'utf8');
-console.log('✅ Appended non-executing scaffold to ControlCenter.tsx');
+console.log('✅ Appended non-executing scaffold to ConversationView.tsx');
 NODE
 
 # 4) Prettify if available

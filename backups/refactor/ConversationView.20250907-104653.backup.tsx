@@ -20,11 +20,6 @@ import AudioPlayer from "../../../components/AudioPlayer";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 import Tooltip from "../../../components/Tooltip";
 import type { Message } from "../../../types/chat";
-import {
-  ConversationHeader,
-  MessageBubble,
-  LoadingMessage,
-} from "@/features/chat/components/conversation";
 
 interface ConversationViewProps {
   conversation: {
@@ -309,49 +304,3 @@ const ConversationView: React.FC<ConversationViewProps> = ({
 };
 
 export default ConversationView;
-
-/* PHASE3_AUTOWIRE_SCAFFOLD (non-executing)
-  How to migrate ConversationView.tsx with new components:
-
-  1) State management (already exists):
-     const [copiedId, setCopiedId] = useState<string | null>(null);
-     const [isEditingTitle, setIsEditingTitle] = useState(false);
-     const [editedTitle, setEditedTitle] = useState(conversation.title);
-
-  2) Use the components (drop this block into your JSX and remove the {false && …} guard):
-     {false && (
-       <div className="w-full space-y-6">
-         <ConversationHeader
-           title={conversation.title}
-           isEditing={isEditingTitle}
-           editedTitle={editedTitle}
-           onStartEdit={() => setIsEditingTitle(true)}
-           onSaveEdit={() => {
-             if (editedTitle.trim() && onUpdateTitle) {
-               onUpdateTitle(editedTitle.trim());
-             }
-             setIsEditingTitle(false);
-           }}
-           onCancelEdit={() => setIsEditingTitle(false)}
-           onTitleChange={setEditedTitle}
-         />
-         
-         {conversation.messages.filter(m => m.role !== 'system').map((message) => (
-           <MessageBubble
-             key={message.id}
-             message={message}
-             copiedId={copiedId}
-             onCopy={handleCopy}
-             onDelete={onDeleteMessage}
-           />
-         ))}
-         
-         {isLoading && <LoadingMessage />}
-       </div>
-     )}
-  3) Migrate gradually:
-     - Move title editing logic → ConversationHeader
-     - Move message rendering → MessageBubble
-     - Move loading state → LoadingMessage
-  4) Keep this file as the orchestrator (target < 200 lines).
-*/
