@@ -1,0 +1,22 @@
+// Custom Metro config to avoid TerminalReporter import issues
+const { getDefaultConfig } = require('expo/metro-config');
+
+const config = getDefaultConfig(__dirname);
+
+// Override the reporter to avoid TerminalReporter issues
+config.reporter = {
+  update: () => {},
+};
+
+// Override the server config to avoid problematic imports
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware, server) => middleware,
+};
+
+const path = require('path');
+config.resolver = config.resolver || {};
+config.resolver.extraNodeModules = Object.assign({}, config.resolver.extraNodeModules, {
+  'metro/src/lib/TerminalReporter': path.resolve(__dirname, 'metro-terminal-reporter-shim.cjs'),
+});
+module.exports = config;

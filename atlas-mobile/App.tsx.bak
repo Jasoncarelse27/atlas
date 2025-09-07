@@ -1,0 +1,10 @@
+import ChatScreen from '@/features/chat/screens/ChatScreen';
+import { AtlasQueryProvider } from './src/lib/queryClient';
+
+export default function App() {
+  return (
+    <AtlasQueryProvider>
+      <ChatScreen />
+    </AtlasQueryProvider>
+  );
+}

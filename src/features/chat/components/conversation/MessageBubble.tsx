@@ -1,14 +1,15 @@
-import React from "react";
 import {
-  Bot,
-  User,
-  Clock,
-  Copy,
-  Check,
-  Trash2,
-  Share2,
-  Bookmark,
+    Bookmark,
+    Bot,
+    Check,
+    Clock,
+    Copy,
+    Share2,
+    Trash2,
+    User,
 } from "lucide-react";
+import AudioPlayer from "../../../../components/AudioPlayer";
+import Tooltip from "../../../../components/Tooltip";
 import type { Message } from "../../../../types/chat";
 
 interface MessageBubbleProps {
@@ -65,24 +66,30 @@ export default function MessageBubble({
             </div>
 
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => onCopy(message.id, message.content)}
-                className="p-1 text-gray-400 hover:text-gray-300 rounded-full hover:bg-gray-700"
+              <Tooltip
+                content={copiedId === message.id ? "Copied!" : "Copy"}
               >
-                {copiedId === message.id ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </button>
+                <button
+                  onClick={() => onCopy(message.id, message.content)}
+                  className="p-1 text-gray-400 hover:text-gray-300 rounded-full hover:bg-gray-700"
+                >
+                  {copiedId === message.id ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </button>
+              </Tooltip>
 
               {onDelete && (
-                <button
-                  onClick={() => onDelete(message.id)}
-                  className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-gray-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <Tooltip content="Delete">
+                  <button
+                    onClick={() => onDelete(message.id)}
+                    className="p-1 text-gray-400 hover:text-red-400 rounded-full hover:bg-gray-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -91,6 +98,28 @@ export default function MessageBubble({
           <div className="text-gray-200 whitespace-pre-wrap">
             {message.content}
           </div>
+
+          {/* Audio Player */}
+          {message.audioUrl && (
+            <div className="mt-3">
+              <AudioPlayer
+                audioUrl={message.audioUrl}
+                title="Audio Response"
+                variant="minimal"
+              />
+            </div>
+          )}
+
+          {/* Image Preview */}
+          {message.imageUrl && (
+            <div className="mt-3">
+              <img
+                src={message.imageUrl}
+                alt="Uploaded content"
+                className="max-h-60 rounded-lg border border-gray-200"
+              />
+            </div>
+          )}
 
           {/* Action Buttons */}
           {message.role === "assistant" && (

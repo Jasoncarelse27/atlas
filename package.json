@@ -20,14 +20,17 @@
     "health": "curl http://localhost:$PORT/healthz || echo 'Health check failed'",
     "dev:web": "vite",
     "dev:web:safe": "npm run dev:web || echo 'ℹ️ Web likely already running — skipping.'",
-    "dev:mobile": "npm --prefix atlas-mobile run dev",
+    "dev:mobile": "bash scripts/expo-mobile.sh",
     "dev:mobile:safe": "npm run dev:mobile || echo 'ℹ️ Expo likely already running — skipping.'",
     "dev:all": "concurrently -n WEB,MOBILE -c auto \"npm:dev:web:safe\" \"npm:dev:mobile:safe\"",
     "dev:doctor": "node scripts/dev-doctor.cjs",
     "dev:checklist": "echo '📋 Atlas Development Checklist' && echo '' && echo '✅ Environment: .env file present' && echo '✅ Web Project: Vite detected at root' && echo '✅ Mobile Project: Expo detected in atlas-mobile/' && echo '' && echo '🚀 Quick Start Commands:' && echo '  npm run dev:web     # Start web frontend (Vite)' && echo '  npm run dev:mobile  # Start mobile app (Expo)' && echo '  npm run dev:all     # Start both simultaneously' && echo '' && echo '🔧 Diagnostic Commands:' && echo '  npm run dev:doctor  # Check ports and project structure' && echo '  npm run audit:components  # Component architecture audit' && echo '' && echo '💡 Tip: Use separate terminals for web and mobile development'",
     "audit:components": "node scripts/audit-components.cjs",
     "backup:src": "bash scripts/auto-backup.sh",
-    "sanitize:history": "echo '⚠️ Manual review required - check for .env commits'"
+    "sanitize:history": "echo '⚠️ Manual review required - check for .env commits'",
+    "metro:fix": "MOBILE_DIR=atlas-mobile bash scripts/fix-metro.sh",
+    "ios:clean": "scripts/ios-clean.sh",
+    "mobile:clean": "scripts/mobile-clean.sh"
   },
   "dependencies": {
     "@supabase/auth-ui-react": "^0.4.7",

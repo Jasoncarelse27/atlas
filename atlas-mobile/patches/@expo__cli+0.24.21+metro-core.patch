@@ -1,0 +1,3 @@
+diff --git a/build/src/start/server/metro/TerminalReporter.js b/build/src/start/server/metro/TerminalReporter.js
+-const { TerminalReporter } = require("metro/src/lib/TerminalReporter");
++const { TerminalReporter } = require("metro-core");
