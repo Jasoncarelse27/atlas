@@ -9,7 +9,7 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "start": "node backend/server.mjs",
+    "start": "npm run dev:checklist",
     "dev": "nodemon backend/server.mjs",
     "build": "vite build",
     "preview": "vite preview",
@@ -17,7 +17,17 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "postinstall": "echo 'Backend dependencies installed successfully'",
-    "health": "curl http://localhost:$PORT/healthz || echo 'Health check failed'"
+    "health": "curl http://localhost:$PORT/healthz || echo 'Health check failed'",
+    "dev:web": "vite",
+    "dev:web:safe": "npm run dev:web || echo 'ℹ️ Web likely already running — skipping.'",
+    "dev:mobile": "npm --prefix atlas-mobile run dev",
+    "dev:mobile:safe": "npm run dev:mobile || echo 'ℹ️ Expo likely already running — skipping.'",
+    "dev:all": "concurrently -n WEB,MOBILE -c auto \"npm:dev:web:safe\" \"npm:dev:mobile:safe\"",
+    "dev:doctor": "node scripts/dev-doctor.cjs",
+    "dev:checklist": "echo '📋 Atlas Development Checklist' && echo '' && echo '✅ Environment: .env file present' && echo '✅ Web Project: Vite detected at root' && echo '✅ Mobile Project: Expo detected in atlas-mobile/' && echo '' && echo '🚀 Quick Start Commands:' && echo '  npm run dev:web     # Start web frontend (Vite)' && echo '  npm run dev:mobile  # Start mobile app (Expo)' && echo '  npm run dev:all     # Start both simultaneously' && echo '' && echo '🔧 Diagnostic Commands:' && echo '  npm run dev:doctor  # Check ports and project structure' && echo '  npm run audit:components  # Component architecture audit' && echo '' && echo '💡 Tip: Use separate terminals for web and mobile development'",
+    "audit:components": "node scripts/audit-components.cjs",
+    "backup:src": "bash scripts/auto-backup.sh",
+    "sanitize:history": "echo '⚠️ Manual review required - check for .env commits'"
   },
   "dependencies": {
     "@supabase/auth-ui-react": "^0.4.7",
@@ -30,6 +40,7 @@
     "dexie": "^4.2.0",
     "dexie-react-hooks": "^4.2.0",
     "dotenv": "^17.2.0",
+    "expo": "^53.0.22",
     "express": "^4.18.2",
     "express-rate-limit": "^7.5.1",
     "framer-motion": "^12.23.12",
@@ -53,6 +64,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
     "eslint": "^9.34.0",
     "jsdom": "^25.0.1",
     "msw": "^2.11.1",

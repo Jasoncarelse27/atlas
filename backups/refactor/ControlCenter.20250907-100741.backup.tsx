@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 import SoundSettings from "./SoundSettings";
-import { ControlHeader, MessageList, Composer, SafeModeToggle, UpgradePrompt } from "@/features/chat/components/control-center";
 
 interface ControlCenterProps {
   user: User;
@@ -1374,37 +1373,3 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
 };
 
 export default ControlCenter;
-
-
-/* PHASE3_AUTOWIRE_SCAFFOLD (non-executing)
-  How to migrate ControlCenter.tsx with new components:
-
-  1) Lift state up here (if not already):
-     const [safeMode, setSafeMode] = useState(true);
-     const bottomRef = useRef<HTMLDivElement>(null);
-
-  2) Use the components (drop this block into your JSX and remove the {false && …} guard):
-     {false && (
-       <div className="flex flex-col h-full">
-         <ControlHeader
-           title="Conversation"
-           onBack={() => {/* navigate back */}}
-           rightSlot={<SafeModeToggle value={safeMode} onChange={setSafeMode} />}
-         />
-         <UpgradePrompt show={false} tierLabel="Free" onUpgrade={() => {/* open upgrade */}} />
-         <MessageList messages={messages /* your list */} bottomRef={bottomRef} />
-         <Composer
-           onSend={(text) => {/* send message */}}
-           placeholder="Type your message…"
-           rightSlot={<button className="border rounded-xl px-3 py-1">Send</button>}
-         />
-       </div>
-     )}
-  3) Migrate gradually:
-     - Move header bits → ControlHeader
-     - Render bubbles/virtualization → MessageList
-     - Input/mic/attachments → Composer
-     - Safe mode toggle → SafeModeToggle
-     - Upsell strip → UpgradePrompt
-  4) Keep this file as the orchestrator (target < 300 lines).
-*/
