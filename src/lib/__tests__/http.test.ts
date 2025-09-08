@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { AppError } from '@/lib/error';
 import { http } from '@/lib/http';
+import { HttpResponse, http as mswHttp } from 'msw';
 import { setupServer } from 'msw/node';
-import { http as mswHttp, HttpResponse } from 'msw';
+import { describe, expect, it } from 'vitest';
 
 const server = setupServer();
 
@@ -22,10 +23,14 @@ describe('HttpClient', () => {
     
     try {
       await http('/api/error');
-      expect.fail('Should have thrown an error');
-    } catch (error: any) {
-      expect(error.code).toBe('UNKNOWN'); // The current http function doesn't pass status to normalizeError
-      expect(error.message).toContain('Not Found');
+      throw new Error('Should have thrown an error');
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Should have thrown an error') {
+        throw error;
+      }
+      const appError = error as AppError;
+      expect(appError.code).toBe('UNKNOWN'); // The current http function doesn't pass status to normalizeError
+      expect(appError.message).toContain('Not Found');
     }
   });
 });
