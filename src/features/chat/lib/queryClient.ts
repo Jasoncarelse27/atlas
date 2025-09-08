@@ -1,66 +1,28 @@
 import { QueryClient } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { retryDelaysMs } from '../../../lib/retry';
 
 // Query client configuration optimized for chat app
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Chat messages should be fresh but cached
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
-      
-      // Retry failed requests
-      retry: (failureCount, error: any) => {
-        // Don't retry on 4xx errors (user errors)
-        if (error?.status >= 400 && error?.status < 500) {
-          return false;
-        }
-        // Retry up to 3 times for other errors
-        return failureCount < 3;
+      retry(fails, err: any) {
+        const s = err?.status;
+        if (s && s < 500) return false;
+        return fails < 3;
       },
+      retryDelay(i) {
+        return retryDelaysMs(3)[i] ?? 8000;
+      },
+      staleTime: 5 * 60 * 1000,
       
       // Refetch on window focus for real-time updates
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      
-      // Optimistic updates for better UX
-      optimistic: true,
     },
-    
     mutations: {
-      // Retry mutations on network errors
-      retry: (failureCount, error: any) => {
-        if (error?.status >= 400 && error?.status < 500) {
-          return false;
-        }
-        return failureCount < 2;
-      },
-      
-      // Optimistic updates for messages
-      onMutate: async (variables) => {
-        // Cancel outgoing refetches
-        await queryClient.cancelQueries({ queryKey: ['messages'] });
-        
-        // Snapshot previous value
-        const previousMessages = queryClient.getQueryData(['messages']);
-        
-        // Return context with the snapshotted value
-        return { previousMessages };
-      },
-      
-      onError: (err, variables, context) => {
-        // Rollback on error
-        if (context?.previousMessages) {
-          queryClient.setQueryData(['messages'], context.previousMessages);
-        }
-      },
-      
-      onSettled: () => {
-        // Always refetch after error or success
-        queryClient.invalidateQueries({ queryKey: ['messages'] });
-      },
-    },
-  },
+      retry: false
+    }
+  }
 });
 
 // Query keys factory for consistent key management
@@ -119,8 +81,8 @@ export const mutationKeys = {
   },
 } as const;
 
-// React Query DevTools component
-export { ReactQueryDevtools };
+// React Query DevTools component (import separately in development)
+// export { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 // Export types for use in other files
     export type { QueryClient } from '@tanstack/react-query';

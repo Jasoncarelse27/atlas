@@ -18,6 +18,8 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { Conversation } from '../types/chat';
+// TODO: Import new conversation history components when ready to refactor
+// import { HistoryList, HistoryItem, Filters } from './conversation-history';
 
 interface ConversationHistoryPanelProps {
   isOpen: boolean;

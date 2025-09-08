@@ -1,32 +1,27 @@
-/** PHASE3_REFACTOR_TODO: This file is scheduled for modularization.
- *  Use components from src/features/chat/components/control-center as you migrate.
- *  Keep this file as the orchestrator; target < 300 lines.
- */
+/** REFACTORED: ControlCenter now uses modular components from control-center feature */
 
-import React, { useState, useEffect } from "react";
+import { LayoutTab, PreferencesTab, ThemeTab } from "@/features/chat/components/control-center";
 import type { User } from "@supabase/supabase-js";
-import type { UserProfile } from "../types/subscription";
-import { useCustomization } from "../hooks/useCustomization";
-import { useSoundEffects } from "../hooks/useSoundEffects";
-import type { SoundTheme, SoundType } from "../hooks/useSoundEffects";
 import {
-  X,
-  Sliders,
-  Palette,
-  Layout,
-  Settings,
-  Moon,
-  Sun,
-  RefreshCw,
-  Save,
-  Volume2,
-  Download,
-  Upload,
-  AlertTriangle,
+    AlertTriangle,
+    Download,
+    Layout,
+    Palette,
+    RefreshCw,
+    Save,
+    Settings,
+    Sliders,
+    Upload,
+    Volume2,
+    X
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useCustomization } from "../hooks/useCustomization";
+import type { SoundTheme, SoundType } from "../hooks/useSoundEffects";
+import { useSoundEffects } from "../hooks/useSoundEffects";
+import type { UserProfile } from "../types/subscription";
 import LoadingSpinner from "./LoadingSpinner";
 import SoundSettings from "./SoundSettings";
-import { ControlHeader, MessageList, Composer, SafeModeToggle, UpgradePrompt } from "@/features/chat/components/control-center";
 
 interface ControlCenterProps {
   user: User;
@@ -239,536 +234,188 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const colorOptions = [
-    { name: "Blue", value: "#3B82F6" },
-    { name: "Purple", value: "#8B5CF6" },
-    { name: "Pink", value: "#EC4899" },
-    { name: "Red", value: "#EF4444" },
-    { name: "Orange", value: "#F97316" },
-    { name: "Amber", value: "#F59E0B" },
-    { name: "Green", value: "#10B981" },
-    { name: "Teal", value: "#14B8A6" },
-    { name: "Cyan", value: "#06B6D4" },
-    { name: "Indigo", value: "#6366F1" },
-  ];
+  // Layout handlers
+  const handleHeaderStyleChange = (
+    style: "minimal" | "standard" | "expanded",
+  ) => {
+    setSelectedHeaderStyle(style);
+    updateCustomization("layout.headerStyle", style);
+    playSound("click");
+  };
 
-  const accentColorOptions = [
-    { name: "Green", value: "#10B981" },
-    { name: "Blue", value: "#3B82F6" },
-    { name: "Purple", value: "#8B5CF6" },
-    { name: "Pink", value: "#EC4899" },
-    { name: "Red", value: "#EF4444" },
-    { name: "Orange", value: "#F97316" },
-    { name: "Amber", value: "#F59E0B" },
-    { name: "Teal", value: "#14B8A6" },
-    { name: "Cyan", value: "#06B6D4" },
-    { name: "Indigo", value: "#6366F1" },
-  ];
+  const handleWidgetLayoutChange = (layout: "grid" | "list" | "masonry") => {
+    setSelectedWidgetLayout(layout);
+    updateCustomization("layout.widgetLayout", layout);
+    playSound("click");
+  };
 
-  const fontSizeOptions = [
-    { name: "Small", value: 12 },
-    { name: "Medium", value: 14 },
-    { name: "Large", value: 16 },
-    { name: "Extra Large", value: 18 },
-  ];
+  const handleCompactModeToggle = () => {
+    setCompactMode(!compactMode);
+    updateCustomization("layout.compactMode", !compactMode);
+    playSound("toggle");
+  };
 
-  const borderRadiusOptions = [
-    { name: "None", value: 0 },
-    { name: "Small", value: 4 },
-    { name: "Medium", value: 8 },
-    { name: "Large", value: 12 },
-    { name: "Extra Large", value: 16 },
-  ];
+  const handleShowAnimationsToggle = () => {
+    setShowAnimations(!showAnimations);
+    updateCustomization("layout.showAnimations", !showAnimations);
+    playSound("toggle");
+  };
 
-  const renderThemeTab = () => (
-    <div className="space-y-6">
-      {/* Color Theme */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Color Theme
-        </h3>
+  // Accessibility handlers
+  const handleHighContrastToggle = () => {
+    setHighContrast(!highContrast);
+    updateCustomization(
+      "preferences.accessibility.highContrast",
+      !highContrast,
+    );
+    playSound("toggle");
+  };
 
-        <div className="space-y-4">
-          {/* Primary Color */}
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Primary Color</h4>
-            <div className="grid grid-cols-5 gap-2">
-              {colorOptions.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() => handleColorChange(color.value)}
-                  className={`w-10 h-10 rounded-full transition-all ${
-                    selectedColor === color.value
-                      ? "ring-2 ring-offset-2 ring-gray-400 scale-110"
-                      : "hover:scale-110"
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  aria-label={`${color.name} primary color`}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </div>
+  const handleLargeTextToggle = () => {
+    setLargeText(!largeText);
+    updateCustomization("preferences.accessibility.largeText", !largeText);
+    playSound("toggle");
+  };
 
-          {/* Accent Color */}
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Accent Color</h4>
-            <div className="grid grid-cols-5 gap-2">
-              {accentColorOptions.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() => handleAccentColorChange(color.value)}
-                  className={`w-10 h-10 rounded-full transition-all ${
-                    selectedAccentColor === color.value
-                      ? "ring-2 ring-offset-2 ring-gray-400 scale-110"
-                      : "hover:scale-110"
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  aria-label={`${color.name} accent color`}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </div>
+  const handleReduceMotionToggle = () => {
+    setReduceMotion(!reduceMotion);
+    updateCustomization(
+      "preferences.accessibility.reduceMotion",
+      !reduceMotion,
+    );
+    playSound("toggle");
+  };
 
-          {/* Color Preview */}
-          <div className="p-4 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-gray-700">Preview</h4>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div
-                className="h-10 rounded-lg flex items-center justify-center text-white font-medium"
-                style={{ backgroundColor: selectedColor }}
-              >
-                Primary Color
-              </div>
-              <div
-                className="h-10 rounded-lg flex items-center justify-center text-white font-medium"
-                style={{ backgroundColor: selectedAccentColor }}
-              >
-                Accent Color
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="px-4 py-2 rounded-lg text-white font-medium flex-1"
-                  style={{ backgroundColor: selectedColor }}
-                >
-                  Primary Button
-                </button>
-                <button
-                  className="px-4 py-2 rounded-lg text-white font-medium flex-1"
-                  style={{ backgroundColor: selectedAccentColor }}
-                >
-                  Accent Button
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+  // Sound handlers
+  const handleToggleSoundEffects = () => {
+    updateCustomization("preferences.soundEffects", !soundEnabled);
+    playSound("toggle");
+  };
 
-      {/* Mode Selection */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Mode</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={() => handleModeChange("light")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedMode === "light"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <Sun className="w-6 h-6 text-amber-500" />
-              <span className="font-medium">Light</span>
-            </div>
-          </button>
+  const handleChangeSoundTheme = (theme: SoundTheme) => {
+    updateCustomization("preferences.soundTheme", theme);
+    playSound("click");
+  };
 
-          <button
-            onClick={() => handleModeChange("dark")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedMode === "dark"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <Moon className="w-6 h-6 text-indigo-600" />
-              <span className="font-medium">Dark</span>
-            </div>
-          </button>
+  const handleSoundVolumeChange = (volume: number) => {
+    setSoundVolume(volume);
+    updateCustomization("preferences.soundVolume", volume);
+  };
 
-          <button
-            onClick={() => handleModeChange("auto")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedMode === "auto"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="relative">
-                <Sun className="w-6 h-6 text-amber-500 absolute -left-1 -top-1 transform scale-75" />
-                <Moon className="w-6 h-6 text-indigo-600 absolute -right-1 -bottom-1 transform scale-75" />
-              </div>
-              <span className="font-medium">Auto</span>
-            </div>
-          </button>
-        </div>
-      </div>
+  const handlePlayTestSound = (type: SoundType) => {
+    playSound(type);
+  };
 
-      {/* Typography & Borders */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Typography & Borders
-        </h3>
+  // Import/Export handlers
+  const handleExportSettings = () => {
+    const dataStr = JSON.stringify(customization, null, 2);
+    const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
 
-        <div className="space-y-4">
-          {/* Font Size */}
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Font Size</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {fontSizeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleFontSizeChange(option.value)}
-                  className={`p-3 rounded-lg border transition-colors ${
-                    selectedFontSize === option.value
-                      ? "border-blue-300 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="text-center">
-                    <span
-                      className="font-medium"
-                      style={{ fontSize: `${option.value}px` }}
-                    >
-                      {option.name}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+    const link = document.createElement("a");
+    link.setAttribute("href", dataUri);
+    link.setAttribute("download", "atlas-settings.json");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-          {/* Border Radius */}
-          <div>
-            <h4 className="font-medium text-gray-700 mb-2">Border Radius</h4>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {borderRadiusOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleBorderRadiusChange(option.value)}
-                  className={`p-3 rounded-lg border transition-colors ${
-                    selectedBorderRadius === option.value
-                      ? "border-blue-300 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <div
-                      className="w-8 h-8 border-2 border-gray-400"
-                      style={{ borderRadius: `${option.value}px` }}
-                    />
-                    <span className="text-xs font-medium">{option.name}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    playSound("success");
+  };
 
-  const renderLayoutTab = () => (
-    <div className="space-y-6">
-      {/* Header Style */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Header Style
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button
-            onClick={() => handleHeaderStyleChange("minimal")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedHeaderStyle === "minimal"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-full h-6 bg-gray-200 rounded-lg flex items-center px-2">
-                <div className="w-8 h-3 bg-gray-400 rounded-full" />
-              </div>
-              <span className="font-medium">Minimal</span>
-            </div>
-          </button>
+  const handleImportSettings = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
 
-          <button
-            onClick={() => handleHeaderStyleChange("standard")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedHeaderStyle === "standard"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-full h-8 bg-gray-200 rounded-lg flex items-center px-2">
-                <div className="w-8 h-3 bg-gray-400 rounded-full" />
-                <div className="ml-auto flex gap-1">
-                  <div className="w-4 h-4 bg-gray-400 rounded-full" />
-                  <div className="w-4 h-4 bg-gray-400 rounded-full" />
-                </div>
-              </div>
-              <span className="font-medium">Standard</span>
-            </div>
-          </button>
+        // Apply imported settings
+        if (json.theme) {
+          setSelectedColor(json.theme.primaryColor || "#3B82F6");
+          setSelectedAccentColor(json.theme.accentColor || "#10B981");
+          setSelectedMode(json.theme.mode || "light");
+          setSelectedFontSize(json.theme.fontSize || 14);
+          setSelectedBorderRadius(json.theme.borderRadius || 8);
 
-          <button
-            onClick={() => handleHeaderStyleChange("expanded")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedHeaderStyle === "expanded"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-full h-10 bg-gray-200 rounded-lg flex items-center px-2">
-                <div className="w-10 h-4 bg-gray-400 rounded-full" />
-                <div className="ml-auto flex gap-1">
-                  <div className="w-6 h-6 bg-gray-400 rounded-full" />
-                  <div className="w-6 h-6 bg-gray-400 rounded-full" />
-                  <div className="w-6 h-6 bg-gray-400 rounded-full" />
-                </div>
-              </div>
-              <span className="font-medium">Expanded</span>
-            </div>
-          </button>
-        </div>
-      </div>
+          updateThemeColors(
+            json.theme.primaryColor || "#3B82F6",
+            json.theme.accentColor || "#10B981",
+          );
+          updateCustomization("theme.mode", json.theme.mode || "light");
+          updateCustomization("theme.fontSize", json.theme.fontSize || 14);
+          updateCustomization("theme.borderRadius", json.theme.borderRadius || 8);
+        }
 
-      {/* Widget Layout */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Widget Layout
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button
-            onClick={() => handleWidgetLayoutChange("grid")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedWidgetLayout === "grid"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-full h-16 bg-gray-200 rounded-lg p-1">
-                <div className="grid grid-cols-2 gap-1 h-full">
-                  <div className="bg-gray-400 rounded" />
-                  <div className="bg-gray-400 rounded" />
-                  <div className="bg-gray-400 rounded" />
-                  <div className="bg-gray-400 rounded" />
-                </div>
-              </div>
-              <span className="font-medium">Grid</span>
-            </div>
-          </button>
+        if (json.layout) {
+          setSelectedHeaderStyle(json.layout.headerStyle || "standard");
+          setSelectedWidgetLayout(json.layout.widgetLayout || "grid");
+          setCompactMode(json.layout.compactMode || false);
+          setShowAnimations(json.layout.showAnimations !== false);
 
-          <button
-            onClick={() => handleWidgetLayoutChange("list")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedWidgetLayout === "list"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-full h-16 bg-gray-200 rounded-lg p-1 flex flex-col gap-1">
-                <div className="bg-gray-400 rounded h-1/3" />
-                <div className="bg-gray-400 rounded h-1/3" />
-                <div className="bg-gray-400 rounded h-1/3" />
-              </div>
-              <span className="font-medium">List</span>
-            </div>
-          </button>
+          updateCustomization("layout.headerStyle", json.layout.headerStyle || "standard");
+          updateCustomization("layout.widgetLayout", json.layout.widgetLayout || "grid");
+          updateCustomization("layout.compactMode", json.layout.compactMode || false);
+          updateCustomization("layout.showAnimations", json.layout.showAnimations !== false);
+        }
 
-          <button
-            onClick={() => handleWidgetLayoutChange("masonry")}
-            className={`p-4 rounded-lg border transition-colors ${
-              selectedWidgetLayout === "masonry"
-                ? "border-blue-300 bg-blue-50"
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-full h-16 bg-gray-200 rounded-lg p-1">
-                <div className="grid grid-cols-3 gap-1 h-full">
-                  <div className="bg-gray-400 rounded col-span-2 row-span-1" />
-                  <div className="bg-gray-400 rounded col-span-1 row-span-2" />
-                  <div className="bg-gray-400 rounded col-span-1 row-span-1" />
-                  <div className="bg-gray-400 rounded col-span-1 row-span-1" />
-                </div>
-              </div>
-              <span className="font-medium">Masonry</span>
-            </div>
-          </button>
-        </div>
-      </div>
+        if (json.preferences?.accessibility) {
+          setHighContrast(json.preferences.accessibility.highContrast || false);
+          setLargeText(json.preferences.accessibility.largeText || false);
+          setReduceMotion(json.preferences.accessibility.reduceMotion || false);
 
-      {/* Layout Options */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Layout Options
-        </h3>
+          updateCustomization(
+            "preferences.accessibility.highContrast",
+            json.preferences.accessibility.highContrast || false,
+          );
+          updateCustomization(
+            "preferences.accessibility.largeText",
+            json.preferences.accessibility.largeText || false,
+          );
+          updateCustomization(
+            "preferences.accessibility.reduceMotion",
+            json.preferences.accessibility.reduceMotion || false,
+          );
+        }
 
-        <div className="space-y-4">
-          {/* Compact Mode */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">Compact Mode</h4>
-              <p className="text-sm text-gray-600">
-                Reduce spacing for a denser layout
-              </p>
-            </div>
-            <button
-              onClick={handleCompactModeToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                compactMode ? "bg-blue-600" : "bg-gray-300"
-              }`}
-              role="switch"
-              aria-checked={compactMode}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  compactMode ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
+        playSound("success");
+      } catch (error) {
+        console.error("Failed to parse settings file:", error);
+        playSound("error");
+      }
+    };
+    reader.readAsText(file);
+  };
 
-          {/* Show Animations */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">Show Animations</h4>
-              <p className="text-sm text-gray-600">
-                Enable UI animations and transitions
-              </p>
-            </div>
-            <button
-              onClick={handleShowAnimationsToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                showAnimations ? "bg-blue-600" : "bg-gray-300"
-              }`}
-              role="switch"
-              aria-checked={showAnimations}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  showAnimations ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-      </div>
+  // Theme handlers
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    updateThemeColors(color, selectedAccentColor);
+    playSound("click");
+  };
 
-      {/* Accessibility */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Accessibility
-        </h3>
+  const handleAccentColorChange = (color: string) => {
+    setSelectedAccentColor(color);
+    updateThemeColors(selectedColor, color);
+    playSound("click");
+  };
 
-        <div className="space-y-4">
-          {/* High Contrast */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">High Contrast</h4>
-              <p className="text-sm text-gray-600">
-                Increase contrast for better visibility
-              </p>
-            </div>
-            <button
-              onClick={handleHighContrastToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                highContrast ? "bg-blue-600" : "bg-gray-300"
-              }`}
-              role="switch"
-              aria-checked={highContrast}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  highContrast ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
+  const handleModeChange = (mode: "light" | "dark" | "auto") => {
+    setSelectedMode(mode);
+    updateCustomization("theme.mode", mode);
+    playSound("click");
+  };
 
-          {/* Large Text */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">Large Text</h4>
-              <p className="text-sm text-gray-600">
-                Increase text size throughout the app
-              </p>
-            </div>
-            <button
-              onClick={handleLargeTextToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                largeText ? "bg-blue-600" : "bg-gray-300"
-              }`}
-              role="switch"
-              aria-checked={largeText}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  largeText ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
+  const handleFontSizeChange = (size: number) => {
+    setSelectedFontSize(size);
+    updateCustomization("theme.fontSize", size);
+    playSound("click");
+  };
 
-          {/* Reduce Motion */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">Reduce Motion</h4>
-              <p className="text-sm text-gray-600">
-                Minimize animations and motion effects
-              </p>
-            </div>
-            <button
-              onClick={handleReduceMotionToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                reduceMotion ? "bg-blue-600" : "bg-gray-300"
-              }`}
-              role="switch"
-              aria-checked={reduceMotion}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  reduceMotion ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const handleBorderRadiusChange = (radius: number) => {
+    setSelectedBorderRadius(radius);
+    updateCustomization("theme.borderRadius", radius);
+    playSound("click");
+  };
 
-  const renderSoundTab = () => (
-    <SoundSettings
-      isEnabled={soundEnabled}
-      onToggleEnabled={handleToggleSoundEffects}
-      soundTheme={soundTheme}
-      onChangeSoundTheme={handleChangeSoundTheme}
-      volume={soundVolume}
-      onVolumeChange={handleSoundVolumeChange}
-      onPlayTestSound={handlePlayTestSound}
-    />
-  );
+
 
   const renderPreferencesTab = () => (
     <div className="space-y-6">
@@ -1289,10 +936,58 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
 
           {/* Content area */}
           <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-            {activeTab === "theme" && renderThemeTab()}
-            {activeTab === "layout" && renderLayoutTab()}
-            {activeTab === "sound" && renderSoundTab()}
-            {activeTab === "preferences" && renderPreferencesTab()}
+            {activeTab === "theme" && (
+              <ThemeTab
+                selectedColor={selectedColor}
+                selectedAccentColor={selectedAccentColor}
+                selectedMode={selectedMode}
+                selectedFontSize={selectedFontSize}
+                selectedBorderRadius={selectedBorderRadius}
+                onColorChange={handleColorChange}
+                onAccentColorChange={handleAccentColorChange}
+                onModeChange={handleModeChange}
+                onFontSizeChange={handleFontSizeChange}
+                onBorderRadiusChange={handleBorderRadiusChange}
+              />
+            )}
+            {activeTab === "layout" && (
+              <LayoutTab
+                selectedHeaderStyle={selectedHeaderStyle}
+                selectedWidgetLayout={selectedWidgetLayout}
+                compactMode={compactMode}
+                showAnimations={showAnimations}
+                highContrast={highContrast}
+                largeText={largeText}
+                reduceMotion={reduceMotion}
+                onHeaderStyleChange={handleHeaderStyleChange}
+                onWidgetLayoutChange={handleWidgetLayoutChange}
+                onCompactModeToggle={handleCompactModeToggle}
+                onShowAnimationsToggle={handleShowAnimationsToggle}
+                onHighContrastToggle={handleHighContrastToggle}
+                onLargeTextToggle={handleLargeTextToggle}
+                onReduceMotionToggle={handleReduceMotionToggle}
+              />
+            )}
+            {activeTab === "sound" && (
+              <SoundSettings
+                isEnabled={soundEnabled}
+                onToggleEnabled={handleToggleSoundEffects}
+                soundTheme={soundTheme}
+                onChangeSoundTheme={handleChangeSoundTheme}
+                volume={soundVolume}
+                onVolumeChange={handleSoundVolumeChange}
+                onPlayTestSound={handlePlayTestSound}
+              />
+            )}
+            {activeTab === "preferences" && (
+              <PreferencesTab
+                customization={customization}
+                updateCustomization={updateCustomization}
+                onExportSettings={handleExportSettings}
+                onImportSettings={handleImportSettings}
+                playSound={playSound}
+              />
+            )}
           </div>
 
           {/* Mobile action buttons */}

@@ -11,7 +11,7 @@ import { supabase } from './lib/supabase';
 import type { Message } from './types/chat';
 
 // Components
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -19,9 +19,7 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import DebugPage from './pages/DebugPage';
 import DebugProfile from './pages/DebugProfile';
-
-// Create a client
-const queryClient = new QueryClient()
+import { queryClient } from './features/chat/lib/queryClient';
 
 function App() {
   // Auth state

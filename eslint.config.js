@@ -1,28 +1,45 @@
-module.exports = {
-  env: {
-    browser: true,
-    es2020: true,
-    node: true,
-  },
-  extends: [
-    'eslint:recommended',
-  ],
-  parser: '@typescript-eslint/parser',
-  parserOptions: {
-    ecmaVersion: 2020,
-    sourceType: 'module',
-    ecmaFeatures: {
-      jsx: true,
+import js from '@eslint/js';
+import typescript from '@typescript-eslint/eslint-plugin';
+import typescriptParser from '@typescript-eslint/parser';
+
+export default [
+  js.configs.recommended,
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: typescriptParser,
+      parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        global: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'readonly',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': typescript,
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      'no-undef': 'off',
+      'no-console': 'warn',
     },
   },
-  plugins: [
-    '@typescript-eslint',
-  ],
-  rules: {
-    'no-unused-vars': 'off',
-    '@typescript-eslint/no-unused-vars': 'warn',
-    'no-undef': 'off',
-    'no-console': 'warn',
+  {
+    ignores: ['dist', 'node_modules', '*.config.js'],
   },
-  ignorePatterns: ['dist', 'node_modules', '*.config.js'],
-};
+];
