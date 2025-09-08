@@ -16,6 +16,7 @@ jobs:
   ci:
     name: CI Pipeline
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       VITE_APP_URL: http://localhost:5173
       EMAIL_LIVE_MODE: 'false'
@@ -24,26 +25,48 @@ jobs:
       HUSKY: '0'
       CI: 'true'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Node 22.12.0
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
           cache: 'npm'
 
+      - name: Verify Node.js and npm versions
+        run: |
+          node --version
+          npm --version
+          echo "Node.js and npm versions verified"
+
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: |
+          echo "Installing dependencies..."
+          npm ci --no-audit --no-fund
+          echo "Dependencies installed successfully"
 
       - name: Type check
-        run: npm run check:types
+        run: |
+          echo "Running type check..."
+          npm run check:types
+          echo "Type check completed"
 
       - name: Run tests
-        run: npm run check:test
+        run: |
+          echo "Running tests..."
+          npm run check:test
+          echo "Tests completed"
 
       - name: Build
-        run: npm run build
+        run: |
+          echo "Building application..."
+          npm run build
+          echo "Build completed"
 
       - name: Lint (warnings allowed)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: npm run check:lint || echo "⚠️ Linting completed with warnings"
+        run: |
+          echo "Running linting..."
+          npm run check:lint || echo "⚠️ Linting completed with warnings"
+          echo "Linting completed"
