@@ -1,4 +1,4 @@
-name: CI – Typecheck, Lint, Build, Test
+name: CI – Fast Gate + Build
 
 on:
   push:
