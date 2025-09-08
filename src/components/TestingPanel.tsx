@@ -46,7 +46,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testFunctions = createTestFunctions({
     user,
-    profile,
+          profile, 
     addTestResult,
     updateTestResult,
     setCurrentTest: (testName) => {
@@ -71,11 +71,11 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         {/* Header */}
         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <TestTube className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <TestTube className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
                 <h2 className="text-xl font-bold text-gray-900">
                   Testing Panel
                 </h2>
@@ -83,13 +83,13 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
                   Comprehensive system testing and diagnostics
                 </p>
               </div>
-            </div>
-            <button
-              onClick={onClose}
+          </div>
+          <button
+            onClick={onClose}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
+          >
               <X className="w-5 h-5" />
-            </button>
+          </button>
           </div>
         </div>
 
