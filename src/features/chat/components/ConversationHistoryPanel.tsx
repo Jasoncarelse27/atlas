@@ -1,5 +1,5 @@
 import { Plus, Trash2, X } from 'lucide-react';
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useConversationHistory } from '../hooks/useConversationHistory';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { Conversation } from '../types/chat';
@@ -33,36 +33,48 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
   onSoundPlay
 }) => {
   // Transform conversations to HistoryItem format
-  const historyItems = conversations.map(conv => ({
+  const historyItems = useMemo(() => conversations.map(conv => ({
     id: conv.id,
     title: conv.title,
     pinned: conv.pinned,
     updatedAt: conv.lastUpdated
-  }));
+  })), [conversations]);
 
   // Use the conversation history hook
   const { list, filters, setFilters } = useConversationHistory(historyItems);
 
-  const handleOpenConversation = (id: string) => {
+  const handleOpenConversation = useCallback((id: string) => {
     const conversation = conversations.find(c => c.id === id);
     if (conversation) {
       onSelectConversation(conversation);
       onClose();
     }
-  };
+  }, [conversations, onSelectConversation, onClose]);
 
-  const handleCreateNew = () => {
+  const handleCreateNew = useCallback(() => {
     if (onSoundPlay) onSoundPlay('click');
     onCreateNewConversation();
     onClose();
-  };
+  }, [onSoundPlay, onCreateNewConversation, onClose]);
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     if (onSoundPlay) onSoundPlay('click');
     if (window.confirm('Are you sure you want to clear all conversations? This cannot be undone.')) {
       onClearConversations();
     }
-  };
+  }, [onSoundPlay, onClearConversations]);
+
+  const handleDelete = useCallback((id: string) => {
+    onDeleteConversation(id);
+  }, [onDeleteConversation]);
+
+  const handleUpdateTitle = useCallback((id: string, title: string) => {
+    onUpdateConversationTitle(id, title);
+  }, [onUpdateConversationTitle]);
+
+  const handlePin = useCallback((id: string, pinned: boolean) => {
+    onPinConversation(id, pinned);
+  }, [onPinConversation]);
 
   if (!isOpen) return null;
 
@@ -114,9 +126,9 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
             <HistoryList
               items={list}
               onOpen={handleOpenConversation}
-              onDelete={onDeleteConversation}
-              onUpdateTitle={onUpdateConversationTitle}
-              onPin={onPinConversation}
+              onDelete={handleDelete}
+              onUpdateTitle={handleUpdateTitle}
+              onPin={handlePin}
               onSoundPlay={onSoundPlay}
             />
           </div>

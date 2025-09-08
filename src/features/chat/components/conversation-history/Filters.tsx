@@ -1,5 +1,5 @@
 import { Filter, Search } from 'lucide-react';
-import React from 'react';
+import React, { useMemo } from 'react';
 
 type Filters = { 
   q: string; 
@@ -15,7 +15,7 @@ interface FiltersProps {
   onSoundPlay?: (soundType: string) => void;
 }
 
-const Filters: React.FC<FiltersProps> = ({
+const FiltersBase: React.FC<FiltersProps> = ({
   value,
   onChange,
   onSoundPlay,
@@ -37,6 +37,17 @@ const Filters: React.FC<FiltersProps> = ({
       onSoundPlay('click');
     }
   };
+
+  // Memoize static options to prevent prop churn
+  const sortOptions = useMemo(() => [
+    { value: "recent" as const, label: "Most Recent" },
+    { value: "title" as const, label: "Title" },
+  ], []);
+
+  const pinnedOptions = useMemo(() => [
+    { value: "true", label: "Yes" },
+    { value: "false", label: "No" },
+  ], []);
 
   return (
     <div className="space-y-4">
@@ -65,8 +76,11 @@ const Filters: React.FC<FiltersProps> = ({
             onChange={(e) => handleSortChange(e.target.value as "recent" | "title")}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="recent">Most Recent</option>
-            <option value="title">Title</option>
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -80,8 +94,11 @@ const Filters: React.FC<FiltersProps> = ({
             onChange={(e) => handlePinnedFirstChange(e.target.value === 'true')}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            {pinnedOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -99,4 +116,12 @@ const Filters: React.FC<FiltersProps> = ({
   );
 };
 
+const propsEqual = (a: FiltersProps, b: FiltersProps) =>
+  a.value.q === b.value.q &&
+  a.value.sort === b.value.sort &&
+  a.value.showPinnedFirst === b.value.showPinnedFirst &&
+  a.onChange === b.onChange &&
+  a.onSoundPlay === b.onSoundPlay;
+
+export const Filters = React.memo(FiltersBase, propsEqual);
 export default Filters;

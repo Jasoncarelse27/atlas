@@ -37,6 +37,9 @@ export default [
       '@typescript-eslint/no-unused-vars': 'warn',
       'no-undef': 'off',
       'no-console': 'warn',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react/jsx-no-useless-fragment': 'warn',
+      'react/no-unstable-nested-components': 'warn',
     },
   },
   {

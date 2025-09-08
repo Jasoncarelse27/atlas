@@ -1,4 +1,5 @@
 import React from 'react';
+import { FixedSizeList as List } from 'react-window';
 import type { HistoryItem } from '../../hooks/useConversationHistory';
 import HistoryItemComponent from './HistoryItem';
 
@@ -11,7 +12,7 @@ interface HistoryListProps {
   onSoundPlay?: (soundType: string) => void;
 }
 
-const HistoryList: React.FC<HistoryListProps> = ({
+const HistoryListBase: React.FC<HistoryListProps> = ({
   items,
   onOpen,
   onDelete,
@@ -28,11 +29,31 @@ const HistoryList: React.FC<HistoryListProps> = ({
     );
   }
 
-  return (
-    <div className="space-y-1">
-      {items.map((item) => (
+  // Use virtualization for large lists
+  if (items.length <= 50) {
+    return (
+      <div className="space-y-1">
+        {items.map((item) => (
+          <HistoryItemComponent
+            key={item.id}
+            item={item}
+            onOpen={() => onOpen(item.id)}
+            onDelete={onDelete ? () => onDelete(item.id) : undefined}
+            onUpdateTitle={onUpdateTitle ? (title) => onUpdateTitle(item.id, title) : undefined}
+            onPin={onPin ? (pinned) => onPin(item.id, pinned) : undefined}
+            onSoundPlay={onSoundPlay}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Virtualized list for large datasets
+  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const item = items[index];
+    return (
+      <div style={style}>
         <HistoryItemComponent
-          key={item.id}
           item={item}
           onOpen={() => onOpen(item.id)}
           onDelete={onDelete ? () => onDelete(item.id) : undefined}
@@ -40,9 +61,35 @@ const HistoryList: React.FC<HistoryListProps> = ({
           onPin={onPin ? (pinned) => onPin(item.id, pinned) : undefined}
           onSoundPlay={onSoundPlay}
         />
-      ))}
-    </div>
+      </div>
+    );
+  };
+
+  return (
+    <List
+      height={480}
+      width="100%"
+      itemSize={56}
+      itemCount={items.length}
+    >
+      {Row}
+    </List>
   );
 };
 
+const propsEqual = (a: HistoryListProps, b: HistoryListProps) =>
+  a.items.length === b.items.length &&
+  a.items.every((item, index) => 
+    item.id === b.items[index]?.id &&
+    item.title === b.items[index]?.title &&
+    item.pinned === b.items[index]?.pinned &&
+    item.updatedAt === b.items[index]?.updatedAt
+  ) &&
+  a.onOpen === b.onOpen &&
+  a.onDelete === b.onDelete &&
+  a.onUpdateTitle === b.onUpdateTitle &&
+  a.onPin === b.onPin &&
+  a.onSoundPlay === b.onSoundPlay;
+
+export const HistoryList = React.memo(HistoryListBase, propsEqual);
 export default HistoryList;

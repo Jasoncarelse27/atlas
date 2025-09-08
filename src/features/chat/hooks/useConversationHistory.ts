@@ -46,5 +46,9 @@ export function useConversationHistory(items: HistoryItem[]) {
     return out;
   }, [items, filters]);
 
+  // Cache configuration for future useConversationHistoryQuery
+  // staleTime: 10 * 60 * 1000, // 10 minutes
+  // gcTime: 60 * 60 * 1000,    // 1 hour
+
   return { filters, setFilters, list: filtered };
 }

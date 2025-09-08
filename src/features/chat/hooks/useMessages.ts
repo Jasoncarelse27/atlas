@@ -8,7 +8,15 @@ export function useMessages(conversationId: string) {
   
   const list = useQuery({
     queryKey: qk,
-    queryFn: () => messagesService.list(conversationId)
+    queryFn: () => messagesService.list(conversationId),
+    select: (msgs) => msgs.map(m => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      createdAt: m.createdAt,
+    })),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
   
   const send = useMutation({

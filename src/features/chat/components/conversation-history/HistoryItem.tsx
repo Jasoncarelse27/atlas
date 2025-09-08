@@ -11,7 +11,7 @@ interface HistoryItemProps {
   onSoundPlay?: (soundType: string) => void;
 }
 
-const HistoryItem: React.FC<HistoryItemProps> = ({
+const HistoryItemBase: React.FC<HistoryItemProps> = ({
   item,
   onOpen,
   onDelete,
@@ -191,4 +191,16 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   );
 };
 
+const propsEqual = (a: HistoryItemProps, b: HistoryItemProps) =>
+  a.item.id === b.item.id &&
+  a.item.title === b.item.title &&
+  a.item.pinned === b.item.pinned &&
+  a.item.updatedAt === b.item.updatedAt &&
+  a.onOpen === b.onOpen &&
+  a.onDelete === b.onDelete &&
+  a.onUpdateTitle === b.onUpdateTitle &&
+  a.onPin === b.onPin &&
+  a.onSoundPlay === b.onSoundPlay;
+
+export const HistoryItem = React.memo(HistoryItemBase, propsEqual);
 export default HistoryItem;
