@@ -10,6 +10,11 @@ import useVoiceRecognition from './hooks/useVoiceRecognition';
 import { supabase } from './lib/supabase';
 import type { Message } from './types/chat';
 
+// Initialize Sentry for web
+if (typeof window !== "undefined") {
+  import("./monitoring/sentry.web");
+}
+
 // Components
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';

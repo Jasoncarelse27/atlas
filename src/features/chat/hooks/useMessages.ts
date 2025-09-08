@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { messagesService } from "@/services/messagesService";
-import { userMessage } from "@/lib/error";
+import { userMessage } from "../../../lib/error";
+import { messagesService } from "../../../services/messagesService";
 
 export function useMessages(conversationId: string) {
   const qc = useQueryClient();
