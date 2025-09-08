@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface UserCustomization {
   id: string;
@@ -154,7 +154,7 @@ const applyCustomization = (custom: UserCustomization) => {
 
   // Force a repaint to ensure changes are applied
   document.body.style.display = 'none';
-  document.body.offsetHeight; // Trigger reflow
+  void document.body.offsetHeight; // Trigger reflow
   document.body.style.display = '';
 
   console.log('✅ Customization applied to DOM');

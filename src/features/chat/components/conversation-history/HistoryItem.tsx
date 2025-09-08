@@ -202,5 +202,5 @@ const propsEqual = (a: HistoryItemProps, b: HistoryItemProps) =>
   a.onPin === b.onPin &&
   a.onSoundPlay === b.onSoundPlay;
 
-export const HistoryItem = React.memo(HistoryItemBase, propsEqual);
+const HistoryItem = React.memo(HistoryItemBase, propsEqual);
 export default HistoryItem;

@@ -1,3 +1,5 @@
+ 
+// (Allow console in this backend module; app code still disallows.)
 import { createClient } from '@supabase/supabase-js';
 import compression from 'compression';
 import cors from 'cors';

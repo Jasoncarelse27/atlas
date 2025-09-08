@@ -123,5 +123,5 @@ const propsEqual = (a: FiltersProps, b: FiltersProps) =>
   a.onChange === b.onChange &&
   a.onSoundPlay === b.onSoundPlay;
 
-export const Filters = React.memo(FiltersBase, propsEqual);
+const Filters = React.memo(FiltersBase, propsEqual);
 export default Filters;

@@ -72,7 +72,7 @@ export function useConversationStream({
     setMessages(prev => [...prev, userMessage]);
 
     // Create temporary assistant message for streaming
-    let assistantId = uuidv4();
+    const assistantId = uuidv4();
     let runningText = '';
     const tempAssistant: Message = {
       id: assistantId,

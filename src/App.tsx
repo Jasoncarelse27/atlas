@@ -603,8 +603,7 @@ function App() {
   }
 
   return (
-    <>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
         <Router>
           <Toaster position="top-center" />
           <Routes>
@@ -629,7 +628,6 @@ function App() {
           </Routes>
         </Router>
       </QueryClientProvider>
-    </>
   );
 }
 

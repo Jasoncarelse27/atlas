@@ -37,7 +37,7 @@ const ContextualSuggestions: React.FC<ContextualSuggestionsProps> = ({
     }
 
     // Generate contextual suggestions
-    let newSuggestions: string[] = [];
+    const newSuggestions: string[] = [];
 
     if (message) {
       if (message.toLowerCase().includes('weather')) {
