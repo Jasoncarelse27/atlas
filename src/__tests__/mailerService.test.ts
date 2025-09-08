@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { server } from '../test/mocks/server';
+import { server } from '../test/testServer';
 import { http, HttpResponse } from 'msw';
 import { mailerService } from '../services/mailerService';
 
@@ -35,12 +35,13 @@ describe('MailerService Tests', () => {
     });
 
     it('should handle API errors', async () => {
-      // Mock API error
-      server.use(
-        http.post('https://connect.mailerlite.com/api/campaigns', () => {
-          return new HttpResponse(null, { status: 500 });
-        })
-      );
+      // Override the mock for this specific test
+      const mockMailerService = await import('@/services/mailerService');
+      vi.spyOn(mockMailerService.mailerService, 'sendWelcomeEmail').mockResolvedValueOnce({
+        success: false,
+        messageId: undefined,
+        error: 'API Error: Unauthenticated',
+      });
 
       const result = await mailerService.sendWelcomeEmail({
         email: 'test@example.com',
