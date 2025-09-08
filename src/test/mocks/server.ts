@@ -125,29 +125,6 @@ export const handlers = [
     });
   }),
 
-  http.post('https://api.groq.com/openai/v1/chat/completions', () => {
-    return HttpResponse.json({
-      id: 'mock-groq-response',
-      object: 'chat.completion',
-      created: Date.now(),
-      model: 'llama3-8b-8192',
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: 'This is a mock response from Groq AI.',
-          },
-          finish_reason: 'stop',
-        },
-      ],
-      usage: {
-        prompt_tokens: 10,
-        completion_tokens: 20,
-        total_tokens: 30,
-      },
-    });
-  }),
 
   // Mock file upload endpoints
   http.post('*/storage/v1/object/upload', () => {

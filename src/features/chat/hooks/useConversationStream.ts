@@ -8,7 +8,7 @@ interface UseConversationStreamParams {
   conversationId: string | null;
   userId: string;
   userTier: 'free' | 'core' | 'studio' | string;
-  selectedModel: 'claude' | 'groq' | 'opus' | 'haiku';
+  selectedModel: 'claude'  | 'opus' | 'haiku';
 }
 
 interface StreamResult {

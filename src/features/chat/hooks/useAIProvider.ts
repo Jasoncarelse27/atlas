@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { UserTier } from './useSubscriptionAccess';
 
-export type SupportedModel = 'claude' | 'groq' | 'opus' | 'haiku';
+export type SupportedModel = 'claude'  | 'opus' | 'haiku';
 
 interface AIProviderConfig {
   provider: SupportedModel;
@@ -19,8 +19,8 @@ interface UseAIProviderParams {
 
 // Helper function to get environment variables safely
 const getEnvVar = (key: string): string => {
-  if (typeof window !== 'undefined' && (window as any).__ENV__) {
-    return (window as any).__ENV__[key] || '';
+  if (typeof window !== 'undefined' && (window as Record<string, unknown>).__ENV__) {
+    return (window as Record<string, unknown>).__ENV__[key] as string || '';
   }
   // Fallback for development
   return process.env[key] || '';
@@ -54,19 +54,6 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
   // Get specific model configuration
   const getModelConfig = useCallback((model: SupportedModel): AIProviderConfig => {
     switch (model) {
-      case 'groq':
-        return {
-          provider: 'groq',
-          endpoint: '/api/groq',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getEnvVar('VITE_GROQ_API_KEY')}`,
-          },
-          model: 'llama3.3-70b-versatile',
-          maxTokens: 4096,
-          temperature: 0.7
-        };
-      
       case 'claude':
         return {
           provider: 'claude',
@@ -126,15 +113,12 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
         // If Claude fails, fallback to Haiku
         return getModelConfig('haiku');
       case 'haiku':
-        // If Haiku fails, fallback to Groq
-        return getModelConfig('groq');
-      case 'groq':
-        // If Groq fails, fallback to Haiku
+        // If Haiku fails, fallback to Haiku (no Groq fallback)
         return getModelConfig('haiku');
       default:
         return getModelConfig('haiku');
     }
-  }, [getModelConfig]);
+  }, []);
 
   // Check if provider supports specific features
   const supportsFeature = useCallback((feature: string): boolean => {
@@ -145,8 +129,6 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
         return ['text', 'voice', 'image', 'vision', 'code'].includes(feature);
       case 'haiku':
         return ['text', 'voice', 'image', 'vision', 'code'].includes(feature);
-      case 'groq':
-        return ['text', 'code'].includes(feature);
       default:
         return false;
     }
@@ -175,16 +157,14 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
   // Get provider cost information (for user awareness)
   const getProviderCost = useCallback(() => {
     switch (currentProvider.provider) {
-      case 'groq':
-        return { perToken: 0.0000002, model: 'llama3.3-70b-versatile' }; // Very cheap
       case 'haiku':
         return { perToken: 0.00000025, model: 'claude-3-5-haiku' }; // Fastest, cost-effective
       case 'claude':
-        return { perToken: 0.000003, model: 'claude-3-5-sonnet' }; // Moderate
+        return { perToken: 0.000003, model: 'claude-3-5-sonnet-20241022' }; // Balanced
       case 'opus':
-        return { perToken: 0.000015, model: 'claude-3-5-opus' }; // Expensive but powerful
+        return { perToken: 0.000015, model: 'claude-3-5-opus-20241022' }; // Most capable
       default:
-        return { perToken: 0.00000025, model: 'unknown' };
+        return { perToken: 0.00000025, model: 'claude-3-5-haiku' }; // Fallback
     }
   }, [currentProvider.provider]);
 

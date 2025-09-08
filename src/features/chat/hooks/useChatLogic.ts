@@ -4,7 +4,7 @@ import { useAIProvider } from './useAIProvider';
 import { useConversationStream } from './useConversationStream';
 import { useSubscriptionAccess } from './useSubscriptionAccess';
 
-export type SupportedModel = 'claude' | 'groq' | 'opus' | 'haiku';
+export type SupportedModel = 'claude'  | 'opus' | 'haiku';
 
 interface UseChatLogicParams {
   userId: string;
