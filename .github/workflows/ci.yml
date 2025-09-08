@@ -1,56 +1,20 @@
-name: CI – Fast Gate + Build
+name: CI
 
 on:
   pull_request:
-    branches: ['**']            # run on all PRs
+    branches: ['**']
     paths-ignore:
       - '**/*.md'
       - '**/*.MD'
   push:
-    branches: ['main']          # full gate on main
+    branches: ['main']
     paths-ignore:
       - '**/*.md'
       - '**/*.MD'
 
 jobs:
-  fast-gate:
-    if: github.event_name == 'pull_request'
-    name: Fast Gate (types + tests)
-    runs-on: ubuntu-latest
-    env:
-      # CI-safe defaults so builds/tests don't error on missing env
-      VITE_APP_URL: http://localhost:5173
-      EMAIL_LIVE_MODE: 'false'
-      EMAIL_DRY_RUN: 'true'
-      EMAIL_ALLOWLIST: ''
-      HUSKY: '0'                # don't install husky in CI
-      CI: 'true'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node 22.12.0
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.12.0'
-          cache: 'npm'
-
-      - name: Versions
-        run: |
-          node -v
-          npm -v
-
-      - name: Install
-        run: npm ci --no-audit --no-fund
-
-      - name: Run fast gate
-        run: npm run check:fast
-
-      - name: Build (smoke)
-        run: npm run build
-
-  full-gate:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
-    name: Full Gate (install + types + lint + build + tests)
+  ci:
+    name: CI Pipeline
     runs-on: ubuntu-latest
     env:
       VITE_APP_URL: http://localhost:5173
@@ -68,31 +32,18 @@ jobs:
           node-version: '22.12.0'
           cache: 'npm'
 
-      - name: Versions
-        run: |
-          node -v
-          npm -v
-
-      - name: Install
+      - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Types
-        run: npm run typecheck
-      
-      - name: Lint (warnings allowed)
-        run: npm run lint || echo "⚠️ Linting completed with warnings"
-      
-      - name: Tests
-        run: npm run test
-      
+      - name: Type check
+        run: npm run check:types
+
+      - name: Run tests
+        run: npm run check:test
+
       - name: Build
         run: npm run build
 
-      - name: Verify build artifacts
-        run: |
-          if [ -d dist ] || [ -d build ]; then
-            echo "✅ Build folder present"
-          else
-            echo "ℹ️  No build folder from check:all; running standalone build…"
-            npm run build
-          fi
+      - name: Lint (warnings allowed)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npm run check:lint || echo "⚠️ Linting completed with warnings"
