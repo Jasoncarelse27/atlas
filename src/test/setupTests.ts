@@ -43,3 +43,4 @@ if (typeof fetch !== 'function') {
     })
   })
 }
+import 'fake-indexeddb/auto'

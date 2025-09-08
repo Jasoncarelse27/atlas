@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { UserTier } from './useSubscriptionAccess';
 
-export type SupportedModel = 'claude' | 'groq' | 'opus';
+export type SupportedModel = 'claude' | 'groq' | 'opus' | 'haiku';
 
 interface AIProviderConfig {
   provider: SupportedModel;
@@ -41,13 +41,13 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
     // Otherwise, route based on tier
     switch (tier) {
       case 'free':
-        return getModelConfig('groq'); // Free tier uses Groq with llama3.3-70b
+        return getModelConfig('haiku'); // Free tier uses Claude Haiku 3.5 (fastest, cost-effective)
       case 'core':
         return getModelConfig('claude'); // Core tier uses Claude Sonnet
       case 'studio':
         return getModelConfig('opus'); // Studio tier uses Claude Opus
       default:
-        return getModelConfig('groq'); // Fallback to Groq
+        return getModelConfig('haiku'); // Fallback to Haiku
     }
   }, []);
 
@@ -93,8 +93,21 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
           temperature: 0.7
         };
       
+      case 'haiku':
+        return {
+          provider: 'haiku',
+          endpoint: '/api/claude',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getEnvVar('VITE_CLAUDE_API_KEY')}`,
+          },
+          model: 'claude-3-5-haiku-20241022',
+          maxTokens: 4096,
+          temperature: 0.7
+        };
+      
       default:
-        return getModelConfig('groq');
+        return getModelConfig('haiku');
     }
   }, []);
 
@@ -110,13 +123,16 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
         // If Opus fails, fallback to Claude Sonnet
         return getModelConfig('claude');
       case 'claude':
-        // If Claude fails, fallback to Groq
+        // If Claude fails, fallback to Haiku
+        return getModelConfig('haiku');
+      case 'haiku':
+        // If Haiku fails, fallback to Groq
         return getModelConfig('groq');
       case 'groq':
-        // If Groq fails, fallback to Claude
-        return getModelConfig('claude');
+        // If Groq fails, fallback to Haiku
+        return getModelConfig('haiku');
       default:
-        return getModelConfig('groq');
+        return getModelConfig('haiku');
     }
   }, [getModelConfig]);
 
@@ -126,6 +142,8 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
       case 'opus':
         return ['text', 'voice', 'image', 'vision', 'code', 'analysis'].includes(feature);
       case 'claude':
+        return ['text', 'voice', 'image', 'vision', 'code'].includes(feature);
+      case 'haiku':
         return ['text', 'voice', 'image', 'vision', 'code'].includes(feature);
       case 'groq':
         return ['text', 'code'].includes(feature);
@@ -159,12 +177,14 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
     switch (currentProvider.provider) {
       case 'groq':
         return { perToken: 0.0000002, model: 'llama3.3-70b-versatile' }; // Very cheap
+      case 'haiku':
+        return { perToken: 0.00000025, model: 'claude-3-5-haiku' }; // Fastest, cost-effective
       case 'claude':
         return { perToken: 0.000003, model: 'claude-3-5-sonnet' }; // Moderate
       case 'opus':
         return { perToken: 0.000015, model: 'claude-3-5-opus' }; // Expensive but powerful
       default:
-        return { perToken: 0.0000002, model: 'unknown' };
+        return { perToken: 0.00000025, model: 'unknown' };
     }
   }, [currentProvider.provider]);
 

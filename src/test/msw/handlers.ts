@@ -21,4 +21,13 @@ export const handlers = [
     list.push(msg)
     return HttpResponse.json({ success: true, message: msg }, { status: 200 })
   }),
+
+  // --- Phase 6: MailerLite email send mock ---
+  http.post(
+    "https://api.mailerlite.com/api/v2/email/send",
+    async ({ request }) => {
+      const body = (await request.json()) as any;
+      return HttpResponse.json({ id: String(Date.now()), echo: body }, { status: 200 });
+    }
+  ),
 ]

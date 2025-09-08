@@ -4,7 +4,7 @@ import { useAIProvider } from './useAIProvider';
 import { useConversationStream } from './useConversationStream';
 import { useSubscriptionAccess } from './useSubscriptionAccess';
 
-export type SupportedModel = 'claude' | 'groq' | 'opus';
+export type SupportedModel = 'claude' | 'groq' | 'opus' | 'haiku';
 
 interface UseChatLogicParams {
   userId: string;
@@ -93,25 +93,20 @@ export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseC
     // Clear any previous errors
     clearStreamError();
 
-    try {
-      // Send message using streaming hook
-      const result = await streamSendMessage(trimmed, opts);
+    // Send message using streaming hook
+    const result = await streamSendMessage(trimmed, opts);
+    
+    if (result) {
+      // Increment usage count on successful send
+      await incrementMessageCount();
       
-      if (result) {
-        // Increment usage count on successful send
-        await incrementMessageCount();
-        
-        // Set conversation ID if this is a new conversation
-        if (!currentConversationId) {
-          setCurrentConversationId(result.conversationId);
-        }
+      // Set conversation ID if this is a new conversation
+      if (!currentConversationId) {
+        setCurrentConversationId(result.conversationId);
       }
-
-      return result;
-    } catch (err) {
-      // Error handling is done in useConversationStream
-      throw err;
     }
+
+    return result;
   }, [
     canSendMessage,
     clearStreamError,
