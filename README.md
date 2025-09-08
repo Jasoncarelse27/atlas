@@ -237,3 +237,11 @@ For support and questions:
 ---
 
 **Atlas AI** - Your intelligent conversation companion
+
+## Developer Safety
+
+- **Pre-commit**: lint-staged runs ESLint on changed files.
+- **Commit message**: Conventional Commits enforced.
+- **Pre-push**: `npm run check:fast` (types, lint, tests).
+- **Backup**: `./scripts/backup-snapshot.sh` creates a tar.gz snapshot in `.backups/`.
+
