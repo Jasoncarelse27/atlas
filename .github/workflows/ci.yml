@@ -1,80 +1,89 @@
-name: CI
+name: CI – Fast Gate + Build
 
 on:
   pull_request:
-    branches: [ "main", "**" ]
+    branches: ['**']            # run on all PRs
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.MD'
   push:
-    branches: [ "main" ]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  VITE_APP_URL: "http://localhost:5173"
-  EMAIL_LIVE_MODE: "false"
-  EMAIL_DRY_RUN: "true"
-  EMAIL_ALLOWLIST: ""
+    branches: ['main']          # full gate on main
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.MD'
 
 jobs:
-  ci-pr:
-    name: PR – Fast Gate + Build
-    if: ${{ github.event_name == 'pull_request' }}
+  fast-gate:
+    if: github.event_name == 'pull_request'
+    name: Fast Gate (types + tests)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions: { contents: read }
+    env:
+      # CI-safe defaults so builds/tests don't error on missing env
+      VITE_APP_URL: http://localhost:5173
+      EMAIL_LIVE_MODE: 'false'
+      EMAIL_DRY_RUN: 'true'
+      EMAIL_ALLOWLIST: ''
+      HUSKY: '0'                # don't install husky in CI
+      CI: 'true'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.12.0'
-          cache: 'npm'
-      - name: Install
-        run: npm ci
-      - name: Fast gate (types + tests)
-        run: npm run check:fast
-      - name: Build
-        run: npm run build
-      - name: Upload build (artifact)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: dist
-      - name: Upload test results (if any)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            junit*.xml
-            coverage/**
 
-  ci-main:
-    name: Main – Full Gate (lint on main)
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions: { contents: read }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Set up Node 22.12.0
+        uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
           cache: 'npm'
+
+      - name: Versions
+        run: |
+          node -v
+          npm -v
+
       - name: Install
-        run: npm ci
-      - name: Types
-        run: npm run check:types
-      - name: Lint (blocking on main)
-        run: npm run check:lint
-      - name: Tests
-        run: npm run check:test
-      - name: Build
+        run: npm ci --no-audit --no-fund
+
+      - name: Run fast gate
+        run: npm run check:fast
+
+      - name: Build (smoke)
         run: npm run build
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+
+  full-gate:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+    name: Full Gate (install + types + lint + build + tests)
+    runs-on: ubuntu-latest
+    env:
+      VITE_APP_URL: http://localhost:5173
+      EMAIL_LIVE_MODE: 'false'
+      EMAIL_DRY_RUN: 'true'
+      EMAIL_ALLOWLIST: ''
+      HUSKY: '0'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22.12.0
+        uses: actions/setup-node@v4
         with:
-          name: web-dist
-          path: dist
+          node-version: '22.12.0'
+          cache: 'npm'
+
+      - name: Versions
+        run: |
+          node -v
+          npm -v
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Full gate
+        run: npm run check:all
+
+      - name: Verify build artifacts
+        run: |
+          if [ -d dist ] || [ -d build ]; then
+            echo "✅ Build folder present"
+          else
+            echo "ℹ️  No build folder from check:all; running standalone build…"
+            npm run build
+          fi
