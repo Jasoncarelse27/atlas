@@ -15,11 +15,12 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
+import { useMessages } from './features/chat/hooks/useMessages';
+import { queryClient } from './features/chat/lib/queryClient';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import DebugPage from './pages/DebugPage';
 import DebugProfile from './pages/DebugProfile';
-import { queryClient } from './features/chat/lib/queryClient';
 
 function App() {
   // Auth state
@@ -98,6 +99,9 @@ function App() {
     deleteConversation,
     clearConversations
   } = useConversations(user);
+
+  // Messages service hook (for future integration)
+  const { list: messagesQuery, send: sendMessage } = useMessages(currentConversation?.id || '');
 
   // Refs 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -531,6 +535,22 @@ function App() {
         setShowPaymentSuccess(false);
       }, 3000);
     }, 1000);
+  };
+
+  // Alternative message sending using useMessages hook (for future integration)
+  const handleSendMessageWithService = async (message: string) => {
+    if (isProcessing || !message.trim() || !currentConversation) return;
+    
+    setIsProcessing(true);
+    try {
+      await sendMessage.mutateAsync(message);
+      playSound('success');
+    } catch (error) {
+      console.error('Error sending message with service:', error);
+      playSound('error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Handle message deletion 

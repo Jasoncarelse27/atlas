@@ -1,31 +1,29 @@
+import { Check, Edit3, MessageSquare, Pin, PinOff, Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
-import { MessageSquare, Pin, PinOff, Trash2, Edit3, Check, X } from 'lucide-react';
-import type { Conversation } from '../../../types/chat';
+import type { HistoryItem } from '../../hooks/useConversationHistory';
 
 interface HistoryItemProps {
-  conversation: Conversation;
-  isActive: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-  onUpdateTitle: (title: string) => void;
-  onPin: (pinned: boolean) => void;
+  item: HistoryItem;
+  onOpen: () => void;
+  onDelete?: () => void;
+  onUpdateTitle?: (title: string) => void;
+  onPin?: (pinned: boolean) => void;
   onSoundPlay?: (soundType: string) => void;
 }
 
 const HistoryItem: React.FC<HistoryItemProps> = ({
-  conversation,
-  isActive,
-  onSelect,
+  item,
+  onOpen,
   onDelete,
   onUpdateTitle,
   onPin,
   onSoundPlay,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(conversation.title);
+  const [editTitle, setEditTitle] = useState(item.title);
 
   const handleStartEdit = () => {
-    setEditTitle(conversation.title);
+    setEditTitle(item.title);
     setIsEditing(true);
     if (onSoundPlay) {
       onSoundPlay('click');
@@ -33,7 +31,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   };
 
   const handleSaveEdit = () => {
-    if (editTitle.trim() && editTitle !== conversation.title) {
+    if (editTitle.trim() && editTitle !== item.title && onUpdateTitle) {
       onUpdateTitle(editTitle.trim());
     }
     setIsEditing(false);
@@ -43,7 +41,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   };
 
   const handleCancelEdit = () => {
-    setEditTitle(conversation.title);
+    setEditTitle(item.title);
     setIsEditing(false);
     if (onSoundPlay) {
       onSoundPlay('click');
@@ -74,12 +72,8 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
 
   return (
     <div
-      className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${
-        isActive
-          ? 'bg-blue-100 border border-blue-200'
-          : 'hover:bg-gray-50 border border-transparent'
-      }`}
-      onClick={onSelect}
+      className="group relative p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 border border-transparent"
+      onClick={onOpen}
     >
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-1">
@@ -100,21 +94,21 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
             />
           ) : (
             <h3 className="text-sm font-medium text-gray-900 truncate">
-              {conversation.title}
+              {item.title}
             </h3>
           )}
           
           <p className="text-xs text-gray-500 mt-1">
-            {conversation.messages.length} messages • {formatDate(conversation.lastUpdated)}
+            {formatDate(item.updatedAt)}
           </p>
         </div>
 
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {conversation.pinned ? (
+          {item.pinned ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onPin(false);
+                onPin?.(false);
                 if (onSoundPlay) {
                   onSoundPlay('click');
                 }
@@ -128,7 +122,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onPin(true);
+                onPin?.(true);
                 if (onSoundPlay) {
                   onSoundPlay('click');
                 }
@@ -176,19 +170,21 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
             </button>
           )}
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-              if (onSoundPlay) {
-                onSoundPlay('click');
-              }
-            }}
-            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded"
-            title="Delete conversation"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+                if (onSoundPlay) {
+                  onSoundPlay('click');
+                }
+              }}
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded"
+              title="Delete conversation"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
     </div>

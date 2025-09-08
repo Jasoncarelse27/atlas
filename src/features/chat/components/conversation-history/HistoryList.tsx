@@ -1,27 +1,25 @@
 import React from 'react';
-import type { Conversation } from '../../../types/chat';
-import HistoryItem from './HistoryItem';
+import type { HistoryItem } from '../../hooks/useConversationHistory';
+import HistoryItemComponent from './HistoryItem';
 
 interface HistoryListProps {
-  conversations: Conversation[];
-  currentConversationId: string | null;
-  onSelectConversation: (conversation: Conversation) => void;
-  onDeleteConversation: (conversationId: string) => void;
-  onUpdateConversationTitle: (conversationId: string, title: string) => void;
-  onPinConversation: (conversationId: string, pinned: boolean) => void;
+  items: HistoryItem[];
+  onOpen: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onUpdateTitle?: (id: string, title: string) => void;
+  onPin?: (id: string, pinned: boolean) => void;
   onSoundPlay?: (soundType: string) => void;
 }
 
 const HistoryList: React.FC<HistoryListProps> = ({
-  conversations,
-  currentConversationId,
-  onSelectConversation,
-  onDeleteConversation,
-  onUpdateConversationTitle,
-  onPinConversation,
+  items,
+  onOpen,
+  onDelete,
+  onUpdateTitle,
+  onPin,
   onSoundPlay,
 }) => {
-  if (conversations.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-gray-500">No conversations yet</p>
@@ -32,15 +30,14 @@ const HistoryList: React.FC<HistoryListProps> = ({
 
   return (
     <div className="space-y-1">
-      {conversations.map((conversation) => (
-        <HistoryItem
-          key={conversation.id}
-          conversation={conversation}
-          isActive={conversation.id === currentConversationId}
-          onSelect={() => onSelectConversation(conversation)}
-          onDelete={() => onDeleteConversation(conversation.id)}
-          onUpdateTitle={(title) => onUpdateConversationTitle(conversation.id, title)}
-          onPin={(pinned) => onPinConversation(conversation.id, pinned)}
+      {items.map((item) => (
+        <HistoryItemComponent
+          key={item.id}
+          item={item}
+          onOpen={() => onOpen(item.id)}
+          onDelete={onDelete ? () => onDelete(item.id) : undefined}
+          onUpdateTitle={onUpdateTitle ? (title) => onUpdateTitle(item.id, title) : undefined}
+          onPin={onPin ? (pinned) => onPin(item.id, pinned) : undefined}
           onSoundPlay={onSoundPlay}
         />
       ))}
