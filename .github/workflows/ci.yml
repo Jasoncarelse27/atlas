@@ -1,8 +1,13 @@
 name: CI – Fast Gate + Build
+
 on:
   push:
-    branches: [ "**" ]
+    branches:
+      - '**'
   pull_request:
+    branches:
+      - '**'
+
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -13,29 +18,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
-          cache: 'npm'
-
-      - name: Print environment
-        run: |
-          node -v
-          npm -v
-          echo "CI=$CI"
-          echo "VITE_APP_URL=${{ env.VITE_APP_URL }}"
-          echo "EMAIL_LIVE_MODE=${{ env.EMAIL_LIVE_MODE }}"
-          echo "EMAIL_DRY_RUN=${{ env.EMAIL_DRY_RUN }}"
+          cache: npm
 
       - name: Install
         run: npm ci
 
-      # Safe defaults so build/tests never require secrets or live sends
-      - name: Run fast gate (types + tests)
+      - name: Fast gate (types + tests)
         env:
           CI: "true"
           VITE_APP_URL: "http://localhost:5173"
           EMAIL_LIVE_MODE: "false"
           EMAIL_DRY_RUN: "true"
           EMAIL_ALLOWLIST: ""
-        run: npm run check:fast --silent || (echo "❌ Fast gate failed" && exit 1)
+        run: npm run check:fast --silent
 
       - name: Build
         env:
@@ -44,7 +39,4 @@ jobs:
           EMAIL_LIVE_MODE: "false"
           EMAIL_DRY_RUN: "true"
           EMAIL_ALLOWLIST: ""
-        run: npm run build --silent || (echo "❌ Build failed" && exit 1)
-
-      - name: Done
-        run: echo "✅ CI passed: fast gate + build"
+        run: npm run build --silent
