@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE } from '@/config/chat';
 
-export const supabase =
-  SUPABASE.url && SUPABASE.anon
-    ? createClient(SUPABASE.url, SUPABASE.anon, { auth: { persistSession: true } })
-    : null;
+export const hasSupabase =
+  Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+
+export const supabase = hasSupabase
+  ? createClient(SUPABASE.url, SUPABASE.anon, { auth: { persistSession: true } })
+  : (null as const);

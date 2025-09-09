@@ -1,3 +1,5 @@
+// Dev bypass: leave Supabase envs empty or set localStorage 'atlas_dev_login'='1' to skip login locally.
+
 export const CHAT_CONFIG = {
   apiBase: import.meta.env.VITE_ATLAS_API_BASE ?? 'http://localhost:8000',
   streamPath: '/message?stream=1',
