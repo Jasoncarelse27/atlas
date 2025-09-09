@@ -756,8 +756,14 @@ const AtlasDrawerInterface: React.FC = () => {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => {
-                            // Handle option selection
-                            // TODO: Implement specific actions for each option
+                            // Handle option selection with temporary console logs
+                            if (option.id === "voice") {
+                              console.log("Voice button pressed");
+                            } else if (option.id === "image") {
+                              console.log("Image button pressed");
+                            } else if (option.id === "file") {
+                              console.log("File button pressed");
+                            }
                             closeDrawer();
                           }}
                           className="flex flex-col items-center gap-3 p-4 rounded-2xl transition-all hover:shadow-md"
