@@ -214,7 +214,7 @@ function generateWelcomeEmailHTML(name?: string): string {
           <div class="feature">
             <h3>🚀 What you can do with Atlas:</h3>
             <ul>
-              <li>Chat with multiple AI models (Claude, Groq, Opus)</li>
+              <li>Chat with multiple AI models (Claude Sonnet, Claude Opus)</li>
               <li>Voice input and real-time transcription</li>
               <li>Image analysis and processing</li>
               <li>Offline-first message persistence</li>
@@ -251,7 +251,7 @@ Hi${name ? ` ${name}` : ''}!
 Welcome to Atlas AI! We're excited to have you join our community of intelligent conversation enthusiasts.
 
 What you can do with Atlas:
-- Chat with multiple AI models (Claude, Groq, Opus)
+- Chat with multiple AI models (Claude Sonnet, Claude Opus)
 - Voice input and real-time transcription
 - Image analysis and processing
 - Offline-first message persistence

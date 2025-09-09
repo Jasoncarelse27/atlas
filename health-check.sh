@@ -21,7 +21,6 @@ if [ ! -f .env ]; then
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 CLAUDE_API_KEY=your-claude-key
-GROQ_API_KEY=your-groq-key
 NODE_ENV=development
 EOF
   echo "⚠️  Created basic .env - please add your actual API keys"

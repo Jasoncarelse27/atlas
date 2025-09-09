@@ -47,7 +47,7 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({
               <span className="font-semibold text-purple-900">Atlas Pro Benefits</span>
             </div>
             <ul className="text-sm text-purple-800 space-y-1">
-              <li>• Unlimited messages with Claude, Groq, and Opus</li>
+              <li>• Unlimited messages with Claude Sonnet and Opus</li>
               <li>• Advanced voice and image processing</li>
               <li>• Priority support and faster responses</li>
               <li>• Export conversations and insights</li>

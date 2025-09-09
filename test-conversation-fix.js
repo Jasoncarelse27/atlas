@@ -13,7 +13,7 @@ try {
 try {
   // This would be imported in the actual app
   console.log('✅ Tier configuration structure should be correct');
-  console.log('   - Free tier: Groq (llama3-8b-8192)');
+  console.log('   - Free tier: Claude Sonnet (claude-3-5-sonnet)');
   console.log('   - Pro tier: Anthropic (claude-3-5-sonnet)');
   console.log('   - Pro Max tier: OpenAI (gpt-4o)');
 } catch (error) {

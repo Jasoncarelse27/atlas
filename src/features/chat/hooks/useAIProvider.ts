@@ -113,7 +113,7 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
         // If Claude fails, fallback to Haiku
         return getModelConfig('haiku');
       case 'haiku':
-        // If Haiku fails, fallback to Haiku (no Groq fallback)
+        // If Haiku fails, fallback to Haiku
         return getModelConfig('haiku');
       default:
         return getModelConfig('haiku');

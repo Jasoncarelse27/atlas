@@ -52,7 +52,6 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 EXPO_PUBLIC_OPENAI_API_KEY=your_openai_key
 EXPO_PUBLIC_ANTHROPIC_API_KEY=your_anthropic_key
-EXPO_PUBLIC_GROQ_API_KEY=your_groq_key
 ```
 
 The conversation service should now work correctly! 🎉

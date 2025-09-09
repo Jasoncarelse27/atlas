@@ -74,13 +74,11 @@ try {
 
 // External AI API keys
 const ANTHROPIC_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY;
-const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
 
 // Log API key availability
 console.log('🔑 API Keys Status:');
 console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
-console.log(`  Groq: ${GROQ_API_KEY ? '✅ Available' : '❌ Missing'}`);
-if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
+if (!ANTHROPIC_API_KEY) {
   console.log('⚠️  No AI API keys found - will use mock responses');
 }
 
@@ -201,72 +199,6 @@ async function streamAnthropicResponse({ content, model, res }) {
   return fullText;
 }
 
-// Stream Groq response with proper SSE handling
-async function streamGroqResponse({ content, res }) {
-  if (!GROQ_API_KEY) {
-    throw new Error('Missing Groq API key');
-  }
-  
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Accept': 'text/event-stream'
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      stream: true,
-      messages: [
-        { role: 'system', content: ATLAS_PERSONALITY },
-        { role: 'user', content }
-      ]
-    })
-  });
-
-  if (!response.ok || !response.body) {
-    const errText = await response.text().catch(() => 'Groq request failed');
-    throw new Error(errText);
-  }
-
-  // Proper SSE streaming with chunk processing
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-          
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.choices?.[0]?.delta?.content) {
-              const textChunk = parsed.choices[0].delta.content;
-              fullText += textChunk;
-              // Send chunk to client using writeSSE helper
-              writeSSE(res, { chunk: textChunk });
-            }
-          } catch (e) {
-            // Skip invalid JSON
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  
-  return fullText;
-}
 
 // JWT verification middleware with development fallback
 const verifyJWT = async (req, res, next) => {
@@ -309,7 +241,6 @@ app.use(helmet({
         "https://*.supabase.co",
         "https://openrouter.ai",
         "https://api.anthropic.com",
-        "https://api.groq.com",
         "ws://localhost:*",
         "wss://localhost:*"
       ],
@@ -498,13 +429,10 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
     if (effectiveTier === 'studio') {
       selectedModel = 'claude-3-5-opus';
       routedProvider = 'claude';
-    } else if (effectiveTier === 'core') {
+    } else {
+      // Core and Free tier - use Claude Sonnet 4
       selectedModel = 'claude-3-5-sonnet';
       routedProvider = 'claude';
-    } else {
-      // Free tier - use Groq for cost efficiency
-      selectedModel = 'llama-3.3-70b-versatile';
-      routedProvider = 'groq';
     }
     
     console.log(`🎯 User tier: ${effectiveTier}, Selected model: ${selectedModel}, Provider: ${routedProvider}`);
@@ -531,29 +459,14 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
       try {
         console.log(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
         
-        // 🎯 Real AI Model Logic - Prioritize Claude/Groq based on tier
-        if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
+        // 🎯 Real AI Model Logic - Use Claude based on tier
+        if (ANTHROPIC_API_KEY) {
           console.log('🚀 Streaming Claude response...');
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
           console.log('✅ Claude streaming completed, final text length:', finalText.length);
-        } else if (routedProvider === 'groq' && GROQ_API_KEY) {
-          console.log('🚀 Streaming Groq response...');
-          finalText = await streamGroqResponse({ content: message.trim(), res });
-          console.log('✅ Groq streaming completed, final text length:', finalText.length);
-        } else if (ANTHROPIC_API_KEY) {
-          // Fallback to Claude if available
-          console.log('🔄 Falling back to Claude...');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
-          console.log('✅ Claude fallback completed, final text length:', finalText.length);
-        } else if (GROQ_API_KEY) {
-          // Fallback to Groq if available
-          console.log('🔄 Falling back to Groq...');
-          finalText = await streamGroqResponse({ content: message.trim(), res });
-          console.log('✅ Groq fallback completed, final text length:', finalText.length);
         } else {
           console.log('⚠️ No AI API keys available, using mock streaming...');
           console.log(`   Claude API Key: ${ANTHROPIC_API_KEY ? 'Present' : 'Missing'}`);
-          console.log(`   Groq API Key: ${GROQ_API_KEY ? 'Present' : 'Missing'}`);
           // Fallback mock streaming with Atlas personality
           const mockChunks = [
             'Hello! I\'m Atlas, your AI companion. ',
@@ -635,20 +548,6 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
         });
         const data = await r.json();
         finalText = data?.content?.[0]?.text || finalText;
-              } else if (routedProvider === 'groq' && GROQ_API_KEY) {
-          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${GROQ_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: 'llama-3.3-70b-versatile',
-              messages: [{ role: 'user', content: message.trim() }]
-            })
-          });
-        const data = await r.json();
-        finalText = data?.choices?.[0]?.message?.content || finalText;
       } else if (ANTHROPIC_API_KEY) {
         // Fallback to Claude
         const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -666,21 +565,6 @@ app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
         });
         const data = await r.json();
         finalText = data?.content?.[0]?.text || finalText;
-      } else if (GROQ_API_KEY) {
-        // Fallback to Groq
-        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: message.trim() }]
-          })
-        });
-        const data = await r.json();
-        finalText = data?.choices?.[0]?.message?.content || finalText;
       }
     } catch (oneShotErr) {
       console.error('One-shot provider error:', oneShotErr);

@@ -1,10 +1,10 @@
 # Atlas AI - Intelligent Chat Application
 
-A modern, scalable AI chat application with support for multiple AI models (Claude, Groq, Opus), voice input, image processing, and real-time insights.
+A modern, scalable AI chat application with support for multiple AI models (Claude Sonnet, Claude Opus), voice input, image processing, and real-time insights.
 
 ## 🚀 Features
 
-- **Multi-Model AI Support**: Switch between Claude, Groq, and Opus models
+- **Multi-Model AI Support**: Switch between Claude Sonnet and Claude Opus models
 - **Voice Input**: Speech-to-text functionality with real-time transcription
 - **Image Processing**: Upload and analyze images with AI
 - **Real-time Insights**: Conversation analytics and usage statistics
@@ -69,7 +69,6 @@ NODE_ENV=development
 
 # AI Model API Keys (add as needed)
 CLAUDE_API_KEY=your_claude_api_key
-GROQ_API_KEY=your_groq_api_key
 OPUS_API_KEY=your_opus_api_key
 ```
 
@@ -173,7 +172,7 @@ Authorization: Bearer <supabase_jwt_token>
 ### Basic Chat
 1. Open the application in your browser
 2. Type a message in the input field
-3. Select your preferred AI model (Claude, Groq, or Opus)
+3. Select your preferred AI model (Claude Sonnet or Claude Opus)
 4. Press Enter or click Send
 
 ### Voice Input
