@@ -714,10 +714,10 @@ const AtlasDrawerInterface: React.FC = () => {
               {/* Overlay */}
               <motion.div
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                animate={{ opacity: 0.4 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="fixed inset-0 bg-black/40 z-40"
+                className="fixed inset-0 bg-black z-40"
                 onClick={closeDrawer}
               />
 
@@ -728,8 +728,8 @@ const AtlasDrawerInterface: React.FC = () => {
                 exit={{ y: "100%" }}
                 transition={{ 
                   type: "spring", 
-                  damping: 25, 
-                  stiffness: 200 
+                  stiffness: 300, 
+                  damping: 30 
                 }}
                 className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl shadow-2xl"
                 style={{ 
@@ -755,8 +755,8 @@ const AtlasDrawerInterface: React.FC = () => {
                 </div>
 
                 {/* Drawer Content */}
-                <div className="p-6">
-                  <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 flex flex-col items-center gap-4">
+                  <div className="flex gap-4">
                     {toggleDrawerOptions.map((option) => {
                       const IconComponent = option.icon;
                       return (
@@ -775,21 +775,9 @@ const AtlasDrawerInterface: React.FC = () => {
                             }
                             closeDrawer();
                           }}
-                          className="flex flex-col items-center gap-3 p-4 rounded-2xl transition-all hover:shadow-md"
-                          style={{ 
-                            backgroundColor: palette.pearl,
-                            borderColor: palette.sage,
-                          }}
+                          className="w-12 h-12 flex items-center justify-center rounded-full bg-sage text-white hover:scale-105 transition"
                         >
-                          <div 
-                            className="w-12 h-12 rounded-full flex items-center justify-center"
-                            style={{ backgroundColor: option.color }}
-                          >
-                            <IconComponent className="w-6 h-6 text-white" />
-                          </div>
-                          <span className="text-sm font-medium text-slate-700 text-center">
-                            {option.title}
-                          </span>
+                          <IconComponent className="w-6 h-6" />
                         </motion.button>
                       );
                     })}
