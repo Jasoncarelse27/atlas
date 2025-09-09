@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import EnhancedResponseArea from './EnhancedResponseArea';
-import VoiceInputArea from './VoiceInputArea';
-import TextInputArea from './TextInputArea';
-import ImageInputArea from './ImageInputArea';
-import UnifiedInputBar from './UnifiedInputBar';
+import ImageInputArea from '../features/chat/components/ImageInputArea';
+import TextInputArea from '../features/chat/components/TextInputArea';
+import VoiceInputArea from '../features/chat/components/VoiceInputArea';
 import type { SoundType } from '../hooks/useSoundEffects';
+import EnhancedResponseArea from './EnhancedResponseArea';
 
 interface MainInteractionAreaProps {
   mode: 'text' | 'voice' | 'image';
@@ -85,7 +84,6 @@ const MainInteractionArea: React.FC<MainInteractionAreaProps> = ({
           audioUrl={audioUrl}
           onSoundPlay={onSoundPlay}
           onShowVoiceSettings={onShowVoiceSettings}
-          connectionStatus={connectionStatus}
           ref={responseRef}
         />
 

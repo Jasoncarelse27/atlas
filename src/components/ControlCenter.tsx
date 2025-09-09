@@ -234,78 +234,6 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // Layout handlers
-  const handleHeaderStyleChange = (
-    style: "minimal" | "standard" | "expanded",
-  ) => {
-    setSelectedHeaderStyle(style);
-    updateCustomization("layout.headerStyle", style);
-    playSound("click");
-  };
-
-  const handleWidgetLayoutChange = (layout: "grid" | "list" | "masonry") => {
-    setSelectedWidgetLayout(layout);
-    updateCustomization("layout.widgetLayout", layout);
-    playSound("click");
-  };
-
-  const handleCompactModeToggle = () => {
-    setCompactMode(!compactMode);
-    updateCustomization("layout.compactMode", !compactMode);
-    playSound("toggle");
-  };
-
-  const handleShowAnimationsToggle = () => {
-    setShowAnimations(!showAnimations);
-    updateCustomization("layout.showAnimations", !showAnimations);
-    playSound("toggle");
-  };
-
-  // Accessibility handlers
-  const handleHighContrastToggle = () => {
-    setHighContrast(!highContrast);
-    updateCustomization(
-      "preferences.accessibility.highContrast",
-      !highContrast,
-    );
-    playSound("toggle");
-  };
-
-  const handleLargeTextToggle = () => {
-    setLargeText(!largeText);
-    updateCustomization("preferences.accessibility.largeText", !largeText);
-    playSound("toggle");
-  };
-
-  const handleReduceMotionToggle = () => {
-    setReduceMotion(!reduceMotion);
-    updateCustomization(
-      "preferences.accessibility.reduceMotion",
-      !reduceMotion,
-    );
-    playSound("toggle");
-  };
-
-  // Sound handlers
-  const handleToggleSoundEffects = () => {
-    updateCustomization("preferences.soundEffects", !soundEnabled);
-    playSound("toggle");
-  };
-
-  const handleChangeSoundTheme = (theme: SoundTheme) => {
-    updateCustomization("preferences.soundTheme", theme);
-    playSound("click");
-  };
-
-  const handleSoundVolumeChange = (volume: number) => {
-    setSoundVolume(volume);
-    updateCustomization("preferences.soundVolume", volume);
-  };
-
-  const handlePlayTestSound = (type: SoundType) => {
-    playSound(type);
-  };
-
   // Import/Export handlers
   const handleExportSettings = () => {
     const dataStr = JSON.stringify(customization, null, 2);
@@ -384,36 +312,6 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
     reader.readAsText(file);
   };
 
-  // Theme handlers
-  const handleColorChange = (color: string) => {
-    setSelectedColor(color);
-    updateThemeColors(color, selectedAccentColor);
-    playSound("click");
-  };
-
-  const handleAccentColorChange = (color: string) => {
-    setSelectedAccentColor(color);
-    updateThemeColors(selectedColor, color);
-    playSound("click");
-  };
-
-  const handleModeChange = (mode: "light" | "dark" | "auto") => {
-    setSelectedMode(mode);
-    updateCustomization("theme.mode", mode);
-    playSound("click");
-  };
-
-  const handleFontSizeChange = (size: number) => {
-    setSelectedFontSize(size);
-    updateCustomization("theme.fontSize", size);
-    playSound("click");
-  };
-
-  const handleBorderRadiusChange = (radius: number) => {
-    setSelectedBorderRadius(radius);
-    updateCustomization("theme.borderRadius", radius);
-    playSound("click");
-  };
 
 
 
@@ -1071,35 +969,3 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
 export default ControlCenter;
 
 
-/* PHASE3_AUTOWIRE_SCAFFOLD (non-executing)
-  How to migrate ControlCenter.tsx with new components:
-
-  1) Lift state up here (if not already):
-     const [safeMode, setSafeMode] = useState(true);
-     const bottomRef = useRef<HTMLDivElement>(null);
-
-  2) Use the components (drop this block into your JSX and remove the {false && …} guard):
-     {false && (
-       <div className="flex flex-col h-full">
-         <ControlHeader
-           title="Conversation"
-           onBack={() => {/* navigate back */}}
-           rightSlot={<SafeModeToggle value={safeMode} onChange={setSafeMode} />}
-         />
-         <UpgradePrompt show={false} tierLabel="Free" onUpgrade={() => {/* open upgrade */}} />
-         <MessageList messages={messages /* your list */} bottomRef={bottomRef} />
-         <Composer
-           onSend={(text) => {/* send message */}}
-           placeholder="Type your message…"
-           rightSlot={<button className="border rounded-xl px-3 py-1">Send</button>}
-         />
-       </div>
-     )}
-  3) Migrate gradually:
-     - Move header bits → ControlHeader
-     - Render bubbles/virtualization → MessageList
-     - Input/mic/attachments → Composer
-     - Safe mode toggle → SafeModeToggle
-     - Upsell strip → UpgradePrompt
-  4) Keep this file as the orchestrator (target < 300 lines).
-*/

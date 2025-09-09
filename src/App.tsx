@@ -23,6 +23,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import { useMessages } from './features/chat/hooks/useMessages';
 import { queryClient } from './features/chat/lib/queryClient';
 import AuthPage from './pages/AuthPage';
+import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
 import DebugPage from './pages/DebugPage';
 import DebugProfile from './pages/DebugProfile';
@@ -610,6 +611,10 @@ function App() {
             {/* Always use your custom AuthPage for /login */}
             <Route path="/login" element={<AuthPage />} />
             <Route
+              path="/chat"
+              element={user ? <ChatPage user={user} /> : <Navigate to="/login" replace />}
+            />
+            <Route
               path="/dashboard"
               element={user ? <DashboardPage user={user} /> : <Navigate to="/login" replace />}
             />
@@ -623,7 +628,7 @@ function App() {
             />
             <Route
               path="*"
-              element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />}
+              element={user ? <Navigate to="/chat" replace /> : <Navigate to="/login" replace />}
             />
           </Routes>
         </Router>
