@@ -12,6 +12,7 @@ import {
     Lock,
     MessageSquare,
     Mic,
+    Paperclip,
     Plus,
     Send,
     Target,
@@ -150,11 +151,9 @@ const AtlasDrawerInterface: React.FC = () => {
 
   const toggleDrawerOptions = useMemo(
     () => [
-      { id: "audio", title: "Audio Message", icon: Mic, color: palette.sage },
+      { id: "voice", title: "Voice Recording", icon: Mic, color: palette.sage },
       { id: "image", title: "Image Upload", icon: Image, color: palette.sage },
-      { id: "habit-tracker", title: "Habit Tracker", icon: BarChart3, color: palette.sage },
-      { id: "reflections", title: "Reflections", icon: Book, color: palette.sage },
-      { id: "history", title: "History", icon: History, color: palette.sage },
+      { id: "file", title: "File Attach", icon: Paperclip, color: palette.sage },
     ],
     []
   );
@@ -595,10 +594,18 @@ const AtlasDrawerInterface: React.FC = () => {
         <footer className="border-t p-6" style={{ backgroundColor: palette.sand, borderColor: palette.sage }}>
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3">
-              {/* Toggle Drawer Button */}
-              <button
-                onClick={() => setIsToggleDrawerOpen(!isToggleDrawerOpen)}
-                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all hover:opacity-90 focus:outline-none focus:ring-2"
+              {/* + Toggle Drawer Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setIsToggleDrawerOpen(!isToggleDrawerOpen);
+                  // Close keyboard when opening drawer
+                  if (inputRef.current) {
+                    inputRef.current.blur();
+                  }
+                }}
+                className="w-12 h-12 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-2"
                 style={{ 
                   backgroundColor: palette.sage,
                   "--tw-ring-color": palette.sage,
@@ -606,7 +613,7 @@ const AtlasDrawerInterface: React.FC = () => {
                 aria-label="Toggle options"
               >
                 <Plus className="w-5 h-5 text-white" />
-              </button>
+              </motion.button>
 
               {/* Input Field */}
               <div className="flex-1">
@@ -622,6 +629,8 @@ const AtlasDrawerInterface: React.FC = () => {
                     }
                   }}
                   onFocus={() => {
+                    // Close drawer when keyboard opens
+                    setIsToggleDrawerOpen(false);
                     // Ensure input is visible when focused on mobile
                     setTimeout(() => {
                       inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -644,16 +653,21 @@ const AtlasDrawerInterface: React.FC = () => {
                 />
               </div>
 
-              {/* Send Button */}
-              <button
+              {/* > Send Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={sendMessage}
                 disabled={!inputMessage.trim() || isTyping}
-                className="w-12 h-12 text-white rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                style={{ backgroundColor: palette.sage }}
+                className="w-12 h-12 text-white rounded-full hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2"
+                style={{ 
+                  backgroundColor: palette.sage,
+                  "--tw-ring-color": palette.sage,
+                }}
                 aria-label="Send message"
               >
                 <Send className="w-5 h-5" />
-              </button>
+              </motion.button>
             </div>
 
             <div className="mt-3 flex items-center gap-2 overflow-x-auto">
@@ -711,27 +725,30 @@ const AtlasDrawerInterface: React.FC = () => {
               >
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: palette.sage }}>
-                  <h3 className="text-lg font-semibold text-slate-700">Quick Actions</h3>
+                  <h3 className="text-lg font-semibold text-slate-700">Attach</h3>
                   <button
                     onClick={() => setIsToggleDrawerOpen(false)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-80 transition-all"
-                    style={{ backgroundColor: "transparent" }}
-                    aria-label="Close drawer"
+                    className="px-3 py-1 rounded-lg text-sm font-medium hover:opacity-80 transition-all"
+                    style={{ 
+                      backgroundColor: palette.pearl,
+                      color: "#4a5568",
+                    }}
+                    aria-label="Collapse drawer"
                   >
-                    <X className="w-5 h-5 text-slate-600" />
+                    Collapse
                   </button>
                 </div>
 
                 {/* Drawer Content */}
                 <div className="p-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     {toggleDrawerOptions.map((option) => {
                       const IconComponent = option.icon;
                       return (
                         <motion.button
                           key={option.id}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => {
                             // Handle option selection
                             // TODO: Implement specific actions for each option
@@ -744,7 +761,7 @@ const AtlasDrawerInterface: React.FC = () => {
                           }}
                         >
                           <div 
-                            className="w-12 h-12 rounded-xl flex items-center justify-center"
+                            className="w-12 h-12 rounded-full flex items-center justify-center"
                             style={{ backgroundColor: option.color }}
                           >
                             <IconComponent className="w-6 h-6 text-white" />
