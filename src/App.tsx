@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { hasSupabase, supabase } from '@/lib/supabase';
 import AtlasChatPage from '@/pages/AtlasChatPage';
 import LoginPage from '@/pages/LoginPage';
-import { hasSupabase, supabase } from '@/lib/supabase';
+import { useEffect, useState } from 'react';
 
 export default function App() {
   const [ready, setReady] = useState(false);

@@ -1,4 +1,3 @@
-import React from 'react';
 import { hasSupabase, supabase } from '@/lib/supabase';
 
 export default function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {

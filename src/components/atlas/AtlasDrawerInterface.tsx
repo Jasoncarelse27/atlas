@@ -39,6 +39,7 @@ const AtlasDrawerInterface: React.FC = () => {
   const [activeTool, setActiveTool] = useState("chat");
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -86,9 +87,45 @@ const AtlasDrawerInterface: React.FC = () => {
 
   // Smooth autoscroll to latest message
   const endRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Mobile keyboard handling
+  useEffect(() => {
+    const handleResize = () => {
+      const initialViewportHeight = window.visualViewport?.height || window.innerHeight;
+      const currentViewportHeight = window.visualViewport?.height || window.innerHeight;
+      const heightDifference = initialViewportHeight - currentViewportHeight;
+      
+      // If viewport height decreased significantly, keyboard is likely open
+      setIsKeyboardOpen(heightDifference > 150);
+    };
+
+    // Listen for viewport changes (mobile keyboard)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    } else {
+      window.addEventListener('resize', handleResize);
+    }
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+      } else {
+        window.removeEventListener('resize', handleResize);
+      }
+    };
+  }, []);
+
+  // Auto-focus input on mobile when keyboard opens
+  useEffect(() => {
+    if (isKeyboardOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isKeyboardOpen]);
 
   const tools = useMemo(
     () => [
@@ -123,6 +160,11 @@ const AtlasDrawerInterface: React.FC = () => {
     };
     setMessages(prev => [...prev, userMsg]);
     setInputMessage('');
+    
+    // Dismiss keyboard on mobile after sending
+    if (inputRef.current) {
+      inputRef.current.blur();
+    }
     
     // Save user message
     const storedUserMsg: StoredMessage = { role: 'user', content: text };
@@ -211,8 +253,23 @@ const AtlasDrawerInterface: React.FC = () => {
     saveMessage(storedMsg).catch(() => {});
   };
 
+  // Handle clicking outside input to dismiss keyboard
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
+      inputRef.current.blur();
+    }
+  };
+
   return (
-    <div className="flex h-screen relative" style={{ backgroundColor: palette.pearl }}>
+    <div 
+      className="flex h-screen relative" 
+      style={{ 
+        backgroundColor: palette.pearl,
+        // Ensure proper mobile viewport handling
+        minHeight: '100dvh', // Dynamic viewport height for mobile
+      }}
+      onClick={handleContainerClick}
+    >
       {/* Overlay */}
       {isDrawerOpen && (
         <button
@@ -522,6 +579,7 @@ const AtlasDrawerInterface: React.FC = () => {
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
@@ -530,6 +588,12 @@ const AtlasDrawerInterface: React.FC = () => {
                       e.preventDefault();
                       sendMessage();
                     }
+                  }}
+                  onFocus={() => {
+                    // Ensure input is visible when focused on mobile
+                    setTimeout(() => {
+                      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
                   }}
                   placeholder="Message Atlas..."
                   className="w-full px-4 py-3 rounded-2xl border text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 transition-all"
@@ -540,6 +604,11 @@ const AtlasDrawerInterface: React.FC = () => {
                     // @ts-expect-error – custom CSS var for ring
                     "--tw-ring-color": palette.sage,
                   }}
+                  // Mobile-specific attributes
+                  autoComplete="off"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck="true"
                 />
               </div>
               <button
