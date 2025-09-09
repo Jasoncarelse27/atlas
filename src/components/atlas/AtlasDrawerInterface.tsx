@@ -9,8 +9,11 @@ import {
     Dumbbell,
     Heart,
     History,
+    Image,
     Lock,
     MessageSquare,
+    Mic,
+    Paperclip,
     Plus,
     Send,
     Target,
@@ -713,19 +716,37 @@ const AtlasDrawerInterface: React.FC = () => {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="fixed bottom-0 left-0 right-0 h-[45vh] max-h-[400px] bg-[#EBDFCE] rounded-t-2xl p-4 flex flex-col items-center gap-6 z-50 shadow-lg"
             >
-              <div className="flex gap-6">
+              <div className="flex justify-around mt-6">
                 <button
-                  onClick={() => console.log('Voice button pressed')}
-                  className="w-12 h-12 flex items-center justify-center rounded-full bg-[#B2BDA3] text-white"
-                >🎤</button>
+                  onClick={() => console.log("Voice button pressed")}
+                  className="p-3 bg-[#B2BDA3] rounded-full"
+                >
+                  <Mic className="w-6 h-6 text-white" />
+                </button>
                 <button
-                  onClick={() => console.log('Image button pressed')}
-                  className="w-12 h-12 flex items-center justify-center rounded-full bg-[#B2BDA3] text-white"
-                >🖼️</button>
+                  onClick={() => console.log("Image button pressed")}
+                  className="p-3 bg-[#F4E5D9] rounded-full"
+                >
+                  <Image className="w-6 h-6 text-[#333]" />
+                </button>
                 <button
-                  onClick={() => console.log('File attach pressed')}
-                  className="w-12 h-12 flex items-center justify-center rounded-full bg-[#B2BDA3] text-white"
-                >📎</button>
+                  onClick={() => console.log("Habit Tracker pressed")}
+                  className="p-3 bg-[#EBDFCE] rounded-full"
+                >
+                  <BarChart3 className="w-6 h-6 text-[#333]" />
+                </button>
+                <button
+                  onClick={() => console.log("Reflections pressed")}
+                  className="p-3 bg-[#B2BDA3] rounded-full"
+                >
+                  <Book className="w-6 h-6 text-white" />
+                </button>
+                <button
+                  onClick={() => console.log("File attach pressed")}
+                  className="p-3 bg-[#F4E5D9] rounded-full"
+                >
+                  <Paperclip className="w-6 h-6 text-[#333]" />
+                </button>
               </div>
               <button
                 onClick={closeDrawer}
