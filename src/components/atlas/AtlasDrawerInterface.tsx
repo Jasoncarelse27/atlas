@@ -1,3 +1,6 @@
+import { CHAT_CONFIG } from '@/config/chat';
+import { loadRecentMessages, saveMessage, type Message as StoredMessage } from '@/features/chat/storage';
+import { streamAtlasReply } from '@/features/chat/stream';
 import {
     BarChart3,
     Book,
@@ -5,9 +8,11 @@ import {
     Dumbbell,
     Heart,
     History,
+    Image,
     Lock,
     MessageSquare,
     Mic,
+    Plus,
     Send,
     Target,
     Users,
@@ -15,9 +20,7 @@ import {
     Zap,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { saveMessage, loadRecentMessages, type Message as StoredMessage } from '@/features/chat/storage';
-import { streamAtlasReply } from '@/features/chat/stream';
-import { CHAT_CONFIG } from '@/config/chat';
+import { motion, AnimatePresence } from "framer-motion";
 
 // Local fallback type for UI rendering
 type Message = {
@@ -40,6 +43,7 @@ const AtlasDrawerInterface: React.FC = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isToggleDrawerOpen, setIsToggleDrawerOpen] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -120,10 +124,11 @@ const AtlasDrawerInterface: React.FC = () => {
     };
   }, []);
 
-  // Auto-focus input on mobile when keyboard opens
+  // Auto-focus input on mobile when keyboard opens and close toggle drawer
   useEffect(() => {
     if (isKeyboardOpen && inputRef.current) {
       inputRef.current.focus();
+      setIsToggleDrawerOpen(false); // Close toggle drawer when keyboard opens
     }
   }, [isKeyboardOpen]);
 
@@ -139,6 +144,17 @@ const AtlasDrawerInterface: React.FC = () => {
       { id: "daily-challenges", title: "Daily EQ Challenges", icon: Zap, category: "Growth", active: true },
 
       { id: "conversation-history", title: "Conversation History", icon: History, category: "History", active: true },
+    ],
+    []
+  );
+
+  const toggleDrawerOptions = useMemo(
+    () => [
+      { id: "audio", title: "Audio Message", icon: Mic, color: palette.sage },
+      { id: "image", title: "Image Upload", icon: Image, color: palette.sage },
+      { id: "habit-tracker", title: "Habit Tracker", icon: BarChart3, color: palette.sage },
+      { id: "reflections", title: "Reflections", icon: Book, color: palette.sage },
+      { id: "history", title: "History", icon: History, color: palette.sage },
     ],
     []
   );
@@ -253,11 +269,13 @@ const AtlasDrawerInterface: React.FC = () => {
     saveMessage(storedMsg).catch(() => {});
   };
 
-  // Handle clicking outside input to dismiss keyboard
+  // Handle clicking outside input to dismiss keyboard and toggle drawer
   const handleContainerClick = (e: React.MouseEvent) => {
     if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
       inputRef.current.blur();
     }
+    // Close toggle drawer when clicking outside
+    setIsToggleDrawerOpen(false);
   };
 
   return (
@@ -576,7 +594,21 @@ const AtlasDrawerInterface: React.FC = () => {
         {/* Composer */}
         <footer className="border-t p-6" style={{ backgroundColor: palette.sand, borderColor: palette.sage }}>
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              {/* Toggle Drawer Button */}
+              <button
+                onClick={() => setIsToggleDrawerOpen(!isToggleDrawerOpen)}
+                className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all hover:opacity-90 focus:outline-none focus:ring-2"
+                style={{ 
+                  backgroundColor: palette.sage,
+                  "--tw-ring-color": palette.sage,
+                }}
+                aria-label="Toggle options"
+              >
+                <Plus className="w-5 h-5 text-white" />
+              </button>
+
+              {/* Input Field */}
               <div className="flex-1">
                 <input
                   ref={inputRef}
@@ -611,10 +643,12 @@ const AtlasDrawerInterface: React.FC = () => {
                   spellCheck="true"
                 />
               </div>
+
+              {/* Send Button */}
               <button
                 onClick={sendMessage}
                 disabled={!inputMessage.trim() || isTyping}
-                className="p-3 text-white rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-12 h-12 text-white rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 style={{ backgroundColor: palette.sage }}
                 aria-label="Send message"
               >
@@ -643,6 +677,90 @@ const AtlasDrawerInterface: React.FC = () => {
             </div>
           </div>
         </footer>
+
+        {/* Animated Toggle Drawer */}
+        <AnimatePresence>
+          {isToggleDrawerOpen && (
+            <>
+              {/* Overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black/40 z-40"
+                onClick={() => setIsToggleDrawerOpen(false)}
+              />
+
+              {/* Bottom Drawer */}
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ 
+                  type: "spring", 
+                  damping: 25, 
+                  stiffness: 200 
+                }}
+                className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl shadow-2xl"
+                style={{ 
+                  backgroundColor: palette.sand,
+                  height: "45vh",
+                  maxHeight: "400px"
+                }}
+              >
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: palette.sage }}>
+                  <h3 className="text-lg font-semibold text-slate-700">Quick Actions</h3>
+                  <button
+                    onClick={() => setIsToggleDrawerOpen(false)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-80 transition-all"
+                    style={{ backgroundColor: "transparent" }}
+                    aria-label="Close drawer"
+                  >
+                    <X className="w-5 h-5 text-slate-600" />
+                  </button>
+                </div>
+
+                {/* Drawer Content */}
+                <div className="p-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {toggleDrawerOptions.map((option) => {
+                      const IconComponent = option.icon;
+                      return (
+                        <motion.button
+                          key={option.id}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => {
+                            // Handle option selection
+                            // TODO: Implement specific actions for each option
+                            setIsToggleDrawerOpen(false);
+                          }}
+                          className="flex flex-col items-center gap-3 p-4 rounded-2xl transition-all hover:shadow-md"
+                          style={{ 
+                            backgroundColor: palette.pearl,
+                            borderColor: palette.sage,
+                          }}
+                        >
+                          <div 
+                            className="w-12 h-12 rounded-xl flex items-center justify-center"
+                            style={{ backgroundColor: option.color }}
+                          >
+                            <IconComponent className="w-6 h-6 text-white" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-700 text-center">
+                            {option.title}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
