@@ -1,25 +1,25 @@
 import { CHAT_CONFIG } from '@/config/chat';
 import { loadRecentMessages, saveMessage, type Message as StoredMessage } from '@/features/chat/storage';
 import { streamAtlasReply } from '@/features/chat/stream';
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-    BarChart3,
-    Book,
-    Brain,
-    Dumbbell,
-    Heart,
-    History,
-    Image,
-    Lock,
-    MessageSquare,
-    Mic,
-    Paperclip,
-    Plus,
-    Send,
-    Target,
-    Users,
-    X,
-    Zap,
+  BarChart3,
+  Book,
+  Brain,
+  Dumbbell,
+  Heart,
+  History,
+  Image,
+  Lock,
+  MessageSquare,
+  Mic,
+  Paperclip,
+  Plus,
+  Send,
+  Target,
+  Users,
+  X,
+  Zap,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -715,7 +715,8 @@ const AtlasDrawerInterface: React.FC = () => {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed bottom-0 left-0 right-0 h-[45vh] max-h-[400px] bg-white rounded-t-2xl shadow-lg z-50 p-6"
+                className="fixed bottom-0 left-0 right-0 h-[45vh] max-h-[400px] bg-red-500 rounded-t-2xl shadow-lg z-50 p-6"
+                style={{ border: "3px solid blue" }}
               >
                 <div className="flex justify-around mt-6">
                   <button
