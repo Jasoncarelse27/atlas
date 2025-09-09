@@ -47,8 +47,17 @@ const AtlasDrawerInterface: React.FC = () => {
   const [isToggleDrawerOpen, setIsToggleDrawerOpen] = useState(false);
 
   // Drawer control functions
-  const toggleDrawer = () => setIsToggleDrawerOpen(prev => !prev);
-  const closeDrawer = () => setIsToggleDrawerOpen(false);
+  const toggleDrawer = () => {
+    setIsToggleDrawerOpen(prev => {
+      const newState = !prev;
+      console.log("Drawer state toggled →", newState ? "OPEN" : "CLOSED");
+      return newState;
+    });
+  };
+  const closeDrawer = () => {
+    console.log("Drawer state toggled → CLOSED");
+    setIsToggleDrawerOpen(false);
+  };
 
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -762,7 +771,7 @@ const AtlasDrawerInterface: React.FC = () => {
                             } else if (option.id === "image") {
                               console.log("Image button pressed");
                             } else if (option.id === "file") {
-                              console.log("File button pressed");
+                              console.log("File attach pressed");
                             }
                             closeDrawer();
                           }}
