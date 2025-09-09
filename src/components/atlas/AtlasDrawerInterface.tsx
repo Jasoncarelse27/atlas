@@ -1,7 +1,7 @@
 import { CHAT_CONFIG } from '@/config/chat';
 import { loadRecentMessages, saveMessage, type Message as StoredMessage } from '@/features/chat/storage';
 import { streamAtlasReply } from '@/features/chat/stream';
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     BarChart3,
     Book,
@@ -700,63 +700,65 @@ const AtlasDrawerInterface: React.FC = () => {
         </footer>
 
         {/* Animated Toggle Drawer */}
-        {isToggleDrawerOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black z-40"
-              onClick={closeDrawer}
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed bottom-0 left-0 right-0 h-[45vh] max-h-[400px] bg-[#EBDFCE] rounded-t-2xl p-4 flex flex-col items-center gap-6 z-50 shadow-lg"
-            >
-              <div className="flex justify-around mt-6">
-                <button
-                  onClick={() => console.log("Voice button pressed")}
-                  className="p-3 bg-[#B2BDA3] rounded-full"
-                >
-                  <Mic className="w-6 h-6 text-white" />
-                </button>
-                <button
-                  onClick={() => console.log("Image button pressed")}
-                  className="p-3 bg-[#F4E5D9] rounded-full"
-                >
-                  <Image className="w-6 h-6 text-[#333]" />
-                </button>
-                <button
-                  onClick={() => console.log("Habit Tracker pressed")}
-                  className="p-3 bg-[#EBDFCE] rounded-full"
-                >
-                  <BarChart3 className="w-6 h-6 text-[#333]" />
-                </button>
-                <button
-                  onClick={() => console.log("Reflections pressed")}
-                  className="p-3 bg-[#B2BDA3] rounded-full"
-                >
-                  <Book className="w-6 h-6 text-white" />
-                </button>
-                <button
-                  onClick={() => console.log("File attach pressed")}
-                  className="p-3 bg-[#F4E5D9] rounded-full"
-                >
-                  <Paperclip className="w-6 h-6 text-[#333]" />
-                </button>
-              </div>
-              <button
+        <AnimatePresence>
+          {isToggleDrawerOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.4 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black z-40"
                 onClick={closeDrawer}
-                className="text-sm text-gray-700 underline"
+              />
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed bottom-0 left-0 right-0 h-[45vh] max-h-[400px] bg-white rounded-t-2xl shadow-lg z-50 p-6"
               >
-                Collapse
-              </button>
-            </motion.div>
-          </>
-        )}
+                <div className="flex justify-around mt-6">
+                  <button
+                    onClick={() => console.log("Voice button pressed")}
+                    className="p-3 bg-[#B2BDA3] rounded-full"
+                  >
+                    <Mic className="w-6 h-6 text-white" />
+                  </button>
+                  <button
+                    onClick={() => console.log("Image button pressed")}
+                    className="p-3 bg-[#F4E5D9] rounded-full"
+                  >
+                    <Image className="w-6 h-6 text-[#333]" />
+                  </button>
+                  <button
+                    onClick={() => console.log("Habit Tracker pressed")}
+                    className="p-3 bg-[#EBDFCE] rounded-full"
+                  >
+                    <BarChart3 className="w-6 h-6 text-[#333]" />
+                  </button>
+                  <button
+                    onClick={() => console.log("Reflections pressed")}
+                    className="p-3 bg-[#B2BDA3] rounded-full"
+                  >
+                    <Book className="w-6 h-6 text-white" />
+                  </button>
+                  <button
+                    onClick={() => console.log("File attach pressed")}
+                    className="p-3 bg-[#F4E5D9] rounded-full"
+                  >
+                    <Paperclip className="w-6 h-6 text-[#333]" />
+                  </button>
+                </div>
+                <button
+                  onClick={closeDrawer}
+                  className="text-sm text-gray-700 underline mt-4"
+                >
+                  Collapse
+                </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
