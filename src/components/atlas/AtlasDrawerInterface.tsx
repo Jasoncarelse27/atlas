@@ -1,6 +1,7 @@
 import { CHAT_CONFIG } from '@/config/chat';
 import { loadRecentMessages, saveMessage, type Message as StoredMessage } from '@/features/chat/storage';
 import { streamAtlasReply } from '@/features/chat/stream';
+import { AnimatePresence, motion } from "framer-motion";
 import {
     BarChart3,
     Book,
@@ -21,7 +22,6 @@ import {
     Zap,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 // Local fallback type for UI rendering
 type Message = {
@@ -45,6 +45,10 @@ const AtlasDrawerInterface: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isToggleDrawerOpen, setIsToggleDrawerOpen] = useState(false);
+
+  // Drawer control functions
+  const toggleDrawer = () => setIsToggleDrawerOpen(prev => !prev);
+  const closeDrawer = () => setIsToggleDrawerOpen(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -129,7 +133,7 @@ const AtlasDrawerInterface: React.FC = () => {
   useEffect(() => {
     if (isKeyboardOpen && inputRef.current) {
       inputRef.current.focus();
-      setIsToggleDrawerOpen(false); // Close toggle drawer when keyboard opens
+      closeDrawer(); // Close toggle drawer when keyboard opens
     }
   }, [isKeyboardOpen]);
 
@@ -274,7 +278,7 @@ const AtlasDrawerInterface: React.FC = () => {
       inputRef.current.blur();
     }
     // Close toggle drawer when clicking outside
-    setIsToggleDrawerOpen(false);
+    closeDrawer();
   };
 
   return (
@@ -596,10 +600,11 @@ const AtlasDrawerInterface: React.FC = () => {
             <div className="flex items-center gap-3">
               {/* + Toggle Drawer Button */}
               <motion.button
+                type="button"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  setIsToggleDrawerOpen(!isToggleDrawerOpen);
+                  toggleDrawer();
                   // Close keyboard when opening drawer
                   if (inputRef.current) {
                     inputRef.current.blur();
@@ -630,7 +635,7 @@ const AtlasDrawerInterface: React.FC = () => {
                   }}
                   onFocus={() => {
                     // Close drawer when keyboard opens
-                    setIsToggleDrawerOpen(false);
+                    closeDrawer();
                     // Ensure input is visible when focused on mobile
                     setTimeout(() => {
                       inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -655,6 +660,7 @@ const AtlasDrawerInterface: React.FC = () => {
 
               {/* > Send Button */}
               <motion.button
+                type="submit"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={sendMessage}
@@ -703,7 +709,7 @@ const AtlasDrawerInterface: React.FC = () => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
                 className="fixed inset-0 bg-black/40 z-40"
-                onClick={() => setIsToggleDrawerOpen(false)}
+                onClick={closeDrawer}
               />
 
               {/* Bottom Drawer */}
@@ -727,7 +733,7 @@ const AtlasDrawerInterface: React.FC = () => {
                 <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: palette.sage }}>
                   <h3 className="text-lg font-semibold text-slate-700">Attach</h3>
                   <button
-                    onClick={() => setIsToggleDrawerOpen(false)}
+                    onClick={closeDrawer}
                     className="px-3 py-1 rounded-lg text-sm font-medium hover:opacity-80 transition-all"
                     style={{ 
                       backgroundColor: palette.pearl,
@@ -752,7 +758,7 @@ const AtlasDrawerInterface: React.FC = () => {
                           onClick={() => {
                             // Handle option selection
                             // TODO: Implement specific actions for each option
-                            setIsToggleDrawerOpen(false);
+                            closeDrawer();
                           }}
                           className="flex flex-col items-center gap-3 p-4 rounded-2xl transition-all hover:shadow-md"
                           style={{ 
