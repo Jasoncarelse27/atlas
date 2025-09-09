@@ -1,7 +1,7 @@
 import { CHAT_CONFIG } from '@/config/chat';
 import { loadRecentMessages, saveMessage, type Message as StoredMessage } from '@/features/chat/storage';
 import { streamAtlasReply } from '@/features/chat/stream';
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
     BarChart3,
     Book,
@@ -162,14 +162,6 @@ const AtlasDrawerInterface: React.FC = () => {
     []
   );
 
-  const toggleDrawerOptions = useMemo(
-    () => [
-      { id: "voice", title: "Voice Recording", icon: Mic, color: palette.sage },
-      { id: "image", title: "Image Upload", icon: Image, color: palette.sage },
-      { id: "file", title: "File Attach", icon: Paperclip, color: palette.sage },
-    ],
-    []
-  );
 
   const formatTime = (ts: Date) =>
     ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -708,85 +700,45 @@ const AtlasDrawerInterface: React.FC = () => {
         </footer>
 
         {/* Animated Toggle Drawer */}
-        <AnimatePresence>
-          {isToggleDrawerOpen && (
-            <>
-              {/* Overlay */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.4 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 bg-black z-40"
+        {isToggleDrawerOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black z-40"
+              onClick={closeDrawer}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 h-[45vh] max-h-[400px] bg-[#EBDFCE] rounded-t-2xl p-4 flex flex-col items-center gap-6 z-50 shadow-lg"
+            >
+              <div className="flex gap-6">
+                <button
+                  onClick={() => console.log('Voice button pressed')}
+                  className="w-12 h-12 flex items-center justify-center rounded-full bg-[#B2BDA3] text-white"
+                >🎤</button>
+                <button
+                  onClick={() => console.log('Image button pressed')}
+                  className="w-12 h-12 flex items-center justify-center rounded-full bg-[#B2BDA3] text-white"
+                >🖼️</button>
+                <button
+                  onClick={() => console.log('File attach pressed')}
+                  className="w-12 h-12 flex items-center justify-center rounded-full bg-[#B2BDA3] text-white"
+                >📎</button>
+              </div>
+              <button
                 onClick={closeDrawer}
-              />
-
-              {/* Bottom Drawer */}
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 300, 
-                  damping: 30 
-                }}
-                className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl shadow-2xl"
-                style={{ 
-                  backgroundColor: palette.sand,
-                  height: "45vh",
-                  maxHeight: "400px"
-                }}
+                className="text-sm text-gray-700 underline"
               >
-                {/* Drawer Header */}
-                <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: palette.sage }}>
-                  <h3 className="text-lg font-semibold text-slate-700">Attach</h3>
-                  <button
-                    onClick={closeDrawer}
-                    className="px-3 py-1 rounded-lg text-sm font-medium hover:opacity-80 transition-all"
-                    style={{ 
-                      backgroundColor: palette.pearl,
-                      color: "#4a5568",
-                    }}
-                    aria-label="Collapse drawer"
-                  >
-                    Collapse
-                  </button>
-                </div>
-
-                {/* Drawer Content */}
-                <div className="p-4 flex flex-col items-center gap-4">
-                  <div className="flex gap-4">
-                    {toggleDrawerOptions.map((option) => {
-                      const IconComponent = option.icon;
-                      return (
-                        <motion.button
-                          key={option.id}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => {
-                            // Handle option selection with temporary console logs
-                            if (option.id === "voice") {
-                              console.log("Voice button pressed");
-                            } else if (option.id === "image") {
-                              console.log("Image button pressed");
-                            } else if (option.id === "file") {
-                              console.log("File attach pressed");
-                            }
-                            closeDrawer();
-                          }}
-                          className="w-12 h-12 flex items-center justify-center rounded-full bg-sage text-white hover:scale-105 transition"
-                        >
-                          <IconComponent className="w-6 h-6" />
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+                Collapse
+              </button>
+            </motion.div>
+          </>
+        )}
       </main>
     </div>
   );
