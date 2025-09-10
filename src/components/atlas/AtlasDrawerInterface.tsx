@@ -40,126 +40,125 @@ const palette = {
   pearl: "var(--atlas-pearl)",
 };
 
-// Quick Actions Drawer Component
-interface QuickActionsDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
+// Atlas Action Toggle Component - Better UX approach
+type ActionType = "voice" | "image" | "file";
+
+interface AtlasActionToggleProps {
+  conversationId: string;
 }
 
-const QuickActionsDrawer: React.FC<QuickActionsDrawerProps> = ({
-  isOpen,
-  onClose,
-}) => {
+const AtlasActionToggle: React.FC<AtlasActionToggleProps> = ({ conversationId }) => {
+  const [open, setOpen] = useState(false);
   const { addMessage } = useMessageStore();
 
-  // Generic handler for different message types
-  const handleAction = async (
-    type: "voice" | "image" | "file",
-    content: string
-  ) => {
-    console.log(`🎯 handleAction called with type: ${type}, content: ${content}`);
-    
+  const handleAction = async (type: ActionType) => {
+    const placeholder = `[${type.toUpperCase()}] ${type} message placeholder`;
+
+    console.log(`🎯 handleAction called with type: ${type}`);
+
+    // Optimistic update
     const newMessage = {
       id: crypto.randomUUID(),
       role: 'user' as const,
-      content: `[${type.toUpperCase()}] ${content}`,
+      content: placeholder,
       createdAt: new Date().toISOString(),
     };
 
-    console.log(`📝 Creating message:`, newMessage);
-
-    // 1. Add to local store immediately (optimistic update)
     addMessage(newMessage);
     console.log(`${type} message added to store ✅`);
 
-    // 2. Push to Supabase in background
+    // Background Supabase sync
     try {
       if (supabase) {
         const { error } = await supabase.from("messages").insert([
           {
             id: newMessage.id,
-            conversation_id: "local-active", // replace with actual active conversation id
-            user_id: "me", // replace with supabase.auth.getUser().id if available
-            content: newMessage.content,
+            conversation_id: conversationId,
+            user_id: "me", // replace with actual user ID
+            content: placeholder,
             message_type: type,
             metadata: {},
             created_at: newMessage.createdAt,
           },
         ]);
-        if (error) throw error;
-        console.log(`${type} message synced to Supabase ✅`);
+
+        if (error) {
+          console.error(`${type} message failed to sync ❌`, error.message);
+        } else {
+          console.log(`${type} message synced to Supabase ✅`);
+        }
       }
     } catch (err) {
       console.error(`Failed to sync ${type} message`, err);
     }
 
-    // Close drawer after action
-    console.log(`🚪 Closing drawer after ${type} action`);
-    onClose();
+    // Close menu after action
+    setOpen(false);
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Overlay */}
-          <motion.div
-            className="fixed inset-0 bg-black bg-opacity-40 z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
+    <div className="relative flex items-center justify-center">
+      {/* Toggle Button */}
+      <motion.button
+        onClick={() => setOpen((prev) => !prev)}
+        className="w-12 h-12 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-2"
+        style={{ 
+          backgroundColor: palette.sage,
+        }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        aria-label="Toggle quick actions"
+      >
+        <motion.span
+          animate={{ rotate: open ? 45 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="text-white text-2xl font-light"
+        >
+          +
+        </motion.span>
+      </motion.button>
 
-          {/* Drawer */}
+      {/* Action Buttons */}
+      <AnimatePresence>
+        {open && (
           <motion.div
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl p-6 z-50 shadow-lg"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            initial={{ opacity: 0, y: 20, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute bottom-14 flex flex-col gap-2 z-50"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Quick Actions
-              </h3>
-              <button onClick={onClose}>
-                <X className="w-6 h-6 text-gray-600" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              {/* Voice */}
-              <button
-                onClick={() => handleAction("voice", "Voice message placeholder")}
-                className="flex flex-col items-center justify-center p-4 bg-gray-100 rounded-xl shadow hover:bg-gray-200 transition-colors"
-              >
-                <Mic className="w-6 h-6 text-gray-700 mb-2" />
-                <span className="text-sm font-medium text-gray-900">Voice</span>
-              </button>
-
-              {/* Image */}
-              <button
-                onClick={() => handleAction("image", "Image upload placeholder")}
-                className="flex flex-col items-center justify-center p-4 bg-gray-100 rounded-xl shadow hover:bg-gray-200 transition-colors"
-              >
-                <Image className="w-6 h-6 text-gray-700 mb-2" />
-                <span className="text-sm font-medium text-gray-900">Image</span>
-              </button>
-
-              {/* File */}
-              <button
-                onClick={() => handleAction("file", "File attachment placeholder")}
-                className="flex flex-col items-center justify-center p-4 bg-gray-100 rounded-xl shadow hover:bg-gray-200 transition-colors"
-              >
-                <Paperclip className="w-6 h-6 text-gray-700 mb-2" />
-                <span className="text-sm font-medium text-gray-900">File</span>
-              </button>
-            </div>
+            <motion.button
+              onClick={() => handleAction("voice")}
+              className="px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors flex items-center gap-2 border"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Mic className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Voice</span>
+            </motion.button>
+            <motion.button
+              onClick={() => handleAction("image")}
+              className="px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors flex items-center gap-2 border"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Image className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Image</span>
+            </motion.button>
+            <motion.button
+              onClick={() => handleAction("file")}
+              className="px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors flex items-center gap-2 border"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Paperclip className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">File</span>
+            </motion.button>
           </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -169,20 +168,6 @@ const AtlasDrawerInterface: React.FC = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [isToggleDrawerOpen, setIsToggleDrawerOpen] = useState(false);
-
-  // Drawer control functions
-  const toggleDrawer = () => {
-    setIsToggleDrawerOpen(prev => {
-      const newState = !prev;
-      console.log("Drawer state toggled →", newState ? "OPEN" : "CLOSED");
-      return newState;
-    });
-  };
-  const closeDrawer = () => {
-    console.log("Drawer state toggled → CLOSED");
-    setIsToggleDrawerOpen(false);
-  };
 
   const [messages, setMessages] = useState<Message[]>([]);
   const { messages: storeMessages } = useMessageStore();
@@ -731,26 +716,8 @@ const AtlasDrawerInterface: React.FC = () => {
         <footer className="border-t p-6" style={{ backgroundColor: palette.sand, borderColor: palette.sage }}>
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3">
-              {/* + Toggle Drawer Button */}
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  toggleDrawer();
-                  // Close keyboard when opening drawer
-                  if (inputRef.current) {
-                    inputRef.current.blur();
-                  }
-                }}
-                className="w-12 h-12 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-2"
-                style={{ 
-                  backgroundColor: palette.sage,
-                }}
-                aria-label="Toggle options"
-              >
-                <Plus className="w-5 h-5 text-white" />
-              </motion.button>
+              {/* Atlas Action Toggle */}
+              <AtlasActionToggle conversationId="local-active" />
 
               {/* Input Field */}
               <div className="flex-1">
@@ -826,11 +793,6 @@ const AtlasDrawerInterface: React.FC = () => {
           </div>
         </footer>
 
-        {/* Quick Actions Drawer */}
-        <QuickActionsDrawer 
-          isOpen={isToggleDrawerOpen} 
-          onClose={closeDrawer} 
-        />
       </main>
     </div>
   );
