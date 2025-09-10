@@ -57,12 +57,16 @@ const QuickActionsDrawer: React.FC<QuickActionsDrawerProps> = ({
     type: "voice" | "image" | "file",
     content: string
   ) => {
+    console.log(`🎯 handleAction called with type: ${type}, content: ${content}`);
+    
     const newMessage = {
       id: crypto.randomUUID(),
       role: 'user' as const,
       content: `[${type.toUpperCase()}] ${content}`,
       createdAt: new Date().toISOString(),
     };
+
+    console.log(`📝 Creating message:`, newMessage);
 
     // 1. Add to local store immediately (optimistic update)
     addMessage(newMessage);
@@ -90,6 +94,7 @@ const QuickActionsDrawer: React.FC<QuickActionsDrawerProps> = ({
     }
 
     // Close drawer after action
+    console.log(`🚪 Closing drawer after ${type} action`);
     onClose();
   };
 
@@ -126,29 +131,29 @@ const QuickActionsDrawer: React.FC<QuickActionsDrawerProps> = ({
             <div className="grid grid-cols-3 gap-4">
               {/* Voice */}
               <button
-                onClick={() => handleAction("voice", "[Voice message placeholder]")}
-                className="flex flex-col items-center justify-center p-4 bg-sage-100 rounded-xl shadow hover:bg-sage-200"
+                onClick={() => handleAction("voice", "Voice message placeholder")}
+                className="flex flex-col items-center justify-center p-4 bg-gray-100 rounded-xl shadow hover:bg-gray-200 transition-colors"
               >
-                <Mic className="w-6 h-6 text-sage-700 mb-2" />
-                <span className="text-sm font-medium text-sage-900">Voice</span>
+                <Mic className="w-6 h-6 text-gray-700 mb-2" />
+                <span className="text-sm font-medium text-gray-900">Voice</span>
               </button>
 
               {/* Image */}
               <button
-                onClick={() => handleAction("image", "[Image upload placeholder]")}
-                className="flex flex-col items-center justify-center p-4 bg-sage-100 rounded-xl shadow hover:bg-sage-200"
+                onClick={() => handleAction("image", "Image upload placeholder")}
+                className="flex flex-col items-center justify-center p-4 bg-gray-100 rounded-xl shadow hover:bg-gray-200 transition-colors"
               >
-                <Image className="w-6 h-6 text-sage-700 mb-2" />
-                <span className="text-sm font-medium text-sage-900">Image</span>
+                <Image className="w-6 h-6 text-gray-700 mb-2" />
+                <span className="text-sm font-medium text-gray-900">Image</span>
               </button>
 
               {/* File */}
               <button
-                onClick={() => handleAction("file", "[File attachment placeholder]")}
-                className="flex flex-col items-center justify-center p-4 bg-sage-100 rounded-xl shadow hover:bg-sage-200"
+                onClick={() => handleAction("file", "File attachment placeholder")}
+                className="flex flex-col items-center justify-center p-4 bg-gray-100 rounded-xl shadow hover:bg-gray-200 transition-colors"
               >
-                <Paperclip className="w-6 h-6 text-sage-700 mb-2" />
-                <span className="text-sm font-medium text-sage-900">File</span>
+                <Paperclip className="w-6 h-6 text-gray-700 mb-2" />
+                <span className="text-sm font-medium text-gray-900">File</span>
               </button>
             </div>
           </motion.div>
