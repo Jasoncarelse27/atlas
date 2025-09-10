@@ -1,6 +1,8 @@
 import { CHAT_CONFIG } from '@/config/chat';
 import { loadRecentMessages, saveMessage, type Message as StoredMessage } from '@/features/chat/storage';
 import { streamAtlasReply } from '@/features/chat/stream';
+import { supabase } from "@/lib/supabase";
+import { useMessageStore } from "@/stores/useMessageStore";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -36,6 +38,126 @@ const palette = {
   sage: "var(--atlas-sage)",
   sand: "var(--atlas-sand)",
   pearl: "var(--atlas-pearl)",
+};
+
+// Quick Actions Drawer Component
+interface QuickActionsDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const QuickActionsDrawer: React.FC<QuickActionsDrawerProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const { addMessage } = useMessageStore();
+
+  // Generic handler for different message types
+  const handleAction = async (
+    type: "voice" | "image" | "file",
+    content: string
+  ) => {
+    const newMessage = {
+      id: crypto.randomUUID(),
+      conversation_id: "local-active", // replace with actual active conversation id
+      user_id: "me", // replace with supabase.auth.getUser().id if available
+      content,
+      message_type: type,
+      created_at: new Date().toISOString(),
+      metadata: {},
+      isLocal: true,
+    };
+
+    // 1. Add to local store immediately (optimistic update)
+    addMessage(newMessage);
+
+    // 2. Push to Supabase in background
+    try {
+      if (supabase) {
+        const { error } = await supabase.from("messages").insert([
+          {
+            id: newMessage.id,
+            conversation_id: newMessage.conversation_id,
+            user_id: newMessage.user_id,
+            content: newMessage.content,
+            message_type: newMessage.message_type,
+            metadata: newMessage.metadata,
+          },
+        ]);
+        if (error) throw error;
+        console.log(`${type} message synced ✅`);
+      }
+    } catch (err) {
+      console.error(`Failed to sync ${type} message`, err);
+    }
+
+    // Close drawer after action
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Overlay */}
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-40 z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+
+          {/* Drawer */}
+          <motion.div
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl p-6 z-50 shadow-lg"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Quick Actions
+              </h3>
+              <button onClick={onClose}>
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {/* Voice */}
+              <button
+                onClick={() => handleAction("voice", "[Voice message placeholder]")}
+                className="flex flex-col items-center justify-center p-4 bg-sage-100 rounded-xl shadow hover:bg-sage-200"
+              >
+                <Mic className="w-6 h-6 text-sage-700 mb-2" />
+                <span className="text-sm font-medium text-sage-900">Voice</span>
+              </button>
+
+              {/* Image */}
+              <button
+                onClick={() => handleAction("image", "[Image upload placeholder]")}
+                className="flex flex-col items-center justify-center p-4 bg-sage-100 rounded-xl shadow hover:bg-sage-200"
+              >
+                <Image className="w-6 h-6 text-sage-700 mb-2" />
+                <span className="text-sm font-medium text-sage-900">Image</span>
+              </button>
+
+              {/* File */}
+              <button
+                onClick={() => handleAction("file", "[File attachment placeholder]")}
+                className="flex flex-col items-center justify-center p-4 bg-sage-100 rounded-xl shadow hover:bg-sage-200"
+              >
+                <Paperclip className="w-6 h-6 text-sage-700 mb-2" />
+                <span className="text-sm font-medium text-sage-900">File</span>
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
 };
 
 const AtlasDrawerInterface: React.FC = () => {
@@ -614,7 +736,6 @@ const AtlasDrawerInterface: React.FC = () => {
                 className="w-12 h-12 rounded-full flex items-center justify-center transition-all focus:outline-none focus:ring-2"
                 style={{ 
                   backgroundColor: palette.sage,
-                  "--tw-ring-color": palette.sage,
                 }}
                 aria-label="Toggle options"
               >
@@ -647,9 +768,6 @@ const AtlasDrawerInterface: React.FC = () => {
                   style={{
                     backgroundColor: palette.pearl,
                     borderColor: palette.sage,
-                    // tailwind ring color via inline css var
-                    // @ts-expect-error – custom CSS var for ring
-                    "--tw-ring-color": palette.sage,
                   }}
                   // Mobile-specific attributes
                   autoComplete="off"
@@ -669,7 +787,6 @@ const AtlasDrawerInterface: React.FC = () => {
                 className="w-12 h-12 text-white rounded-full hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center focus:outline-none focus:ring-2"
                 style={{ 
                   backgroundColor: palette.sage,
-                  "--tw-ring-color": palette.sage,
                 }}
                 aria-label="Send message"
               >
@@ -699,67 +816,11 @@ const AtlasDrawerInterface: React.FC = () => {
           </div>
         </footer>
 
-        {/* Animated Toggle Drawer */}
-        <AnimatePresence>
-          {isToggleDrawerOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.4 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black z-40"
-                onClick={closeDrawer}
-              />
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed bottom-0 left-0 right-0 h-[45vh] max-h-[400px] bg-red-500 rounded-t-2xl shadow-lg z-50 p-6"
-                style={{ border: "3px solid blue" }}
-              >
-                <div className="flex justify-around mt-6">
-                  <button
-                    onClick={() => console.log("Voice button pressed")}
-                    className="p-3 bg-[#B2BDA3] rounded-full"
-                  >
-                    <Mic className="w-6 h-6 text-white" />
-                  </button>
-                  <button
-                    onClick={() => console.log("Image button pressed")}
-                    className="p-3 bg-[#F4E5D9] rounded-full"
-                  >
-                    <Image className="w-6 h-6 text-[#333]" />
-                  </button>
-                  <button
-                    onClick={() => console.log("Habit Tracker pressed")}
-                    className="p-3 bg-[#EBDFCE] rounded-full"
-                  >
-                    <BarChart3 className="w-6 h-6 text-[#333]" />
-                  </button>
-                  <button
-                    onClick={() => console.log("Reflections pressed")}
-                    className="p-3 bg-[#B2BDA3] rounded-full"
-                  >
-                    <Book className="w-6 h-6 text-white" />
-                  </button>
-                  <button
-                    onClick={() => console.log("File attach pressed")}
-                    className="p-3 bg-[#F4E5D9] rounded-full"
-                  >
-                    <Paperclip className="w-6 h-6 text-[#333]" />
-                  </button>
-                </div>
-                <button
-                  onClick={closeDrawer}
-                  className="text-sm text-gray-700 underline mt-4"
-                >
-                  Collapse
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {/* Quick Actions Drawer */}
+        <QuickActionsDrawer 
+          isOpen={isToggleDrawerOpen} 
+          onClose={closeDrawer} 
+        />
       </main>
     </div>
   );
