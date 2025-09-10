@@ -1,76 +1,95 @@
-import { useState } from "react";
-import { useMessageStore } from "@/stores/useMessageStore";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, Image, Paperclip, PlusCircle } from "lucide-react";
+import { useMessageStore } from "@/stores/useMessageStore";
+import { saveMessage, loadMessages } from "@/features/chat/storage"; // ✅ Supabase helpers
 
 const AtlasDrawerInterface: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const addMessage = useMessageStore((state) => state.addMessage);
+  const clearMessages = useMessageStore((state) => state.clearMessages);
+
+  // 🔄 Load messages from Supabase on mount
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const data = await loadMessages();
+        clearMessages(); // reset local first
+        data.forEach((msg) => addMessage(msg));
+        console.log("✅ Messages loaded from Supabase:", data);
+      } catch (err) {
+        console.error("❌ Failed to load messages from Supabase:", err);
+      }
+    };
+    fetchMessages();
+  }, [addMessage, clearMessages]);
 
   const toggleDrawer = () => {
     setIsDrawerOpen((prev) => !prev);
     console.log("Drawer state toggled:", !isDrawerOpen ? "OPEN" : "CLOSED");
   };
 
-  const handleActionClick = (type: "VOICE" | "IMAGE" | "FILE") => {
+  const handleActionClick = async (type: "VOICE" | "IMAGE" | "FILE") => {
     const newMessage = {
       id: Date.now().toString(),
       role: "user" as const,
-      content: `[${type}] ${type.toLowerCase()} message placeholder`,
+      content: `[${type}] placeholder`,
       createdAt: new Date().toISOString(),
     };
+
+    // Optimistic update
     addMessage(newMessage);
-    console.log("Message added:", newMessage);
-    setIsDrawerOpen(false); // Auto-close drawer
+    console.log("Message added locally:", newMessage);
+
+    try {
+      await saveMessage(newMessage);
+      console.log("✅ Message saved to Supabase:", newMessage);
+    } catch (err) {
+      console.error("❌ Failed to save message to Supabase:", err);
+    }
+
+    // Auto-close drawer
+    setIsDrawerOpen(false);
   };
 
   return (
-    <div className="relative p-4">
+    <div className="p-4">
       {/* Toggle Button */}
       <button
         onClick={toggleDrawer}
-        className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-full bg-white shadow hover:bg-gray-50 transition"
+        className="flex items-center px-3 py-2 rounded-full bg-gray-100 shadow hover:bg-gray-200 transition"
       >
-        <PlusCircle className="w-5 h-5 text-gray-600" />
-        <span className="text-gray-700 font-medium">Toggle Drawer</span>
+        <PlusCircle className="mr-2 h-5 w-5" />
+        Toggle Drawer
       </button>
 
-      {/* Drawer with Animations */}
+      {/* Drawer with Animation */}
       <AnimatePresence>
         {isDrawerOpen && (
           <motion.div
-            key="drawer"
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute mt-4 flex space-x-3 bg-white border border-gray-200 rounded-xl shadow-lg p-4"
+            className="mt-3 flex space-x-2 rounded-xl bg-white p-4 shadow-lg"
           >
-            {/* Voice Button */}
             <button
               onClick={() => handleActionClick("VOICE")}
-              className="flex items-center space-x-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+              className="flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
             >
-              <Mic className="w-4 h-4 text-gray-700" />
-              <span className="text-sm text-gray-700">Voice</span>
+              <Mic className="h-4 w-4" /> <span>Voice</span>
             </button>
-
-            {/* Image Button */}
             <button
               onClick={() => handleActionClick("IMAGE")}
-              className="flex items-center space-x-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+              className="flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
             >
-              <Image className="w-4 h-4 text-gray-700" />
-              <span className="text-sm text-gray-700">Image</span>
+              <Image className="h-4 w-4" /> <span>Image</span>
             </button>
-
-            {/* File Button */}
             <button
               onClick={() => handleActionClick("FILE")}
-              className="flex items-center space-x-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+              className="flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
             >
-              <Paperclip className="w-4 h-4 text-gray-700" />
-              <span className="text-sm text-gray-700">File</span>
+              <Paperclip className="h-4 w-4" /> <span>File</span>
             </button>
           </motion.div>
         )}

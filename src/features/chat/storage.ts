@@ -1,38 +1,39 @@
-import { supabase } from '@/lib/supabase';
+// src/features/chat/storage.ts
+import { supabase } from "@/lib/supabase";
+import { Message } from "@/stores/useMessageStore";
 
-export type ChatRole = 'user' | 'atlas';
-export type Message = {
-  id?: string;
-  conversation_id?: string | null;
-  user_id?: string | null;
-  role: ChatRole;
-  content: string;
-  created_at?: string;
-};
+// ✅ Save a single message to Supabase
+export async function saveMessage(message: Message) {
+  // Convert store format to Supabase format
+  const supabaseMessage = {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    created_at: message.createdAt,
+  };
 
-export async function getUserId(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
-
-export async function loadRecentMessages(limit = 50): Promise<Message[]> {
-  if (!supabase) return [];
-  const uid = await getUserId();
-  if (!uid) return [];
   const { data, error } = await supabase
-    .from('eq_messages')
-    .select('*')
-    .eq('user_id', uid)
-    .order('created_at', { ascending: true })
-    .limit(limit);
-  if (error) return [];
-  return (data ?? []) as Message[];
+    .from("messages")
+    .insert([supabaseMessage]);
+
+  if (error) throw error;
+  return data;
 }
 
-export async function saveMessage(msg: Message) {
-  if (!supabase) return;
-  const uid = await getUserId();
-  const row = { ...msg, user_id: uid ?? null };
-  await supabase.from('eq_messages').insert(row);
+// ✅ Load all messages from Supabase
+export async function loadMessages(): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  
+  // Convert Supabase format to store format
+  return (data || []).map((msg: any) => ({
+    id: msg.id,
+    role: msg.role,
+    content: msg.content,
+    createdAt: msg.created_at,
+  }));
 }
