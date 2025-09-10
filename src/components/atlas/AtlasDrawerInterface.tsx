@@ -1,4 +1,4 @@
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Mic, Image, Paperclip } from "lucide-react";
 import React, { useState } from "react";
 
 const AtlasDrawerInterface: React.FC = () => {
@@ -6,23 +6,45 @@ const AtlasDrawerInterface: React.FC = () => {
 
   const toggleDrawer = () => {
     setIsDrawerOpen((prev) => !prev);
+    console.log("Drawer state toggled:", !isDrawerOpen ? "OPEN" : "CLOSED");
+  };
+
+  const handleActionClick = (type: string) => {
+    console.log(`${type} button clicked ✅`);
   };
 
   return (
-    <div className="p-4 border border-gray-300 rounded-md">
+    <div className="p-4 border border-gray-300 rounded-md bg-white">
       {/* Toggle Button */}
       <button
         onClick={toggleDrawer}
-        className="flex items-center gap-2 px-3 py-2 rounded bg-gray-200 hover:bg-gray-300"
+        className="flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
       >
-        <PlusCircle size={20} />
-        <span>Toggle Drawer</span>
+        <PlusCircle size={18} />
+        Toggle Drawer
       </button>
 
-      {/* Debug Drawer Content */}
+      {/* Drawer Content */}
       {isDrawerOpen && (
-        <div className="mt-4 p-3 border border-green-400 bg-green-50 rounded">
-          Drawer Loaded ✅
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={() => handleActionClick("Voice")}
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            <Mic size={16} /> Voice
+          </button>
+          <button
+            onClick={() => handleActionClick("Image")}
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            <Image size={16} /> Image
+          </button>
+          <button
+            onClick={() => handleActionClick("File")}
+            className="flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            <Paperclip size={16} /> File
+          </button>
         </div>
       )}
     </div>
