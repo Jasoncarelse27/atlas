@@ -2,6 +2,7 @@ import { saveMessage, type Message } from "@/features/chat/storage";
 import { supabase } from "@/lib/supabase";
 import { useMessageStore, type Message as StoreMessage } from "@/stores/useMessageStore";
 import { AnimatePresence, motion } from "framer-motion";
+import { Mic, Image, Paperclip, PlusCircle } from "lucide-react";
 import React, { useState } from "react";
 
 const AtlasDrawerInterface: React.FC = () => {
@@ -10,11 +11,7 @@ const AtlasDrawerInterface: React.FC = () => {
 
   /** Toggle the drawer open/closed */
   const toggleDrawer = () => {
-    setIsDrawerOpen((prev) => {
-      const newState = !prev;
-      console.log("Drawer state toggled:", newState ? "OPEN" : "CLOSED");
-      return newState;
-    });
+    setIsDrawerOpen((prev) => !prev);
   };
 
   /** Close drawer helper */
@@ -28,7 +25,6 @@ const AtlasDrawerInterface: React.FC = () => {
       content: "[VOICE] Voice message placeholder",
       createdAt: new Date().toISOString(),
     };
-    console.log("Voice message added to store ✅");
     addMessage(message);
     
     // Save to local storage
@@ -43,7 +39,6 @@ const AtlasDrawerInterface: React.FC = () => {
     // Sync to Supabase
     if (supabase) {
       await supabase.from("messages").insert(storageMessage);
-      console.log("Voice message synced to Supabase ✅");
     }
     closeDrawer();
   };
@@ -55,7 +50,6 @@ const AtlasDrawerInterface: React.FC = () => {
       content: "[IMAGE] Image message placeholder",
       createdAt: new Date().toISOString(),
     };
-    console.log("Image message added to store ✅");
     addMessage(message);
     
     // Save to local storage
@@ -70,7 +64,6 @@ const AtlasDrawerInterface: React.FC = () => {
     // Sync to Supabase
     if (supabase) {
       await supabase.from("messages").insert(storageMessage);
-      console.log("Image message synced to Supabase ✅");
     }
     closeDrawer();
   };
@@ -82,7 +75,6 @@ const AtlasDrawerInterface: React.FC = () => {
       content: "[FILE] File message placeholder",
       createdAt: new Date().toISOString(),
     };
-    console.log("File message added to store ✅");
     addMessage(message);
     
     // Save to local storage
@@ -97,50 +89,65 @@ const AtlasDrawerInterface: React.FC = () => {
     // Sync to Supabase
     if (supabase) {
       await supabase.from("messages").insert(storageMessage);
-      console.log("File message synced to Supabase ✅");
     }
     closeDrawer();
   };
 
   return (
-    <div className="relative p-4 bg-white border-2 border-red-500 min-h-[200px]">
-      <h2 className="text-xl font-bold mb-4 text-black">Atlas Drawer Interface</h2>
+    <div className="relative flex items-center justify-center">
       {/* Toggle Button */}
-      <button
+      <motion.button
         onClick={toggleDrawer}
-        className="p-4 rounded-full bg-blue-500 hover:bg-blue-600 transition text-white text-2xl font-bold"
+        className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-gray-400"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        aria-label="Toggle quick actions"
       >
-        {isDrawerOpen ? "×" : "+"}
-      </button>
+        <motion.div
+          animate={{ rotate: isDrawerOpen ? 45 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <PlusCircle className="w-5 h-5 text-gray-600" />
+        </motion.div>
+      </motion.button>
 
-      {/* Drawer */}
+      {/* Action Buttons */}
       <AnimatePresence>
         {isDrawerOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.2 }}
-            className="absolute bottom-16 left-0 flex flex-col gap-2 bg-white shadow-lg rounded-xl p-3 border-2 border-green-500"
+            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute bottom-12 left-1/2 transform -translate-x-1/2 flex gap-2 bg-white rounded-lg shadow-lg p-2 border border-gray-200"
           >
-            <button
+            <motion.button
               onClick={handleVoiceAction}
-              className="px-6 py-3 rounded-md bg-green-500 hover:bg-green-600 transition text-white font-bold"
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium text-gray-700"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              🎤 Voice
-            </button>
-            <button
+              <Mic className="w-4 h-4" />
+              Voice
+            </motion.button>
+            <motion.button
               onClick={handleImageAction}
-              className="px-6 py-3 rounded-md bg-green-500 hover:bg-green-600 transition text-white font-bold"
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium text-gray-700"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              🖼️ Image
-            </button>
-            <button
+              <Image className="w-4 h-4" />
+              Image
+            </motion.button>
+            <motion.button
               onClick={handleFileAction}
-              className="px-6 py-3 rounded-md bg-green-500 hover:bg-green-600 transition text-white font-bold"
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium text-gray-700"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              📎 File
-            </button>
+              <Paperclip className="w-4 h-4" />
+              File
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>
