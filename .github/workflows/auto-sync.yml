@@ -1,0 +1,64 @@
+name: Auto-sync Clean Trees
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  auto-sync:
+    runs-on: ubuntu-latest
+    name: Auto-sync Clean Trees
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Check if working tree is clean
+      id: check-clean
+      run: |
+        # Check if there are any uncommitted changes
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "clean=true" >> $GITHUB_OUTPUT
+          echo "✅ Working tree is clean"
+        else
+          echo "clean=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Working tree has uncommitted changes"
+          git status --porcelain
+        fi
+    
+    - name: Sync with remote
+      if: steps.check-clean.outputs.clean == 'true'
+      run: |
+        echo "🔄 Syncing with remote repository..."
+        
+        # Fetch latest changes
+        git fetch origin
+        
+        # Check if we're behind
+        BEHIND=$(git rev-list --count HEAD..origin/main)
+        if [ "$BEHIND" -gt 0 ]; then
+          echo "📥 Pulling $BEHIND commits from origin/main"
+          git pull origin main
+          
+          # Push any local commits that aren't on remote
+          AHEAD=$(git rev-list --count origin/main..HEAD)
+          if [ "$AHEAD" -gt 0 ]; then
+            echo "📤 Pushing $AHEAD local commits to origin"
+            git push origin main
+          fi
+        else
+          echo "✅ Already up to date with origin/main"
+        fi
+    
+    - name: Create sync report
+      if: always()
+      run: |
+        echo "## Auto-sync Report - $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ steps.check-clean.outputs.clean == 'true' && '✅ Synced' || '⚠️ Skipped (dirty tree)' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: $(git branch --show-current)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Last Commit**: $(git log -1 --oneline)" >> $GITHUB_STEP_SUMMARY
