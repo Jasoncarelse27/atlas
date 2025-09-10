@@ -1,8 +1,6 @@
-import { saveMessage, type Message } from "@/features/chat/storage";
-import { supabase } from "@/lib/supabase";
 import { useMessageStore, type Message as StoreMessage } from "@/stores/useMessageStore";
 import { AnimatePresence, motion } from "framer-motion";
-import { Mic, Image, Paperclip, PlusCircle } from "lucide-react";
+import { Image, Mic, Paperclip, PlusCircle } from "lucide-react";
 import React, { useState } from "react";
 
 const AtlasDrawerInterface: React.FC = () => {
@@ -17,79 +15,16 @@ const AtlasDrawerInterface: React.FC = () => {
   /** Close drawer helper */
   const closeDrawer = () => setIsDrawerOpen(false);
 
-  /** Placeholder actions */
-  const handleVoiceAction = async () => {
+  /** Handle action clicks */
+  const handleActionClick = (type: "voice" | "image" | "file") => {
     const message: StoreMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: "[VOICE] Voice message placeholder",
+      content: `[${type.toUpperCase()}] ${type} message placeholder`,
       createdAt: new Date().toISOString(),
     };
+    
     addMessage(message);
-    
-    // Save to local storage
-    const storageMessage: Message = {
-      id: message.id,
-      role: "user" as const,
-      content: message.content,
-      created_at: message.createdAt,
-    };
-    await saveMessage(storageMessage);
-    
-    // Sync to Supabase
-    if (supabase) {
-      await supabase.from("messages").insert(storageMessage);
-    }
-    closeDrawer();
-  };
-
-  const handleImageAction = async () => {
-    const message: StoreMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: "[IMAGE] Image message placeholder",
-      createdAt: new Date().toISOString(),
-    };
-    addMessage(message);
-    
-    // Save to local storage
-    const storageMessage: Message = {
-      id: message.id,
-      role: "user" as const,
-      content: message.content,
-      created_at: message.createdAt,
-    };
-    await saveMessage(storageMessage);
-    
-    // Sync to Supabase
-    if (supabase) {
-      await supabase.from("messages").insert(storageMessage);
-    }
-    closeDrawer();
-  };
-
-  const handleFileAction = async () => {
-    const message: StoreMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: "[FILE] File message placeholder",
-      createdAt: new Date().toISOString(),
-    };
-    addMessage(message);
-    
-    // Save to local storage
-    const storageMessage: Message = {
-      id: message.id,
-      role: "user" as const,
-      content: message.content,
-      created_at: message.createdAt,
-    };
-    await saveMessage(storageMessage);
-    
-    // Sync to Supabase
-    if (supabase) {
-      await supabase.from("messages").insert(storageMessage);
-    }
     closeDrawer();
   };
 
@@ -122,7 +57,7 @@ const AtlasDrawerInterface: React.FC = () => {
             className="absolute bottom-12 left-1/2 transform -translate-x-1/2 flex gap-2 bg-white rounded-lg shadow-lg p-2 border border-gray-200"
           >
             <motion.button
-              onClick={handleVoiceAction}
+              onClick={() => handleActionClick("voice")}
               className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium text-gray-700"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -131,7 +66,7 @@ const AtlasDrawerInterface: React.FC = () => {
               Voice
             </motion.button>
             <motion.button
-              onClick={handleImageAction}
+              onClick={() => handleActionClick("image")}
               className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium text-gray-700"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -140,7 +75,7 @@ const AtlasDrawerInterface: React.FC = () => {
               Image
             </motion.button>
             <motion.button
-              onClick={handleFileAction}
+              onClick={() => handleActionClick("file")}
               className="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium text-gray-700"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
