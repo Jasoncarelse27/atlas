@@ -1,28 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Image, Paperclip, PlusCircle } from "lucide-react";
+import { saveMessage } from "@/features/chat/storage"; // ✅ Supabase helpers
 import { useMessageStore } from "@/stores/useMessageStore";
-import { saveMessage, loadMessages } from "@/features/chat/storage"; // ✅ Supabase helpers
+import { useSupabaseMessages } from "@/hooks/useSupabaseMessages";
+import { AnimatePresence, motion } from "framer-motion";
+import { Image, Mic, Paperclip, PlusCircle } from "lucide-react";
+import React, { useState } from "react";
 
 const AtlasDrawerInterface: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const addMessage = useMessageStore((state) => state.addMessage);
-  const clearMessages = useMessageStore((state) => state.clearMessages);
-
-  // 🔄 Load messages from Supabase on mount
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const data = await loadMessages();
-        clearMessages(); // reset local first
-        data.forEach((msg) => addMessage(msg));
-        console.log("✅ Messages loaded from Supabase:", data);
-      } catch (err) {
-        console.error("❌ Failed to load messages from Supabase:", err);
-      }
-    };
-    fetchMessages();
-  }, [addMessage, clearMessages]);
+  
+  // Initialize Supabase real-time sync
+  const { isLoading, error } = useSupabaseMessages();
 
   const toggleDrawer = () => {
     setIsDrawerOpen((prev) => !prev);
@@ -33,15 +21,16 @@ const AtlasDrawerInterface: React.FC = () => {
     const newMessage = {
       id: Date.now().toString(),
       role: "user" as const,
-      content: `[${type}] placeholder`,
+      content: `[${type}] test message placeholder`,
       createdAt: new Date().toISOString(),
     };
 
-    // Optimistic update
+    // Optimistic update - add to local store immediately
     addMessage(newMessage);
-    console.log("Message added locally:", newMessage);
+    console.log("Message added locally (optimistic):", newMessage);
 
     try {
+      // Save to Supabase
       await saveMessage(newMessage);
       console.log("✅ Message saved to Supabase:", newMessage);
     } catch (err) {
@@ -52,15 +41,20 @@ const AtlasDrawerInterface: React.FC = () => {
     setIsDrawerOpen(false);
   };
 
+  if (error) {
+    console.error("Supabase sync error:", error);
+  }
+
   return (
     <div className="p-4">
       {/* Toggle Button */}
       <button
         onClick={toggleDrawer}
         className="flex items-center px-3 py-2 rounded-full bg-gray-100 shadow hover:bg-gray-200 transition"
+        disabled={isLoading}
       >
         <PlusCircle className="mr-2 h-5 w-5" />
-        Toggle Drawer
+        {isLoading ? "Loading..." : "Toggle Drawer"}
       </button>
 
       {/* Drawer with Animation */}

@@ -10,6 +10,7 @@ export interface Message {
 type MessageStore = {
   messages: Message[];
   addMessage: (msg: Message) => void;
+  setMessages: (messages: Message[]) => void;
   updateAssistantMessage: (partial: string) => void;
   clearMessages: () => void;
 };
@@ -19,6 +20,10 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
 
   addMessage: (msg) => {
     set((state) => ({ messages: [...state.messages, msg ]}));
+  },
+
+  setMessages: (messages) => {
+    set({ messages });
   },
 
   updateAssistantMessage: (partial) => {
