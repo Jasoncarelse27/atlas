@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { saveMessage, type Message } from "@/features/chat/storage";
 import { supabase } from "@/lib/supabase";
 import { useMessageStore, type Message as StoreMessage } from "@/stores/useMessageStore";
+import { AnimatePresence, motion } from "framer-motion";
+import React, { useState } from "react";
 
 const AtlasDrawerInterface: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -103,11 +103,12 @@ const AtlasDrawerInterface: React.FC = () => {
   };
 
   return (
-    <div className="relative">
+    <div className="relative p-4 bg-white border-2 border-red-500 min-h-[200px]">
+      <h2 className="text-xl font-bold mb-4 text-black">Atlas Drawer Interface</h2>
       {/* Toggle Button */}
       <button
         onClick={toggleDrawer}
-        className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition"
+        className="p-4 rounded-full bg-blue-500 hover:bg-blue-600 transition text-white text-2xl font-bold"
       >
         {isDrawerOpen ? "×" : "+"}
       </button>
@@ -120,23 +121,23 @@ const AtlasDrawerInterface: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute bottom-12 left-0 flex flex-col gap-2 bg-white shadow-lg rounded-xl p-3"
+            className="absolute bottom-16 left-0 flex flex-col gap-2 bg-white shadow-lg rounded-xl p-3 border-2 border-green-500"
           >
             <button
               onClick={handleVoiceAction}
-              className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition"
+              className="px-6 py-3 rounded-md bg-green-500 hover:bg-green-600 transition text-white font-bold"
             >
               🎤 Voice
             </button>
             <button
               onClick={handleImageAction}
-              className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition"
+              className="px-6 py-3 rounded-md bg-green-500 hover:bg-green-600 transition text-white font-bold"
             >
               🖼️ Image
             </button>
             <button
               onClick={handleFileAction}
-              className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 transition"
+              className="px-6 py-3 rounded-md bg-green-500 hover:bg-green-600 transition text-white font-bold"
             >
               📎 File
             </button>
