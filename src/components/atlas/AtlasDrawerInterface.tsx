@@ -1,16 +1,15 @@
+import { useState } from "react";
 import { useMessageStore } from "@/stores/useMessageStore";
-import { PlusCircle } from "lucide-react";
-import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Mic, Image, Paperclip, PlusCircle } from "lucide-react";
 
 const AtlasDrawerInterface: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const addMessage = useMessageStore((state) => state.addMessage);
-  const clearMessages = useMessageStore((state) => state.clearMessages);
-  const messages = useMessageStore((state) => state.messages);
 
   const toggleDrawer = () => {
     setIsDrawerOpen((prev) => !prev);
-    console.log("Drawer state toggled:", isDrawerOpen ? "CLOSED" : "OPEN");
+    console.log("Drawer state toggled:", !isDrawerOpen ? "OPEN" : "CLOSED");
   };
 
   const handleActionClick = (type: "VOICE" | "IMAGE" | "FILE") => {
@@ -22,61 +21,60 @@ const AtlasDrawerInterface: React.FC = () => {
     };
     addMessage(newMessage);
     console.log("Message added:", newMessage);
-    setIsDrawerOpen(false);
+    setIsDrawerOpen(false); // Auto-close drawer
   };
 
   return (
-    <div className="p-4 border border-gray-300 rounded-md bg-white">
+    <div className="relative p-4">
       {/* Toggle Button */}
       <button
         onClick={toggleDrawer}
-        className="flex items-center space-x-2 px-3 py-1 border rounded-md bg-gray-100 hover:bg-gray-200"
+        className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-full bg-white shadow hover:bg-gray-50 transition"
       >
-        <PlusCircle className="w-5 h-5" />
-        <span>Toggle Drawer</span>
+        <PlusCircle className="w-5 h-5 text-gray-600" />
+        <span className="text-gray-700 font-medium">Toggle Drawer</span>
       </button>
 
-      {/* Drawer */}
-      {isDrawerOpen && (
-        <div className="mt-3 flex space-x-2">
-          <button
-            onClick={() => handleActionClick("VOICE")}
-            className="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+      {/* Drawer with Animations */}
+      <AnimatePresence>
+        {isDrawerOpen && (
+          <motion.div
+            key="drawer"
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute mt-4 flex space-x-3 bg-white border border-gray-200 rounded-xl shadow-lg p-4"
           >
-            🎤 Voice
-          </button>
-          <button
-            onClick={() => handleActionClick("IMAGE")}
-            className="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-          >
-            🖼 Image
-          </button>
-          <button
-            onClick={() => handleActionClick("FILE")}
-            className="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-          >
-            📎 File
-          </button>
-        </div>
-      )}
-
-      {/* Debug Panel (development only) */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="mt-4 p-2 border-t border-gray-200 bg-gray-50 text-xs font-mono max-h-40 overflow-y-auto">
-          <div className="flex justify-between items-center mb-2">
-            <strong>Debug Messages:</strong>
+            {/* Voice Button */}
             <button
-              onClick={clearMessages}
-              className="px-2 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600"
+              onClick={() => handleActionClick("VOICE")}
+              className="flex items-center space-x-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
             >
-              Clear Messages
+              <Mic className="w-4 h-4 text-gray-700" />
+              <span className="text-sm text-gray-700">Voice</span>
             </button>
-          </div>
-          <pre className="whitespace-pre-wrap">
-            {JSON.stringify(messages, null, 2)}
-          </pre>
-        </div>
-      )}
+
+            {/* Image Button */}
+            <button
+              onClick={() => handleActionClick("IMAGE")}
+              className="flex items-center space-x-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+            >
+              <Image className="w-4 h-4 text-gray-700" />
+              <span className="text-sm text-gray-700">Image</span>
+            </button>
+
+            {/* File Button */}
+            <button
+              onClick={() => handleActionClick("FILE")}
+              className="flex items-center space-x-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
+            >
+              <Paperclip className="w-4 h-4 text-gray-700" />
+              <span className="text-sm text-gray-700">File</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
