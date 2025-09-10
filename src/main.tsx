@@ -5,7 +5,7 @@ import './index.css'
 
 // Development diagnostics
 if (process.env.NODE_ENV === 'development') {
-  import('./dev/whyDidYouRender');
+  // Development-specific code can go here
 }
 
 createRoot(document.getElementById('root')!).render(

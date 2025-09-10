@@ -59,17 +59,14 @@ const QuickActionsDrawer: React.FC<QuickActionsDrawerProps> = ({
   ) => {
     const newMessage = {
       id: crypto.randomUUID(),
-      conversation_id: "local-active", // replace with actual active conversation id
-      user_id: "me", // replace with supabase.auth.getUser().id if available
-      content,
-      message_type: type,
-      created_at: new Date().toISOString(),
-      metadata: {},
-      isLocal: true,
+      role: 'user' as const,
+      content: `[${type.toUpperCase()}] ${content}`,
+      createdAt: new Date().toISOString(),
     };
 
     // 1. Add to local store immediately (optimistic update)
     addMessage(newMessage);
+    console.log(`${type} message added to store ✅`);
 
     // 2. Push to Supabase in background
     try {
@@ -77,15 +74,16 @@ const QuickActionsDrawer: React.FC<QuickActionsDrawerProps> = ({
         const { error } = await supabase.from("messages").insert([
           {
             id: newMessage.id,
-            conversation_id: newMessage.conversation_id,
-            user_id: newMessage.user_id,
+            conversation_id: "local-active", // replace with actual active conversation id
+            user_id: "me", // replace with supabase.auth.getUser().id if available
             content: newMessage.content,
-            message_type: newMessage.message_type,
-            metadata: newMessage.metadata,
+            message_type: type,
+            metadata: {},
+            created_at: newMessage.createdAt,
           },
         ]);
         if (error) throw error;
-        console.log(`${type} message synced ✅`);
+        console.log(`${type} message synced to Supabase ✅`);
       }
     } catch (err) {
       console.error(`Failed to sync ${type} message`, err);
@@ -182,6 +180,7 @@ const AtlasDrawerInterface: React.FC = () => {
   };
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const { messages: storeMessages } = useMessageStore();
 
   // Load messages on mount
   useEffect(() => {
@@ -642,7 +641,13 @@ const AtlasDrawerInterface: React.FC = () => {
         {/* Messages */}
         <section className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto space-y-6">
-            {messages.map((m) => (
+            {[...messages, ...storeMessages.map(storeMsg => ({
+              id: storeMsg.id,
+              type: storeMsg.role === 'user' ? 'user' : 'atlas',
+              content: storeMsg.content,
+              timestamp: new Date(storeMsg.createdAt).getTime(),
+              suggestions: []
+            }))].map((m) => (
               <div key={m.id} className={`flex ${m.type === "user" ? "justify-end" : "justify-start"}`}>
                 {m.type === "atlas" ? (
                   <div className="flex items-start gap-4 max-w-3xl">
