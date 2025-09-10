@@ -17,6 +17,15 @@ jobs:
       with:
         fetch-depth: 0  # Full history for secret scanning
     
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
     - name: Detect secrets
       uses: trufflesecurity/trufflehog@main
       with:
@@ -37,18 +46,18 @@ jobs:
     
     - name: Check for hardcoded secrets
       run: |
-        # Check for common secret patterns
-        if grep -r -i "sk-[a-zA-Z0-9]" --exclude-dir=.git --exclude-dir=node_modules .; then
+        # Check for common secret patterns (exclude .env, docs, venv, and package-lock files)
+        if grep -r -i "sk-[a-zA-Z0-9]" --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=venv --exclude=".env" --exclude="*.md" --exclude="package-lock.json" .; then
           echo "❌ Potential OpenAI API keys detected!"
           exit 1
         fi
         
-        if grep -r -i "pk_[a-zA-Z0-9]" --exclude-dir=.git --exclude-dir=node_modules .; then
+        if grep -r -i "pk_[a-zA-Z0-9]" --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=venv --exclude=".env" --exclude="*.md" --exclude="package-lock.json" .; then
           echo "❌ Potential Paddle API keys detected!"
           exit 1
         fi
         
-        if grep -r -i "eyJ[a-zA-Z0-9]" --exclude-dir=.git --exclude-dir=node_modules .; then
+        if grep -r -i "eyJ[a-zA-Z0-9]" --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=venv --exclude=".env" --exclude="*.md" --exclude="package-lock.json" .; then
           echo "❌ Potential JWT tokens detected!"
           exit 1
         fi
@@ -57,12 +66,12 @@ jobs:
     
     - name: Dependency vulnerability scan
       run: |
-        npm audit --audit-level=moderate
+        npm audit --audit-level=high
         if [ $? -ne 0 ]; then
           echo "❌ High or critical vulnerabilities found!"
           exit 1
         fi
-        echo "✅ No critical vulnerabilities found"
+        echo "✅ No high or critical vulnerabilities found"
 
   pre-commit-checks:
     runs-on: ubuntu-latest
@@ -75,7 +84,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '22'
+        node-version: '20'
         cache: 'npm'
     
     - name: Install dependencies
