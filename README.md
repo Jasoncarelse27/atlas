@@ -244,3 +244,4 @@ For support and questions:
 - **Pre-push**: `npm run check:fast` (types, lint, tests).
 - **Backup**: `./scripts/backup-snapshot.sh` creates a tar.gz snapshot in `.backups/`.
 
+# Trigger Supabase Sync
