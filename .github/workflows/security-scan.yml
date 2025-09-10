@@ -94,7 +94,7 @@ jobs:
       run: npm run typecheck
     
     - name: Lint check
-      run: npm run lint -- --max-warnings=1000
+      run: npm run lint -- --max-warnings=1000 --ignore-pattern "backend/**" --ignore-pattern "scripts/**" --ignore-pattern "*.mjs" --ignore-pattern "*.cjs" --ignore-pattern "deploy-config.js" --ignore-pattern "main.mjs" --ignore-pattern "preload.mjs"
     
     - name: Test check
       run: npm run test

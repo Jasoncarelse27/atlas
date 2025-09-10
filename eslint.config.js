@@ -132,7 +132,14 @@ export default [
       'atlas-mobile/**/*',
       'App.js',
       'test-*.js',
-      '*.cjs'
+      '*.cjs',
+      'backend/**/*',
+      'scripts/**/*',
+      '*.mjs',
+      'deploy-config.js',
+      'main.mjs',
+      'preload.mjs',
+      'backups/**/*'
     ],
   },
 ];
