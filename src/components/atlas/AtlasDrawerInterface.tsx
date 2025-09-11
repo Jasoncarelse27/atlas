@@ -1,6 +1,7 @@
-import { saveMessage } from "@/features/chat/storage"; // ✅ Supabase helpers
-import { useMessageStore } from "@/stores/useMessageStore";
+// 🧪 TEMPORARY DEBUG CODE: All console.log statements and debug UI will be removed in cleanup phase
+import { saveMessage } from "@/features/chat/storage";
 import { useSupabaseMessages } from "@/hooks/useSupabaseMessages";
+import { useMessageStore, type Message } from "@/stores/useMessageStore";
 import { AnimatePresence, motion } from "framer-motion";
 import { Image, Mic, Paperclip, PlusCircle } from "lucide-react";
 import React, { useState } from "react";
@@ -8,86 +9,96 @@ import React, { useState } from "react";
 const AtlasDrawerInterface: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const addMessage = useMessageStore((state) => state.addMessage);
-  
-  // Initialize Supabase real-time sync
-  const { isLoading, error } = useSupabaseMessages();
+  const { loading, error } = useSupabaseMessages();
 
-  const toggleDrawer = () => {
-    setIsDrawerOpen((prev) => !prev);
-    console.log("Drawer state toggled:", !isDrawerOpen ? "OPEN" : "CLOSED");
-  };
+  const toggleDrawer = () => setIsDrawerOpen(!isDrawerOpen);
 
-  const handleActionClick = async (type: "VOICE" | "IMAGE" | "FILE") => {
-    const newMessage = {
-      id: Date.now().toString(),
-      role: "user" as const,
+  const handleAction = async (type: Message["type"]) => {
+    const newMsg: Message = {
+      id: crypto.randomUUID(),
+      type,
       content: `[${type}] test message placeholder`,
-      createdAt: new Date().toISOString(),
+      sender: "user",
+      created_at: new Date().toISOString(),
     };
 
-    // Optimistic update - add to local store immediately
-    addMessage(newMessage);
-    console.log("Message added locally (optimistic):", newMessage);
+    // optimistic update
+    addMessage(newMsg);
 
+    // save to supabase
     try {
-      // Save to Supabase
-      await saveMessage(newMessage);
-      console.log("✅ Message saved to Supabase:", newMessage);
+      await saveMessage(newMsg);
+      console.log("✅ Message inserted:", newMsg);
     } catch (err) {
-      console.error("❌ Failed to save message to Supabase:", err);
+      console.error("❌ Failed to insert message:", err);
     }
 
-    // Auto-close drawer
     setIsDrawerOpen(false);
   };
 
-  if (error) {
-    console.error("Supabase sync error:", error);
-  }
-
   return (
-    <div className="p-4">
-      {/* Toggle Button */}
-      <button
+    <div className="relative">
+      {/* Drawer Toggle */}
+        <button
         onClick={toggleDrawer}
-        className="flex items-center px-3 py-2 rounded-full bg-gray-100 shadow hover:bg-gray-200 transition"
-        disabled={isLoading}
+        className="p-2 rounded-full bg-blue-500 text-white"
       >
-        <PlusCircle className="mr-2 h-5 w-5" />
-        {isLoading ? "Loading..." : "Toggle Drawer"}
-      </button>
+        <PlusCircle />
+            </button>
 
-      {/* Drawer with Animation */}
-      <AnimatePresence>
+      {/* Drawer Content */}
+        <AnimatePresence>
         {isDrawerOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="mt-3 flex space-x-2 rounded-xl bg-white p-4 shadow-lg"
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="absolute bottom-0 left-0 right-0 bg-white shadow-lg p-4 rounded-t-2xl"
           >
-            <button
-              onClick={() => handleActionClick("VOICE")}
-              className="flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
-            >
-              <Mic className="h-4 w-4" /> <span>Voice</span>
-            </button>
-            <button
-              onClick={() => handleActionClick("IMAGE")}
-              className="flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
-            >
-              <Image className="h-4 w-4" /> <span>Image</span>
-            </button>
-            <button
-              onClick={() => handleActionClick("FILE")}
-              className="flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-100"
-            >
-              <Paperclip className="h-4 w-4" /> <span>File</span>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="flex justify-around">
+              <button
+                onClick={() => handleAction("VOICE")}
+                className="p-2 rounded-full bg-gray-100"
+              >
+                <Mic />
+                  </button>
+                  <button
+                onClick={() => handleAction("IMAGE")}
+                className="p-2 rounded-full bg-gray-100"
+                  >
+                <Image />
+                  </button>
+                  <button
+                onClick={() => handleAction("FILE")}
+                className="p-2 rounded-full bg-gray-100"
+              >
+                <Paperclip />
+                  </button>
+                </div>
+              </motion.div>
+          )}
+        </AnimatePresence>
+
+      {/* 🧪 Debug Panel */}
+      <div className="p-2 text-xs bg-gray-100 border-t mt-4">
+        <p>🧪 Debug:</p>
+        <p>Loading: {loading ? "true" : "false"}</p>
+        <p>Error: {error || "none"}</p>
+        <p>
+          Messages: {useMessageStore.getState().messages.length}
+        </p>
+      </div>
+
+      {/* 🧪 Messages List */}
+      <ul className="p-2 text-sm">
+        {useMessageStore.getState().messages.map((msg) => (
+          <li key={msg.id} className="border-b py-1">
+            <strong>{msg.type}</strong>: {msg.content}{" "}
+            <em>({msg.sender})</em>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };

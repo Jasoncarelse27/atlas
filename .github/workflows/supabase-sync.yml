@@ -9,7 +9,6 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -22,29 +21,8 @@ jobs:
       - name: Install Supabase CLI
         run: npm install -g supabase
 
-      - name: Link Supabase project
-        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
-      - name: Pull schema
-        run: supabase db pull
+      - name: Run remote sync
+        run: ./scripts/supabase-remote-sync.sh
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      - name: Validate migrations
-        run: supabase db push --dry-run
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      - name: Run migrations
-        run: supabase db push
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      - name: Backup database
-        run: |
-          supabase db dump -f backup.sql
-          supabase storage upload backups/backup-$(date +%Y%m%d-%H%M%S).sql backup.sql
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}

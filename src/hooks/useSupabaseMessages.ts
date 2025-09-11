@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useMessageStore, Message } from '@/stores/useMessageStore';
+import { supabase } from "@/lib/supabase";
+import { useMessageStore, type Message } from "@/stores/useMessageStore";
+import { useEffect, useState } from "react";
 
 export function useSupabaseMessages() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { setMessages, addMessage } = useMessageStore();
 
@@ -12,7 +12,7 @@ export function useSupabaseMessages() {
 
     const fetchInitialMessages = async () => {
       try {
-        setIsLoading(true);
+        setLoading(true);
         setError(null);
 
         const { data, error: fetchError } = await supabase
@@ -26,13 +26,14 @@ export function useSupabaseMessages() {
           // Convert Supabase format to store format
           const messages: Message[] = (data || []).map((msg: any) => ({
             id: msg.id,
-            role: msg.role,
+            type: msg.type || 'TEXT',
             content: msg.content,
-            createdAt: msg.created_at,
+            sender: msg.sender || 'user',
+            created_at: msg.created_at,
           }));
 
           setMessages(messages);
-          console.log('✅ Initial messages loaded from Supabase:', messages);
+          console.log('✅ Initial messages loaded from Supabase:', messages.length);
         }
       } catch (err) {
         console.error('❌ Failed to load initial messages:', err);
@@ -41,7 +42,7 @@ export function useSupabaseMessages() {
         }
       } finally {
         if (mounted) {
-          setIsLoading(false);
+          setLoading(false);
         }
       }
     };
@@ -62,9 +63,10 @@ export function useSupabaseMessages() {
             // Convert Supabase format to store format
             const newMessage: Message = {
               id: payload.new.id,
-              role: payload.new.role,
+              type: payload.new.type || 'TEXT',
               content: payload.new.content,
-              createdAt: payload.new.created_at,
+              sender: payload.new.sender || 'user',
+              created_at: payload.new.created_at,
             };
 
             addMessage(newMessage);
@@ -87,5 +89,5 @@ export function useSupabaseMessages() {
     };
   }, [setMessages, addMessage]);
 
-  return { isLoading, error };
+  return { loading, error };
 }

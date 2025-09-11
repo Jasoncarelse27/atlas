@@ -1,15 +1,16 @@
 // src/features/chat/storage.ts
 import { supabase } from "@/lib/supabase";
-import { Message } from "@/stores/useMessageStore";
+import { type Message } from "@/stores/useMessageStore";
 
 // ✅ Save a single message to Supabase
 export async function saveMessage(message: Message) {
   // Convert store format to Supabase format
   const supabaseMessage = {
     id: message.id,
-    role: message.role,
+    type: message.type,
     content: message.content,
-    created_at: message.createdAt,
+    sender: message.sender,
+    created_at: message.created_at,
   };
 
   const { data, error } = await supabase
@@ -32,8 +33,9 @@ export async function loadMessages(): Promise<Message[]> {
   // Convert Supabase format to store format
   return (data || []).map((msg: any) => ({
     id: msg.id,
-    role: msg.role,
+    type: msg.type || 'TEXT',
     content: msg.content,
-    createdAt: msg.created_at,
+    sender: msg.sender || 'user',
+    created_at: msg.created_at,
   }));
 }

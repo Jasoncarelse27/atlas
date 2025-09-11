@@ -1,14 +1,13 @@
-name: Supabase Usage Monitor
+name: Usage Monitor
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # Run daily at midnight UTC
+    - cron: "0 */6 * * *" # every 6 hours
   workflow_dispatch:
 
 jobs:
   check-usage:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -18,31 +17,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Supabase CLI + jq
-        run: |
-          npm install -g supabase
-          sudo apt-get update && sudo apt-get install -y jq
+      - name: Install Supabase CLI
+        run: npm install -g supabase
 
-      - name: Fetch current usage
-        id: usage
-        run: |
-          echo "🔎 Fetching current usage..."
-          cost=$(supabase db query \
-            "select coalesce(sum(cost),0) as total from usage_log where date_trunc('month', created_at) = date_trunc('month', now());" \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
-            --json | jq -r '.[0].total')
-          echo "cost=$cost" >> $GITHUB_OUTPUT
-          echo "✅ Current cost this month: $cost"
-
-      - name: Cut off Studio tier if over hard cap
-        if: ${{ fromJSON(steps.usage.outputs.cost) > 400 }}
-        run: |
-          echo "⚠️ Over $400 spend. Downgrading Studio → Core..."
-          supabase db query \
-            "update users set subscription_tier = 'core' where subscription_tier = 'studio';" \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-
-      - name: Log usage check
-        run: |
-          echo "✅ Usage check complete."
-          echo "Current spend this month: ${{ steps.usage.outputs.cost }}"
+      - name: Check usage + enforce cutoff
+        run: ./scripts/supabase-remote-sync.sh monitor
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
