@@ -19,6 +19,18 @@ function verifySignature(body: string, signature: string | null): boolean {
   return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
+// Replay protection: validate timestamp is within ±5 minutes
+function validateTimestamp(timestamp: string | null): boolean {
+  if (!timestamp) return false;
+  
+  const requestTime = parseInt(timestamp) * 1000; // Convert to milliseconds
+  const currentTime = Date.now();
+  const timeDiff = Math.abs(currentTime - requestTime);
+  const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+  
+  return timeDiff <= fiveMinutes;
+}
+
 // Group → tier mapping
 const tierMap: Record<string, string> = {
   premium_monthly: "core",
@@ -27,13 +39,32 @@ const tierMap: Record<string, string> = {
   free_users: "free",
 };
 
+// Log webhook event to database (flexible schema)
+async function logWebhookEvent(eventType: string, email: string | null, payload: any, status: string) {
+  try {
+    // Try to insert with flexible schema
+    const logData: any = {
+      event_type: eventType,
+      email: email,
+      payload: payload,
+      status: status,
+      received_at: new Date().toISOString(),
+    };
+    
+    await supabase.from("webhook_logs").insert(logData);
+  } catch (error) {
+    console.error("❌ Failed to log webhook event:", error);
+    // Don't fail the webhook if logging fails
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "content-type, x-mailerlite-signature",
+        "Access-Control-Allow-Headers": "content-type, x-mailerlite-signature, x-mailerlite-timestamp",
       },
     });
   }
@@ -41,9 +72,20 @@ serve(async (req) => {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get("x-mailerlite-signature");
+    const timestamp = req.headers.get("x-mailerlite-timestamp");
 
+    // 🔒 Security validations
     if (!verifySignature(rawBody, signature)) {
+      console.log("❌ Invalid signature");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (!validateTimestamp(timestamp)) {
+      console.log("❌ Invalid or expired timestamp");
+      return new Response(JSON.stringify({ error: "Request expired" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });
@@ -54,12 +96,20 @@ serve(async (req) => {
 
     const { type, data } = payload;
     const email = data?.email;
-    if (!email) throw new Error("Missing email in webhook payload");
+
+    // Log the webhook event
+    await logWebhookEvent(type, email, payload, "received");
+
+    if (!email) {
+      await logWebhookEvent(type, null, payload, "failed");
+      throw new Error("Missing email in webhook payload");
+    }
 
     if (type === "subscriber.added_to_group") {
       const group = data.group?.name;
       const tier = tierMap[group] || "free";
 
+      // 🔄 Use upsert for idempotency
       const { error } = await supabase
         .from("subscriptions")
         .upsert({
@@ -69,21 +119,32 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_email" });
 
-      if (error) throw error;
+      if (error) {
+        await logWebhookEvent(type, email, payload, "failed");
+        throw error;
+      }
+      
+      await logWebhookEvent(type, email, payload, "processed");
       console.log(`🔄 Upgraded ${email} → ${tier}`);
     }
 
     if (type === "subscriber.removed_from_group") {
+      // 🔄 Use upsert for idempotency
       const { error } = await supabase
         .from("subscriptions")
-        .update({
+        .upsert({
+          user_email: email,
           tier: "free",
           status: "inactive",
           updated_at: new Date().toISOString(),
-        })
-        .eq("user_email", email);
+        }, { onConflict: "user_email" });
 
-      if (error) throw error;
+      if (error) {
+        await logWebhookEvent(type, email, payload, "failed");
+        throw error;
+      }
+      
+      await logWebhookEvent(type, email, payload, "processed");
       console.log(`⬇️ Downgraded ${email} → free`);
     }
 
