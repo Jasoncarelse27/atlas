@@ -6,8 +6,11 @@ WEBHOOK_URL="https://rbwabemtucdkytvvpzvk.functions.supabase.co/mailerWebhook"
 EMAIL="test@example.com"
 GROUP="premium_monthly"
 TIMESTAMP=$(date +%s)
-SECRET="${MAILERLITE_SIGNING_SECRET:-dummy-secret}"
-ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJid2FiZW10dWNka3l0dnZwenZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzODE4ODcsImV4cCI6MjA2ODk1Nzg4N30.KCLKP0CpBq9fJS0JeumOCUHM2QWnEnvuAsUO0QhyXuU"
+
+# Read secrets from environment variables
+export ANON_KEY="${ANON_KEY:?Missing ANON_KEY environment variable}"
+export MAILERLITE_SIGNING_SECRET="${MAILERLITE_SIGNING_SECRET:?Missing MAILERLITE_SIGNING_SECRET environment variable}"
+SECRET="$MAILERLITE_SIGNING_SECRET"
 
 # Function to sign payloads
 sign_payload() {

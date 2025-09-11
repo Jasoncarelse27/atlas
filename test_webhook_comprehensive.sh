@@ -3,8 +3,10 @@ set -euo pipefail
 
 SUPABASE_URL="https://rbwabemtucdkytvvpzvk.supabase.co"
 FUNCTION_URL="$SUPABASE_URL/functions/v1/mailerWebhook"
-ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJid2FiZW10dWNka3l0dnZwenZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzODE4ODcsImV4cCI6MjA2ODk1Nzg4N30.KCLKP0CpBq9fJS0JeumOCUHM2QWnEnvuAsUO0QhyXuU"
-MAILERLITE_SIGNING_SECRET=${MAILERLITE_SIGNING_SECRET:-"your-actual-secret"}
+
+# Read secrets from environment variables
+export ANON_KEY="${ANON_KEY:?Missing ANON_KEY environment variable}"
+export MAILERLITE_SIGNING_SECRET="${MAILERLITE_SIGNING_SECRET:?Missing MAILERLITE_SIGNING_SECRET environment variable}"
 
 TEST_EMAIL="test@example.com"
 GROUP_NAME="premium_monthly"
