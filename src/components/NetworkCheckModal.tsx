@@ -4,6 +4,7 @@ import LoadingSpinner from './LoadingSpinner';
 import Tooltip from './Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 
+import { logger } from '../utils/logger';
 interface NetworkCheckModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -121,9 +122,9 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Network tests aborted');
+        logger.info('Network tests aborted');
       } else {
-        console.error('Error running network tests:', error);
+        logger.error('Error running network tests:', error);
         setOverallStatus('error');
         setOverallMessage('An error occurred while running network tests. Please try again.');
         
@@ -194,7 +195,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('DNS lookup test error:', error);
+      logger.error('DNS lookup test error:', error);
       updateTestResult(0, { 
         status: 'error', 
         message: 'DNS lookup failed',
@@ -233,7 +234,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
           pings.push(endTime - startTime);
         } catch (error) {
           // Skip failed pings
-          console.warn(`Ping to ${domain} failed:`, error);
+          logger.warn(`Ping to ${domain} failed:`, error);
         }
       }
       
@@ -274,7 +275,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Latency test error:', error);
+      logger.error('Latency test error:', error);
       updateTestResult(1, { 
         status: 'error', 
         message: 'Latency test failed',
@@ -359,7 +360,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Download speed test error:', error);
+      logger.error('Download speed test error:', error);
       updateTestResult(2, { 
         status: 'error', 
         message: 'Download test failed',
@@ -426,7 +427,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Upload speed test error:', error);
+      logger.error('Upload speed test error:', error);
       updateTestResult(3, { 
         status: 'error', 
         message: 'Upload test failed',
@@ -513,7 +514,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Connection stability test error:', error);
+      logger.error('Connection stability test error:', error);
       updateTestResult(4, { 
         status: 'error', 
         message: 'Stability test failed',

@@ -55,7 +55,7 @@ export async function sendEmailViaMailerLite(
 
     const data = (await res.json().catch(() => ({}))) as { id?: string };
     return { success: true, messageId: data.id ?? "test-message-id" };
-  } catch (err: any) {
+  } catch (_err: unknown) {
     return { success: false, error: err?.message ?? "Unknown error" };
   }
 }

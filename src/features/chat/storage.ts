@@ -31,7 +31,7 @@ export async function loadMessages(): Promise<Message[]> {
   if (error) throw error;
   
   // Convert Supabase format to store format
-  return (data || []).map((msg: any) => ({
+  return (data || []).map((_msg: unknown) => ({
     id: msg.id,
     type: msg.type || 'TEXT',
     content: msg.content,

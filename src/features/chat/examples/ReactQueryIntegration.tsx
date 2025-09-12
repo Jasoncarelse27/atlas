@@ -3,6 +3,7 @@ import type { Conversation } from '../../../types/chat';
 import { createChatError, getUserFriendlyMessage } from '../lib/errorHandler';
 import { useConversations, useCreateConversation, useDeleteConversation, useUpdateConversationTitle } from '../services/conversationService';
 
+import { logger } from '../utils/logger';
 interface ReactQueryIntegrationProps {
   userId: string;
 }
@@ -44,7 +45,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         userId,
         timestamp: new Date().toISOString(),
       });
-      console.error('Failed to create conversation:', chatError);
+      logger.error('Failed to create conversation:', chatError);
       alert(getUserFriendlyMessage(chatError));
     }
   };
@@ -73,7 +74,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         conversationId,
         timestamp: new Date().toISOString(),
       });
-      console.error('Failed to update title:', chatError);
+      logger.error('Failed to update title:', chatError);
       alert(getUserFriendlyMessage(chatError));
     }
   };
@@ -96,7 +97,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         conversationId,
         timestamp: new Date().toISOString(),
       });
-      console.error('Failed to delete conversation:', chatError);
+      logger.error('Failed to delete conversation:', chatError);
       alert(getUserFriendlyMessage(chatError));
     }
   };

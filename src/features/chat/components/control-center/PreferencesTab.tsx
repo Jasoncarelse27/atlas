@@ -2,8 +2,8 @@ import { Download, Upload } from 'lucide-react';
 import React from 'react';
 
 interface PreferencesTabProps {
-  customization: any;
-  updateCustomization: (path: string, value: any) => void;
+  _customization: unknown;
+  updateCustomization: (path: string, _value: unknown) => void;
   onExportSettings: () => void;
   onImportSettings: (file: File) => void;
   playSound: (type: string) => void;

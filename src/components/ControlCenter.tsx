@@ -23,6 +23,7 @@ import type { UserProfile } from "../types/subscription";
 import LoadingSpinner from "./LoadingSpinner";
 import SoundSettings from "./SoundSettings";
 
+import { logger } from '../utils/logger';
 interface ControlCenterProps {
   user: User;
   profile: UserProfile;
@@ -108,7 +109,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
       await saveCustomization();
       playSound("success");
     } catch (error) {
-      console.error("Failed to save customization:", error);
+      logger.error("Failed to save customization:", error);
       playSound("error");
     } finally {
       setIsLoading(false);
@@ -305,7 +306,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
 
         playSound("success");
       } catch (error) {
-        console.error("Failed to parse settings file:", error);
+        logger.error("Failed to parse settings file:", error);
         playSound("error");
       }
     };
@@ -620,7 +621,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({ isOpen, onClose }) => {
 
                     playSound("success");
                   } catch (error) {
-                    console.error("Failed to parse settings file:", error);
+                    logger.error("Failed to parse settings file:", error);
                     playSound("error");
                   }
                 };

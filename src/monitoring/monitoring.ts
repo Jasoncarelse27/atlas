@@ -8,14 +8,14 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 type Breadcrumb = { category?: string; message?: string; data?: Record<string, unknown> };
 
-let sentry: any;
+let _sentry: unknown;
 try {
   // Optional import; will be undefined if not installed/initialized in this environment
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   sentry = require('@sentry/browser');
 } catch (error) {
   // Sentry not available in this environment
-  console.debug('Sentry not available:', error);
+  logger.debug('Sentry not available:', error);
 }
 
 export function log(level: LogLevel, message: string, data?: Record<string, unknown>) {

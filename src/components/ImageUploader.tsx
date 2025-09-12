@@ -3,7 +3,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { imageService } from '../services/imageService';
 
 interface ImageUploaderProps {
-  onImageSelected: (imageUrl: string, metadata: any) => void;
+  onImageSelected: (imageUrl: string, _metadata: unknown) => void;
   onError: (error: string) => void;
   onCancel: () => void;
   isVisible: boolean;

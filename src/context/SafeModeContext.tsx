@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
+import { logger } from '../utils/logger';
 interface SafeModeContextType {
   isSafeMode: boolean;
   toggleSafeMode: () => void;
@@ -28,7 +29,7 @@ export const SafeModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         localStorage.setItem('atlas-safemode', JSON.stringify(newValue));
       } catch (error) {
-        console.warn('Failed to save SafeMode preference to localStorage:', error);
+        logger.warn('Failed to save SafeMode preference to localStorage:', error);
       }
       return newValue;
     });

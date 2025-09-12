@@ -39,7 +39,7 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
           setUser(null);
           setAccessToken(null);
         }
-      } catch (e: any) {
+      } catch (_e: unknown) {
         setError(e?.message || 'Failed to load session');
       } finally {
         setIsLoading(false);

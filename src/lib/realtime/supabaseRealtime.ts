@@ -10,7 +10,7 @@ export type RealtimeUnsubscribe = () => void
  * import the real supabase client and pass it here; in tests we mock it.
  */
 export function subscribeToMessages(opts: {
-  supabase: any
+  _supabase: any
   conversationId: string
   onMessage: (evt: MessageEvent) => void
 }): RealtimeUnsubscribe {
@@ -22,7 +22,7 @@ export function subscribeToMessages(opts: {
     try { 
       channel?.unsubscribe?.() 
     } catch (error) {
-      console.warn('Failed to unsubscribe from realtime channel:', error);
+      logger.warn('Failed to unsubscribe from realtime channel:', error);
     }
   }
 }

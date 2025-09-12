@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 
+import { logger } from '../utils/logger';
 // Initialize Supabase client
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL!,
@@ -97,7 +98,7 @@ export const mailerService = {
         messageId: response.data.id 
       };
     } catch (error) {
-      console.error('Failed to send welcome email:', error);
+      logger.error('Failed to send welcome email:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
@@ -108,7 +109,7 @@ export const mailerService = {
   /**
    * Send upgrade nudge when usage cap is reached
    */
-  async sendUpgradeNudge(recipient: EmailRecipient, usageStats?: any): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  async sendUpgradeNudge(recipient: EmailRecipient, usageStats?: unknown): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       const response = await mailerLite.post('/automations', {
         trigger: 'manual',
@@ -128,7 +129,7 @@ export const mailerService = {
         messageId: response.data.id 
       };
     } catch (error) {
-      console.error('Failed to send upgrade nudge:', error);
+      logger.error('Failed to send upgrade nudge:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
@@ -159,7 +160,7 @@ export const mailerService = {
         messageId: response.data.id 
       };
     } catch (error) {
-      console.error('Failed to send inactivity reminder:', error);
+      logger.error('Failed to send inactivity reminder:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
@@ -200,7 +201,7 @@ export const mailerService = {
         messageId: response.data.id 
       };
     } catch (error) {
-      console.error('Failed to send weekly summary:', error);
+      logger.error('Failed to send weekly summary:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
@@ -261,10 +262,10 @@ export const mailerService = {
         });
 
       if (error) {
-        console.error('Failed to log email:', error);
+        logger.error('Failed to log email:', error);
       }
     } catch (error) {
-      console.error('Failed to log email to Supabase:', error);
+      logger.error('Failed to log email to Supabase:', error);
     }
   },
 

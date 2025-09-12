@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useMessages } from "./useMessages";
 
-function wrapper({ children }: any) {
+function wrapper({ children }: unknown) {
   const qc = new QueryClient();
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }

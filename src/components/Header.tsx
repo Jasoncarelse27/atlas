@@ -13,6 +13,7 @@ import AccountModal from './AccountModal';
 import { Volume2 as VolumeIcon, VolumeX, HelpCircle, LogOut, User as UserIcon, Menu, X as XIcon, Crown, TrendingUp, Grid3X3, Sliders as SlidersIcon, Wifi, WifiOff, History, MessageSquare, PlusSquare } from 'lucide-react';
 import type { SoundType } from '../hooks/useSoundEffects';
 
+import { logger } from '../utils/logger';
 interface HeaderProps {
   currentMode: 'text' | 'voice' | 'image';
   onModeChange: (mode: 'text' | 'voice' | 'image') => void;
@@ -123,7 +124,7 @@ const Header: React.FC<HeaderProps> = ({
     if (onSoundPlay) {
       onSoundPlay('modal_open');
     }
-    console.log('🔄 Upgrade button clicked');
+    logger.info('🔄 Upgrade button clicked');
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
     onShowUpgrade?.();
@@ -204,7 +205,7 @@ const Header: React.FC<HeaderProps> = ({
 
   // Test sound button for debugging
   const handleTestSound = () => {
-    console.log('🔊 Testing sound...');
+    logger.info('🔊 Testing sound...');
     if (onSoundPlay) {
       onSoundPlay('success');
       setTimeout(() => onSoundPlay('notification'), 500);

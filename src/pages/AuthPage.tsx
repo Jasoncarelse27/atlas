@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
+import { logger } from '../utils/logger';
 // Login Toggle Component
 const LoginToggle = ({ mode, setMode }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void }) => (
   <div className="flex justify-center space-x-1 bg-gray-100 rounded-full p-1 mb-6">
@@ -51,7 +52,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         if (error) {
           setError(error.message);
         } else {
-          console.log('Login successful');
+          logger.info('Login successful');
           // Redirect to dashboard after successful login
           navigate('/dashboard');
         }

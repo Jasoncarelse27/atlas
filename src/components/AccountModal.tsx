@@ -13,6 +13,7 @@ import React, { useEffect, useState } from 'react';
 import type { SoundType } from '../hooks/useSoundEffects';
 import { supabase } from '../lib/supabase';
 import type { UserProfile } from '../types/subscription';
+import { logger } from '../utils/logger';
 import ErrorMessage from './ErrorMessage';
 
 interface AccountModalProps {
@@ -96,7 +97,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
       }
       setSuccess('Profile updated successfully!');
     } catch (error) {
-      console.error('Profile update error:', error);
+      logger.error('Profile update error:', error);
       setError(error instanceof Error ? error.message : 'Failed to update profile');
       if (onSoundPlay) {
         onSoundPlay('error');
@@ -127,7 +128,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
       }
       setSuccess('Password changed successfully!');
     } catch (error) {
-      console.error('Password change error:', error);
+      logger.error('Password change error:', error);
       setError(error instanceof Error ? error.message : 'Failed to change password');
       if (onSoundPlay) {
         onSoundPlay('error');
@@ -165,7 +166,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
       }
       setSuccess('Feedback submitted successfully!');
     } catch (error) {
-      console.error('Feedback submission error:', error);
+      logger.error('Feedback submission error:', error);
       setError(error instanceof Error ? error.message : 'Failed to submit feedback');
       if (onSoundPlay) {
         onSoundPlay('error');
@@ -208,7 +209,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
       }
       setSuccess('Data exported successfully!');
     } catch (error) {
-      console.error('Data export error:', error);
+      logger.error('Data export error:', error);
       setError('Failed to export data');
       if (onSoundPlay) {
         onSoundPlay('error');
@@ -231,7 +232,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
       }
       onLogout();
     } catch (error) {
-      console.error('Account deletion error:', error);
+      logger.error('Account deletion error:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete account');
       if (onSoundPlay) {
         onSoundPlay('error');

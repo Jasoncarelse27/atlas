@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 import { useCallback, useState } from 'react';
 import type { UserProfile } from '../../../types/subscription';
 
+import { logger } from '../utils/logger';
 export interface TestResult {
   test: string;
   status: 'pass' | 'fail' | 'warning' | 'running' | 'pending';
@@ -19,50 +20,38 @@ export interface UseTestRunnerProps {
   profile: UserProfile | null;
 }
 
-export const useTestRunner = ({ user, profile }: UseTestRunnerProps) => {
+export const _useTestRunner = ({ user, profile }: UseTestRunnerProps) => {
   const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [currentTest, setCurrentTest] = useState<string | null>(null);
-  const [selectedTests, setSelectedTests] = useState<string[]>([
-    'database-connection',
-    'profile-creation',
-    'usage-limits',
-    'feature-access',
-    'trial-expiry',
-    'usage-updates',
-    'railway-backend',
-    'backend-health-suite'
-  ]);
 
   const addTestResult = useCallback((result: TestResult) => {
     const resultWithTimestamp = {
       ...result,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    console.log('🧪 Adding test result:', resultWithTimestamp);
+    logger.info('🧪 Adding test result:', resultWithTimestamp);
     setTestResults(prev => {
       const newResults = [...prev, resultWithTimestamp];
-      console.log('🧪 New results array length:', newResults.length);
+      logger.info('🧪 New results array length:', newResults.length);
       return newResults;
     });
   }, []);
 
   const updateTestResult = useCallback((testName: string, updates: Partial<TestResult>) => {
-    console.log('🧪 Updating test result for:', testName, 'with updates:', updates);
+    logger.info('🧪 Updating test result for:', testName, 'with updates:', updates);
     setTestResults(prev => {
       const newResults = prev.map(result => 
         result.test === testName ? { ...result, ...updates, timestamp: new Date().toISOString() } : result
       );
-      console.log('🧪 Updated results array length:', newResults.length);
+      logger.info('🧪 Updated results array length:', newResults.length);
       return newResults;
     });
   }, []);
 
   const runAllTests = useCallback(async (testFunctions: Record<string, TestFunction>) => {
-    console.log('🧪 --- Starting all tests ---');
-    console.log('🧪 Selected tests:', selectedTests);
-    console.log('🧪 User:', user?.id);
-    console.log('🧪 Profile:', profile);
+    logger.info('🧪 --- Starting all tests ---');
+    logger.info('🧪 Selected tests:', selectedTests);
+    logger.info('🧪 User:', user?.id);
+    logger.info('🧪 Profile:', profile);
     
     setIsRunning(true);
     setTestResults([]);
@@ -71,14 +60,14 @@ export const useTestRunner = ({ user, profile }: UseTestRunnerProps) => {
     try {
       for (const testName of selectedTests) {
         if (testFunctions[testName]) {
-          console.log(`🧪 Running ${testName} test...`);
+          logger.info(`🧪 Running ${testName} test...`);
           setCurrentTest(testName);
           
           try {
             await testFunctions[testName]();
-            console.log(`🧪 Completed ${testName} test`);
+            logger.info(`🧪 Completed ${testName} test`);
           } catch (testError) {
-            console.error(`🧪 Error in ${testName} test:`, testError);
+            logger.error(`🧪 Error in ${testName} test:`, testError);
             updateTestResult(testName, {
               status: 'fail',
               message: `Test execution failed: ${testError instanceof Error ? testError.message : 'Unknown error'}`,
@@ -91,7 +80,7 @@ export const useTestRunner = ({ user, profile }: UseTestRunnerProps) => {
         }
       }
     } catch (error) {
-      console.error('🧪 Error during test execution:', error);
+      logger.error('🧪 Error during test execution:', error);
       addTestResult({
         test: 'test-runner',
         status: 'fail',

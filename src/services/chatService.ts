@@ -55,7 +55,7 @@ export const sendMessageToSupabase = async ({
 
     onComplete?.(fullMessage);
     return fullMessage;
-  } catch (error: any) {
+  } catch (_error: unknown) {
     const message = error?.message || "Unknown error";
     onError?.(message);
     throw new Error(message);

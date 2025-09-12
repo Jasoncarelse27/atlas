@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Image, Mic, Paperclip, PlusCircle } from "lucide-react";
 import React, { useState } from "react";
 
+import { logger } from '../utils/logger';
 const AtlasDrawerInterface: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const addMessage = useMessageStore((state) => state.addMessage);
@@ -28,9 +29,9 @@ const AtlasDrawerInterface: React.FC = () => {
     // save to supabase
     try {
       await saveMessage(newMsg);
-      console.log("✅ Message inserted:", newMsg);
+      logger.info("✅ Message inserted:", newMsg);
     } catch (err) {
-      console.error("❌ Failed to insert message:", err);
+      logger.error("❌ Failed to insert message:", err);
     }
 
     setIsDrawerOpen(false);

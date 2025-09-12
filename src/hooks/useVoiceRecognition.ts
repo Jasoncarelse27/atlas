@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+import { logger } from '../utils/logger';
 interface UseVoiceRecognitionReturn {
   isListening: boolean;
   transcript: string;
@@ -51,7 +52,7 @@ const useVoiceRecognition = ({
   const retryDelay = 500; // Reduced delay
 
   useEffect(() => {
-    console.log('=== VOICE RECOGNITION HOOK INITIALIZATION ===');
+    logger.info('=== VOICE RECOGNITION HOOK INITIALIZATION ===');
     
     // Check browser support
     const SpeechRecognition = (window as any).SpeechRecognition || 
@@ -59,10 +60,10 @@ const useVoiceRecognition = ({
                              (window as any).mozSpeechRecognition || 
                              (window as any).msSpeechRecognition;
                              
-    console.log('SpeechRecognition available:', !!SpeechRecognition);
+    logger.info('SpeechRecognition available:', !!SpeechRecognition);
     
     if (!SpeechRecognition) {
-      console.error('Speech recognition not supported');
+      logger.error('Speech recognition not supported');
       setBrowserSupportsSpeechRecognition(false);
       setError('Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.');
       return;
@@ -78,7 +79,7 @@ const useVoiceRecognition = ({
     recognition.maxAlternatives = 1;
     recognition.lang = 'en-US';
 
-    console.log('Recognition configured with:', {
+    logger.info('Recognition configured with:', {
       continuous: recognition.continuous,
       interimResults: recognition.interimResults,
       maxAlternatives: recognition.maxAlternatives,
@@ -88,16 +89,16 @@ const useVoiceRecognition = ({
 
     // Check microphone permission
     const checkPermission = async () => {
-      console.log('=== CHECKING MICROPHONE PERMISSION ===');
+      logger.info('=== CHECKING MICROPHONE PERMISSION ===');
       try {
         // Try to get user media first
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('Microphone access granted');
+        logger.info('Microphone access granted');
         stream.getTracks().forEach(track => track.stop());
         setHasPermission(true);
         setError(null);
       } catch (err) {
-        console.error('Permission check error:', err);
+        logger.error('Permission check error:', err);
         setHasPermission(false);
         setError('Microphone access is required. Please allow microphone access in your browser settings.');
       }
@@ -107,8 +108,8 @@ const useVoiceRecognition = ({
 
     // Event handlers
     recognition.onstart = () => {
-      console.log('=== SPEECH RECOGNITION STARTED ===');
-      console.log('Conversation mode:', isConversationMode);
+      logger.info('=== SPEECH RECOGNITION STARTED ===');
+      logger.info('Conversation mode:', isConversationMode);
       setIsListening(true);
       setError(null);
       setIsRetrying(false);
@@ -126,14 +127,14 @@ const useVoiceRecognition = ({
     };
 
     recognition.onend = () => {
-      console.log('=== SPEECH RECOGNITION ENDED ===');
-      console.log('Current transcript:', transcript);
-      console.log('Current transcript ref:', currentTranscriptRef.current);
-      console.log('Manual stop:', isManualStopRef.current);
-      console.log('Retry count:', retryCount);
-      console.log('Is retrying:', isRetrying);
-      console.log('Conversation mode:', isConversationMode);
-      console.log('Is awaiting speech end:', isAwaitingSpeechEnd);
+      logger.info('=== SPEECH RECOGNITION ENDED ===');
+      logger.info('Current transcript:', transcript);
+      logger.info('Current transcript ref:', currentTranscriptRef.current);
+      logger.info('Manual stop:', isManualStopRef.current);
+      logger.info('Retry count:', retryCount);
+      logger.info('Is retrying:', isRetrying);
+      logger.info('Conversation mode:', isConversationMode);
+      logger.info('Is awaiting speech end:', isAwaitingSpeechEnd);
       
       setIsListening(false);
 
@@ -145,7 +146,7 @@ const useVoiceRecognition = ({
 
       // Handle conversation mode restart
       if (isConversationMode && !isManualStopRef.current && !isAwaitingSpeechEnd) {
-        console.log('In conversation mode, restarting recognition...');
+        logger.info('In conversation mode, restarting recognition...');
         try {
           // Small delay before restarting to allow processing
           setTimeout(() => {
@@ -154,7 +155,7 @@ const useVoiceRecognition = ({
             }
           }, 300);
         } catch (err) {
-          console.error('Failed to restart recognition in conversation mode:', err);
+          logger.error('Failed to restart recognition in conversation mode:', err);
           setError('Failed to maintain conversation mode. Please try again.');
         }
         return;
@@ -162,16 +163,16 @@ const useVoiceRecognition = ({
 
       // Only retry if not manually stopped, retrying is enabled, and we haven't exceeded max retries
       if (!isManualStopRef.current && isRetrying && retryCount < maxRetries && hasPermission) {
-        console.log('Attempting retry due to previous error...');
+        logger.info('Attempting retry due to previous error...');
         setRetryCount(prev => prev + 1);
         
         setTimeout(() => {
           if (recognitionRef.current && !isManualStopRef.current) {
             try {
-              console.log('Restarting recognition after error...');
+              logger.info('Restarting recognition after error...');
               recognitionRef.current.start();
             } catch (err) {
-              console.error('Failed to restart recognition:', err);
+              logger.error('Failed to restart recognition:', err);
               setError('Failed to restart recognition. Please try again.');
               setIsRetrying(false);
             }
@@ -179,38 +180,38 @@ const useVoiceRecognition = ({
         }, retryDelay);
       } else if (!isManualStopRef.current && !currentTranscriptRef.current.trim() && retryCount < maxRetries && !error && hasPermission) {
         // Original retry logic for no transcript
-        console.log('No transcript detected, attempting retry...');
+        logger.info('No transcript detected, attempting retry...');
         setRetryCount(prev => prev + 1);
         
         setTimeout(() => {
           if (recognitionRef.current && !isManualStopRef.current) {
             try {
-              console.log('Restarting recognition...');
+              logger.info('Restarting recognition...');
               recognitionRef.current.start();
             } catch (err) {
-              console.error('Failed to restart recognition:', err);
+              logger.error('Failed to restart recognition:', err);
               setError('Failed to restart recognition. Please try again.');
               setIsRetrying(false);
             }
           }
         }, retryDelay);
       } else {
-        console.log('Not retrying - conditions not met');
+        logger.info('Not retrying - conditions not met');
         setIsRetrying(false);
         setRetryCount(0);
       }
     };
 
-    recognition.onerror = (event: any) => {
-      console.log('=== SPEECH RECOGNITION ERROR ===');
-      console.log('Error type:', event.error);
-      console.log('Error message:', event.message);
+    recognition.onerror = (_event: unknown) => {
+      logger.info('=== SPEECH RECOGNITION ERROR ===');
+      logger.info('Error type:', event.error);
+      logger.info('Error message:', event.message);
       
       setIsListening(false);
       
       switch (event.error) {
         case 'no-speech':
-          console.log('No speech detected');
+          logger.info('No speech detected');
           if (!isManualStopRef.current && retryCount < maxRetries) {
             setIsRetrying(true);
             // Let onend handle the retry
@@ -220,21 +221,21 @@ const useVoiceRecognition = ({
           }
           break;
         case 'audio-capture':
-          console.log('Audio capture error');
+          logger.info('Audio capture error');
           setError('No microphone detected. Please check your microphone settings.');
           setHasPermission(false);
           setIsRetrying(false);
           break;
         case 'not-allowed':
-          console.log('Permission denied');
+          logger.info('Permission denied');
           setError('Microphone access denied. Please allow microphone access in your browser settings.');
           setHasPermission(false);
           setIsRetrying(false);
           break;
         case 'network':
-          console.log('Network error');
+          logger.info('Network error');
           if (!isManualStopRef.current && retryCount < maxRetries) {
-            console.log('Network error - will retry');
+            logger.info('Network error - will retry');
             setIsRetrying(true);
             // Let onend handle the retry
           } else {
@@ -243,22 +244,22 @@ const useVoiceRecognition = ({
           }
           break;
         case 'aborted':
-          console.log('Recognition aborted');
+          logger.info('Recognition aborted');
           setIsRetrying(false);
           // Don't show error for user-initiated stops
           break;
         default:
-          console.log('Unknown error:', event.error);
+          logger.info('Unknown error:', event.error);
           setError(`Recognition error: ${event.error}. Please try again.`);
           setIsRetrying(false);
       }
     };
 
-    recognition.onresult = (event: any) => {
-      console.log('=== SPEECH RECOGNITION RESULT ===');
-      console.log('Event results length:', event.results.length);
-      console.log('Conversation mode:', isConversationMode);
-      console.log('Is awaiting speech end:', isAwaitingSpeechEnd);
+    recognition.onresult = (_event: unknown) => {
+      logger.info('=== SPEECH RECOGNITION RESULT ===');
+      logger.info('Event results length:', event.results.length);
+      logger.info('Conversation mode:', isConversationMode);
+      logger.info('Is awaiting speech end:', isAwaitingSpeechEnd);
       
       setRetryCount(0);
       setIsRetrying(false);
@@ -270,7 +271,7 @@ const useVoiceRecognition = ({
         const resultTranscript = event.results[i][0].transcript;
         const confidence = event.results[i][0].confidence;
         
-        console.log(`Result ${i}: "${resultTranscript}" (final: ${event.results[i].isFinal}, confidence: ${confidence})`);
+        logger.info(`Result ${i}: "${resultTranscript}" (final: ${event.results[i].isFinal}, confidence: ${confidence})`);
         
         if (event.results[i].isFinal) {
           finalTranscript += resultTranscript;
@@ -289,13 +290,13 @@ const useVoiceRecognition = ({
         ? accumulatedTranscriptRef.current + interimTranscript
         : (finalTranscript || interimTranscript).trim();
       
-      console.log('Setting transcript:', newTranscript);
+      logger.info('Setting transcript:', newTranscript);
       setTranscript(newTranscript);
       currentTranscriptRef.current = newTranscript;
       
       // In conversation mode, detect end of speech with silence
       if (isConversationMode && finalTranscript) {
-        console.log('Final transcript in conversation mode, setting silence timer');
+        logger.info('Final transcript in conversation mode, setting silence timer');
         
         // Start or reset the silence timer
         if (conversationTimeoutRef.current) {
@@ -325,12 +326,12 @@ const useVoiceRecognition = ({
         
         // Set a new timeout to detect end of speech
         conversationTimeoutRef.current = setTimeout(() => {
-          console.log('Silence detected in conversation mode, processing speech');
+          logger.info('Silence detected in conversation mode, processing speech');
           
           // Only process if we have accumulated transcript
           if (accumulatedTranscriptRef.current.trim()) {
             const finalAccumulatedTranscript = accumulatedTranscriptRef.current.trim();
-            console.log('Processing accumulated transcript:', finalAccumulatedTranscript);
+            logger.info('Processing accumulated transcript:', finalAccumulatedTranscript);
             
             // Set flag to indicate we're awaiting speech end processing
             setIsAwaitingSpeechEnd(true);
@@ -360,12 +361,12 @@ const useVoiceRecognition = ({
       
       // If we have a final result in non-conversation mode, stop listening
       if (!isConversationMode && finalTranscript.trim()) {
-        console.log('Final transcript received in standard mode, stopping recognition');
+        logger.info('Final transcript received in standard mode, stopping recognition');
         isManualStopRef.current = true;
         try {
           recognition.stop();
         } catch (err) {
-          console.error('Error stopping recognition:', err);
+          logger.error('Error stopping recognition:', err);
         }
       }
     };
@@ -373,17 +374,17 @@ const useVoiceRecognition = ({
     // Update continuous property when conversation mode changes
     if (recognitionRef.current) {
       recognitionRef.current.continuous = isConversationMode;
-      console.log('Updated recognition.continuous to:', isConversationMode);
+      logger.info('Updated recognition.continuous to:', isConversationMode);
     }
 
     // Cleanup
     return () => {
-      console.log('=== CLEANING UP VOICE RECOGNITION ===');
+      logger.info('=== CLEANING UP VOICE RECOGNITION ===');
       if (recognition) {
         try {
           recognition.stop();
         } catch (err) {
-          console.error('Error during cleanup:', err);
+          logger.error('Error during cleanup:', err);
         }
       }
       
@@ -398,33 +399,33 @@ const useVoiceRecognition = ({
   }, [isConversationMode, onSpeechEndDetected, conversationSilenceThreshold]); // Add dependencies for conversation mode
 
   const startListening = useCallback(async () => {
-    console.log('=== START LISTENING CALLED ===');
-    console.log('Recognition available:', !!recognitionRef.current);
-    console.log('Has permission:', hasPermission);
-    console.log('Is listening:', isListening);
-    console.log('Conversation mode:', isConversationMode);
+    logger.info('=== START LISTENING CALLED ===');
+    logger.info('Recognition available:', !!recognitionRef.current);
+    logger.info('Has permission:', hasPermission);
+    logger.info('Is listening:', isListening);
+    logger.info('Conversation mode:', isConversationMode);
     
     if (!recognitionRef.current) {
-      console.error('No recognition object available');
+      logger.error('No recognition object available');
       setError('Speech recognition not initialized');
       return;
     }
     
     if (isListening) {
-      console.log('Already listening, ignoring start request');
+      logger.info('Already listening, ignoring start request');
       return;
     }
     
     if (!hasPermission) {
-      console.log('No permission, requesting...');
+      logger.info('No permission, requesting...');
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('Permission granted');
+        logger.info('Permission granted');
         stream.getTracks().forEach(track => track.stop());
         setHasPermission(true);
         setError(null);
       } catch (err) {
-        console.error('Permission denied:', err);
+        logger.error('Permission denied:', err);
         setHasPermission(false);
         setError('Microphone access denied. Please allow microphone access in your browser settings.');
         return;
@@ -447,14 +448,14 @@ const useVoiceRecognition = ({
     // Update continuous property based on conversation mode
     if (recognitionRef.current) {
       recognitionRef.current.continuous = isConversationMode;
-      console.log('Set recognition.continuous to:', isConversationMode);
+      logger.info('Set recognition.continuous to:', isConversationMode);
     }
     
     try {
-      console.log('Starting recognition...');
+      logger.info('Starting recognition...');
       recognitionRef.current.start();
-    } catch (error: any) {
-      console.error('Failed to start recognition:', error);
+    } catch (_error: unknown) {
+      logger.error('Failed to start recognition:', error);
       setIsListening(false);
       setIsRetrying(false);
       
@@ -470,9 +471,9 @@ const useVoiceRecognition = ({
   }, [hasPermission, isListening, isConversationMode]);
 
   const stopListening = useCallback(() => {
-    console.log('=== STOP LISTENING CALLED ===');
+    logger.info('=== STOP LISTENING CALLED ===');
     if (!recognitionRef.current) {
-      console.error('No recognition object available');
+      logger.error('No recognition object available');
       return;
     }
     
@@ -499,14 +500,14 @@ const useVoiceRecognition = ({
     
     try {
       recognitionRef.current.stop();
-      console.log('Recognition stopped manually');
+      logger.info('Recognition stopped manually');
     } catch (error) {
-      console.error('Error stopping recognition:', error);
+      logger.error('Error stopping recognition:', error);
     }
   }, []);
 
   const resetTranscript = useCallback(() => {
-    console.log('=== RESET TRANSCRIPT CALLED ===');
+    logger.info('=== RESET TRANSCRIPT CALLED ===');
     setTranscript('');
     currentTranscriptRef.current = '';
     setError(null);
@@ -522,8 +523,8 @@ const useVoiceRecognition = ({
   }, []);
 
   const toggleConversationMode = useCallback(() => {
-    console.log('=== TOGGLE CONVERSATION MODE ===');
-    console.log('Current mode:', isConversationMode);
+    logger.info('=== TOGGLE CONVERSATION MODE ===');
+    logger.info('Current mode:', isConversationMode);
     
     // Stop listening if currently active
     if (isListening) {
@@ -543,7 +544,7 @@ const useVoiceRecognition = ({
     silenceStartTimeRef.current = null;
     setSilenceTimer(0);
     
-    console.log('New mode will be:', !isConversationMode);
+    logger.info('New mode will be:', !isConversationMode);
   }, [isConversationMode, isListening, stopListening]);
 
   return {

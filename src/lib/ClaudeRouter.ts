@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
+import { logger } from '../utils/logger';
 // Types
 export interface ClaudePrompt {
   id: string;
@@ -44,13 +45,13 @@ export async function getUserTier(userId: string): Promise<UserTier> {
       .single();
 
     if (error) {
-      console.warn('Error fetching user tier:', error);
+      logger.warn('Error fetching user tier:', error);
       return 'core'; // Default to core tier
     }
 
     return data?.tier || 'core';
   } catch (error) {
-    console.warn('Error in getUserTier:', error);
+    logger.warn('Error in getUserTier:', error);
     return 'core';
   }
 }
@@ -85,7 +86,7 @@ export async function getCachedPrompt(
       cached: true,
     };
   } catch (error) {
-    console.warn('Error fetching cached prompt:', error);
+    logger.warn('Error fetching cached prompt:', error);
     return null;
   }
 }
@@ -110,10 +111,10 @@ export async function cachePrompt(
     });
 
     if (error) {
-      console.warn('Error caching prompt:', error);
+      logger.warn('Error caching prompt:', error);
     }
   } catch (error) {
-    console.warn('Error in cachePrompt:', error);
+    logger.warn('Error in cachePrompt:', error);
   }
 }
 
@@ -152,7 +153,7 @@ export async function handlePrompt(
     // Check cache first
     const cachedResponse = await getCachedPrompt(promptHash, userId);
     if (cachedResponse) {
-      console.log('Using cached response for prompt');
+      logger.info('Using cached response for prompt');
       return cachedResponse;
     }
     
@@ -195,7 +196,7 @@ export async function handlePrompt(
     
     return claudeResponse;
   } catch (error) {
-    console.error('Error in handlePrompt:', error);
+    logger.error('Error in handlePrompt:', error);
     throw error;
   }
 }

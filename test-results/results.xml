@@ -1,0 +1,1247 @@
+<testsuites id="" name="" tests="30" failures="30" skipped="0" errors="0" time="262.07892100000004">
+<testsuite name="user-flow.spec.ts" timestamp="2025-09-12T10:18:50.569Z" hostname="chromium" tests="6" failures="6" skipped="0" time="186.681" errors="0">
+<testcase name="Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade" classname="user-flow.spec.ts" time="31.339">
+<failure message="user-flow.spec.ts:12:3 complete user journey: registration → login → chat → subscription upgrade" type="FAILURE">
+<![CDATA[  [chromium] › user-flow.spec.ts:12:3 › Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade › User Registration 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('text=Sign Up')
+
+
+      14 |     await test.step('User Registration', async () => {
+      15 |       // Click on sign up button
+    > 16 |       await page.click('text=Sign Up');
+         |                  ^
+      17 |       
+      18 |       // Fill registration form
+      19 |       await page.fill('input[name="email"]', 'test@example.com');
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:16:18
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:14:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-chromium/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › chat message rendering and persistence" classname="user-flow.spec.ts" time="31.294">
+<failure message="user-flow.spec.ts:101:3 chat message rendering and persistence" type="FAILURE">
+<![CDATA[  [chromium] › user-flow.spec.ts:101:3 › Atlas User Flow › chat message rendering and persistence ──
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      101 |   test('chat message rendering and persistence', async ({ page }) => {
+      102 |     // Login first
+    > 103 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      104 |     await page.fill('input[name="password"]', 'password123');
+      105 |     await page.click('button[type="submit"]');
+      106 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:103:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-chromium/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › subscription limits enforcement" classname="user-flow.spec.ts" time="31.227">
+<failure message="user-flow.spec.ts:133:3 subscription limits enforcement" type="FAILURE">
+<![CDATA[  [chromium] › user-flow.spec.ts:133:3 › Atlas User Flow › subscription limits enforcement ─────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      133 |   test('subscription limits enforcement', async ({ page }) => {
+      134 |     // Login as free user
+    > 135 |     await page.fill('input[name="email"]', 'freeuser@example.com');
+          |                ^
+      136 |     await page.fill('input[name="password"]', 'password123');
+      137 |     await page.click('button[type="submit"]');
+      138 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:135:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-chromium/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › voice input functionality" classname="user-flow.spec.ts" time="31.25">
+<failure message="user-flow.spec.ts:159:3 voice input functionality" type="FAILURE">
+<![CDATA[  [chromium] › user-flow.spec.ts:159:3 › Atlas User Flow › voice input functionality ───────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      159 |   test('voice input functionality', async ({ page }) => {
+      160 |     // Login first
+    > 161 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      162 |     await page.fill('input[name="password"]', 'password123');
+      163 |     await page.click('button[type="submit"]');
+      164 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:161:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-chromium/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › mobile responsiveness" classname="user-flow.spec.ts" time="30.808">
+<failure message="user-flow.spec.ts:180:3 mobile responsiveness" type="FAILURE">
+<![CDATA[  [chromium] › user-flow.spec.ts:180:3 › Atlas User Flow › mobile responsiveness ───────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      183 |     
+      184 |     // Login
+    > 185 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      186 |     await page.fill('input[name="password"]', 'password123');
+      187 |     await page.click('button[type="submit"]');
+      188 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:185:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-chromium/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › error handling and recovery" classname="user-flow.spec.ts" time="30.763">
+<failure message="user-flow.spec.ts:200:3 error handling and recovery" type="FAILURE">
+<![CDATA[  [chromium] › user-flow.spec.ts:200:3 › Atlas User Flow › error handling and recovery ─────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      203 |     
+      204 |     // Login
+    > 205 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      206 |     await page.fill('input[name="password"]', 'password123');
+      207 |     await page.click('button[type="submit"]');
+      208 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:205:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-chromium/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="user-flow.spec.ts" timestamp="2025-09-12T10:18:50.569Z" hostname="firefox" tests="6" failures="6" skipped="0" time="180.839" errors="0">
+<testcase name="Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade" classname="user-flow.spec.ts" time="30.184">
+<failure message="user-flow.spec.ts:12:3 complete user journey: registration → login → chat → subscription upgrade" type="FAILURE">
+<![CDATA[  [firefox] › user-flow.spec.ts:12:3 › Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade › User Registration 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('text=Sign Up')
+
+
+      14 |     await test.step('User Registration', async () => {
+      15 |       // Click on sign up button
+    > 16 |       await page.click('text=Sign Up');
+         |                  ^
+      17 |       
+      18 |       // Fill registration form
+      19 |       await page.fill('input[name="email"]', 'test@example.com');
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:16:18
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:14:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-firefox/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › chat message rendering and persistence" classname="user-flow.spec.ts" time="30.313">
+<failure message="user-flow.spec.ts:101:3 chat message rendering and persistence" type="FAILURE">
+<![CDATA[  [firefox] › user-flow.spec.ts:101:3 › Atlas User Flow › chat message rendering and persistence ───
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      101 |   test('chat message rendering and persistence', async ({ page }) => {
+      102 |     // Login first
+    > 103 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      104 |     await page.fill('input[name="password"]', 'password123');
+      105 |     await page.click('button[type="submit"]');
+      106 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:103:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-firefox/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › subscription limits enforcement" classname="user-flow.spec.ts" time="30.077">
+<failure message="user-flow.spec.ts:133:3 subscription limits enforcement" type="FAILURE">
+<![CDATA[  [firefox] › user-flow.spec.ts:133:3 › Atlas User Flow › subscription limits enforcement ──────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      133 |   test('subscription limits enforcement', async ({ page }) => {
+      134 |     // Login as free user
+    > 135 |     await page.fill('input[name="email"]', 'freeuser@example.com');
+          |                ^
+      136 |     await page.fill('input[name="password"]', 'password123');
+      137 |     await page.click('button[type="submit"]');
+      138 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:135:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-firefox/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › voice input functionality" classname="user-flow.spec.ts" time="30.097">
+<failure message="user-flow.spec.ts:159:3 voice input functionality" type="FAILURE">
+<![CDATA[  [firefox] › user-flow.spec.ts:159:3 › Atlas User Flow › voice input functionality ────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      159 |   test('voice input functionality', async ({ page }) => {
+      160 |     // Login first
+    > 161 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      162 |     await page.fill('input[name="password"]', 'password123');
+      163 |     await page.click('button[type="submit"]');
+      164 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:161:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-firefox/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › mobile responsiveness" classname="user-flow.spec.ts" time="30.092">
+<failure message="user-flow.spec.ts:180:3 mobile responsiveness" type="FAILURE">
+<![CDATA[  [firefox] › user-flow.spec.ts:180:3 › Atlas User Flow › mobile responsiveness ────────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      183 |     
+      184 |     // Login
+    > 185 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      186 |     await page.fill('input[name="password"]', 'password123');
+      187 |     await page.click('button[type="submit"]');
+      188 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:185:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-firefox/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › error handling and recovery" classname="user-flow.spec.ts" time="30.076">
+<failure message="user-flow.spec.ts:200:3 error handling and recovery" type="FAILURE">
+<![CDATA[  [firefox] › user-flow.spec.ts:200:3 › Atlas User Flow › error handling and recovery ──────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      203 |     
+      204 |     // Login
+    > 205 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      206 |     await page.fill('input[name="password"]', 'password123');
+      207 |     await page.click('button[type="submit"]');
+      208 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:205:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-firefox/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="user-flow.spec.ts" timestamp="2025-09-12T10:18:50.569Z" hostname="webkit" tests="6" failures="6" skipped="0" time="180.966" errors="0">
+<testcase name="Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade" classname="user-flow.spec.ts" time="30.165">
+<failure message="user-flow.spec.ts:12:3 complete user journey: registration → login → chat → subscription upgrade" type="FAILURE">
+<![CDATA[  [webkit] › user-flow.spec.ts:12:3 › Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade › User Registration 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('text=Sign Up')
+
+
+      14 |     await test.step('User Registration', async () => {
+      15 |       // Click on sign up button
+    > 16 |       await page.click('text=Sign Up');
+         |                  ^
+      17 |       
+      18 |       // Fill registration form
+      19 |       await page.fill('input[name="email"]', 'test@example.com');
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:16:18
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:14:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-webkit/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-webkit/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-webkit/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-webkit/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-webkit/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-webkit/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › chat message rendering and persistence" classname="user-flow.spec.ts" time="30.192">
+<failure message="user-flow.spec.ts:101:3 chat message rendering and persistence" type="FAILURE">
+<![CDATA[  [webkit] › user-flow.spec.ts:101:3 › Atlas User Flow › chat message rendering and persistence ────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      101 |   test('chat message rendering and persistence', async ({ page }) => {
+      102 |     // Login first
+    > 103 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      104 |     await page.fill('input[name="password"]', 'password123');
+      105 |     await page.click('button[type="submit"]');
+      106 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:103:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-webkit/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-webkit/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-webkit/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-webkit/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-webkit/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-webkit/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › subscription limits enforcement" classname="user-flow.spec.ts" time="30.165">
+<failure message="user-flow.spec.ts:133:3 subscription limits enforcement" type="FAILURE">
+<![CDATA[  [webkit] › user-flow.spec.ts:133:3 › Atlas User Flow › subscription limits enforcement ───────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      133 |   test('subscription limits enforcement', async ({ page }) => {
+      134 |     // Login as free user
+    > 135 |     await page.fill('input[name="email"]', 'freeuser@example.com');
+          |                ^
+      136 |     await page.fill('input[name="password"]', 'password123');
+      137 |     await page.click('button[type="submit"]');
+      138 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:135:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-webkit/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-webkit/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-webkit/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-webkit/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-webkit/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-webkit/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › voice input functionality" classname="user-flow.spec.ts" time="30.159">
+<failure message="user-flow.spec.ts:159:3 voice input functionality" type="FAILURE">
+<![CDATA[  [webkit] › user-flow.spec.ts:159:3 › Atlas User Flow › voice input functionality ─────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      159 |   test('voice input functionality', async ({ page }) => {
+      160 |     // Login first
+    > 161 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      162 |     await page.fill('input[name="password"]', 'password123');
+      163 |     await page.click('button[type="submit"]');
+      164 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:161:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-webkit/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-webkit/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-webkit/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-webkit/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-webkit/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-webkit/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › mobile responsiveness" classname="user-flow.spec.ts" time="30.138">
+<failure message="user-flow.spec.ts:180:3 mobile responsiveness" type="FAILURE">
+<![CDATA[  [webkit] › user-flow.spec.ts:180:3 › Atlas User Flow › mobile responsiveness ─────────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      183 |     
+      184 |     // Login
+    > 185 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      186 |     await page.fill('input[name="password"]', 'password123');
+      187 |     await page.click('button[type="submit"]');
+      188 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:185:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-webkit/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-webkit/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-webkit/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-webkit/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-webkit/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-webkit/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › error handling and recovery" classname="user-flow.spec.ts" time="30.147">
+<failure message="user-flow.spec.ts:200:3 error handling and recovery" type="FAILURE">
+<![CDATA[  [webkit] › user-flow.spec.ts:200:3 › Atlas User Flow › error handling and recovery ───────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      203 |     
+      204 |     // Login
+    > 205 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      206 |     await page.fill('input[name="password"]', 'password123');
+      207 |     await page.click('button[type="submit"]');
+      208 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:205:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-webkit/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-webkit/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-webkit/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-webkit/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-webkit/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-webkit/error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="user-flow.spec.ts" timestamp="2025-09-12T10:18:50.569Z" hostname="Mobile Chrome" tests="6" failures="6" skipped="0" time="188.257" errors="0">
+<testcase name="Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade" classname="user-flow.spec.ts" time="31.7">
+<failure message="user-flow.spec.ts:12:3 complete user journey: registration → login → chat → subscription upgrade" type="FAILURE">
+<![CDATA[  [Mobile Chrome] › user-flow.spec.ts:12:3 › Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade › User Registration 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('text=Sign Up')
+
+
+      14 |     await test.step('User Registration', async () => {
+      15 |       // Click on sign up button
+    > 16 |       await page.click('text=Sign Up');
+         |                  ^
+      17 |       
+      18 |       // Fill registration form
+      19 |       await page.fill('input[name="email"]', 'test@example.com');
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:16:18
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:14:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Chrome/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Chrome/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › chat message rendering and persistence" classname="user-flow.spec.ts" time="31.695">
+<failure message="user-flow.spec.ts:101:3 chat message rendering and persistence" type="FAILURE">
+<![CDATA[  [Mobile Chrome] › user-flow.spec.ts:101:3 › Atlas User Flow › chat message rendering and persistence 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      101 |   test('chat message rendering and persistence', async ({ page }) => {
+      102 |     // Login first
+    > 103 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      104 |     await page.fill('input[name="password"]', 'password123');
+      105 |     await page.click('button[type="submit"]');
+      106 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:103:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Chrome/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Chrome/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › subscription limits enforcement" classname="user-flow.spec.ts" time="31.113">
+<failure message="user-flow.spec.ts:133:3 subscription limits enforcement" type="FAILURE">
+<![CDATA[  [Mobile Chrome] › user-flow.spec.ts:133:3 › Atlas User Flow › subscription limits enforcement ────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      133 |   test('subscription limits enforcement', async ({ page }) => {
+      134 |     // Login as free user
+    > 135 |     await page.fill('input[name="email"]', 'freeuser@example.com');
+          |                ^
+      136 |     await page.fill('input[name="password"]', 'password123');
+      137 |     await page.click('button[type="submit"]');
+      138 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:135:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Chrome/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Chrome/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › voice input functionality" classname="user-flow.spec.ts" time="31.067">
+<failure message="user-flow.spec.ts:159:3 voice input functionality" type="FAILURE">
+<![CDATA[  [Mobile Chrome] › user-flow.spec.ts:159:3 › Atlas User Flow › voice input functionality ──────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      159 |   test('voice input functionality', async ({ page }) => {
+      160 |     // Login first
+    > 161 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      162 |     await page.fill('input[name="password"]', 'password123');
+      163 |     await page.click('button[type="submit"]');
+      164 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:161:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Chrome/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Chrome/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › mobile responsiveness" classname="user-flow.spec.ts" time="31.339">
+<failure message="user-flow.spec.ts:180:3 mobile responsiveness" type="FAILURE">
+<![CDATA[  [Mobile Chrome] › user-flow.spec.ts:180:3 › Atlas User Flow › mobile responsiveness ──────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      183 |     
+      184 |     // Login
+    > 185 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      186 |     await page.fill('input[name="password"]', 'password123');
+      187 |     await page.click('button[type="submit"]');
+      188 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:185:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Chrome/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Chrome/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › error handling and recovery" classname="user-flow.spec.ts" time="31.343">
+<failure message="user-flow.spec.ts:200:3 error handling and recovery" type="FAILURE">
+<![CDATA[  [Mobile Chrome] › user-flow.spec.ts:200:3 › Atlas User Flow › error handling and recovery ────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      203 |     
+      204 |     // Login
+    > 205 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      206 |     await page.fill('input[name="password"]', 'password123');
+      207 |     await page.click('button[type="submit"]');
+      208 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:205:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Chrome/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Chrome/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="user-flow.spec.ts" timestamp="2025-09-12T10:18:50.569Z" hostname="Mobile Safari" tests="6" failures="6" skipped="0" time="180.615" errors="0">
+<testcase name="Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade" classname="user-flow.spec.ts" time="30.092">
+<failure message="user-flow.spec.ts:12:3 complete user journey: registration → login → chat → subscription upgrade" type="FAILURE">
+<![CDATA[  [Mobile Safari] › user-flow.spec.ts:12:3 › Atlas User Flow › complete user journey: registration → login → chat → subscription upgrade › User Registration 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('text=Sign Up')
+
+
+      14 |     await test.step('User Registration', async () => {
+      15 |       // Click on sign up button
+    > 16 |       await page.click('text=Sign Up');
+         |                  ^
+      17 |       
+      18 |       // Fill registration form
+      19 |       await page.fill('input[name="email"]', 'test@example.com');
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:16:18
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:14:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Safari/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Safari/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Safari/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Safari/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Safari/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--72985-chat-→-subscription-upgrade-Mobile-Safari/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › chat message rendering and persistence" classname="user-flow.spec.ts" time="30.089">
+<failure message="user-flow.spec.ts:101:3 chat message rendering and persistence" type="FAILURE">
+<![CDATA[  [Mobile Safari] › user-flow.spec.ts:101:3 › Atlas User Flow › chat message rendering and persistence 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      101 |   test('chat message rendering and persistence', async ({ page }) => {
+      102 |     // Login first
+    > 103 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      104 |     await page.fill('input[name="password"]', 'password123');
+      105 |     await page.click('button[type="submit"]');
+      106 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:103:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Safari/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Safari/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Safari/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Safari/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Safari/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow--ba498-e-rendering-and-persistence-Mobile-Safari/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › subscription limits enforcement" classname="user-flow.spec.ts" time="30.134">
+<failure message="user-flow.spec.ts:133:3 subscription limits enforcement" type="FAILURE">
+<![CDATA[  [Mobile Safari] › user-flow.spec.ts:133:3 › Atlas User Flow › subscription limits enforcement ────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      133 |   test('subscription limits enforcement', async ({ page }) => {
+      134 |     // Login as free user
+    > 135 |     await page.fill('input[name="email"]', 'freeuser@example.com');
+          |                ^
+      136 |     await page.fill('input[name="password"]', 'password123');
+      137 |     await page.click('button[type="submit"]');
+      138 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:135:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Safari/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Safari/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Safari/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Safari/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Safari/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-subscription-limits-enforcement-Mobile-Safari/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › voice input functionality" classname="user-flow.spec.ts" time="30.105">
+<failure message="user-flow.spec.ts:159:3 voice input functionality" type="FAILURE">
+<![CDATA[  [Mobile Safari] › user-flow.spec.ts:159:3 › Atlas User Flow › voice input functionality ──────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      159 |   test('voice input functionality', async ({ page }) => {
+      160 |     // Login first
+    > 161 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      162 |     await page.fill('input[name="password"]', 'password123');
+      163 |     await page.click('button[type="submit"]');
+      164 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:161:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Safari/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Safari/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Safari/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Safari/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Safari/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-voice-input-functionality-Mobile-Safari/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › mobile responsiveness" classname="user-flow.spec.ts" time="30.095">
+<failure message="user-flow.spec.ts:180:3 mobile responsiveness" type="FAILURE">
+<![CDATA[  [Mobile Safari] › user-flow.spec.ts:180:3 › Atlas User Flow › mobile responsiveness ──────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      183 |     
+      184 |     // Login
+    > 185 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      186 |     await page.fill('input[name="password"]', 'password123');
+      187 |     await page.click('button[type="submit"]');
+      188 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:185:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Safari/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Safari/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Safari/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Safari/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Safari/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-mobile-responsiveness-Mobile-Safari/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Atlas User Flow › error handling and recovery" classname="user-flow.spec.ts" time="30.1">
+<failure message="user-flow.spec.ts:200:3 error handling and recovery" type="FAILURE">
+<![CDATA[  [Mobile Safari] › user-flow.spec.ts:200:3 › Atlas User Flow › error handling and recovery ────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.fill: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('input[name="email"]')
+
+
+      203 |     
+      204 |     // Login
+    > 205 |     await page.fill('input[name="email"]', 'test@example.com');
+          |                ^
+      206 |     await page.fill('input[name="password"]', 'password123');
+      207 |     await page.click('button[type="submit"]');
+      208 |     
+        at /Users/jasoncarelse/atlas/tests/e2e/user-flow.spec.ts:205:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Safari/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Safari/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Safari/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Safari/test-failed-1.png]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Safari/video.webm]]
+
+[[ATTACHMENT|user-flow-Atlas-User-Flow-error-handling-and-recovery-Mobile-Safari/error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+</testsuites>

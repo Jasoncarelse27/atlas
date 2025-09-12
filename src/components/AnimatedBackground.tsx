@@ -108,10 +108,27 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
     };
 
     // Animation variables
-    let particles: any[] = [];
+    interface Particle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      opacity: number;
+    }
+    
+    interface Star {
+      x: number;
+      y: number;
+      size: number;
+      opacity: number;
+      twinkle: number;
+    }
+    
+    let particles: Particle[] = [];
     let waveOffset = 0;
     let gradientAngle = 0;
-    let stars: any[] = [];
+    let stars: Star[] = [];
 
     // Initialize particles
     const initParticles = () => {

@@ -5,7 +5,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useTierAccess } from '../hooks/useSubscription';
 
 interface InputToolbarProps {
-  onSendMessage: (content: string, type: 'text' | 'voice' | 'image', metadata?: any) => void;
+  onSendMessage: (content: string, type: 'text' | 'voice' | 'image', metadata?: unknown) => void;
   onError: (error: string) => void;
   isDisabled?: boolean;
   placeholder?: string;
@@ -84,7 +84,7 @@ export function InputToolbar({
   }, [onSendMessage]);
 
   // Handle image selection
-  const handleImageSelected = useCallback((imageUrl: string, metadata: any) => {
+  const handleImageSelected = useCallback((imageUrl: string, _metadata: unknown) => {
     onSendMessage(imageUrl, 'image', metadata);
     setInputState(prev => ({ ...prev, showImageUploader: false }));
   }, [onSendMessage]);

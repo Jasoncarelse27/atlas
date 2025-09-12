@@ -18,6 +18,7 @@ import MainInteractionArea from '../components/MainInteractionArea';
 import ConversationView from '../features/chat/components/ConversationView';
 import { useCustomization } from '../hooks/useCustomization';
 
+import { logger } from '../utils/logger';
 interface ChatPageProps {
   user: User;
 }
@@ -180,7 +181,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
       let conversationToUse = currentConversation;
       if (!conversationToUse) {
         conversationToUse = createConversation();
-        console.log('Created new conversation for image analysis:', conversationToUse.id); 
+        logger.info('Created new conversation for image analysis:', conversationToUse.id); 
       }
       
       // Create user message
@@ -205,7 +206,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
         addMessageToConversation(conversationToUse.id, userMessage);
         addMessageToConversation(conversationToUse.id, responseMessage);
       } catch (error) {
-        console.error('Error adding messages to conversation:', error);
+        logger.error('Error adding messages to conversation:', error);
       }
        
       setResponse(responseMessage.content);
@@ -224,7 +225,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
     let conversationToUse = currentConversation;
     if (!conversationToUse) {
       conversationToUse = createConversation();
-      console.log('Created new conversation:', conversationToUse.id); 
+      logger.info('Created new conversation:', conversationToUse.id); 
     }
     
     // Add user message to conversation
@@ -238,7 +239,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
     try {
       addMessageToConversation(conversationToUse.id, userMessage);
     } catch (error) {
-      console.error('Error adding message to conversation:', error);
+      logger.error('Error adding message to conversation:', error);
       conversationToUse = createConversation();
       try { 
         addMessageToConversation(conversationToUse.id, userMessage);
@@ -250,7 +251,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
      
     try {
       // Send message to local backend
-      console.log('📤 Sending message to local backend:', message);
+      logger.info('📤 Sending message to local backend:', message);
       
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
       
@@ -271,7 +272,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
       }
       
       const responseData = await response.json();
-      console.log('📥 Received response from backend:', responseData);
+      logger.info('📥 Received response from backend:', responseData);
       
       if (!responseData.response || !responseData.response.content) {
         throw new Error('No response received from backend');
@@ -289,7 +290,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
       try {
         addMessageToConversation(conversationToUse.id, assistantMessage);
       } catch (error) {
-        console.error('Error adding assistant message to conversation:', error);
+        logger.error('Error adding assistant message to conversation:', error);
       }
       
       setResponse(responseData.response.content.text || responseData.response.content);
@@ -298,7 +299,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
       playSound('success');
       
     } catch (error) {
-      console.error('Error sending message:', error);
+      logger.error('Error sending message:', error);
       playSound('error');
       
       // Add error message to conversation
@@ -312,7 +313,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
       try {
         addMessageToConversation(conversationToUse.id, errorMessage);
       } catch (error) {
-        console.error('Error adding error message to conversation:', error);
+        logger.error('Error adding error message to conversation:', error);
       }
       
       setResponse(errorMessage.content);
@@ -350,7 +351,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
       navigate('/login');
       playSound('click');
     } catch (error) {
-      console.error('Error logging out:', error);
+      logger.error('Error logging out:', error);
     }
   };
 
@@ -462,7 +463,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
                       conversation={currentConversation}
                       onDeleteMessage={(id) => {
                         // TODO: Implement message deletion
-                        console.log('Delete message:', id);
+                        logger.info('Delete message:', id);
                       }}
                       onCopyMessage={(content) => {
                         navigator.clipboard.writeText(content);
@@ -496,7 +497,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
                       onSoundPlay={playSound}
                       browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}
                       connectionStatus={connectionStatus}
-                      onShowVoiceSettings={() => console.log('Show voice settings')}
+                      onShowVoiceSettings={() => logger.info('Show voice settings')}
                     />
                   </div>
                 </div>

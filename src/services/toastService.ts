@@ -1,15 +1,13 @@
 // Simple toast service without external dependencies
-export const showErrorToast = (message: string) => {
-  console.error("🚨 Error:", message);
+export const _showErrorToast = (message: string) => {
+  logger.error("🚨 Error:", message);
   // You can integrate with your existing toast system here
 };
-
-export const showSuccessToast = (message: string) => {
-  console.log("✅ Success:", message);
+export const _showSuccessToast = (message: string) => {
+  logger.info("✅ Success:", message);
   // You can integrate with your existing toast system here
 };
-
-export const showInfoToast = (message: string) => {
-  console.info("ℹ️ Info:", message);
+export const _showInfoToast = (message: string) => {
+  logger.info("ℹ️ Info:", message);
   // You can integrate with your existing toast system here
 };

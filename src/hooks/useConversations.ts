@@ -5,6 +5,7 @@ import type { Conversation, Message } from '../types/chat';
 import { createNewConversation, generateConversationTitle } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
 
+import { logger } from '../utils/logger';
 interface UseConversationsReturn {
   conversations: Conversation[]; 
   currentConversation: Conversation | null; 
@@ -33,7 +34,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
     setError(null);
     
     try {
-      console.log('Fetching conversations for user:', user.id);
+      logger.info('Fetching conversations for user:', user.id);
       
       const { data, error } = await supabase
         .from('conversations')
@@ -56,7 +57,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
             .order('timestamp', { ascending: true });
           
           if (messagesError) {
-            console.error('Error fetching messages for conversation:', conv.id, messagesError);
+            logger.error('Error fetching messages for conversation:', conv.id, messagesError);
             return {
               id: conv.id,
               title: conv.title || 'New Conversation',
@@ -90,7 +91,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         })
       );
       
-      console.log('Fetched conversations:', fetchedConversations.length);
+      logger.info('Fetched conversations:', fetchedConversations.length);
       setConversations(fetchedConversations);
       
       // Set current conversation to the most recent one if none is selected
@@ -98,7 +99,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         setCurrentConversation(fetchedConversations[0]);
       }
     } catch (err) {
-      console.error('Error fetching conversations:', err);
+      logger.error('Error fetching conversations:', err);
       setError('Failed to load conversations');
     } finally {
       setIsLoading(false);
@@ -141,13 +142,13 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         .select()
         .then(({ error }) => {
           if (error) {
-            console.error('Error saving conversation to database:', error);
+            logger.error('Error saving conversation to database:', error);
           } else {
-            console.log('Created new conversation in database:', newConversation.id);
+            logger.info('Created new conversation in database:', newConversation.id);
           }
         });
       
-      console.log('Created new conversation:', newConversation.id);
+      logger.info('Created new conversation:', newConversation.id);
       
       // Update local state
       setConversations(prev => [newConversation, ...prev]);
@@ -155,7 +156,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       
       return newConversation;
     } catch (err) {
-      console.error('Error creating conversation:', err);
+      logger.error('Error creating conversation:', err);
       setError('Failed to create new conversation');
       
       // Fallback to local-only conversation if Supabase fails
@@ -179,7 +180,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       // Find the conversation
       const conversation = conversations.find(c => c.id === conversationId);
       if (!conversation) {
-        console.error('Conversation not found:', conversationId);
+        logger.error('Conversation not found:', conversationId);
         return;
       }
       
@@ -233,7 +234,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         }]);
       
       if (messageError) {
-        console.error('Error saving message:', messageError);
+        logger.error('Error saving message:', messageError);
       }
       
       // Update conversation title and lastUpdated in Supabase
@@ -248,11 +249,11 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
           .eq('id', conversationId);
         
         if (updateError) {
-          console.error('Error updating conversation:', updateError);
+          logger.error('Error updating conversation:', updateError);
         }
       }
     } catch (err) {
-      console.error('Error adding message to conversation:', err);
+      logger.error('Error adding message to conversation:', err);
       setError('Failed to save message');
     }
   }, [conversations, currentConversation, user]);
@@ -287,7 +288,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         }
       }
     } catch (err) {
-      console.error('Error deleting conversation:', err);
+      logger.error('Error deleting conversation:', err);
       setError('Failed to delete conversation');
     }
   }, [conversations, currentConversation, user, createConversation]);
@@ -331,7 +332,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         });
       }
     } catch (err) {
-      console.error('Error updating conversation title:', err);
+      logger.error('Error updating conversation title:', err);
       setError('Failed to update conversation title');
     }
   }, [user, currentConversation]);
@@ -375,7 +376,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         });
       }
     } catch (err) {
-      console.error('Error pinning conversation:', err);
+      logger.error('Error pinning conversation:', err);
       setError('Failed to pin/unpin conversation');
     }
   }, [user, currentConversation]);
@@ -402,7 +403,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       setConversations([newConversation]);
       setCurrentConversation(newConversation);
     } catch (err) {
-      console.error('Error clearing conversations:', err);
+      logger.error('Error clearing conversations:', err);
       setError('Failed to clear conversations');
       
       // Fallback: create a new conversation locally

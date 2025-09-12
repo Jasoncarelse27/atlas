@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 
+import { logger } from '../utils/logger';
 // Hook for using localStorage with a fallback value
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
   // State to store our value
@@ -15,7 +16,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
       // If error also return initialValue
-      console.error('Error reading from localStorage:', error);
+      logger.error('Error reading from localStorage:', error);
       return initialValue;
     }
   });
@@ -37,7 +38,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
       }
     } catch (error) {
       // A more advanced implementation would handle the error case
-      console.error('Error writing to localStorage:', error);
+      logger.error('Error writing to localStorage:', error);
     }
   };
 

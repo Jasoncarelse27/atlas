@@ -10,7 +10,7 @@ interface MainInteractionAreaProps {
   isProcessing: boolean;
   response: string;
   audioUrl: string | null;
-  imageAnalysisResult?: any;
+  imageAnalysisResult?: unknown;
   transcript: string;
   isListening: boolean;
   voices?: SpeechSynthesisVoice[];

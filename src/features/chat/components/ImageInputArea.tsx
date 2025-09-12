@@ -6,6 +6,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import Tooltip from '@/components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 
+import { logger } from '../utils/logger';
 interface ImageInputAreaProps {
   onImageSelect: (file: File) => void;
   isProcessing: boolean;
@@ -166,7 +167,7 @@ const ImageInputArea = forwardRef<HTMLDivElement, ImageInputAreaProps>(({
         videoRef.current.play();
       }
     } catch (error) {
-      console.error('Camera access error:', error);
+      logger.error('Camera access error:', error);
       setCameraActive(false);
       setUploadError('Failed to access camera. Please check your camera permissions.');
       if (onSoundPlay) onSoundPlay('error');

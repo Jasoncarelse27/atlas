@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useCustomization } from './useCustomization';
 
+import { logger } from '../utils/logger';
 export type SoundType = 
   | 'click' 
   | 'start_listening' 
@@ -33,7 +34,7 @@ const getAudioContext = () => {
     try {
       sharedAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     } catch (error) {
-      console.warn('Web Audio API not supported:', error);
+      logger.warn('Web Audio API not supported:', error);
     }
   }
   return sharedAudioContext;
@@ -547,7 +548,7 @@ export const useSoundEffects = (): UseSoundEffectsReturn => {
     try {
       const audioContext = getAudioContext();
       if (!audioContext) {
-        console.warn('Web Audio API not available');
+        logger.warn('Web Audio API not available');
         return;
       }
       
@@ -570,7 +571,7 @@ export const useSoundEffects = (): UseSoundEffectsReturn => {
               break;
           }
         }).catch(err => {
-          console.warn('Failed to resume audio context:', err);
+          logger.warn('Failed to resume audio context:', err);
         });
       } else {
         // Play sound based on selected theme
@@ -591,7 +592,7 @@ export const useSoundEffects = (): UseSoundEffectsReturn => {
       }
       
     } catch (error) {
-      console.error('Error playing sound effect:', error);
+      logger.error('Error playing sound effect:', error);
     }
   }, [isEnabled, soundTheme]);
 

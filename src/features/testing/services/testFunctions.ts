@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import type { UserProfile } from '../../../types/subscription';
 import type { TestResult } from '../hooks/useTestRunner';
 
+import { logger } from '../utils/logger';
 export interface TestFunctionsContext {
   user: User | null;
   profile: UserProfile | null;
@@ -36,7 +37,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
 
   const testDatabaseConnection = async () => {
     const testName = 'database-connection';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -46,7 +47,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
     });
 
     try {
-      console.log('🧪 Testing basic Supabase connection...');
+      logger.info('🧪 Testing basic Supabase connection...');
       
       // Test 1: Basic connection
       const { error: healthError } = await supabase
@@ -55,7 +56,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
         .limit(0);
 
       if (healthError && !healthError.message.includes('PGRST116')) {
-        console.error('🧪 Health check failed:', healthError);
+        logger.error('🧪 Health check failed:', healthError);
         updateTestResult(testName, {
           status: 'fail',
           message: `Database connection failed: ${healthError.message}`,
@@ -64,7 +65,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
         return;
       }
 
-      console.log('🧪 Basic connection OK, testing table access...');
+      logger.info('🧪 Basic connection OK, testing table access...');
 
       // Test 2: Table access
       const { data: tableTest, error: tableError } = await supabase
@@ -73,7 +74,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
         .limit(1);
 
       if (tableError) {
-        console.error('🧪 Table access failed:', tableError);
+        logger.error('🧪 Table access failed:', tableError);
         updateTestResult(testName, {
           status: 'fail',
           message: `user_profiles table not accessible: ${tableError.message}`,
@@ -82,7 +83,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
         return;
       }
 
-      console.log('🧪 Table access OK, testing RPC functions...');
+      logger.info('🧪 Table access OK, testing RPC functions...');
 
       // Test 3: RPC functions
       let rpcWorking = false;
@@ -92,12 +93,12 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
         
         if (!rpcError) {
           rpcWorking = true;
-          console.log('🧪 RPC functions working');
+          logger.info('🧪 RPC functions working');
         } else {
-          console.warn('🧪 RPC functions not working:', rpcError);
+          logger.warn('🧪 RPC functions not working:', rpcError);
         }
       } catch (rpcErr) {
-        console.warn('🧪 RPC test failed:', rpcErr);
+        logger.warn('🧪 RPC test failed:', rpcErr);
       }
 
       updateTestResult(testName, {
@@ -112,7 +113,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Database connection test failed:', error);
+      logger.error('🧪 Database connection test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Database test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -123,7 +124,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
 
   const testProfileCreation = async () => {
     const testName = 'profile-creation';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -142,7 +143,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
         return;
       }
 
-      console.log('🧪 Testing profile structure...');
+      logger.info('🧪 Testing profile structure...');
       
       // Test profile structure
       const expectedFields = ['id', 'tier', 'subscription_status', 'usage_count', 'trial_start_date'];
@@ -158,7 +159,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
         return;
       }
 
-      console.log('🧪 Profile structure OK, testing profile updates...');
+      logger.info('🧪 Profile structure OK, testing profile updates...');
 
       // Test profile update capability
       const testUpdate = {
@@ -191,7 +192,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Profile creation test failed:', error);
+      logger.error('🧪 Profile creation test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Profile test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -203,7 +204,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
   // Add more test functions here...
   const testUsageLimits = async () => {
     const testName = 'usage-limits';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -239,7 +240,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Usage limits test failed:', error);
+      logger.error('🧪 Usage limits test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Usage limits test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -250,7 +251,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
 
   const testFeatureAccess = async () => {
     const testName = 'feature-access';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -290,7 +291,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Feature access test failed:', error);
+      logger.error('🧪 Feature access test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Feature access test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -301,7 +302,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
 
   const testTrialExpiry = async () => {
     const testName = 'trial-expiry';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -334,7 +335,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Trial expiry test failed:', error);
+      logger.error('🧪 Trial expiry test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Trial expiry test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -345,7 +346,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
 
   const testUsageUpdates = async () => {
     const testName = 'usage-updates';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -378,7 +379,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Usage updates test failed:', error);
+      logger.error('🧪 Usage updates test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Usage updates test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -389,7 +390,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
 
   const testRailwayBackend = async () => {
     const testName = 'railway-backend';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -428,7 +429,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Railway backend test failed:', error);
+      logger.error('🧪 Railway backend test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Railway backend test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -439,7 +440,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
 
   const testBackendHealthSuite = async () => {
     const testName = 'backend-health-suite';
-    console.log('🧪 Running test:', testName);
+    logger.info('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -489,7 +490,7 @@ export const createTestFunctions = (context: TestFunctionsContext) => {
       });
 
     } catch (error) {
-      console.error('🧪 Backend health suite test failed:', error);
+      logger.error('🧪 Backend health suite test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Backend health suite test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,

@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { server } from '../test/testServer';
-import { http, HttpResponse } from 'msw';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mailerService } from '../services/mailerService';
+import { server } from '../test/testServer';
 
 describe('MailerService Tests', () => {
   beforeEach(() => {
@@ -123,7 +122,7 @@ describe('MailerService Tests', () => {
       const result = await mailerService.sendWeeklySummary({
         email: 'test@example.com',
         name: 'Test User',
-      }, {} as any);
+      }, {});
 
       expect(result.success).toBe(true);
     });

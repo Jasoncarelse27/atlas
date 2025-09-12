@@ -3,6 +3,7 @@ import { useSafeMode } from '../context/SafeModeContext';
 import ChatService, { type SendMessageOptions, type StreamMessageOptions } from '../services/chatService';
 import type { Message } from '../types/chat';
 
+import { logger } from '../utils/logger';
 export interface UseSendMessageReturn {
   sendMessage: (content: string, conversationId?: string) => Promise<void>;
   streamMessage: (content: string, conversationId?: string) => Promise<void>;
@@ -45,7 +46,7 @@ export const useSendMessage = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMessage);
-      console.error('Error in useSendMessage:', err);
+      logger.error('Error in useSendMessage:', err);
     } finally {
       setIsSending(false);
     }
@@ -71,7 +72,7 @@ export const useSendMessage = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to stream message';
       setError(errorMessage);
-      console.error('Error in useSendMessage stream:', err);
+      logger.error('Error in useSendMessage stream:', err);
     } finally {
       setIsStreaming(false);
     }

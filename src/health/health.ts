@@ -19,7 +19,7 @@ async function checkDexie(): Promise<HealthResult['checks']['dexie']> {
     // Touch something minimal if available
     if (mod?.db) { return { ok: true }; }
     return { ok: false, detail: 'Dexie client not initialized' };
-  } catch (e: any) {
+  } catch (_e: unknown) {
     return { ok: false, detail: e?.message ?? 'Dexie check failed' };
   }
 }
@@ -30,7 +30,7 @@ async function checkSupabaseRealtime(): Promise<HealthResult['checks']['supabase
     const mod = await import('@/lib/realtime/supabaseRealtime');
     if (mod?.createRealtimeAdapter) { return { ok: true }; }
     return { ok: false, detail: 'Realtime adapter missing' };
-  } catch (e: any) {
+  } catch (_e: unknown) {
     return { ok: false, detail: e?.message ?? 'Realtime check failed' };
   }
 }
@@ -47,7 +47,7 @@ async function checkEmailAdapter(): Promise<HealthResult['checks']['emailAdapter
       return { ok: true };
     }
     return { ok: false, detail: 'mailerLiteAdapter missing' };
-  } catch (e: any) {
+  } catch (_e: unknown) {
     return { ok: false, detail: e?.message ?? 'Email adapter check failed' };
   }
 }

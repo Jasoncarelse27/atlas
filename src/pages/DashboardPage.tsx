@@ -6,8 +6,9 @@ import { supabase } from '../lib/supabase';
 import { sendMessageToSupabase } from '../services/chatService';
 import type { Message } from '../types/chat';
 
+import { logger } from '../utils/logger';
 interface DashboardPageProps {
-  user: any;
+  _user: unknown;
 }
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
@@ -34,7 +35,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
       await supabase.auth.signOut();
       navigate('/login');
     } catch (error) {
-      console.error('Error logging out:', error);
+      logger.error('Error logging out:', error);
     }
   };
 
@@ -58,22 +59,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
         accessToken: accessToken,
         onMessage: (partial: string) => {
           // Handle streaming message updates
-          console.log("Partial message:", partial);
+          logger.info("Partial message:", partial);
         },
         onComplete: (full: string) => {
           // Handle message completion
-          console.log("Message complete:", full);
+          logger.info("Message complete:", full);
         },
         onError: (error: string) => {
-          console.error("Message error:", error);
+          logger.error("Message error:", error);
         }
       });
 
       // Message sent successfully
-      console.log("Message sent successfully");
+      logger.info("Message sent successfully");
       
     } catch (error) {
-      console.error('Error in handleSendMessage:', error);
+      logger.error('Error in handleSendMessage:', error);
       const errorMessage: Message = {
         id: Date.now().toString(),
         role: 'assistant',

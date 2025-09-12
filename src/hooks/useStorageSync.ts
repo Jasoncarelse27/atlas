@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 import {
     getUnsyncedConversations,
     getUnsyncedMessages,
@@ -49,7 +50,7 @@ export function useStorageSync(options: UseStorageSyncOptions) {
             await markConversationSynced(conv.id, data.id);
           }
         } catch (error) {
-          console.error('Error syncing conversation:', error);
+          logger.error('Error syncing conversation:', error);
         }
       }
 
@@ -73,13 +74,13 @@ export function useStorageSync(options: UseStorageSyncOptions) {
             await markMessageSynced(msg.id, data.id);
           }
         } catch (error) {
-          console.error('Error syncing message:', error);
+          logger.error('Error syncing message:', error);
         }
       }
 
       setLastSyncTime(new Date());
     } catch (error) {
-      console.error('Error during sync:', error);
+      logger.error('Error during sync:', error);
     } finally {
       setIsSyncing(false);
     }

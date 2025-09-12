@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Download, Share2, RotateCcw, Maximize2, Minimize2, Settings, Headphones, AudioWaveform as Waveform } from 'lucide-react';
-import Tooltip from './Tooltip';
+import { Download, Headphones, Maximize2, Minimize2, Pause, Play, RotateCcw, Share2, SkipBack, SkipForward, Volume2, VolumeX, AudioWaveform as Waveform } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { logger } from '../utils/logger';
 import LoadingSpinner from './LoadingSpinner';
+import Tooltip from './Tooltip';
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -47,7 +48,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   useEffect(() => {
     if (showWaveform && audioRef.current && !audioContextRef.current) {
       try {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
         analyserRef.current = audioContextRef.current.createAnalyser();
         analyserRef.current.fftSize = 256;
         
@@ -55,7 +56,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         sourceRef.current.connect(analyserRef.current);
         analyserRef.current.connect(audioContextRef.current.destination);
       } catch (err) {
-        console.warn('Web Audio API not supported:', err);
+        logger.warn('Web Audio API not supported:', err);
       }
     }
   }, [showWaveform]);
@@ -176,7 +177,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const playPromise = audioRef.current.play();
       if (playPromise) {
         playPromise.catch(err => {
-          console.warn('Auto-play failed:', err);
+          logger.warn('Auto-play failed:', err);
         });
       }
     }
@@ -189,7 +190,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audioRef.current.pause();
     } else {
       audioRef.current.play().catch(err => {
-        console.error('Play failed:', err);
+        logger.error('Play failed:', err);
         setError('Playback failed');
       });
     }
@@ -258,16 +259,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           text: 'Check out this audio response from Atlas',
           url: audioUrl
         });
-      } catch (err) {
-        console.log('Share cancelled or failed');
+      } catch {
+        logger.info('Share cancelled or failed');
       }
     } else {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(audioUrl);
         // You could show a toast notification here
-      } catch (err) {
-        console.error('Failed to copy to clipboard');
+      } catch {
+        logger.error('Failed to copy to clipboard');
       }
     }
   };

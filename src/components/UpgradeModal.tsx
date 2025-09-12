@@ -6,6 +6,7 @@ import LoadingSpinner from './LoadingSpinner';
 import type { SoundType } from '../hooks/useSoundEffects';
 import { TIER_CONFIGS } from '../types/subscription';
 
+import { logger } from '../utils/logger';
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -417,7 +418,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({
                   <button 
                     onClick={() => {
                       // TODO: Add state to show refund policy modal
-                      console.log('Show refund policy modal');
+                      logger.info('Show refund policy modal');
                     }}
                     className="text-blue-600 hover:text-blue-800 underline text-xs mt-1"
                   >

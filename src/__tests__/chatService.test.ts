@@ -1,7 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { server } from '../test/mocks/server';
-import { http, HttpResponse } from 'msw';
-import { mailerService } from '../services/mailerService';
 
 // Mock the chatService since it's not implemented yet
 const mockChatService = {
@@ -84,7 +82,7 @@ describe('ChatService Integration Tests', () => {
         for (const word of words) {
           await new Promise(resolve => setTimeout(resolve, 10));
           const chunk = word + ' ';
-          onChunk?.(chunk);
+          _onChunk?.(chunk);
         }
         
         return {

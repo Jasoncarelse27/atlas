@@ -2,6 +2,7 @@ import { supabase } from '../../../lib/supabase';
 import type { Message } from '../../../types/chat';
 import { createChatError } from '../lib/errorHandler';
 
+import { logger } from '../utils/logger';
 // Extended message types for media support
 export interface MediaMessage extends Message {
   messageType: 'voice' | 'image' | 'text';
@@ -23,14 +24,14 @@ export interface SendMessageRequest {
   conversationId: string;
   userId: string;
   messageType: 'voice' | 'image' | 'text';
-  metadata?: any;
+  metadata?: unknown;
 }
 
 export interface SendMessageResponse {
   id: string;
   content: string;
   messageType: string;
-  metadata?: any;
+  metadata?: unknown;
   created_at: string;
   updated_at: string;
 }
@@ -52,7 +53,7 @@ class MessageService {
       const { data: { session } } = await supabase.auth.getSession();
       return session?.access_token || null;
     } catch (error) {
-      console.warn('Failed to get auth token:', error);
+      logger.warn('Failed to get auth token:', error);
       return null;
     }
   }
@@ -308,7 +309,7 @@ class MessageService {
     try {
       // This would integrate with the offline store
       // For now, we'll just log it
-      console.log('Storing message locally:', message);
+      logger.info('Storing message locally:', message);
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'storeMessageLocally',
@@ -335,7 +336,7 @@ class MessageService {
     try {
       // This would integrate with the offline store
       // For now, we'll just log it
-      console.log('Clearing stored messages');
+      logger.info('Clearing stored messages');
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'clearStoredMessages',
@@ -348,7 +349,7 @@ class MessageService {
   /**
    * Update message metadata
    */
-  async updateMessageMetadata(messageId: string, metadata: any): Promise<void> {
+  async updateMessageMetadata(messageId: string, _metadata: unknown): Promise<void> {
     try {
       const { error } = await supabase
         .from('messages')

@@ -20,7 +20,7 @@ export class AtlasDB extends Dexie {
     conversation_id: string;
     user_id: string;
     role: 'user' | 'assistant';
-    content: any;
+    _content: unknown;
     timestamp: string;
     status: 'sent' | 'sending' | 'failed' | 'pending' | 'retried';
     sync_status: 'synced' | 'pending' | 'failed';
@@ -34,7 +34,7 @@ export class AtlasDB extends Dexie {
     user_id: string;
     tier: 'free' | 'core' | 'studio';
     status: 'active' | 'inactive' | 'cancelled' | 'trialing';
-    usage_stats: any;
+    _usage_stats: unknown;
     last_synced: string;
     sync_status: 'synced' | 'pending' | 'failed';
     sync_error?: string;
@@ -43,7 +43,7 @@ export class AtlasDB extends Dexie {
   pending_operations!: Table<{
     id: string;
     type: 'send_message' | 'delete_message' | 'create_conversation' | 'update_subscription';
-    data: any;
+    _data: unknown;
     created_at: string;
     retry_count: number;
     last_retry?: string;
@@ -114,7 +114,7 @@ export const dbUtils = {
   },
 
   // Import data (useful for restore)
-  async importData(data: any): Promise<void> {
+  async importData(_data: unknown): Promise<void> {
     await db.transaction('rw', [db.conversations, db.messages, db.subscriptions, db.pending_operations], async () => {
       if (data.conversations) {
         await db.conversations.bulkPut(data.conversations);

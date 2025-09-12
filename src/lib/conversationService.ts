@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Message } from '../types/chat';
 import { supabase } from './supabase';
 
+import { logger } from '../utils/logger';
 export interface ConversationService {
   sendMessage: (message: string, conversationId?: string) => Promise<{
     success: boolean;
@@ -87,7 +88,7 @@ class ConversationServiceImpl implements ConversationService {
       };
 
     } catch (error) {
-      console.error('Error in conversationService.sendMessage:', error);
+      logger.error('Error in conversationService.sendMessage:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -125,7 +126,7 @@ class ConversationServiceImpl implements ConversationService {
         });
 
       if (error) {
-        console.error('Error creating conversation:', error);
+        logger.error('Error creating conversation:', error);
         return {
           success: false,
           error: 'Failed to create conversation in database'
@@ -138,7 +139,7 @@ class ConversationServiceImpl implements ConversationService {
       };
 
     } catch (error) {
-      console.error('Error in conversationService.createConversation:', error);
+      logger.error('Error in conversationService.createConversation:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -174,7 +175,7 @@ class ConversationServiceImpl implements ConversationService {
         });
 
       if (error) {
-        console.error('Error adding message to conversation:', error);
+        logger.error('Error adding message to conversation:', error);
         return {
           success: false,
           error: 'Failed to save message to database'
@@ -192,7 +193,7 @@ class ConversationServiceImpl implements ConversationService {
       };
 
     } catch (error) {
-      console.error('Error in conversationService.addMessageToConversation:', error);
+      logger.error('Error in conversationService.addMessageToConversation:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'

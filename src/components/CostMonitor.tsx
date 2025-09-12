@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Database, HardDrive, Activity, TrendingUp, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+import { logger } from '../utils/logger';
 interface CostMetrics {
   storageUsage: number;
   databaseSize: number;
@@ -44,14 +45,14 @@ const CostMonitor: React.FC = () => {
         .select('*')
         .limit(5);
 
-      const rowCountsMap = rowCounts?.reduce((acc: any, row: any) => {
+      const rowCountsMap = rowCounts?.reduce((_acc: unknown, _row: unknown) => {
         acc[row.table_name] = row.row_count;
         return acc;
       }, {}) || {};
 
       setMetrics({
         storageUsage: storageData?.[0]?.size_bytes || 0,
-        databaseSize: storageData?.reduce((sum: number, table: any) => sum + (table.size_bytes || 0), 0) || 0,
+        databaseSize: storageData?.reduce((sum: number, _table: unknown) => sum + (table.size_bytes || 0), 0) || 0,
         rowCounts: {
           conversations: rowCountsMap.conversations || 0,
           webhook_logs: rowCountsMap.webhook_logs || 0,
@@ -61,7 +62,7 @@ const CostMonitor: React.FC = () => {
       });
 
     } catch (err) {
-      console.error('Error fetching cost metrics:', err);
+      logger.error('Error fetching cost metrics:', err);
       setError('Failed to load cost metrics');
     } finally {
       setIsLoading(false);

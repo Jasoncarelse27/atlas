@@ -2,10 +2,11 @@ import { db } from '../db';
 import { createChatError } from '../features/chat/lib/errorHandler';
 import { offlineMessageStore } from '../services/offlineMessageStore';
 
+import { logger } from '../utils/logger';
 export interface PendingOperation {
   id: string;
   type: 'send_message' | 'delete_message' | 'create_conversation' | 'update_subscription' | 'voice_transcription' | 'image_upload';
-  data: any;
+  _data: unknown;
   priority: number;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error?: string;
@@ -33,7 +34,7 @@ export class PendingQueueManager {
   /**
    * Add operation to pending queue
    */
-  async addToQueue(type: PendingOperation['type'], data: any, priority: number = 1): Promise<string> {
+  async addToQueue(type: PendingOperation['type'], _data: unknown, priority: number = 1): Promise<string> {
     try {
       const operation: PendingOperation = {
         id: crypto.randomUUID(),
@@ -86,7 +87,7 @@ export class PendingQueueManager {
         try {
           await this.processOperation(operation);
         } catch (error) {
-          console.error(`Failed to process operation ${operation.id}:`, error);
+          logger.error(`Failed to process operation ${operation.id}:`, error);
           await this.updateOperationStatus(operation.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
         }
       }
@@ -201,7 +202,7 @@ export class PendingQueueManager {
     
     // Update offline store with response
     // This would require conversation offline store implementation
-    console.log('Conversation created:', response);
+    logger.info('Conversation created:', response);
   }
 
   /**
@@ -214,7 +215,7 @@ export class PendingQueueManager {
     const { subscriptionService } = await import('../features/chat/services/subscriptionService');
     
     // This would depend on the specific subscription update method
-    console.log('Subscription update:', subscriptionData);
+    logger.info('Subscription update:', subscriptionData);
   }
 
   /**
@@ -230,7 +231,7 @@ export class PendingQueueManager {
     
     // Update the message with transcript
     // This would require finding the associated message and updating it
-    console.log('Voice transcribed:', transcript);
+    logger.info('Voice transcribed:', transcript);
   }
 
   /**
@@ -246,7 +247,7 @@ export class PendingQueueManager {
     
     // Update the message with image metadata
     // This would require finding the associated message and updating it
-    console.log('Image uploaded:', result);
+    logger.info('Image uploaded:', result);
   }
 
   /**
@@ -260,7 +261,7 @@ export class PendingQueueManager {
         ...updates,
       });
     } catch (error) {
-      console.error('Failed to update operation status:', error);
+      logger.error('Failed to update operation status:', error);
     }
   }
 

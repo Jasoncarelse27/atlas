@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../../lib/supabase';
 
+import { logger } from '../utils/logger';
 export type UserTier = 'free' | 'core' | 'studio';
 
 interface UsageStats {
@@ -50,7 +51,7 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
           .single();
 
         if (profileError) {
-          console.warn('Profile not found, using default free tier:', profileError.message);
+          logger.warn('Profile not found, using default free tier:', profileError.message);
           setCurrentTier('free');
         } else {
           setCurrentTier(profile.tier || 'free');
@@ -65,7 +66,7 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
         await checkAndResetUsageCounts();
         
       } catch (err) {
-        console.error('Failed to load subscription profile:', err);
+        logger.error('Failed to load subscription profile:', err);
         setError(err instanceof Error ? err.message : 'Failed to load profile');
       } finally {
         setIsLoading(false);
@@ -102,7 +103,7 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
           })
           .eq('id', userId);
       } catch (err) {
-        console.warn('Failed to reset monthly usage count:', err);
+        logger.warn('Failed to reset monthly usage count:', err);
       }
     }
 
@@ -170,7 +171,7 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
         .update({ usage_stats: newStats })
         .eq('id', userId);
     } catch (err) {
-      console.warn('Failed to update usage stats:', err);
+      logger.warn('Failed to update usage stats:', err);
     }
   }, [userId, usageStats]);
 

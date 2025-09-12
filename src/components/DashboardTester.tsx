@@ -21,6 +21,7 @@ import Tooltip from './Tooltip';
 import ProgressBar from './ProgressBar';
 import ImageCard from './ImageCard';
 
+import { logger } from '../utils/logger';
 interface DashboardTesterProps {
   onClose: () => void;
   onShowWidgets: () => void;
@@ -109,7 +110,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           metrics.memoryUsage = memoryInfo.usedJSHeapSize;
         }
       } catch (e) {
-        console.warn('Memory API not available');
+        logger.warn('Memory API not available');
       }
 
       // Safe CSS rules count
@@ -122,7 +123,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           }
         }, 0);
       } catch (e) {
-        console.warn('CSS rules counting failed');
+        logger.warn('CSS rules counting failed');
       }
 
       // Measure render time
@@ -131,7 +132,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
         setPerformanceMetrics(metrics);
       });
     } catch (error) {
-      console.error('Performance test failed:', error);
+      logger.error('Performance test failed:', error);
     }
   };
 
@@ -267,7 +268,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
       }
 
     } catch (error) {
-      console.error('Accessibility test error:', error);
+      logger.error('Accessibility test error:', error);
       issues.push('Error during accessibility testing');
     }
 
@@ -318,7 +319,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           }
         }, 0);
       } catch (e) {
-        console.warn('CSS rules counting failed');
+        logger.warn('CSS rules counting failed');
       }
 
       if (cssRules < 500) {
@@ -349,7 +350,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           recommendations.push('Memory API not available for testing');
         }
       } catch (e) {
-        console.warn('Memory testing failed');
+        logger.warn('Memory testing failed');
         score += 1; // Give partial credit
       }
 
@@ -370,7 +371,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           recommendations.push('Optimize animations for 60fps performance');
         }
       } catch (e) {
-        console.warn('Animation test failed');
+        logger.warn('Animation test failed');
         score += 1; // Give partial credit
       }
 
@@ -386,7 +387,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
       }
 
     } catch (error) {
-      console.error('Performance test error:', error);
+      logger.error('Performance test error:', error);
       issues.push('Error during performance testing');
     }
 
@@ -460,7 +461,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
       }
 
     } catch (error) {
-      console.error('Security test error:', error);
+      logger.error('Security test error:', error);
       issues.push('Error during security testing');
     }
 
@@ -524,7 +525,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           }
         });
       } catch (e) {
-        console.warn('Media query counting failed');
+        logger.warn('Media query counting failed');
       }
 
       if (mediaQueryCount > 5) {
@@ -536,7 +537,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
       }
 
     } catch (error) {
-      console.error('Responsive test error:', error);
+      logger.error('Responsive test error:', error);
       issues.push('Error during responsive testing');
     }
 
@@ -740,7 +741,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
     }
   ];
 
-  const runSingleTest = async (test: any) => {
+  const runSingleTest = async (_test: unknown) => {
     setActiveTest(test.id);
     setTestResults(prev => ({
       ...prev,
@@ -757,7 +758,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
       setTestResults(prev => ({ ...prev, [test.id]: result }));
       setTestHistory(prev => [result, ...prev.slice(0, 9)]); // Keep last 10 results
     } catch (error) {
-      console.error(`Test ${test.id} failed:`, error);
+      logger.error(`Test ${test.id} failed:`, error);
       const errorResult: TestResult = {
         id: test.id,
         name: test.name,

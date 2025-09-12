@@ -5,7 +5,7 @@ import { retryDelaysMs } from '../../../lib/retry';
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry(fails, err: any) {
+      retry(fails, _err: unknown) {
         const s = err?.status;
         if (s && s < 500) return false;
         return fails < 3;

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { userMessage } from "../../../lib/error";
 import { messagesService } from "../../../services/messagesService";
 
+import { logger } from '../utils/logger';
 export function useMessages(conversationId: string) {
   const qc = useQueryClient();
   const qk = ["messages", conversationId];
@@ -34,9 +35,9 @@ export function useMessages(conversationId: string) {
       qc.setQueryData(qk, [...prev, optimistic]);
       return { prev };
     },
-    onError: (err: any, _v, ctx) => {
+    onError: (_err: unknown, _v, ctx) => {
       qc.setQueryData(qk, ctx?.prev);
-      console.error(userMessage(err));
+      logger.error(userMessage(err));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk })
   });

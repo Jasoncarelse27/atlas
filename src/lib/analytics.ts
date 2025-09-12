@@ -38,7 +38,7 @@ class Analytics {
     };
 
     if (!this.isEnabled) {
-      console.log('Analytics event:', eventWithTimestamp);
+      logger.info('Analytics event:', eventWithTimestamp);
       return;
     }
 
@@ -88,7 +88,7 @@ class Analytics {
   private sendEvent(event: AnalyticsEvent) {
     // Send to your analytics service
     // Example: PostHog.capture(event.name, event.properties);
-    console.log('Sending analytics event:', event);
+    logger.info('Sending analytics event:', event);
   }
 
   private processQueue() {
@@ -187,8 +187,8 @@ export const performanceMonitor = new PerformanceMonitor();
 export const errorMonitor = new ErrorMonitor();
 
 // Initialize all monitoring
-export const initMonitoring = () => {
+export const _initMonitoring = () => {
   analytics.init();
   performanceMonitor.init();
   errorMonitor.init();
-}; 
+};

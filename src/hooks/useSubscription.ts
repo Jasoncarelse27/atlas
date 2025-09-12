@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { UsageCheck, UserProfile } from '../types/subscription';
 import { TIER_CONFIGS } from '../types/subscription';
 
+import { logger } from '../utils/logger';
 interface UseSubscriptionReturn {
   profile: UserProfile | null;
   isLoading: boolean;
@@ -50,7 +51,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     }
 
     try {
-      console.log('📊 Fetching user profile for:', user.id);
+      logger.info('📊 Fetching user profile for:', user.id);
 
       // First check if the user ID exists in auth.users
       const { data: authUser, error: authError } = await supabase.auth.getUser();
@@ -77,13 +78,13 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
 
         if (res.ok) {
           const profileData = await res.json();
-          console.log('✅ Profile fetched from backend:', profileData);
+          logger.info('✅ Profile fetched from backend:', profileData);
           setProfile(profileData);
           setIsLoading(false);
           return;
         } else if (res.status === 400) {
           // Profile missing, auto-create fallback profile
-          console.warn('No profile found. Creating fallback profile...');
+          logger.warn('No profile found. Creating fallback profile...');
           const createRes = await fetch(`${backendUrl}/v1/user_profiles`, {
             method: 'POST',
             headers: {
@@ -97,19 +98,19 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
 
           if (createRes.ok) {
             const newProfile = await createRes.json();
-            console.log('✅ Created fallback profile:', newProfile);
+            logger.info('✅ Created fallback profile:', newProfile);
             setProfile(newProfile);
             setIsLoading(false);
             return;
           }
         }
       } catch (backendError) {
-        console.warn('⚠️ Backend profile fetch failed, falling back to direct Supabase:', backendError);
+        logger.warn('⚠️ Backend profile fetch failed, falling back to direct Supabase:', backendError);
       }
 
       // Fallback to direct Supabase client
       if (!supabase || typeof supabase.from !== 'function') {
-        console.warn('⚠️ Supabase not configured, using mock profile');
+        logger.warn('⚠️ Supabase not configured, using mock profile');
         const mockProfile = createDefaultProfile(user.id);
         setProfile(mockProfile);
         setIsLoading(false);
@@ -125,7 +126,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
 
       if (error && error.code === 'PGRST116') {
         // Create fallback profile if missing
-        console.log('📊 Creating fallback profile for new user');
+        logger.info('📊 Creating fallback profile for new user');
         const defaultProfile = createDefaultProfile(user.id);
         
         const { error: insertError } = await supabase
@@ -133,20 +134,20 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
           .insert(defaultProfile);
 
         if (insertError) {
-          console.error('❌ Error creating profile:', insertError);
+          logger.error('❌ Error creating profile:', insertError);
           setError(insertError.message);
         } else {
           setProfile(defaultProfile);
         }
       } else if (error) {
-        console.error('❌ Error fetching profile:', error);
+        logger.error('❌ Error fetching profile:', error);
         setError(error.message);
       } else {
-        console.log('✅ Profile fetched successfully:', profile);
+        logger.info('✅ Profile fetched successfully:', profile);
         setProfile(profile);
       }
     } catch (err) {
-      console.error('❌ Unexpected error in fetchProfile:', err);
+      logger.error('❌ Unexpected error in fetchProfile:', err);
       setError('Failed to fetch user profile');
     } finally {
       setIsLoading(false);
@@ -158,7 +159,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
       return { allowed: false, reason: 'Profile not found' };
     }
 
-    console.log('📊 Client-side usage check for:', actionType, 'Profile:', profile);
+    logger.info('📊 Client-side usage check for:', actionType, 'Profile:', profile);
 
     const tierConfig = TIER_CONFIGS[profile.tier];
     if (!tierConfig) {
@@ -214,11 +215,11 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     }
 
     try {
-      console.log('📊 Checking usage limit for:', actionType);
+      logger.info('📊 Checking usage limit for:', actionType);
       
       // Check if supabase is properly configured before trying RPC
       if (!supabase || typeof supabase.rpc !== 'function') {
-        console.warn('⚠️ Supabase not configured, using client-side check');
+        logger.warn('⚠️ Supabase not configured, using client-side check');
         return clientSideUsageCheck(actionType);
       }
       
@@ -232,17 +233,17 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         action_type: actionType
       });
 
-      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as { data: UsageCheck; error: any };
+      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as { data: UsageCheck; _error: unknown};
 
       if (error) {
-        console.warn('⚠️ RPC function failed, using client-side check:', error);
+        logger.warn('⚠️ RPC function failed, using client-side check:', error);
         return clientSideUsageCheck(actionType);
       }
 
-      console.log('✅ Usage check result:', data);
+      logger.info('✅ Usage check result:', data);
       return data as UsageCheck;
     } catch (err) {
-      console.warn('⚠️ Error checking usage limits, falling back to client-side:', err);
+      logger.warn('⚠️ Error checking usage limits, falling back to client-side:', err);
       return clientSideUsageCheck(actionType);
     }
   };
@@ -250,7 +251,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
   const clientSideUsageUpdate = async (actionType: string, amount: number = 1): Promise<void> => {
     if (!profile) return;
 
-    console.log('📊 Client-side usage update:', actionType, 'amount:', amount);
+    logger.info('📊 Client-side usage update:', actionType, 'amount:', amount);
 
     const updatedUsage = { ...profile.usage_stats };
 
@@ -279,11 +280,11 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     if (!user || !profile) return;
 
     try {
-      console.log('📊 Updating usage:', actionType, 'amount:', amount);
+      logger.info('📊 Updating usage:', actionType, 'amount:', amount);
       
       // Check if supabase is properly configured before trying RPC
       if (!supabase || typeof supabase.rpc !== 'function') {
-        console.warn('⚠️ Supabase not configured, using client-side update');
+        logger.warn('⚠️ Supabase not configured, using client-side update');
         await clientSideUsageUpdate(actionType, amount);
         return;
       }
@@ -299,18 +300,18 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         amount: amount
       });
 
-      const { error } = await Promise.race([rpcPromise, timeoutPromise]) as { error: any };
+      const { error } = await Promise.race([rpcPromise, timeoutPromise]) as { _error: unknown};
 
       if (error) {
-        console.warn('⚠️ RPC update failed, using client-side update:', error);
+        logger.warn('⚠️ RPC update failed, using client-side update:', error);
         await clientSideUsageUpdate(actionType, amount);
       } else {
-        console.log('✅ Usage updated via RPC');
+        logger.info('✅ Usage updated via RPC');
         // Refresh profile to get updated usage
         await fetchProfile();
       }
     } catch (err) {
-      console.warn('⚠️ Error updating usage stats, falling back to client-side:', err);
+      logger.warn('⚠️ Error updating usage stats, falling back to client-side:', err);
       await clientSideUsageUpdate(actionType, amount);
     }
   };
@@ -319,11 +320,11 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     if (!user || !profile) return;
 
     try {
-      console.log('📊 Updating subscription tier to:', tier);
+      logger.info('📊 Updating subscription tier to:', tier);
       
       // Check if supabase is properly configured
       if (!supabase || typeof supabase.from !== 'function') {
-        console.warn('⚠️ Supabase not configured, updating local state only');
+        logger.warn('⚠️ Supabase not configured, updating local state only');
         setProfile(prev => prev ? { 
           ...prev, 
           tier, 
@@ -348,10 +349,10 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         .eq('id', user.id);
 
       if (error) {
-        console.warn('⚠️ Error updating subscription tier:', error);
+        logger.warn('⚠️ Error updating subscription tier:', error);
         throw new Error(`Failed to update subscription: ${error.message}`);
       } else {
-        console.log('✅ Subscription tier updated successfully');
+        logger.info('✅ Subscription tier updated successfully');
         // Update local state
         setProfile(prev => prev ? { 
           ...prev, 
@@ -364,13 +365,13 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         } : null);
       }
     } catch (err) {
-      console.error('⚠️ Error in updateSubscriptionTier:', err);
+      logger.error('⚠️ Error in updateSubscriptionTier:', err);
       throw err;
     }
   };
 
   const refreshProfile = async (): Promise<void> => {
-    console.log('📊 Refreshing profile...');
+    logger.info('📊 Refreshing profile...');
     await fetchProfile();
   };
 
@@ -387,7 +388,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
   const canAccessFeature = (feature: string): boolean => {
     // DEVELOPMENT BYPASS: In development mode, allow access to all features
     if (import.meta.env.DEV) {
-      console.log('🔓 DEV MODE: Bypassing feature access restrictions for', feature);
+      logger.info('🔓 DEV MODE: Bypassing feature access restrictions for', feature);
       return true;
     }
 

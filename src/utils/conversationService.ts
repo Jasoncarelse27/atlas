@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 
+import { logger } from '../utils/logger';
 export interface Conversation {
   id: string;
   user_id: string;
@@ -28,13 +29,13 @@ export async function createConversation(user_id: string, title: string = 'New C
       .single();
 
     if (error) {
-      console.error('Error creating conversation:', error);
+      logger.error('Error creating conversation:', error);
       return null;
     }
 
     return data?.id || null;
   } catch (error) {
-    console.error('Error creating conversation:', error);
+    logger.error('Error creating conversation:', error);
     return null;
   }
 }
@@ -51,13 +52,13 @@ export async function getUserConversations(user_id: string): Promise<Conversatio
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching conversations:', error);
+      logger.error('Error fetching conversations:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error fetching conversations:', error);
+    logger.error('Error fetching conversations:', error);
     return [];
   }
 }
@@ -74,13 +75,13 @@ export async function getConversationMessages(conversation_id: string): Promise<
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching messages:', error);
+      logger.error('Error fetching messages:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    logger.error('Error fetching messages:', error);
     return [];
   }
 }
@@ -96,13 +97,13 @@ export async function updateConversationTitle(conversation_id: string, title: st
       .eq('id', conversation_id);
 
     if (error) {
-      console.error('Error updating conversation title:', error);
+      logger.error('Error updating conversation title:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error updating conversation title:', error);
+    logger.error('Error updating conversation title:', error);
     return false;
   }
 }
@@ -118,13 +119,13 @@ export async function deleteConversation(conversation_id: string): Promise<boole
       .eq('id', conversation_id);
 
     if (error) {
-      console.error('Error deleting conversation:', error);
+      logger.error('Error deleting conversation:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error deleting conversation:', error);
+    logger.error('Error deleting conversation:', error);
     return false;
   }
 }

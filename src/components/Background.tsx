@@ -33,9 +33,6 @@ const Background: React.FC = () => {
 
     // Get CSS variables for dynamic theming
     const getThemeColors = () => {
-      const root = document.documentElement;
-      const computedStyle = getComputedStyle(root);
-
       // Use dark theme colors
       const backgroundColor = isDarkMode ? '#121212' : '#F9FAFB';
       const textColor = isDarkMode ? '#E5E7EB' : '#1F2937';
@@ -96,7 +93,7 @@ const Background: React.FC = () => {
     const drawGalaxyCenter = () => {
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
-      const { backgroundColor, textColor } = getThemeColors();
+      const { textColor } = getThemeColors();
       
       const gradient = ctx.createRadialGradient(
         centerX, centerY, 0, 
@@ -180,7 +177,7 @@ const Background: React.FC = () => {
       window.removeEventListener('resize', createStars);
       observer.disconnect();
     };
-  }, []);
+  }, [isDarkMode]);
 
   return (
     <canvas 

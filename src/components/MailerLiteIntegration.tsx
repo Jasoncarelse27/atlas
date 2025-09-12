@@ -11,6 +11,7 @@ interface MailerLiteIntegrationProps {
   onSuccess?: (operation: string) => void;
 }
 
+
 /**
  * Example component demonstrating MailerLite integration
  * This component automatically syncs user data and triggers events

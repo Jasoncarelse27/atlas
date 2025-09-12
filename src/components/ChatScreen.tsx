@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, TextInput, Button, FlatList, Text, StyleSheet } from 'react-native';
-import { useMessageStore } from '../stores/useMessageStore';
-import { sendMessageToSupabase } from '../services/chatService';
+import { useState } from 'react';
+import { Button, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { v4 as uuid } from 'uuid';
+import { sendMessageToSupabase } from '../services/chatService';
+import { useMessageStore } from '../stores/useMessageStore';
+import { logger } from '../utils/logger';
 
 export default function ChatScreen() {
   const [input, setInput] = useState('');
@@ -31,15 +32,15 @@ export default function ChatScreen() {
         },
         onComplete: (full: string) => {
           // Message is already updated via onMessage
-          console.log('Streaming complete:', full);
+          logger.info('Streaming complete:', full);
         },
         onError: (error: string) => {
-          console.error('Streaming error:', error);
+          logger.error('Streaming error:', error);
           updateAssistantMessage('[Error generating response]');
         },
       });
-    } catch (err: any) {
-      console.error('Streaming error:', err.message);
+    } catch (err: unknown) {
+      logger.error('Streaming error:', err instanceof Error ? err.message : 'Unknown error');
       updateAssistantMessage('[Error generating response]');
     }
   };

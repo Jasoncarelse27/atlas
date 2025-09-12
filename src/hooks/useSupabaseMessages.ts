@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { useMessageStore, type Message } from "@/stores/useMessageStore";
 import { useEffect, useState } from "react";
 
+import { logger } from '../utils/logger';
 export function useSupabaseMessages() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export function useSupabaseMessages() {
 
         if (mounted) {
           // Convert Supabase format to store format
-          const messages: Message[] = (data || []).map((msg: any) => ({
+          const messages: Message[] = (data || []).map((_msg: unknown) => ({
             id: msg.id,
             type: msg.type || 'TEXT',
             content: msg.content,
@@ -33,10 +34,10 @@ export function useSupabaseMessages() {
           }));
 
           setMessages(messages);
-          console.log('✅ Initial messages loaded from Supabase:', messages.length);
+          logger.info('✅ Initial messages loaded from Supabase:', messages.length);
         }
       } catch (err) {
-        console.error('❌ Failed to load initial messages:', err);
+        logger.error('❌ Failed to load initial messages:', err);
         if (mounted) {
           setError(err instanceof Error ? err.message : 'Failed to load messages');
         }
@@ -58,7 +59,7 @@ export function useSupabaseMessages() {
             table: 'messages',
           },
           (payload) => {
-            console.log('🔄 New message received via realtime:', payload);
+            logger.info('🔄 New message received via realtime:', payload);
             
             // Convert Supabase format to store format
             const newMessage: Message = {

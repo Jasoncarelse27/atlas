@@ -13,7 +13,7 @@ export class AppError extends Error {
   }
 }
 
-export function normalizeError(e: any) {
+export function normalizeError(_e: unknown) {
   if (e instanceof AppError) return e;
   
   if (e?.name === "AbortError") return new AppError("TIMEOUT", "Request timed out");

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createChatError } from '../features/chat/lib/errorHandler';
 import { mailerLiteService, type MailerLiteEvent, type SubscriberData } from '../services/mailerService';
 
+import { logger } from '../utils/logger';
 // Hook configuration interface
 interface UseMailerConfig {
   email: string;
@@ -60,7 +61,7 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
     lastErrorRef.current = chatError;
     onError?.(chatError);
     
-    console.error(`MailerLite ${operation} failed:`, chatError);
+    logger.error(`MailerLite ${operation} failed:`, chatError);
   }, [email, onError]);
 
   // Success handler
@@ -315,7 +316,7 @@ export function useMailerEvents(email: string) {
         },
       });
     } catch (error) {
-      console.error(`Failed to trigger MailerLite event ${event}:`, error);
+      logger.error(`Failed to trigger MailerLite event ${event}:`, error);
     }
   }, [isConfigured, email]);
 
