@@ -1,0 +1,1002 @@
+==== LINT RESULTS ====
+
+> atlas-backend@1.0.0 lint
+> eslint . --max-warnings=0
+
+
+/Users/jasoncarelse/atlas/src/__tests__/chatService.test.ts
+  128:78  warning  '_onChunk' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/ControlCenter.tsx
+  319:9  warning  'renderPreferencesTab' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/CostMonitor.tsx
+  48:47  warning  '_acc' is defined but never used    @typescript-eslint/no-unused-vars
+  48:62  warning  '_row' is defined but never used    @typescript-eslint/no-unused-vars
+  55:57  warning  '_table' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/DashboardTester.tsx
+  744:32  warning  '_test' is defined but never used                 @typescript-eslint/no-unused-vars
+  822:9   warning  'getTestIcon' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/DevelopmentHelper.tsx
+  166:69   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  167:71   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:68   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:104  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  169:68   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/components/EmailTestChecklist.tsx
+  74:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/components/EnhancedResponseArea.tsx
+   2:97   warning  'Lightbulb' is defined but never used                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   2:166  warning  'Zap' is defined but never used                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   2:171  warning  'Wifi' is defined but never used                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  33:3    warning  'onShowVoiceSettings' is defined but never used                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  74:6    warning  React Hook useEffect has a missing dependency: 'typingIndex'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setTypingText' needs the current value of 'typingIndex'  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/components/MailerLiteIntegration.tsx
+   33:5   warning  'syncSubscriber' is assigned a value but never used   @typescript-eslint/no-unused-vars
+   37:5   warning  'addToGroup' is assigned a value but never used       @typescript-eslint/no-unused-vars
+   38:5   warning  'removeFromGroup' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  144:45  warning  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/components/MainInteractionArea.tsx
+  36:3  warning  'imageAnalysisResult' is defined but never used    @typescript-eslint/no-unused-vars
+  39:3  warning  'voices' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  40:3  warning  'currentVoice' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  46:3  warning  'onVoiceChange' is defined but never used          @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/NetworkCheckModal.tsx
+   53:6   warning  React Hook useEffect has a missing dependency: 'runNetworkTests'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  151:15  warning  'response' is assigned a value but never used                                                                       @typescript-eslint/no-unused-vars
+  381:13  warning  'blob' is assigned a value but never used                                                                           @typescript-eslint/no-unused-vars
+  470:18  warning  'error' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+  682:39  warning  '_index' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/ProgressBar.tsx
+  24:9  warning  'getSizeClasses' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  33:9  warning  'getColorClasses' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/SideMenu.tsx
+  5:14  warning  'UserIcon' is defined but never used    @typescript-eslint/no-unused-vars
+  6:33  warning  'Crown' is defined but never used       @typescript-eslint/no-unused-vars
+  7:3   warning  'TrendingUp' is defined but never used  @typescript-eslint/no-unused-vars
+  7:33  warning  'Moon' is defined but never used        @typescript-eslint/no-unused-vars
+  7:39  warning  'Sun' is defined but never used         @typescript-eslint/no-unused-vars
+  7:44  warning  'Monitor' is defined but never used     @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/SimplifiedHeader.tsx
+  31:3  warning  'user' is defined but never used                       @typescript-eslint/no-unused-vars
+  32:3  warning  'profile' is defined but never used                    @typescript-eslint/no-unused-vars
+  33:3  warning  'connectionStatus' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/SoundSettings.tsx
+  2:50  warning  'Settings' is defined but never used  @typescript-eslint/no-unused-vars
+  4:8   warning  'Tooltip' is defined but never used   @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/SpeedTestModal.tsx
+  37:6  warning  React Hook useEffect has a missing dependency: 'isLoading'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/components/TestingPanel.tsx
+  52:22  warning  'testName' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/Tooltip.tsx
+  1:35  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/TypingIndicator.tsx
+  2:10  warning  'MessageSquare' is defined but never used  @typescript-eslint/no-unused-vars
+  2:30  warning  'User' is defined but never used           @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/components/WidgetSystem.tsx
+    8:3   warning  'Clock' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+   11:3   warning  'Calendar' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+   12:3   warning  'Activity' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+   13:3   warning  'BarChart3' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+   21:3   warning  'Lightbulb' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+   24:3   warning  'Trash2' is defined but never used                                                                                       @typescript-eslint/no-unused-vars
+   25:3   warning  'Eye' is defined but never used                                                                                          @typescript-eslint/no-unused-vars
+   28:10  warning  'supabase' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+   29:8   warning  'LoadingSpinner' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+   39:26  warning  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  133:10  warning  'isLoading' is assigned a value but never used                                                                           @typescript-eslint/no-unused-vars
+  133:21  warning  'setIsLoading' is assigned a value but never used                                                                        @typescript-eslint/no-unused-vars
+  195:72  warning  Unexpected any. Specify a different type                                                                                 @typescript-eslint/no-explicit-any
+  634:6   warning  React Hook useEffect has a missing dependency: 'updateWidgetPosition'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/config/monitoring.ts
+  75:7  warning  Unexpected console statement  no-console
+  77:7  warning  Unexpected console statement  no-console
+  85:7  warning  Unexpected console statement  no-console
+  87:7  warning  Unexpected console statement  no-console
+  95:7  warning  Unexpected console statement  no-console
+  97:7  warning  Unexpected console statement  no-console
+
+/Users/jasoncarelse/atlas/src/db/index.ts
+    2:15  warning  'Message' is defined but never used              @typescript-eslint/no-unused-vars
+    3:15  warning  'SubscriptionProfile' is defined but never used  @typescript-eslint/no-unused-vars
+  100:31  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  117:20  warning  '_data' is defined but never used                @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/account/components/FeedbackTab.tsx
+  44:9  warning  'Icon' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/ConversationHistoryPanel.tsx
+  26:3  warning  'currentConversationId' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/InputHandler.tsx
+  64:18  warning  'err' is defined but never used        @typescript-eslint/no-unused-vars
+  80:14  warning  'err' is defined but never used        @typescript-eslint/no-unused-vars
+  98:34  warning  'audioBlob' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/InputToolbar.tsx
+  87:62  warning  '_metadata' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/MessageRenderer.tsx
+  11:69  warning  'isLastMessage' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/SubscriptionGate.tsx
+  25:12  warning  Fragments should contain more than one child - otherwise, there’s no need for a Fragment at all  react/jsx-no-useless-fragment
+
+/Users/jasoncarelse/atlas/src/features/chat/components/TierGate.tsx
+  14:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/features/chat/components/VoiceInput.tsx
+  47:18  warning  'err' is defined but never used        @typescript-eslint/no-unused-vars
+  66:14  warning  'err' is defined but never used        @typescript-eslint/no-unused-vars
+  87:34  warning  'audioBlob' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/VoiceInputArea.tsx
+    2:10  warning  'Volume2' is defined but never used                                @typescript-eslint/no-unused-vars
+    2:19  warning  'VolumeX' is defined but never used                                @typescript-eslint/no-unused-vars
+    2:28  warning  'Settings' is defined but never used                               @typescript-eslint/no-unused-vars
+    2:38  warning  'Zap' is defined but never used                                    @typescript-eslint/no-unused-vars
+    4:8   warning  'Tooltip' is defined but never used                                @typescript-eslint/no-unused-vars
+    6:8   warning  'ConversationModeButton' is defined but never used                 @typescript-eslint/no-unused-vars
+   35:3   warning  'isRetrying' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+   39:3   warning  'onShowVoiceSettings' is defined but never used                    @typescript-eslint/no-unused-vars
+   40:3   warning  'isConversationMode' is assigned a value but never used            @typescript-eslint/no-unused-vars
+   43:3   warning  'silenceTimer' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+   48:10  warning  'voiceQuality' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+   72:9   warning  'handleVoiceQualityChange' is assigned a value but never used      @typescript-eslint/no-unused-vars
+   81:9   warning  'handleToggleSettings' is assigned a value but never used          @typescript-eslint/no-unused-vars
+   89:9   warning  'handleToggleVoiceQuality' is assigned a value but never used      @typescript-eslint/no-unused-vars
+   97:9   warning  'handleMuteToggle' is assigned a value but never used              @typescript-eslint/no-unused-vars
+  105:9   warning  'handleToggleConversationMode' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  115:9   warning  'handleConversationModeStart' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  125:9   warning  'handleConversationModeStop' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/VoiceVisualizer.tsx
+  2:32  warning  'VolumeX' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/control-center/MessageList.tsx
+  24:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/features/chat/components/control-center/PreferencesTab.tsx
+  17:3  warning  'playSound' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/components/conversation-history/HistoryList.tsx
+  52:15  warning  Do not define components during render. React will see a new component type on every render and destroy the entire subtree’s DOM nodes and state (https://reactjs.org/docs/reconciliation.html#elements-of-different-types). Instead, move this component definition out of the parent component “HistoryListBase” and pass data as props  react/no-unstable-nested-components
+
+/Users/jasoncarelse/atlas/src/features/chat/hooks/useAIProvider.ts
+   52:6  warning  React Hook useCallback has a missing dependency: 'getModelConfig'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  121:6  warning  React Hook useCallback has a missing dependency: 'getModelConfig'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/features/chat/hooks/useChatLogic.ts
+  31:5   warning  'retryMessage' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  73:32  warning  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/features/chat/hooks/useMessages.ts
+  27:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/features/chat/hooks/useSubscriptionAccess.ts
+  13:11  warning  'SubscriptionProfile' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+  77:6   warning  React Hook useEffect has a missing dependency: 'checkAndResetUsageCounts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  83:11  warning  'currentDay' is assigned a value but never used                                                                              @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/lib/errorHandler.ts
+  150:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/features/chat/lib/queryClient.ts
+  8:20  warning  '_err' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/services/messageService.ts
+  326:26  warning  'messageId' is defined but never used  @typescript-eslint/no-unused-vars
+  352:50  warning  '_metadata' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/storage.ts
+  34:28  warning  '_msg' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/stores/ConversationProvider.tsx
+  3:72  warning  Fragments should contain more than one child - otherwise, there’s no need for a Fragment at all  react/jsx-no-useless-fragment
+
+/Users/jasoncarelse/atlas/src/features/chat/stores/__tests__/conversationStoreV2.test.ts
+  1:10  warning  'describe' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/chat/stores/useConversationStore.ts
+  1:10  warning  'flags' is defined but never used  @typescript-eslint/no-unused-vars
+  4:13  warning  'V2' is defined but never used     @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/features/testing/hooks/useTestRunner.ts
+  94:6  warning  React Hook useCallback has an unnecessary dependency: 'selectedTests'. Either exclude it or remove the dependency array. Outer scope values like 'selectedTests' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/health/health.ts
+  22:12  warning  '_e' is defined but never used  @typescript-eslint/no-unused-vars
+  33:12  warning  '_e' is defined but never used  @typescript-eslint/no-unused-vars
+  50:12  warning  '_e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/hooks/useConversations.ts
+  1:44  warning  'useRef' is defined but never used  @typescript-eslint/no-unused-vars
+  6:16  warning  'uuidv4' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/hooks/useCustomization.ts
+  457:11  warning  '_current' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/hooks/useLocalStorage.ts
+  1:20  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/hooks/useMailer.ts
+   24:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:95  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  306:95  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/hooks/useMobileOptimization.ts
+  45:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/hooks/useNetworkStatus.ts
+   66:14  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  142:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/hooks/useSoundEffects.ts
+  35:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/hooks/useStorageSync.ts
+  99:6  warning  React Hook useEffect has a missing dependency: 'syncOfflineData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/hooks/useSubscription.ts
+  439:6  warning  React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/hooks/useSupabaseAuth.ts
+  42:16  warning  '_e' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+  88:6   warning  React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/hooks/useSupabaseMessages.ts
+  28:57  warning  '_msg' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/hooks/useVoiceRecognition.ts
+   43:33  warning  Unexpected any. Specify a different type                                                                                                                                                          @typescript-eslint/no-explicit-any
+   58:42  warning  Unexpected any. Specify a different type                                                                                                                                                          @typescript-eslint/no-explicit-any
+   59:41  warning  Unexpected any. Specify a different type                                                                                                                                                          @typescript-eslint/no-explicit-any
+   60:41  warning  Unexpected any. Specify a different type                                                                                                                                                          @typescript-eslint/no-explicit-any
+   61:41  warning  Unexpected any. Specify a different type                                                                                                                                                          @typescript-eslint/no-explicit-any
+  205:28  warning  '_event' is defined but never used                                                                                                                                                                @typescript-eslint/no-unused-vars
+  258:29  warning  '_event' is defined but never used                                                                                                                                                                @typescript-eslint/no-unused-vars
+  399:6   warning  React Hook useEffect has missing dependencies: 'error', 'hasPermission', 'isAwaitingSpeechEnd', 'isRetrying', 'retryCount', and 'transcript'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  457:14  warning  '_error' is defined but never used                                                                                                                                                                @typescript-eslint/no-unused-vars
+  471:6   warning  React Hook useCallback has a missing dependency: 'error'. Either include it or remove the dependency array                                                                                        react-hooks/exhaustive-deps
+
+/Users/jasoncarelse/atlas/src/lib/analytics.ts
+   4:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  60:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/lib/errorBoundary.tsx
+   4:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   5:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/lib/errorLogger.ts
+   15:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  204:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  206:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  240:14  warning  'fetchError' is defined but never used    @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/lib/http.ts
+  24:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:12  warning  '_e' is defined but never used            @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/lib/realtime/supabaseRealtime.ts
+  13:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/lib/sentry.ts
+   12:37   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   44:61   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:55   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:27   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:106  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:55   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   72:27   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:55   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:20   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:51   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:55   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:20   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:27   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:55   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:20   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:62   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  150:55   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:27   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  192:22   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  207:73   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:87   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  229:54   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  235:30   warning  '_value' is defined but never used        @typescript-eslint/no-unused-vars
+  244:75   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  247:112  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  253:65   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  260:25   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/monitoring/monitoring.ts
+  11:5  warning  '_sentry' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/monitoring/sentry.web.ts
+  5:26   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  9:105  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/pages/AuthPage.tsx
+  67:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/pages/ChatPage.tsx
+   48:11  warning  'profile' is assigned a value but never used              @typescript-eslint/no-unused-vars
+   54:11  warning  'customization' is assigned a value but never used        @typescript-eslint/no-unused-vars
+   64:5   warning  'deleteConversation' is assigned a value but never used   @typescript-eslint/no-unused-vars
+   65:5   warning  'clearConversations' is assigned a value but never used   @typescript-eslint/no-unused-vars
+   73:66  warning  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   74:28  warning  'setConnectionStatus' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  246:16  warning  'fallbackError' is defined but never used                 @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/services/chatService.ts
+  58:12  warning  '_error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/services/imageService.ts
+  211:34  warning  'reject' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/services/localMessageStore.ts
+   92:33  warning  'conversationId' is defined but never used  @typescript-eslint/no-unused-vars
+  115:15  warning  'conversationId' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/services/mailerLiteAdapter.ts
+  58:12  warning  '_err' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/test/msw/handlers.ts
+  29:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/test/setupTests.ts
+  38:31  warning  'url' is defined but never used   @typescript-eslint/no-unused-vars
+  38:44  warning  'init' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/src/test/testServer.ts
+  13:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/src/utils/logger.ts
+  35:62  warning  'args' is defined but never used  @typescript-eslint/no-unused-vars
+  44:9   warning  Unexpected console statement      no-console
+  52:9   warning  Unexpected console statement      no-console
+  60:9   warning  Unexpected console statement      no-console
+  68:9   warning  Unexpected console statement      no-console
+
+/Users/jasoncarelse/atlas/src/utils/pendingQueue.ts
+  215:13  warning  'subscriptionService' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  225:24  warning  'userId' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  241:24  warning  'userId' is assigned a value but never used               @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/supabase/functions/chat/index.ts
+   11:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   45:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:21  warning  Unexpected console statement              no-console
+  133:27  warning  Unexpected console statement              no-console
+
+/Users/jasoncarelse/atlas/supabase/functions/mailerWebhook/index.ts
+   16:5   warning  Unexpected console statement              no-console
+   25:5   warning  Unexpected console statement              no-console
+   28:5   warning  Unexpected console statement              no-console
+   36:5   warning  Unexpected console statement              no-console
+   47:5   warning  Unexpected console statement              no-console
+   50:5   warning  Unexpected console statement              no-console
+   64:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   66:5   warning  Unexpected console statement              no-console
+   78:7   warning  Unexpected console statement              no-console
+   80:7   warning  Unexpected console statement              no-console
+   83:5   warning  Unexpected console statement              no-console
+   89:3   warning  Unexpected console statement              no-console
+   93:5   warning  Unexpected console statement              no-console
+  109:5   warning  Unexpected console statement              no-console
+  120:7   warning  Unexpected console statement              no-console
+  128:7   warning  Unexpected console statement              no-console
+  136:5   warning  Unexpected console statement              no-console
+  145:7   warning  Unexpected console statement              no-console
+  157:7   warning  Unexpected console statement              no-console
+  170:9   warning  Unexpected console statement              no-console
+  179:7   warning  Unexpected console statement              no-console
+  183:7   warning  Unexpected console statement              no-console
+  196:9   warning  Unexpected console statement              no-console
+  205:7   warning  Unexpected console statement              no-console
+  208:5   warning  Unexpected console statement              no-console
+  218:5   warning  Unexpected console statement              no-console
+
+/Users/jasoncarelse/atlas/supabase/functions/messages/index.ts
+   47:38  warning  'tier' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  111:7   warning  Unexpected console statement               no-console
+  141:5   warning  Unexpected console statement               no-console
+
+/Users/jasoncarelse/atlas/supabase/functions/paddle-webhook/index.ts
+   8:7   warning  'PADDLE_PUBLIC_KEY' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  23:23  warning  '_req' is defined but never used                        @typescript-eslint/no-unused-vars
+  23:38  warning  '_rawBody' is defined but never used                    @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/supabase/functions/send-inactivity-reminder/index.ts
+  47:7  warning  Unexpected console statement  no-console
+  69:7  warning  Unexpected console statement  no-console
+  81:5  warning  Unexpected console statement  no-console
+
+/Users/jasoncarelse/atlas/supabase/functions/send-upgrade-nudge/index.ts
+  48:7  warning  Unexpected console statement  no-console
+  70:7  warning  Unexpected console statement  no-console
+  82:5  warning  Unexpected console statement  no-console
+
+/Users/jasoncarelse/atlas/supabase/functions/send-weekly-summary/index.ts
+   58:7   warning  Unexpected console statement              no-console
+   80:7   warning  Unexpected console statement              no-console
+   92:5   warning  Unexpected console statement              no-console
+  112:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/supabase/functions/send-welcome/index.ts
+   95:7  warning  Unexpected console statement  no-console
+  126:7  warning  Unexpected console statement  no-console
+  143:5  warning  Unexpected console statement  no-console
+
+/Users/jasoncarelse/atlas/tests/e2e/mocks/external-services.ts
+  169:13  warning  'url' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/tests/unit/chatService.edge.test.ts
+  41:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  90:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/jasoncarelse/atlas/tests/unit/mailerLiteWebhook.test.ts
+  221:67  warning  'payload' is defined but never used  @typescript-eslint/no-unused-vars
+  221:76  warning  'sig' is defined but never used      @typescript-eslint/no-unused-vars
+  221:81  warning  'secret' is defined but never used   @typescript-eslint/no-unused-vars
+
+/Users/jasoncarelse/atlas/tests/unit/voiceRecognition.test.ts
+  210:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  211:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  213:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  214:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  221:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  222:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  227:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  229:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  240:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 290 problems (0 errors, 290 warnings)
+
+==== TYPECHECK RESULTS ====
+
+> atlas-backend@1.0.0 typecheck
+> tsc --noEmit
+
+==== TEST RESULTS ====
+
+> atlas-backend@1.0.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /Users/jasoncarelse/atlas
+
+ ❯ node_modules/fast-uri/test/uri-js.test.js (0 test)
+ ❯ node_modules/pg-protocol/dist/inbound-parser.test.js (0 test)
+ ❯ atlas-mobile/node_modules/patch-package/dist/PackageDetails.test.js (10 tests | 10 failed) 15ms
+   × getPackageDetailsFromPatchFilename > parses new-style patch filenames 7ms
+     → Snapshot `getPackageDetailsFromPatchFilename > parses new-style patch filenames 1` mismatched
+   × getPackageDetailsFromPatchFilename > works for ordered patches 1ms
+     → Snapshot `getPackageDetailsFromPatchFilename > works for ordered patches 1` mismatched
+   × getPatchDetailsFromCliString > handles a minimal package name 1ms
+     → Snapshot `getPatchDetailsFromCliString > handles a minimal package name 1` mismatched
+   × getPatchDetailsFromCliString > handles a scoped package name 1ms
+     → Snapshot `getPatchDetailsFromCliString > handles a scoped package name 1` mismatched
+   × getPatchDetailsFromCliString > handles a nested package name 1ms
+     → Snapshot `getPatchDetailsFromCliString > handles a nested package name 1` mismatched
+   × getPatchDetailsFromCliString > handles a nested package name with scopes 1ms
+     → Snapshot `getPatchDetailsFromCliString > handles a nested package name with scopes 1` mismatched
+   × parseNameAndVersion > works for good-looking names 0ms
+     → Snapshot `parseNameAndVersion > works for good-looking names 1` mismatched
+   × parseNameAndVersion > works for scoped package names 0ms
+     → Snapshot `parseNameAndVersion > works for scoped package names 1` mismatched
+   × parseNameAndVersion > works for ordered patches 1ms
+     → Snapshot `parseNameAndVersion > works for ordered patches 1` mismatched
+   × parseNameAndVersion > works for ordered patches with names 0ms
+     → Snapshot `parseNameAndVersion > works for ordered patches with names 1` mismatched
+ ✓ atlas-mobile/node_modules/wonka/src/__tests__/operators.test.ts (188 tests) 32ms
+ ✓ node_modules/wonka/src/__tests__/operators.test.ts (188 tests) 32ms
+ ❯ node_modules/msw/src/core/utils/handleRequest.test.ts (14 tests | 8 failed) 112ms
+   × does not bypass a request with "accept: msw/*" header set to arbitrary value 17ms
+     → expected undefined not to be undefined
+   × returns undefined on a request handler that returns no response 41ms
+     → expected [ [ 'request:start', { …(2) } ], …(2) ] to deeply equal [ [ 'request:start', { …(2) } ], …(1) ]
+   × returns the mocked response for a request with a matching request handler 3ms
+     → expected undefined to deeply equal Response { status: 200, statusText: 'OK', headers: Headers { 'content-length': '20', 'content-type': 'application/json' }, body: ReadableStream { locked: false, state: 'readable', supportsBYOB: true }, bodyUsed: false, ok: true, redirected: false, type: 'default', url: '' }
+   × returns undefined without warning on a passthrough request 7ms
+     → expected [ [ 'request:start', { …(2) } ], …(2) ] to deeply equal [ [ 'request:start', { …(2) } ], …(1) ]
+   × calls the handler with the requestId 2ms
+     → expected "spy" to be called with arguments: [ ObjectContaining{…} ]
+
+Received: 
+
+
+
+Number of calls: 0
+
+   × marks the first matching one-time handler as used 1ms
+     → expected undefined to be 'One-time' // Object.is equality
+   × does not mark non-matching one-time handlers as used 1ms
+     → expected undefined to be 'Another' // Object.is equality
+   × handles parallel requests with one-time handlers 5ms
+     → expected undefined to be 'One-time' // Object.is equality
+ ✓ node_modules/msw/src/core/handlers/GraphQLHandler.test.ts (29 tests) 157ms
+ ❯ node_modules/fast-uri/test/parse.test.js (0 test)
+ ❯ atlas-mobile/node_modules/@react-native-community/netinfo/src/__tests__/fetch.spec.ts (0 test)
+ ❯ node_modules/wonka/src/__tests__/sinks.test.ts (0 test)
+ ✓ node_modules/pg-protocol/src/inbound-parser.test.ts (47 tests) 18ms
+ ❯ node_modules/@mswjs/interceptors/src/interceptors/ClientRequest/utils/normalizeClientRequestArgs.test.ts (22 tests | 6 failed) 16ms
+   × handles [Relative Legacy URL, RequestOptions without path set, callback] input 1ms
+     → url.toJSON is not a function
+   × handles [Relative Legacy URL, RequestOptions with path set, callback] input 0ms
+     → url.toJSON is not a function
+   × handles [Relative Legacy URL, callback] input 0ms
+     → url.toJSON is not a function
+   × handles [Relative Legacy URL] input 0ms
+     → url.toJSON is not a function
+   × handles [RequestOptions, callback] input 2ms
+     → expected undefined to deeply equal 'https://mswjs.io/resource'
+   × handles [PartialRequestOptions, callback] input 0ms
+     → url.toJSON is not a function
+ ❯ atlas-mobile/node_modules/wonka/src/__tests__/sinks.test.ts (0 test)
+ ✓ node_modules/entities/src/decode.spec.ts (48 tests) 9ms
+ ❯ node_modules/wonka/src/__tests__/sources.test.ts (0 test)
+ ❯ atlas-mobile/node_modules/wonka/src/__tests__/sources.test.ts (0 test)
+ ❯ node_modules/pg-protocol/dist/outbound-serializer.test.js (0 test)
+ ❯ node_modules/gensync/test/index.test.js (0 test)
+ ❯ atlas-mobile/node_modules/gensync/test/index.test.js (0 test)
+ ❯ deploy/node_modules/gensync/test/index.test.js (0 test)
+ ✓ tests/integration/database.test.ts (17 tests) 9ms
+ ✓ tests/integration/realtimeSync.test.ts (23 tests) 16ms
+ ✓ tests/integration/apiEndpoints.test.ts (13 tests) 123ms
+ ✓ tests/unit/voiceRecognition.test.ts (17 tests) 16ms
+ ❯ node_modules/goober/src/core/__tests__/parse.test.js (0 test)
+ ❯ atlas-mobile/node_modules/@react-native-community/netinfo/src/__tests__/eventListenerCallbacks.spec.ts (0 test)
+ ❯ node_modules/@bcoe/v8-coverage/src/test/merge.spec.ts (0 test)
+ ✓ node_modules/pg-protocol/src/outbound-serializer.test.ts (26 tests) 6ms
+ ❯ atlas-mobile/node_modules/patch-package/dist/getPackageVersion.test.js (6 tests | 6 failed) 9ms
+   × getPackageVersion > should return version without change when already valid 4ms
+     → jest is not defined
+   × getPackageVersion > should return version with prefix 0ms
+     → jest is not defined
+   × getPackageVersion > should return invalid version without change 0ms
+     → jest is not defined
+   × getPackageVersion > should return invalid version without build metadata 0ms
+     → jest is not defined
+   × getPackageVersion > should return version without build metadata 1ms
+     → jest is not defined
+   × getPackageVersion > should return version with prefix but without build metadata 0ms
+     → jest is not defined
+ ❯ node_modules/goober/src/__tests__/integrations.test.js (0 test)
+ ✓ tests/unit/mailerLiteWebhook.test.ts (13 tests) 8ms
+ ✓ node_modules/msw/src/core/utils/internal/getCallFrame.test.ts (6 tests) 5ms
+ ✓ src/__tests__/chatService.test.ts (13 tests) 73ms
+ ❯ node_modules/msw/src/core/handlers/HttpHandler.test.ts (14 tests | 1 failed) 75ms
+   × run > returns a mocked response given a matching request 27ms
+     → expected 'http://localhost:3000/user/abc-123' to be 'http://localhost/user/abc-123' // Object.is equality
+ ✓ src/components/auth/__tests__/AuthPage.test.tsx (13 tests) 348ms
+ ❯ node_modules/msw/src/core/utils/request/onUnhandledRequest.test.ts (13 tests | 6 failed) 36ms
+   × supports the "warn" request strategy 4ms
+     → expected "warn" to be called with arguments: [ Array(1) ]
+
+Received: 
+
+  1st warn call:
+
+  Array [
+    "[MSW] Warning: intercepted a request without a matching request handler:
+
+-   • GET /api
++   • GET http://localhost/api
+
+  If you still wish to intercept this unhandled request, please create a request handler for it.
+  Read more: https://mswjs.io/docs/http/intercepting-requests",
+  ]
+
+
+Number of calls: 1
+
+   × supports the "warn" request strategy with request body 4ms
+     → expected "warn" to be called with arguments: [ Array(1) ]
+
+Received: 
+
+  1st warn call:
+
+  Array [
+    "[MSW] Warning: intercepted a request without a matching request handler:
+
+-   • POST /api
++   • POST http://localhost/api
+
+    • Request body: {\"variables\":{\"id\":\"abc-123\"},\"query\":\"query UserName($id: String!) { user(id: $id) { name } }\"}
+
+  If you still wish to intercept this unhandled request, please create a request handler for it.
+  Read more: https://mswjs.io/docs/http/intercepting-requests",
+  ]
+
+
+Number of calls: 1
+
+   × supports the "error" request strategy 2ms
+     → expected "error" to be called with arguments: [ Array(1) ]
+
+Received: 
+
+  1st error call:
+
+  Array [
+    "[MSW] Error: intercepted a request without a matching request handler:
+
+-   • GET /api
++   • GET http://localhost/api
+
+  If you still wish to intercept this unhandled request, please create a request handler for it.
+  Read more: https://mswjs.io/docs/http/intercepting-requests",
+  ]
+
+
+Number of calls: 1
+
+   × supports calling default strategies from the custom callback function 4ms
+     → expected "error" to be called with arguments: [ Array(1) ]
+
+Received: 
+
+  1st error call:
+
+  Array [
+    "[MSW] Error: intercepted a request without a matching request handler:
+
+-   • GET /api
++   • GET http://localhost/api
+
+  If you still wish to intercept this unhandled request, please create a request handler for it.
+  Read more: https://mswjs.io/docs/http/intercepting-requests",
+  ]
+
+
+Number of calls: 1
+
+   × does not print any suggestions given no handlers to suggest 1ms
+     → expected "warn" to be called with arguments: [ Array(1) ]
+
+Received: 
+
+  1st warn call:
+
+  Array [
+    "[MSW] Warning: intercepted a request without a matching request handler:
+
+-   • GET /api
++   • GET http://localhost/api
+
+  If you still wish to intercept this unhandled request, please create a request handler for it.
+  Read more: https://mswjs.io/docs/http/intercepting-requests",
+  ]
+
+
+Number of calls: 1
+
+   × prints with a relative URL and search params 1ms
+     → expected "warn" to be called with arguments: [ Array(1) ]
+
+Received: 
+
+  1st warn call:
+
+  Array [
+    "[MSW] Warning: intercepted a request without a matching request handler:
+
+-   • GET /api?foo=boo
++   • GET http://localhost/api?foo=boo
+
+  If you still wish to intercept this unhandled request, please create a request handler for it.
+  Read more: https://mswjs.io/docs/http/intercepting-requests",
+  ]
+
+
+Number of calls: 1
+
+ ✓ node_modules/@mswjs/interceptors/src/BatchInterceptor.test.ts (7 tests) 11ms
+ ✓ src/__tests__/mailerService.test.ts (16 tests) 18ms
+ ✓ tests/unit/subscriptionLogic.test.ts (11 tests) 13ms
+ ❯ node_modules/fast-uri/test/serialize.test.js (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/Interceptor.test.ts (14 tests) 15ms
+ ✓ node_modules/json-schema-traverse/spec/index.spec.js (10 tests) 5ms
+ ✓ deploy/node_modules/json-schema-traverse/spec/index.spec.js (10 tests) 9ms
+ ✓ node_modules/@commitlint/config-validator/node_modules/json-schema-traverse/spec/index.spec.js (10 tests) 11ms
+ ❯ atlas-mobile/node_modules/exponential-backoff/src/backoff.spec.ts (12 tests | 12 failed) 6ms
+   × BackOff > when request function is a promise that resolves > returns the resolved value 1ms
+     → jest is not defined
+   × BackOff > when request function is a promise that resolves > calls the request function only once 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that resolves > when the #backOffOptions.numOfAttempts is 0,
+    it overrides the value and calls the method only once 0ms
+     → jest is not defined
+   × BackOff > when the #backOffOptions.startingDelay is 100ms > does not delay the first attempt 0ms
+     → jest is not defined
+   × BackOff > when the #backOffOptions.startingDelay is 100ms > when #backOffOptions.delayFirstAttempt is 'true',
+    it delays the first attempt 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that is rejected > returns the rejected value 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that is rejected > retries the request as many times as specified in #BackOffOptions.numOfAttempts 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that is rejected > when the #BackOffOptions.retry function is set to always return false,
+    it only calls request function one time 0ms
+     → jest is not defined
+   × BackOff > when the #BackOffOptions.retry function returns a promise, it awaits it 0ms
+     → jest is not defined
+   × BackOff > when calling #backOff with a function that throws an error the first time, and succeeds the second time > returns a successful response 0ms
+     → jest is not defined
+   × BackOff > when calling #backOff with a function that throws an error the first time, and succeeds the second time > calls the request function two times 0ms
+     → jest is not defined
+   × BackOff > when calling #backOff with a function that throws an error the first time, and succeeds the second time > when setting the #BackOffOption.timeMultiple to a value,
+    when setting the #BackOffOption.delayFirstAttempt to true,
+    it applies a delay between the first and the second call 0ms
+     → jest is not defined
+ ❯ node_modules/exponential-backoff/src/backoff.spec.ts (12 tests | 12 failed) 6ms
+   × BackOff > when request function is a promise that resolves > returns the resolved value 1ms
+     → jest is not defined
+   × BackOff > when request function is a promise that resolves > calls the request function only once 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that resolves > when the #backOffOptions.numOfAttempts is 0,
+    it overrides the value and calls the method only once 0ms
+     → jest is not defined
+   × BackOff > when the #backOffOptions.startingDelay is 100ms > does not delay the first attempt 0ms
+     → jest is not defined
+   × BackOff > when the #backOffOptions.startingDelay is 100ms > when #backOffOptions.delayFirstAttempt is 'true',
+    it delays the first attempt 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that is rejected > returns the rejected value 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that is rejected > retries the request as many times as specified in #BackOffOptions.numOfAttempts 0ms
+     → jest is not defined
+   × BackOff > when request function is a promise that is rejected > when the #BackOffOptions.retry function is set to always return false,
+    it only calls request function one time 0ms
+     → jest is not defined
+   × BackOff > when the #BackOffOptions.retry function returns a promise, it awaits it 0ms
+     → jest is not defined
+   × BackOff > when calling #backOff with a function that throws an error the first time, and succeeds the second time > returns a successful response 0ms
+     → jest is not defined
+   × BackOff > when calling #backOff with a function that throws an error the first time, and succeeds the second time > calls the request function two times 0ms
+     → jest is not defined
+   × BackOff > when calling #backOff with a function that throws an error the first time, and succeeds the second time > when setting the #BackOffOption.timeMultiple to a value,
+    when setting the #BackOffOption.delayFirstAttempt to true,
+    it applies a delay between the first and the second call 0ms
+     → jest is not defined
+ ❯ node_modules/goober/src/core/__tests__/astish.test.js (0 test)
+ ❯ node_modules/fast-uri/test/rfc-3986.test.js (0 test)
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/jest-globals/jest-globals-types.test.ts (0 test)
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/vitest/vitest-types.test.ts (0 test)
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/bun/bun-types.test.ts (0 test)
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/jest/jest-types.test.ts (0 test)
+ ✓ tests/unit/chatService.edge.test.ts (11 tests) 11ms
+ ✓ node_modules/msw/src/core/utils/matching/matchRequestUrl.test.ts (14 tests) 15ms
+ ❯ atlas-mobile/node_modules/patch-package/dist/packageIsDevDependency.test.js (3 tests | 1 failed) 5ms
+   × packageIsDevDependency > returns false if package is a transitive dependency of a dev dependency 2ms
+     → expected false to be true // Object.is equality
+ ❯ node_modules/entities/src/index.spec.ts (0 test)
+ ❯ node_modules/goober/src/__tests__/styled.test.js (0 test)
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/bun/bun-custom-expect-types.test.ts (0 test)
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/jest/jest-custom-expect-types.test.ts (0 test)
+ ✓ node_modules/@opentelemetry/sql-common/build/test/sql-common.test.js (6 tests) 4ms
+ ❯ node_modules/fast-uri/test/resolve.test.js (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/utils/getUrlByRequestOptions.test.ts (15 tests) 14ms
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/jest-globals/jest-globals-custom-expect-types.test.ts (0 test)
+ ❯ node_modules/@testing-library/jest-dom/types/__tests__/vitest/vitest-custom-expect-types.test.ts (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/called-in-order.test.js (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/utils/createProxy.test.ts (11 tests) 8ms
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/called-in-order.test.js (0 test)
+ ❯ node_modules/goober/src/core/__tests__/hash.test.js (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/deprecated.test.js (0 test)
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/deprecated.test.js (0 test)
+ ❯ node_modules/fast-uri/test/equal.test.js (0 test)
+ ❯ node_modules/goober/src/__tests__/css.test.js (0 test)
+ ✓ node_modules/entities/src/encode.spec.ts (23 tests) 6ms
+ ✓ node_modules/@mswjs/interceptors/src/utils/hasConfigurableGlobal.test.ts (8 tests) 4ms
+ ✓ node_modules/msw/src/core/utils/internal/parseGraphQLRequest.test.ts (4 tests) 66ms
+ ✓ atlas-mobile/node_modules/patch-package/dist/createIssue.test.js (2 tests) 4ms
+ ✓ atlas-mobile/node_modules/patch-package/dist/resolveRelativeFileDependencies.test.js (1 test) 4ms
+ ✓ node_modules/msw/src/core/utils/internal/parseMultipartData.test.ts (4 tests) 14ms
+ ✓ node_modules/msw/src/core/handlers/WebSocketHandler.test.ts (6 tests) 9ms
+ ✓ node_modules/msw/src/core/bypass.test.ts (5 tests) 41ms
+ ✓ node_modules/msw/src/core/utils/internal/isHandlerKind.test.ts (7 tests) 4ms
+ ❯ node_modules/simple-update-notifier/src/hasNewVersion.spec.ts (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/utils/cloneObject.test.ts (5 tests) 5ms
+ ❯ node_modules/msw/src/browser/setupWorker/start/utils/printStartMessage.test.ts (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/function-name.test.js (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/RequestController.test.ts (6 tests) 8ms
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/function-name.test.js (0 test)
+ ❯ node_modules/goober/src/core/__tests__/compile.test.js (0 test)
+ ✓ node_modules/wonka/src/__tests__/combine.test.ts (10 tests) 9ms
+ ✓ atlas-mobile/node_modules/wonka/src/__tests__/combine.test.ts (10 tests) 13ms
+ ❯ node_modules/@sinonjs/commons/lib/prototypes/index.test.js (0 test)
+ ❯ node_modules/exponential-backoff/src/delay/always/always.delay.spec.ts (4 tests | 4 failed) 4ms
+   × AlwaysDelay > when calling #apply, the delay is equal to the starting delay 1ms
+     → jest is not defined
+   × AlwaysDelay > when the attempt number is 1, when calling #apply,
+  the delay is equal to the starting delay multiplied by the time multiple 0ms
+     → jest is not defined
+   × AlwaysDelay > when the attempt number is 2, when calling #apply,
+  the delay is equal to the starting delay multiplied by the time multiple raised by the attempt number 0ms
+     → jest is not defined
+   × AlwaysDelay > when the #maxDelay is less than #startingDelay, when calling #apply,
+  the delay is equal to the #maxDelay 0ms
+     → jest is not defined
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/prototypes/index.test.js (0 test)
+ ❯ node_modules/@mswjs/interceptors/src/interceptors/ClientRequest/index.test.ts (0 test)
+ ❯ atlas-mobile/node_modules/exponential-backoff/src/delay/always/always.delay.spec.ts (4 tests | 4 failed) 5ms
+   × AlwaysDelay > when calling #apply, the delay is equal to the starting delay 1ms
+     → jest is not defined
+   × AlwaysDelay > when the attempt number is 1, when calling #apply,
+  the delay is equal to the starting delay multiplied by the time multiple 0ms
+     → jest is not defined
+   × AlwaysDelay > when the attempt number is 2, when calling #apply,
+  the delay is equal to the starting delay multiplied by the time multiple raised by the attempt number 0ms
+     → jest is not defined
+   × AlwaysDelay > when the #maxDelay is less than #startingDelay, when calling #apply,
+  the delay is equal to the #maxDelay 0ms
+     → jest is not defined
+ ❯ node_modules/goober/src/core/__tests__/update.test.js (0 test)
+ ✓ node_modules/@opentelemetry/redis-common/build/test/redis-common.test.js (5 tests) 3ms
+ ❯ node_modules/msw/src/core/utils/matching/normalizePath.test.ts (9 tests | 3 failed) 10ms
+   × returns a path pattern string as-is 2ms
+     → expected 'http://localhost:3000/:api/user' to deeply equal 'http://localhost/:api/user'
+   × removes query parameters and hashes from a path pattern string 2ms
+     → expected 'http://localhost:3000/:api/user' to deeply equal 'http://localhost/:api/user'
+   × preserves optional path parameters 1ms
+     → expected 'http://localhost:3000/user/:userId?' to deeply equal 'http://localhost/user/:userId?'
+ ❯ node_modules/msw/src/browser/setupWorker/start/utils/prepareStartHandler.test.ts (0 test)
+ ✓ src/features/chat/stores/__tests__/conversationStoreV2.test.ts (3 tests) 47ms
+ ✓ node_modules/@mswjs/interceptors/src/interceptors/ClientRequest/utils/getIncomingMessageBody.test.ts (4 tests) 9ms
+ ✓ src/lib/__tests__/ai-free-haiku.routing.test.ts (4 tests) 19ms
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/order-by-first-call.test.js (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/order-by-first-call.test.js (0 test)
+ ❯ node_modules/goober/global/src/__tests__/integration.test.js (0 test)
+ ❯ node_modules/pstree.remy/tests/index.test.js (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/class-name.test.js (0 test)
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/class-name.test.js (0 test)
+ ❯ node_modules/msw/src/core/utils/url/getAbsoluteUrl.test.ts (6 tests | 1 failed) 9ms
+   × resolves a relative URL against the current location (default) 3ms
+     → expected 'http://localhost:3000/reviews' to be 'http://localhost/reviews' // Object.is equality
+ ❯ node_modules/goober/src/core/__tests__/get-sheet.test.js (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/every.test.js (0 test)
+ ❯ src/lib/__tests__/http.test.ts (2 tests | 1 failed) 30ms
+   × HttpClient > handles errors properly 7ms
+     → expected undefined to be 'UNKNOWN' // Object.is equality
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/every.test.js (0 test)
+ ✓ node_modules/msw/src/core/utils/internal/isStringEqual.test.ts (6 tests) 3ms
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/type-of.test.js (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/type-of.test.js (0 test)
+ ❯ node_modules/fast-uri/test/util.test.js (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/utils/getCleanUrl.test.ts (4 tests) 7ms
+ ❯ node_modules/msw/src/core/ws/utils/getPublicData.test.ts (6 tests | 2 failed) 7ms
+   × returns a short Blob text as-is 1ms
+     → data.text is not a function
+   × returns a truncated long Blob text 0ms
+     → data.text is not a function
+ ✓ node_modules/exponential-backoff/src/jitter/full/full.jitter.spec.ts (4 tests) 6ms
+ ✓ atlas-mobile/node_modules/exponential-backoff/src/jitter/full/full.jitter.spec.ts (4 tests) 3ms
+ ✓ node_modules/msw/src/browser/utils/pruneGetRequestBody.test.ts (3 tests) 3ms
+ ❯ node_modules/fast-uri/test/uri-js-compatibility.test.js (0 test)
+ ✓ node_modules/msw/src/core/utils/logging/getTimestamp.test.ts (2 tests) 7ms
+ ✓ node_modules/msw/src/browser/utils/deferNetworkRequestsUntil.test.ts (1 test) 1007ms
+   ✓ defers any requests that happen while a given promise is pending 1002ms
+ ✓ src/services/__tests__/mailerAdapter.guard.test.ts (2 tests) 29ms
+ ✓ src/services/__tests__/mailerAutomation.int.test.ts (4 tests) 19ms
+ ✓ src/features/chat/stores/__tests__/store-flag-switch.test.tsx (2 tests) 71ms
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/index.test.js (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/index.test.js (0 test)
+ ✓ src/lib/__tests__/error.test.ts (3 tests) 4ms
+ ✓ node_modules/msw/src/core/utils/url/cleanUrl.test.ts (4 tests) 4ms
+ ✓ src/features/chat/components/__tests__/SimpleInputToolbar.test.tsx (1 test) 91ms
+ ✓ node_modules/msw/src/core/utils/internal/toReadonlyArray.test.ts (3 tests) 5ms
+ ❯ node_modules/simple-update-notifier/src/getDistVersion.spec.ts (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/utils/findPropertySource.test.ts (3 tests) 2ms
+ ❯ node_modules/msw/src/browser/utils/getAbsoluteWorkerUrl.test.ts (2 tests | 1 failed) 5ms
+   × returns absolute worker url relatively to the root 3ms
+     → expected 'http://localhost:3000/worker.js' to be 'http://localhost/worker.js' // Object.is equality
+ ✓ node_modules/msw/src/core/utils/logging/getStatusCodeColor.test.ts (4 tests) 4ms
+ ✓ src/services/__tests__/messagesService.int.test.ts (1 test) 31ms
+ ❯ src/features/chat/hooks/useMessages.test.tsx (0 test)
+ ✓ src/features/chat/components/__tests__/SimpleMessageRenderer.test.tsx (2 tests) 35ms
+ ✓ node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/utils/createEvent.test.ts (2 tests) 5ms
+ ❯ node_modules/fast-uri/test/ajv.test.js (0 test)
+ ✓ node_modules/msw/src/core/utils/logging/serializeRequest.test.ts (1 test) 18ms
+ ❯ node_modules/simple-update-notifier/src/index.spec.ts (0 test)
+ ✓ src/features/chat/hooks/useConversationHistory.test.tsx (1 test) 12ms
+ ✓ node_modules/@mswjs/interceptors/src/utils/bufferUtils.test.ts (3 tests) 3ms
+ ✓ node_modules/msw/src/core/utils/internal/mergeRight.test.ts (2 tests) 6ms
+ ✓ node_modules/msw/src/core/utils/internal/devUtils.test.ts (2 tests) 4ms
+ ✓ node_modules/msw/src/core/utils/internal/tryCatch.test.ts (3 tests) 4ms
+ ✓ node_modules/@mswjs/interceptors/src/utils/isObject.test.ts (3 tests) 4ms
+ ❯ node_modules/@sinonjs/commons/lib/value-to-string.test.js (0 test)
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/value-to-string.test.js (0 test)
+ ❯ node_modules/msw/src/browser/setupWorker/stop/utils/printStopMessage.test.ts (0 test)
+ ❯ node_modules/msw/src/core/utils/request/toPublicUrl.test.ts (2 tests | 2 failed) 8ms
+   × returns an absolute request URL without search params 5ms
+     → expected 'http://localhost/path' to be '/path' // Object.is equality
+   × returns a relative URL given the request to the same origin 1ms
+     → expected 'http://localhost/user' to be '/user' // Object.is equality
+ ✓ node_modules/@mswjs/interceptors/src/utils/getValueBySymbol.test.ts (2 tests) 3ms
+ ❯ node_modules/simple-update-notifier/src/cache.spec.ts (0 test)
+ ✓ node_modules/msw/src/core/utils/internal/isObject.test.ts (2 tests) 3ms
+ ✓ src/features/chat/components/conversation-history/HistoryList.test.tsx (1 test) 63ms
+ ✓ node_modules/msw/src/core/ws/utils/getMessageLength.test.ts (3 tests) 3ms
+ ✓ node_modules/entities/src/escape.spec.ts (2 tests) 3ms
+ ❯ node_modules/goober/global/src/__tests__/global.test.js (0 test)
+ ✓ src/lib/__tests__/offlineQueue.test.ts (1 test) 4ms
+ ✓ src/__tests__/health.test.ts (1 test) 49ms
+ ❯ node_modules/import-in-the-middle/test/typescript/ts-node.test.mts (0 test)
+ ❯ node_modules/goober/src/core/__tests__/to-hash.test.js (0 test)
+ ✓ node_modules/msw/src/core/utils/internal/pipeEvents.test.ts (1 test) 3ms
+ ✓ node_modules/msw/src/core/utils/internal/jsonParse.test.ts (2 tests) 4ms
+ ✓ node_modules/msw/src/core/utils/internal/isIterable.test.ts (2 tests) 5ms
+ ❯ node_modules/@sinonjs/commons/lib/global.test.js (0 test)
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/global.test.js (0 test)
+ ❯ node_modules/@sinonjs/commons/lib/prototypes/copy-prototype-methods.test.js (0 test)
+ ❯ src/__tests__/monitoring.test.ts (0 test)
+ ❯ atlas-mobile/node_modules/@sinonjs/commons/lib/prototypes/copy-prototype-methods.test.js (0 test)
+ ❯ node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/utils/concateArrayBuffer.test.ts (1 test | 1 failed) 4ms
+   × concatenates two Uint8Array buffers 3ms
+     → expected Uint8Array[ 104, 101, 108, 108, …(-100) ] to deeply equal Uint8Array[ 104, 101, 108, 108, …(-100) ]
+ ❯ node_modules/goober/src/__tests__/index.test.js (0 test)
+ ✓ node_modules/msw/src/core/ws/utils/truncateMessage.test.ts (2 tests) 2ms
+ ✓ node_modules/@mswjs/interceptors/src/utils/parseJson.test.ts (2 tests) 3ms
+ ✓ atlas-mobile/node_modules/exponential-backoff/src/jitter/no/no.jitter.spec.ts (1 test) 8ms
+ ✓ node_modules/exponential-backoff/src/jitter/no/no.jitter.spec.ts (1 test) 3ms
+ ✓ node_modules/msw/src/core/http.test.ts (1 test) 2ms
+ ❯ node_modules/@mswjs/interceptors/src/interceptors/ClientRequest/utils/recordRawHeaders.test.ts (23 tests | 2 failed) 15ms
+   × records raw headers added via ".append()" 3ms
+     → expected [ [ 'X-My-Header', '1' ], …(2) ] to deeply equal [ [ 'X-My-Header', '1' ], …(1) ]
+   × isolates headers between different headers instances 0ms
+     → expected 'application/json' to be null
+ ✓ node_modules/msw/src/core/HttpResponse.test.ts (23 tests) 26ms
+ ❯ node_modules/@mswjs/interceptors/src/createRequestId.test.ts (0 test)
+ ✓ node_modules/@mswjs/interceptors/src/interceptors/XMLHttpRequest/utils/getBodyByteLength.test.ts (15 tests) 31ms
+ ❯ node_modules/import-in-the-middle/test/multiple-loaders/multiple-loaders.test.mjs (0 test)
+ ✓ node_modules/msw/src/core/graphql.test.ts (1 test) 5ms
+ ✓ node_modules/@mswjs/interceptors/src/interceptors/Socket/MockSocket.test.ts (17 tests) 217ms
+ ✓ node_modules/@mswjs/interceptors/src/interceptors/WebSocket/utils/events.test.ts (8 tests) 9ms
+ ✓ node_modules/msw/src/core/utils/logging/serializeResponse.test.ts (6 tests) 8ms
+ ✓ node_modules/@mswjs/interceptors/src/interceptors/Socket/utils/normalizeSocketWriteArgs.test.ts (5 tests) 11ms
+ ✓ node_modules/msw/src/core/getResponse.test.ts (7 tests) 19ms
+ ✓ node_modules/msw/src/core/utils/matching/normalizePath.node.test.ts (6 tests) 6ms
+ ✓ node_modules/@mswjs/interceptors/src/interceptors/WebSocket/utils/bindEvent.test.ts (2 tests) 3ms
+ ✓ node_modules/msw/src/core/utils/url/getAbsoluteUrl.node.test.ts (3 tests) 3ms
+ ✓ node_modules/msw/src/core/utils/url/isAbsoluteUrl.test.ts (7 tests) 4ms
+ ❯ node_modules/msw/src/browser/setupWorker/setupWorker.node.test.ts (0 test)
+ ✓ node_modules/msw/src/core/passthrough.test.ts (1 test) 5ms
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+  Snapshots  10 failed
+ Test Files  101 failed | 97 passed (198)
+      Tests  83 failed | 1160 passed (1243)
+     Errors  2 errors
+   Start at  15:27:40
+   Duration  21.42s (transform 2.04s, setup 37.07s, collect 4.41s, tests 3.52s, environment 62.46s, prepare 11.66s)
+

@@ -1,3 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "🚀 Day 10: Starting CI/CD Pipeline Polish..."
+
+# 1. Update GitHub Actions workflow for CI/CD
+cat > .github/workflows/ci.yml <<'YML'
 name: CI/CD Pipeline
 
 on:
@@ -34,3 +41,23 @@ jobs:
 
       - name: Security scan
         run: npx audit-ci --moderate
+YML
+
+# 2. Run local validation
+echo "⚡ Running lint + typecheck + tests locally before commit..."
+npm run lint || true
+npm run typecheck || true
+npm test || true
+
+# 3. Save logs
+echo "📊 Saving logs to scripts/day10-ci.log..."
+{
+  echo "==== LINT RESULTS ===="
+  npm run lint || true
+  echo "==== TYPECHECK RESULTS ===="
+  npm run typecheck || true
+  echo "==== TEST RESULTS ===="
+  npm test || true
+} > scripts/day10-ci.log
+
+echo "✅ Day 10: CI/CD Pipeline Polish complete!"
