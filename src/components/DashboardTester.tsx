@@ -105,7 +105,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
 
       // Safe memory usage check
       try {
-        const memoryInfo = (performance as any).memory;
+        const memoryInfo = (performance as Performance & { memory?: { usedJSHeapSize?: number } }).memory;
         if (memoryInfo && memoryInfo.usedJSHeapSize) {
           metrics.memoryUsage = memoryInfo.usedJSHeapSize;
         }
@@ -334,7 +334,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
       // Test memory usage
       let memoryUsage = 0;
       try {
-        const memoryInfo = (performance as any).memory;
+        const memoryInfo = (performance as Performance & { memory?: { usedJSHeapSize?: number } }).memory;
         if (memoryInfo && memoryInfo.usedJSHeapSize) {
           memoryUsage = memoryInfo.usedJSHeapSize / 1024 / 1024; // MB
           if (memoryUsage < 50) {
