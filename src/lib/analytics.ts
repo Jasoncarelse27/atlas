@@ -187,7 +187,7 @@ export const performanceMonitor = new PerformanceMonitor();
 export const errorMonitor = new ErrorMonitor();
 
 // Initialize all monitoring
-export const _initMonitoring = () => {
+export const __initMonitoring = () => {
   analytics.init();
   performanceMonitor.init();
   errorMonitor.init();

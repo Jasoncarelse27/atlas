@@ -1,25 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  TestTube, 
-  Grid3X3, 
-  Sliders, 
-  Zap,
-  Clock,
-  Globe,
-  Play,
-  RotateCcw,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Eye,
-  Palette,
-  Monitor,
-  Menu
+import {
+    AlertTriangle,
+    CheckCircle,
+    Clock,
+    Eye,
+    Globe,
+    Grid3X3,
+    Menu,
+    Monitor,
+    Palette,
+    Play,
+    RotateCcw,
+    Sliders,
+    TestTube,
+    XCircle,
+    Zap
 } from 'lucide-react';
-import LoadingSpinner from './LoadingSpinner';
-import Tooltip from './Tooltip';
-import ProgressBar from './ProgressBar';
+import React, { useEffect, useRef, useState } from 'react';
 import ImageCard from './ImageCard';
+import LoadingSpinner from './LoadingSpinner';
+import ProgressBar from './ProgressBar';
+import Tooltip from './Tooltip';
 
 import { logger } from '../utils/logger';
 interface DashboardTesterProps {
@@ -109,7 +109,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
         if (memoryInfo && memoryInfo.usedJSHeapSize) {
           metrics.memoryUsage = memoryInfo.usedJSHeapSize;
         }
-      } catch (e) {
+      } catch {
         logger.warn('Memory API not available');
       }
 
@@ -122,7 +122,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
             return count; // Cross-origin stylesheets
           }
         }, 0);
-      } catch (e) {
+      } catch {
         logger.warn('CSS rules counting failed');
       }
 
@@ -222,7 +222,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           if (bgColor === textColor || (!bgColor.includes('rgb') && !textColor.includes('rgb'))) {
             contrastIssues++;
           }
-        } catch (e) {
+        } catch {
           // Skip if getComputedStyle fails
         }
       });
@@ -318,7 +318,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
             return count; // Cross-origin stylesheet
           }
         }, 0);
-      } catch (e) {
+      } catch {
         logger.warn('CSS rules counting failed');
       }
 
@@ -349,7 +349,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           score += 1; // Give partial credit if memory API unavailable
           recommendations.push('Memory API not available for testing');
         }
-      } catch (e) {
+      } catch {
         logger.warn('Memory testing failed');
         score += 1; // Give partial credit
       }
@@ -370,7 +370,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           issues.push('Slow animation performance');
           recommendations.push('Optimize animations for 60fps performance');
         }
-      } catch (e) {
+      } catch {
         logger.warn('Animation test failed');
         score += 1; // Give partial credit
       }
@@ -520,11 +520,11 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
                 mediaQueryCount++;
               }
             });
-          } catch (e) {
+          } catch {
             // Cross-origin stylesheet
           }
         });
-      } catch (e) {
+      } catch {
         logger.warn('Media query counting failed');
       }
 

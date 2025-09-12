@@ -20,7 +20,7 @@ export interface UseTestRunnerProps {
   profile: UserProfile | null;
 }
 
-export const _useTestRunner = ({ user, profile }: UseTestRunnerProps) => {
+export const __useTestRunner = ({ user, profile }: UseTestRunnerProps) => {
   const [testResults, setTestResults] = useState<TestResult[]>([]);
 
   const addTestResult = useCallback((result: TestResult) => {

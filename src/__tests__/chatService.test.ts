@@ -75,7 +75,7 @@ describe('ChatService Integration Tests', () => {
       const chunks: string[] = [];
       
       // Mock streaming response
-      mockChatService.sendMessageStream.mockImplementation(async ({ onChunk }) => {
+      mockChatService.sendMessageStream.mockImplementation(async ({ onChunk: _onChunk }) => {
         const response = 'This is a streaming response.';
         const words = response.split(' ');
         
@@ -125,7 +125,7 @@ describe('ChatService Integration Tests', () => {
     it('should handle empty streaming responses', async () => {
       const chunks: string[] = [];
       
-      mockChatService.sendMessageStream.mockImplementation(async ({ onChunk }) => {
+      mockChatService.sendMessageStream.mockImplementation(async ({ onChunk: _onChunk }) => {
         // Simulate empty response
         return {
           success: true,
