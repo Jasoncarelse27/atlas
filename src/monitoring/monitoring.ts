@@ -12,10 +12,10 @@ let _sentry: unknown;
 try {
   // Optional import; will be undefined if not installed/initialized in this environment
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  sentry = require('@sentry/browser');
+  _sentry = require('@sentry/browser');
 } catch (error) {
   // Sentry not available in this environment
-  logger.debug('Sentry not available:', error);
+  console.debug('Sentry not available:', error);
 }
 
 export function log(level: LogLevel, message: string, data?: Record<string, unknown>) {
@@ -23,18 +23,18 @@ export function log(level: LogLevel, message: string, data?: Record<string, unkn
     // eslint-disable-next-line no-console
     console[level === 'error' ? 'error' : level](`[monitoring] ${message}`, data ?? {});
   }
-  if (!sentry) return;
+  if (!_sentry) return;
   const extra = data ?? {};
   switch (level) {
     case 'error':
-      sentry.captureException(new Error(message), { extra });
+      _sentry.captureException(new Error(message), { extra });
       break;
     default:
-      sentry.captureMessage(message, { level, extra });
+      _sentry.captureMessage(message, { level, extra });
   }
 }
 
 export function breadcrumb(b: Breadcrumb) {
-  if (!sentry) return;
-  sentry.addBreadcrumb({ category: b.category, message: b.message, data: b.data });
+  if (!_sentry) return;
+  _sentry.addBreadcrumb({ category: b.category, message: b.message, data: b.data });
 }

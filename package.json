@@ -54,6 +54,7 @@
     "check:all": "npm ci && npm run check:types && npm run check:lint && npm run build && npm run check:test"
   },
   "dependencies": {
+    "@mswjs/interceptors": "^0.39.6",
     "@sentry/node": "^10.10.0",
     "@sentry/react": "^10.10.0",
     "@supabase/auth-ui-react": "^0.4.7",
@@ -98,6 +99,7 @@
     "@typescript-eslint/parser": "^8.42.0",
     "@vitejs/plugin-react": "^5.0.2",
     "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.1",
     "esbuild": "^0.21.5",
@@ -108,7 +110,8 @@
     "husky": "^9.1.7",
     "jsdom": "^25.0.1",
     "lint-staged": "^16.1.6",
-    "msw": "^2.11.1",
+    "msw": "^2.11.2",
+    "node-websocket": "^0.1.6",
     "nodemon": "^3.1.10",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",

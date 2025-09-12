@@ -26,7 +26,7 @@ export async function http<T = unknown>(url: string, init: HttpInit = {}): Promi
     
     return data as T;
   } catch (_e: unknown) {
-    throw normalizeError(e);
+    throw normalizeError(_e);
   } finally {
     clearTimeout(t);
   }

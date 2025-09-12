@@ -1,0 +1,21 @@
+==============================
+ Atlas Load Test – Day 7 Report
+==============================
+🔗 Endpoint: /messages
+👥 Virtual Users: 10
+🔁 Requests/User: 20
+📦 Total Requests: 200
+
+Threshold Targets:
+✅ Avg Latency < 200ms
+✅ P95 Latency < 500ms
+✅ Error Rate < 1%
+✅ Success Rate > 99%
+
+Results:
+      "http.codes.200": 200,
+      "http.request_rate": 200
+        "http.codes.200": 200,
+        "http.request_rate": 200
+      "http.request_rate": null,
+✅ No errors detected during load test.

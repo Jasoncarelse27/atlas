@@ -8,5 +8,9 @@
       "path": "./tsconfig.node.json"
     }
   ],
-  "compilerOptions": {}
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "skipLibCheck": false
+  }
 }
