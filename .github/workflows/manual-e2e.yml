@@ -78,7 +78,7 @@ jobs:
             let comment = `## 🧪 Manual E2E Test Results\n\n`;
             comment += `- **Test Suite**: ${{ inputs.test_suite }}\n`;
             comment += `- **Environment**: ${{ inputs.environment }}\n`;
-            comment += `- **Status**: ${{ job.status === 'success' ? '✅ Passed' : '❌ Failed' }}\n`;
+            comment += `- **Status**: ${{ job.status == 'success' && '✅ Passed' || '❌ Failed' }}\n`;
             comment += `- **Workflow Run**: [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
             
             github.rest.issues.createComment({

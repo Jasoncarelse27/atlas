@@ -26,16 +26,14 @@ jobs:
       - name: Run Gold Standard Staging Validation
         run: ./scripts/staging-validation.sh
 
-      - name: Run E2E Validation (Non-blocking)
-        run: ./scripts/playwright-validation.sh
-        continue-on-error: true
-
-      - name: Upload Playwright Report
+      - name: Upload Core Validation Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: core-validation-results
+          path: |
+            coverage/
+            test-results/
 
   e2e-validation:
     name: E2E Validation (NON-BLOCKING)
@@ -58,9 +56,8 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      - name: Run Comprehensive E2E Tests
-        run: |
-          npx playwright test --reporter=html
+      - name: Run E2E Validation (Non-blocking)
+        run: ./scripts/playwright-validation.sh
         continue-on-error: true
 
       - name: Upload E2E Report
