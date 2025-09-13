@@ -77,7 +77,7 @@ describe('ChatService Integration Tests', () => {
       const chunks: string[] = [];
       
       // Mock streaming response
-      mockChatService.sendMessageStream.mockImplementation(async ({ onChunk: _onChunk }) => {
+      mockChatService.sendMessageStream.mockImplementation(async ({ onChunk }) => {
         const response = 'This is a streaming response.';
         const words = response.split(' ');
         

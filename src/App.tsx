@@ -16,6 +16,7 @@ import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
 import AuthPage from './pages/AuthPage';
+import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
 import DebugPage from './pages/DebugPage';
 import DebugProfile from './pages/DebugProfile';
@@ -590,6 +591,10 @@ function App() {
             <Route
               path="/dashboard"
               element={user ? <DashboardPage user={user} /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/chat"
+              element={user ? <ChatPage user={user} /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/debug"
