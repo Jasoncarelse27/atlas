@@ -8,8 +8,9 @@ on:
 
 jobs:
   core-validation:
-    name: Core Validation (BLOCKING)
+    name: Staging Validation (COMPREHENSIVE)
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -23,8 +24,28 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Gold Standard Staging Validation
+      - name: Run Comprehensive Staging Validation
         run: ./scripts/staging-validation.sh
+
+  production-validation:
+    name: Production Critical Validation (BLOCKING)
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Production Critical Validation
+        run: ./scripts/production-critical-validation.sh
 
       - name: Upload Core Validation Results
         if: always()
@@ -38,8 +59,8 @@ jobs:
   e2e-validation:
     name: E2E Validation (NON-BLOCKING)
     runs-on: ubuntu-latest
-    needs: core-validation
-    if: always() # Run even if core-validation fails
+    needs: [core-validation, production-validation]
+    if: always() # Run even if validation fails
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

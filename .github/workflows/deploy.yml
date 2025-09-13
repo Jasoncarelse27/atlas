@@ -7,7 +7,7 @@ on:
 
 jobs:
   pre-deployment-validation:
-    name: Pre-Deployment Validation
+    name: Production Critical Validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -22,8 +22,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Gold Standard Staging Validation
-        run: ./scripts/staging-validation.sh
+      - name: Run Production Critical Validation
+        run: ./scripts/production-critical-validation.sh
 
   deploy:
     name: Deploy to Production

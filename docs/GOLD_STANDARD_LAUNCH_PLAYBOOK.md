@@ -14,6 +14,64 @@ This balance ensures safety, speed, and scalability.
 
 ---
 
+## 🎯 Validation Scope: Staging vs Production
+
+### 📝 **Staging Validation (COMPREHENSIVE)**
+**Trigger:** Push to `main` or `develop` branches  
+**Goal:** Maximum coverage, no shortcuts - catch all possible issues before production  
+**Script:** `./scripts/staging-validation.sh`
+
+**Includes:**
+- ✅ **Core Validation (BLOCKING)**
+  - TypeScript compilation (0 errors)
+  - ESLint linting (0 warnings)
+  - Unit tests (100% pass rate)
+  - Production build (successful)
+- ✅ **Extended Validation (STAGING COMPREHENSIVE)**
+  - Playwright E2E cross-browser tests
+  - MailerLite webhook validation (dummy secrets)
+  - Supabase integration tests (mocked)
+  - Authentication flow validation
+  - Performance & bundle analysis
+  - Security audit (moderate level)
+  - Code coverage analysis
+
+### 🚀 **Production Validation (CRITICAL ONLY)**
+**Trigger:** Release tags (`v*`)  
+**Goal:** Fast deploys, only mission-critical blockers  
+**Script:** `./scripts/production-critical-validation.sh`
+
+**Includes:**
+- ✅ **Critical Validation (BLOCKING ONLY)**
+  - TypeScript compilation (0 errors)
+  - ESLint linting (0 warnings)
+  - Unit tests (100% pass rate)
+  - Production build (successful)
+  - Health check validation
+  - Security audit (high level only)
+
+**Excludes:**
+- ❌ Playwright E2E tests (non-blocking)
+- ❌ MailerLite webhook tests
+- ❌ Performance analysis
+- ❌ Code coverage reports
+
+### 🌐 **E2E Validation (ALWAYS NON-BLOCKING)**
+**Trigger:** All workflows  
+**Goal:** Upload results for review, never block production deployment  
+**Script:** `./scripts/playwright-validation.sh`
+
+**Includes:**
+- ✅ Cross-browser compatibility (Chrome, Safari, Firefox)
+- ✅ Mobile responsiveness (iOS & Android)
+- ✅ Chat functionality smoke tests
+- ✅ Authentication flow validation
+- ✅ Artifact uploads for review
+
+**Status:** **NON-BLOCKING** - failures do not prevent deployment
+
+---
+
 ## 📋 1. Pre-Flight Checks
 
 **Before touching production:**
@@ -32,21 +90,31 @@ npm run build
 
 ---
 
-## 🔒 2. Staging Validation (BLOCKING)
+## 🔒 2. Staging Validation (COMPREHENSIVE)
 
-**Run full staging validation (blocks unsafe deployments):**
+**Run comprehensive staging validation (blocks unsafe deployments):**
 
 ```bash
 ./scripts/staging-validation.sh
 ```
 
-**Checks:**
+**Core Validation (BLOCKING):**
 - ✅ TypeScript: 0 errors
 - ✅ ESLint: 0 errors, 0 warnings
 - ✅ Unit Tests: 100% pass
 - ✅ Build: successful
 
-**⚠️ If any fail → STOP and fix before continuing.**
+**Extended Validation (STAGING COMPREHENSIVE):**
+- ✅ Playwright E2E cross-browser tests
+- ✅ MailerLite webhook validation (dummy secrets)
+- ✅ Supabase integration tests (mocked)
+- ✅ Authentication flow validation
+- ✅ Performance & bundle analysis
+- ✅ Security audit (moderate level)
+- ✅ Code coverage analysis
+
+**⚠️ If any CORE validation fails → STOP and fix before continuing.**  
+**⚠️ Extended validation warnings should be reviewed but don't block staging.**
 
 ---
 
@@ -77,22 +145,30 @@ npm run build
 
 ---
 
-## 🏷️ 5. Commit & Tag Release
+## 🏷️ 5. Production Deployment (CRITICAL ONLY)
 
-**Bundle all changes into one clean commit:**
-
-```bash
-git add .
-git commit -m "chore: finalize Atlas AI vX.X.X production baseline 🚀"
-git push origin main
-```
-
-**Then tag the release:**
+**Production deployment runs only critical blocking checks:**
 
 ```bash
-git tag vX.X.X
+git tag vX.X.X -m "Atlas AI vX.X.X Production Release"
 git push origin vX.X.X
 ```
+
+**Production Critical Validation (BLOCKING ONLY):**
+- ✅ TypeScript: 0 errors
+- ✅ ESLint: 0 warnings  
+- ✅ Unit Tests: 100% pass
+- ✅ Production Build: successful
+- ✅ Health Check: endpoints validated
+- ✅ Security Audit: high-level vulnerabilities only
+
+**Excluded from Production (Non-blocking):**
+- ❌ Playwright E2E tests
+- ❌ MailerLite webhook tests
+- ❌ Performance analysis
+- ❌ Code coverage reports
+
+**Goal:** Fast deploys, only mission-critical blockers
 
 ---
 
