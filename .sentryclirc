@@ -1,0 +1,11 @@
+[defaults]
+url=https://sentry.io/
+org=atlas-ai
+project=atlas-ai
+
+[auth]
+token=YOUR_SENTRY_AUTH_TOKEN_HERE
+
+[build]
+upload_source_maps=true
+sourcemap_reference_prefix=~/static/js/
