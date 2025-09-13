@@ -671,7 +671,7 @@ app.get('/api/analytics/summary', authenticateUser, async (req, res) => {
 // Subscription management
 app.post('/api/subscription/upgrade', authenticateUser, async (req, res) => {
   try {
-    const { tier, payment_method } = req.body;
+    const { tier, payment_method: _payment_method } = req.body;
     
     if (!['pro', 'pro_max'].includes(tier)) {
       return res.status(400).json({ error: 'Invalid subscription tier' });
@@ -740,7 +740,7 @@ app.post('/api/test/claude', authenticateUser, async (req, res) => {
 });
 
 // Error handling middleware
-app.use((error, req, res, next) => {
+app.use((error, req, res, _next) => {
   console.error('Server error:', error);
   res.status(500).json({ 
     error: 'Internal server error',

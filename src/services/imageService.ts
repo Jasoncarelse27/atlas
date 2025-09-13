@@ -113,36 +113,18 @@ class ImageService {
    * Get image by ID
    */
   async getImage(imageId: string): Promise<ImageMetadata | null> {
-    try {
-      // This would typically query a database table for image metadata
-      // For now, we'll return null as we don't have a dedicated images table
-      return null;
-    } catch (error) {
-      const chatError = createChatError(error, {
-        operation: 'getImage',
-        imageId,
-        timestamp: new Date().toISOString(),
-      });
-      throw chatError;
-    }
+    // This would typically query a database table for image metadata
+    // For now, we'll return null as we don't have a dedicated images table
+    return null;
   }
 
   /**
    * Get images by conversation ID
    */
   async getImagesByConversation(conversationId: string): Promise<ImageMetadata[]> {
-    try {
-      // This would query a database table for images in a conversation
-      // For now, we'll return an empty array
-      return [];
-    } catch (error) {
-      const chatError = createChatError(error, {
-        operation: 'getImagesByConversation',
-        conversationId,
-        timestamp: new Date().toISOString(),
-      });
-      throw chatError;
-    }
+    // This would query a database table for images in a conversation
+    // For now, we'll return an empty array
+    return [];
   }
 
   /**

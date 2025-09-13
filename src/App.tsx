@@ -147,7 +147,7 @@ function App() {
         if (session?.user) {
           setUser(session.user);
         }
-      } catch (error) {
+      } catch (_error) {
         setAuthError('Failed to load user session');
       } finally {
         setIsAuthLoading(false);

@@ -44,7 +44,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
           const transcription = await transcribeAudio(audioBlob);
           onTranscriptionComplete(transcription);
           if (onSoundPlay) onSoundPlay('success');
-        } catch (err) {
+        } catch (_err) {
           setError('Failed to transcribe audio. Please try again.');
           if (onSoundPlay) onSoundPlay('error');
         } finally {
@@ -63,7 +63,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       
       if (onSoundPlay) onSoundPlay('click');
       
-    } catch (err) {
+    } catch (_err) {
       setError('Microphone access denied. Please allow microphone permissions.');
       if (onSoundPlay) onSoundPlay('error');
     }

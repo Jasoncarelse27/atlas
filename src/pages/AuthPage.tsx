@@ -63,7 +63,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
           setError('Check your email for verification link');
         }
       }
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);

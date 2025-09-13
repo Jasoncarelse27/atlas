@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { UserProfile } from '../types/subscription';
 import { supabase } from '../lib/supabase';
 import { 
   X, 
   User as UserIcon, 
-  Mail, 
+  // Mail, 
   Shield, 
   Trash2, 
   MessageSquare, 
@@ -300,7 +300,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
         onSoundPlay('success');
       }
       setSuccess('Account data exported successfully!');
-    } catch (err) {
+    } catch (_err) {
       if (onSoundPlay) {
         onSoundPlay('error');
       }

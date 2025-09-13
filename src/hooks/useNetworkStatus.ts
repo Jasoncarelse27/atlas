@@ -63,7 +63,7 @@ export function useNetworkStatus(options: NetworkStatusOptions = {}): NetworkSta
       }
 
       return false;
-    } catch (error) {
+    } catch (_error) {
       // Network error or timeout
       return false;
     }

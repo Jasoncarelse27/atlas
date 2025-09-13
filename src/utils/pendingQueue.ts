@@ -155,26 +155,21 @@ export class PendingQueueManager {
     // Import messageService dynamically to avoid circular dependencies
     const { messageService } = await import('../features/chat/services/messageService');
     
-    try {
-      const response = await messageService.sendMessage({
-        content: request.content,
-        conversationId: request.conversationId,
-        userId: request.userId,
-        messageType: request.messageType,
-        metadata: request.metadata,
-      });
+    const response = await messageService.sendMessage({
+      content: request.content,
+      conversationId: request.conversationId,
+      userId: request.userId,
+      messageType: request.messageType,
+      metadata: request.metadata,
+    });
 
-      // Update offline store with response
-      if (response && response.id) {
-        await offlineMessageStore.updateMessage(message.id, {
-          id: response.id,
-          sync_status: 'synced',
-          sync_error: null,
-        });
-      }
-    } catch (error) {
-      // If still failing, keep in queue for next retry
-      throw error;
+    // Update offline store with response
+    if (response && response.id) {
+      await offlineMessageStore.updateMessage(message.id, {
+        id: response.id,
+        sync_status: 'synced',
+        sync_error: null,
+      });
     }
   }
 
@@ -187,14 +182,10 @@ export class PendingQueueManager {
     // Import messageService dynamically to avoid circular dependencies
     const { messageService } = await import('../features/chat/services/messageService');
     
-    try {
-      await messageService.deleteMessage(messageId, conversationId);
-      
-      // Remove from offline store
-      await offlineMessageStore.deleteMessage(messageId);
-    } catch (error) {
-      throw error;
-    }
+    await messageService.deleteMessage(messageId, conversationId);
+    
+    // Remove from offline store
+    await offlineMessageStore.deleteMessage(messageId);
   }
 
   /**
@@ -206,15 +197,11 @@ export class PendingQueueManager {
     // Import conversationService dynamically to avoid circular dependencies
     const { conversationService } = await import('../features/chat/services/conversationService');
     
-    try {
-      const response = await conversationService.createConversation(conversationData);
-      
-      // Update offline store with response
-      // This would require conversation offline store implementation
-      console.log('Conversation created:', response);
-    } catch (error) {
-      throw error;
-    }
+    const response = await conversationService.createConversation(conversationData);
+    
+    // Update offline store with response
+    // This would require conversation offline store implementation
+    console.log('Conversation created:', response);
   }
 
   /**
@@ -226,12 +213,8 @@ export class PendingQueueManager {
     // Import subscriptionService dynamically to avoid circular dependencies
     const { subscriptionService } = await import('../features/chat/services/subscriptionService');
     
-    try {
-      // This would depend on the specific subscription update method
-      console.log('Subscription update:', subscriptionData);
-    } catch (error) {
-      throw error;
-    }
+    // This would depend on the specific subscription update method
+    console.log('Subscription update:', subscriptionData);
   }
 
   /**
@@ -243,15 +226,11 @@ export class PendingQueueManager {
     // Import voiceService dynamically to avoid circular dependencies
     const { voiceService } = await import('../services/voiceService');
     
-    try {
-      const transcript = await voiceService.recordAndTranscribe(audioBlob);
-      
-      // Update the message with transcript
-      // This would require finding the associated message and updating it
-      console.log('Voice transcribed:', transcript);
-    } catch (error) {
-      throw error;
-    }
+    const transcript = await voiceService.recordAndTranscribe(audioBlob);
+    
+    // Update the message with transcript
+    // This would require finding the associated message and updating it
+    console.log('Voice transcribed:', transcript);
   }
 
   /**
@@ -263,15 +242,11 @@ export class PendingQueueManager {
     // Import imageService dynamically to avoid circular dependencies
     const { imageService } = await import('../services/imageService');
     
-    try {
-      const result = await imageService.uploadImage(imageFile);
-      
-      // Update the message with image metadata
-      // This would require finding the associated message and updating it
-      console.log('Image uploaded:', result);
-    } catch (error) {
-      throw error;
-    }
+    const result = await imageService.uploadImage(imageFile);
+    
+    // Update the message with image metadata
+    // This would require finding the associated message and updating it
+    console.log('Image uploaded:', result);
   }
 
   /**

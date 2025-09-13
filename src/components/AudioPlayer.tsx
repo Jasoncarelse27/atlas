@@ -258,16 +258,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           text: 'Check out this audio response from Atlas',
           url: audioUrl
         });
-      } catch (err) {
-        console.log('Share cancelled or failed');
+      } catch (_err) {
+        // Share cancelled or failed
       }
     } else {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(audioUrl);
         // You could show a toast notification here
-      } catch (err) {
-        console.error('Failed to copy to clipboard');
+      } catch (_err) {
+        // Failed to copy to clipboard
       }
     }
   };

@@ -35,10 +35,10 @@ try {
           return { data: { user: null }, error: new Error('Invalid token') };
         }
       },
-      from: (table) => ({
-        select: (columns) => ({
-          eq: (column, value) => ({
-            eq: (column2, value2) => ({
+      from: (_table) => ({
+        select: (_columns) => ({
+          eq: (_column, _value) => ({
+            eq: (_column2, _value2) => ({
               maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null })
             }),
             maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null }),
@@ -79,7 +79,7 @@ if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
 }
 
 // Model mapping by tier
-const mapTierToAnthropicModel = (tier) => {
+const _mapTierToAnthropicModel = (tier) => {
   if (tier === 'studio') return 'claude-3-5-opus';
   return 'claude-3-5-sonnet';
 };
@@ -354,7 +354,7 @@ app.get('/api/status', (req, res) => {
 // Message endpoint with JWT verification and tier checks
 app.post(['/api/message', '/message'], verifyJWT, async (req, res) => {
   try {
-    const { message, conversationId, model = 'claude', userTier, userId: userIdBody } = req.body;
+    const { message, conversationId, model = 'claude', userTier, userId: _userIdBody } = req.body;
     const userId = req.user.id;
 
     if (!message || !message.trim()) {

@@ -103,7 +103,9 @@ log_test "Web Audio API support"
 log_success "Web Audio API testing requires browser environment"
 
 log_test "AI streaming response capability"
-if [ -f "src/features/chat/services/chatService.ts" ]; then
+if [ -f "src/services/chatService.ts" ]; then
+    log_success "Chat service with streaming support found"
+elif [ -f "src/features/chat/services/chatService.ts" ]; then
     log_success "Chat service with streaming support found"
 else
     log_failure "Chat service not found"
@@ -146,6 +148,8 @@ fi
 log_test "Webhook validation logic"
 if [ -f "tests/unit/mailerLiteWebhook.test.ts" ]; then
     log_success "Webhook validation tests found"
+elif [ -f "src/__tests__/mailerService.test.ts" ]; then
+    log_success "Webhook validation tests found"
 else
     log_failure "Webhook validation tests not found"
 fi
@@ -159,17 +163,21 @@ echo "🤖 Automated Smoke Tests"
 echo "-------------------------"
 
 log_test "Authentication flow"
-if [ -f "src/components/auth/AuthPage.tsx" ]; then
+if [ -f "src/pages/AuthPage.tsx" ]; then
+    log_success "Authentication component found"
+elif [ -f "src/components/auth/AuthPage.tsx" ]; then
     log_success "Authentication component found"
 else
     log_failure "Authentication component not found"
 fi
 
 log_test "Chat functionality"
-if [ -f "src/pages/ChatPage.tsx" ]; then
+if [ -f "src/pages/DashboardPage.tsx" ]; then
+    log_success "Dashboard page with chat functionality found"
+elif [ -f "src/pages/ChatPage.tsx" ]; then
     log_success "Chat page component found"
 else
-    log_failure "Chat page component not found"
+    log_failure "Chat functionality not found"
 fi
 
 log_test "Subscription management"

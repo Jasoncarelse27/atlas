@@ -54,7 +54,7 @@ function createWindow() {
   });
 }
 
-function createTray() {
+async function createTray() {
   // Create tray icon (fallback to default if custom icon doesn't exist)
   let iconPath = path.join(__dirname, 'public', 'vite.svg');
   

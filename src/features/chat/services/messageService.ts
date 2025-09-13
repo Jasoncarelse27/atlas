@@ -323,18 +323,9 @@ class MessageService {
    * Get stored message from local storage
    */
   async getStoredMessage(messageId: string): Promise<MediaMessage | null> {
-    try {
-      // This would integrate with the offline store
-      // For now, we'll return null
-      return null;
-    } catch (error) {
-      const chatError = createChatError(error, {
-        operation: 'getStoredMessage',
-        messageId,
-        timestamp: new Date().toISOString(),
-      });
-      throw chatError;
-    }
+    // This would integrate with the offline store
+    // For now, we'll return null
+    return null;
   }
 
   /**

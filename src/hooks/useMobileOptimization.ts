@@ -96,12 +96,8 @@ export const useMobileOptimization = () => {
       return { success: false, error: 'PWA installation not supported' };
     }
 
-    try {
-      // This would typically be handled by a beforeinstallprompt event
-      return { success: true };
-    } catch (error) {
-      return { success: false, error };
-    }
+    // This would typically be handled by a beforeinstallprompt event
+    return { success: true };
   };
 
   // Get camera access
