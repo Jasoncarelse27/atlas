@@ -309,13 +309,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint for Railway
 app.get('/healthz', (req, res) => {
-  res.json({ 
-    status: 'healthy',
-    backend: "ok",
-    timestamp: new Date().toISOString(),
-    port: PORT,
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0'
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: Date.now()
   });
 });
 
