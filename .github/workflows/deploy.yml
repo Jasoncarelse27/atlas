@@ -28,6 +28,6 @@ jobs:
         run: npm i -g @railway/cli
 
       - name: Deploy to Railway (Backend)
-        run: railway up --service=atlas --detach
+        run: railway up --service=atlas-backend --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
