@@ -309,19 +309,27 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint for Railway
 app.get('/healthz', (req, res) => {
+  console.log('🔍 Health check requested at /healthz');
   res.status(200).json({
     status: 'ok',
     uptime: process.uptime(),
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    env: process.env.NODE_ENV || 'development',
+    version: '1.0.23',
+    service: 'atlas-backend'
   });
 });
 
 // Health check at /api (for consistency)
 app.get('/api/healthz', (req, res) => {
+  console.log('🔍 Health check requested at /api/healthz');
   res.status(200).json({
     status: 'ok',
     uptime: process.uptime(),
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    env: process.env.NODE_ENV || 'development',
+    version: '1.0.23',
+    service: 'atlas-backend'
   });
 });
 
