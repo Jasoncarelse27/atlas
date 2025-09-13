@@ -1,0 +1,71 @@
+name: Atlas AI Gold Standard CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  core-validation:
+    name: Core Validation (BLOCKING)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Gold Standard Staging Validation
+        run: ./scripts/staging-validation.sh
+
+      - name: Run E2E Validation (Non-blocking)
+        run: ./scripts/playwright-validation.sh
+        continue-on-error: true
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  e2e-validation:
+    name: E2E Validation (NON-BLOCKING)
+    runs-on: ubuntu-latest
+    needs: core-validation
+    if: always() # Run even if core-validation fails
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Comprehensive E2E Tests
+        run: |
+          npx playwright test --reporter=html
+        continue-on-error: true
+
+      - name: Upload E2E Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ github.sha }}
+          path: playwright-report/
