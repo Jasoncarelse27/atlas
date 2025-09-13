@@ -339,6 +339,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Health endpoints for CI/CD compatibility
+app.get('/api/healthz', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+    version: process.env.npm_package_version || '1.0.0'
+  });
+});
+
+app.get('/api/ping', (req, res) => {
+  res.send('pong');
+});
+
 // User profile and subscription info
 app.get('/api/user/profile', authenticateUser, async (req, res) => {
   try {
