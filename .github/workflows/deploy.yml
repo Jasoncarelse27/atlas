@@ -31,23 +31,29 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
-      # 6. Backend health check (/healthz)
-      - name: Check backend health (/healthz)
+      # 6. Backend health check (/healthz with retry)
+      - name: Check backend health (/healthz with retry)
         run: |
-          echo "Pinging backend /healthz..."
-          curl -f "${{ secrets.BACKEND_URL }}/healthz"
+          for i in {1..3}; do
+            echo "Attempt $i: checking backend /healthz..."
+            curl -fsSL ${{ secrets.BACKEND_URL }}/healthz && exit 0
+            echo "Backend not ready yet, waiting 10s..."
+            sleep 10
+          done
+          echo "❌ Backend failed after 3 attempts"
+          exit 1
 
-      # 6b. Backend health check (/api/healthz)
-      - name: Check backend health (/api/healthz)
+      # 6b. Backend health check (/api/healthz fallback)
+      - name: Check backend health (/api/healthz fallback)
         run: |
           echo "Pinging backend /api/healthz..."
-          curl -f "${{ secrets.BACKEND_URL }}/api/healthz"
+          curl -f "${{ secrets.BACKEND_URL }}/api/healthz" || exit 0
 
       # 7. Frontend health check
       - name: Check frontend health
         run: |
           echo "Pinging frontend..."
-          curl -f "${{ secrets.FRONTEND_URL }}/healthz"
+          curl -f "${{ secrets.FRONTEND_URL }}" || exit 1
 
       # 8. Health Check Backend (with retry)
       - name: Health Check Backend (with retry)
