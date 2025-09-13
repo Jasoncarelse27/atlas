@@ -3,6 +3,33 @@ import { server } from '../test/mocks/server';
 import { http, HttpResponse } from 'msw';
 import { mailerService } from '../services/mailerService';
 
+// Mock environment variables
+vi.mock('import.meta', () => ({
+  env: {
+    VITE_SUPABASE_URL: 'https://mock-supabase-url.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'mock-anon-key',
+    VITE_MAILERLITE_API_KEY: 'mock-mailerlite-key',
+  }
+}));
+
+// Mock Supabase client to avoid requiring real environment variables
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      insert: vi.fn().mockResolvedValue({ 
+        data: { id: 'mock-log-id' }, 
+        error: null 
+      }),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ 
+        data: { tier: 'free', status: 'active' }, 
+        error: null 
+      }),
+    })),
+  })),
+}));
+
 describe('MailerService Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
