@@ -1,3 +1,4 @@
+import React from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';

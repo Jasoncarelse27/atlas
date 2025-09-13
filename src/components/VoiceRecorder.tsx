@@ -1,3 +1,4 @@
+import React from "react";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { voiceService } from '../services/voiceService';

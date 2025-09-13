@@ -1,3 +1,4 @@
+import React from "react";
 import UserProfileDebug from "@/components/debug/UserProfileDebug";
 import type { User } from "@supabase/supabase-js";
 

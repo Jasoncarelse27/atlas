@@ -1,3 +1,4 @@
+import React from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import type { User } from "@supabase/supabase-js";
 

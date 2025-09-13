@@ -1,3 +1,4 @@
+import React from "react";
 import { useCallback, useState } from 'react';
 import type { MediaMessage } from '../features/chat/hooks/useMessages';
 
