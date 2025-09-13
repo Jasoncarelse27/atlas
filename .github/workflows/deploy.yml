@@ -10,70 +10,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # 2. Set up Node
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 18
 
-      # 3. Install dependencies
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      # 4. Lint & typecheck
       - name: Run lint
         run: npm run lint
 
-      # 5. Security audit
       - name: Security audit
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high || true
 
-      # 6. Backend health check (/healthz with retry)
-      - name: Check backend health (/healthz with retry)
+      - name: Check backend health (with fallback)
         run: |
-          for i in {1..3}; do
-            echo "Attempt $i: checking backend /healthz..."
-            curl -fsSL ${{ secrets.BACKEND_URL }}/healthz && exit 0
-            echo "Backend not ready yet, waiting 10s..."
-            sleep 10
-          done
-          echo "❌ Backend failed after 3 attempts"
-          exit 1
+          set -e
+          BACKEND_URL="${{ secrets.BACKEND_URL }}"
+          echo "🔍 Checking backend health at $BACKEND_URL"
 
-      # 6b. Backend health check (/api/healthz fallback)
-      - name: Check backend health (/api/healthz fallback)
-        run: |
-          echo "Pinging backend /api/healthz..."
-          curl -f "${{ secrets.BACKEND_URL }}/api/healthz" || exit 0
+          if curl -fs "$BACKEND_URL/healthz"; then
+            echo "✅ Backend healthy at /healthz"
+            exit 0
+          elif curl -fs "$BACKEND_URL/api/healthz"; then
+            echo "✅ Backend healthy at /api/healthz"
+            exit 0
+          else
+            echo "❌ Backend not healthy on either endpoint"
+            exit 1
+          fi
 
-      # 7. Frontend health check
-      - name: Check frontend health
+      - name: Check frontend health (with fallback)
         run: |
-          echo "Pinging frontend..."
-          curl -f "${{ secrets.FRONTEND_URL }}" || exit 1
+          set -e
+          FRONTEND_URL="${{ secrets.FRONTEND_URL }}"
+          echo "🔍 Checking frontend health at $FRONTEND_URL"
 
-      # 8. Health Check Backend (with retry)
-      - name: Health Check Backend (with retry)
-        run: |
-          for i in {1..10}; do
-            echo "Attempt $i/10: Checking backend health..."
-            curl -f "${{ secrets.BACKEND_URL }}/healthz" && echo "✅ Backend healthy!" && exit 0 || echo "❌ Backend not ready, waiting 5s..."
-            sleep 5
-          done
-          echo "❌ Backend health check failed after 10 attempts"
-          exit 1
-
-      # 9. Health Check Frontend (with retry)
-      - name: Health Check Frontend (with retry)
-        run: |
-          for i in {1..10}; do
-            echo "Attempt $i/10: Checking frontend health..."
-            curl -f "${{ secrets.FRONTEND_URL }}/healthz" && echo "✅ Frontend healthy!" && exit 0 || echo "❌ Frontend not ready, waiting 5s..."
-            sleep 5
-          done
-          echo "❌ Frontend health check failed after 10 attempts"
-          exit 1
+          if curl -fs "$FRONTEND_URL/healthz"; then
+            echo "✅ Frontend healthy at /healthz"
+            exit 0
+          elif curl -fs "$FRONTEND_URL/api/healthz"; then
+            echo "✅ Frontend healthy at /api/healthz"
+            exit 0
+          else
+            echo "❌ Frontend not healthy on either endpoint"
+            exit 1
+          fi

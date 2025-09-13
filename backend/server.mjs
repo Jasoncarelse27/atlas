@@ -10,27 +10,15 @@ const healthPayload = () => ({
 });
 
 // --- Health endpoints ---
-// Primary
-app.get("/healthz", (req, res) => {
-  res.status(200).json(healthPayload());
-});
-
-// Fallback for environments prefixed with /api
-app.get("/api/healthz", (req, res) => {
-  res.status(200).json(healthPayload());
-});
-
-// Optional: simple ping
+app.get("/healthz", (req, res) => res.status(200).json(healthPayload()));
+app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.send("pong"));
 
-// --- Your other routes go here ---
+// --- Other routes ---
 // app.use("/api", yourRouter);
 
-// --- Server listen ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🔍 Health checks ready at:`);
-  console.log(`   • http://localhost:${PORT}/healthz`);
-  console.log(`   • http://localhost:${PORT}/api/healthz`);
+  console.log(`🔍 Health: /healthz & /api/healthz ready`);
 });
