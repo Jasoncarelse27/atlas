@@ -316,6 +316,15 @@ app.get('/healthz', (req, res) => {
   });
 });
 
+// Health check at /api (for consistency)
+app.get('/api/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: Date.now()
+  });
+});
+
 // Test ping endpoint
 app.get('/ping', (req, res) => {
   res.json({ 
