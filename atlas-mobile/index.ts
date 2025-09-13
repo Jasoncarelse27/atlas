@@ -1,4 +1,4 @@
-import { registerRootComponent } from 'expo';
+import { registerRootComponent } from 'https://esm.sh/expo';
 
 import App from './App';
 
