@@ -40,8 +40,8 @@ jobs:
       # 7. Frontend health check
       - name: Check frontend health
         run: |
-          echo "Pinging frontend at ${{ secrets.FRONTEND_URL }}..."
-          curl -fsS "${{ secrets.FRONTEND_URL }}" || exit 1
+          echo "Pinging frontend at ${{ secrets.FRONTEND_URL }}/api/healthz..."
+          curl -fsS "${{ secrets.FRONTEND_URL }}/api/healthz" || exit 1
 
       # 8. Health Check Backend (with retry)
       - name: Health Check Backend
@@ -59,7 +59,7 @@ jobs:
         run: |
           for i in {1..10}; do
             echo "Attempt $i/10: Checking frontend health..."
-            curl -f "${{ secrets.FRONTEND_URL }}" && echo "✅ Frontend healthy!" && exit 0 || echo "❌ Frontend not ready, waiting 5s..."
+            curl -f "${{ secrets.FRONTEND_URL }}/api/healthz" && echo "✅ Frontend healthy!" && exit 0 || echo "❌ Frontend not ready, waiting 5s..."
             sleep 5
           done
           echo "❌ Frontend health check failed after 10 attempts"
