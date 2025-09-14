@@ -106,9 +106,11 @@ jobs:
       - name: Send email alert via Supabase (optional)
         if: env.CICD_ALERT_URL != '' && env.CICD_ALERT_TOKEN != ''
         run: |
-          SUBJECT="Atlas test alert (${{ inputs.environment || 'staging' }})"
-          BODY=$(jq -n --arg subject "$SUBJECT" --argjson slack "$(cat slack.json)" \
-            '{ subject: $subject, markdown: $slack.text }')
+          ENVIRONMENT="${{ inputs.environment || 'staging' }}"
+          MESSAGE="Atlas test alert from GitHub Actions - ${{ inputs.message || 'No custom message' }}"
+          
+          BODY=$(jq -n --arg env "$ENVIRONMENT" --arg message "$MESSAGE" \
+            '{ env: $env, message: $message }')
 
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "$CICD_ALERT_URL" \
