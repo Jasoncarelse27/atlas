@@ -1,0 +1,20 @@
+name: Test CI/CD Alert
+
+on:
+  workflow_dispatch:   # allows manual trigger from GitHub Actions UI
+
+jobs:
+  test-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Test Alert to Supabase Function
+        run: |
+          curl -X POST "${SUPABASE_URL}/functions/v1/cicd-alert" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -d "{
+              \"stage\": \"Manual Test\",
+              \"status\": \"success\",
+              \"details\": \"This is a manual trigger to verify CI/CD email alerts.\",
+              \"signingSecret\": \"${MAILERLITE_SIGNING_SECRET}\"
+            }"
