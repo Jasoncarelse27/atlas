@@ -93,7 +93,7 @@ jobs:
           echo "✅ Slack alert sent"
 
       - name: Send email alert via Supabase (optional)
-        if: ${{ secrets.CICD_ALERT_URL != '' && secrets.CICD_ALERT_TOKEN != '' }}
+        if: ${{ secrets.CICD_ALERT_URL && secrets.CICD_ALERT_TOKEN }}
         env:
           CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
           CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}

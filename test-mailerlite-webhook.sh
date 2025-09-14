@@ -4,8 +4,9 @@ set -euo pipefail
 # MailerLite Webhook Test Script
 # This script tests the MailerLite webhook function with proper signature verification
 
-MAILERLITE_SECRET="wAGDBZzeJK"
-WEBHOOK_URL="https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/mailerWebhook"
+MAILERLITE_SECRET="${MAILERLITE_SECRET:-your_mailerlite_secret}"
+SUPABASE_FUNCTION_URL="${SUPABASE_FUNCTION_URL:-$SUPABASE_URL/functions/v1}"
+WEBHOOK_URL="${SUPABASE_FUNCTION_URL}/mailerWebhook"
 
 echo "🧪 Testing MailerLite Webhook Function"
 echo "======================================"

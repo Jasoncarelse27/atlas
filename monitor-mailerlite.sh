@@ -71,10 +71,12 @@ echo "📧 Test email: $TEST_EMAIL"
 
 # Test subscriber.created
 BODY='{"type":"subscriber.created","data":{"email":"'$TEST_EMAIL'","fields":{"plan":"premium","name":"Monitor Test"}}}'
-SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "wAGDBZzeJK" -binary | base64)
+MAILERLITE_SECRET="${MAILERLITE_SECRET:-your_mailerlite_secret}"
+SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$MAILERLITE_SECRET" -binary | base64)
 
 echo "📤 Sending subscriber.created event..."
-curl -s -w "\n%{http_code}" -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/mailerWebhook" \
+SUPABASE_FUNCTION_URL="${SUPABASE_FUNCTION_URL:-$SUPABASE_URL/functions/v1}"
+curl -s -w "\n%{http_code}" -X POST "${SUPABASE_FUNCTION_URL}/mailerWebhook" \
   -H "Content-Type: application/json" \
   -H "x-mailerlite-signature: $SIGNATURE" \
   -d "$BODY"
