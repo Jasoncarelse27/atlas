@@ -13,11 +13,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Debug Supabase Function URL
-        run: |
-          echo "🔍 Supabase Function URL (from secrets):"
-          echo "${{ secrets.SUPABASE_FUNCTION_URL }}"
-
       - name: Send CI/CD Alert
         env:
           SUPABASE_FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
