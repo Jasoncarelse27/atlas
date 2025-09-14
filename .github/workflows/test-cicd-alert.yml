@@ -1,23 +1,36 @@
 name: Test CI/CD Alert
+
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
   test-alert:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Debug Supabase Function URL
+        run: |
+          echo "🔍 SUPABASE_FUNCTION_URL being used:"
+          echo "${{ secrets.SUPABASE_FUNCTION_URL }}"
+
+      - name: Debug Service Role Key
+        run: |
+          echo "🔍 SUPABASE_SERVICE_ROLE_KEY (first 20 chars):"
+          echo "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" | cut -c1-20
+
       - name: Send CI/CD Alert
         run: |
-          curl -sS --fail \
+          curl -v -sS --fail \
             -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/cicd-alert" \
-            -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -d "{
-              \"stage\": \"Test CI/CD Alert\",
-              \"status\": \"success\",
-              \"details\": \"Triggered by $GITHUB_WORKFLOW on branch $GITHUB_REF, commit $GITHUB_SHA\",
-              \"recipient\": \"admin@otiumcreations.com\",
-              \"signingSecret\": \"${{ secrets.MAILERLITE_SIGNING_SECRET }}\"
-            }"
+            -H "Content-Type: application/json" \
+            -d '{
+              "stage": "Test",
+              "status": "success",
+              "details": "Debugging Supabase Function call"
+            }'
