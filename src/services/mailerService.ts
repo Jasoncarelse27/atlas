@@ -57,6 +57,58 @@ export interface WeeklySummaryData {
 
 export const mailerService = {
   /**
+   * Send email to arbitrary recipient (for CI/CD alerts, etc.)
+   */
+  async sendEmail(options: {
+    to: string;
+    subject: string;
+    html: string;
+    text?: string;
+  }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // Validate email
+      if (!options.to || !options.to.trim()) {
+        return { 
+          success: false, 
+          error: 'Email address is required' 
+        };
+      }
+
+      const response = await mailerLite.post('/campaigns', {
+        subject: options.subject,
+        name: `Atlas Alert - ${new Date().toISOString()}`,
+        type: 'regular',
+        recipients: { 
+          emails: [options.to]
+        },
+        settings: {
+          from: EMAIL_CONFIG.sender.from,
+          reply_to: EMAIL_CONFIG.sender.replyTo,
+          language: 'EN',
+        },
+        content: {
+          html: options.html,
+          text: options.text || options.html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+        },
+      });
+
+      // Log email sent to Supabase
+      await this.logEmailSent('custom_alert', { email: options.to }, response.data.id);
+
+      return { 
+        success: true, 
+        messageId: response.data.id 
+      };
+    } catch (error) {
+      console.error('Failed to send custom email:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  },
+
+  /**
    * Send welcome email to new users
    */
   async sendWelcomeEmail(recipient: EmailRecipient): Promise<{ success: boolean; messageId?: string; error?: string }> {

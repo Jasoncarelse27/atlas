@@ -1,0 +1,85 @@
+name: CI/CD Alerts
+
+on:
+  workflow_run:
+    workflows: ["Deploy Atlas", "CI Tests", "Production Deploy"]
+    types: [completed]
+
+jobs:
+  send-alert:
+    runs-on: ubuntu-latest
+    if: always() # Run regardless of workflow success/failure
+    
+    steps:
+      - name: Determine Alert Status
+        id: alert-status
+        run: |
+          if [ "${{ github.event.workflow_run.conclusion }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.workflow_run.conclusion }}" == "failure" ]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.workflow_run.conclusion }}" == "cancelled" ]; then
+            echo "status=warning" >> $GITHUB_OUTPUT
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+          else
+            echo "status=warning" >> $GITHUB_OUTPUT
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Prepare Alert Details
+        id: alert-details
+        run: |
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          WORKFLOW_URL="${{ github.event.workflow_run.html_url }}"
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          COMMIT_MESSAGE="${{ github.event.workflow_run.head_commit.message }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          DURATION="${{ github.event.workflow_run.run_duration_ms }}"
+          
+          # Format duration
+          DURATION_SECONDS=$((DURATION / 1000))
+          DURATION_MINUTES=$((DURATION_SECONDS / 60))
+          DURATION_REMAINING_SECONDS=$((DURATION_SECONDS % 60))
+          
+          if [ $DURATION_MINUTES -gt 0 ]; then
+            FORMATTED_DURATION="${DURATION_MINUTES}m ${DURATION_REMAINING_SECONDS}s"
+          else
+            FORMATTED_DURATION="${DURATION_REMAINING_SECONDS}s"
+          fi
+          
+          DETAILS="Workflow: $WORKFLOW_NAME
+          Status: ${{ steps.alert-status.outputs.status }}
+          Branch: $BRANCH
+          Commit: $COMMIT_SHA
+          Message: $COMMIT_MESSAGE
+          Duration: $FORMATTED_DURATION
+          URL: $WORKFLOW_URL
+          
+          Triggered by: ${{ github.actor }}
+          Repository: ${{ github.repository }}
+          Event: ${{ github.event_name }}"
+          
+          # Escape newlines for JSON
+          DETAILS_ESCAPED=$(echo "$DETAILS" | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "details=$DETAILS_ESCAPED" >> $GITHUB_OUTPUT
+
+      - name: Send CI/CD Alert
+        run: |
+          curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/cicd-alert" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d '{
+              "stage": "${{ github.event.workflow_run.name }}",
+              "status": "${{ steps.alert-status.outputs.status }}",
+              "details": "${{ steps.alert-details.outputs.details }}",
+              "signingSecret": "${{ secrets.MAILERLITE_SIGNING_SECRET }}"
+            }' \
+            --fail-with-body || echo "⚠️ Failed to send alert email"
+
+      - name: Log Alert Status
+        run: |
+          echo "${{ steps.alert-status.outputs.emoji }} CI/CD Alert sent for ${{ github.event.workflow_run.name }}"
+          echo "Status: ${{ steps.alert-status.outputs.status }}"
+          echo "Workflow URL: ${{ github.event.workflow_run.html_url }}"
