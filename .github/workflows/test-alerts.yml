@@ -22,10 +22,14 @@ jobs:
   check-secrets:
     name: Check required secrets
     runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+      CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
     steps:
       - name: Fail if SLACK_WEBHOOK_URL is missing
         run: |
-          if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
             echo "❌ Missing required secret: SLACK_WEBHOOK_URL"
             exit 1
           fi
@@ -33,7 +37,7 @@ jobs:
 
       - name: Warn if email alert secrets are missing
         run: |
-          if [ -z "${{ secrets.CICD_ALERT_URL }}" ] || [ -z "${{ secrets.CICD_ALERT_TOKEN }}" ]; then
+          if [ -z "$CICD_ALERT_URL" ] || [ -z "$CICD_ALERT_TOKEN" ]; then
             echo "⚠️ Optional email alert secrets not fully set"
           else
             echo "✅ Email alert secrets are set"
@@ -43,6 +47,10 @@ jobs:
     name: Send test alerts
     needs: check-secrets
     runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+      CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -82,9 +90,7 @@ jobs:
           echo "payload_ok=true" >> $GITHUB_OUTPUT
 
       - name: Send Slack alert
-        if: steps.ctx.outputs.payload_ok == 'true'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: steps.ctx.outputs.payload_ok == 'true' && env.SLACK_WEBHOOK_URL != ''
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST -H "Content-type: application/json" \
@@ -98,10 +104,7 @@ jobs:
           echo "✅ Slack alert sent"
 
       - name: Send email alert via Supabase (optional)
-        if: ${{ secrets.CICD_ALERT_URL && secrets.CICD_ALERT_TOKEN }}
-        env:
-          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
-          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
+        if: env.CICD_ALERT_URL != '' && env.CICD_ALERT_TOKEN != ''
         run: |
           SUBJECT="Atlas test alert (${{ inputs.environment || 'staging' }})"
           BODY=$(jq -n --arg subject "$SUBJECT" --argjson slack "$(cat slack.json)" \
