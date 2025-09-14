@@ -24,7 +24,6 @@ jobs:
         run: |
           if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
             echo "❌ Missing required secret: SLACK_WEBHOOK_URL"
-            echo "Add it in GitHub → Settings → Secrets and variables → Actions."
             exit 1
           fi
           echo "✅ SLACK_WEBHOOK_URL is set"
@@ -32,17 +31,17 @@ jobs:
       - name: Warn if email alert secrets are missing
         run: |
           if [ -z "${{ secrets.CICD_ALERT_URL }}" ] || [ -z "${{ secrets.CICD_ALERT_TOKEN }}" ]; then
-            echo "⚠️  Optional email alert secrets not fully set (CICD_ALERT_URL + CICD_ALERT_TOKEN)."
-            echo "Email step will be skipped; Slack test will still run."
+            echo "⚠️ Optional email alert secrets not fully set"
           else
-            echo "✅ Email alert secrets are set (will test email too)"
+            echo "✅ Email alert secrets are set"
+          fi
 
   send-alerts:
     name: Send test alerts
     needs: check-secrets
     runs-on: ubuntu-latest
     steps:
-      - name: Install jq (for safe JSON)
+      - name: Install jq
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
@@ -67,13 +66,13 @@ jobs:
             --arg url "$RUN_URL" \
             --arg text "$TEXT" \
             '{
-               text:
-                 ("🧪 *Atlas test alert* (" + $env + ")\n" +
-                  "• Repo: " + $repo + "\n" +
-                  "• By: " + $actor + " · " + $sha + "\n" +
-                  "• Run: " + $url + "\n" +
-                  "• Note: " + $text)
-             }' > slack.json
+              text:
+                ("🧪 *Atlas test alert* (" + $env + ")\n" +
+                 "• Repo: " + $repo + "\n" +
+                 "• By: " + $actor + " · " + $sha + "\n" +
+                 "• Run: " + $url + "\n" +
+                 "• Note: " + $text)
+            }' > slack.json
           echo "payload_ok=true" >> $GITHUB_OUTPUT
 
       - name: Send Slack alert
@@ -109,7 +108,7 @@ jobs:
             -d "$BODY")
           echo "Email function HTTP status: $STATUS"
           if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
-            echo "⚠️  Email alert failed (non-blocking)."
+            echo "⚠️ Email alert failed (non-blocking)."
           else
             echo "✅ Email alert sent"
           fi
