@@ -4,6 +4,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 serve(async (req) => {
   const { environment = "staging", message = "No message" } = await req.json();
 
+  // Import environment secret
+  const apiKey = Deno.env.get("MAILERSEND_API_TOKEN");
+  if (!apiKey) throw new Error("Missing MAILERSEND_API_TOKEN in Supabase Vault");
+
   // Decide recipient based on environment
   const recipient =
     environment === "production"
@@ -15,7 +19,7 @@ serve(async (req) => {
   const res = await fetch("https://api.mailersend.com/v1/email", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${Deno.env.get("MAILERSEND_API_TOKEN")}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -23,9 +27,13 @@ serve(async (req) => {
         email: "alerts@otiumcreations.com",
         name: "Atlas CI/CD Alerts",
       },
-      to: [{ email: recipient }],
-      subject: `CI/CD Alert (${environment})`,
-      text: `Environment: ${environment}\n\nMessage: ${message}`,
+      to: [
+        {
+          email: recipient
+        }
+      ],
+      subject: `CI/CD Alert [${environment}]`,
+      text: message || `CI/CD alert triggered in ${environment}`,
     }),
   });
 
