@@ -24,6 +24,13 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Test production build
+        run: |
+          npm run build
+          npm run start &
+          sleep 5
+          curl -f http://localhost:3000/api/healthz
+
       - name: Security audit
         run: npm audit --audit-level=high || true
 
@@ -33,11 +40,11 @@ jobs:
           BACKEND_URL="${{ secrets.BACKEND_URL }}"
           echo "🔍 Checking backend health at $BACKEND_URL"
 
-          if curl -fs "$BACKEND_URL/healthz"; then
-            echo "✅ Backend healthy at /healthz"
-            exit 0
-          elif curl -fs "$BACKEND_URL/api/healthz"; then
+          if curl -fs "$BACKEND_URL/api/healthz"; then
             echo "✅ Backend healthy at /api/healthz"
+            exit 0
+          elif curl -fs "$BACKEND_URL/healthz"; then
+            echo "✅ Backend healthy at /healthz"
             exit 0
           else
             echo "❌ Backend not healthy on either endpoint"

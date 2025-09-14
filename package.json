@@ -24,7 +24,7 @@
     "monitoring": "./scripts/monitoring-verification.sh",
     "staging": "./scripts/staging-validation.sh",
     "postinstall": "echo 'Backend dependencies installed successfully'",
-    "health": "curl http://localhost:$PORT/healthz || echo 'Health check failed'"
+    "health": "curl http://localhost:${PORT:-3000}/api/healthz || echo 'Health check failed'"
   },
   "dependencies": {
     "@supabase/auth-ui-react": "^0.4.7",
