@@ -18,6 +18,14 @@ serve(async (req) => {
     const payload = await req.json();
     console.log("🔍 Parsed payload:", JSON.stringify(payload, null, 2));
 
+    // Extract environment and determine recipient
+    const environment = payload.environment || "staging";
+    const recipient = environment === "production" 
+      ? "admin@otiumcreations.com" 
+      : "test-alerts@otiumcreations.com";
+    
+    console.log(`📧 Sending CI/CD alert to ${recipient} in ${environment}`);
+
     // Simulate email sending (MailerLite or custom sendEmail)
     try {
       console.log("📨 Attempting to send email via MailerLite...");
@@ -28,7 +36,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: "admin@otiumcreations.com",
+          email: recipient,
           fields: {
             name: "CI/CD Alert",
           },
@@ -43,7 +51,7 @@ serve(async (req) => {
         throw new Error(`MailerLite error: ${res.status} - ${text}`);
       }
 
-      console.log("✅ Email sent successfully to admin@otiumcreations.com");
+      console.log(`✅ Email sent successfully to ${recipient}`);
     } catch (emailErr) {
       console.error("❌ Email sending failed:", emailErr.message);
     }
