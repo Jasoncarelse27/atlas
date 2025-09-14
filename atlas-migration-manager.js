@@ -4,8 +4,8 @@
 // ============================================
 
 import { execSync } from "child_process";
-import fs from "fs";
 import crypto from "crypto";
+import fs from "fs";
 
 // --- CONFIG ---
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://rbwabemtucdkytvvpzvk.supabase.co";
@@ -159,7 +159,7 @@ echo "======================================"
 # Test email from migration
 TEST_EMAIL="${testEmail}"
 
-echo "📧 Test email: \$TEST_EMAIL"
+echo "📧 Test email: $TEST_EMAIL"
 echo ""
 
 echo "1️⃣ Verifying database schema..."
@@ -197,7 +197,7 @@ echo "5️⃣ Check Webhook Logs:"
 echo "======================"
 echo "Go to: https://supabase.com/dashboard/project/rbwabemtucdkytvvpzvk/functions/mailerWebhook"
 echo "Click on 'Logs' tab"
-echo "Look for structured JSON logs with email: \$TEST_EMAIL"
+echo "Look for structured JSON logs with email: $TEST_EMAIL"
 echo ""
 echo "✅ Verification complete!"
 `;
