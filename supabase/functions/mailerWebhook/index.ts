@@ -1,55 +1,32 @@
-// supabase/functions/mailerWebhook/index.ts
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 
-// --- Load secrets ---
+// Load Supabase secrets
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const mailerLiteSecret = Deno.env.get("MAILERLITE_SECRET")!;
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-// --- Signature Verification ---
-async function verifySignature(req: Request, rawBody: string): Promise<boolean> {
-  const signature = req.headers.get("x-mailerlite-signature");
-  if (!signature) return false;
-
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(mailerLiteSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
-  const expected = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-
-  return signature === expected;
-}
-
 serve(async (req: Request) => {
   try {
+    const signature = req.headers.get("x-mailerlite-signature");
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody || "{}");
 
-    // ✅ Verify signature
-    const valid = await verifySignature(req, rawBody);
-    if (!valid) {
-      console.warn("❌ Invalid MailerLite signature");
-      return new Response("Invalid signature", { status: 401 });
+    if (!signature || !(await verifySignature(rawBody, signature))) {
+      console.warn("❌ Invalid or missing signature");
+      return new Response("Unauthorized", { status: 401 });
     }
 
-    console.log("📩 Verified webhook:", body);
+    const body = JSON.parse(rawBody);
+    console.log("📩 Verified MailerLite Webhook:", body);
 
-    // ✅ Always ACK immediately
+    // ✅ Acknowledge immediately
     const ack = new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
 
-    // Process in background
     queueMicrotask(async () => {
       try {
         switch (body.type) {
@@ -57,27 +34,53 @@ serve(async (req: Request) => {
           case "subscriber.updated":
             await handleSubscriberUpdate(body.data);
             break;
+
           case "subscriber.deleted":
             await handleSubscriberDelete(body.data);
             break;
+
           default:
-            console.log("ℹ️ Ignored event:", body.type);
+            console.log("ℹ️ Ignored webhook type:", body.type);
         }
       } catch (err) {
-        console.error("❌ Processing error:", err);
+        console.error("❌ Error handling webhook:", err);
       }
     });
 
     return ack;
   } catch (error) {
     console.error("❌ Webhook error:", error);
-    return new Response("Webhook error", { status: 200 }); // still ack
+    return new Response("Webhook error", { status: 500 });
   }
 });
+
+// --- Signature Verification ---
+async function verifySignature(body: string, signature: string): Promise<boolean> {
+  try {
+    const key = new TextEncoder().encode(mailerLiteSecret);
+    const msg = new TextEncoder().encode(body);
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      key,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign", "verify"]
+    );
+
+    const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+
+    return await crypto.subtle.verify("HMAC", cryptoKey, signatureBytes, msg);
+  } catch (error) {
+    console.warn("❌ Signature verification error:", error);
+    return false;
+  }
+}
 
 // --- Handlers ---
 async function handleSubscriberUpdate(data: any) {
   if (!data?.email) return;
+
   console.log("🔄 Syncing subscriber:", data.email);
 
   const { error } = await supabase
@@ -88,12 +91,13 @@ async function handleSubscriberUpdate(data: any) {
     })
     .eq("email", data.email);
 
-  if (error) console.error("❌ Update failed:", error);
+  if (error) console.error("❌ Supabase update failed:", error);
   else console.log("✅ Subscriber synced:", data.email);
 }
 
 async function handleSubscriberDelete(data: any) {
   if (!data?.email) return;
+
   console.log("🗑️ Removing subscriber:", data.email);
 
   const { error } = await supabase
@@ -104,6 +108,6 @@ async function handleSubscriberDelete(data: any) {
     })
     .eq("email", data.email);
 
-  if (error) console.error("❌ Downgrade failed:", error);
+  if (error) console.error("❌ Failed to downgrade subscriber:", error);
   else console.log("✅ Subscriber downgraded:", data.email);
 }
