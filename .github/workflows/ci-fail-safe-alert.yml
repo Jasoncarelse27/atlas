@@ -1,0 +1,24 @@
+name: CI/CD Fail-Safe Alert
+on:
+  workflow_run:
+    workflows: ["CI Tests", "Deploy Atlas", "Atlas AI Gold Standard CI/CD"]
+    types: [completed]
+
+jobs:
+  fail-safe-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check outcome
+        if: ${{ github.event.workflow_run.conclusion != 'success' }}
+        run: |
+          curl -sS --fail \
+            -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/cicd-alert" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -d "{
+              \"stage\": \"Fail-Safe Alert\",
+              \"status\": \"failure\",
+              \"details\": \"Workflow ${{ github.event.workflow_run.name }} failed on branch ${{ github.event.workflow_run.head_branch }} (commit ${{ github.event.workflow_run.head_sha }})\",
+              \"recipient\": \"admin@otiumcreations.com\",
+              \"signingSecret\": \"${{ secrets.MAILERLITE_SIGNING_SECRET }}\"
+            }"

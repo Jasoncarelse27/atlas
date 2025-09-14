@@ -1,49 +1,23 @@
 name: Test CI/CD Alert
-
 on:
-  workflow_dispatch:   # Manual trigger
+  workflow_dispatch:
   push:
-    branches:
-      - main           # Auto-trigger on push to main
-  workflow_run:        # Auto-trigger after CI Tests workflow
-    workflows: ["CI Tests"]
-    types:
-      - completed
+    branches: [ "main" ]
 
 jobs:
   test-alert:
     runs-on: ubuntu-latest
     steps:
-      - name: Map Status
-        id: status
-        run: |
-          case "${{ github.event.workflow_run.conclusion }}" in
-            success)
-              echo "status=success" >> $GITHUB_OUTPUT
-              ;;
-            failure)
-              echo "status=failure" >> $GITHUB_OUTPUT
-              ;;
-            cancelled)
-              echo "status=cancelled" >> $GITHUB_OUTPUT
-              ;;
-            *)
-              echo "status=neutral" >> $GITHUB_OUTPUT
-              ;;
-          esac
-
       - name: Send CI/CD Alert
         run: |
-          : "${SUPABASE_FUNCTION_URL:=${{ secrets.SUPABASE_FUNCTION_URL }}}"
-          : "${SRK:=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}}"
-          : "${SIG:=${{ secrets.MAILERLITE_SIGNING_SECRET }}}"
-          curl -sS --fail --retry 3 --retry-delay 2 --connect-timeout 10 \
-            -X POST "${SUPABASE_FUNCTION_URL}/cicd-alert" \
+          curl -sS --fail \
+            -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/cicd-alert" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${SRK}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -d "{
-              \"stage\": \"GitHub Workflow - CI Tests\",
-              \"status\": \"${{ steps.status.outputs.status }}\",
-              \"details\": \"Triggered by CI Tests workflow on branch: $GITHUB_REF, Commit: $GITHUB_SHA\",
-              \"signingSecret\": \"${SIG}\"
+              \"stage\": \"Test CI/CD Alert\",
+              \"status\": \"success\",
+              \"details\": \"Triggered by $GITHUB_WORKFLOW on branch $GITHUB_REF, commit $GITHUB_SHA\",
+              \"recipient\": \"admin@otiumcreations.com\",
+              \"signingSecret\": \"${{ secrets.MAILERLITE_SIGNING_SECRET }}\"
             }"
