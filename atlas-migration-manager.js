@@ -8,9 +8,9 @@ import crypto from "crypto";
 import fs from "fs";
 
 // --- CONFIG ---
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://rbwabemtucdkytvvpzvk.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://your-project.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "your_service_role_key";
-const MAILERLITE_SECRET = process.env.MAILERLITE_SECRET || "wAGDBZzeJK";
+const MAILERLITE_SECRET = process.env.MAILERLITE_SECRET || "your_mailerlite_secret";
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/mailerWebhook`;
 
 console.log("🔧 Configuration:");
@@ -164,7 +164,7 @@ echo ""
 
 echo "1️⃣ Verifying database schema..."
 echo "Run this SQL in Supabase SQL Editor:"
-echo "https://supabase.com/dashboard/project/rbwabemtucdkytvvpzvk/sql"
+echo "https://supabase.com/dashboard/project/your-project/sql"
 echo ""
 cat << 'EOF'
 ${verifySchema}
@@ -195,7 +195,7 @@ echo "Indexes: idx_profiles_subscription_tier, idx_profiles_status should exist"
 echo ""
 echo "5️⃣ Check Webhook Logs:"
 echo "======================"
-echo "Go to: https://supabase.com/dashboard/project/rbwabemtucdkytvvpzvk/functions/mailerWebhook"
+echo "Go to: https://supabase.com/dashboard/project/your-project/functions/mailerWebhook"
 echo "Click on 'Logs' tab"
 echo "Look for structured JSON logs with email: $TEST_EMAIL"
 echo ""
@@ -257,7 +257,7 @@ async function main() {
   console.log("\n📋 NEXT STEPS:");
   console.log("==============");
   console.log("1. Go to Supabase SQL Editor:");
-  console.log("   https://supabase.com/dashboard/project/rbwabemtucdkytvvpzvk/sql");
+  console.log("   https://supabase.com/dashboard/project/your-project/sql");
   console.log("2. Copy and paste the forward migration SQL");
   console.log("3. Run the migration");
   console.log("4. Run the verification script:");

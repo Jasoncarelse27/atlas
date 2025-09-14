@@ -7,15 +7,55 @@ on:
         description: "Target environment (staging/production)"
         required: true
         default: staging
+        type: choice
+        options:
+          - staging
+          - production
       reason:
         description: "Reason for rollback"
         required: true
+        type: string
       confirm:
         description: "Type ROLLBACK to confirm"
         required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  RECIPIENTS: "admin@otiumcreations.com,rima@otiumcreations.com"
 
 jobs:
+  check-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Verify Required Secrets
+        run: |
+          echo "🔍 Checking required secrets..."
+          if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "❌ Missing SLACK_WEBHOOK_URL secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CICD_ALERT_URL }}" ]; then
+            echo "❌ Missing CICD_ALERT_URL secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CICD_ALERT_TOKEN }}" ]; then
+            echo "❌ Missing CICD_ALERT_TOKEN secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_DB_URL }}" ]; then
+            echo "❌ Missing SUPABASE_DB_URL secret"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
   rollback:
+    needs: check-secrets
     if: github.event.inputs.confirm == 'ROLLBACK'
     runs-on: ubuntu-latest
     steps:
@@ -23,15 +63,38 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Rollback Notification (STARTED)
-        run: ./scripts/notify-rollback.sh "${{ github.event.inputs.environment }}" "STARTED: ${{ github.event.inputs.reason }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
+          RECIPIENTS: ${{ env.RECIPIENTS }}
+        run: |
+          ./scripts/notify-rollback.sh "STARTED" "${{ github.event.inputs.environment }}" "${{ github.event.inputs.reason }}"
 
       - name: Run Rollback SQL
-        run: psql $SUPABASE_DB_URL -f supabase/migrations/20250914_rollback_subscription_columns.sql
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "🔄 Executing rollback migration..."
+          psql "${SUPABASE_DB_URL}" -v "ON_ERROR_STOP=1" -f supabase/migrations/20250914_rollback_subscription_columns.sql
+          echo "✅ Rollback SQL executed successfully"
 
       - name: Run Rollback Notification (SUCCEEDED)
         if: success()
-        run: ./scripts/notify-rollback.sh "${{ github.event.inputs.environment }}" "SUCCEEDED: ${{ github.event.inputs.reason }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
+          RECIPIENTS: ${{ env.RECIPIENTS }}
+        run: |
+          ./scripts/notify-rollback.sh "SUCCEEDED" "${{ github.event.inputs.environment }}" "${{ github.event.inputs.reason }}"
 
       - name: Run Rollback Notification (FAILED)
         if: failure()
-        run: ./scripts/notify-rollback.sh "${{ github.event.inputs.environment }}" "FAILED: ${{ github.event.inputs.reason }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
+          RECIPIENTS: ${{ env.RECIPIENTS }}
+        run: |
+          ./scripts/notify-rollback.sh "FAILED" "${{ github.event.inputs.environment }}" "${{ github.event.inputs.reason }}"

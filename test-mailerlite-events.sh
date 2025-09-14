@@ -5,8 +5,8 @@ echo "🧪 Testing MailerLite Webhook Events - Production Verification"
 echo "=============================================================="
 
 # Configuration
-WEBHOOK_URL="https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/mailerWebhook"
-SECRET="wAGDBZzeJK"
+WEBHOOK_URL="${SUPABASE_URL}/functions/v1/mailerWebhook"
+SECRET="${MAILERLITE_SECRET}"
 TEST_EMAIL="test-$(date +%s)@demo.com"
 
 echo "📧 Test Email: $TEST_EMAIL"

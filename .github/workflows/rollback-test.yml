@@ -5,18 +5,78 @@ on:
     - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  RECIPIENTS: "admin@otiumcreations.com,rima@otiumcreations.com"
+
 jobs:
+  check-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Verify Required Secrets
+        run: |
+          echo "🔍 Checking required secrets for rollback test..."
+          if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "❌ Missing SLACK_WEBHOOK_URL secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CICD_ALERT_URL }}" ]; then
+            echo "❌ Missing CICD_ALERT_URL secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CICD_ALERT_TOKEN }}" ]; then
+            echo "❌ Missing CICD_ALERT_TOKEN secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_DB_URL }}" ]; then
+            echo "❌ Missing SUPABASE_DB_URL secret"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
   rollback-test:
+    needs: check-secrets
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Run Rollback Notification (TEST)
-        run: ./scripts/notify-rollback.sh "STAGING" "Automated rollback test"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
+          RECIPIENTS: ${{ env.RECIPIENTS }}
+        run: |
+          ./scripts/notify-rollback.sh "STARTED" "STAGING" "Automated rollback test"
 
       - name: Dry Run Rollback SQL
-        run: psql $SUPABASE_DB_URL -f supabase/migrations/20250914_rollback_subscription_columns.sql --set=ON_ERROR_STOP=off
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "🧪 Running dry-run rollback test..."
+          psql "${SUPABASE_DB_URL}" -f supabase/migrations/20250914_rollback_subscription_columns.sql --set=ON_ERROR_STOP=off
+          echo "✅ Dry run completed"
 
       - name: Confirm Audit Log
-        run: echo "SELECT * FROM migration_log ORDER BY executed_at DESC LIMIT 5;" | psql $SUPABASE_DB_URL
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "📊 Checking audit log..."
+          echo "SELECT * FROM migration_log ORDER BY executed_at DESC LIMIT 5;" | psql "${SUPABASE_DB_URL}"
+          echo "✅ Audit log check completed"
+
+      - name: Run Rollback Notification (SUCCEEDED)
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
+          RECIPIENTS: ${{ env.RECIPIENTS }}
+        run: |
+          ./scripts/notify-rollback.sh "SUCCEEDED" "STAGING" "Automated rollback test completed"

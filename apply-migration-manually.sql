@@ -1,5 +1,5 @@
 -- Manual Migration: Add MailerLite webhook subscription columns to profiles table
--- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/rbwabemtucdkytvvpzvk/sql
+-- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/your-project/sql
 -- Date: 2025-09-14
 
 -- Add subscription-related columns to profiles table

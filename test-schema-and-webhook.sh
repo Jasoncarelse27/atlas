@@ -12,10 +12,10 @@ echo ""
 # 1. Test webhook with new schema
 echo "1️⃣ Testing webhook with new schema..."
 BODY='{"type":"subscriber.created","data":{"email":"'$TEST_EMAIL'","fields":{"plan":"premium","name":"Schema Test"}}}'
-SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "wAGDBZzeJK" -binary | base64)
+SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "${MAILERLITE_SECRET}" -binary | base64)
 
 echo "📤 Sending subscriber.created event..."
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/mailerWebhook" \
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SUPABASE_URL}/functions/v1/mailerWebhook" \
   -H "Content-Type: application/json" \
   -H "x-mailerlite-signature: $SIGNATURE" \
   -d "$BODY")
@@ -34,10 +34,10 @@ echo ""
 # 2. Test subscriber.bounced event
 echo "2️⃣ Testing subscriber.bounced event..."
 BODY2='{"type":"subscriber.bounced","data":{"email":"'$TEST_EMAIL'","reason":"mailbox_full","bounce_type":"hard"}}'
-SIGNATURE2=$(echo -n "$BODY2" | openssl dgst -sha256 -hmac "wAGDBZzeJK" -binary | base64)
+SIGNATURE2=$(echo -n "$BODY2" | openssl dgst -sha256 -hmac "${MAILERLITE_SECRET}" -binary | base64)
 
 echo "📤 Sending subscriber.bounced event..."
-RESPONSE2=$(curl -s -w "\n%{http_code}" -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/mailerWebhook" \
+RESPONSE2=$(curl -s -w "\n%{http_code}" -X POST "${SUPABASE_URL}/functions/v1/mailerWebhook" \
   -H "Content-Type: application/json" \
   -H "x-mailerlite-signature: $SIGNATURE2" \
   -d "$BODY2")
@@ -103,7 +103,7 @@ echo "📋 NEXT STEPS:"
 echo "=============="
 echo ""
 echo "1️⃣ APPLY MIGRATION:"
-echo "   • Go to: https://supabase.com/dashboard/project/rbwabemtucdkytvvpzvk/sql"
+echo "   • Go to: https://supabase.com/dashboard/project/your-project/sql"
 echo "   • Copy and paste contents of: apply-migration-manually.sql"
 echo "   • Run the migration to add subscription columns"
 echo ""
@@ -112,7 +112,7 @@ echo "   • Run the verification query in: verify-schema-test.sql"
 echo "   • Confirm columns exist: subscription_tier, status, bounce_reason"
 echo ""
 echo "3️⃣ CHECK WEBHOOK LOGS:"
-echo "   • Go to: https://supabase.com/dashboard/project/rbwabemtucdkytvvpzvk/functions"
+echo "   • Go to: https://supabase.com/dashboard/project/your-project/functions"
 echo "   • Click on 'mailerWebhook' function → 'Logs' tab"
 echo "   • Look for structured JSON logs with test email: $TEST_EMAIL"
 echo ""

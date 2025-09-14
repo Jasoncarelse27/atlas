@@ -50,7 +50,7 @@ Set these secrets in your GitHub repository settings:
 
 ### 2. CICD_ALERT_URL
 - **Purpose**: Your Supabase Edge Function URL for email alerts
-- **Format**: `https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/cicd-alert`
+- **Format**: `https://your-project.supabase.co/functions/v1/cicd-alert`
 - **Note**: This should match your existing cicd-alert function URL
 
 ### 3. CICD_ALERT_TOKEN
@@ -58,11 +58,10 @@ Set these secrets in your GitHub repository settings:
 - **Format**: Your Supabase Service Role Key or dedicated secret
 - **Note**: This should match your existing cicd-alert authentication
 
-### 4. SUPABASE_DB_URL (Optional)
+### 4. SUPABASE_DB_URL
 - **Purpose**: Direct PostgreSQL connection string for automatic SQL execution
 - **Format**: `postgres://user:password@host:port/database`
-- **Note**: Only needed if you want the workflow to run SQL automatically
-- **Alternative**: Use Supabase CLI with linked project
+- **Note**: Required for automatic rollback execution
 
 ## 🚀 How to Use
 
@@ -113,10 +112,10 @@ Default recipients (configurable via `RECIPIENTS` env var):
 ### Test the Notification Script
 ```bash
 # Test with mock data
-export GITHUB_REPOSITORY="Jasoncarelse27/atlas"
+export GITHUB_REPOSITORY="your-org/your-repo"
 export GITHUB_RUN_ID="12345"
 export GITHUB_SHA="abc123def456"
-export GITHUB_ACTOR="jasoncarelse"
+export GITHUB_ACTOR="your-username"
 
 # Test different statuses
 ./scripts/notify-rollback.sh "STARTED" "production" "Test rollback"
