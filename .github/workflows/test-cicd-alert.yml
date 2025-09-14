@@ -19,9 +19,13 @@ jobs:
           echo "${{ secrets.SUPABASE_FUNCTION_URL }}"
 
       - name: Send CI/CD Alert
+        env:
+          SUPABASE_FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           curl -v -sS --fail \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -X POST \
+            "$SUPABASE_FUNCTION_URL/cicd-alert" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"stage":"Debug Test","status":"success","details":"Verifying Supabase URL"}' \
-            "${{ secrets.SUPABASE_FUNCTION_URL }}/cicd-alert"
+            -d '{"message": "CI/CD alert test triggered from GitHub Actions"}'
