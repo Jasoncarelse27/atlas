@@ -4,75 +4,34 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Target environment"
-        type: choice
+        description: "Target environment (staging/production)"
         required: true
-        options: [staging, production]
-        default: production
-      confirm:
-        description: 'Type "ROLLBACK" to confirm'
-        required: true
-        type: string
+        default: staging
       reason:
-        description: "Why are we rolling back?"
-        required: false
-        type: string
-        default: "Manual rollback triggered"
-
-permissions:
-  contents: read
-
-env:
-  # Recipients used by cicd-alert function
-  RECIPIENTS: "admin@otiumcreations.com,rima@otiumcreations.com"
+        description: "Reason for rollback"
+        required: true
+      confirm:
+        description: "Type ROLLBACK to confirm"
+        required: true
 
 jobs:
   rollback:
-    if: ${{ github.event.inputs.confirm == 'ROLLBACK' }}
+    if: github.event.inputs.confirm == 'ROLLBACK'
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Notify STARTED (Slack + Email)
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
-          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
-          RECIPIENTS: ${{ env.RECIPIENTS }}
-        run: |
-          scripts/notify-rollback.sh "STARTED" "${{ github.event.inputs.environment }}" "${{ github.event.inputs.reason }}"
+      - name: Run Rollback Notification (STARTED)
+        run: ./scripts/notify-rollback.sh "${{ github.event.inputs.environment }}" "STARTED: ${{ github.event.inputs.reason }}"
 
-      # === Run the actual rollback here ===
-      # Option A: apply SQL rollback file with psql/supabase cli
-      # Ensure you have secrets for DB connectivity or use Supabase CLI.
-      - name: Run rollback SQL
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }} # e.g., postgres://user:pass@host:port/db
-        run: |
-          set -euo pipefail
-          echo "Applying rollback migration..."
-          # Example assumes rollback file lives here; adjust if different:
-          psql "${SUPABASE_DB_URL}" -v "ON_ERROR_STOP=1" -f supabase/migrations/20250914_rollback_subscription_columns.sql
-          echo "Rollback SQL applied."
+      - name: Run Rollback SQL
+        run: psql $SUPABASE_DB_URL -f supabase/migrations/20250914_rollback_subscription_columns.sql
 
-      - name: Notify SUCCEEDED (Slack + Email)
-        if: ${{ success() }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
-          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
-          RECIPIENTS: ${{ env.RECIPIENTS }}
-        run: |
-          scripts/notify-rollback.sh "SUCCEEDED" "${{ github.event.inputs.environment }}" "${{ github.event.inputs.reason }}"
+      - name: Run Rollback Notification (SUCCEEDED)
+        if: success()
+        run: ./scripts/notify-rollback.sh "${{ github.event.inputs.environment }}" "SUCCEEDED: ${{ github.event.inputs.reason }}"
 
-      - name: Notify FAILED (Slack + Email)
-        if: ${{ failure() }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
-          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
-          RECIPIENTS: ${{ env.RECIPIENTS }}
-        run: |
-          scripts/notify-rollback.sh "FAILED" "${{ github.event.inputs.environment }}" "${{ github.event.inputs.reason }}"
+      - name: Run Rollback Notification (FAILED)
+        if: failure()
+        run: ./scripts/notify-rollback.sh "${{ github.event.inputs.environment }}" "FAILED: ${{ github.event.inputs.reason }}"

@@ -1,0 +1,22 @@
+name: Rollback Test (Staging)
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  rollback-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Rollback Notification (TEST)
+        run: ./scripts/notify-rollback.sh "STAGING" "Automated rollback test"
+
+      - name: Dry Run Rollback SQL
+        run: psql $SUPABASE_DB_URL -f supabase/migrations/20250914_rollback_subscription_columns.sql --set=ON_ERROR_STOP=off
+
+      - name: Confirm Audit Log
+        run: echo "SELECT * FROM migration_log ORDER BY executed_at DESC LIMIT 5;" | psql $SUPABASE_DB_URL
