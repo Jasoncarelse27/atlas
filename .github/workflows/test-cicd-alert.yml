@@ -34,11 +34,16 @@ jobs:
 
       - name: Send CI/CD Alert
         run: |
-          curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/cicd-alert" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          : "${SUPABASE_FUNCTION_URL:=${{ secrets.SUPABASE_FUNCTION_URL }}}"
+          : "${SRK:=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}}"
+          : "${SIG:=${{ secrets.MAILERLITE_SIGNING_SECRET }}}"
+          curl -sS --fail --retry 3 --retry-delay 2 --connect-timeout 10 \
+            -X POST "${SUPABASE_FUNCTION_URL}/cicd-alert" \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${SRK}" \
             -d "{
               \"stage\": \"GitHub Workflow - CI Tests\",
               \"status\": \"${{ steps.status.outputs.status }}\",
-              \"details\": \"Triggered by CI Tests workflow on branch: $GITHUB_REF, Commit: $GITHUB_SHA\"
+              \"details\": \"Triggered by CI Tests workflow on branch: $GITHUB_REF, Commit: $GITHUB_SHA\",
+              \"signingSecret\": \"${SIG}\"
             }"

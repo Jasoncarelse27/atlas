@@ -67,14 +67,18 @@ jobs:
 
       - name: Send CI/CD Alert
         run: |
-          curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/cicd-alert" \
+          : "${SUPABASE_FUNCTION_URL:=${{ secrets.SUPABASE_FUNCTION_URL }}}"
+          : "${SRK:=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}}"
+          : "${SIG:=${{ secrets.MAILERLITE_SIGNING_SECRET }}}"
+          curl -sS --fail --retry 3 --retry-delay 2 --connect-timeout 10 \
+            -X POST "${SUPABASE_FUNCTION_URL}/cicd-alert" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Authorization: Bearer ${SRK}" \
             -d '{
               "stage": "${{ github.event.workflow_run.name }}",
               "status": "${{ steps.alert-status.outputs.status }}",
               "details": "${{ steps.alert-details.outputs.details }}",
-              "signingSecret": "${{ secrets.MAILERLITE_SIGNING_SECRET }}"
+              "signingSecret": "${SIG}"
             }' \
             --fail-with-body || echo "⚠️ Failed to send alert email"
 
