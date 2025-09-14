@@ -109,7 +109,48 @@ Default recipients (configurable via `RECIPIENTS` env var):
 
 ## 🔍 Testing
 
-### Test the Notification Script
+### Test Alerts Workflow (Recommended)
+The safest way to test your alert system is using the dedicated test workflow:
+
+1. **Go to GitHub Actions**:
+   - Navigate to your repository
+   - Click "Actions" tab
+   - Find "Test Alerts (Slack + Email)" workflow
+
+2. **Run the Test**:
+   - Click "Run workflow"
+   - Select environment (staging/production)
+   - Optionally add a custom message
+   - Click "Run workflow"
+
+3. **Expected Results**:
+   - **Slack**: You'll receive a test message in your #alerts channel
+   - **Email**: If configured, you'll receive a test email
+   - **Logs**: Check the workflow logs for success/failure status
+
+### Example Test Messages
+
+**Slack Message:**
+```
+🧪 Atlas test alert (staging)
+• Repo: your-org/your-repo
+• By: your-username · abc1234
+• Run: https://github.com/your-org/your-repo/actions/runs/123456
+• Note: Atlas test alert from GitHub Actions
+```
+
+**Email Message:**
+```
+Subject: Atlas test alert (staging)
+
+🧪 Atlas test alert (staging)
+• Repo: your-org/your-repo
+• By: your-username · abc1234
+• Run: https://github.com/your-org/your-repo/actions/runs/123456
+• Note: Atlas test alert from GitHub Actions
+```
+
+### Test the Notification Script (Local)
 ```bash
 # Test with mock data
 export GITHUB_REPOSITORY="your-org/your-repo"
@@ -123,7 +164,7 @@ export GITHUB_ACTOR="your-username"
 ./scripts/notify-rollback.sh "FAILED" "production" "Test error"
 ```
 
-### Test the Workflow
+### Test the Rollback Workflow
 1. Set up all required secrets
 2. Trigger the manual rollback workflow
 3. Use a test environment first
@@ -195,22 +236,35 @@ Create additional rollback migration files:
 
 ### Common Issues
 
-1. **Slack notifications not working**:
-   - Check SLACK_WEBHOOK_URL secret
+1. **Missing SLACK_WEBHOOK_URL secret**:
+   - Error: "❌ Missing required secret: SLACK_WEBHOOK_URL"
+   - Solution: Go to GitHub → Settings → Secrets and variables → Actions
+   - Add SLACK_WEBHOOK_URL with your Slack webhook URL
+   - Format: `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`
+
+2. **Missing email alert secrets**:
+   - Warning: "⚠️ Optional email alert secrets not fully set"
+   - Solution: Add CICD_ALERT_URL and CICD_ALERT_TOKEN secrets
+   - Email alerts are optional - Slack will still work without them
+
+3. **Slack notifications not working**:
+   - Check SLACK_WEBHOOK_URL secret is correct
    - Verify webhook is active in Slack
    - Check Slack app permissions
+   - Test with the "Test Alerts" workflow first
 
-2. **Email notifications not working**:
+4. **Email notifications not working**:
    - Check CICD_ALERT_URL and CICD_ALERT_TOKEN secrets
    - Verify cicd-alert function is deployed
    - Check Supabase Edge Function logs
+   - Email alerts are optional - system works without them
 
-3. **SQL rollback failing**:
+5. **SQL rollback failing**:
    - Check SUPABASE_DB_URL secret format
    - Verify database connectivity
    - Check rollback SQL file exists
 
-4. **Workflow not triggering**:
+6. **Workflow not triggering**:
    - Ensure you typed "ROLLBACK" exactly
    - Check workflow permissions
    - Verify secrets are set

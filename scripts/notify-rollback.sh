@@ -30,24 +30,30 @@ PY
 
 # --- Slack notification ---
 if [[ -n "${SLACK_WEBHOOK_URL}" ]]; then
-  curl -sS -X POST "$SLACK_WEBHOOK_URL" \
+  STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SLACK_WEBHOOK_URL" \
     -H "Content-Type: application/json" \
-    -d "{\"text\": $(json_escape "$payload_text")}" >/dev/null || echo "Slack notify failed (non-blocking)"
+    -d "{\"text\": $(json_escape "$payload_text")}")
+  if [[ "$STATUS_CODE" -lt 200 || "$STATUS_CODE" -ge 300 ]]; then
+    echo "Slack notify failed (HTTP $STATUS_CODE) (non-blocking)"
+  fi
 fi
 
 # --- Email via Supabase Edge Function (cicd-alert) ---
 # Expects CICD_ALERT_URL (https://.../functions/v1/cicd-alert) and CICD_ALERT_TOKEN (Bearer)
 if [[ -n "${CICD_ALERT_URL}" && -n "${CICD_ALERT_TOKEN}" ]]; then
-  curl -sS -X POST "$CICD_ALERT_URL" \
+  STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$CICD_ALERT_URL" \
     -H "Authorization: Bearer ${CICD_ALERT_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d @- >/dev/null <<JSON || echo "Email alert failed (non-blocking)"
+    -d @- <<JSON)
 {
   "subject": "Atlas DB ROLLBACK ${STATUS} (${ENV_NAME})",
   "message": ${payload_text@Q},
   "recipients": ${RECIPIENTS@Q}
 }
 JSON
+  if [[ "$STATUS_CODE" -lt 200 || "$STATUS_CODE" -ge 300 ]]; then
+    echo "Email alert failed (HTTP $STATUS_CODE) (non-blocking)"
+  fi
 fi
 
 echo "Notifications dispatched for status=${STATUS}, env=${ENV_NAME}"

@@ -1,0 +1,115 @@
+name: Test Alerts (Slack + Email)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [staging, production]
+        default: staging
+      message:
+        description: "Optional message override"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  check-secrets:
+    name: Check required secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if SLACK_WEBHOOK_URL is missing
+        run: |
+          if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "❌ Missing required secret: SLACK_WEBHOOK_URL"
+            echo "Add it in GitHub → Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "✅ SLACK_WEBHOOK_URL is set"
+
+      - name: Warn if email alert secrets are missing
+        run: |
+          if [ -z "${{ secrets.CICD_ALERT_URL }}" ] || [ -z "${{ secrets.CICD_ALERT_TOKEN }}" ]; then
+            echo "⚠️  Optional email alert secrets not fully set (CICD_ALERT_URL + CICD_ALERT_TOKEN)."
+            echo "Email step will be skipped; Slack test will still run."
+          else
+            echo "✅ Email alert secrets are set (will test email too)"
+
+  send-alerts:
+    name: Send test alerts
+    needs: check-secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install jq (for safe JSON)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Prepare common context
+        id: ctx
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          TEXT="${MESSAGE:-'Atlas test alert from GitHub Actions'}"
+          SHORT_SHA="${SHA:0:7}"
+          jq -n \
+            --arg repo "$REPO" \
+            --arg env "$ENVIRONMENT" \
+            --arg actor "$ACTOR" \
+            --arg sha "$SHORT_SHA" \
+            --arg url "$RUN_URL" \
+            --arg text "$TEXT" \
+            '{
+               text:
+                 ("🧪 *Atlas test alert* (" + $env + ")\n" +
+                  "• Repo: " + $repo + "\n" +
+                  "• By: " + $actor + " · " + $sha + "\n" +
+                  "• Run: " + $url + "\n" +
+                  "• Note: " + $text)
+             }' > slack.json
+          echo "payload_ok=true" >> $GITHUB_OUTPUT
+
+      - name: Send Slack alert
+        if: steps.ctx.outputs.payload_ok == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST -H "Content-type: application/json" \
+            --data @slack.json \
+            "$SLACK_WEBHOOK_URL")
+          echo "Slack HTTP status: $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "❌ Slack webhook failed"
+            exit 1
+          fi
+          echo "✅ Slack alert sent"
+
+      - name: Send email alert via Supabase (optional)
+        if: ${{ secrets.CICD_ALERT_URL != '' && secrets.CICD_ALERT_TOKEN != '' }}
+        env:
+          CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
+          CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
+        run: |
+          SUBJECT="Atlas test alert (${{ inputs.environment }})"
+          BODY=$(jq -n --arg subject "$SUBJECT" --argjson slack "$(cat slack.json)" \
+            '{ subject: $subject, markdown: $slack.text }')
+
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "$CICD_ALERT_URL" \
+            -H "Authorization: Bearer $CICD_ALERT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          echo "Email function HTTP status: $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "⚠️  Email alert failed (non-blocking)."
+          else
+            echo "✅ Email alert sent"
+          fi
