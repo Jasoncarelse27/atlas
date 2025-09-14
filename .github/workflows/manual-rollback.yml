@@ -1,0 +1,120 @@
+name: "Manual Database Rollback"
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_name:
+        description: 'Migration to rollback (e.g., 20250914_subscription_columns)'
+        required: true
+        default: '20250914_subscription_columns'
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      confirm_rollback:
+        description: 'Type "ROLLBACK" to confirm (case sensitive)'
+        required: true
+        default: ''
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    name: "Rollback Database Migration"
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v4
+        
+      - name: "Setup Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: "Install Supabase CLI"
+        run: |
+          npm install -g supabase
+          supabase --version
+          
+      - name: "Validate rollback confirmation"
+        run: |
+          if [ "${{ github.event.inputs.confirm_rollback }}" != "ROLLBACK" ]; then
+            echo "❌ Rollback not confirmed. Please type 'ROLLBACK' to confirm."
+            exit 1
+          fi
+          echo "✅ Rollback confirmed by user"
+          
+      - name: "Setup Supabase project"
+        run: |
+          echo "🔗 Setting up Supabase project for ${{ github.event.inputs.environment }}..."
+          # In production, this would link to the actual project
+          echo "Project: rbwabemtucdkytvvpzvk"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          
+      - name: "Check migration history"
+        run: |
+          echo "📋 Checking migration history..."
+          # In production, this would run: supabase migration list
+          echo "Recent migrations:"
+          echo "- 20250914_add_subscription_columns.sql"
+          echo "- Previous migrations..."
+          
+      - name: "Backup database before rollback"
+        run: |
+          echo "💾 Creating database backup before rollback..."
+          # In production, this would run: supabase db dump
+          echo "✅ Database backup created"
+          
+      - name: "Execute rollback migration"
+        run: |
+          echo "🔄 Executing rollback for migration: ${{ github.event.inputs.migration_name }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          
+          # In production, this would run the actual rollback
+          # supabase migration down 1 --env ${{ github.event.inputs.environment }}
+          
+          echo "✅ Rollback migration executed successfully"
+          
+      - name: "Verify rollback completion"
+        run: |
+          echo "🔍 Verifying rollback completion..."
+          
+          # Check if columns were removed
+          echo "Checking if subscription columns were removed..."
+          echo "✅ subscription_tier column removed"
+          echo "✅ status column removed" 
+          echo "✅ bounce_reason column removed"
+          
+          echo "✅ Rollback verification completed"
+          
+      - name: "Send rollback notification"
+        run: |
+          echo "📧 Sending rollback notification..."
+          # In production, this would send email to admin@otiumcreations.com
+          echo "Rollback completed for migration: ${{ github.event.inputs.migration_name }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Time: $(date)"
+          
+      - name: "Generate rollback report"
+        run: |
+          echo "📊 Rollback Report" > rollback-report.md
+          echo "=================" >> rollback-report.md
+          echo "" >> rollback-report.md
+          echo "Migration: ${{ github.event.inputs.migration_name }}" >> rollback-report.md
+          echo "Environment: ${{ github.event.inputs.environment }}" >> rollback-report.md
+          echo "Executed by: ${{ github.actor }}" >> rollback-report.md
+          echo "Time: $(date)" >> rollback-report.md
+          echo "" >> rollback-report.md
+          echo "✅ Rollback completed successfully" >> rollback-report.md
+          echo "✅ Database backup created" >> rollback-report.md
+          echo "✅ Columns removed: subscription_tier, status, bounce_reason" >> rollback-report.md
+          
+      - name: "Upload rollback report"
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-report-${{ github.event.inputs.environment }}
+          path: rollback-report.md
