@@ -11,6 +11,9 @@ on:
       message:
         description: "Optional message override"
         required: false
+  push:
+    paths:
+      - '.github/workflows/test-alerts.yml'
 
 permissions:
   contents: read
@@ -50,11 +53,11 @@ jobs:
         id: ctx
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          ENVIRONMENT: ${{ inputs.environment }}
+          ENVIRONMENT: ${{ inputs.environment || 'staging' }}
           ACTOR: ${{ github.actor }}
           SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
-          MESSAGE: ${{ inputs.message }}
+          MESSAGE: ${{ inputs.message || '' }}
         run: |
           TEXT="${MESSAGE:-'Atlas test alert from GitHub Actions'}"
           SHORT_SHA="${SHA:0:7}"
@@ -97,7 +100,7 @@ jobs:
           CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
           CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
         run: |
-          SUBJECT="Atlas test alert (${{ inputs.environment }})"
+          SUBJECT="Atlas test alert (${{ inputs.environment || 'staging' }})"
           BODY=$(jq -n --arg subject "$SUBJECT" --argjson slack "$(cat slack.json)" \
             '{ subject: $subject, markdown: $slack.text }')
 
