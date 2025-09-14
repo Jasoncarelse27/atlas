@@ -5,17 +5,18 @@ serve(async (req) => {
   try {
     console.log("📩 Incoming CI/CD alert request");
 
-    const payload = await req.json();
-    console.log("🔍 Parsed payload:", JSON.stringify(payload, null, 2));
-
-    // Validate secret
-    const signature = req.headers.get("x-mailerlite-signature");
-    if (!signature) {
-      console.error("❌ Missing signature header");
-      return new Response("Missing signature", { status: 401 });
+    // Check for Bearer token authentication
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("❌ Missing or invalid authorization header");
+      return new Response("Unauthorized: Missing Bearer token", { status: 401 });
     }
 
-    console.log("✅ Signature received:", signature);
+    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    console.log("✅ Bearer token received:", token.substring(0, 20) + "...");
+
+    const payload = await req.json();
+    console.log("🔍 Parsed payload:", JSON.stringify(payload, null, 2));
 
     // Simulate email sending (MailerLite or custom sendEmail)
     try {
