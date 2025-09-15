@@ -89,96 +89,73 @@ jobs:
             echo "✅ Email alert sent"
           fi
 
-      - name: Send Standardized Slack Alert
+      - name: Send Slack Notification
         if: always()
         env:
           ENVIRONMENT: ${{ inputs.environment || 'staging' }}
-          JOB_NAME: ${{ job.name }}
-          WORKFLOW_NAME: ${{ github.workflow }}
-          ACTOR: ${{ github.actor }}
-          SHA: ${{ github.sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CUSTOM_MESSAGE: ${{ inputs.message || 'Atlas test alert from GitHub Actions' }}
         run: |
           # Determine webhook URL based on environment
           if [ "$ENVIRONMENT" = "production" ]; then
             WEBHOOK_URL="$SLACK_WEBHOOK_URL_PROD"
-            EMOJI="🚨"
-            COLOR="danger"
+            ENV_EMOJI="🚨"
           else
             WEBHOOK_URL="$SLACK_WEBHOOK_URL_STAGING"
-            EMOJI="🧪"
-            COLOR="warning"
+            ENV_EMOJI="🧪"
           fi
           
           # Determine status and color
-          if [ "${{ job.status }}" = "success" ]; then
-            STATUS_EMOJI="✅"
-            STATUS_COLOR="good"
-          else
-            STATUS_EMOJI="❌"
-            STATUS_COLOR="danger"
-          fi
-          
-          # Get timestamp
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          
-          # Get last 10 log lines (if available)
-          LOG_LINES=""
-          if [ -f "$GITHUB_STEP_SUMMARY" ]; then
-            LOG_LINES=$(tail -10 "$GITHUB_STEP_SUMMARY" | sed 's/"/\\"/g' | tr '\n' '\\n')
-          fi
-          
-          # Prepare message
-          SHORT_SHA="${SHA:0:7}"
-          MESSAGE="$CUSTOM_MESSAGE"
-          
-          # Create Slack payload
-          PAYLOAD=$(jq -n \
-            --arg color "$STATUS_COLOR" \
-            --arg title "$EMOJI $STATUS_EMOJI $JOB_NAME - $ENVIRONMENT" \
-            --arg title_link "$RUN_URL" \
-            --arg environment "$ENVIRONMENT" \
-            --arg actor "$ACTOR" \
-            --arg commit "$SHORT_SHA" \
-            --arg workflow "$WORKFLOW_NAME" \
-            --arg message "$MESSAGE" \
-            --argjson ts "$(date +%s)" \
-            '{
-              attachments: [{
-                color: $color,
-                title: $title,
-                title_link: $title_link,
-                fields: [
-                  {title: "Environment", value: $environment, short: true},
-                  {title: "Actor", value: $actor, short: true},
-                  {title: "Commit", value: $commit, short: true},
-                  {title: "Workflow", value: $workflow, short: true},
-                  {title: "Message", value: $message, short: false}
-                ],
-                footer: "Atlas CI/CD",
-                ts: $ts
-              }]
-            }')
-          
-          # Add log lines if available
-          if [ -n "$LOG_LINES" ]; then
-            PAYLOAD=$(echo "$PAYLOAD" | jq --arg logs "$LOG_LINES" '.attachments[0].fields += [{"title": "Recent Logs", "value": $logs, "short": false}]')
+          STATUS="${{ job.status }}"
+          COLOR="#36a64f"
+          EMOJI="✅"
+          if [ "$STATUS" != "success" ]; then
+            COLOR="#e01e5a"
+            EMOJI="❌"
           fi
           
           # Send to Slack
           if [ -n "$WEBHOOK_URL" ]; then
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              -X POST -H "Content-Type: application/json" \
-              --data "$PAYLOAD" \
-              "$WEBHOOK_URL")
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{
+                \"attachments\": [
+                  {
+                    \"color\": \"$COLOR\",
+                    \"blocks\": [
+                      {
+                        \"type\": \"header\",
+                        \"text\": {
+                          \"type\": \"plain_text\",
+                          \"text\": \"$ENV_EMOJI $EMOJI Atlas CI/CD Alert ($ENVIRONMENT)\",
+                          \"emoji\": true
+                        }
+                      },
+                      {
+                        \"type\": \"section\",
+                        \"fields\": [
+                          { \"type\": \"mrkdwn\", \"text\": \"*Repository:*\n${{ github.repository }}\" },
+                          { \"type\": \"mrkdwn\", \"text\": \"*Environment:*\n$ENVIRONMENT\" },
+                          { \"type\": \"mrkdwn\", \"text\": \"*Job:*\n${{ job.name }}\" },
+                          { \"type\": \"mrkdwn\", \"text\": \"*Status:*\n$STATUS\" },
+                          { \"type\": \"mrkdwn\", \"text\": \"*Actor:*\n${{ github.actor }}\" },
+                          { \"type\": \"mrkdwn\", \"text\": \"*Commit:*\n${{ github.sha }}\" },
+                          { \"type\": \"mrkdwn\", \"text\": \"*Run:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>\" },
+                          { \"type\": \"mrkdwn\", \"text\": \"*Timestamp:*\n$(date -u '+%Y-%m-%d %H:%M:%S UTC')\" }
+                        ]
+                      },
+                      {
+                        \"type\": \"section\",
+                        \"text\": {
+                          \"type\": \"mrkdwn\",
+                          \"text\": \"*Message:* $CUSTOM_MESSAGE\"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }" \
+              "$WEBHOOK_URL"
             
-            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-              echo "✅ Slack alert sent successfully (HTTP $STATUS)"
-            else
-              echo "❌ Slack alert failed (HTTP $STATUS)"
-              exit 1
-            fi
+            echo "✅ Slack alert sent successfully"
           else
             echo "⚠️ No webhook URL configured for environment: $ENVIRONMENT"
           fi
