@@ -1,0 +1,19 @@
+name: Test CI/CD Alert
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send CI/CD Alert
+        run: |
+          curl -v -sS --fail \
+            -X POST "$SUPABASE_URL/functions/v1/cicd-alert" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -d '{"env":"staging","message":"GitHub CI/CD test alert"}'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
