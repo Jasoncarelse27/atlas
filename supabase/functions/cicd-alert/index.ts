@@ -39,44 +39,38 @@ serve(async (req) => {
 
     console.log("📧 Sending email to:", recipient, "in environment:", env);
 
-    const res = await fetch("https://api.mailersend.com/v1/email", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    try {
+      const res = await fetch("https://api.mailersend.com/v1/email", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("MAILERSEND_API_TOKEN")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: { email: "alerts@otiumcreations.com" },
+          to: [{ email: recipient }],
+          subject: `[Atlas CI/CD Alert] ${env ?? "staging"}`,
+          text: message || "No message provided",
+        }),
+      });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("MailerSend error:", res.status, errorText);
-      
-      // For testing purposes, if MailerSend fails, return success but log the error
-      if (env === "staging" || env === "test") {
-        console.log("⚠️ MailerSend failed but returning success for staging/test environment");
-        return new Response(JSON.stringify({ 
-          status: "ok", 
-          warning: "MailerSend API failed but test environment allows success",
-          mailerSendError: errorText 
-        }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("MailerSend API Error:", errorText);
+        return new Response(
+          JSON.stringify({ status: "error", details: errorText }),
+          { status: 500 }
+        );
       }
-      
+
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    } catch (err) {
+      console.error("Function error:", err.message);
       return new Response(
-        JSON.stringify({ error: "MailerSend API error", details: errorText }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ status: "error", details: err.message }),
+        { status: 500 }
       );
     }
-
-    const responseText = await res.text();
-    console.log("✅ Email sent successfully:", responseText);
-    return new Response(JSON.stringify({ status: "ok" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
   } catch (err) {
     console.error("Unexpected error:", err);
     return new Response(
