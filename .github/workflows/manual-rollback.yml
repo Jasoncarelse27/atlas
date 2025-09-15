@@ -23,45 +23,18 @@ on:
 permissions:
   contents: read
 
-env:
-  RECIPIENTS: "admin@otiumcreations.com,rima@otiumcreations.com"
-
 jobs:
   check-secrets:
     runs-on: ubuntu-latest
-    env:
-      SLACK_WEBHOOK_URL_STAGING: ${{ secrets.SLACK_WEBHOOK_URL_STAGING }}
-      SLACK_WEBHOOK_URL_PROD: ${{ secrets.SLACK_WEBHOOK_URL_PROD }}
-      CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
-      CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Verify Required Secrets
+      - name: Check required secrets
         run: |
-          echo "🔍 Checking required secrets..."
-          if [ -z "$SLACK_WEBHOOK_URL_STAGING" ]; then
-            echo "❌ Missing SLACK_WEBHOOK_URL_STAGING secret"
-            exit 1
-          fi
-          if [ -z "$SLACK_WEBHOOK_URL_PROD" ]; then
-            echo "❌ Missing SLACK_WEBHOOK_URL_PROD secret"
-            exit 1
-          fi
-          if [ -z "$CICD_ALERT_URL" ]; then
-            echo "❌ Missing CICD_ALERT_URL secret"
-            exit 1
-          fi
-          if [ -z "$CICD_ALERT_TOKEN" ]; then
-            echo "❌ Missing CICD_ALERT_TOKEN secret"
-            exit 1
-          fi
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "❌ Missing SUPABASE_DB_URL secret"
-            exit 1
-          fi
+          test -n "${{ secrets.SUPABASE_DB_HOST }}" || (echo "Missing SUPABASE_DB_HOST" && exit 1)
+          test -n "${{ secrets.SUPABASE_DB_PORT }}" || (echo "Missing SUPABASE_DB_PORT" && exit 1)
+          test -n "${{ secrets.SUPABASE_DB_USER }}" || (echo "Missing SUPABASE_DB_USER" && exit 1)
+          test -n "${{ secrets.SUPABASE_DB_PASS }}" || (echo "Missing SUPABASE_DB_PASS" && exit 1)
+          test -n "${{ secrets.SUPABASE_DB_NAME }}" || (echo "Missing SUPABASE_DB_NAME" && exit 1)
+          test -n "${{ secrets.SLACK_WEBHOOK_URL_STAGING }}" || (echo "Missing SLACK_WEBHOOK_URL_STAGING" && exit 1)
           echo "✅ All required secrets are configured"
 
   rollback:
@@ -69,111 +42,62 @@ jobs:
     if: github.event.inputs.confirm == 'ROLLBACK'
     runs-on: ubuntu-latest
     env:
-      SLACK_WEBHOOK_URL_STAGING: ${{ secrets.SLACK_WEBHOOK_URL_STAGING }}
-      SLACK_WEBHOOK_URL_PROD: ${{ secrets.SLACK_WEBHOOK_URL_PROD }}
-      CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
-      CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      RECIPIENTS: "admin@otiumcreations.com,rima@otiumcreations.com"
+      DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+      DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+      DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+      DB_PASS: ${{ secrets.SUPABASE_DB_PASS }}
+      DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_STAGING }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install jq
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-
-      - name: Send Rollback Started Notification
-        run: |
-          ENVIRONMENT="${{ github.event.inputs.environment }}"
-          REASON="${{ github.event.inputs.reason }}"
-          MESSAGE="🔄 Rollback STARTED - $REASON"
-          
-          # Send email notification
-          if [ -n "$CICD_ALERT_URL" ] && [ -n "$CICD_ALERT_TOKEN" ]; then
-            BODY=$(jq -n --arg env "$ENVIRONMENT" --arg message "$MESSAGE" \
-              '{ env: $env, message: $message }')
-            
-            curl -s -X POST "$CICD_ALERT_URL" \
-              -H "Authorization: Bearer $CICD_ALERT_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "$BODY" || echo "Email notification failed (non-blocking)"
-          fi
-
       - name: Run Rollback SQL
+        id: rollback
         run: |
-          echo "🔄 Executing rollback migration..."
-          psql "${SUPABASE_DB_URL}" -v "ON_ERROR_STOP=1" -f supabase/migrations/20250914_rollback_subscription_columns.sql
-          echo "✅ Rollback SQL executed successfully"
+          echo "⚠️ Executing rollback migration..."
+          PGPASSWORD=$DB_PASS psql \
+            -h $DB_HOST \
+            -p $DB_PORT \
+            -U $DB_USER \
+            -d $DB_NAME \
+            -f supabase/migrations/20250914_rollback_subscription_columns.sql
 
       - name: Send Slack Notification
         if: always()
-        env:
-          ENVIRONMENT: ${{ github.event.inputs.environment }}
-          ROLLBACK_REASON: ${{ github.event.inputs.reason }}
         run: |
-          # Determine webhook URL based on environment
-          if [ "$ENVIRONMENT" = "production" ]; then
-            WEBHOOK_URL="$SLACK_WEBHOOK_URL_PROD"
-            ENV_EMOJI="🚨"
-          else
-            WEBHOOK_URL="$SLACK_WEBHOOK_URL_STAGING"
-            ENV_EMOJI="🧪"
-          fi
-          
-          # Determine status and color
           STATUS="${{ job.status }}"
-          COLOR="#36a64f"
-          EMOJI="✅"
-          if [ "$STATUS" != "success" ]; then
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          if [ "$STATUS" = "success" ]; then
+            COLOR="#36a64f"
+            EMOJI="✅"
+          else
             COLOR="#e01e5a"
             EMOJI="❌"
           fi
-          
-          # Send to Slack
-          if [ -n "$WEBHOOK_URL" ]; then
-            curl -X POST -H 'Content-type: application/json' \
-              --data "{
-                \"attachments\": [
-                  {
-                    \"color\": \"$COLOR\",
-                    \"blocks\": [
-                      {
-                        \"type\": \"header\",
-                        \"text\": {
-                          \"type\": \"plain_text\",
-                          \"text\": \"$ENV_EMOJI $EMOJI Atlas Database Rollback ($ENVIRONMENT)\",
-                          \"emoji\": true
-                        }
-                      },
-                      {
-                        \"type\": \"section\",
-                        \"fields\": [
-                          { \"type\": \"mrkdwn\", \"text\": \"*Repository:*\n${{ github.repository }}\" },
-                          { \"type\": \"mrkdwn\", \"text\": \"*Environment:*\n$ENVIRONMENT\" },
-                          { \"type\": \"mrkdwn\", \"text\": \"*Job:*\n${{ job.name }}\" },
-                          { \"type\": \"mrkdwn\", \"text\": \"*Status:*\n$STATUS\" },
-                          { \"type\": \"mrkdwn\", \"text\": \"*Actor:*\n${{ github.actor }}\" },
-                          { \"type\": \"mrkdwn\", \"text\": \"*Commit:*\n${{ github.sha }}\" },
-                          { \"type\": \"mrkdwn\", \"text\": \"*Run:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>\" },
-                          { \"type\": \"mrkdwn\", \"text\": \"*Timestamp:*\n$(date -u '+%Y-%m-%d %H:%M:%S UTC')\" }
-                        ]
-                      },
-                      {
-                        \"type\": \"section\",
-                        \"text\": {
-                          \"type\": \"mrkdwn\",
-                          \"text\": \"*Rollback Reason:* $ROLLBACK_REASON\"
-                        }
-                      }
-                    ]
-                  }
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "attachments": [
+              {
+                "color": "$COLOR",
+                "blocks": [
+                  { "type": "section", "text": { "type": "mrkdwn", "text": "*Atlas Database Rollback* $EMOJI" } },
+                  { "type": "section", "fields": [
+                    { "type": "mrkdwn", "text": "*Repository:* $GITHUB_REPOSITORY" },
+                    { "type": "mrkdwn", "text": "*Actor:* $GITHUB_ACTOR" },
+                    { "type": "mrkdwn", "text": "*Job:* Rollback" },
+                    { "type": "mrkdwn", "text": "*Status:* $STATUS" },
+                    { "type": "mrkdwn", "text": "*Commit:* $GITHUB_SHA" },
+                    { "type": "mrkdwn", "text": "*Timestamp:* $TIMESTAMP" }
+                  ]}
                 ]
-              }" \
-              "$WEBHOOK_URL"
-            
-            echo "✅ Slack alert sent successfully"
-          else
-            echo "⚠️ No webhook URL configured for environment: $ENVIRONMENT"
-          fi
+              }
+            ]
+          }
+          EOF
+          )
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$PAYLOAD" $SLACK_WEBHOOK_URL
