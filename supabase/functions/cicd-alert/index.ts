@@ -24,11 +24,12 @@ serve(async (req) => {
     const { env, message } = await req.json();
     console.log("📧 Received request:", { env, message, tokenLength: token.length });
 
-    // Default recipient: staging/test
-    let recipient = "test-alerts@otiumcreations.com";
-    if (env === "production") {
-      recipient = "admin@otiumcreations.com";
-    }
+    // MailerSend trial account limitation: can only send to admin email
+    // TODO: Upgrade MailerSend account to allow sending to any email address
+    let recipient = "admin@otiumcreations.com";
+    
+    // For staging/test, we'll still send to admin but include environment in subject
+    const isProduction = env === "production";
 
     const body = {
       from: { email: "alerts@otiumcreations.com", name: "Atlas CI/CD Alerts" },
