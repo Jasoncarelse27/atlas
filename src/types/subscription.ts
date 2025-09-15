@@ -1,17 +1,15 @@
-// src/types/subscription.ts
+// src/types/subscription.ts - ATLAS V1 CHAT-FOCUSED SYSTEM
 
 export interface UserProfile {
   id: string;
-  tier: 'free' | 'pro' | 'pro_max';
+  tier: 'free' | 'core' | 'studio';
   trial_ends_at: string | null;
   subscription_status: 'trial' | 'active' | 'expired' | 'cancelled';
   subscription_id: string | null;
   usage_stats: {
-    mood_tracking_days: number;
-    emotional_insights_this_month: number;
-    journal_entries_this_month: number;
-    ai_prompts_this_month: number;
-    streak_days: number;
+    text_messages_this_month: number;
+    audio_minutes_this_month: number;
+    image_uploads_this_month: number;
     last_reset_date: string | null;
   };
   created_at: string;
@@ -29,14 +27,21 @@ export interface UsageCheck {
   tier?: string;
   limits?: TierLimits;
   usage?: UserProfile['usage_stats'];
+  remaining?: {
+    text_messages?: number;
+    audio_minutes?: number;
+    image_uploads?: number;
+  };
 }
 
 export interface TierLimits {
-  mood_tracking_days_per_month: number; // -1 for unlimited
-  emotional_insights_per_month: number; // -1 for unlimited
-  journal_entries_per_month: number; // -1 for unlimited
-  ai_prompts_per_day: number; // -1 for unlimited
+  text_messages_per_month: number; // -1 for unlimited
+  audio_minutes_per_month: number; // -1 for unlimited
+  image_uploads_per_month: number; // -1 for unlimited
   features: string[];
+  ai_model: 'claude_haiku' | 'claude_sonnet' | 'claude_opus';
+  priority_processing: boolean;
+  memory_persistence: boolean;
 }
 
 export interface TierInfo {
@@ -48,84 +53,129 @@ export interface TierInfo {
   limits: TierLimits;
   features: string[];
   popular?: boolean;
-  currency?: 'ZAR' | 'USD';
+  currency?: 'USD';
 }
 
 export const TIER_CONFIGS: Record<string, TierInfo> = {
   free: {
     name: 'free',
-    displayName: 'Free',
-    description: 'Always-on access with basic emotional wellness features',
-    price: 'Free',
-    currency: 'ZAR',
+    displayName: 'Atlas Free',
+    description: 'Basic AI conversations with emotional intelligence focus',
+    price: '$0/month',
+    currency: 'USD',
     limits: {
-      mood_tracking_days_per_month: 30,
-      emotional_insights_per_month: 3,
-      journal_entries_per_month: 5,
-      ai_prompts_per_day: 5,
-      features: ['mood_tracking', 'basic_insights', 'journal', 'limited_ai', 'light_streaks']
+      text_messages_per_month: 15,
+      audio_minutes_per_month: 0,
+      image_uploads_per_month: 0,
+      features: ['basic_chat'],
+      ai_model: 'claude_haiku',
+      priority_processing: false,
+      memory_persistence: false
     },
     features: [
-      'Daily mood tracking',
-      '3 basic emotional insights per month',
-      'Journal (5 entries/month)',
-      'Limited AI interaction (5 prompts/day)',
-      'Light streak system',
-      'Basic emotional wellness tools'
+      '15 AI conversations per month',
+      'Claude Haiku - Fast, cost-effective responses',
+      'Session-only memory',
+      'Standard response time',
+      'Basic emotional intelligence tips'
     ]
   },
-  pro: {
-    name: 'pro',
-    displayName: 'Pro',
-    description: 'Advanced emotional wellness with unlimited features',
-    price: 'R149/month',
-    yearlyPrice: 'R999/year',
-    currency: 'ZAR',
+  core: {
+    name: 'core',
+    displayName: 'Atlas Core',
+    description: 'Unlimited conversations with persistent memory and voice features',
+    price: '$19.99/month',
+    yearlyPrice: '$199.99/year',
+    currency: 'USD',
     limits: {
-      mood_tracking_days_per_month: -1, // Unlimited
-      emotional_insights_per_month: -1, // Unlimited
-      journal_entries_per_month: -1, // Unlimited
-      ai_prompts_per_day: -1, // Unlimited
-      features: ['mood_tracking', 'unlimited_insights', 'unlimited_journal', 'unlimited_ai', 'advanced_streaks', 'emotional_summaries', 'custom_prompts', 'weekly_maps', 'stripe_bundle', 'priority_support']
+      text_messages_per_month: -1, // Unlimited
+      audio_minutes_per_month: 60,
+      image_uploads_per_month: 10,
+      features: ['unlimited_chat', 'voice_input', 'voice_output', 'image_analysis', 'persistent_memory'],
+      ai_model: 'claude_sonnet',
+      priority_processing: false,
+      memory_persistence: true
     },
     features: [
-      'Everything in Free',
-      'Unlimited journaling & insights',
-      'Advanced streak system (bonuses)',
-      'Personalized emotional summaries',
-      'Custom prompts & reflections',
-      'Weekly emotional maps',
-      'Access to 1 Stripe bundle (rotating)',
-      'Priority support',
-      'Unlimited AI interaction'
+      'Unlimited AI conversations',
+      'Claude Sonnet - Better reasoning and coaching',
+      'Persistent memory across sessions',
+      'Voice input and output (60 min/month)',
+      'Image analysis (10 uploads/month)',
+      'Standard response quality'
     ],
     popular: true
   },
-  pro_max: {
-    name: 'pro_max',
-    displayName: 'Pro Max',
-    description: 'Premium emotional wellness with advanced analytics',
-    price: 'R299/month',
-    yearlyPrice: 'R1799/year',
-    currency: 'ZAR',
+  studio: {
+    name: 'studio',
+    displayName: 'Atlas Studio',
+    description: 'Premium AI with advanced emotional intelligence and priority processing',
+    price: '$179.99/month',
+    yearlyPrice: '$1799.99/year',
+    currency: 'USD',
     limits: {
-      mood_tracking_days_per_month: -1, // Unlimited
-      emotional_insights_per_month: -1, // Unlimited
-      journal_entries_per_month: -1, // Unlimited
-      ai_prompts_per_day: -1, // Unlimited
-      features: ['mood_tracking', 'unlimited_insights', 'unlimited_journal', 'unlimited_ai', 'advanced_streaks', 'emotional_summaries', 'custom_prompts', 'weekly_maps', 'stripe_bundle', 'priority_support', 'advanced_analytics', 'ai_coaching', 'custom_integrations']
+      text_messages_per_month: -1, // Unlimited
+      audio_minutes_per_month: -1, // Unlimited
+      image_uploads_per_month: -1, // Unlimited
+      features: ['unlimited_chat', 'unlimited_voice', 'unlimited_images', 'voice_emotion_analysis', 'advanced_ai_models', 'priority_processing', 'advanced_coaching', 'facial_emotion_analysis'],
+      ai_model: 'claude_opus',
+      priority_processing: true,
+      memory_persistence: true
     },
     features: [
-      'Everything in Pro',
-      'Advanced emotional analytics',
-      'AI-powered emotional coaching',
-      'Custom integrations',
-      'Premium emotional insights',
-      'Advanced streak rewards',
-      'Priority customer support',
-      'Early access to new features'
+      'Everything in Core',
+      'Claude Opus - Most advanced emotional intelligence',
+      'Unlimited voice conversations',
+      'Unlimited image analysis',
+      'Voice emotion analysis',
+      'Priority processing queue',
+      'Real-time emotional coaching',
+      'Facial expression analysis',
+      'Advanced emotional insights',
+      'Future: Custom personality tuning'
     ]
   }
+};
+
+// AI Model allocation by tier
+export const AI_MODELS = {
+  free: 'claude-3-haiku-20240307',
+  core: 'claude-3-5-sonnet-20241022',
+  studio: 'claude-3-opus-20240229'
+};
+
+// Hard limits for cost protection
+export const HARD_LIMITS = {
+  FREE_TIER: { 
+    textMessages: 15, 
+    audioMinutes: 0, 
+    imageUploads: 0 
+  },
+  CORE_TIER: { 
+    textMessages: -1, 
+    audioMinutes: 60, 
+    imageUploads: 10 
+  },
+  STUDIO_TIER: { 
+    textMessages: -1, 
+    audioMinutes: -1, 
+    imageUploads: -1 
+  }
+};
+
+// Cost protection settings
+export const COST_PROTECTION = {
+  max_tokens_per_response: {
+    free: 1000,    // Haiku is cheaper, can afford more tokens
+    core: 2000,    // Sonnet balance
+    studio: 4000   // Opus is expensive, but justified by price
+  },
+  daily_spending_cap: {
+    free: 0.50,    // $0.50 per day max
+    core: 2.00,    // $2.00 per day max  
+    studio: 10.00  // $10.00 per day max
+  },
+  emergency_killswitch_threshold: 100.00 // $100 total daily spend
 };
 
 // Refund policy types

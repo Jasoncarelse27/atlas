@@ -1,0 +1,46 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { Tier } from '../utils/featureAccess';
+
+export function useUserTier(userId: string | undefined) {
+  const [tier, setTier] = useState<Tier>('free');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    async function fetchTier() {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching tier:', error.message);
+          setTier('free');
+        } else {
+          const dbTier = data?.subscription_tier;
+          if (dbTier === 'core' || dbTier === 'studio') {
+            setTier(dbTier as Tier);
+          } else {
+            setTier('free');
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchTier:', error);
+        setTier('free');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTier();
+  }, [userId]);
+
+  return { tier, loading };
+}

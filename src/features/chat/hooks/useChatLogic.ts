@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useUserTier } from '../../../hooks/useUserTier';
 import { loadConversation as cacheLoad } from '../../../lib/conversationStore';
+import { AIModelService } from '../../../services/aiModelService';
 import { useAIProvider } from './useAIProvider';
 import { useConversationStream } from './useConversationStream';
 import { useSubscriptionAccess } from './useSubscriptionAccess';
@@ -13,6 +15,10 @@ interface UseChatLogicParams {
 }
 
 export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseChatLogicParams) {
+  // Get user tier and determine appropriate model
+  const { tier } = useUserTier(userId);
+  const tierModel = AIModelService.getModelForTier(tier as 'free' | 'core' | 'studio');
+  
   // Core state
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
@@ -33,8 +39,8 @@ export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseC
   } = useConversationStream({
     conversationId: currentConversationId,
     userId,
-    userTier: userTier as 'free' | 'core' | 'studio',
-    selectedModel
+    userTier: tier as 'free' | 'core' | 'studio',
+    selectedModel: tierModel as SupportedModel
   });
 
   const {
@@ -50,8 +56,8 @@ export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseC
     supportsFeature,
     getProviderCapabilities
   } = useAIProvider({
-    userTier: userTier as 'free' | 'core' | 'studio',
-    selectedModel
+    userTier: tier as 'free' | 'core' | 'studio',
+    selectedModel: tierModel as SupportedModel
   });
 
   // Scroll to bottom when messages change
@@ -177,7 +183,13 @@ export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseC
     clearError: clearStreamError,
     
     // Utils
-    scrollToBottom
+    scrollToBottom,
+    
+    // Model info
+    currentModel: tierModel,
+    modelDisplayName: AIModelService.getModelDisplayName(tier as 'free' | 'core' | 'studio'),
+    modelDescription: AIModelService.getModelDescription(tier as 'free' | 'core' | 'studio'),
+    maxTokens: AIModelService.getMaxTokens(tier as 'free' | 'core' | 'studio')
   };
 }
 
