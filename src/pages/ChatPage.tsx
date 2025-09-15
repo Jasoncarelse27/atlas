@@ -1,10 +1,11 @@
-import React from 'react';
 import { Brain, LogOut, MessageSquare, Settings, User } from 'lucide-react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConversationView from '../features/chat/components/ConversationView';
+import { useMessageLimit, useTierAccess } from '../hooks/useTierAccess';
 import ErrorBoundary from '../lib/errorBoundary';
-import { sendMessageToSupabase } from '../services/chatService';
 import { supabase } from '../lib/supabase';
+import { sendMessageToSupabase } from '../services/chatService';
 import type { Message } from '../types/chat';
 
 interface ChatPageProps {
@@ -13,6 +14,12 @@ interface ChatPageProps {
 
 const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
   const navigate = useNavigate();
+  
+  // 🎯 TIER ENFORCEMENT: Add tier access hooks
+  const { tier, model, claudeModelName } = useTierAccess();
+  const { checkAndAttemptMessage } = useMessageLimit();
+  const [messageCount, setMessageCount] = React.useState(0);
+  
   const [conversation, setConversation] = React.useState({
     id: 'default',
     title: 'Atlas AI Chat',
@@ -40,6 +47,12 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
 
   const handleSendMessage = async (message: string) => {
     if (isProcessing || !message.trim()) return;
+    
+    // 🎯 TIER ENFORCEMENT: Check message limit
+    const canSend = await checkAndAttemptMessage(messageCount);
+    if (!canSend) {
+      return; // Toast already shown by hook
+    }
     
     setIsProcessing(true);
     
@@ -89,6 +102,9 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
             messages: [...prev.messages, assistantMessage],
             lastUpdated: new Date().toISOString()
           }));
+          
+          // 🎯 INCREMENT MESSAGE COUNT
+          setMessageCount(prev => prev + 1);
         },
         onError: (error: string) => {
           console.error("Message error:", error);
@@ -153,6 +169,18 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
                   <Settings className="w-4 h-4" />
                   <span>Settings</span>
                 </button>
+                
+                {/* 🎯 TIER DISPLAY */}
+                <div className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-700/50">
+                  <span className="text-sm font-medium text-blue-400">
+                    Atlas {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                  </span>
+                  {tier === 'free' && (
+                    <span className="text-xs text-gray-300">
+                      {15 - messageCount} left
+                    </span>
+                  )}
+                </div>
               </nav>
 
               {/* User Menu */}

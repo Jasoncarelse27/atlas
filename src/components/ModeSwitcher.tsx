@@ -1,8 +1,8 @@
 import { Headphones, Image as ImageIcon, Lock, MessageSquare } from 'lucide-react';
 import { forwardRef } from 'react';
+import { Tier } from '../config/featureAccess';
 import type { SoundType } from '../hooks/useSoundEffects';
 import { useTierAccess } from '../hooks/useTierAccess';
-import { Tier } from '../utils/featureAccess';
 import Tooltip from './Tooltip';
 
 interface ModeSwitcherProps {

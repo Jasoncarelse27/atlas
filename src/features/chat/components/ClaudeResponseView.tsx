@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClaudeResponse, getModelInfo } from '@/lib/ClaudeRouter';
+import { ClaudeResponse, getModelInfo } from '../lib/ClaudeRouter';
 
 interface ClaudeResponseViewProps {
   response: ClaudeResponse;

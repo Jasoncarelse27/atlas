@@ -17,7 +17,7 @@ class Analytics {
   private isInitialized = false;
 
   constructor() {
-    this.isEnabled = process.env.NODE_ENV === 'production';
+    this.isEnabled = import.meta.env.PROD;
   }
 
   init() {

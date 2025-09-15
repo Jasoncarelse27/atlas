@@ -1,9 +1,9 @@
 import { Camera, Eye, FileImage, Image as ImageIcon, Sparkles, StopCircle, Upload, X } from 'lucide-react';
 import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
-import DismissibleExplainer from '@/components/DismissibleExplainer';
-import ErrorMessage from '@/components/ErrorMessage';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import Tooltip from '@/components/Tooltip';
+import DismissibleExplainer from '../components/DismissibleExplainer';
+import ErrorMessage from '../components/ErrorMessage';
+import LoadingSpinner from '../components/LoadingSpinner';
+import Tooltip from '../components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 
 interface ImageInputAreaProps {

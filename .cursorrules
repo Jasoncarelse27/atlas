@@ -1,0 +1,108 @@
+# Atlas V1 Golden Standard Development Rules
+
+## 🎯 **Tier Enforcement Rules**
+
+### **ALWAYS Use Centralized Tier Logic**
+- ✅ ALWAYS import and use `useTierAccess` for feature gating
+- ✅ ALWAYS import and use `useFeatureAccess` for specific feature checks
+- ✅ ALWAYS import and use `useMessageLimit` for message limits
+- ❌ NEVER hardcode `tier === "free"` or similar checks inside components
+- ❌ NEVER create duplicate tier logic in components
+
+### **Feature Access Pattern**
+```typescript
+// ✅ CORRECT: Use centralized hooks
+import { useFeatureAccess } from '@/hooks/useTierAccess';
+
+const { canUse, attemptFeature } = useFeatureAccess('audio');
+const allowed = await attemptFeature();
+
+// ❌ WRONG: Hardcoded checks
+if (userTier === 'free') {
+  // Don't do this
+}
+```
+
+### **Model Routing Rules**
+- ✅ ALWAYS use `claudeModelName` from `useTierAccess()` for Claude API calls
+- ✅ ALWAYS check `tierFeatures` config for model mapping
+- ❌ NEVER hardcode model names in components
+
+### **Upgrade Flow Rules**
+- ✅ ALWAYS trigger upgrade modal via `showUpgradeModal()` from `useTierAccess`
+- ✅ ALWAYS use Paddle checkout for upgrades
+- ✅ ALWAYS log feature attempts via `logFeatureAttempt()`
+
+## 🏗️ **Architecture Rules**
+
+### **File Organization**
+- ✅ Keep tier logic in `src/config/featureAccess.ts`
+- ✅ Keep hooks in `src/hooks/useTierAccess.ts`
+- ✅ Keep integration examples in `ATLAS_TIER_INTEGRATION_GUIDE.md`
+
+### **Database Rules**
+- ✅ ALWAYS use `feature_attempts` table for telemetry
+- ✅ ALWAYS check `feature_flags` for remote feature control
+- ✅ ALWAYS use RLS policies for data security
+
+## 🚫 **What NOT to Build (V1)**
+
+### **Deferred Features**
+- ❌ Voice/audio processing (expensive, V2+)
+- ❌ Image analysis (expensive, V2+)
+- ❌ Complex analytics dashboards (V2+)
+- ❌ Enterprise features
+- ❌ Generic wellness widgets
+
+### **V1 Focus Only**
+- ✅ Text chat with tier enforcement
+- ✅ Simple habit logging
+- ✅ Daily EQ challenges
+- ✅ Basic subscription management
+
+## 🎯 **Atlas Identity Rules**
+
+### **Core Product Identity**
+- ✅ Atlas is an **emotionally intelligent AI assistant**
+- ✅ Focus on **emotional intelligence coaching**
+- ✅ **3-tier system**: Free ($0) → Core ($19.99) → Studio ($179.99)
+- ❌ NOT a generic chat app with wellness widgets
+
+### **Tier Value Proposition**
+- **Free**: 15 messages/month, Claude Haiku, basic tips
+- **Core**: Unlimited chat, Claude Sonnet, voice/image features
+- **Studio**: Unlimited chat, Claude Opus, advanced features
+
+## 🔧 **Development Workflow**
+
+### **Before Making Changes**
+1. ✅ Pull latest git: `git pull origin main`
+2. ✅ Check existing tier logic in `featureAccess.ts`
+3. ✅ Use existing hooks from `useTierAccess.ts`
+
+### **When Adding Features**
+1. ✅ Check if feature is allowed in V1 scope
+2. ✅ Add tier enforcement using centralized hooks
+3. ✅ Test with all three tiers (free/core/studio)
+4. ✅ Log feature attempts for analytics
+
+### **Code Review Checklist**
+- [ ] Uses `useTierAccess` or related hooks
+- [ ] No hardcoded tier checks
+- [ ] Proper upgrade flow integration
+- [ ] Feature attempts logged
+- [ ] Follows Atlas V1 scope
+
+## 📊 **Success Metrics**
+
+### **V1 Launch Criteria**
+- [ ] Tier enforcement works across all components
+- [ ] Message limits enforced (15 for Free)
+- [ ] Feature restrictions work (audio/image for Free)
+- [ ] Model routing works (Haiku/Sonnet/Opus)
+- [ ] Upgrade flows functional
+- [ ] API costs controlled per tier
+
+---
+
+**Remember: Atlas is an emotionally intelligent AI assistant, not a generic chat app. Build the conversation interface first, add habit tracking, enforce the tier system, then iterate toward advanced features in future versions.**

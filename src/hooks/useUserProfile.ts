@@ -1,6 +1,6 @@
-import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { supabase } from '../lib/supabase'
 
 export const useUserProfile = (userId: string | null) => {
   return useQuery({

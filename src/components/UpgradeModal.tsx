@@ -1,7 +1,7 @@
 import { Check, Crown, Star, X, Zap } from 'lucide-react';
 import React from 'react';
+import { Tier } from '../config/featureAccess';
 import { TIER_CONFIGS } from '../types/subscription';
-import { Tier } from '../utils/featureAccess';
 
 interface UpgradeModalProps {
   isOpen: boolean;

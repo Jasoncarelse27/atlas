@@ -1,4 +1,3 @@
-import React from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,6 +6,7 @@ import { useCustomization } from './hooks/useCustomization';
 import { useSoundEffects } from './hooks/useSoundEffects';
 import { useSubscription } from './hooks/useSubscription';
 import useThemeMode from './hooks/useThemeMode';
+import { useMessageLimit, useTierAccess } from './hooks/useTierAccess';
 import useVoiceRecognition from './hooks/useVoiceRecognition';
 import { supabase } from './lib/supabase';
 import type { Message } from './types/chat';
@@ -43,6 +43,11 @@ function App() {
   const [showControlCenter, setShowControlCenter] = useState(false);
   const [showTestingPanel, setShowTestingPanel] = useState(false);
   const [showDashboardTester, setShowDashboardTester] = useState(false);
+  
+  // 🎯 TIER ENFORCEMENT: Add tier access hooks
+  const { tier, model, claudeModelName } = useTierAccess();
+  const { checkAndAttemptMessage } = useMessageLimit();
+  const [messageCount, setMessageCount] = useState(0);
   const [showNetworkCheck, setShowNetworkCheck] = useState(false);
   const [showSpeedTest, setShowSpeedTest] = useState(false);
   const [showConversationHistoryModal, setShowConversationHistoryModal] = useState(false);
@@ -364,6 +369,12 @@ function App() {
   // Handle sending message to backend
   const handleSendMessage = async (message: string) => {
     if (isProcessing || !message.trim()) return;
+    
+    // 🎯 TIER ENFORCEMENT: Check message limit
+    const canSend = await checkAndAttemptMessage(messageCount);
+    if (!canSend) {
+      return; // Toast already shown by hook
+    }
      
     setIsProcessing(true);
     setResponse('');
@@ -403,6 +414,7 @@ function App() {
     try {
       // Send message to local backend
       console.log('📤 Sending message to local backend:', message);
+      console.log('🎯 Using tier:', tier, 'Model:', claudeModelName);
       
       // Use local backend
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
@@ -415,7 +427,8 @@ function App() {
         },
         body: JSON.stringify({
           message: message,
-          conversationId: conversationToUse.id
+          conversationId: conversationToUse.id,
+          model: claudeModelName // 🎯 TIER-BASED MODEL ROUTING
         })
       });
        
@@ -448,6 +461,9 @@ function App() {
       
       setResponse(responseData.response.content.text || responseData.response.content);
       setAudioUrl(responseData.audioUrl); 
+      
+      // 🎯 INCREMENT MESSAGE COUNT
+      setMessageCount(prev => prev + 1);
       
       // Play success sound
       playSound('success');

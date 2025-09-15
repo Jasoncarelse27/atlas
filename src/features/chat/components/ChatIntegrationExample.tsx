@@ -23,7 +23,7 @@ export default function ChatIntegrationExample() {
 
 // Usage in your main App.tsx:
 /*
-import ChatIntegrationExample from '@/features/chat/components/ChatIntegrationExample';
+import ChatIntegrationExample from '../features/chat/components/ChatIntegrationExample';
 
 function App() {
   return (

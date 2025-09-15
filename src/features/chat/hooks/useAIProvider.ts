@@ -22,8 +22,11 @@ const getEnvVar = (key: string): string => {
   if (typeof window !== 'undefined' && (window as any).__ENV__) {
     return (window as any).__ENV__[key] || '';
   }
-  // Fallback for development
-  return process.env[key] || '';
+  // Use Vite environment variables
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env[key] || '';
+  }
+  return '';
 };
 
 export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) {

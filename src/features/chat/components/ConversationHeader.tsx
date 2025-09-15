@@ -1,6 +1,6 @@
 import { MessageSquare, Plus, Search, X } from 'lucide-react';
 import React from 'react';
-import Tooltip from '@/components/Tooltip';
+import Tooltip from '../components/Tooltip';
 
 interface ConversationHeaderProps {
   onClose: () => void;

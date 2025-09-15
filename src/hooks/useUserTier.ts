@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Tier } from '../config/featureAccess';
 import { supabase } from '../lib/supabase';
-import { Tier } from '../utils/featureAccess';
 
 export function useUserTier(userId: string | undefined) {
   const [tier, setTier] = useState<Tier>('free');

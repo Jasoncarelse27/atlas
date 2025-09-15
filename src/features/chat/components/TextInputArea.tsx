@@ -1,8 +1,8 @@
 import { Clock, Headphones, Paperclip, Send, Smile, Sparkles, Zap } from 'lucide-react';
 import React, { forwardRef, useEffect, useRef, useState } from 'react';
-import AnimatedBackground from '@/components/AnimatedBackground';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import Tooltip from '@/components/Tooltip';
+import AnimatedBackground from '../components/AnimatedBackground';
+import LoadingSpinner from '../components/LoadingSpinner';
+import Tooltip from '../components/Tooltip';
 import type { SoundType } from '../hooks/useSoundEffects';
 
 interface TextInputAreaProps {
