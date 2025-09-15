@@ -23,17 +23,24 @@ jobs:
     name: Check required secrets
     runs-on: ubuntu-latest
     env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SLACK_WEBHOOK_URL_STAGING: ${{ secrets.SLACK_WEBHOOK_URL_STAGING }}
+      SLACK_WEBHOOK_URL_PROD: ${{ secrets.SLACK_WEBHOOK_URL_PROD }}
       CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
       CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
     steps:
-      - name: Fail if SLACK_WEBHOOK_URL is missing
+      - name: Check Slack webhook URLs
         run: |
-          if [ -z "$SLACK_WEBHOOK_URL" ]; then
-            echo "❌ Missing required secret: SLACK_WEBHOOK_URL"
+          if [ -z "$SLACK_WEBHOOK_URL_STAGING" ]; then
+            echo "❌ Missing required secret: SLACK_WEBHOOK_URL_STAGING"
             exit 1
           fi
-          echo "✅ SLACK_WEBHOOK_URL is set"
+          echo "✅ SLACK_WEBHOOK_URL_STAGING is set"
+          
+          if [ -z "$SLACK_WEBHOOK_URL_PROD" ]; then
+            echo "❌ Missing required secret: SLACK_WEBHOOK_URL_PROD"
+            exit 1
+          fi
+          echo "✅ SLACK_WEBHOOK_URL_PROD is set"
 
       - name: Warn if email alert secrets are missing
         run: |
@@ -48,7 +55,8 @@ jobs:
     needs: check-secrets
     runs-on: ubuntu-latest
     env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SLACK_WEBHOOK_URL_STAGING: ${{ secrets.SLACK_WEBHOOK_URL_STAGING }}
+      SLACK_WEBHOOK_URL_PROD: ${{ secrets.SLACK_WEBHOOK_URL_PROD }}
       CICD_ALERT_URL: ${{ secrets.CICD_ALERT_URL }}
       CICD_ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
     steps:
@@ -59,49 +67,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
-
-      - name: Prepare common context
-        id: ctx
-        env:
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          ENVIRONMENT: ${{ inputs.environment || 'staging' }}
-          ACTOR: ${{ github.actor }}
-          SHA: ${{ github.sha }}
-          REPO: ${{ github.repository }}
-          MESSAGE: ${{ inputs.message || '' }}
-        run: |
-          TEXT="${MESSAGE:-'Atlas test alert from GitHub Actions'}"
-          SHORT_SHA="${SHA:0:7}"
-          jq -n \
-            --arg repo "$REPO" \
-            --arg env "$ENVIRONMENT" \
-            --arg actor "$ACTOR" \
-            --arg sha "$SHORT_SHA" \
-            --arg url "$RUN_URL" \
-            --arg text "$TEXT" \
-            '{
-              text:
-                ("🧪 *Atlas test alert* (" + $env + ")\n" +
-                 "• Repo: " + $repo + "\n" +
-                 "• By: " + $actor + " · " + $sha + "\n" +
-                 "• Run: " + $url + "\n" +
-                 "• Note: " + $text)
-            }' > slack.json
-          echo "payload_ok=true" >> $GITHUB_OUTPUT
-
-      - name: Send Slack alert
-        if: steps.ctx.outputs.payload_ok == 'true' && env.SLACK_WEBHOOK_URL != ''
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST -H "Content-type: application/json" \
-            --data @slack.json \
-            "$SLACK_WEBHOOK_URL")
-          echo "Slack HTTP status: $STATUS"
-          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
-            echo "❌ Slack webhook failed"
-            exit 1
-          fi
-          echo "✅ Slack alert sent"
 
       - name: Send email alert via Supabase (optional)
         if: env.CICD_ALERT_URL != '' && env.CICD_ALERT_TOKEN != ''
@@ -122,4 +87,98 @@ jobs:
             echo "⚠️ Email alert failed (non-blocking)."
           else
             echo "✅ Email alert sent"
+          fi
+
+      - name: Send Standardized Slack Alert
+        if: always()
+        env:
+          ENVIRONMENT: ${{ inputs.environment || 'staging' }}
+          JOB_NAME: ${{ job.name }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CUSTOM_MESSAGE: ${{ inputs.message || 'Atlas test alert from GitHub Actions' }}
+        run: |
+          # Determine webhook URL based on environment
+          if [ "$ENVIRONMENT" = "production" ]; then
+            WEBHOOK_URL="$SLACK_WEBHOOK_URL_PROD"
+            EMOJI="🚨"
+            COLOR="danger"
+          else
+            WEBHOOK_URL="$SLACK_WEBHOOK_URL_STAGING"
+            EMOJI="🧪"
+            COLOR="warning"
+          fi
+          
+          # Determine status and color
+          if [ "${{ job.status }}" = "success" ]; then
+            STATUS_EMOJI="✅"
+            STATUS_COLOR="good"
+          else
+            STATUS_EMOJI="❌"
+            STATUS_COLOR="danger"
+          fi
+          
+          # Get timestamp
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          # Get last 10 log lines (if available)
+          LOG_LINES=""
+          if [ -f "$GITHUB_STEP_SUMMARY" ]; then
+            LOG_LINES=$(tail -10 "$GITHUB_STEP_SUMMARY" | sed 's/"/\\"/g' | tr '\n' '\\n')
+          fi
+          
+          # Prepare message
+          SHORT_SHA="${SHA:0:7}"
+          MESSAGE="$CUSTOM_MESSAGE"
+          
+          # Create Slack payload
+          PAYLOAD=$(jq -n \
+            --arg color "$STATUS_COLOR" \
+            --arg title "$EMOJI $STATUS_EMOJI $JOB_NAME - $ENVIRONMENT" \
+            --arg title_link "$RUN_URL" \
+            --arg environment "$ENVIRONMENT" \
+            --arg actor "$ACTOR" \
+            --arg commit "$SHORT_SHA" \
+            --arg workflow "$WORKFLOW_NAME" \
+            --arg message "$MESSAGE" \
+            --argjson ts "$(date +%s)" \
+            '{
+              attachments: [{
+                color: $color,
+                title: $title,
+                title_link: $title_link,
+                fields: [
+                  {title: "Environment", value: $environment, short: true},
+                  {title: "Actor", value: $actor, short: true},
+                  {title: "Commit", value: $commit, short: true},
+                  {title: "Workflow", value: $workflow, short: true},
+                  {title: "Message", value: $message, short: false}
+                ],
+                footer: "Atlas CI/CD",
+                ts: $ts
+              }]
+            }')
+          
+          # Add log lines if available
+          if [ -n "$LOG_LINES" ]; then
+            PAYLOAD=$(echo "$PAYLOAD" | jq --arg logs "$LOG_LINES" '.attachments[0].fields += [{"title": "Recent Logs", "value": $logs, "short": false}]')
+          fi
+          
+          # Send to Slack
+          if [ -n "$WEBHOOK_URL" ]; then
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST -H "Content-Type: application/json" \
+              --data "$PAYLOAD" \
+              "$WEBHOOK_URL")
+            
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+              echo "✅ Slack alert sent successfully (HTTP $STATUS)"
+            else
+              echo "❌ Slack alert failed (HTTP $STATUS)"
+              exit 1
+            fi
+          else
+            echo "⚠️ No webhook URL configured for environment: $ENVIRONMENT"
           fi
