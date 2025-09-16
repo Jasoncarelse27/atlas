@@ -1,3 +1,5 @@
+import { logEmailFailure } from "./emailFailureLogger";
+
 // Mock MailerLite service for tests
 export const mailerService = {
   sendEmail: async (to: string, templateId: string, data: any) => {
@@ -7,7 +9,12 @@ export const mailerService = {
 
   // Optional: Simulate failure for testing error handling
   sendEmailWithFailure: async (to: string, templateId: string, data: any) => {
+    const errorMessage = `Mock failure: ${templateId} to ${to}`;
     console.log(`[MOCK][FAILED] Would have sent ${templateId} to ${to}`, data);
-    throw new Error(`Mock failure: ${templateId} to ${to}`);
+    
+    // Log mock failure to Supabase for testing
+    await logEmailFailure(to, templateId, errorMessage);
+    
+    throw new Error(errorMessage);
   }
 };

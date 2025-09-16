@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { logEmailFailure } from "./emailFailureLogger";
 
 const API_URL = "https://api.mailerlite.com/api/v2";
 
@@ -39,6 +40,10 @@ export const mailerService = {
     } catch (error) {
       // Structured error logging for production debugging
       console.error(`[MailerLite][FAILED] Template: ${templateId}, Recipient: ${to}, Error:`, error);
+      
+      // Log failure to Supabase for permanent tracking
+      await logEmailFailure(to, templateId, error instanceof Error ? error.message : String(error));
+      
       throw error;
     }
   },
