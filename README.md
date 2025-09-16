@@ -66,6 +66,12 @@ npm run check:failures
 SIMULATE_FAILURE=true npm run test
 ```
 
+**CLI Command**: `npm run check:failures`
+- Uses TypeScript with ts-node for better type safety
+- Supports both service role key and anon key
+- Shows last 10 email failures with full context
+- Graceful error handling and credential detection
+
 ### Database Schema
 
 ```sql
