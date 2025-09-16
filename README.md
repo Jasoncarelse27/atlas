@@ -44,6 +44,9 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 - **CI/CD:** Always mock (safe for pipelines).
 - **Production:** Real MailerLite enabled when MAILERLITE_API_KEY is set.
 
+### Production Safety
+⚠️ **Important:** The app will refuse to boot if `MAILERLITE_API_KEY` is missing in production environment. This prevents silent email failures in production.
+
 ## Node.js Version
 
 Atlas requires Node.js v20 or later.
