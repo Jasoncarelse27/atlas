@@ -1,132 +1,82 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  conversationId?: string;
-}
-
-export interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-  lastUpdated: string;
-  createdAt: string;
-}
+import { Conversation, Message, db } from '../db';
 
 type MessageStore = {
-  // Conversations
-  conversations: Conversation[];
-  currentConversationId: string | null;
-  
   // Messages
   messages: Message[];
   
   // Actions
-  addMessage: (msg: Message) => void;
-  updateAssistantMessage: (partial: string) => void;
-  deleteMessage: (messageId: string) => void;
-  clearMessages: () => void;
+  addMessage: (msg: Omit<Message, 'id'>) => Promise<void>;
+  loadMessages: (conversationId: string) => Promise<void>;
+  markAsSynced: (id: number) => Promise<void>;
+  clearMessages: () => Promise<void>;
   
   // Conversation management
-  createConversation: (title?: string) => string;
-  setCurrentConversation: (id: string) => void;
-  updateConversationTitle: (id: string, title: string) => void;
-  deleteConversation: (id: string) => void;
-  getCurrentConversation: () => Conversation | null;
-  
-  // Offline-first persistence
-  syncToStorage: () => void;
-  loadFromStorage: () => void;
+  conversations: Conversation[];
+  currentConversationId: string | null;
+  createConversation: (title?: string) => Promise<string>;
+  setCurrentConversation: (id: string) => Promise<void>;
+  loadConversations: () => Promise<void>;
+  clearAll: () => Promise<void>;
 };
 
 export const useMessageStore = create<MessageStore>()(
   persist(
     (set, get) => ({
       // Initial state
+      messages: [],
       conversations: [],
       currentConversationId: null,
-      messages: [],
 
       // Message actions
-      addMessage: (msg) => {
-        set((state) => {
-          const newMessages = [...state.messages, msg];
-          
-          // Update conversation if it exists
-          const conversations = state.conversations.map(conv => 
-            conv.id === msg.conversationId || conv.id === state.currentConversationId
-              ? { ...conv, messages: [...conv.messages, msg], lastUpdated: new Date().toISOString() }
-              : conv
-          );
-          
-          return { 
-            messages: newMessages,
-            conversations
-          };
+      addMessage: async (msg) => {
+        const id = await db.messages.add({ 
+          ...msg, 
+          createdAt: Date.now(), 
+          synced: false 
         });
-      },
-
-      updateAssistantMessage: (partial) => {
-        set((state) => {
-          const messages = [...state.messages];
-          const lastIndex = messages.length - 1;
-
-          if (messages[lastIndex]?.role === 'assistant') {
-            messages[lastIndex] = {
-              ...messages[lastIndex],
-              content: partial,
-            };
-          } else {
-            const newMessage: Message = {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: partial,
-              timestamp: new Date().toISOString(),
-              conversationId: state.currentConversationId || undefined,
-            };
-            messages.push(newMessage);
-          }
-
-          // Update conversation
-          const conversations = state.conversations.map(conv => 
-            conv.id === state.currentConversationId
-              ? { ...conv, messages: messages.filter(m => m.conversationId === conv.id), lastUpdated: new Date().toISOString() }
-              : conv
-          );
-
-          return { messages, conversations };
-        });
-      },
-
-      deleteMessage: (messageId) => {
+        
         set((state) => ({
-          messages: state.messages.filter(msg => msg.id !== messageId),
-          conversations: state.conversations.map(conv => ({
-            ...conv,
-            messages: conv.messages.filter(msg => msg.id !== messageId)
-          }))
+          messages: [...state.messages, { ...msg, id }]
         }));
       },
 
-      clearMessages: () => set({ messages: [] }),
+      loadMessages: async (conversationId) => {
+        const msgs = await db.messages
+          .where("conversationId")
+          .equals(conversationId)
+          .sortBy("createdAt");
+        
+        set({ messages: msgs });
+      },
+
+      markAsSynced: async (id) => {
+        await db.messages.update(id, { synced: true });
+        set((state) => ({
+          messages: state.messages.map(msg => 
+            msg.id === id ? { ...msg, synced: true } : msg
+          )
+        }));
+      },
+
+      clearMessages: async () => {
+        await db.messages.clear();
+        set({ messages: [] });
+      },
 
       // Conversation management
-      createConversation: (title = 'New Conversation') => {
+      createConversation: async (title = 'New Conversation') => {
         const id = Date.now().toString();
         const newConversation: Conversation = {
-          id,
           title,
-          messages: [],
-          lastUpdated: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
+          createdAt: Date.now(),
         };
         
+        const dbId = await db.conversations.add(newConversation);
+        
         set((state) => ({
-          conversations: [...state.conversations, newConversation],
+          conversations: [...state.conversations, { ...newConversation, id: dbId }],
           currentConversationId: id,
           messages: []
         }));
@@ -134,50 +84,25 @@ export const useMessageStore = create<MessageStore>()(
         return id;
       },
 
-      setCurrentConversation: (id) => {
-        set((state) => {
-          const conversation = state.conversations.find(conv => conv.id === id);
-          return {
-            currentConversationId: id,
-            messages: conversation?.messages || []
-          };
-        });
+      setCurrentConversation: async (id) => {
+        set({ currentConversationId: id });
+        await get().loadMessages(id);
       },
 
-      updateConversationTitle: (id, title) => {
-        set((state) => ({
-          conversations: state.conversations.map(conv =>
-            conv.id === id ? { ...conv, title, lastUpdated: new Date().toISOString() } : conv
-          )
-        }));
+      loadConversations: async () => {
+        const convs = await db.conversations.orderBy('createdAt').reverse().toArray();
+        set({ conversations: convs });
       },
 
-      deleteConversation: (id) => {
-        set((state) => ({
-          conversations: state.conversations.filter(conv => conv.id !== id),
-          currentConversationId: state.currentConversationId === id ? null : state.currentConversationId,
-          messages: state.currentConversationId === id ? [] : state.messages
-        }));
-      },
-
-      getCurrentConversation: () => {
-        const state = get();
-        return state.conversations.find(conv => conv.id === state.currentConversationId) || null;
-      },
-
-      // Offline-first persistence
-      syncToStorage: () => {
-        // Zustand persist middleware handles this automatically
-      },
-
-      loadFromStorage: () => {
-        // Zustand persist middleware handles this automatically
+      clearAll: async () => {
+        await db.messages.clear();
+        await db.conversations.clear();
+        set({ messages: [], conversations: [], currentConversationId: null });
       },
     }),
     {
       name: 'atlas-message-store',
       partialize: (state) => ({
-        conversations: state.conversations,
         currentConversationId: state.currentConversationId,
       }),
     }

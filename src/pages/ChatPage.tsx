@@ -4,6 +4,7 @@ import ConversationView from '../features/chat/components/ConversationView';
 import { MessageInput } from '../features/chat/components/MessageInput';
 import { useChat } from '../features/chat/hooks/useChat';
 import ErrorBoundary from '../lib/errorBoundary';
+import MessageStoreDebugger from '../features/debug/MessageStoreDebugger';
 
 interface ChatPageProps {
   user?: any;
@@ -55,6 +56,9 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
             />
           </div>
         </main>
+
+        {/* Development Debugger */}
+        <MessageStoreDebugger />
       </div>
     </ErrorBoundary>
   );
