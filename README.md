@@ -32,10 +32,18 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 ## 🛠️ Setup Instructions
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 20+ (see Node.js Version section below)
 - npm 8+
 - Supabase account
 - Railway account (for deployment)
+
+## Node.js Version
+
+Atlas requires Node.js v20 or later.
+- **Recommended**: Node.js v22 (for alignment with future Supabase/Vite updates)
+- **Supported**: Node.js v20 (current Mac setup works fine)
+
+You can use [nvm](https://github.com/nvm-sh/nvm) to switch between versions easily.
 
 ### 1. Clone and Install Dependencies
 
