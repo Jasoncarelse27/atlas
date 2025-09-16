@@ -47,6 +47,38 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 ### Production Safety
 ⚠️ **Important:** The app will refuse to boot if `MAILERLITE_API_KEY` is missing in production environment. This prevents silent email failures in production.
 
+## Email Failures
+
+All failed email attempts are automatically logged to Supabase for visibility and debugging:
+
+- **Database Table**: `email_failures` in Supabase
+- **Logged Data**: recipient email, template name, error message, timestamp
+- **Automatic Logging**: Real service logs API failures, mock service logs simulated failures
+- **Developer Tools**: Use `npm run check:failures` to view recent failures
+
+### Checking Email Failures
+
+```bash
+# View recent email failures (requires Supabase credentials)
+npm run check:failures
+
+# Simulate failures for testing
+SIMULATE_FAILURE=true npm run test
+```
+
+### Database Schema
+
+```sql
+-- View all email failures
+select * from email_failures order by created_at desc;
+
+-- View failures by template
+select * from email_failures where template = 'welcome';
+
+-- View recent failures (last 24 hours)
+select * from email_failures where created_at >= now() - interval '24 hours';
+```
+
 ## Node.js Version
 
 Atlas requires Node.js v20 or later.

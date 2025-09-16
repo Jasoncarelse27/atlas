@@ -25,3 +25,23 @@ export async function logEmailFailure(recipient: string, template: string, error
     console.error("[MailerService] Error logging email failure:", err);
   }
 }
+
+export async function getRecentFailures(limit = 20) {
+  try {
+    const { data, error } = await supabase
+      .from("email_failures")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error("[MailerService] Failed to fetch recent failures:", error.message);
+      return [];
+    }
+    
+    return data || [];
+  } catch (err) {
+    console.error("[MailerService] Error fetching recent failures:", err);
+    return [];
+  }
+}

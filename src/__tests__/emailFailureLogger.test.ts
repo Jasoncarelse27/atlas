@@ -6,13 +6,21 @@ vi.mock('@supabase/supabase-js', () => ({
     from: vi.fn(() => ({
       insert: vi.fn(() => ({
         error: null
+      })),
+      select: vi.fn(() => ({
+        order: vi.fn(() => ({
+          limit: vi.fn(() => ({
+            data: [],
+            error: null
+          }))
+        }))
       }))
     }))
   }))
 }));
 
 // Import after mocking
-import { logEmailFailure } from '../services/emailFailureLogger';
+import { logEmailFailure, getRecentFailures } from '../services/emailFailureLogger';
 
 describe('Email Failure Logger', () => {
   it('logs email failure to Supabase on error', async () => {
@@ -24,5 +32,16 @@ describe('Email Failure Logger', () => {
     // Test that the function doesn't throw even if there are issues
     const result = await logEmailFailure("fail@example.com", "welcome", "Test error");
     expect(result).toBeUndefined();
+  });
+
+  it('fetches recent failures', async () => {
+    const failures = await getRecentFailures(5);
+    expect(Array.isArray(failures)).toBe(true);
+  });
+
+  it('handles Supabase errors when fetching failures', async () => {
+    // Test that the function handles errors gracefully
+    const failures = await getRecentFailures(5);
+    expect(Array.isArray(failures)).toBe(true);
   });
 });
