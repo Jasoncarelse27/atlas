@@ -36,6 +36,7 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 - npm 8+
 - Supabase account
 - Railway account (for deployment)
+- MailerLite account (for email automation)
 
 ## Node.js Version
 
@@ -136,6 +137,73 @@ npm run dev
 ```bash
 # Railway will automatically detect and deploy the backend
 # The Dockerfile.railway is configured for backend-only deployment
+```
+
+## 🗄️ Database Migrations
+
+### Running Supabase Migrations
+
+1. **Apply Base Schema** (run first):
+   ```bash
+   # In Supabase Studio SQL Editor, run:
+   # Copy contents from: supabase/migrations/20250115_atlas_v1_schema.sql
+   ```
+
+2. **Apply Phase 5 Triggers** (run after base schema):
+   ```bash
+   # In Supabase Studio SQL Editor, run:
+   # Copy contents from: supabase/migrations/20250916_phase5_triggers.sql
+   ```
+
+3. **Test Triggers** (optional verification):
+   ```bash
+   # In Supabase Studio SQL Editor, run:
+   # Copy contents from: supabase/tests/phase5.test.sql
+   ```
+
+### Migration Order
+1. ✅ Base schema (messages, conversations, profiles tables)
+2. ✅ Phase 5 triggers (auto-update timestamps, auto-generate titles)
+3. ✅ Test automation (verify triggers work)
+
+## 🧪 Testing
+
+### Test Types
+
+**Mock Tests** (always run):
+```bash
+npm run test src/__tests__/e2e-automation.test.ts
+```
+- Tests email flow configuration
+- Tests retry logic with mock failures
+- Tests graceful handling without API keys
+- Fast, no network calls
+
+**Integration Tests** (require API key):
+```bash
+# Set API key in .env.local
+VITE_MAILERLITE_API_KEY=your_api_key_here
+
+# Run integration tests
+npm run test src/__tests__/mailer.integration.test.ts
+```
+- Tests real MailerLite API calls
+- Tests retry logic with real network failures
+- Tests complete email automation pipeline
+- Requires valid MailerLite API key
+
+### CI/CD Testing
+- **Mock tests**: Always run in CI/CD (fast, reliable)
+- **Integration tests**: Skip if no API key provided
+- **Retry logic**: Tested with mock failures in all environments
+
+### Email Automation Testing
+```bash
+# Test email flows without sending real emails
+npm run test src/__tests__/e2e-automation.test.ts
+
+# Test with real MailerLite API (requires API key)
+VITE_MAILERLITE_API_KEY=your_key npm run test src/__tests__/mailer.integration.test.ts
 ```
 
 ## 📁 Project Structure
