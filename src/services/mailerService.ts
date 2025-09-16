@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
+import { retry } from '@/utils/retry';
+import { EMAIL_FLOWS } from '@/config/emailFlows';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -18,6 +20,11 @@ const mailerLite = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Validate API key
+if (!MAILERLITE_API_KEY) {
+  console.error("[MailerService] Missing API key for MailerLite");
+}
 
 // Email templates and flow IDs
 const EMAIL_CONFIG = {
@@ -74,23 +81,25 @@ export const mailerService = {
         };
       }
 
-      const response = await mailerLite.post('/campaigns', {
-        subject: options.subject,
-        name: `Atlas Alert - ${new Date().toISOString()}`,
-        type: 'regular',
-        recipients: { 
-          emails: [options.to]
-        },
-        settings: {
-          from: EMAIL_CONFIG.sender.from,
-          reply_to: EMAIL_CONFIG.sender.replyTo,
-          language: 'EN',
-        },
-        content: {
-          html: options.html,
-          text: options.text || options.html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
-        },
-      });
+      const response = await retry(() => 
+        mailerLite.post('/campaigns', {
+          subject: options.subject,
+          name: `Atlas Alert - ${new Date().toISOString()}`,
+          type: 'regular',
+          recipients: { 
+            emails: [options.to]
+          },
+          settings: {
+            from: EMAIL_CONFIG.sender.from,
+            reply_to: EMAIL_CONFIG.sender.replyTo,
+            language: 'EN',
+          },
+          content: {
+            html: options.html,
+            text: options.text || options.html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+          },
+        })
+      );
 
       // Log email sent to Supabase
       await this.logEmailSent('custom_alert', { email: options.to }, response.data.id);
@@ -101,9 +110,10 @@ export const mailerService = {
       };
     } catch (error) {
       console.error('Failed to send custom email:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage
       };
     }
   },
@@ -121,25 +131,27 @@ export const mailerService = {
         };
       }
 
-      const response = await mailerLite.post('/campaigns', {
-        subject: 'Welcome to Atlas AI 🌱',
-        name: 'Atlas Welcome Flow',
-        type: 'regular',
-        recipients: { 
-          emails: [recipient.email],
-          ...(recipient.name && { names: [recipient.name] })
-        },
-        settings: {
-          from: EMAIL_CONFIG.sender.from,
-          reply_to: EMAIL_CONFIG.sender.replyTo,
-          language: 'EN',
-          template_id: EMAIL_CONFIG.templates.welcome,
-        },
-        content: {
-          html: this.generateWelcomeEmailHTML(recipient),
-          text: this.generateWelcomeEmailText(recipient),
-        },
-      });
+      const response = await retry(() =>
+        mailerLite.post('/campaigns', {
+          subject: EMAIL_FLOWS.welcome.subject,
+          name: 'Atlas Welcome Flow',
+          type: 'regular',
+          recipients: { 
+            emails: [recipient.email],
+            ...(recipient.name && { names: [recipient.name] })
+          },
+          settings: {
+            from: EMAIL_CONFIG.sender.from,
+            reply_to: EMAIL_CONFIG.sender.replyTo,
+            language: 'EN',
+            template_id: EMAIL_FLOWS.welcome.templateId,
+          },
+          content: {
+            html: this.generateWelcomeEmailHTML(recipient),
+            text: this.generateWelcomeEmailText(recipient),
+          },
+        })
+      );
 
       // Log email sent to Supabase
       await this.logEmailSent('welcome', recipient, response.data.id);
@@ -150,9 +162,10 @@ export const mailerService = {
       };
     } catch (error) {
       console.error('Failed to send welcome email:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage
       };
     }
   },
@@ -162,15 +175,17 @@ export const mailerService = {
    */
   async sendUpgradeNudge(recipient: EmailRecipient, usageStats?: any): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const response = await mailerLite.post('/automations', {
-        trigger: 'manual',
-        flow_id: EMAIL_CONFIG.flows.upgradeNudge,
-        subscriber: { 
-          email: recipient.email,
-          ...(recipient.name && { name: recipient.name }),
-          ...(usageStats && { custom_fields: usageStats })
-        },
-      });
+      const response = await retry(() =>
+        mailerLite.post('/automations', {
+          trigger: 'manual',
+          flow_id: EMAIL_CONFIG.flows.upgradeNudge,
+          subscriber: { 
+            email: recipient.email,
+            ...(recipient.name && { name: recipient.name }),
+            ...(usageStats && { custom_fields: usageStats })
+          },
+        })
+      );
 
       // Log email sent to Supabase
       await this.logEmailSent('upgrade_nudge', recipient, response.data.id);
@@ -181,9 +196,10 @@ export const mailerService = {
       };
     } catch (error) {
       console.error('Failed to send upgrade nudge:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage
       };
     }
   },
@@ -193,15 +209,17 @@ export const mailerService = {
    */
   async sendInactivityReminder(recipient: EmailRecipient, lastActivityDate?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const response = await mailerLite.post('/automations', {
-        trigger: 'manual',
-        flow_id: EMAIL_CONFIG.flows.inactivityReminder,
-        subscriber: { 
-          email: recipient.email,
-          ...(recipient.name && { name: recipient.name }),
-          ...(lastActivityDate && { custom_fields: { last_activity: lastActivityDate } })
-        },
-      });
+      const response = await retry(() =>
+        mailerLite.post('/automations', {
+          trigger: 'manual',
+          flow_id: EMAIL_CONFIG.flows.inactivityReminder,
+          subscriber: { 
+            email: recipient.email,
+            ...(recipient.name && { name: recipient.name }),
+            ...(lastActivityDate && { custom_fields: { last_activity: lastActivityDate } })
+          },
+        })
+      );
 
       // Log email sent to Supabase
       await this.logEmailSent('inactivity_reminder', recipient, response.data.id);
@@ -212,9 +230,10 @@ export const mailerService = {
       };
     } catch (error) {
       console.error('Failed to send inactivity reminder:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage
       };
     }
   },
@@ -224,25 +243,27 @@ export const mailerService = {
    */
   async sendWeeklySummary(recipient: EmailRecipient, summaryData: WeeklySummaryData): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const response = await mailerLite.post('/campaigns', {
-        subject: 'Your Atlas Weekly Insight ✨',
-        name: 'Weekly Summary',
-        type: 'regular',
-        recipients: { 
-          emails: [recipient.email],
-          ...(recipient.name && { names: [recipient.name] })
-        },
-        settings: {
-          from: EMAIL_CONFIG.sender.from,
-          reply_to: EMAIL_CONFIG.sender.replyTo,
-          language: 'EN',
-          template_id: EMAIL_CONFIG.templates.weeklySummary,
-        },
-        content: {
-          html: this.generateWeeklySummaryHTML(recipient, summaryData),
-          text: this.generateWeeklySummaryText(recipient, summaryData),
-        },
-      });
+      const response = await retry(() =>
+        mailerLite.post('/campaigns', {
+          subject: EMAIL_FLOWS.weeklySummary.subject,
+          name: 'Weekly Summary',
+          type: 'regular',
+          recipients: { 
+            emails: [recipient.email],
+            ...(recipient.name && { names: [recipient.name] })
+          },
+          settings: {
+            from: EMAIL_CONFIG.sender.from,
+            reply_to: EMAIL_CONFIG.sender.replyTo,
+            language: 'EN',
+            template_id: EMAIL_FLOWS.weeklySummary.templateId,
+          },
+          content: {
+            html: this.generateWeeklySummaryHTML(recipient, summaryData),
+            text: this.generateWeeklySummaryText(recipient, summaryData),
+          },
+        })
+      );
 
       // Log email sent to Supabase
       await this.logEmailSent('weekly_summary', recipient, response.data.id);
@@ -253,9 +274,10 @@ export const mailerService = {
       };
     } catch (error) {
       console.error('Failed to send weekly summary:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage
       };
     }
   },
@@ -288,9 +310,10 @@ export const mailerService = {
           return { success: false, error: 'Invalid flow type' };
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: errorMessage
       };
     }
   },
