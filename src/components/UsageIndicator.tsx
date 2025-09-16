@@ -1,6 +1,6 @@
 import { AlertTriangle, TrendingUp, Zap } from 'lucide-react';
 import React from 'react';
-import { Tier } from '../config/featureAccess';
+import { Tier } from '../types/tier';
 import { useTierAccess } from '../hooks/useTierAccess';
 
 interface UsageIndicatorProps {

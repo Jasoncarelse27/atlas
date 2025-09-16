@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Tier } from '../config/featureAccess';
+import { Tier } from '../types/tier';
 import { supabase } from '../lib/supabase';
 
 export function useUserTier(userId: string | undefined) {

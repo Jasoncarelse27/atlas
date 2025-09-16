@@ -1,13 +1,9 @@
 // src/config/featureAccess.ts
 
+import { Tier } from '../types/tier';
+
 // Runtime tier values (for runtime usage)
 export const TIER_VALUES = ['free', 'core', 'studio'] as const;
-
-// Define tier type from runtime values
-export type Tier = typeof TIER_VALUES[number];
-
-// Runtime export for Tier (to ensure it's available at runtime)
-export const Tier = TIER_VALUES;
 
 // Map of feature access by tier with message limits
 export const tierFeatures = {
