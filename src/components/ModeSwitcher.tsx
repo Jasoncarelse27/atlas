@@ -2,7 +2,7 @@ import { Headphones, Image as ImageIcon, Lock, MessageSquare } from 'lucide-reac
 import { forwardRef } from 'react';
 import { Tier } from '../config/featureAccess';
 import type { SoundType } from '../hooks/useSoundEffects';
-import { useTierAccess } from '../hooks/useTierAccess';
+import { useFeatureAccess } from '../hooks/useTierAccess';
 import Tooltip from './Tooltip';
 
 interface ModeSwitcherProps {
@@ -26,7 +26,10 @@ const ModeSwitcher = forwardRef<HTMLDivElement, ModeSwitcherProps>(({
   disabled = false,
   onSoundPlay
 }, ref) => {
-  const { canUse } = useTierAccess(userTier);
+  // 🎯 TIER ENFORCEMENT: Use feature access hooks
+  const { canUse: canUseText, attemptFeature: attemptText } = useFeatureAccess('text');
+  const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio');
+  const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
 
   const modes = [
     { 
@@ -99,16 +102,35 @@ const ModeSwitcher = forwardRef<HTMLDivElement, ModeSwitcherProps>(({
     }
   };
 
-  const handleModeChange = (mode: 'text' | 'voice' | 'image', feature: 'text' | 'audio' | 'image') => {
+  const handleModeChange = async (mode: 'text' | 'voice' | 'image', feature: 'text' | 'audio' | 'image') => {
     if (disabled || currentMode === mode) return;
     
-    // Check if feature is enabled for this tier
-    if (!canUse(feature)) {
-      // Show upgrade modal
-      if (onUpgrade) {
-        onUpgrade();
-      } else {
-        alert(`⚠️ ${feature === 'audio' ? 'Voice' : feature === 'image' ? 'Image analysis' : 'Text'} features are available in Atlas Core or Studio. Upgrade to continue!`);
+    // 🎯 TIER ENFORCEMENT: Check feature access with proper hooks
+    let canUse = false;
+    switch (feature) {
+      case 'text':
+        canUse = canUseText;
+        break;
+      case 'audio':
+        canUse = canUseAudio;
+        break;
+      case 'image':
+        canUse = canUseImage;
+        break;
+    }
+    
+    if (!canUse) {
+      // Use the proper attempt feature function which shows upgrade toast
+      switch (feature) {
+        case 'text':
+          await attemptText();
+          break;
+        case 'audio':
+          await attemptAudio();
+          break;
+        case 'image':
+          await attemptImage();
+          break;
       }
       return;
     }
@@ -136,7 +158,19 @@ const ModeSwitcher = forwardRef<HTMLDivElement, ModeSwitcherProps>(({
     <div ref={ref} className={getContainerClasses()}>
       {modes.map((mode) => {
         const Icon = mode.icon;
-        const isFeatureEnabled = canUse(mode.feature);
+        // 🎯 TIER ENFORCEMENT: Check feature access properly
+        let isFeatureEnabled = false;
+        switch (mode.feature) {
+          case 'text':
+            isFeatureEnabled = canUseText;
+            break;
+          case 'audio':
+            isFeatureEnabled = canUseAudio;
+            break;
+          case 'image':
+            isFeatureEnabled = canUseImage;
+            break;
+        }
         const showLock = !isFeatureEnabled && mode.feature !== 'text';
         
         return (

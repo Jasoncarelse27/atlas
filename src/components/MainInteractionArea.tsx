@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import EnhancedResponseArea from './EnhancedResponseArea';
-import VoiceInputArea from './VoiceInputArea';
-import TextInputArea from './TextInputArea';
-import ImageInputArea from './ImageInputArea';
-import UnifiedInputBar from './UnifiedInputBar';
 import type { SoundType } from '../hooks/useSoundEffects';
+import { useFeatureAccess } from '../hooks/useTierAccess';
+import EnhancedResponseArea from './EnhancedResponseArea';
+import ImageInputArea from './ImageInputArea';
+import TextInputArea from './TextInputArea';
+import VoiceInputArea from './VoiceInputArea';
 
 interface MainInteractionAreaProps {
   mode: 'text' | 'voice' | 'image';
@@ -56,6 +56,10 @@ const MainInteractionArea: React.FC<MainInteractionAreaProps> = ({
   const voiceInputAreaRef = useRef<HTMLDivElement>(null);
   const imageInputAreaRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
+
+  // 🎯 TIER ENFORCEMENT: Add feature access checks
+  const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio');
+  const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
 
   // Effect to scroll to and focus the appropriate input area when mode changes
   useEffect(() => {
@@ -109,11 +113,12 @@ const MainInteractionArea: React.FC<MainInteractionAreaProps> = ({
               connectionStatus={connectionStatus}
               transcript={transcript}
               onMuteToggle={onMuteToggle}
-              onPressStart={onVoiceStart}
+              onPressStart={canUseAudio ? onVoiceStart : attemptAudio}
               onPressEnd={onVoiceEnd}
               onShowVoiceSettings={onShowVoiceSettings}
-              hasPermission={browserSupportsSpeechRecognition}
+              hasPermission={browserSupportsSpeechRecognition && canUseAudio}
               onSoundPlay={onSoundPlay}
+              disabled={!canUseAudio}
             />
           </div>
         )}
@@ -121,9 +126,10 @@ const MainInteractionArea: React.FC<MainInteractionAreaProps> = ({
         {mode === 'image' && (
           <ImageInputArea 
             ref={imageInputAreaRef}
-            onImageSelect={onImageSelect}
+            onImageSelect={canUseImage ? onImageSelect : attemptImage}
             isProcessing={isProcessing}
             onSoundPlay={onSoundPlay}
+            disabled={!canUseImage}
           />
         )}
       </div>
