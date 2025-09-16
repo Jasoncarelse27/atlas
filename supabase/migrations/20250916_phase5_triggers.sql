@@ -1,7 +1,8 @@
 -- Phase 5: Atlas Database Automation Triggers
 -- This migration creates triggers for automatic conversation management
+-- Tables: messages, conversations (from 20250115_atlas_v1_schema.sql)
 
--- 1. Trigger: Update conversation updated_at when messages are inserted/updated
+-- 1. Trigger: Update conversation updated_at when messages are inserted
 create or replace function update_conversation_timestamp()
 returns trigger as $$
 begin
@@ -56,7 +57,7 @@ for each row
 execute procedure set_default_conversation_title();
 
 -- TESTING ONLY: uncomment to validate triggers work
--- insert into messages (user_id, conversation_id, content)
--- values ('test-user', 'test-convo', 'Hello Phase 5!');
+-- insert into messages (user_id, conversation_id, content, role)
+-- values ('00000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Hello Phase 5!', 'user');
 --
--- select id, updated_at from conversations where id = 'test-convo';
+-- select id, updated_at from conversations where id = '11111111-1111-1111-1111-111111111111';
