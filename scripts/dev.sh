@@ -17,6 +17,14 @@ NC='\033[0m'
 
 echo -e "${CYAN}🚀 Starting Atlas Unified Dev Launcher...${NC}"
 
+# Run Supabase migrations (Phase 5)
+echo -e "${YELLOW}🗄️  Running Supabase migrations...${NC}"
+if command -v supabase &> /dev/null; then
+  supabase migration up || echo -e "${RED}⚠️  Supabase migration failed (continuing anyway)${NC}"
+else
+  echo -e "${YELLOW}⚠️  Supabase CLI not found, skipping migrations${NC}"
+fi
+
 # Cleanup old processes
 echo -e "${YELLOW}🧹 Cleaning up ports $BACKEND_PORT and $FRONTEND_PORT...${NC}"
 lsof -ti:$BACKEND_PORT | xargs kill -9 2>/dev/null || true
