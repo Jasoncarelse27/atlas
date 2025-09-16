@@ -32,6 +32,9 @@ jobs:
 
       - name: Run Tests
         run: npm run test
+        env:
+          NODE_ENV: test
+          USE_MOCK_MAILER: true
 
       - name: Run Comprehensive Staging Validation
         run: ./scripts/staging-validation.sh
@@ -61,6 +64,9 @@ jobs:
 
       - name: Run Tests
         run: npm run test
+        env:
+          NODE_ENV: test
+          USE_MOCK_MAILER: true
 
       - name: Run Production Critical Validation
         run: ./scripts/production-critical-validation.sh

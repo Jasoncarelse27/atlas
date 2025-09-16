@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MailerService } from '../services/mailerService';
+import { mailerService } from '../services/mailerService';
 
 describe('Atlas MailerLite Integration Tests', () => {
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('Atlas MailerLite Integration Tests', () => {
   });
 
   it.skipIf(!process.env.MAILERLITE_API_KEY)('should send real welcome email with API key', async () => {
-    const result = await MailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Integration Test User' });
+    const result = await mailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Integration Test User' });
     
     expect(result).toBeDefined();
     // Real API response structure may vary
@@ -22,7 +22,7 @@ describe('Atlas MailerLite Integration Tests', () => {
 
   it.skipIf(!process.env.MAILERLITE_API_KEY)('should handle retry logic with real API calls', async () => {
     // This will test the actual retry logic with real API calls
-    const result = await MailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Retry Test User' });
+    const result = await mailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Retry Test User' });
     
     expect(result).toBeDefined();
   });
@@ -31,7 +31,7 @@ describe('Atlas MailerLite Integration Tests', () => {
     const templates = ['welcome', 'upgrade', 'inactivity', 'weeklySummary'];
     
     for (const template of templates) {
-      const result = await MailerService.sendEmail('test@atlas.app', template, { name: 'Flow Test User' });
+      const result = await mailerService.sendEmail('test@atlas.app', template, { name: 'Flow Test User' });
       expect(result).toBeDefined();
     }
   });

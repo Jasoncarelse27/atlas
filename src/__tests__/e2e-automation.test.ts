@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MailerService } from '../services/mailerService';
+import { mailerService } from '../services/mailerService';
 import { retry } from '../utils/retry';
 
 describe('Atlas MailerLite Mock Tests', () => {
@@ -11,7 +11,7 @@ describe('Atlas MailerLite Mock Tests', () => {
   });
 
   it('should use mock service in test environment', async () => {
-    const result = await MailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Test User' });
+    const result = await mailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Test User' });
     
     expect(result.success).toBe(true);
     expect(result.mock).toBe(true);
@@ -21,7 +21,7 @@ describe('Atlas MailerLite Mock Tests', () => {
     const templates = ['welcome', 'upgrade', 'inactivity', 'weeklySummary'];
     
     for (const template of templates) {
-      const result = await MailerService.sendEmail('test@atlas.app', template, { name: 'Test User' });
+      const result = await mailerService.sendEmail('test@atlas.app', template, { name: 'Test User' });
       expect(result.success).toBe(true);
       expect(result.mock).toBe(true);
     }
@@ -46,7 +46,7 @@ describe('Atlas MailerLite Mock Tests', () => {
   it('should log mock email sends correctly', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     
-    await MailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Test User' });
+    await mailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Test User' });
     
     expect(consoleSpy).toHaveBeenCalledWith(
       '[MOCK] Email sent to test@atlas.app with template welcome',

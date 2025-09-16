@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 
 const API_URL = "https://api.mailerlite.com/api/v2";
 
-export const MailerServiceReal = {
+export const mailerService = {
   sendEmail: async (to: string, templateId: string, data: any) => {
     if (!process.env.MAILERLITE_API_KEY) {
       throw new Error("Missing MAILERLITE_API_KEY");

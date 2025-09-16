@@ -1,7 +1,8 @@
 // Environment-based service selection
-import { MailerServiceMock } from "./mailerService.mock";
-import { MailerServiceReal } from "./mailerService.real";
+import { mailerService as mockService } from "./mailerService.mock";
+import { mailerService as realService } from "./mailerService.real";
 
-export const MailerService = (process.env.NODE_ENV === "test" || process.env.USE_MOCK_MAILER === "true") 
-  ? MailerServiceMock 
-  : MailerServiceReal;
+const useMock =
+  process.env.NODE_ENV === "test" || process.env.USE_MOCK_MAILER === "true";
+
+export const mailerService = useMock ? mockService : realService;

@@ -38,6 +38,12 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 - Railway account (for deployment)
 - MailerLite account (for email automation)
 
+## MailerLite Integration
+
+- **Local Dev:** Defaults to mock (no API calls).
+- **CI/CD:** Always mock (safe for pipelines).
+- **Production:** Real MailerLite enabled when MAILERLITE_API_KEY is set.
+
 ## Node.js Version
 
 Atlas requires Node.js v20 or later.
