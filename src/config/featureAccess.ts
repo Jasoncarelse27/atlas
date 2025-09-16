@@ -1,6 +1,6 @@
 // src/config/featureAccess.ts
 
-import { Tier } from '../types/tier';
+import type { Tier } from '../types/tier';
 
 // Runtime tier values (for runtime usage)
 export const TIER_VALUES = ['free', 'core', 'studio'] as const;

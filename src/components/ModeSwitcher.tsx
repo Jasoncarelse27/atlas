@@ -1,6 +1,6 @@
 import { Headphones, Image as ImageIcon, Lock, MessageSquare } from 'lucide-react';
 import { forwardRef } from 'react';
-import { Tier } from '../types/tier';
+import type { Tier } from '../types/tier';
 import type { SoundType } from '../hooks/useSoundEffects';
 import { useFeatureAccess } from '../hooks/useTierAccess';
 import Tooltip from './Tooltip';

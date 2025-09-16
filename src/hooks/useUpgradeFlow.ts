@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Tier } from '../types/tier';
+import type { Tier } from '../types/tier';
 
 export type UpgradeTrigger = 'message_limit' | 'voice_feature' | 'image_feature' | 'general';
 

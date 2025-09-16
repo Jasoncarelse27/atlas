@@ -1,1 +1,2 @@
-export type Tier = 'free' | 'core' | 'studio'
+// src/types/tier.ts
+export type Tier = "free" | "core" | "studio";

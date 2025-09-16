@@ -2,7 +2,7 @@
 // Centralized tier enforcement and feature access logic
 
 import toast from 'react-hot-toast';
-import { Tier } from '../types/tier';
+import type { Tier } from '../types/tier';
 import { getClaudeModelName, isValidTier, tierFeatures } from '../config/featureAccess';
 import { supabase } from '../lib/supabase';
 import { useSubscription } from './useSubscription';

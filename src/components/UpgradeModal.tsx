@@ -1,6 +1,6 @@
 import { Check, Crown, Star, X, Zap } from 'lucide-react';
 import React from 'react';
-import { Tier } from '../types/tier';
+import type { Tier } from '../types/tier';
 import { TIER_CONFIGS } from '../types/subscription';
 
 interface UpgradeModalProps {
