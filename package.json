@@ -5,8 +5,7 @@
   "type": "module",
   "main": "backend/server.mjs",
   "engines": {
-    "node": ">=20.0.0",
-    "npm": ">=8.0.0"
+    "node": "20.x"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
