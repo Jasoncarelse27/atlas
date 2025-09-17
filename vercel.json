@@ -1,29 +1,4 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "https://atlas-production-2123.up.railway.app/api/$1"
-    },
-    {
-      "src": "/healthz",
-      "dest": "https://atlas-production-2123.up.railway.app/healthz"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/dist/$1"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "framework": "vite"
 } 
