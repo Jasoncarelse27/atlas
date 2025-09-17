@@ -31,6 +31,7 @@
     "test:run": "vitest run",
     "test:e2e": "playwright test",
     "check:failures": "ts-node scripts/checkFailures.ts",
+    "send:test": "node scripts/sendTestEmail.cjs",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
