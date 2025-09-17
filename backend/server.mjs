@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 import express from "express";
+import { logError, logInfo, logWarn } from "./utils/logger.mjs";
 
 const app = express();
 
@@ -30,33 +31,51 @@ app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.send("pong"));
 
 // --- Test message endpoint for QA ---
-app.post("/message", (req, res) => {
-  const { userId, tier, message } = req.body;
+app.post("/message", async (req, res) => {
+  try {
+    const { userId, tier, message } = req.body;
+    
+    // Log message attempt
+    await logInfo("Message API called", { userId, tier, hasMessage: !!message });
+    
+    // Simulate tier-based model routing
+    let model;
+    switch (tier) {
+      case 'free':
+        model = 'claude-3-haiku';
+        break;
+      case 'core':
+        model = 'claude-3-sonnet';
+        break;
+      case 'studio':
+        model = 'claude-3-opus';
+        break;
+      default:
+        model = 'claude-3-haiku';
+    }
   
-  // Simulate tier-based model routing
-  let model;
-  switch (tier) {
-    case 'free':
-      model = 'claude-3-haiku';
-      break;
-    case 'core':
-      model = 'claude-3-sonnet';
-      break;
-    case 'studio':
-      model = 'claude-3-opus';
-      break;
-    default:
-      model = 'claude-3-haiku';
+    res.json({
+      success: true,
+      userId,
+      tier,
+      message,
+      model,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    // Log error to Supabase
+    await logError("Message API error", error.stack, { 
+      userId: req.body?.userId, 
+      tier: req.body?.tier,
+      endpoint: '/message'
+    });
+    
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      timestamp: new Date().toISOString()
+    });
   }
-  
-  res.json({
-    success: true,
-    userId,
-    tier,
-    message,
-    model,
-    timestamp: new Date().toISOString()
-  });
 });
 
 // --- Other routes ---
@@ -65,8 +84,10 @@ try {
   const { default: adminRoutes } = await import("./routes/admin.js");
   app.use("/admin", adminRoutes);
   console.log("✅ Admin routes loaded successfully");
+  await logInfo("Admin routes loaded successfully");
 } catch (error) {
   console.warn("⚠️ Admin routes not found, continuing without them:", error.message);
+  await logWarn("Admin routes not found", { error: error.message });
 }
 // app.use("/api", yourRouter);
 
@@ -82,10 +103,17 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`✅ Health endpoint available at /healthz`);
   console.log(`🔍 Health: /healthz & /api/healthz ready`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Full health URL: http://0.0.0.0:${PORT}/healthz`);
+  
+  // Log server startup
+  await logInfo("Atlas backend server started", {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
 });
