@@ -19,7 +19,7 @@ jobs:
           echo "Response timing: $response"
           
           # Check if the JSON response contains the status field
-          if grep -q '"status": "ok"' result.txt; then
+          if grep -q '"status":"ok"' result.txt; then
             echo "✅ Production healthcheck PASSED"
             cat result.txt
           else
@@ -43,7 +43,7 @@ jobs:
           echo "Staging timing: $response"
           
           # Check if the JSON response contains the status field
-          if grep -q '"status": "ok"' staging_result.txt; then
+          if grep -q '"status":"ok"' staging_result.txt; then
             echo "✅ Staging healthcheck PASSED"
             cat staging_result.txt
           else
