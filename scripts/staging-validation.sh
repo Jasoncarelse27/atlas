@@ -28,7 +28,7 @@ npm run lint
 
 # Unit Tests
 echo "📋 Unit Test Execution"
-npm test -- --run --passWithNoTests
+npm test
 
 # Build
 echo "📋 Production Build"
@@ -57,7 +57,7 @@ echo ""
 echo "📋 MailerLite Webhook Validation (Dummy Secrets)"
 if [ -f "src/__tests__/mailerService.test.ts" ]; then
     echo "✅ MailerLite service tests available"
-    npm test -- src/__tests__/mailerService.test.ts -- --run
+    npm test -- src/__tests__/mailerService.test.ts
 else
     echo "⚠️ MailerLite service tests not found"
 fi
@@ -67,7 +67,7 @@ echo ""
 echo "📋 Supabase Integration Validation (Mocked)"
 if [ -f "src/__tests__/chatService.test.ts" ]; then
     echo "✅ Supabase chat service tests available"
-    npm test -- src/__tests__/chatService.test.ts -- --run
+    npm test -- src/__tests__/chatService.test.ts
 else
     echo "⚠️ Supabase chat service tests not found"
 fi
@@ -77,7 +77,7 @@ echo ""
 echo "📋 Authentication Flow Validation"
 if [ -f "src/components/auth/__tests__/AuthPage.test.tsx" ]; then
     echo "✅ Authentication tests available"
-    npm test -- src/components/auth/__tests__/AuthPage.test.tsx -- --run
+    npm test -- src/components/auth/__tests__/AuthPage.test.tsx
 else
     echo "⚠️ Authentication tests not found"
 fi
@@ -103,7 +103,7 @@ echo ""
 
 # Code Coverage
 echo "📋 Code Coverage Analysis"
-if npm test -- --coverage --run 2>/dev/null; then
+if npm test -- --coverage 2>/dev/null; then
     echo "✅ Code coverage analysis complete"
 else
     echo "⚠️ Code coverage analysis not available"
