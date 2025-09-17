@@ -26,6 +26,9 @@ jobs:
   manual-e2e:
     name: Manual E2E Testing - ${{ inputs.test_suite }}
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

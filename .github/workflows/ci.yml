@@ -11,6 +11,9 @@ jobs:
     name: Staging Validation (COMPREHENSIVE)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -43,6 +46,9 @@ jobs:
     name: Production Critical Validation (BLOCKING)
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -85,6 +91,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [core-validation, production-validation]
     if: always() # Run even if validation fails
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
