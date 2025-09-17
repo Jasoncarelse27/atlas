@@ -23,7 +23,7 @@ const RailwayPingTest: React.FC = () => {
 
   const pingEndpoint = async (endpoint: { name: string; url: string }): Promise<PingResult> => {
     const startTime = Date.now();
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     
     try {
       const response = await fetch(`${backendUrl}${endpoint.url}`, {
@@ -191,7 +191,7 @@ const RailwayPingTest: React.FC = () => {
                 Last test: {lastRun.toLocaleTimeString()}
               </p>
               <p className="text-sm text-gray-600">
-                Backend URL: {import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'}
+                Backend URL: {import.meta.env.VITE_API_URL || 'http://localhost:3000'}
               </p>
             </div>
             

@@ -41,7 +41,10 @@
     "monitoring": "./scripts/monitoring-verification.sh",
     "staging": "./scripts/staging-validation.sh",
     "postinstall": "bash scripts/fix-husky.sh || true",
-    "health": "curl http://localhost:${PORT:-3000}/api/healthz || echo 'Health check failed'"
+    "health": "curl http://localhost:${PORT:-3000}/api/healthz || echo 'Health check failed'",
+    "test:railway": "./test-railway-health.sh",
+    "test:compare": "./compare-endpoints.sh",
+    "test:local-health": "curl -s http://localhost:3000/healthz | jq . || echo 'Local server not running'"
   },
   "dependencies": {
     "@supabase/auth-ui-react": "^0.4.7",

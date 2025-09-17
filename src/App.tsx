@@ -417,7 +417,7 @@ function App() {
       console.log('🎯 Using tier:', tier, 'Model:', claudeModelName);
       
       // Use local backend
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
       const response = await fetch(`${backendUrl}/message?stream=1`, { 
         method: 'POST',

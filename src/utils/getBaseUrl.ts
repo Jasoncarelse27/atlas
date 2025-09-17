@@ -1,13 +1,15 @@
 const getBaseUrl = () => {
-  // Web: use localhost
+  // Use environment variable with fallback to localhost for development
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+  
+  // Web: use configured API URL
   if (typeof window !== 'undefined') {
-    return 'http://localhost:8000';
+    return API_URL;
   }
   
-  // Native: use your LAN IP for Expo/React Native
-  // Fetched via: ipconfig getifaddr en0
+  // Native: use your LAN IP for Expo/React Native (fallback)
   const lanIp = '10.46.30.39';
-  return `http://${lanIp}:8000`;
+  return import.meta.env.VITE_API_URL || `http://${lanIp}:3000`;
 };
 
 export default getBaseUrl;
