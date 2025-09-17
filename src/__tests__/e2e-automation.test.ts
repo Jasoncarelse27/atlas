@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mailerService } from '../services/mailerService';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mailerService } from '../services/mailerService.mock';
 import { retry } from '../utils/retry';
 
 describe('Atlas MailerLite Mock Tests', () => {

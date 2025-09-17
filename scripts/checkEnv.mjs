@@ -12,6 +12,19 @@
  * - Local: Can be run manually with `npm run check-env`
  */
 
+// Load environment variables from .env.local for local development
+try {
+  const { config } = await import('dotenv');
+  const result = config({ path: '.env.local' });
+  if (result.error) {
+    console.log('⚠️  Could not load .env.local:', result.error.message);
+  } else if (result.parsed) {
+    console.log('📁 Loaded .env.local file with', Object.keys(result.parsed).length, 'variables');
+  }
+} catch (error) {
+  console.log('⚠️  dotenv not available or .env.local doesn\'t exist:', error.message);
+}
+
 const required = [
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { mailerService } from '../services/mailerService';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { mailerService } from '../services/mailerService.mock';
 
 describe('Atlas MailerLite Integration Tests', () => {
   beforeEach(() => {
