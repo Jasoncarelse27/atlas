@@ -1,5 +1,6 @@
 _backup_configs/
 atlas-mobile/
+supabase/
 *.test.ts
 *.spec.ts
 jest.config.ts
