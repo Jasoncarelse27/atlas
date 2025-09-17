@@ -61,12 +61,29 @@ app.post("/message", (req, res) => {
 
 // --- Other routes ---
 // Load admin routes dynamically after environment variables are set
-const { default: adminRoutes } = await import("./routes/admin.js");
-app.use("/admin", adminRoutes);
+try {
+  const { default: adminRoutes } = await import("./routes/admin.js");
+  app.use("/admin", adminRoutes);
+  console.log("✅ Admin routes loaded successfully");
+} catch (error) {
+  console.warn("⚠️ Admin routes not found, continuing without them:", error.message);
+}
 // app.use("/api", yourRouter);
+
+// Catch-all route for debugging Railway deployment
+app.get('*', (req, res) => {
+  console.log(`🔍 Unmatched route: ${req.method} ${req.path}`);
+  res.status(404).json({
+    error: 'Route not found',
+    path: req.path,
+    method: req.method,
+    availableRoutes: ['/healthz', '/api/healthz', '/ping', '/message', '/admin/*']
+  });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔍 Health: /healthz & /api/healthz ready`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
