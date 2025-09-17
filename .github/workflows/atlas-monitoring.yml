@@ -19,7 +19,7 @@ jobs:
           echo "Response: $response"
           cat result.txt || true
 
-          if [[ "$response" != *"status\":\"ok\""* ]]; then
+          if [[ "$response" != *"\"status\": \"ok\""* ]]; then
             echo "❌ Production healthcheck failed"
             echo "Logs:" >> result.txt
             echo "$(date) - Production healthcheck failed" >> result.txt
@@ -40,7 +40,7 @@ jobs:
           echo "Staging Response: $response"
           cat staging_result.txt || true
 
-          if [[ "$response" != *"status\":\"ok\""* ]]; then
+          if [[ "$response" != *"\"status\": \"ok\""* ]]; then
             echo "❌ Staging healthcheck failed"
             echo "Staging Logs:" >> staging_result.txt
             echo "$(date) - Staging healthcheck failed" >> staging_result.txt

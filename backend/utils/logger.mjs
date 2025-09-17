@@ -48,12 +48,22 @@ export async function logInfo(message, context = {}) {
   try {
     const client = getSupabaseClient();
     if (!client) {
-      console.log(`[LOG-INFO] ${message}`, { context });
+      console.log(`[LOG-INFO] No Supabase client - ${message}`, { context });
+      console.log(`[DEBUG] SUPABASE_URL: ${process.env.SUPABASE_URL ? 'SET' : 'NOT SET'}`);
+      console.log(`[DEBUG] SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'}`);
       return;
     }
-    await client.from("logs").insert([
+    
+    console.log(`[LOG-INFO] Attempting to log to Supabase: ${message}`);
+    const result = await client.from("logs").insert([
       { level: "info", message, context }
     ]);
+    
+    if (result.error) {
+      console.error("Supabase insert error:", result.error);
+    } else {
+      console.log(`[LOG-INFO] Successfully logged to Supabase: ${message}`);
+    }
   } catch (error) {
     console.error("Failed to log to Supabase:", error.message);
   }
