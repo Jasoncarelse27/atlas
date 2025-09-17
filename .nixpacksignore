@@ -1,3 +1,13 @@
+_backup_configs/
 atlas-mobile/
 *.test.ts
 *.spec.ts
+jest.config.ts
+playwright.config.ts
+vite.config.ts
+vitest.config.ts
+vitest.setup.ts
+tests/
+qa/
+node_modules/
+dist/
