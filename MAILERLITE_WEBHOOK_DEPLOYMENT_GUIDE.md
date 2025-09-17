@@ -135,7 +135,7 @@ LIMIT 10;
 # Test subscriber.created
 BODY='{"type":"subscriber.created","data":{"email":"test@demo.com","fields":{"plan":"premium"}}}'
 SIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "wAGDBZzeJK" -binary | base64)
-curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/mailerWebhook" \
+curl -X POST "https://your-project.supabase.co/functions/v1/mailerWebhook" \
   -H "Content-Type: application/json" \
   -H "x-mailerlite-signature: $SIGNATURE" \
   -d "$BODY"
