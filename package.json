@@ -18,7 +18,7 @@
     "dev": "USE_MOCK_MAILER=true vite",
     "dev:backend": "nodemon backend/server.mjs",
     "dev:frontend": "USE_MOCK_MAILER=true vite",
-    "backend": "nodemon backend/server.mjs",
+    "backend": "node server.cjs",
     "frontend": "USE_MOCK_MAILER=true vite",
     "dev:all": "concurrently \"npm run backend\" \"npm run frontend\"",
     "atlas": "./dev.sh",
