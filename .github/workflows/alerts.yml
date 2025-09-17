@@ -66,19 +66,20 @@ jobs:
           echo "details=$DETAILS_ESCAPED" >> $GITHUB_OUTPUT
 
       - name: Send CI/CD Alert
+        env:
+          SUPABASE_FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MAILERLITE_SIGNING_SECRET: ${{ secrets.MAILERLITE_SIGNING_SECRET }}
         run: |
-          : "${SUPABASE_FUNCTION_URL:=${{ secrets.SUPABASE_FUNCTION_URL }}}"
-          : "${SRK:=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}}"
-          : "${SIG:=${{ secrets.MAILERLITE_SIGNING_SECRET }}}"
           curl -sS --retry 3 --retry-delay 2 --connect-timeout 10 \
             -X POST "${SUPABASE_FUNCTION_URL}/cicd-alert" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${SRK}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -d '{
               "stage": "${{ github.event.workflow_run.name }}",
               "status": "${{ steps.alert-status.outputs.status }}",
               "details": "${{ steps.alert-details.outputs.details }}",
-              "signingSecret": "${SIG}"
+              "signingSecret": "'"${MAILERLITE_SIGNING_SECRET}"'"
             }' || echo "⚠️ Alert function failed (non-blocking)"
 
       - name: Log Alert Status
