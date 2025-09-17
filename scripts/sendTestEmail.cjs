@@ -1,3 +1,4 @@
+/* eslint-env node */
 const { mailerService } = require("../src/services/mailerService");
 
 async function main() {
