@@ -1,14 +1,8 @@
-# nixpacks.toml
-# Tell Railway to use Node.js instead of Deno
-
-[phases.setup]
-# Install Node.js 18 (can be bumped to 20 if your app requires it)
-nixPkgs = ["nodejs-18_x"]
-
 [phases.build]
-# Install dependencies
 cmds = ["npm install"]
 
-[start]
-# Start your app using your package.json start script
+[phases.start]
 cmd = "npm run start"
+
+[variables]
+NODE_ENV = "production"
