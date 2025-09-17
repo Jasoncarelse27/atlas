@@ -12,47 +12,23 @@
  * - Local: Can be run manually with `npm run check-env`
  */
 
-// Load environment variables from .env.local for local development
-try {
-  const { config } = await import('dotenv');
-  const result = config({ path: '.env.local' });
-  if (result.error) {
-    console.log('⚠️  Could not load .env.local:', result.error.message);
-  } else if (result.parsed) {
-    console.log('📁 Loaded .env.local file with', Object.keys(result.parsed).length, 'variables');
-  }
-} catch (error) {
-  console.log('⚠️  dotenv not available or .env.local doesn\'t exist:', error.message);
-}
+import 'dotenv/config';
 
-const required = [
-  'VITE_SUPABASE_URL',
-  'VITE_SUPABASE_ANON_KEY',
-];
-
-let missing = [];
+const requiredVars = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
 
 console.log('🔍 Checking required environment variables...');
 
-for (const key of required) {
-  if (!process.env[key]) {
-    missing.push(key);
-  } else {
-    console.log(`✅ ${key}: ${process.env[key].substring(0, 20)}...`);
-  }
-}
+const missing = requiredVars.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
   console.error('❌ Missing required environment variables:');
-  missing.forEach(key => {
-    console.error(`   - ${key}`);
-  });
+  missing.forEach((key) => console.error(`   - ${key}`));
   console.error('\n💡 Make sure to set these in your deployment environment:');
   console.error('   - Vercel: Project Settings → Environment Variables');
   console.error('   - Expo/EAS: eas.json → env');
   console.error('   - GitHub Actions: Repository Settings → Secrets');
   console.error('   - Local: .env.local file');
-  process.exit(1); // fail build
+  process.exit(1);
 } else {
   console.log('✅ All required environment variables are present');
   console.log('🚀 Build can proceed safely');
