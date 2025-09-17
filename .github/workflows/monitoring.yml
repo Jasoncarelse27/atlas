@@ -1,0 +1,170 @@
+name: 🔍 Atlas Monitoring & Health Checks
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to monitor'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+jobs:
+  health-check:
+    name: 🏥 Backend Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run Railway Health Check
+      env:
+        RAILWAY_URL: https://atlas-production-2123.up.railway.app
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      run: |
+        echo "🔍 Running Atlas backend health check..."
+        node scripts/monitoring/railway-monitor.mjs
+
+    - name: Test Critical Endpoints
+      run: |
+        echo "🧪 Testing critical endpoints..."
+        
+        # Health endpoint
+        HEALTH_RESPONSE=$(curl -s -w "%{http_code}" https://atlas-production-2123.up.railway.app/healthz)
+        HTTP_CODE=$(echo "$HEALTH_RESPONSE" | tail -c 4)
+        
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ Health endpoint failed with status: $HTTP_CODE"
+          exit 1
+        fi
+        
+        echo "✅ Health endpoint is responding"
+        
+        # Message API endpoint
+        MESSAGE_RESPONSE=$(curl -s -w "%{http_code}" -X POST https://atlas-production-2123.up.railway.app/message \
+          -H "Content-Type: application/json" \
+          -d '{"userId":"monitoring-test","content":"Health check test"}')
+        
+        MESSAGE_CODE=$(echo "$MESSAGE_RESPONSE" | tail -c 4)
+        
+        if [ "$MESSAGE_CODE" != "200" ]; then
+          echo "⚠️ Message API returned status: $MESSAGE_CODE"
+        else
+          echo "✅ Message API is responding"
+        fi
+
+  alert-on-failure:
+    name: 🚨 Send Alerts on Failure
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: failure()
+    
+    steps:
+    - name: Send Slack Alert
+      if: env.SLACK_WEBHOOK_URL != ''
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        curl -X POST -H 'Content-type: application/json' \
+          --data '{"text":"🚨 Atlas Backend Health Check Failed!\n\nTime: '"$(date)"'\nEnvironment: Production\nWorkflow: ${{ github.workflow }}\nRun: ${{ github.run_id }}"}' \
+          $SLACK_WEBHOOK_URL
+
+    - name: Create GitHub Issue on Critical Failure
+      if: github.event_name == 'schedule'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = '🚨 Atlas Backend Health Check Failed';
+          const body = `
+          ## Critical Alert: Backend Health Check Failed
+          
+          **Time:** ${new Date().toISOString()}
+          **Environment:** Production
+          **Workflow Run:** ${{ github.run_id }}
+          
+          ### What Happened
+          The automated health check for the Atlas backend has failed.
+          
+          ### Immediate Actions Needed
+          1. Check Railway deployment status
+          2. Verify database connectivity
+          3. Review application logs
+          4. Test critical user flows
+          
+          ### Links
+          - [Railway Dashboard](https://railway.app)
+          - [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [Backend URL](https://atlas-production-2123.up.railway.app/healthz)
+          
+          This issue was automatically created by the monitoring system.
+          `;
+          
+          // Check if issue already exists
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'critical,monitoring'
+          });
+          
+          const existingIssue = issues.data.find(issue => issue.title.includes('Backend Health Check Failed'));
+          
+          if (!existingIssue) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['critical', 'monitoring', 'backend']
+            });
+          }
+
+  performance-check:
+    name: 📊 Performance Monitoring
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Response Time Test
+      run: |
+        echo "⏱️ Testing response times..."
+        
+        # Test health endpoint response time
+        RESPONSE_TIME=$(curl -s -w "%{time_total}" -o /dev/null https://atlas-production-2123.up.railway.app/healthz)
+        
+        echo "Health endpoint response time: ${RESPONSE_TIME}s"
+        
+        # Alert if response time > 5 seconds
+        if (( $(echo "$RESPONSE_TIME > 5.0" | bc -l) )); then
+          echo "⚠️ Slow response time detected: ${RESPONSE_TIME}s"
+          exit 1
+        fi
+        
+        echo "✅ Response time is acceptable"
+
+    - name: Load Test (Light)
+      run: |
+        echo "🔄 Running light load test..."
+        
+        for i in {1..5}; do
+          curl -s https://atlas-production-2123.up.railway.app/healthz > /dev/null &
+        done
+        
+        wait
+        echo "✅ Light load test completed"
