@@ -1,0 +1,121 @@
+name: Atlas Monitoring
+
+on:
+  schedule:
+    # Run every 15 minutes to check health
+    - cron: "*/15 * * * *"
+    # Run once a day at 08:00 UTC for daily success ping
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Production Health
+        run: |
+          echo "🔍 Checking production health..."
+          response=$(curl -s -w " time_total=%{time_total}" -o result.txt https://atlas-production-2123.up.railway.app/healthz || true)
+          echo "Response: $response"
+          cat result.txt || true
+
+          if [[ "$response" != *"status\":\"ok\""* ]]; then
+            echo "❌ Production healthcheck failed"
+            echo "Logs:" >> result.txt
+            echo "$(date) - Production healthcheck failed" >> result.txt
+            exit 1
+          fi
+
+          # Extract latency
+          latency=$(echo "$response" | grep -o "time_total=[0-9.]*" | cut -d= -f2)
+          echo "⏱️ Production Latency: ${latency}s"
+          if (( $(echo "$latency > 2.0" | bc -l) )); then
+            echo "⚠️ Warning: high latency ($latency s)"
+          fi
+
+      - name: Check Staging Health
+        run: |
+          echo "🔍 Checking staging health..."
+          response=$(curl -s -w " time_total=%{time_total}" -o staging_result.txt https://atlas-staging.up.railway.app/healthz || true)
+          echo "Staging Response: $response"
+          cat staging_result.txt || true
+
+          if [[ "$response" != *"status\":\"ok\""* ]]; then
+            echo "❌ Staging healthcheck failed"
+            echo "Staging Logs:" >> staging_result.txt
+            echo "$(date) - Staging healthcheck failed" >> staging_result.txt
+          else
+            echo "✅ Staging is healthy"
+          fi
+
+      - name: Test Message API
+        run: |
+          echo "🧪 Testing message API..."
+          MESSAGE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST https://atlas-production-2123.up.railway.app/message \
+            -H "Content-Type: application/json" \
+            -d '{"userId":"github-monitoring","content":"Automated healthcheck test"}')
+          
+          if [ "$MESSAGE_RESPONSE" != "200" ]; then
+            echo "⚠️ Message API returned status $MESSAGE_RESPONSE"
+            echo "Message API failed with status $MESSAGE_RESPONSE" >> result.txt
+          else
+            echo "✅ Message API is healthy"
+          fi
+
+      - name: Send Slack Alert
+        if: failure()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "🚨 Atlas Monitoring Alert",
+              "attachments": [
+                {
+                  "color": "danger",
+                  "title": "Healthcheck FAILED",
+                  "fields": [
+                    {
+                      "title": "Environment",
+                      "value": "Production & Staging",
+                      "short": true
+                    },
+                    {
+                      "title": "Time",
+                      "value": "${{ github.run_id }}",
+                      "short": true
+                    }
+                  ],
+                  "text": "Check GitHub Actions for details: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  daily-success:
+    if: github.event.schedule == '0 8 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Daily Success Ping
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "✅ Atlas Daily Monitoring Report",
+              "attachments": [
+                {
+                  "color": "good",
+                  "title": "All systems healthy",
+                  "text": "Production & Staging healthchecks passed in the last 24h.",
+                  "fields": [
+                    {
+                      "title": "Services",
+                      "value": "• Production API\n• Staging API\n• Message Endpoint\n• Health Monitoring",
+                      "short": false
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

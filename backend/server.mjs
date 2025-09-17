@@ -26,7 +26,10 @@ const healthPayload = () => ({
 });
 
 // --- Health endpoints ---
-app.get("/healthz", (req, res) => res.status(200).json(healthPayload()));
+app.get("/healthz", async (req, res) => {
+  await logInfo("Health check pinged", { env: process.env.NODE_ENV });
+  res.status(200).json(healthPayload());
+});
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.send("pong"));
 
