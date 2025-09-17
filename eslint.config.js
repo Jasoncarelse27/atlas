@@ -56,6 +56,24 @@ export default [
     },
   },
   {
+    files: ['scripts/**/*'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        process: 'readonly',
+        console: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+      },
+    },
+    rules: {
+      'no-undef': 'off',
+      'no-console': 'off',
+    },
+  },
+  {
     ignores: ['dist', 'node_modules', '*.config.js', 'venv/**/*', '*.py', 'server.py'],
   },
 ];
