@@ -47,14 +47,25 @@ jobs:
       - name: "Validate migration syntax"
         run: |
           echo "🔍 Validating migration SQL syntax..."
+          echo "📂 Directory contents:"
+          ls -la supabase/migrations/ || echo "Directory not found"
+          echo ""
           # Check if any migration files exist
-          MIGRATION_COUNT=$(ls supabase/migrations/*.sql 2>/dev/null | wc -l)
+          MIGRATION_COUNT=$(find supabase/migrations -name "*.sql" -not -name "*.down.sql" 2>/dev/null | wc -l)
           if [ "$MIGRATION_COUNT" -gt 0 ]; then
             echo "✅ Found $MIGRATION_COUNT migration files"
-            ls -la supabase/migrations/*.sql
+            find supabase/migrations -name "*.sql" -not -name "*.down.sql"
           else
-            echo "❌ No migration files found"
-            exit 1
+            echo "⚠️ No forward migration files found"
+            echo "📋 All files in migrations directory:"
+            find supabase/migrations -type f 2>/dev/null || echo "No files found"
+            # Don't exit 1 if we have any SQL files at all
+            if [ $(find supabase/migrations -name "*.sql" 2>/dev/null | wc -l) -gt 0 ]; then
+              echo "✅ Found SQL files (including rollback files)"
+            else
+              echo "❌ No SQL files found at all"
+              exit 1
+            fi
           fi
           
           # Check for rollback files
