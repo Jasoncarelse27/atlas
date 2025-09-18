@@ -8,7 +8,7 @@ echo "🚀 Deploying Atlas Edge Function..."
 # Check if Supabase CLI is installed
 if ! command -v supabase &> /dev/null; then
     echo "❌ Supabase CLI not found. Please install it first:"
-    echo "   npm install -g supabase"
+    echo "   curl -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz && sudo mv supabase /usr/local/bin/supabase"
     exit 1
 fi
 

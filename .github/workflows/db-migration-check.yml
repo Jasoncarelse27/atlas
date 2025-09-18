@@ -23,7 +23,8 @@ jobs:
           
       - name: "Install Supabase CLI"
         run: |
-          npm install -g supabase
+          curl -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz
+          sudo mv supabase /usr/local/bin/supabase
           supabase --version
           
       - name: "Setup Supabase project"
