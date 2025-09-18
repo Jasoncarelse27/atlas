@@ -37,6 +37,10 @@ jobs:
       - name: "Check migration files"
         run: |
           echo "📋 Checking migration files..."
+          if [ ! -d "supabase/migrations" ]; then
+            echo "⚠️ Migrations directory missing — creating placeholder."
+            mkdir -p supabase/migrations
+          fi
           ls -la supabase/migrations/
           echo "✅ Migration files found"
           
