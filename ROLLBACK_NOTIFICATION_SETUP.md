@@ -40,7 +40,7 @@ Set these secrets in your GitHub repository settings:
 
 ### 1. SLACK_WEBHOOK_URL
 - **Purpose**: Slack incoming webhook for your #alerts channel
-- **Format**: `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`
+- **Format**: `https://hooks.slack.com/services/[YOUR-WORKSPACE]/[YOUR-CHANNEL]/[YOUR-TOKEN]`
 - **Setup**: 
   1. Go to your Slack workspace
   2. Create a new app or use existing one
@@ -240,7 +240,7 @@ Create additional rollback migration files:
    - Error: "❌ Missing required secret: SLACK_WEBHOOK_URL"
    - Solution: Go to GitHub → Settings → Secrets and variables → Actions
    - Add SLACK_WEBHOOK_URL with your Slack webhook URL
-   - Format: `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`
+   - Format: `https://hooks.slack.com/services/[YOUR-WORKSPACE]/[YOUR-CHANNEL]/[YOUR-TOKEN]`
 
 2. **Missing email alert secrets**:
    - Warning: "⚠️ Optional email alert secrets not fully set"

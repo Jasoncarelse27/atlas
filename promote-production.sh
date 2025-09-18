@@ -39,7 +39,7 @@ echo "📊 Checking Supabase production logs..."
 if command -v supabase &> /dev/null; then
     supabase functions logs || true
 else
-    echo "⚠️ Supabase CLI not found. Install with: npm install -g supabase"
+    echo "⚠️ Supabase CLI not found. Install with: curl -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz && sudo mv supabase /usr/local/bin/supabase"
 fi
 
 echo "📊 Sending test event to Sentry (production)..."
