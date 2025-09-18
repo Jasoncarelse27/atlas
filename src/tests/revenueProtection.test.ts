@@ -74,30 +74,31 @@ describe('Revenue Protection System', () => {
 
   describe('Daily Limit Enforcement', () => {
     it('should correctly identify when free users are within limits', () => {
-      expect(isWithinDailyLimit('free', 15)).toBe(true);
-      expect(isWithinDailyLimit('free', 19)).toBe(true);
+      expect(isWithinDailyLimit('free', 10)).toBe(true);
+      expect(isWithinDailyLimit('free', 14)).toBe(true);
+      expect(isWithinDailyLimit('free', 15)).toBe(false);
       expect(isWithinDailyLimit('free', 20)).toBe(false);
-      expect(isWithinDailyLimit('free', 25)).toBe(false);
     });
 
-    it('should correctly identify when basic users are within limits', () => {
-      expect(isWithinDailyLimit('basic', 50)).toBe(true);
-      expect(isWithinDailyLimit('basic', 99)).toBe(true);
-      expect(isWithinDailyLimit('basic', 100)).toBe(false);
-      expect(isWithinDailyLimit('basic', 150)).toBe(false);
+    it('should correctly identify when core users are within limits', () => {
+      expect(isWithinDailyLimit('core', 100)).toBe(true);
+      expect(isWithinDailyLimit('core', 149)).toBe(true);
+      expect(isWithinDailyLimit('core', 150)).toBe(false);
+      expect(isWithinDailyLimit('core', 200)).toBe(false);
     });
 
-    it('should allow unlimited conversations for premium users', () => {
-      expect(isWithinDailyLimit('premium', 100)).toBe(true);
-      expect(isWithinDailyLimit('premium', 1000)).toBe(true);
-      expect(isWithinDailyLimit('premium', 10000)).toBe(true);
+    it('should correctly identify when studio users are within limits', () => {
+      expect(isWithinDailyLimit('studio', 400)).toBe(true);
+      expect(isWithinDailyLimit('studio', 499)).toBe(true);
+      expect(isWithinDailyLimit('studio', 500)).toBe(false);
+      expect(isWithinDailyLimit('studio', 600)).toBe(false);
     });
 
     it('should calculate remaining conversations correctly', () => {
-      expect(getRemainingConversations('free', 10)).toBe(10);
-      expect(getRemainingConversations('free', 20)).toBe(0);
-      expect(getRemainingConversations('basic', 50)).toBe(50);
-      expect(getRemainingConversations('premium', 1000)).toBe('unlimited');
+      expect(getRemainingConversations('free', 10)).toBe(5);
+      expect(getRemainingConversations('free', 15)).toBe(0);
+      expect(getRemainingConversations('core', 100)).toBe(50);
+      expect(getRemainingConversations('studio', 400)).toBe(100);
     });
   });
 
