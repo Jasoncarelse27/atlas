@@ -50,22 +50,16 @@ jobs:
           echo "📂 Directory contents:"
           ls -la supabase/migrations/ || echo "Directory not found"
           echo ""
-          # Check if any migration files exist
-          MIGRATION_COUNT=$(find supabase/migrations -name "*.sql" -not -name "*.down.sql" 2>/dev/null | wc -l)
-          if [ "$MIGRATION_COUNT" -gt 0 ]; then
-            echo "✅ Found $MIGRATION_COUNT migration files"
-            find supabase/migrations -name "*.sql" -not -name "*.down.sql"
+          # Simple check for any SQL files using ls
+          if ls supabase/migrations/*.sql >/dev/null 2>&1; then
+            echo "✅ Found SQL migration files:"
+            ls -1 supabase/migrations/*.sql | wc -l | xargs echo "Total files:"
+            ls -1 supabase/migrations/*.sql | head -5
           else
-            echo "⚠️ No forward migration files found"
-            echo "📋 All files in migrations directory:"
-            find supabase/migrations -type f 2>/dev/null || echo "No files found"
-            # Don't exit 1 if we have any SQL files at all
-            if [ $(find supabase/migrations -name "*.sql" 2>/dev/null | wc -l) -gt 0 ]; then
-              echo "✅ Found SQL files (including rollback files)"
-            else
-              echo "❌ No SQL files found at all"
-              exit 1
-            fi
+            echo "❌ No SQL files found"
+            echo "📋 All files in directory:"
+            ls -la supabase/migrations/ || echo "No files found"
+            exit 1
           fi
           
           # Check for rollback files
