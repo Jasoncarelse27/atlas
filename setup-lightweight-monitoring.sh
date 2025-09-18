@@ -24,7 +24,7 @@ echo -e "\n${BLUE}🚨 Step 3: Slack Alerts${NC}"
 echo "1. Go to your Slack workspace"
 echo "2. Create an Incoming Webhook: https://slack.com/apps/A0F7XDUAZ-incoming-webhooks"
 echo "3. Add SLACK_WEBHOOK_URL to your GitHub repository secrets"
-echo "4. Format: https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+echo "4. Format: $SLACK_WEBHOOK_URL"
 
 echo -e "\n${BLUE}🧪 Step 4: Test the Setup${NC}"
 echo "Test Railway health:"
