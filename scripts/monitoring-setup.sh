@@ -80,7 +80,7 @@ log_check "Supabase CLI installation"
 if command -v supabase &> /dev/null; then
     log_success "Supabase CLI installed"
 else
-    log_warning "Supabase CLI not installed. Install with: npm install -g supabase"
+    log_warning "Supabase CLI not installed. Install with: curl -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz && sudo mv supabase /usr/local/bin/supabase"
 fi
 
 log_check "Supabase project configuration"

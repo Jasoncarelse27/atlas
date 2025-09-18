@@ -9,7 +9,7 @@ router.post('/resetAttempts', async (req, res) => {
     const { error } = await supabase
       .from('feature_attempts')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
+      .neq('id', '00000000-0000-0000-0000-000000000000');
     
     if (error) {
       console.error('Error resetting attempts:', error);
@@ -40,6 +40,31 @@ router.get('/featureFlags', async (req, res) => {
   } catch (error) {
     console.error('Error in featureFlags:', error);
     res.json({ success: false, message: error.message });
+  }
+});
+
+// 📊 NEW: GET /admin/metrics - Tier gate system metrics
+router.get('/metrics', async (req, res) => {
+  try {
+    const { adminDashboardService } = await import('../services/adminDashboardService.mjs');
+    
+    const metrics = await adminDashboardService.getMetrics();
+    
+    res.json({
+      success: true,
+      metrics,
+      generatedAt: new Date().toISOString(),
+      system: 'Atlas Enhanced Tier Gate System'
+    });
+
+  } catch (error) {
+    console.error('Error fetching admin metrics:', error);
+    res.json({ 
+      success: false, 
+      status: 'unavailable',
+      message: 'Metrics service temporarily unavailable',
+      error: error.message 
+    });
   }
 });
 

@@ -28,7 +28,7 @@ npm run lint
 
 # Unit Tests
 echo "📋 Unit Test Execution"
-npm test -- --run --passWithNoTests
+npm test
 
 # Build
 echo "📋 Production Build"
