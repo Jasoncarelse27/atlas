@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, TextInput, Button, FlatList, Text, StyleSheet } from 'react-native';
-import { useMessageStore } from '../stores/useMessageStore';
-import { sendMessageToSupabase } from '../services/chatService';
+import { useState } from 'react';
+import { Button, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { v4 as uuid } from 'uuid';
+import { sendMessageToBackend } from '../services/chatService';
+import { useMessageStore } from '../stores/useMessageStore';
 
 export default function ChatScreen() {
   const [input, setInput] = useState('');
@@ -22,10 +22,11 @@ export default function ChatScreen() {
     setInput('');
 
     try {
-      await sendMessageToSupabase({
+      await sendMessageToBackend({
         conversationId: 'demo', // Replace with actual ID
         message: input,
         accessToken: 'your-supabase-access-token', // Replace with actual token
+        tier: 'free', // Default tier for demo
         onMessage: (partial: string) => {
           updateAssistantMessage(partial);
         },

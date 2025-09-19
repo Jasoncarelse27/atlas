@@ -12,10 +12,10 @@ supabase db reset --linked
 ```
 
 ### **2. Environment Check**
-- [ ] Claude API key configured
-- [ ] Supabase connection working
-- [ ] Paddle integration functional
-- [ ] Development server running
+- [x] Claude API key configured
+- [x] Supabase connection working
+- [ ] Paddle integration functional (waiting for verification)
+- [x] Development server running
 
 ## 🧪 **Tier Enforcement Testing**
 
@@ -76,15 +76,15 @@ supabase db reset --linked
 ## 🔄 **Upgrade Flow Testing**
 
 ### **Free → Core Upgrade**
-- [ ] Click upgrade button opens Paddle checkout
-- [ ] Paddle checkout shows $19.99/month
+- [x] Click upgrade button opens Paddle checkout (EnhancedUpgradeModal ready)
+- [ ] Paddle checkout shows $19.99/month (waiting for Paddle credentials)
 - [ ] Successful payment updates tier to "core"
 - [ ] All core features immediately available
 - [ ] No more message limits
 
 ### **Core → Studio Upgrade**
-- [ ] Upgrade button opens Paddle checkout
-- [ ] Paddle checkout shows $179.99/month
+- [x] Upgrade button opens Paddle checkout (EnhancedUpgradeModal ready)
+- [ ] Paddle checkout shows $179.99/month (waiting for Paddle credentials)
 - [ ] Successful payment updates tier to "studio"
 - [ ] Claude Opus model immediately active
 - [ ] Premium features unlocked

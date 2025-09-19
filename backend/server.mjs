@@ -6,14 +6,31 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from .env file in project root
-dotenv.config({ path: path.join(__dirname, "..", ".env") });
+// Load environment variables based on NODE_ENV
+const nodeEnv = process.env.NODE_ENV || 'development';
+const envFile = nodeEnv === 'production' ? '.env.production' : '.env.local';
 
+console.log(`🌍 Environment: ${nodeEnv}`);
+console.log(`📁 Loading environment from: ${envFile}`);
+
+// Load environment variables from the appropriate .env file
+dotenv.config({ path: path.join(__dirname, "..", envFile) });
+
+// Verify critical environment variables are loaded
+const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+const missingVars = requiredVars.filter(varName => !process.env[varName]);
+
+if (missingVars.length > 0) {
+  console.error(`❌ Missing environment variables: ${missingVars.join(', ')}`);
+  console.error(`📁 Check your ${envFile} file`);
+  process.exit(1);
+}
+
+console.log('✅ Environment variables loaded successfully');
+
+import cors from "cors";
 import express from "express";
 import { logError, logInfo, logWarn } from "./utils/logger.mjs";
-
-// 🎯 Import tier gate system (after env vars loaded)
-import { createClient } from '@supabase/supabase-js';
 
 // 🛡️ Import new middleware stack
 import authMiddleware from "./middleware/authMiddleware.mjs";
@@ -21,23 +38,30 @@ import dailyLimitMiddleware from "./middleware/dailyLimitMiddleware.mjs";
 import promptCacheMiddleware, { cachePromptResponse } from "./middleware/promptCacheMiddleware.mjs";
 import tierGateMiddleware from "./middleware/tierGateMiddleware.mjs";
 
-// Lazy Supabase client for message processing
-let supabaseSvc = null;
-function getSupabaseClient() {
-  if (!supabaseSvc && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseSvc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  }
-  return supabaseSvc;
-}
-
 const app = express();
 
 // Middleware
 app.use(express.json());
 
-// Global auth middleware (except for health endpoints)
+// CORS middleware - allow frontend connections
+app.use(cors({
+  origin: [
+    "http://localhost:5173", 
+    "http://192.168.0.10:5173",
+    /^https:\/\/atlas.*\.up\.railway\.app$/,
+    /^https:\/\/.*\.railway\.app$/
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Handle preflight requests
+app.options("*", cors());
+
+// Global auth middleware (except for health endpoints and paddle test)
 app.use((req, res, next) => {
-  if (req.path === '/healthz' || req.path === '/api/healthz' || req.path === '/ping') {
+  if (req.path === '/healthz' || req.path === '/api/healthz' || req.path === '/ping' || req.path === '/admin/paddle-test') {
     return next();
   }
   return authMiddleware(req, res, next);
@@ -58,7 +82,7 @@ app.get("/healthz", async (req, res) => {
   res.status(200).json(healthPayload());
 });
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
-app.get("/ping", (req, res) => res.send("pong"));
+app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: new Date().toISOString() }));
 
 // --- Enhanced message endpoint with middleware stack ---
 app.post("/message", 
@@ -112,7 +136,7 @@ app.post("/message",
       }
 
       // 📊 STEP 5: Update actual usage with real token counts
-      const client = getSupabaseClient();
+      const { supabase: client } = await import('./config/supabaseClient.mjs');
       if (client && userId) {
         // Update daily usage with actual tokens
         await client.rpc('increment_conversation_count', {
@@ -196,6 +220,17 @@ try {
 } catch (error) {
   console.warn("⚠️ Paddle routes not found, continuing without them:", error.message);
   await logWarn("Paddle routes not found", { error: error.message });
+}
+
+// Load Paddle webhook routes
+try {
+  const { default: paddleWebhookRoutes } = await import("./routes/paddleWebhook.mjs");
+  app.use("/paddle", paddleWebhookRoutes);
+  console.log("✅ Paddle webhook routes loaded successfully");
+  await logInfo("Paddle webhook routes loaded successfully");
+} catch (error) {
+  console.warn("⚠️ Paddle webhook routes not found, continuing without them:", error.message);
+  await logWarn("Paddle webhook routes not found", { error: error.message });
 }
 
 // Server startup

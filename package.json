@@ -13,12 +13,12 @@
     ]
   },
   "scripts": {
-    "start": "node backend/server.mjs",
-    "dev": "USE_MOCK_MAILER=true vite",
-    "dev:backend": "nodemon backend/server.mjs",
-    "dev:frontend": "USE_MOCK_MAILER=true vite",
-    "backend": "node backend/server.mjs",
-    "frontend": "USE_MOCK_MAILER=true vite",
+    "start": "NODE_ENV=production node backend/server.mjs",
+    "dev": "NODE_ENV=development USE_MOCK_MAILER=true vite",
+    "dev:backend": "NODE_ENV=development nodemon backend/server.mjs",
+    "dev:frontend": "NODE_ENV=development USE_MOCK_MAILER=true vite",
+    "backend": "NODE_ENV=development node backend/server.mjs",
+    "frontend": "NODE_ENV=development USE_MOCK_MAILER=true vite",
     "dev:all": "concurrently \"npm run backend\" \"npm run frontend\"",
     "atlas": "./dev.sh",
     "prebuild": "node scripts/checkEnv.mjs",

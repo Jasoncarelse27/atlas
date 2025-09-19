@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConversationView from '../features/chat/components/ConversationView';
 import { supabase } from '../lib/supabase';
-import { sendMessageToSupabase } from '../services/chatService';
+import { sendMessageToBackend } from '../services/chatService';
 import type { Message } from '../types/chat';
 
 interface DashboardPageProps {
@@ -52,10 +52,27 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
         throw new Error("No access token available");
       }
 
-      await sendMessageToSupabase({
+      // Fetch user's tier from user_profiles
+      let userTier = 'free'; // Default fallback
+      try {
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single();
+        
+        if (!error && profile?.subscription_tier) {
+          userTier = profile.subscription_tier;
+        }
+      } catch (tierError) {
+        console.warn('Could not fetch user tier, using default:', tierError);
+      }
+
+        await sendMessageToBackend({
         message: message,
         conversationId: conversation.id,
         accessToken: accessToken,
+        tier: userTier,
         onMessage: (partial: string) => {
           // Handle streaming message updates
           console.log("Partial message:", partial);

@@ -140,20 +140,20 @@ export const CACHE_CONFIG = {
 
 // 💳 PADDLE CONFIGURATION
 export const PADDLE_CONFIG = {
-  environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
-  vendorId: process.env.PADDLE_VENDOR_ID,
-  apiKey: process.env.PADDLE_API_KEY,
-  publicKey: process.env.PADDLE_PUBLIC_KEY,
-  webhookSecret: process.env.PADDLE_WEBHOOK_SECRET,
+  environment: import.meta.env.VITE_PADDLE_ENVIRONMENT || 'sandbox',
+  vendorId: import.meta.env.VITE_PADDLE_VENDOR_ID,
+  apiKey: import.meta.env.VITE_PADDLE_API_KEY,
+  publicKey: import.meta.env.VITE_PADDLE_PUBLIC_KEY,
+  webhookSecret: import.meta.env.VITE_PADDLE_WEBHOOK_SECRET,
   products: {
     core: {
-      productId: process.env.PADDLE_CORE_PRODUCT_ID,
-      planId: process.env.PADDLE_CORE_PLAN_ID,
+      productId: import.meta.env.VITE_PADDLE_CORE_PRODUCT_ID,
+      planId: import.meta.env.VITE_PADDLE_CORE_PLAN_ID,
       price: 19.99
     },
     studio: {
-      productId: process.env.PADDLE_STUDIO_PRODUCT_ID,
-      planId: process.env.PADDLE_STUDIO_PLAN_ID,
+      productId: import.meta.env.VITE_PADDLE_STUDIO_PRODUCT_ID,
+      planId: import.meta.env.VITE_PADDLE_STUDIO_PLAN_ID,
       price: 179.99
     }
   },

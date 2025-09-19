@@ -205,8 +205,8 @@ class PaddleService {
       product: product.productId || '',
       email,
       passthrough: JSON.stringify({ userId, tier }),
-      success_url: `${process.env.FRONTEND_URL}/subscription/success`,
-      cancel_url: `${process.env.FRONTEND_URL}/subscription/cancel`
+      success_url: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/success`,
+      cancel_url: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/cancel`
     });
 
     return `https://checkout.paddle.com/checkout?${checkoutParams.toString()}`;

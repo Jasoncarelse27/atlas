@@ -13,7 +13,7 @@ export interface UsageStats {
 export interface SubscriptionProfile {
   id: string;
   user_id: string;
-  tier: UserTier;
+  subscription_tier: UserTier; // Updated to match database field
   trial_ends_at: string | null;
   subscription_status: 'active' | 'inactive' | 'cancelled' | 'trialing';
   subscription_id: string | null;
@@ -45,7 +45,7 @@ class SubscriptionService {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single();
 
       if (error) throw error;
@@ -66,7 +66,7 @@ class SubscriptionService {
   async getUserTier(userId: string): Promise<UserTier> {
     try {
       const profile = await this.getUserProfile(userId);
-      return profile?.tier || 'free';
+      return profile?.subscription_tier || 'free';
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'getUserTier',
@@ -116,13 +116,13 @@ class SubscriptionService {
 
       const { data, error } = await supabase
         .from('user_profiles')
-        .update({ usage_stats: newStats })
-        .eq('user_id', userId)
-        .select('usage_stats')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', userId)
+        .select('updated_at')
         .single();
 
       if (error) throw error;
-      return data.usage_stats;
+      return newStats;
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'updateUsageStats',
@@ -225,11 +225,11 @@ class SubscriptionService {
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({ 
-          tier: request.newTier,
+          subscription_tier: request.newTier,
           subscription_status: 'trialing',
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', request.userId);
+        .eq('id', request.userId);
 
       if (updateError) throw updateError;
 
@@ -274,7 +274,7 @@ class SubscriptionService {
           subscription_status: 'cancelled',
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', userId);
+        .eq('id', userId);
 
       if (updateError) throw updateError;
     } catch (error) {
@@ -312,7 +312,7 @@ class SubscriptionService {
           subscription_status: 'active',
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', userId);
+        .eq('id', userId);
 
       if (updateError) throw updateError;
     } catch (error) {
@@ -332,24 +332,24 @@ class SubscriptionService {
     switch (tier) {
       case 'free':
         return {
-          dailyMessages: 2,
-          monthlyMessages: 20,
-          features: ['Basic AI responses', 'Text input'],
+          dailyMessages: 15,
+          monthlyMessages: 450, // 15 * 30
+          features: ['Basic AI responses', 'Text input', 'Claude Haiku'],
           price: 0,
         };
       case 'core':
         return {
-          dailyMessages: 50,
-          monthlyMessages: 500,
-          features: ['Advanced AI responses', 'Voice input', 'Image analysis'],
-          price: 9.99,
+          dailyMessages: -1, // Unlimited
+          monthlyMessages: -1, // Unlimited
+          features: ['Advanced AI responses', 'Voice input', 'Image analysis', 'Claude Sonnet'],
+          price: 19.99,
         };
       case 'studio':
         return {
           dailyMessages: -1, // Unlimited
           monthlyMessages: -1, // Unlimited
-          features: ['Unlimited AI responses', 'All features', 'Priority support'],
-          price: 29.99,
+          features: ['Unlimited AI responses', 'All features', 'Priority support', 'Claude Opus'],
+          price: 179.99,
         };
       default:
         return {

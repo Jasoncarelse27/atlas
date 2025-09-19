@@ -19,14 +19,40 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       minify: 'terser',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            ui: ['framer-motion', 'lucide-react']
+        rollupOptions: {
+          output: {
+            manualChunks: (id) => {
+              // React and core libraries
+              if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+                return 'react';
+              }
+              // UI libraries
+              if (id.includes('node_modules/framer-motion') || id.includes('node_modules/lucide-react')) {
+                return 'ui';
+              }
+              // Supabase and auth
+              if (id.includes('node_modules/@supabase') || id.includes('node_modules/@auth')) {
+                return 'auth';
+              }
+              // Query and state management
+              if (id.includes('node_modules/@tanstack') || id.includes('node_modules/react-query')) {
+                return 'state';
+              }
+              // Other node_modules
+              if (id.includes('node_modules')) {
+                return 'vendor';
+              }
+              // Chat features
+              if (id.includes('src/features/chat')) {
+                return 'chat';
+              }
+              // Subscription features
+              if (id.includes('src/features/subscription') || id.includes('src/hooks/useSubscription')) {
+                return 'subscription';
+              }
+            }
           }
         }
-      }
     },
     server: {
       port: 5173,

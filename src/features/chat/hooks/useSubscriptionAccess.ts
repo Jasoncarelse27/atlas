@@ -11,7 +11,7 @@ interface UsageStats {
 
 interface SubscriptionProfile {
   id: string;
-  tier: UserTier;
+  subscription_tier: UserTier;
   trial_ends_at: string | null;
   subscription_status: 'active' | 'inactive' | 'cancelled';
   subscription_id: string | null;
@@ -53,8 +53,8 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
           console.warn('Profile not found, using default free tier:', profileError.message);
           setCurrentTier('free');
         } else {
-          setCurrentTier(profile.tier || 'free');
-          setUsageStats(profile.usage_stats || {
+          setCurrentTier(profile.subscription_tier || 'free');
+          setUsageStats({
             messages_today: 0,
             messages_this_month: 0,
             last_reset_date: new Date().toISOString().slice(0, 7)
@@ -94,11 +94,7 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
         await supabase
           .from('user_profiles')
           .update({
-            usage_stats: {
-              messages_today: usageStats.messages_today,
-              messages_this_month: 0,
-              last_reset_date: currentMonth
-            }
+            updated_at: new Date().toISOString()
           })
           .eq('id', userId);
       } catch (err) {
@@ -114,9 +110,9 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
   const canSendMessage = useCallback((): boolean => {
     switch (currentTier) {
       case 'free':
-        return usageStats.messages_today < 2; // 2 messages per day for free tier
+        return usageStats.messages_today < 15; // 15 messages per day for free tier
       case 'core':
-        return usageStats.messages_today < 50; // 50 messages per day for core tier
+        return true; // Unlimited for core tier
       case 'studio':
         return true; // Unlimited for studio tier
       default:
@@ -128,9 +124,9 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
   const getRemainingMessages = useCallback((): number => {
     switch (currentTier) {
       case 'free':
-        return Math.max(0, 2 - usageStats.messages_today);
+        return Math.max(0, 15 - usageStats.messages_today);
       case 'core':
-        return Math.max(0, 50 - usageStats.messages_today);
+        return -1; // -1 indicates unlimited
       case 'studio':
         return -1; // -1 indicates unlimited
       default:
@@ -145,9 +141,9 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
     // Show upgrade prompt when approaching limits
     switch (currentTier) {
       case 'free':
-        return usageStats.messages_today >= 1; // Show after 1 message
+        return usageStats.messages_today >= 10; // Show after 10 messages (approaching 15 limit)
       case 'core':
-        return usageStats.messages_today >= 40; // Show when approaching 50 limit
+        return false; // Core is unlimited, no upgrade prompts needed
       default:
         return false;
     }
@@ -167,7 +163,7 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
     try {
       await supabase
         .from('user_profiles')
-        .update({ usage_stats: newStats })
+        .update({ updated_at: new Date().toISOString() })
         .eq('id', userId);
     } catch (err) {
       console.warn('Failed to update usage stats:', err);
@@ -178,11 +174,11 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
   const getTierLimits = useCallback(() => {
     switch (currentTier) {
       case 'free':
-        return { daily: 2, monthly: 20, features: ['Basic AI responses', 'Text input'] };
+        return { daily: 15, monthly: 450, features: ['Basic AI responses', 'Text input', 'Claude Haiku'] };
       case 'core':
-        return { daily: 50, monthly: 500, features: ['Advanced AI responses', 'Voice input', 'Image analysis'] };
+        return { daily: -1, monthly: -1, features: ['Advanced AI responses', 'Voice input', 'Image analysis', 'Claude Sonnet'] };
       case 'studio':
-        return { daily: -1, monthly: -1, features: ['Unlimited AI responses', 'All features', 'Priority support'] };
+        return { daily: -1, monthly: -1, features: ['Unlimited AI responses', 'All features', 'Priority support', 'Claude Opus'] };
       default:
         return { daily: 0, monthly: 0, features: [] };
     }
