@@ -196,6 +196,31 @@ npm run create-test-user
 # SELECT cleanup_old_cache_entries();
 ```
 
+## 🚦 Staging Environment
+
+Railway staging uses the same Supabase project as production.
+
+### Environment Variables
+Ensure you copy the following keys into Railway → Staging → Variables:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+**Note**: For staging you can safely use the `default` secret key.
+
+### Staging Configuration
+- **Environment**: `NODE_ENV=staging`
+- **API URL**: `https://atlas-staging.up.railway.app`
+- **Paddle**: Uses sandbox environment
+- **Database**: Same Supabase project as production
+- **Test User**: Automatically created via post-deploy hook
+
+### Setting Up Staging
+1. Copy `.env.staging.example` to `.env.staging`
+2. Add environment variables to Railway → Staging → Variables
+3. Trigger redeploy
+4. Verify health endpoint: `https://atlas-staging.up.railway.app/healthz`
+
 ## 🛠️ Setup Instructions
 
 ### Prerequisites

@@ -4,8 +4,9 @@
  * Atlas Environment Validation Script
  * 
  * This script validates that all required environment variables are present
- * during build time. For Vercel deployments, environment variables are
- * injected during the build process, so we'll skip validation in that context.
+ * during build time. For deployment environments (Vercel, Railway, CI/CD), 
+ * environment variables are injected during the build process, so we'll skip 
+ * validation in those contexts.
  * 
  * Usage:
  * - CI/CD: Runs automatically before build via "prebuild" script
@@ -13,7 +14,7 @@
  */
 
 // Skip validation in deployment environments
-if (process.env.VERCEL || process.env.CI || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+if (process.env.VERCEL || process.env.CI || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging') {
   console.log('🚀 Detected deployment environment - skipping env validation');
   console.log('💡 Environment variables will be injected by deployment platform');
   process.exit(0);
