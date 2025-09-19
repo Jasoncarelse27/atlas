@@ -18,15 +18,27 @@ dotenv.config({ path: path.join(__dirname, "..", envFile) });
 
 // Verify critical environment variables are loaded
 const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
-const missingVars = requiredVars.filter(varName => !process.env[varName]);
+const optionalVars = ['VITE_PADDLE_CLIENT_TOKEN', 'VITE_PADDLE_CORE_PRICE_ID', 'VITE_PADDLE_STUDIO_PRICE_ID'];
 
-if (missingVars.length > 0) {
-  console.error(`❌ Missing environment variables: ${missingVars.join(', ')}`);
+const missingRequired = requiredVars.filter(varName => !process.env[varName]);
+const missingOptional = optionalVars.filter(varName => !process.env[varName]);
+
+if (missingRequired.length > 0) {
+  console.error(`❌ MISSING REQUIRED ENVIRONMENT VARIABLES: ${missingRequired.join(', ')}`);
   console.error(`📁 Check your ${envFile} file`);
+  console.error(`🚨 Backend cannot start without these variables`);
   process.exit(1);
 }
 
-console.log('✅ Environment variables loaded successfully');
+if (missingOptional.length > 0) {
+  console.warn(`⚠️  Missing optional environment variables: ${missingOptional.join(', ')}`);
+  console.warn(`📝 Paddle features will be disabled until these are configured`);
+}
+
+console.log('✅ Required environment variables loaded successfully');
+console.log(`✅ Supabase URL: ${process.env.SUPABASE_URL}`);
+console.log(`✅ Service Role Key: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '***configured***' : 'MISSING'}`);
+console.log(`✅ Anon Key: ${process.env.SUPABASE_ANON_KEY ? '***configured***' : 'MISSING'}`);
 
 import cors from "cors";
 import express from "express";
