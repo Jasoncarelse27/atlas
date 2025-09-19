@@ -1,6 +1,7 @@
 import { Brain, Heart, LogOut, MessageSquare, Settings, User } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ChatFooter from '../components/ChatFooter';
 import ConversationView from '../features/chat/components/ConversationView';
 import { supabase } from '../lib/supabase';
 import { sendMessageToBackend } from '../services/chatService';
@@ -44,14 +45,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
     setIsProcessing(true);
     
     try {
-      // Use the real chat service to send the message
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error("No access token available");
-      }
-
       // Fetch user's tier from user_profiles
       let userTier = 'free'; // Default fallback
       try {
@@ -68,10 +61,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
         console.warn('Could not fetch user tier, using default:', tierError);
       }
 
-        await sendMessageToBackend({
+      await sendMessageToBackend({
         message: message,
         conversationId: conversation.id,
-        accessToken: accessToken,
         tier: userTier,
         onMessage: (partial: string) => {
           // Handle streaming message updates
@@ -229,6 +221,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
                   setConversation(prev => ({ ...prev, title }));
                 }}
               />
+              
+              {/* Usage Indicator Footer */}
+              <ChatFooter />
               
               {/* Simple Input */}
               <div className="p-4 border-t border-gray-700">

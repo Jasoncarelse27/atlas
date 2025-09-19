@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { authApi } from "../utils/authFetch";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -8,7 +9,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 interface SendMessagePayload {
   message: string;
   conversationId: string;
-  accessToken: string;
   tier?: string; // Optional, will default to 'free' if not provided
   onMessage: (partial: string) => void;
   onComplete?: (full: string) => void;
@@ -18,7 +18,6 @@ interface SendMessagePayload {
 export const sendMessageToBackend = async ({
   message,
   conversationId,
-  accessToken,
   tier = 'free',
   onMessage,
   onComplete,
@@ -32,24 +31,12 @@ export const sendMessageToBackend = async ({
       console.log(`Sending message with tier: ${tier}`);
     }
     
-    const response = await fetch(
+    // Use authApi.post for automatic token handling and error management
+    const data = await authApi.post(
       `${API_URL}/message`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message, conversationId, tier }),
-      }
+      { message, conversationId, tier }
     );
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || "Unknown error");
-    }
-
-    const data = await response.json();
     const fullMessage = data.message || "Hello! I'm Atlas, your AI assistant. How can I help you today?";
     
     // Simulate streaming by sending the message in chunks

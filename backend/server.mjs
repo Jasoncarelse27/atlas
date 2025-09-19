@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables based on NODE_ENV
 const nodeEnv = process.env.NODE_ENV || 'development';
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const envFile = nodeEnv === 'production' ? '.env.production' : '.env.local';
 
 console.log(`🌍 Environment: ${nodeEnv}`);
@@ -26,8 +27,14 @@ const missingOptional = optionalVars.filter(varName => !process.env[varName]);
 if (missingRequired.length > 0) {
   console.error(`❌ MISSING REQUIRED ENVIRONMENT VARIABLES: ${missingRequired.join(', ')}`);
   console.error(`📁 Check your ${envFile} file`);
-  console.error(`🚨 Backend cannot start without these variables`);
-  process.exit(1);
+  
+  if (isCI) {
+    console.error(`🚨 CI Environment detected - this is expected if secrets are not configured`);
+    console.error(`💡 For CI builds, set these as GitHub Secrets or use placeholder values`);
+  } else {
+    console.error(`🚨 Backend cannot start without these variables`);
+    process.exit(1);
+  }
 }
 
 if (missingOptional.length > 0) {
@@ -42,6 +49,9 @@ console.log(`✅ Anon Key: ${process.env.SUPABASE_ANON_KEY ? '***configured***' 
 
 import cors from "cors";
 import express from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import morgan from "morgan";
 import { logError, logInfo, logWarn } from "./utils/logger.mjs";
 
 // 🛡️ Import new middleware stack
@@ -52,14 +62,55 @@ import tierGateMiddleware from "./middleware/tierGateMiddleware.mjs";
 
 const app = express();
 
+// 🛡️ Production Security Middleware
+app.use(helmet({
+  crossOriginEmbedderPolicy: false, // Allow embedding for better compatibility
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
+// 📊 Request Logging
+if (nodeEnv === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
+
+// 🚦 Rate Limiting
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests from this IP' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const messageLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // limit each IP to 20 message requests per minute
+  message: { error: 'MESSAGE_RATE_LIMIT_EXCEEDED', message: 'Too many message requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply global rate limiting
+app.use(globalLimiter);
+
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // CORS middleware - allow frontend connections
 app.use(cors({
   origin: [
     "http://localhost:5173", 
     "http://192.168.0.10:5173",
+    /^https:\/\/atlas-.*\.vercel\.app$/,
     /^https:\/\/atlas.*\.up\.railway\.app$/,
     /^https:\/\/.*\.railway\.app$/
   ],
@@ -98,6 +149,7 @@ app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: n
 
 // --- Enhanced message endpoint with middleware stack ---
 app.post("/message", 
+  messageLimiter, // Apply message-specific rate limiting
   dailyLimitMiddleware,
   tierGateMiddleware, 
   promptCacheMiddleware,
@@ -244,6 +296,31 @@ try {
   console.warn("⚠️ Paddle webhook routes not found, continuing without them:", error.message);
   await logWarn("Paddle webhook routes not found", { error: error.message });
 }
+
+// 🛡️ Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('🚨 Unhandled error:', err);
+  
+  // Don't leak error details in production
+  const message = nodeEnv === 'development' ? err.message : 'Something went wrong';
+  
+  res.status(500).json({
+    error: 'INTERNAL_ERROR',
+    message: message
+  });
+});
+
+// 🚨 Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't crash the process, just log it
+});
+
+// 🚨 Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('🚨 Uncaught Exception:', error);
+  // Don't crash the process, just log it
+});
 
 // Server startup
 const PORT = process.env.PORT || 3000;

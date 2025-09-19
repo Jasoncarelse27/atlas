@@ -90,4 +90,72 @@ router.get("/verify-subscription", async (req, res) => {
   }
 });
 
+// GET /admin/usage - Get current user's usage statistics
+router.get("/usage", async (req, res) => {
+  try {
+    // Get user ID from auth middleware
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+
+    // Get user's tier from user_profiles
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.warn('[admin/usage] Could not fetch user profile:', profileError.message);
+    }
+
+    const tier = profile?.subscription_tier || 'free';
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Get today's usage count
+    const { data: usageData, error: usageError } = await supabase
+      .from('daily_usage')
+      .select('count')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (usageError) {
+      console.warn('[admin/usage] Could not fetch daily usage:', usageError.message);
+    }
+
+    const dailyMessagesUsed = usageData?.count || 0;
+    
+    // Get tier limits
+    const TIER_LIMITS = {
+      free: { dailyMessages: 15, monthlyBudget: 0 },
+      core: { dailyMessages: -1, monthlyBudget: 20 },
+      studio: { dailyMessages: -1, monthlyBudget: 200 },
+    };
+
+    const limits = TIER_LIMITS[tier] || TIER_LIMITS.free;
+
+    res.json({
+      success: true,
+      tier,
+      dailyMessagesUsed,
+      dailyMessagesLimit: limits.dailyMessages,
+      monthlyBudgetUsed: 0, // TODO: Implement monthly budget tracking
+      monthlyBudgetLimit: limits.monthlyBudget,
+      lastUpdated: new Date().toISOString(),
+    });
+
+  } catch (error) {
+    console.error('[admin/usage] Error fetching usage:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch usage data" 
+    });
+  }
+});
+
 export default router;

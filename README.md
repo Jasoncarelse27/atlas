@@ -12,6 +12,9 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 - **Supabase Integration**: Secure authentication and data storage
 - **Railway Deployment**: Production-ready backend deployment
 - **Modular Architecture**: Clean, maintainable component structure
+- **Unified Auth System**: Automatic token handling with centralized error management
+- **Usage Indicator**: Real-time message count and tier status display
+- **Tier Enforcement**: Automatic daily limits and upgrade prompts
 
 ## 🏗️ Architecture
 
@@ -28,6 +31,170 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 - **Message API**: Secure message storage and retrieval
 - **AI Model Routing**: Support for multiple AI providers
 - **Health Monitoring**: Comprehensive health checks
+- **Tier Enforcement**: Daily limits and budget tracking
+- **Usage Analytics**: Real-time usage statistics and monitoring
+
+### Auth & Tier System
+- **authFetch.ts**: Unified API client with automatic token handling
+- **useUsageIndicator**: React hook for real-time usage tracking
+- **ChatFooter**: Usage display component with upgrade prompts
+- **Centralized Error Handling**: 401/429 response management
+
+## 🔐 Auth + Tier Handling System
+
+Atlas now includes a comprehensive authentication and tier management system that provides seamless user experience with automatic error handling and usage tracking.
+
+### Key Components
+
+#### 1. **authFetch.ts** - Unified API Client
+- **Automatic Token Handling**: Detects environment and uses appropriate Supabase keys
+- **Smart Retry Logic**: Automatically retries on 401 with token refresh
+- **Centralized Error Handling**: 401 → session expired, 429 → tier limits
+- **Toast Notifications**: User-friendly error messages
+- **Debug Logging**: Development mode with `VITE_DEBUG_AUTH=1`
+
+#### 2. **useUsageIndicator** - Real-time Usage Tracking
+- **Live Updates**: Fetches usage stats from `/admin/usage` endpoint
+- **Tier Display**: Shows appropriate messaging for Free/Core/Studio tiers
+- **Upgrade Prompts**: Automatically suggests upgrades when limits are reached
+- **Periodic Refresh**: Updates every 5 minutes automatically
+
+#### 3. **ChatFooter** - Usage Display Component
+- **Free Tier**: "⚠️ 3 messages remaining today"
+- **Core Tier**: "🌱 Core (unlimited messages)"
+- **Studio Tier**: "🚀 Studio (unlimited messages)"
+- **Upgrade Button**: Appears when user has ≤3 messages remaining
+- **Refresh Control**: Manual refresh button for immediate updates
+
+### Error Handling Flow
+
+```
+401 Unauthorized → Retry once → Toast + Redirect to Login
+429 Daily Limit → Toast + Auto-trigger Upgrade Modal
+429 Budget Limit → Toast + Auto-trigger Upgrade Modal
+Network Error → Toast + Retry suggestion
+```
+
+### Environment Variables Required
+
+```bash
+# Supabase (Required)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOi...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+
+# Debug (Optional)
+VITE_DEBUG_AUTH=1  # Enable verbose auth logging
+```
+
+### Usage in Components
+
+```typescript
+// Replace fetch calls with authApi
+import { authApi } from '../services/authFetch';
+
+const data = await authApi.post('/message', { message: 'Hello' });
+
+// Add usage indicator to chat
+import ChatFooter from '../components/ChatFooter';
+
+<ChatFooter onUpgradeClick={() => showUpgradeModal()} />
+```
+
+### Testing with Supabase User Sessions
+
+To test the auth system locally, you'll need a valid Supabase user session token:
+
+#### 1. Create a Test User
+```bash
+# Using Supabase CLI (if available)
+supabase auth signup --email test@atlas.com --password password123
+
+# Or create directly in Supabase Dashboard:
+# 1. Go to Authentication → Users
+# 2. Click "Add User"
+# 3. Email: test@atlas.com, Password: password123
+```
+
+#### 2. Get Session Token
+```typescript
+// In browser console on your Atlas app
+import { supabase } from './src/config/supabase';
+
+// Sign in
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'test@atlas.com',
+  password: 'password123'
+});
+
+// Get token
+const token = data.session?.access_token;
+console.log('Token:', token);
+```
+
+#### 3. Test API Endpoints
+```bash
+# Test message endpoint with token
+curl -X POST http://localhost:3000/message \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Hello Atlas"}'
+
+# Test usage endpoint
+curl -X GET http://localhost:3000/admin/usage \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+#### 4. Frontend Testing
+- Open Atlas at `http://localhost:5173`
+- Sign in with test user credentials
+- Check browser console for auth debug logs (if `VITE_DEBUG_AUTH=1`)
+- Verify ChatFooter shows correct usage information
+- Test sending messages and observe usage updates
+
+## 🛡️ Production Hardening + Automation
+
+Atlas includes comprehensive production security and automation features:
+
+### Security Middleware
+- **Helmet**: Security headers (CSP, XSS protection, etc.)
+- **CORS Allowlist**: Restricted origins for localhost, Vercel, and Railway domains
+- **Rate Limiting**: 
+  - Global: 100 requests per 15 minutes per IP
+  - Messages: 20 requests per minute per IP
+- **JSON Limit**: 2MB request body limit
+- **Request Logging**: Morgan logging (dev format in development, combined in production)
+
+### Error Handling
+- **Global Error Handler**: Returns `{"error":"INTERNAL_ERROR","message":"Something went wrong"}` in production
+- **Unhandled Rejection Handling**: Logs but doesn't crash the process
+- **Uncaught Exception Handling**: Logs but doesn't crash the process
+
+### Automated Test User Creation
+- **Non-blocking Railway Post-Deploy**: Automatically creates test user after deployment
+- **Manual Creation**: Run `npm run create-test-user` to create test user locally
+- **Safe Operation**: Won't create duplicates if user already exists
+
+### Database Cleanup Automation
+- **Daily Cleanup Job**: Automatically removes old records to keep database lean
+- **Cleanup Schedule**: Runs nightly at 00:10 server time
+- **Retention Periods**:
+  - Daily usage: 35 days
+  - Budget tracking: 60 days  
+  - Prompt cache: 30 days
+- **Graceful Fallback**: If pg_cron isn't available, cleanup can be run manually
+
+### Manual Cleanup Commands
+```bash
+# Create test user manually
+npm run create-test-user
+
+# Run database cleanup manually (if pg_cron not available)
+# Connect to Supabase SQL Editor and run:
+# SELECT rotate_daily_usage();
+# SELECT compact_budget_tracking();
+# SELECT cleanup_old_cache_entries();
+```
 
 ## 🛠️ Setup Instructions
 
