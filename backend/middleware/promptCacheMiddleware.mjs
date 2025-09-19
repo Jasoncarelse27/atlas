@@ -3,17 +3,20 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Load environment variables
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+// Load environment variables (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+}
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 // Service role client (server-side only!)
+// In production, environment variables are injected by the platform
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   { auth: { persistSession: false } }
 );
 
@@ -76,12 +79,19 @@ export async function promptCacheMiddleware(req, res, next) {
 
     try {
       // Try to get cached prompt
-      const { data: cachedData, error: cacheError } = await supabase
-        .from('prompt_cache')
-        .select('content, tokens, created_at')
-        .eq('hash', cacheKey)
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
+      let cachedData = null;
+      let cacheError = null;
+      
+      if (supabase) {
+        const result = await supabase
+          .from('prompt_cache')
+          .select('content, tokens, created_at')
+          .eq('hash', cacheKey)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+        cachedData = result.data;
+        cacheError = result.error;
+      }
 
       if (cacheError && cacheError.code !== 'PGRST116') {
         console.warn('[promptCacheMiddleware] Cache lookup error:', cacheError.message);

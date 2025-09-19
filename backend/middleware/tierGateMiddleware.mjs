@@ -3,16 +3,19 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Load environment variables
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+// Load environment variables (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+}
 
 import { createClient } from '@supabase/supabase-js';
 
 // Service role client (server-side only!)
+// In production, environment variables are injected by the platform
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   { auth: { persistSession: false } }
 );
 
@@ -61,12 +64,19 @@ export async function tierGateMiddleware(req, res, next) {
     const today = new Date().toISOString().slice(0, 10);
 
     // Check current daily spending for this tier
-    const { data: budgetData, error: budgetError } = await supabase
-      .from('budget_tracking')
-      .select('total_spend, request_count')
-      .eq('date', today)
-      .eq('tier', tier)
-      .maybeSingle();
+    let budgetData = null;
+    let budgetError = null;
+    
+    if (supabase) {
+      const result = await supabase
+        .from('budget_tracking')
+        .select('total_spend, request_count')
+        .eq('date', today)
+        .eq('tier', tier)
+        .maybeSingle();
+      budgetData = result.data;
+      budgetError = result.error;
+    }
 
     if (budgetError && budgetError.code !== 'PGRST116') {
       console.error('[tierGateMiddleware] Budget check error:', budgetError.message);
@@ -112,29 +122,33 @@ export async function tierGateMiddleware(req, res, next) {
     }
 
     // Pre-increment budget tracking (optimistic)
-    const { error: budgetIncrementError } = await supabase
-      .rpc('increment_budget_tracking', {
-        p_date: today,
-        p_tier: tier,
-        p_spend_delta: estimatedCost,
-        p_req_delta: 1
-      });
+    if (supabase) {
+      const { error: budgetIncrementError } = await supabase
+        .rpc('increment_budget_tracking', {
+          p_date: today,
+          p_tier: tier,
+          p_spend_delta: estimatedCost,
+          p_req_delta: 1
+        });
 
-    if (budgetIncrementError) {
-      console.warn('[tierGateMiddleware] Failed to increment budget tracking:', budgetIncrementError.message);
+      if (budgetIncrementError) {
+        console.warn('[tierGateMiddleware] Failed to increment budget tracking:', budgetIncrementError.message);
+      }
     }
 
     // Log model usage for analytics
-    const { error: modelLogError } = await supabase
-      .rpc('log_model_usage', {
-        p_date: today,
-        p_model: tierConfig.model,
-        p_tier: tier,
-        p_cost: estimatedCost
-      });
+    if (supabase) {
+      const { error: modelLogError } = await supabase
+        .rpc('log_model_usage', {
+          p_date: today,
+          p_model: tierConfig.model,
+          p_tier: tier,
+          p_cost: estimatedCost
+        });
 
-    if (modelLogError) {
-      console.warn('[tierGateMiddleware] Failed to log model usage:', modelLogError.message);
+      if (modelLogError) {
+        console.warn('[tierGateMiddleware] Failed to log model usage:', modelLogError.message);
+      }
     }
 
     // Attach model selection and budget info for downstream

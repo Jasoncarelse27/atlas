@@ -3,18 +3,28 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Load environment variables
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+// Load environment variables (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+}
 
 import { createClient } from '@supabase/supabase-js';
 
 // Service role client (server-side only!)
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+// In production, environment variables are injected by the platform
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn('[dailyLimitMiddleware] Missing Supabase credentials - middleware will fail gracefully');
+}
+
+const supabase = supabaseUrl && supabaseServiceKey ? createClient(
+  supabaseUrl,
+  supabaseServiceKey,
   { auth: { persistSession: false } }
-);
+) : null;
 
 // Tier configuration
 const TIER_LIMITS = {
@@ -66,12 +76,21 @@ export async function dailyLimitMiddleware(req, res, next) {
     req.body.userId = userId;
 
     // Get or create today's usage record
-    const { data: usageData, error: selectError } = await supabase
-      .from('daily_usage')
-      .select('conversations_count')
-      .eq('user_id', req.body.userId)
-      .eq('date', today)
-      .maybeSingle();
+    let usageData = null;
+    let selectError = null;
+    
+    if (supabase) {
+      const result = await supabase
+        .from('daily_usage')
+        .select('conversations_count')
+        .eq('user_id', req.body.userId)
+        .eq('date', today)
+        .maybeSingle();
+      usageData = result.data;
+      selectError = result.error;
+    } else {
+      console.warn('[dailyLimitMiddleware] Supabase not available, using in-memory tracking');
+    }
 
     let currentCount = 0;
     
@@ -106,25 +125,33 @@ export async function dailyLimitMiddleware(req, res, next) {
     let actualCount = currentCount + 1;
     
     try {
-      const { data: updatedUsage, error: incrementError } = await supabase
-        .from('daily_usage')
-        .upsert({
-          user_id: req.body.userId,
-          date: today,
-          tier: tier,
-          conversations_count: actualCount,
-          total_tokens_used: 0, // Will be updated later
-          api_cost_estimate: 0 // Will be updated later
-        });
+      if (supabase) {
+        const { data: updatedUsage, error: incrementError } = await supabase
+          .from('daily_usage')
+          .upsert({
+            user_id: req.body.userId,
+            date: today,
+            tier: tier,
+            conversations_count: actualCount,
+            total_tokens_used: 0, // Will be updated later
+            api_cost_estimate: 0 // Will be updated later
+          });
 
-      if (incrementError) {
-        console.warn('[dailyLimitMiddleware] DB insert failed, using in-memory tracking:', incrementError.message);
-        // Use in-memory tracking for test users
+        if (incrementError) {
+          console.warn('[dailyLimitMiddleware] DB insert failed, using in-memory tracking:', incrementError.message);
+          // Use in-memory tracking as fallback
+          if (!global.testUserUsage) global.testUserUsage = {};
+          const userKey = `${req.body.userId}-${today}`;
+          global.testUserUsage[userKey] = (global.testUserUsage[userKey] || 0) + 1;
+          actualCount = global.testUserUsage[userKey];
+        }
+      } else {
+        // No Supabase available, use in-memory tracking
         if (!global.testUserUsage) global.testUserUsage = {};
         const userKey = `${req.body.userId}-${today}`;
         global.testUserUsage[userKey] = (global.testUserUsage[userKey] || 0) + 1;
         actualCount = global.testUserUsage[userKey];
-        console.log(`[dailyLimitMiddleware] In-memory usage for ${req.body.userId}: ${actualCount}`);
+        console.log(`[dailyLimitMiddleware] In-memory tracking: ${actualCount} for user ${req.body.userId}`);
       }
     } catch (err) {
       console.warn('[dailyLimitMiddleware] Unexpected error, using in-memory tracking:', err.message);
