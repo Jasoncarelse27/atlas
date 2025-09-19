@@ -12,8 +12,8 @@
  * - Local: Can be run manually with `npm run check-env`
  */
 
-// Skip validation in Vercel deployment environment
-if (process.env.VERCEL || process.env.CI) {
+// Skip validation in deployment environments
+if (process.env.VERCEL || process.env.CI || process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
   console.log('🚀 Detected deployment environment - skipping env validation');
   console.log('💡 Environment variables will be injected by deployment platform');
   process.exit(0);
