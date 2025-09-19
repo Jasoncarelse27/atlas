@@ -14,11 +14,18 @@ import crypto from 'crypto';
 
 // Service role client (server-side only!)
 // In production, environment variables are injected by the platform
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn('[promptCacheMiddleware] Missing Supabase credentials - middleware will fail gracefully');
+}
+
+const supabase = supabaseUrl && supabaseServiceKey ? createClient(
+  supabaseUrl,
+  supabaseServiceKey,
   { auth: { persistSession: false } }
-);
+) : null;
 
 // Cache configuration
 const CACHE_CONFIG = {
@@ -180,6 +187,11 @@ export async function promptCacheMiddleware(req, res, next) {
  */
 export async function cachePromptResponse(cacheKey, content, tokens, promptType) {
   try {
+    if (!supabase) {
+      console.warn('[promptCacheMiddleware] Supabase not available - skipping cache storage');
+      return;
+    }
+
     const config = CACHE_CONFIG[promptType] || CACHE_CONFIG.systemPrompts;
     if (!config.enabled) return;
 
@@ -231,6 +243,11 @@ function calculateCacheSavings(tokens, tier) {
  */
 async function updateCacheStats(date, isHit, savings) {
   try {
+    if (!supabase) {
+      console.warn('[promptCacheMiddleware] Supabase not available - skipping cache stats');
+      return;
+    }
+
     const { error } = await supabase
       .rpc('update_cache_stats', {
         p_date: date,
@@ -251,6 +268,11 @@ async function updateCacheStats(date, isHit, savings) {
  */
 export async function cleanupExpiredCache() {
   try {
+    if (!supabase) {
+      console.warn('[promptCacheMiddleware] Supabase not available - skipping cache cleanup');
+      return;
+    }
+
     const { error } = await supabase
       .rpc('cleanup_expired_cache');
 

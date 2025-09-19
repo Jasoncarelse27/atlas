@@ -13,11 +13,18 @@ import { createClient } from '@supabase/supabase-js';
 
 // Service role client (server-side only!)
 // In production, environment variables are injected by the platform
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn('[tierGateMiddleware] Missing Supabase credentials - middleware will fail gracefully');
+}
+
+const supabase = supabaseUrl && supabaseServiceKey ? createClient(
+  supabaseUrl,
+  supabaseServiceKey,
   { auth: { persistSession: false } }
-);
+) : null;
 
 // Model configurations per tier
 const TIER_MODELS = {
