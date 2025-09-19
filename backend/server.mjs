@@ -187,6 +187,17 @@ try {
   await logWarn("Admin routes not found", { error: error.message });
 }
 
+// Load Paddle test routes
+try {
+  const { default: paddleRoutes } = await import("./routes/paddle.mjs");
+  app.use("/admin", paddleRoutes);
+  console.log("✅ Paddle test routes loaded successfully");
+  await logInfo("Paddle test routes loaded successfully");
+} catch (error) {
+  console.warn("⚠️ Paddle routes not found, continuing without them:", error.message);
+  await logWarn("Paddle routes not found", { error: error.message });
+}
+
 // Server startup
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', async () => {
