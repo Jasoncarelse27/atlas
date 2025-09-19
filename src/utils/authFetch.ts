@@ -1,4 +1,9 @@
-import { supabase } from '../config/supabase';
+import { supabase } from '../lib/supabase';
+
+// Environment variable safety check
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  throw new Error("❌ Missing Supabase env vars. Check Railway & .env.local");
+}
 
 interface AuthFetchOptions extends RequestInit {
   retryOn401?: boolean;

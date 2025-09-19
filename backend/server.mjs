@@ -47,6 +47,14 @@ console.log(`✅ Supabase URL: ${process.env.SUPABASE_URL}`);
 console.log(`✅ Service Role Key: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '***configured***' : 'MISSING'}`);
 console.log(`✅ Anon Key: ${process.env.SUPABASE_ANON_KEY ? '***configured***' : 'MISSING'}`);
 
+// Additional safety check for critical variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  console.error("❌ Critical Supabase environment variables missing");
+  if (!isCI) {
+    process.exit(1);
+  }
+}
+
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
@@ -135,14 +143,31 @@ const healthPayload = () => ({
   status: "ok",
   uptime: process.uptime(),
   timestamp: Date.now(),
-  version: process.env.npm_package_version || "dev",
+  version: "1.0.0",
   tierGateSystem: "active"
 });
 
 // --- Health endpoints ---
 app.get("/healthz", async (req, res) => {
-  await logInfo("Health check pinged", { env: process.env.NODE_ENV });
-  res.status(200).json(healthPayload());
+  try {
+    // Check if Supabase is initialized
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(500).json({ 
+        status: "error", 
+        message: "Supabase not initialized",
+        version: "1.0.0"
+      });
+    }
+    
+    await logInfo("Health check pinged", { env: process.env.NODE_ENV });
+    res.status(200).json(healthPayload());
+  } catch (error) {
+    res.status(500).json({ 
+      status: "error", 
+      message: "Health check failed",
+      version: "1.0.0"
+    });
+  }
 });
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: new Date().toISOString() }));

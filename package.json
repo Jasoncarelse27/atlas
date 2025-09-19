@@ -5,7 +5,7 @@
   "type": "module",
   "main": "backend/server.mjs",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -22,7 +22,7 @@
     "dev:all": "concurrently \"npm run backend\" \"npm run frontend\"",
     "atlas": "./dev.sh",
     "prebuild": "node scripts/checkEnv.mjs",
-    "build": "NODE_ENV=production vite build",
+    "build": "tsc && NODE_ENV=production vite build",
     "preview": "vite preview",
     "check-env": "node scripts/checkEnv.mjs",
     "create-test-user": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/create-test-user.ts || node scripts/create-test-user.ts",
