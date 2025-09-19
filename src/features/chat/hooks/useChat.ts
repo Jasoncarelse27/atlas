@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useMessageLimit, useTierAccess } from '../../../hooks/useTierAccess';
+import { useTierMiddleware } from '../../../hooks/useTierMiddleware';
 import { supabase } from '../../../lib/supabase';
-import { sendMessageToSupabase } from '../../../services/chatService';
 import type { Message } from '../../../types/chat';
+import type { Tier } from '../../../types/tier';
 
 interface Conversation {
   id: string;
@@ -27,6 +29,12 @@ interface UseChatReturn {
   deleteMessage: (id: string) => void;
   copyMessage: (content: string) => void;
   updateTitle: (title: string) => void;
+  
+  // Upgrade modal
+  upgradeModalVisible: boolean;
+  setUpgradeModalVisible: (visible: boolean) => void;
+  upgradeReason: string;
+  handleUpgrade: (tier: Tier) => void;
 }
 
 export function useChat(userId?: string): UseChatReturn {
@@ -35,6 +43,15 @@ export function useChat(userId?: string): UseChatReturn {
   // Tier enforcement hooks
   const { tier, model, claudeModelName } = useTierAccess();
   const { checkAndAttemptMessage } = useMessageLimit();
+  
+  // New middleware integration
+  const {
+    sendMessage: sendMessageMiddleware,
+    isLoading: middlewareLoading,
+    upgradeModalVisible,
+    setUpgradeModalVisible,
+    upgradeReason
+  } = useTierMiddleware();
   
   // State
   const [messageCount, setMessageCount] = useState(0);
@@ -65,13 +82,7 @@ export function useChat(userId?: string): UseChatReturn {
   }, [navigate]);
 
   const handleSendMessage = useCallback(async (message: string) => {
-    if (isProcessing || !message.trim()) return;
-    
-    // Check message limit
-    const canSend = await checkAndAttemptMessage(messageCount);
-    if (!canSend) {
-      return; // Toast already shown by hook
-    }
+    if (isProcessing || middlewareLoading || !message.trim() || !userId) return;
     
     setIsProcessing(true);
     
@@ -90,76 +101,96 @@ export function useChat(userId?: string): UseChatReturn {
         lastUpdated: new Date().toISOString()
       }));
 
-      // Get session for authentication
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
+      // Send message through middleware
+      const response = await sendMessageMiddleware(userId, message);
       
-      if (!accessToken) {
-        throw new Error("No access token available");
+      if (!response.success) {
+        if (response.error?.type === 'daily_limit') {
+          // Upgrade modal will be shown by the middleware hook
+          toast.error(response.error.message || 'Daily limit reached. Please upgrade to continue.');
+          return;
+        }
+        
+        if (response.error?.type === 'budget_limit') {
+          // Upgrade modal will be shown by the middleware hook
+          toast.error(response.error.message || 'Budget limit reached. Please upgrade to continue.');
+          return;
+        }
+        
+        if (response.error?.type === 'network') {
+          toast.error('Network error. Please check your connection and try again.');
+          return;
+        }
+        
+        toast.error(response.error?.message || 'Failed to send message. Please try again.');
+        return;
       }
 
-      // Send message using the chat service
-      await sendMessageToSupabase({
-        message: message,
-        conversationId: conversation.id,
-        accessToken: accessToken,
-        onMessage: (partial: string) => {
-          // Handle streaming message updates
-          console.log("Partial message:", partial);
-        },
-        onComplete: (full: string) => {
-          // Add assistant response to conversation
-          const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: full,
-            timestamp: new Date().toISOString()
-          };
-          
-          setConversation(prev => ({
-            ...prev,
-            messages: [...prev.messages, assistantMessage],
-            lastUpdated: new Date().toISOString()
-          }));
-          
-          // Increment message count
-          setMessageCount(prev => prev + 1);
-        },
-        onError: (error: string) => {
-          console.error("Message error:", error);
-          const errorMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: 'Sorry, there was an error processing your message. Please try again.',
-            timestamp: new Date().toISOString()
-          };
-          
-          setConversation(prev => ({
-            ...prev,
-            messages: [...prev.messages, errorMessage],
-            lastUpdated: new Date().toISOString()
-          }));
-        }
-      });
-      
-    } catch (error) {
-      console.error('Error in handleSendMessage:', error);
-      const errorMessage: Message = {
+      // Add assistant response to conversation
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, there was an unexpected error. Please try again.',
+        content: response.data?.response || 'I received your message, but there was an issue generating a response.',
         timestamp: new Date().toISOString()
       };
       
       setConversation(prev => ({
         ...prev,
-        messages: [...prev.messages, errorMessage],
+        messages: [...prev.messages, assistantMessage],
         lastUpdated: new Date().toISOString()
       }));
+
+      // Update message count
+      setMessageCount(prev => prev + 1);
+      
+      // Show success indicators if available
+      if (response.data?.metadata) {
+        const metadata = response.data.metadata;
+        
+        // Show tier-specific success messages
+        if (metadata.tier === 'studio') {
+          toast.success(`🚀 Studio response with ${metadata.model}`, { duration: 2000 });
+        } else if (metadata.tier === 'core') {
+          toast.success(`🌱 Core response with ${metadata.model}`, { duration: 2000 });
+        }
+        
+        // Show usage info for free tier
+        if (metadata.tier === 'free' && metadata.dailyUsage) {
+          const remaining = metadata.dailyUsage.limit - metadata.dailyUsage.count;
+          if (remaining <= 3 && remaining > 0) {
+            toast(`⚠️ ${remaining} free messages remaining today`, {
+              duration: 4000,
+              icon: '⚠️'
+            });
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setIsProcessing(false);
     }
-  }, [isProcessing, messageCount, checkAndAttemptMessage, conversation.id]);
+  }, [userId, sendMessageMiddleware, isProcessing, middlewareLoading, conversation.id]);
+
+  // Handle upgrade flow
+  const handleUpgrade = useCallback(async (selectedTier: Tier) => {
+    try {
+      // Here you would integrate with Paddle or your payment processor
+      console.log('Upgrade to:', selectedTier);
+      
+      // For now, just close the modal
+      setUpgradeModalVisible(false);
+      
+      // You could show a success message
+      toast.success(`Upgrade to ${selectedTier} initiated!`);
+      
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      toast.error('Failed to initiate upgrade. Please try again.');
+    }
+  }, [setUpgradeModalVisible]);
 
   const deleteMessage = useCallback((id: string) => {
     setConversation(prev => ({
@@ -179,7 +210,7 @@ export function useChat(userId?: string): UseChatReturn {
   return {
     // State
     conversation,
-    isProcessing,
+    isProcessing: isProcessing || middlewareLoading,
     messageCount,
     tier,
     model,
@@ -189,6 +220,12 @@ export function useChat(userId?: string): UseChatReturn {
     handleLogout,
     deleteMessage,
     copyMessage,
-    updateTitle
+    updateTitle,
+    
+    // Upgrade modal
+    upgradeModalVisible,
+    setUpgradeModalVisible,
+    upgradeReason,
+    handleUpgrade
   };
 }

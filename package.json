@@ -66,6 +66,7 @@
     "express-rate-limit": "^7.5.1",
     "framer-motion": "^12.23.12",
     "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.542.0",
     "morgan": "^1.10.0",
     "node-fetch": "^3.3.2",

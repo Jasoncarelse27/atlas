@@ -1,168 +1,159 @@
-import { Check, Crown, Star, X, Zap } from 'lucide-react';
-import React from 'react';
-import type { Tier } from '../types/tier';
-import { TIER_CONFIGS } from '../types/subscription';
+import React from "react";
+import {
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 interface UpgradeModalProps {
-  isOpen: boolean;
+  visible: boolean;
   onClose: () => void;
-  currentTier: Tier;
-  triggerReason?: 'message_limit' | 'voice_feature' | 'image_feature' | 'general';
-  onUpgrade: (tier: 'core' | 'studio') => void;
+  onUpgrade: (tier: "core" | "studio") => void;
 }
 
 export const UpgradeModal: React.FC<UpgradeModalProps> = ({
-  isOpen,
+  visible,
   onClose,
-  currentTier,
-  triggerReason,
-  onUpgrade
+  onUpgrade,
 }) => {
-  if (!isOpen) return null;
-
-  const getTriggerMessage = () => {
-    switch (triggerReason) {
-      case 'message_limit':
-        return 'You\'ve reached your monthly message limit!';
-      case 'voice_feature':
-        return 'Voice features are available in Atlas Core!';
-      case 'image_feature':
-        return 'Image analysis is available in Atlas Core!';
-      default:
-        return 'Unlock the full power of Atlas!';
-    }
-  };
-
-  const getTriggerDescription = () => {
-    switch (triggerReason) {
-      case 'message_limit':
-        return 'Upgrade to continue your conversations with unlimited messages.';
-      case 'voice_feature':
-        return 'Speak naturally with Atlas using advanced voice recognition.';
-      case 'image_feature':
-        return 'Upload and analyze images with AI-powered insights.';
-      default:
-        return 'Choose the plan that fits your needs and unlock advanced features.';
-    }
-  };
-
-  const tiers = ['core', 'studio'] as const;
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="relative p-6 border-b border-gray-200">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
-              <Zap className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {getTriggerMessage()}
-            </h2>
-            <p className="text-gray-600">
-              {getTriggerDescription()}
-            </p>
-          </div>
-        </div>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Upgrade Your Atlas Experience</Text>
+          <Text style={styles.subtitle}>
+            Unlock powerful features to support your emotional journey.
+          </Text>
 
-        {/* Pricing Cards */}
-        <div className="p-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {tiers.map((tier) => {
-              const config = TIER_CONFIGS[tier];
-              const isPopular = config.popular;
-              
-              return (
-                <div
-                  key={tier}
-                  className={`relative rounded-xl border-2 p-6 transition-all hover:shadow-lg ${
-                    isPopular
-                      ? 'border-blue-500 bg-blue-50/50'
-                      : 'border-gray-200 bg-white'
-                  }`}
-                >
-                  {isPopular && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <div className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-                        <Star className="w-4 h-4" />
-                        Most Popular
-                      </div>
-                    </div>
-                  )}
+          <ScrollView style={{ marginVertical: 16 }}>
+            {/* Core Plan */}
+            <View style={styles.planCard}>
+              <Text style={styles.planTitle}>🌱 Core</Text>
+              <Text style={styles.planPrice}>$19.99 / month</Text>
+              <Text style={styles.planDesc}>
+                • Unlimited messages{"\n"}
+                • Claude Sonnet access{"\n"}
+                • Persistent memory{"\n"}
+                • EQ challenges
+              </Text>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => onUpgrade("core")}
+              >
+                <Text style={styles.buttonText}>Upgrade to Core</Text>
+              </TouchableOpacity>
+            </View>
 
-                  <div className="text-center mb-6">
-                    <div className="flex items-center justify-center mb-3">
-                      {tier === 'core' ? (
-                        <Crown className="w-8 h-8 text-blue-600" />
-                      ) : (
-                        <Star className="w-8 h-8 text-purple-600" />
-                      )}
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      {config.displayName}
-                    </h3>
-                    <p className="text-gray-600 text-sm mb-4">
-                      {config.description}
-                    </p>
-                    <div className="mb-4">
-                      <span className="text-3xl font-bold text-gray-900">
-                        {config.price}
-                      </span>
-                      {config.yearlyPrice && (
-                        <div className="text-sm text-gray-500 mt-1">
-                          or {config.yearlyPrice} (save 17%)
-                        </div>
-                      )}
-                    </div>
-                  </div>
+            {/* Studio Plan */}
+            <View style={styles.planCard}>
+              <Text style={styles.planTitle}>🚀 Studio</Text>
+              <Text style={styles.planPrice}>$179.99 / month</Text>
+              <Text style={styles.planDesc}>
+                • Everything in Core{"\n"}
+                • Claude Opus access{"\n"}
+                • Advanced analytics{"\n"}
+                • Priority processing{"\n"}
+                • Premium insights
+              </Text>
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: "#B2BDA3" }]}
+                onPress={() => onUpgrade("studio")}
+              >
+                <Text style={styles.buttonText}>Upgrade to Studio</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
 
-                  {/* Features */}
-                  <div className="space-y-3 mb-6">
-                    {config.features.map((feature, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-gray-700">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Upgrade Button */}
-                  <button
-                    onClick={() => onUpgrade(tier)}
-                    className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                      isPopular
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-900 text-white hover:bg-gray-800'
-                    }`}
-                  >
-                    Upgrade to {config.displayName}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
-          <div className="text-center text-sm text-gray-600">
-            <p className="mb-2">
-              <strong>7-day money-back guarantee</strong> • Cancel anytime
-            </p>
-            <p>
-              All plans include secure data storage and privacy protection
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeText}>Not now</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 };
+
+// Brand colors
+const BRAND = "#B2BDA3";
+const ACCENT = "#F4E5D9";
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  container: {
+    backgroundColor: ACCENT,
+    borderRadius: 20,
+    padding: 20,
+    maxHeight: "90%",
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: BRAND,
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  planCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  planTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: BRAND,
+  },
+  planPrice: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginVertical: 6,
+    color: "#444",
+  },
+  planDesc: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 12,
+  },
+  button: {
+    backgroundColor: BRAND,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: ACCENT,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  closeButton: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+  closeText: {
+    color: "#666",
+    fontSize: 14,
+  },
+});

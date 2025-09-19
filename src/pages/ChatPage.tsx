@@ -1,10 +1,12 @@
 import React from 'react';
+import { EnhancedUpgradeModal } from '../components/EnhancedUpgradeModal';
 import { ChatHeader } from '../features/chat/components/ChatHeader';
 import ConversationView from '../features/chat/components/ConversationView';
 import { MessageInput } from '../features/chat/components/MessageInput';
 import { useChat } from '../features/chat/hooks/useChat';
-import ErrorBoundary from '../lib/errorBoundary';
 import MessageStoreDebugger from '../features/debug/MessageStoreDebugger';
+import ErrorBoundary from '../lib/errorBoundary';
+import type { Tier } from '../types/tier';
 
 interface ChatPageProps {
   user?: any;
@@ -22,7 +24,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
     handleLogout,
     deleteMessage,
     copyMessage,
-    updateTitle
+    updateTitle,
+    upgradeModalVisible,
+    setUpgradeModalVisible,
+    upgradeReason,
+    handleUpgrade
   } = useChat(user?.id);
 
   return (
@@ -59,6 +65,15 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
 
         {/* Development Debugger */}
         <MessageStoreDebugger />
+
+        {/* Upgrade Modal */}
+        <EnhancedUpgradeModal
+          isOpen={upgradeModalVisible}
+          onClose={() => setUpgradeModalVisible(false)}
+          currentTier={tier as Tier}
+          reason={upgradeReason === 'daily_limit' ? 'daily_limit' : 'audio'}
+          onUpgrade={handleUpgrade}
+        />
       </div>
     </ErrorBoundary>
   );

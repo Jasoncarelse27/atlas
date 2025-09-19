@@ -21,6 +21,7 @@ import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
 import DebugPage from './pages/DebugPage';
 import DebugProfile from './pages/DebugProfile';
+import PaddleTestPage from './pages/PaddleTestPage';
 
 // Create a client
 const queryClient = new QueryClient()
@@ -620,6 +621,10 @@ function App() {
             <Route
               path="/debug-profile"
               element={user ? <DebugProfile user={user} /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/paddle-test"
+              element={user ? <PaddleTestPage /> : <Navigate to="/login" replace />}
             />
             <Route
               path="*"

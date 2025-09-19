@@ -13,10 +13,13 @@ import express from "express";
 import { logError, logInfo, logWarn } from "./utils/logger.mjs";
 
 // 🎯 Import tier gate system (after env vars loaded)
-import { budgetCeilingService } from "./services/budgetCeilingService.mjs";
-import { promptCacheService } from "./services/promptCacheService.mjs";
-import { selectOptimalModel, estimateRequestCost } from "./config/intelligentTierSystem.mjs";
 import { createClient } from '@supabase/supabase-js';
+
+// 🛡️ Import new middleware stack
+import authMiddleware from "./middleware/authMiddleware.mjs";
+import dailyLimitMiddleware from "./middleware/dailyLimitMiddleware.mjs";
+import promptCacheMiddleware, { cachePromptResponse } from "./middleware/promptCacheMiddleware.mjs";
+import tierGateMiddleware from "./middleware/tierGateMiddleware.mjs";
 
 // Lazy Supabase client for message processing
 let supabaseSvc = null;
@@ -31,6 +34,14 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+
+// Global auth middleware (except for health endpoints)
+app.use((req, res, next) => {
+  if (req.path === '/healthz' || req.path === '/api/healthz' || req.path === '/ping') {
+    return next();
+  }
+  return authMiddleware(req, res, next);
+});
 
 // Universal health payload
 const healthPayload = () => ({
@@ -49,99 +60,120 @@ app.get("/healthz", async (req, res) => {
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.send("pong"));
 
-// --- Enhanced message endpoint with tier gate system ---
-app.post("/message", async (req, res) => {
-  try {
-    const { userId, tier = 'free', message, type = 'chat' } = req.body;
-    
-    await logInfo("Message API called", { userId, tier, hasMessage: !!message });
-    
-    // 🎯 STEP 1: Check budget ceiling (NEW)
-    const budgetCheck = await budgetCeilingService.checkBudgetCeiling(tier);
-    if (!budgetCheck.allowed) {
-      await logWarn("Request blocked by budget ceiling", { tier, message: budgetCheck.message });
-      return res.status(429).json({ 
-        success: false,
-        message: budgetCheck.message, 
-        upgrade: tier === 'free',
-        budgetInfo: {
-          priorityOverride: budgetCheck.priorityOverride
+// --- Enhanced message endpoint with middleware stack ---
+app.post("/message", 
+  dailyLimitMiddleware,
+  tierGateMiddleware, 
+  promptCacheMiddleware,
+  async (req, res) => {
+    try {
+      const { userId, message, type = 'chat', promptType } = req.body;
+      
+      // All tier enforcement, budget checks, and model selection done by middleware
+      const tier = req.tier;
+      const selectedModel = req.selectedModel;
+      const cachedPrompt = req.cachedPrompt;
+      const dailyUsage = req.dailyUsage;
+      const budgetStatus = req.budgetStatus;
+      const cacheStats = req.cacheStats;
+      
+      await logInfo("Message API called (middleware-processed)", { 
+        userId, 
+        tier, 
+        hasMessage: !!message,
+        model: selectedModel?.name,
+        dailyUsage: dailyUsage?.count,
+        cacheHit: cacheStats?.hit
+      });
+
+      // 🤖 STEP 1: Use cached prompt or generate system prompt
+      let systemPrompt = cachedPrompt?.content || 
+        `You are Atlas, an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support.`;
+
+      // 🤖 STEP 2: Enhanced AI processing simulation
+      const mockResponse = `[${selectedModel?.name || 'claude-3-haiku-20240307'}] I understand you're reaching out. ` + 
+        (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis. ' : '') +
+        (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support. ' : '') +
+        `Here's how I can help with: "${message?.substring(0, 50)}..."`;
+
+      // 📊 STEP 3: Calculate actual token usage
+      const inputTokens = (systemPrompt.length + (message?.length || 0)) / 4; // Rough estimate
+      const outputTokens = mockResponse.length / 4;
+      const totalTokens = Math.round(inputTokens + outputTokens);
+
+      // 💾 STEP 4: Cache prompt response if needed
+      if (cachedPrompt && !cachedPrompt.cacheHit && cachedPrompt.shouldCache) {
+        await cachePromptResponse(
+          cachedPrompt.cacheKey, 
+          systemPrompt, 
+          Math.round(inputTokens), 
+          cachedPrompt.type
+        );
+      }
+
+      // 📊 STEP 5: Update actual usage with real token counts
+      const client = getSupabaseClient();
+      if (client && userId) {
+        // Update daily usage with actual tokens
+        await client.rpc('increment_conversation_count', {
+          p_user_id: userId,
+          p_tier: tier,
+          p_tokens_used: totalTokens,
+          p_cost_estimate: selectedModel?.estimatedCost || 0
+        });
+      }
+
+      await logInfo("Message processed successfully", { 
+        tier, 
+        selectedModel: selectedModel?.name, 
+        estimatedCost: selectedModel?.estimatedCost?.toFixed(6) || '0.000000',
+        totalTokens,
+        cacheHit: cacheStats?.hit,
+        dailyUsage: `${dailyUsage?.count}/${dailyUsage?.limit === -1 ? '∞' : dailyUsage?.limit}`
+      });
+
+      res.json({
+        success: true,
+        response: mockResponse,
+        metadata: {
+          tier,
+          model: selectedModel?.name,
+          tokensUsed: totalTokens,
+          estimatedCost: selectedModel?.estimatedCost?.toFixed(6) || '0.000000',
+          budgetStatus: {
+            used: budgetStatus?.used,
+            limit: budgetStatus?.limit,
+            remaining: budgetStatus?.remaining
+          },
+          dailyUsage: {
+            count: dailyUsage?.count,
+            limit: dailyUsage?.limit,
+            unlimited: dailyUsage?.unlimited
+          },
+          cache: {
+            hit: cacheStats?.hit,
+            type: cacheStats?.type,
+            savings: cacheStats?.savings
+          },
+          timestamp: new Date().toISOString()
         }
       });
-    }
 
-    // 🧠 STEP 2: Intelligent model selection (NEW)
-    const selectedModel = selectOptimalModel(tier, message, type);
-    await logInfo("Model selected", { tier, selectedModel, messageLength: message?.length });
-
-    // 💾 STEP 3: Get cached system prompt (NEW)
-    const systemPrompt = await promptCacheService.get(
-      'systemPersonality', 
-      { userId, tier }, 
-      `You are Atlas, an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support.`
-    );
-
-    // 🤖 STEP 4: Enhanced AI processing simulation
-    const mockResponse = `[${selectedModel}] I understand you're reaching out. ` + 
-      (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis. ' : '') +
-      (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support. ' : '') +
-      `Here's how I can help with: "${message?.substring(0, 50)}..."`;
-
-    // 📊 STEP 5: Log usage and costs (NEW)
-    const inputTokens = (systemPrompt.length + (message?.length || 0)) / 4; // Rough estimate
-    const outputTokens = mockResponse.length / 4;
-    const estimatedCost = estimateRequestCost(selectedModel, inputTokens, outputTokens);
-
-    // Log model usage for dashboard
-    const client = getSupabaseClient();
-    if (client) {
-      await client.rpc('log_model_usage', {
-        p_date: new Date().toISOString().slice(0,10),
-        p_model: selectedModel,
-        p_tier: tier,
-        p_cost: estimatedCost
+    } catch (error) {
+      await logError("Message API error", error.stack, { 
+        userId: req.body?.userId, 
+        tier: req.tier || req.body?.tier,
+        endpoint: '/message'
+      });
+      
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        timestamp: new Date().toISOString()
       });
     }
-
-    // Update budget tracking
-    await budgetCeilingService.recordSpend(tier, estimatedCost, 1);
-
-    await logInfo("Message processed successfully", { 
-      tier, 
-      selectedModel, 
-      estimatedCost: estimatedCost.toFixed(6),
-      inputTokens: Math.round(inputTokens),
-      outputTokens: Math.round(outputTokens)
-    });
-
-    res.json({
-      success: true,
-      response: mockResponse,
-      metadata: {
-        tier,
-        model: selectedModel,
-        tokensUsed: Math.round(inputTokens + outputTokens),
-        estimatedCost: estimatedCost.toFixed(6),
-        budgetStatus: budgetCheck.priorityOverride ? 'priority_processing' : 'normal',
-        systemPromptCached: true,
-        timestamp: new Date().toISOString()
-      }
-    });
-
-  } catch (error) {
-    await logError("Message API error", error.stack, { 
-      userId: req.body?.userId, 
-      tier: req.body?.tier,
-      endpoint: '/message'
-    });
-    
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      timestamp: new Date().toISOString()
-    });
   }
-});
+);
 
 // --- Other routes ---
 // Load admin routes dynamically after environment variables are set

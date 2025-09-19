@@ -68,4 +68,26 @@ router.get('/metrics', async (req, res) => {
   }
 });
 
+// GET /admin/verify-subscription?userId=...
+router.get("/verify-subscription", async (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).json({ success: false, message: "Missing userId" });
+
+  try {
+    // Query Supabase table where you sync subscriptions
+    const { data, error } = await supabase
+      .from("paddle_subscriptions")
+      .select("tier,status")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.json({ success: false, message: "No subscription found" });
+
+    res.json({ success: true, tier: data.tier, status: data.status });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 export default router;
