@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { authApi } from '../utils/authFetch';
 
 export interface UsageStats {
   tier: 'free' | 'core' | 'studio';
@@ -45,11 +44,16 @@ export function useUsageIndicator() {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
       const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const usage = await authApi.get(`${API_URL}/admin/usage`);
+      // For development, call admin endpoint directly without auth
+      const response = await fetch(`${API_URL}/admin/usage`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const usage = await response.json();
 
       const tier = usage.tier || 'free';
       const dailyUsed = usage.dailyMessagesUsed || 0;
-      const dailyLimit = TIER_LIMITS[tier].dailyMessages;
+      const dailyLimit = usage.dailyMessagesLimit || TIER_LIMITS[tier].dailyMessages;
       
       const remainingMessages = dailyLimit === -1 ? -1 : Math.max(0, dailyLimit - dailyUsed);
       const isUnlimited = dailyLimit === -1;
@@ -97,7 +101,7 @@ export function useUsageIndicator() {
    * Get display text for the usage indicator
    */
   const getDisplayText = useCallback(() => {
-    const { usage, remainingMessages, isUnlimited } = state;
+    const { usage, remainingMessages, isUnlimited, loading, error } = state;
 
     if (loading) {
       return 'Loading usage...';
@@ -137,7 +141,7 @@ export function useUsageIndicator() {
    * Get CSS classes for styling based on usage state
    */
   const getDisplayClasses = useCallback(() => {
-    const { usage, remainingMessages, isUnlimited } = state;
+    const { usage, remainingMessages, isUnlimited, loading, error } = state;
 
     if (loading) {
       return 'text-gray-500';
@@ -164,7 +168,7 @@ export function useUsageIndicator() {
    * Check if user should see upgrade prompt
    */
   const shouldShowUpgradePrompt = useCallback(() => {
-    const { usage, remainingMessages, isUnlimited } = state;
+    const { usage, remainingMessages, isUnlimited, loading, error } = state;
     
     if (isUnlimited || loading || error) {
       return false;

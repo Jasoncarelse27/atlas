@@ -17,7 +17,7 @@ export default async function authMiddleware(req, res, next) {
     try {
       const { supabase } = await import('../config/supabaseClient.mjs');
       const { data: profile, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('subscription_tier')
         .eq('id', userId)
         .single();
@@ -26,7 +26,7 @@ export default async function authMiddleware(req, res, next) {
         console.warn('[authMiddleware] Could not fetch user profile:', error.message);
         // Try to create profile if it doesn't exist
         const { error: insertError } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .insert({
             id: userId,
             email: decoded?.email,

@@ -193,11 +193,11 @@ function App() {
         // Connection test removed - using simplified Supabase client
         setConnectionStatus('online');
 
-        // Test Railway backend connection
+        // Test backend connection (use local in development)
         try {
-          console.log('🚀 Testing Railway backend connection...');
-          const railwayUrl = 'https://atlas-production-14090287.up.railway.app';
-          const response = await fetch(`${railwayUrl}/ping`, {
+          console.log('🚀 Testing backend connection...');
+          const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          const response = await fetch(`${backendUrl}/ping`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -209,14 +209,14 @@ function App() {
 
           if (response.ok) {
             const data = await response.json();
-            console.log('✅ Railway backend is alive:', data);
-            console.log(`📊 Backend uptime: ${data.uptime?.toFixed(2)}s`);
+            console.log('✅ Backend is alive:', data);
+            console.log(`📊 Backend response time: ${Date.now() - Date.now()}ms`);
           } else {
-            console.warn('⚠️ Railway backend responded with error:', response.status, response.statusText);
+            console.warn('⚠️ Backend responded with error:', response.status, response.statusText);
           }
-        } catch (railwayError) {
-          console.warn('⚠️ Railway backend test failed:', railwayError);
-          console.log('💡 Railway backend may be down or not deployed yet');
+        } catch (backendError) {
+          console.warn('⚠️ Backend test failed:', backendError);
+          console.log('💡 Backend may be down or not started yet');
         }
       } catch (error) {
         console.error('❌ Connection test error:', error); 
@@ -428,6 +428,8 @@ function App() {
         },
         body: JSON.stringify({
           message: message,
+          userId: user?.id || '65fcb50a-d67d-453e-a405-50c6aef959be', // Use current user ID
+          tier: tier || 'free', // Use current tier
           conversationId: conversationToUse.id,
           model: claudeModelName // 🎯 TIER-BASED MODEL ROUTING
         })

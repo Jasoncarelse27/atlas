@@ -2,9 +2,11 @@ import { Brain, Heart, LogOut, MessageSquare, Settings, User } from 'lucide-reac
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChatFooter from '../components/ChatFooter';
-import ConversationView from '../features/chat/components/ConversationView';
+import MessageRenderer from '../components/MessageRenderer';
+import MessageErrorBoundary from '../components/MessageErrorBoundary';
 import { supabase } from '../lib/supabase';
 import { sendMessageToBackend } from '../services/chatService';
+import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
 
 interface DashboardPageProps {
@@ -13,6 +15,7 @@ interface DashboardPageProps {
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
   const navigate = useNavigate();
+  const { clearMessages } = useMessageStore();
   const [conversation, setConversation] = useState({
     id: 'default',
     title: 'Welcome to Atlas AI',
@@ -49,7 +52,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
       let userTier = 'free'; // Default fallback
       try {
         const { data: profile, error } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('subscription_tier')
           .eq('id', user.id)
           .single();
@@ -64,6 +67,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
       await sendMessageToBackend({
         message: message,
         conversationId: conversation.id,
+        userId: user?.id || '65fcb50a-d67d-453e-a405-50c6aef959be', // Add userId
         tier: userTier,
         onMessage: (partial: string) => {
           // Handle streaming message updates
@@ -205,22 +209,28 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
 
           {/* Chat Area */}
           <div className="lg:col-span-3">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden">
-              <ConversationView
-                conversation={conversation}
-                onDeleteMessage={(id) => {
-                  setConversation(prev => ({
-                    ...prev,
-                    messages: prev.messages.filter(msg => msg.id !== id)
-                  }));
-                }}
-                onCopyMessage={(content) => {
-                  navigator.clipboard.writeText(content);
-                }}
-                onUpdateTitle={(title) => {
-                  setConversation(prev => ({ ...prev, title }));
-                }}
-              />
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[600px]">
+              {/* Chat Header */}
+              <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">💬 Welcome to Atlas AI</h2>
+                  <p className="text-gray-400 text-sm">Your emotionally intelligent AI companion</p>
+                </div>
+                <button
+                  onClick={clearMessages}
+                  className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md transition-colors"
+                  title="Clear conversation"
+                >
+                  Clear
+                </button>
+              </div>
+              
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto">
+                <MessageErrorBoundary>
+                  <MessageRenderer />
+                </MessageErrorBoundary>
+              </div>
               
               {/* Usage Indicator Footer */}
               <ChatFooter />

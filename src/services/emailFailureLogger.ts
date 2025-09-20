@@ -1,42 +1,19 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Lazy initialization of Supabase client
-let supabase: any = null;
+import { supabase } from '../lib/supabaseClient';
 
 function getSupabaseClient() {
-  if (!supabase) {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    // In test environment or when env vars are missing, return a mock client
-    if (!supabaseUrl || !supabaseKey) {
-      if (import.meta.env.NODE_ENV === 'test' || import.meta.env.NODE_ENV === 'development') {
-        console.log("[MailerService] Using mock Supabase client for tests/development");
-        return {
-          from: () => ({
-            insert: () => ({ error: null }),
-            select: () => ({
-              order: () => ({
-                limit: () => ({ data: [], error: null })
-              })
-            })
-          })
-        };
-      }
-      console.warn("[MailerService] Missing Supabase environment variables - using mock client");
-      return {
-        from: () => ({
-          insert: () => ({ error: null }),
-          select: () => ({
-            order: () => ({
-              limit: () => ({ data: [], error: null })
-            })
+  // In test environment, return a mock client
+  if (import.meta.env.NODE_ENV === 'test') {
+    console.log("[MailerService] Using mock Supabase client for tests");
+    return {
+      from: () => ({
+        insert: () => ({ error: null }),
+        select: () => ({
+          order: () => ({
+            limit: () => ({ data: [], error: null })
           })
         })
-      };
-    }
-    
-    supabase = createClient(supabaseUrl, supabaseKey);
+      })
+    };
   }
   return supabase;
 }

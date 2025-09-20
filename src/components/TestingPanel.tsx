@@ -1,19 +1,19 @@
-import React, { useState, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '../types/subscription';
-import { supabase } from '../lib/supabase';
-import { useSubscription } from '../hooks/useSubscription';
-import { 
-  TestTube, 
-  Database, 
-  User as UserIcon, 
-  Clock, 
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Settings,
-  TrendingUp
+import {
+    AlertTriangle,
+    CheckCircle,
+    Clock,
+    Database,
+    Settings,
+    TestTube,
+    TrendingUp,
+    User as UserIcon,
+    XCircle
 } from 'lucide-react';
+import React, { useCallback, useState } from 'react';
+import { useSubscription } from '../hooks/useSubscription';
+import { supabase } from '../lib/supabase';
+import type { UserProfile } from '../types/subscription';
 import LoadingSpinner from './LoadingSpinner';
 
 interface TestingPanelProps {
@@ -563,7 +563,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     try {
       console.log('🧪 Testing Railway backend connection...');
       
-      const railwayUrl = 'https://atlas-production-14090287.up.railway.app';
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const endpoint = { path: '/ping', name: 'Railway Ping', expectedStatus: 'ok' };
       
       // Use the same test function as the health suite for consistency
@@ -715,8 +715,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       message: 'Testing all backend health endpoints with retries and timeouts...'
     });
 
-    const railwayUrl = 'https://atlas-production-14090287.up.railway.app';
-    const localUrl = 'http://localhost:8000';
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const localUrl = 'http://localhost:3000';
     const endpoints = [
       { path: '/ping', name: 'Ping Endpoint', expectedStatus: 'ok' },
       { path: '/healthz', name: 'Health Check', expectedStatus: 'healthy' },

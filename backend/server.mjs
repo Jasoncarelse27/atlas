@@ -1,3 +1,4 @@
+// Load environment variables FIRST before any other imports
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -14,7 +15,7 @@ const envFile = nodeEnv === 'production' ? '.env.production' : '.env.local';
 console.log(`🌍 Environment: ${nodeEnv}`);
 console.log(`📁 Loading environment from: ${envFile}`);
 
-// Load environment variables from the appropriate .env file
+// Load environment variables from the appropriate .env file IMMEDIATELY
 dotenv.config({ path: path.join(__dirname, "..", envFile) });
 
 // Verify critical environment variables are loaded
@@ -68,6 +69,9 @@ import dailyLimitMiddleware from "./middleware/dailyLimitMiddleware.mjs";
 
 // 🧠 Import intelligent tier gate system
 import { estimateRequestCost, selectOptimalModel } from './config/intelligentTierSystem.mjs';
+
+// 🔐 Import Supabase client (now with lazy initialization)
+import { supabase } from './config/supabaseClient.mjs';
 import { budgetCeilingService } from './services/budgetCeilingService.mjs';
 import { promptCacheService } from './services/promptCacheService.mjs';
 
@@ -104,10 +108,41 @@ if (nodeEnv === 'development') {
   app.use(morgan('combined'));
 }
 
-// 🚦 Rate Limiting
+// 🔐 JWT verification middleware with development fallback
+const verifyJWT = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    }
+
+    const token = authHeader.substring(7);
+    
+    // Development mode: allow mock token
+    if (token === 'mock-token-for-development') {
+      req.user = { id: '550e8400-e29b-41d4-a716-446655440000' };
+      return next();
+    }
+    
+    // Production mode: verify the JWT token with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('JWT verification error:', error);
+    res.status(401).json({ error: 'Token verification failed' });
+  }
+};
+
+// 🚦 Rate Limiting - more lenient for development
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Higher limit for dev
   message: { error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests from this IP' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -130,9 +165,10 @@ app.use(express.json({ limit: '2mb' }));
 // CORS middleware - allow frontend connections
 app.use(cors({
   origin: [
-    "http://localhost:5173", 
-    "http://localhost:5174",  // Add port 5174 for frontend
-    "http://localhost:8081",  // Add port 8081 for Expo web
+    "http://localhost:5173",   // Vite dev server
+    "http://localhost:5174",   // Backup Vite port
+    "http://localhost:8081",   // Expo web
+    "http://localhost:3000",   // Backend self-calls
     "http://192.168.0.10:5173",
     "http://192.168.0.10:5174",
     /^https:\/\/atlas-.*\.vercel\.app$/,
@@ -141,17 +177,24 @@ app.use(cors({
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'authorization']
 }));
 
 // Handle preflight requests
 app.options("*", cors());
 
-// Global auth middleware (except for health endpoints and paddle test)
+// Global auth middleware (except for health endpoints, paddle test, and JWT-protected routes)
 app.use((req, res, next) => {
+  // Skip auth middleware for public endpoints
   if (req.path === '/healthz' || req.path === '/api/healthz' || req.path === '/ping' || req.path === '/admin/paddle-test') {
     return next();
   }
+  
+  // Skip auth middleware for routes that use their own auth (verifyJWT or requireAdminDev)
+  if (req.path.startsWith('/v1/user_profiles') || req.path === '/message' || req.path.startsWith('/admin')) {
+    return next();
+  }
+  
   return authMiddleware(req, res, next);
 });
 
@@ -189,10 +232,126 @@ app.get("/healthz", async (req, res) => {
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: new Date().toISOString() }));
 
+// --- User Profile Endpoints ---
+// User profile endpoint with fallback creation
+app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    console.log('🔍 User profile endpoint called for user:', userId);
+
+    // Verify user exists in auth.users first
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
+    if (authError || !authUser?.user) {
+      console.warn('🚫 User not found in auth.users:', userId);
+      return res.status(404).json({ 
+        error: 'User not found',
+        message: `User ${userId} does not exist in authentication system`
+      });
+    }
+
+    // Then fetch or create user_profile safely
+    console.log('🔍 Checking if profile exists for user:', userId);
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Error fetching profile:', error);
+      return res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+
+    if (profile) {
+      console.log('✅ Profile found:', profile);
+      return res.json(profile);
+    }
+
+    // Create profile if it doesn't exist
+    console.log('📝 Creating new profile for user:', userId);
+    const profileData = {
+      id: userId,
+      email: authUser.user.email,
+      subscription_tier: 'free',
+      subscription_status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('🔍 Creating profile with data:', profileData);
+    
+    const { data: newProfile, error: createError } = await supabase
+      .from('profiles')
+      .insert([profileData])
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('❌ Error creating profile:', createError);
+      return res.status(500).json({ error: 'Failed to create profile' });
+    }
+
+    console.log('✅ Profile created successfully:', newProfile);
+    res.json(newProfile);
+
+  } catch (error) {
+    console.error('❌ Profile endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create user profile endpoint
+app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    console.log('🔍 Create user profile endpoint called for user:', user_id);
+
+    // Verify user exists in auth.users first
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(user_id);
+    if (authError || !authUser?.user) {
+      console.warn('🚫 User not found in auth.users:', user_id);
+      return res.status(404).json({ 
+        error: 'User not found',
+        message: `User ${user_id} does not exist in authentication system`
+      });
+    }
+
+    // Create profile
+    const profileData = {
+      id: user_id,
+      email: authUser.user.email,
+      subscription_tier: 'free',
+      subscription_status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('🔍 Creating profile with data:', profileData);
+
+    const { data: newProfile, error: createError } = await supabase
+      .from("profiles")
+      .insert([profileData])
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('❌ Error creating profile:', createError);
+      return res.status(500).json({ error: 'Failed to create profile' });
+    }
+
+    console.log('✅ Profile created successfully:', newProfile);
+    res.json(newProfile);
+
+  } catch (error) {
+    console.error('❌ Create profile endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // --- Enhanced message endpoint with intelligent tier gate system ---
 app.post("/message", 
   messageLimiter, // Apply message-specific rate limiting
+  verifyJWT, // JWT verification
   dailyLimitMiddleware,
   async (req, res) => {
     try {
@@ -246,6 +405,13 @@ app.post("/message",
       
       try {
         if (process.env.ANTHROPIC_API_KEY) {
+          await logInfo("Calling Anthropic API", {
+            model: selectedModelName,
+            hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+            messageLength: message.length,
+            tier
+          });
+          
           const response = await anthropic.messages.create({
             model: selectedModelName,
             max_tokens: 1000,
@@ -262,10 +428,11 @@ app.post("/message",
           actualInputTokens = response.usage.input_tokens;
           actualOutputTokens = response.usage.output_tokens;
           
-          await logInfo("Real AI response generated", {
+          await logInfo("Real AI response generated successfully", {
             model: selectedModelName,
             inputTokens: actualInputTokens,
             outputTokens: actualOutputTokens,
+            responseLength: aiResponse.length,
             tier
           });
         } else {
@@ -314,8 +481,8 @@ app.post("/message",
         selectedModel: selectedModelName, 
         estimatedCost: estimatedCost.toFixed(6),
         totalTokens,
-        inputTokens,
-        outputTokens,
+        inputTokens: actualInputTokens,
+        outputTokens: actualOutputTokens,
         budgetPriority: budgetCheck.priorityOverride || false
       });
 

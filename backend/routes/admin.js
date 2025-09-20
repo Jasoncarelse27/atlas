@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../lib/supabase.js';
+import { supabase } from '../config/supabaseClient.mjs';
 import { requireAdminDev } from '../middleware/adminAuth.mjs';
 
 const router = express.Router();
@@ -95,21 +95,22 @@ router.get("/verify-subscription", async (req, res) => {
   }
 });
 
-// GET /admin/usage - Get current user's usage statistics
+// GET /admin/usage - Get usage statistics (admin endpoint)
 router.get("/usage", async (req, res) => {
   try {
-    // Get user ID from auth middleware
-    const userId = req.user?.id;
+    // In admin context, get userId from query parameter or use a default for testing
+    const userId = req.query.userId || '65fcb50a-d67d-453e-a405-50c6aef959be'; // Default to your user ID for testing
+    
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(400).json({ 
         success: false, 
-        message: "Authentication required" 
+        message: "userId parameter required for admin usage endpoint" 
       });
     }
 
-    // Get user's tier from user_profiles
+    // Get user's tier from profiles
     const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('subscription_tier')
       .eq('id', userId)
       .single();

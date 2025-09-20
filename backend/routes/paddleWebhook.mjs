@@ -1,6 +1,6 @@
 // backend/routes/paddleWebhook.mjs
-import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import express from 'express';
 
 const router = express.Router();
 
@@ -71,7 +71,7 @@ async function handleSubscriptionUpdate(data, supabaseClient) {
 
   // Update user profile
   const { error } = await supabaseClient
-    .from('user_profiles')
+    .from('profiles')
     .update({
       subscription_tier: tier,
       subscription_status: status === 'active' ? 'active' : 'inactive',
@@ -93,7 +93,7 @@ async function handleSubscriptionCancel(data, supabaseClient) {
   const { customer_id, subscription_id } = data;
   
   const { error } = await supabaseClient
-    .from('user_profiles')
+    .from('profiles')
     .update({
       subscription_tier: 'free',
       subscription_status: 'cancelled',
@@ -114,7 +114,7 @@ async function handleSubscriptionPastDue(data, supabaseClient) {
   const { customer_id, subscription_id } = data;
   
   const { error } = await supabaseClient
-    .from('user_profiles')
+    .from('profiles')
     .update({
       subscription_status: 'past_due',
       updated_at: new Date().toISOString()

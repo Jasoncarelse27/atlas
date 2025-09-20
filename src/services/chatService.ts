@@ -1,14 +1,12 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../lib/supabaseClient";
 import { authApi } from "../utils/authFetch";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { useMessageStore } from "../stores/useMessageStore";
+import { v4 as uuidv4 } from 'uuid';
 
 interface SendMessagePayload {
   message: string;
   conversationId: string;
+  userId: string; // Required for backend
   tier?: string; // Optional, will default to 'free' if not provided
   onMessage: (partial: string) => void;
   onComplete?: (full: string) => void;
@@ -18,26 +16,54 @@ interface SendMessagePayload {
 export const sendMessageToBackend = async ({
   message,
   conversationId,
+  userId,
   tier = 'free',
   onMessage,
   onComplete,
   onError,
 }: SendMessagePayload) => {
+  const { addMessage, updateMessage, setError } = useMessageStore.getState();
+  
+  // Create user message
+  const userMessageId = uuidv4();
+  const userMessage = {
+    id: userMessageId,
+    role: 'user' as const,
+    content: message,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Add user message to store immediately
+  addMessage(userMessage);
+  
+  // Create placeholder assistant message
+  const assistantMessageId = uuidv4();
+  const assistantMessage = {
+    id: assistantMessageId,
+    role: 'assistant' as const,
+    content: '',
+    streaming: true,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Add streaming assistant message to store
+  addMessage(assistantMessage);
+  
   try {
     const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
     
     // Debug log in development
     if (import.meta.env.DEV) {
-      console.log(`Sending message with tier: ${tier}`);
+      console.log(`Sending message with userId: ${userId}, tier: ${tier}`);
     }
     
     // Use authApi.post for automatic token handling and error management
     const data = await authApi.post(
       `${API_URL}/message`,
-      { message, conversationId, tier }
+      { message, userId, tier }
     );
 
-    const fullMessage = data.message || "Hello! I'm Atlas, your AI assistant. How can I help you today?";
+    const fullMessage = data.response || "Hello! I'm Atlas, your AI assistant. How can I help you today?";
     
     // Simulate streaming by sending the message in chunks
     const words = fullMessage.split(' ');
@@ -45,22 +71,41 @@ export const sendMessageToBackend = async ({
     
     for (let i = 0; i < words.length; i++) {
       currentMessage += words[i] + ' ';
-      onMessage(words[i] + ' ');
+      
+      // Update the assistant message in the store
+      updateMessage(assistantMessageId, { 
+        content: currentMessage.trim(),
+        streaming: true 
+      });
+      
+      // Call the callback for backward compatibility
+      onMessage?.(words[i] + ' ');
+      
       await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for streaming effect
     }
+
+    // Mark streaming as complete
+    updateMessage(assistantMessageId, { 
+      content: fullMessage,
+      streaming: false 
+    });
 
     onComplete?.(fullMessage);
     return fullMessage;
   } catch (error: any) {
-    const message = error?.message || "Unknown error";
-    onError?.(message);
-    throw new Error(message);
+    const errorMessage = error?.message || "Unknown error";
+    
+    // Update assistant message with error
+    setError(assistantMessageId, errorMessage);
+    
+    onError?.(errorMessage);
+    throw new Error(errorMessage);
   }
 };
 
 export const getSupabaseUserTier = async (userId: string) => {
   const { data, error } = await supabase
-    .from("user_profiles")
+    .from("profiles")
     .select("subscription_tier")
     .eq("id", userId)
     .single();

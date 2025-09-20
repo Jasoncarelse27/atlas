@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 
 // Types
 export interface ClaudePrompt {
@@ -24,9 +24,7 @@ export interface ClaudeResponse {
 export type UserTier = 'core' | 'studio';
 
 // Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client imported from centralized location
 
 // Claude API configuration
 const CLAUDE_API_KEY = import.meta.env.VITE_CLAUDE_API_KEY;

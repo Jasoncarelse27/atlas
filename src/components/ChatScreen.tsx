@@ -25,6 +25,7 @@ export default function ChatScreen() {
       await sendMessageToBackend({
         conversationId: 'demo', // Replace with actual ID
         message: input,
+        userId: '65fcb50a-d67d-453e-a405-50c6aef959be', // Add userId
         accessToken: 'your-supabase-access-token', // Replace with actual token
         tier: 'free', // Default tier for demo
         onMessage: (partial: string) => {
