@@ -74,7 +74,15 @@ import { promptCacheService } from './services/promptCacheService.mjs';
 // ⏰ Import cron service for automated tasks
 import { startWeeklyReportCron } from './services/cronService.mjs';
 
+// 🤖 Import Anthropic for real AI responses
+import Anthropic from '@anthropic-ai/sdk';
+
 const app = express();
+
+// 🤖 Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 // 🛡️ Production Security Middleware
 app.use(helmet({
@@ -228,18 +236,60 @@ app.post("/message",
         budgetPriority: budgetCheck.priorityOverride || false
       });
 
-      // 🤖 STEP 4: Enhanced AI processing (currently simulated)
-      const mockResponse = `[${selectedModelName}] I understand you're reaching out. ` + 
-        (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis and personalized insights. ' : '') +
-        (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support and habit coaching. ' : '') +
-        (tier === 'free' ? 'I\'m here to provide basic emotional support and guidance. ' : '') +
-        `Here's how I can help with: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
+      // 🤖 STEP 4: Real AI processing with Anthropic
+      let aiResponse;
+      let actualInputTokens = 0;
+      let actualOutputTokens = 0;
+      
+      try {
+        if (process.env.ANTHROPIC_API_KEY) {
+          const response = await anthropic.messages.create({
+            model: selectedModelName,
+            max_tokens: 1000,
+            system: systemPrompt,
+            messages: [
+              {
+                role: 'user',
+                content: message
+              }
+            ]
+          });
+          
+          aiResponse = response.content[0].text;
+          actualInputTokens = response.usage.input_tokens;
+          actualOutputTokens = response.usage.output_tokens;
+          
+          await logInfo("Real AI response generated", {
+            model: selectedModelName,
+            inputTokens: actualInputTokens,
+            outputTokens: actualOutputTokens,
+            tier
+          });
+        } else {
+          // Fallback to enhanced mock response if no API key
+          aiResponse = `Hello! I'm Atlas, your AI-powered emotional intelligence companion. ` + 
+            (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis and personalized insights. ' : '') +
+            (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support and habit coaching. ' : '') +
+            (tier === 'free' ? 'I\'m here to provide basic emotional support and guidance. ' : '') +
+            `I understand you're reaching out about "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}" - how can I help you today?`;
+          
+          // Estimate tokens for mock response
+          actualInputTokens = Math.ceil((systemPrompt.length + message.length) / 4);
+          actualOutputTokens = Math.ceil(aiResponse.length / 4);
+        }
+      } catch (error) {
+        await logError("AI response generation failed", { error: error.message, model: selectedModelName, tier });
+        
+        // Graceful fallback
+        aiResponse = `I'm experiencing some technical difficulties right now. Please try again in a moment. ` +
+          `As your ${tier} tier Atlas companion, I'm here to help with emotional intelligence and support.`;
+        actualInputTokens = Math.ceil((systemPrompt.length + message.length) / 4);
+        actualOutputTokens = Math.ceil(aiResponse.length / 4);
+      }
 
       // 📊 STEP 5: Calculate actual token usage and cost
-      const inputTokens = Math.ceil((systemPrompt.length + message.length) / 4);
-      const outputTokens = Math.ceil(mockResponse.length / 4);
-      const totalTokens = inputTokens + outputTokens;
-      const estimatedCost = estimateRequestCost(selectedModelName, inputTokens, outputTokens);
+      const totalTokens = actualInputTokens + actualOutputTokens;
+      const estimatedCost = estimateRequestCost(selectedModelName, actualInputTokens, actualOutputTokens);
 
       // 📊 STEP 6: Record budget spend and usage
       await budgetCeilingService.recordSpend(tier, estimatedCost, 1);
@@ -268,7 +318,7 @@ app.post("/message",
 
       res.json({
         success: true,
-        response: mockResponse,
+        response: aiResponse,
         metadata: {
           tier,
           model: selectedModelName,
