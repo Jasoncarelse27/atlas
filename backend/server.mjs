@@ -131,7 +131,10 @@ app.use(express.json({ limit: '2mb' }));
 app.use(cors({
   origin: [
     "http://localhost:5173", 
+    "http://localhost:5174",  // Add port 5174 for frontend
+    "http://localhost:8081",  // Add port 8081 for Expo web
     "http://192.168.0.10:5173",
+    "http://192.168.0.10:5174",
     /^https:\/\/atlas-.*\.vercel\.app$/,
     /^https:\/\/atlas.*\.up\.railway\.app$/,
     /^https:\/\/.*\.railway\.app$/
