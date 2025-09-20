@@ -404,6 +404,9 @@ app.post("/message",
       let actualOutputTokens = 0;
       
       try {
+        console.log('🔍 DEBUG: ANTHROPIC_API_KEY exists?', !!process.env.ANTHROPIC_API_KEY);
+        console.log('🔍 DEBUG: ANTHROPIC_API_KEY length:', process.env.ANTHROPIC_API_KEY?.length || 0);
+        
         if (process.env.ANTHROPIC_API_KEY) {
           await logInfo("Calling Anthropic API", {
             model: selectedModelName,
@@ -448,7 +451,22 @@ app.post("/message",
           actualOutputTokens = Math.ceil(aiResponse.length / 4);
         }
       } catch (error) {
-        await logError("AI response generation failed", { error: error.message, model: selectedModelName, tier });
+        console.error('🚨 ANTHROPIC API ERROR:', error);
+        console.error('🚨 Error details:', {
+          message: error.message,
+          status: error.status,
+          type: error.type,
+          hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+          apiKeyLength: process.env.ANTHROPIC_API_KEY?.length || 0
+        });
+        
+        await logError("AI response generation failed", { 
+          error: error.message, 
+          model: selectedModelName, 
+          tier,
+          hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+          errorType: error.type || 'unknown'
+        });
         
         // Graceful fallback
         aiResponse = `I'm experiencing some technical difficulties right now. Please try again in a moment. ` +
