@@ -71,6 +71,9 @@ import { estimateRequestCost, selectOptimalModel } from './config/intelligentTie
 import { budgetCeilingService } from './services/budgetCeilingService.mjs';
 import { promptCacheService } from './services/promptCacheService.mjs';
 
+// ⏰ Import cron service for automated tasks
+import { startWeeklyReportCron } from './services/cronService.mjs';
+
 const app = express();
 
 // 🛡️ Production Security Middleware
@@ -373,11 +376,15 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🎯 NEW: Enhanced Tier Gate System Active!`);
   console.log(`📊 NEW: Admin metrics at /admin/metrics`);
   
+  // Start cron jobs
+  startWeeklyReportCron();
+  
   // Log server startup
   await logInfo("Atlas backend server started with tier gate system", {
     port: PORT,
     environment: process.env.NODE_ENV || 'development',
     tierGateSystem: 'active',
+    cronEnabled: process.env.ENABLE_WEEKLY_REPORTS === 'true',
     timestamp: new Date().toISOString()
   });
 });

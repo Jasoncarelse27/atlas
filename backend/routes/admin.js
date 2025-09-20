@@ -334,7 +334,15 @@ router.post('/snapshots/take', async (req, res) => {
 // 📊 NEW: GET /admin/snapshots/export.csv - Export snapshots as CSV
 router.get('/snapshots/export.csv', async (req, res) => {
   try {
-    const { email, tier, from, to } = req.query;
+    const { email, tier, from, to, startDate, endDate } = req.query;
+    
+    // Handle both old (from/to) and new (startDate/endDate) parameters
+    const dateFrom = startDate || from;
+    const dateTo = endDate || to;
+    
+    // Default to last 30 days if no date range provided
+    const defaultEndDate = new Date().toISOString().split('T')[0];
+    const defaultStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
     // Build query with filters
     let query = supabase
@@ -362,12 +370,12 @@ router.get('/snapshots/export.csv', async (req, res) => {
       query = query.eq('tier', tier);
     }
     
-    if (from) {
-      query = query.gte('snapshot_date', from);
+    if (dateFrom || defaultStartDate) {
+      query = query.gte('snapshot_date', dateFrom || defaultStartDate);
     }
     
-    if (to) {
-      query = query.lte('snapshot_date', to);
+    if (dateTo || defaultEndDate) {
+      query = query.lte('snapshot_date', dateTo || defaultEndDate);
     }
     
     const { data, error } = await query;
@@ -440,5 +448,145 @@ router.get('/snapshots/export.csv', async (req, res) => {
     });
   }
 });
+
+// 📊 NEW: POST /admin/reports/weekly/run - Manually trigger weekly report
+router.post('/reports/weekly/run', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.body;
+    
+    const { generateWeeklyReport } = await import('../services/weeklyReportService.mjs');
+    const result = await generateWeeklyReport(startDate, endDate);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'Weekly report generated successfully',
+        ...result,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate weekly report',
+        error: result.error,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error in manual weekly report endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to trigger weekly report',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 📊 NEW: GET /admin/analytics/summary - Analytics data for dashboard
+router.get('/analytics/summary', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Default to last 30 days
+    const defaultEndDate = new Date().toISOString().split('T')[0];
+    const defaultStartDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const dateFrom = startDate || defaultStartDate;
+    const dateTo = endDate || defaultEndDate;
+    
+    // Get messages by day and tier
+    const { data: messagesByDay, error: messagesError } = await supabase
+      .from('tier_usage_snapshots')
+      .select('snapshot_date, tier, message_count')
+      .gte('snapshot_date', dateFrom)
+      .lte('snapshot_date', dateTo)
+      .order('snapshot_date');
+    
+    if (messagesError) throw messagesError;
+    
+    // Get spend by day and tier
+    const { data: spendByDay, error: spendError } = await supabase
+      .from('tier_usage_snapshots')
+      .select('snapshot_date, tier, cost_accumulated')
+      .gte('snapshot_date', dateFrom)
+      .lte('snapshot_date', dateTo)
+      .order('snapshot_date');
+    
+    if (spendError) throw spendError;
+    
+    // Get cache stats
+    const { data: cacheByDay, error: cacheError } = await supabase
+      .from('cache_stats')
+      .select('date, hits, misses')
+      .gte('date', dateFrom)
+      .lte('date', dateTo)
+      .order('date');
+    
+    if (cacheError) throw cacheError;
+    
+    // Get tier counts
+    const { data: tierCounts, error: tierError } = await supabase
+      .from('tier_usage_snapshots')
+      .select('tier')
+      .eq('snapshot_date', dateTo);
+    
+    if (tierError) throw tierError;
+    
+    // Process data for charts
+    const processedData = {
+      messagesByDay: processTimeSeriesData(messagesByDay, 'message_count'),
+      spendByDay: processTimeSeriesData(spendByDay, 'cost_accumulated'),
+      cacheByDay: (cacheByDay || []).map(row => ({
+        date: row.date,
+        hits: row.hits || 0,
+        misses: row.misses || 0,
+        hitRate: row.hits && row.misses ? (row.hits / (row.hits + row.misses)) * 100 : 0
+      })),
+      tierCounts: processTierCounts(tierCounts || [])
+    };
+    
+    res.json({
+      success: true,
+      data: processedData,
+      dateRange: { startDate: dateFrom, endDate: dateTo },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error fetching analytics summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch analytics data',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Helper function to process time series data
+function processTimeSeriesData(data, valueField) {
+  const grouped = {};
+  
+  data.forEach(row => {
+    const date = row.snapshot_date;
+    if (!grouped[date]) {
+      grouped[date] = { date, free: 0, core: 0, studio: 0 };
+    }
+    grouped[date][row.tier] += row[valueField] || 0;
+  });
+  
+  return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Helper function to process tier counts
+function processTierCounts(data) {
+  const counts = { free: 0, core: 0, studio: 0 };
+  
+  data.forEach(row => {
+    counts[row.tier] = (counts[row.tier] || 0) + 1;
+  });
+  
+  return Object.entries(counts).map(([tier, users]) => ({ tier, users }));
+}
 
 export default router;
