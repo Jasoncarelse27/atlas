@@ -1,7 +1,7 @@
-import { supabase } from "../lib/supabaseClient";
-import { authApi } from "../utils/authFetch";
-import { useMessageStore } from "../stores/useMessageStore";
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from "../lib/supabaseClient";
+import { useMessageStore } from "../stores/useMessageStore";
+import { authApi } from "../utils/authFetch";
 
 interface SendMessagePayload {
   message: string;
@@ -93,10 +93,23 @@ export const sendMessageToBackend = async ({
     onComplete?.(fullMessage);
     return fullMessage;
   } catch (error: any) {
+    console.error("Chat service error:", error);
     const errorMessage = error?.message || "Unknown error";
     
-    // Update assistant message with error
-    setError(assistantMessageId, errorMessage);
+    // Only show fallback for actual connection failures, not API errors
+    if (
+      errorMessage.includes("Failed to fetch") ||
+      errorMessage.includes("NetworkError") ||
+      errorMessage.includes("ECONNREFUSED") ||
+      errorMessage.includes("ERR_NETWORK") ||
+      errorMessage.includes("ERR_INTERNET_DISCONNECTED")
+    ) {
+      // Real network/connection error - show fallback
+      setError(assistantMessageId, "I'm experiencing some technical difficulties right now. Please try again in a moment.");
+    } else {
+      // API error or other issue - show the actual error for debugging
+      setError(assistantMessageId, `Error: ${errorMessage}`);
+    }
     
     onError?.(errorMessage);
     throw new Error(errorMessage);

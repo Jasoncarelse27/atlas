@@ -22,12 +22,14 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   messages: [],
   
   addMessage: (message: ChatMessage) => {
+    console.log('[MessageStore] Adding message:', message);
     set((state) => ({
       messages: [...state.messages, message]
     }));
   },
   
   updateMessage: (id: string, patch: Partial<ChatMessage>) => {
+    console.log('[MessageStore] Updating message:', id, patch);
     set((state) => ({
       messages: state.messages.map((msg) =>
         msg.id === id ? { ...msg, ...patch } : msg
@@ -36,6 +38,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
   
   setError: (id: string, error: string) => {
+    console.log('[MessageStore] Setting error:', id, error);
     set((state) => ({
       messages: state.messages.map((msg) =>
         msg.id === id ? { ...msg, error, streaming: false } : msg
@@ -44,6 +47,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
   },
   
   clearMessages: () => {
+    console.log('[MessageStore] Clearing messages');
     set({ messages: [] });
   },
   

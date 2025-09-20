@@ -2,8 +2,8 @@ import { Brain, Heart, LogOut, MessageSquare, Settings, User } from 'lucide-reac
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChatFooter from '../components/ChatFooter';
-import MessageRenderer from '../components/MessageRenderer';
 import MessageErrorBoundary from '../components/MessageErrorBoundary';
+import MessageRenderer from '../components/MessageRenderer';
 import { supabase } from '../lib/supabase';
 import { sendMessageToBackend } from '../services/chatService';
 import { useMessageStore } from '../stores/useMessageStore';
