@@ -62,11 +62,14 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { logError, logInfo, logWarn } from "./utils/logger.mjs";
 
-// 🛡️ Import new middleware stack
+// 🛡️ Import middleware stack
 import authMiddleware from "./middleware/authMiddleware.mjs";
 import dailyLimitMiddleware from "./middleware/dailyLimitMiddleware.mjs";
-import promptCacheMiddleware, { cachePromptResponse } from "./middleware/promptCacheMiddleware.mjs";
-import tierGateMiddleware from "./middleware/tierGateMiddleware.mjs";
+
+// 🧠 Import intelligent tier gate system
+import { estimateRequestCost, selectOptimalModel } from './config/intelligentTierSystem.mjs';
+import { budgetCeilingService } from './services/budgetCeilingService.mjs';
+import { promptCacheService } from './services/promptCacheService.mjs';
 
 const app = express();
 
@@ -172,77 +175,92 @@ app.get("/healthz", async (req, res) => {
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: new Date().toISOString() }));
 
-// --- Enhanced message endpoint with middleware stack ---
+
+// --- Enhanced message endpoint with intelligent tier gate system ---
 app.post("/message", 
   messageLimiter, // Apply message-specific rate limiting
   dailyLimitMiddleware,
-  tierGateMiddleware, 
-  promptCacheMiddleware,
   async (req, res) => {
     try {
-      const { userId, message, type = 'chat', promptType } = req.body;
+      const { userId, message, type = 'chat', tier = 'free' } = req.body;
       
-      // All tier enforcement, budget checks, and model selection done by middleware
-      const tier = req.tier;
-      const selectedModel = req.selectedModel;
-      const cachedPrompt = req.cachedPrompt;
-      const dailyUsage = req.dailyUsage;
-      const budgetStatus = req.budgetStatus;
-      const cacheStats = req.cacheStats;
-      
-      await logInfo("Message API called (middleware-processed)", { 
+      if (!message || !tier) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Missing required fields: message and tier' 
+        });
+      }
+
+      await logInfo("Message API called with intelligent tier system", { 
         userId, 
         tier, 
         hasMessage: !!message,
-        model: selectedModel?.name,
-        dailyUsage: dailyUsage?.count,
-        cacheHit: cacheStats?.hit
+        messageLength: message.length
       });
 
-      // 🤖 STEP 1: Use cached prompt or generate system prompt
-      let systemPrompt = cachedPrompt?.content || 
-        `You are Atlas, an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support.`;
-
-      // 🤖 STEP 2: Enhanced AI processing simulation
-      const mockResponse = `[${selectedModel?.name || 'claude-3-haiku-20240307'}] I understand you're reaching out. ` + 
-        (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis. ' : '') +
-        (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support. ' : '') +
-        `Here's how I can help with: "${message?.substring(0, 50)}..."`;
-
-      // 📊 STEP 3: Calculate actual token usage
-      const inputTokens = (systemPrompt.length + (message?.length || 0)) / 4; // Rough estimate
-      const outputTokens = mockResponse.length / 4;
-      const totalTokens = Math.round(inputTokens + outputTokens);
-
-      // 💾 STEP 4: Cache prompt response if needed
-      if (cachedPrompt && !cachedPrompt.cacheHit && cachedPrompt.shouldCache) {
-        await cachePromptResponse(
-          cachedPrompt.cacheKey, 
-          systemPrompt, 
-          Math.round(inputTokens), 
-          cachedPrompt.type
-        );
+      // 🛡️ STEP 1: Budget ceiling check
+      const budgetCheck = await budgetCeilingService.checkBudgetCeiling(tier);
+      if (!budgetCheck.allowed) {
+        return res.status(429).json({
+          success: false,
+          message: budgetCheck.message,
+          upgrade: tier === 'free'
+        });
       }
 
-      // 📊 STEP 5: Update actual usage with real token counts
+      // 🧠 STEP 2: Intelligent model selection
+      const selectedModelName = selectOptimalModel(tier, message, type);
+      
+      // 💾 STEP 3: Get cached system prompt
+      const systemPrompt = await promptCacheService.get(
+        'systemPersonality', 
+        { tier, userId }, 
+        `You are Atlas, an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support. You help users develop emotional intelligence, manage stress, and build healthier habits.`
+      );
+
+      await logInfo("Intelligent tier processing", { 
+        tier,
+        selectedModel: selectedModelName,
+        systemPromptCached: systemPrompt.includes('User Context'),
+        budgetPriority: budgetCheck.priorityOverride || false
+      });
+
+      // 🤖 STEP 4: Enhanced AI processing (currently simulated)
+      const mockResponse = `[${selectedModelName}] I understand you're reaching out. ` + 
+        (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis and personalized insights. ' : '') +
+        (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support and habit coaching. ' : '') +
+        (tier === 'free' ? 'I\'m here to provide basic emotional support and guidance. ' : '') +
+        `Here's how I can help with: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
+
+      // 📊 STEP 5: Calculate actual token usage and cost
+      const inputTokens = Math.ceil((systemPrompt.length + message.length) / 4);
+      const outputTokens = Math.ceil(mockResponse.length / 4);
+      const totalTokens = inputTokens + outputTokens;
+      const estimatedCost = estimateRequestCost(selectedModelName, inputTokens, outputTokens);
+
+      // 📊 STEP 6: Record budget spend and usage
+      await budgetCeilingService.recordSpend(tier, estimatedCost, 1);
+
+      // 📊 STEP 7: Update daily usage tracking
       const { supabase: client } = await import('./config/supabaseClient.mjs');
       if (client && userId) {
-        // Update daily usage with actual tokens
+        // Update daily usage with actual tokens and cost
         await client.rpc('increment_conversation_count', {
           p_user_id: userId,
           p_tier: tier,
           p_tokens_used: totalTokens,
-          p_cost_estimate: selectedModel?.estimatedCost || 0
+          p_cost_estimate: estimatedCost
         });
       }
 
-      await logInfo("Message processed successfully", { 
+      await logInfo("Message processed with intelligent tier system", { 
         tier, 
-        selectedModel: selectedModel?.name, 
-        estimatedCost: selectedModel?.estimatedCost?.toFixed(6) || '0.000000',
+        selectedModel: selectedModelName, 
+        estimatedCost: estimatedCost.toFixed(6),
         totalTokens,
-        cacheHit: cacheStats?.hit,
-        dailyUsage: `${dailyUsage?.count}/${dailyUsage?.limit === -1 ? '∞' : dailyUsage?.limit}`
+        inputTokens,
+        outputTokens,
+        budgetPriority: budgetCheck.priorityOverride || false
       });
 
       res.json({
@@ -250,39 +268,36 @@ app.post("/message",
         response: mockResponse,
         metadata: {
           tier,
-          model: selectedModel?.name,
+          model: selectedModelName,
           tokensUsed: totalTokens,
-          estimatedCost: selectedModel?.estimatedCost?.toFixed(6) || '0.000000',
+          estimatedCost: estimatedCost.toFixed(6),
           budgetStatus: {
-            used: budgetStatus?.used,
-            limit: budgetStatus?.limit,
-            remaining: budgetStatus?.remaining
+            priorityOverride: budgetCheck.priorityOverride || false
           },
-          dailyUsage: {
-            count: dailyUsage?.count,
-            limit: dailyUsage?.limit,
-            unlimited: dailyUsage?.unlimited
+          intelligentSelection: {
+            modelSelected: selectedModelName,
+            reasoningType: type,
+            messageLength: message.length
           },
-          cache: {
-            hit: cacheStats?.hit,
-            type: cacheStats?.type,
-            savings: cacheStats?.savings
-          },
-          timestamp: new Date().toISOString()
+          performance: {
+            systemPromptCached: systemPrompt.includes('User Context'),
+            costOptimized: true
+          }
         }
       });
 
     } catch (error) {
-      await logError("Message API error", error.stack, { 
-        userId: req.body?.userId, 
-        tier: req.tier || req.body?.tier,
-        endpoint: '/message'
+      await logError("Message API error with intelligent tier system", { 
+        error: error.message, 
+        stack: error.stack,
+        userId: req.body?.userId,
+        tier: req.body?.tier
       });
       
       res.status(500).json({
         success: false,
-        error: "Internal server error",
-        timestamp: new Date().toISOString()
+        message: "I'm experiencing some technical difficulties. Please try again in a moment.",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }

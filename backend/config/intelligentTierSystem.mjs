@@ -40,11 +40,12 @@ export function selectOptimalModel(userTier, messageContent = '', requestType = 
   const isSimple = wc <= 5 || /^(hi|hello|hey|thanks?|ok|okay)\b/.test(msg);
   if (isSimple) return 'claude-3-haiku';
 
+  // Check for complexity first for Studio users to get Opus for complex requests
+  const isComplex = wc > 100 || /(deep dive|comprehensive|detailed breakdown|multiple factors|long-term strategy|analysis|patterns)/.test(msg) || msg.split('.').length > 5;
+  if (userTier === 'studio' && isComplex) return 'claude-3-opus';
+
   const needsEmotional = /(feel|emotion|mood|anxiety|depress|stress|relationship|overwhelmed|mental health)/.test(msg);
   if (needsEmotional) return 'claude-3-sonnet';
-
-  const isComplex = wc > 100 || /(deep dive|comprehensive|detailed breakdown|multiple factors|long-term strategy)/.test(msg) || msg.split('.').length > 5;
-  if (userTier === 'studio' && isComplex) return 'claude-3-opus';
 
   return 'claude-3-sonnet';
 }
