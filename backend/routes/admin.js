@@ -158,4 +158,172 @@ router.get("/usage", async (req, res) => {
   }
 });
 
+// 📊 NEW: GET /admin/snapshots - Tier usage snapshots with filtering
+router.get('/snapshots', async (req, res) => {
+  try {
+    const { email, tier, from, to, page = 1, pageSize = 50 } = req.query;
+    
+    // Build query with filters
+    let query = supabase
+      .from('tier_usage_snapshots')
+      .select('*', { count: 'exact' })
+      .order('snapshot_date', { ascending: false })
+      .order('email', { ascending: true });
+    
+    // Apply filters
+    if (email) {
+      query = query.eq('email', email);
+    }
+    
+    if (tier) {
+      query = query.eq('tier', tier);
+    }
+    
+    if (from) {
+      query = query.gte('snapshot_date', from);
+    }
+    
+    if (to) {
+      query = query.lte('snapshot_date', to);
+    }
+    
+    // Apply pagination
+    const offset = (parseInt(page) - 1) * parseInt(pageSize);
+    query = query.range(offset, offset + parseInt(pageSize) - 1);
+    
+    const { data, error, count } = await query;
+    
+    if (error) {
+      console.error('Error fetching snapshots:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+    
+    res.json({
+      success: true,
+      snapshots: data || [],
+      meta: {
+        total: count || 0,
+        page: parseInt(page),
+        pageSize: parseInt(pageSize),
+        totalPages: Math.ceil((count || 0) / parseInt(pageSize))
+      },
+      filters: { email, tier, from, to },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error in snapshots endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch snapshots',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 📊 NEW: GET /admin/trends/:email - Get usage trends for specific user
+router.get('/trends/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { days = 30 } = req.query;
+    
+    const { data, error } = await supabase
+      .rpc('get_user_usage_trend', { 
+        p_email: email, 
+        p_days: parseInt(days) 
+      });
+    
+    if (error) {
+      console.error('Error fetching user trends:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+    
+    res.json({
+      success: true,
+      email,
+      days: parseInt(days),
+      trends: data || [],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error in trends endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch user trends',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 📊 NEW: GET /admin/summary - Get tier summary for specific date
+router.get('/summary', async (req, res) => {
+  try {
+    const { date = new Date().toISOString().split('T')[0] } = req.query;
+    
+    const { data, error } = await supabase
+      .rpc('get_tier_summary', { p_date: date });
+    
+    if (error) {
+      console.error('Error fetching tier summary:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+    
+    res.json({
+      success: true,
+      date,
+      summary: data || [],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error in summary endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch tier summary',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 📊 NEW: POST /admin/snapshots/take - Manually trigger snapshot
+router.post('/snapshots/take', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('take_tier_usage_snapshot');
+    
+    if (error) {
+      console.error('Error taking snapshot:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Snapshot taken successfully',
+      snapshotsCreated: data,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error in take snapshot endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to take snapshot',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 export default router;
