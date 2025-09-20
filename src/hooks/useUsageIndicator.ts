@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { fetchWithAuthJSON } from '../services/fetchWithAuth';
 
 export interface UsageStats {
   tier: 'free' | 'core' | 'studio';
@@ -45,11 +46,7 @@ export function useUsageIndicator() {
 
       const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
       // For development, call admin endpoint directly without auth
-      const response = await fetch(`${API_URL}/admin/usage`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const usage = await response.json();
+      const usage = await fetchWithAuthJSON(`${API_URL}/admin/usage`);
 
       const tier = usage.tier || 'free';
       const dailyUsed = usage.dailyMessagesUsed || 0;

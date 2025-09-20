@@ -7,6 +7,7 @@ import MessageRenderer from '../components/MessageRenderer';
 import { supabase } from '../lib/supabase';
 import { sendMessageToBackend } from '../services/chatService';
 import { useMessageStore } from '../stores/useMessageStore';
+import { fetchWithAuthJSON } from '../services/fetchWithAuth';
 import type { Message } from '../types/chat';
 
 interface DashboardPageProps {
@@ -51,13 +52,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
       // Fetch user's tier from user_profiles
       let userTier = 'free'; // Default fallback
       try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single();
+        // Use authenticated fetch to get user profile
+        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const profile = await fetchWithAuthJSON(`${API_URL}/v1/user_profiles/${user.id}`);
         
-        if (!error && profile?.subscription_tier) {
+        if (profile?.subscription_tier) {
           userTier = profile.subscription_tier;
         }
       } catch (tierError) {

@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "../lib/supabaseClient";
 import { useMessageStore } from "../stores/useMessageStore";
 import { authApi } from "../utils/authFetch";
+import { fetchWithAuthJSON } from "./fetchWithAuth";
 
 interface SendMessagePayload {
   message: string;
@@ -57,10 +58,13 @@ export const sendMessageToBackend = async ({
       console.log(`Sending message with userId: ${userId}, tier: ${tier}`);
     }
     
-    // Use authApi.post for automatic token handling and error management
-    const data = await authApi.post(
+    // Use fetchWithAuthJSON for automatic token handling and error management
+    const data = await fetchWithAuthJSON(
       `${API_URL}/message`,
-      { message, userId, tier }
+      {
+        method: 'POST',
+        body: JSON.stringify({ message, userId, tier })
+      }
     );
 
     const fullMessage = data.response || "Hello! I'm Atlas, your AI assistant. How can I help you today?";
