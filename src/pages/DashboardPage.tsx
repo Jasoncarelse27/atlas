@@ -6,8 +6,8 @@ import MessageErrorBoundary from '../components/MessageErrorBoundary';
 import MessageRenderer from '../components/MessageRenderer';
 import { supabase } from '../lib/supabase';
 import { sendMessageToBackend } from '../services/chatService';
-import { useMessageStore } from '../stores/useMessageStore';
 import { fetchWithAuthJSON } from '../services/fetchWithAuth';
+import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
 
 interface DashboardPageProps {
@@ -238,6 +238,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
               <div className="p-4 border-t border-gray-700">
                 <div className="flex space-x-2">
                   <input
+                    id="chat-input"
+                    name="chatInput"
                     type="text"
                     placeholder="Type your message..."
                     className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"

@@ -73,7 +73,6 @@ import { estimateRequestCost, selectOptimalModel } from './config/intelligentTie
 // 🔐 Import Supabase client (now with lazy initialization)
 import { supabase } from './config/supabaseClient.mjs';
 import { budgetCeilingService } from './services/budgetCeilingService.mjs';
-import { promptCacheService } from './services/promptCacheService.mjs';
 
 // ⏰ Import cron service for automated tasks
 import { startWeeklyReportCron } from './services/cronService.mjs';
@@ -197,7 +196,7 @@ app.use((req, res, next) => {
   }
   
   // Skip auth middleware for routes that use their own auth (verifyJWT or requireAdminDev)
-  if (req.path.startsWith('/v1/user_profiles') || req.path === '/message' || req.path.startsWith('/admin')) {
+  if (req.path.startsWith('/v1/user_profiles') || req.path === '/message' || req.path.startsWith('/admin') || req.path.startsWith('/debug')) {
     return next();
   }
   
@@ -237,6 +236,17 @@ app.get("/healthz", async (req, res) => {
 });
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: new Date().toISOString() }));
+
+// 🔍 Debug endpoint to check environment variables
+app.get("/debug/env", (req, res) => {
+  res.json({
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+    anthropicKeyLength: process.env.ANTHROPIC_API_KEY?.length || 0,
+    anthropicKeyPrefix: process.env.ANTHROPIC_API_KEY?.substring(0, 20) || 'NOT_FOUND',
+    nodeEnv: process.env.NODE_ENV,
+    envLoaded: Object.keys(process.env).filter(key => key.includes('ANTHROPIC')).length
+  });
+});
 
 // --- User Profile Endpoints ---
 // User profile endpoint with fallback creation
@@ -390,12 +400,8 @@ app.post("/message",
       // 🧠 STEP 2: Intelligent model selection
       const selectedModelName = selectOptimalModel(tier, message, type);
       
-      // 💾 STEP 3: Get cached system prompt
-      const systemPrompt = await promptCacheService.get(
-        'systemPersonality', 
-        { tier, userId }, 
-        `You are Atlas, an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support. You help users develop emotional intelligence, manage stress, and build healthier habits.`
-      );
+      // 💾 STEP 3: Use system prompt directly (bypass cache for now)
+      const systemPrompt = `You are an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support. You help users develop emotional intelligence, manage stress, and build healthier habits. You provide supportive, empathetic responses while maintaining professional boundaries.`;
 
       await logInfo("Intelligent tier processing", { 
         tier,
