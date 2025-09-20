@@ -83,10 +83,16 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const app = express();
 
-// 🤖 Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// 🤖 Initialize Anthropic client lazily
+let anthropic = null;
+const getAnthropicClient = () => {
+  if (!anthropic && process.env.ANTHROPIC_API_KEY) {
+    anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+  }
+  return anthropic;
+};
 
 // 🛡️ Production Security Middleware
 app.use(helmet({
@@ -415,7 +421,12 @@ app.post("/message",
             tier
           });
           
-          const response = await anthropic.messages.create({
+          const anthropicClient = getAnthropicClient();
+          if (!anthropicClient) {
+            throw new Error('Anthropic client not available - API key missing');
+          }
+          
+          const response = await anthropicClient.messages.create({
             model: selectedModelName,
             max_tokens: 1000,
             system: systemPrompt,
