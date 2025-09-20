@@ -110,7 +110,7 @@ async function testDatabaseSchema() {
     logTest('Free tier: $20 budget ceiling', freeTier?.budget_ceiling === 20);
     
     // Check tier_usage_snapshots table exists
-    const { data: snapshots, error: snapshotError } = await supabase
+    const { error: snapshotError } = await supabase
       .from('tier_usage_snapshots')
       .select('id')
       .limit(1);
@@ -118,7 +118,7 @@ async function testDatabaseSchema() {
     logTest('Tier usage snapshots table accessible', !snapshotError);
     
     // Check report_runs table exists
-    const { data: reports, error: reportError } = await supabase
+    const { error: reportError } = await supabase
       .from('report_runs')
       .select('id')
       .limit(1);
@@ -126,7 +126,7 @@ async function testDatabaseSchema() {
     logTest('Report runs table accessible', !reportError);
     
     // Test tier enforcement function
-    const { data: enforcementTest, error: enforceError } = await supabase
+    const { error: enforceError } = await supabase
       .rpc('enforce_tier_budget', {
         p_user_id: '00000000-0000-0000-0000-000000000000',
         p_tier: 'free'
