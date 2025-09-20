@@ -1,7 +1,12 @@
 import express from 'express';
 import { supabase } from '../lib/supabase.js';
+import { requireAdminDev } from '../middleware/adminAuth.mjs';
 
 const router = express.Router();
+
+// Apply admin authentication to all routes
+// Using requireAdminDev for now (bypasses in development)
+router.use(requireAdminDev);
 
 // POST /admin/resetAttempts - Delete all rows from feature_attempts table
 router.post('/resetAttempts', async (req, res) => {
@@ -321,6 +326,116 @@ router.post('/snapshots/take', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to take snapshot',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 📊 NEW: GET /admin/snapshots/export.csv - Export snapshots as CSV
+router.get('/snapshots/export.csv', async (req, res) => {
+  try {
+    const { email, tier, from, to } = req.query;
+    
+    // Build query with filters
+    let query = supabase
+      .from('tier_usage_snapshots')
+      .select(`
+        snapshot_date,
+        email,
+        tier,
+        message_count,
+        cost_accumulated,
+        daily_limit,
+        budget_ceiling,
+        status,
+        created_at
+      `)
+      .order('snapshot_date', { ascending: false })
+      .order('email', { ascending: true });
+    
+    // Apply filters
+    if (email) {
+      query = query.ilike('email', `%${email}%`);
+    }
+    
+    if (tier) {
+      query = query.eq('tier', tier);
+    }
+    
+    if (from) {
+      query = query.gte('snapshot_date', from);
+    }
+    
+    if (to) {
+      query = query.lte('snapshot_date', to);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching snapshots for CSV:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+    
+    // Convert to CSV format
+    const headers = [
+      'snapshot_date',
+      'email', 
+      'tier',
+      'message_count',
+      'cost_accumulated',
+      'daily_limit',
+      'budget_ceiling',
+      'status',
+      'created_at'
+    ];
+    
+    const csvRows = [
+      // Header row
+      headers.join(','),
+      // Data rows
+      ...(data || []).map(row => 
+        headers.map(header => {
+          const value = row[header];
+          // Escape quotes and wrap in quotes if contains comma
+          const stringValue = value?.toString() || '';
+          return stringValue.includes(',') || stringValue.includes('"') 
+            ? `"${stringValue.replace(/"/g, '""')}"` 
+            : stringValue;
+        }).join(',')
+      )
+    ];
+    
+    const csv = csvRows.join('\n');
+    
+    // Generate filename with timestamp and filters
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filterSuffix = [
+      email && `email-${email}`,
+      tier && `tier-${tier}`,
+      from && `from-${from}`,
+      to && `to-${to}`
+    ].filter(Boolean).join('_');
+    
+    const filename = `atlas_snapshots_${timestamp}${filterSuffix ? '_' + filterSuffix : ''}.csv`;
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    console.log(`📊 CSV export generated: ${filename} (${data?.length || 0} rows)`);
+    
+    res.send(csv);
+    
+  } catch (error) {
+    console.error('Error in CSV export endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to export CSV',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
