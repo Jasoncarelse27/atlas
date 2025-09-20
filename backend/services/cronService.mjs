@@ -11,9 +11,12 @@ let weeklyReportJob = null;
  * Runs every Monday at 08:00 UTC
  */
 export function startWeeklyReportCron() {
-  // Only run in production and when enabled
-  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_WEEKLY_REPORTS !== 'true') {
-    console.log('⏰ Weekly reports cron disabled (NODE_ENV or ENABLE_WEEKLY_REPORTS)');
+  // Check if we're in CI environment
+  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+  
+  // Only run in production and when enabled, skip in CI
+  if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_WEEKLY_REPORTS !== 'true' || isCI) {
+    console.log('⏰ Weekly reports cron disabled (NODE_ENV, ENABLE_WEEKLY_REPORTS, or CI)');
     return;
   }
 

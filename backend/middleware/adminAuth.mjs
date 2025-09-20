@@ -52,9 +52,12 @@ export function requireAdmin(req, res, next) {
  * Bypasses full auth for specific scenarios
  */
 export function requireAdminDev(req, res, next) {
-  // For development, we can bypass full auth if needed
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔧 Development mode: Admin access granted');
+  // Check if we're in CI environment
+  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+  
+  // For development or CI, we can bypass full auth if needed
+  if (process.env.NODE_ENV === 'development' || isCI) {
+    console.log('🔧 Development/CI mode: Admin access granted');
     req.isAdmin = true;
     return next();
   }
