@@ -186,7 +186,7 @@ class PaddleService {
   }
 
   /**
-   * Create Paddle checkout URL for subscription
+   * Create Paddle checkout URL for subscription using live API
    */
   async createCheckoutUrl(userId: string, tier: Tier, email: string): Promise<string> {
     if (tier === 'free') {
@@ -198,18 +198,34 @@ class PaddleService {
       throw new Error(`No product configuration for tier: ${tier}`);
     }
 
-    // This would integrate with Paddle's API to create a checkout URL
-    // For now, we'll create a mock URL structure
-    const checkoutParams = new URLSearchParams({
-      vendor: PADDLE_CONFIG.vendorId || '',
-      product: product.productId || '',
-      email,
-      passthrough: JSON.stringify({ userId, tier }),
-      success_url: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/success`,
-      cancel_url: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/cancel`
-    });
+    try {
+      // Call Paddle API to create checkout session
+      const response = await fetch('/api/paddle/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          tier,
+          email,
+          priceId: product.priceId,
+          successUrl: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/success`,
+          cancelUrl: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/cancel`
+        })
+      });
 
-    return `https://checkout.paddle.com/checkout?${checkoutParams.toString()}`;
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { checkoutUrl } = await response.json();
+      return checkoutUrl;
+
+    } catch (error) {
+      console.error('Checkout creation error:', error);
+      throw new Error('Failed to create checkout session');
+    }
   }
 
   /**

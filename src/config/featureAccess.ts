@@ -138,9 +138,9 @@ export const CACHE_CONFIG = {
   ]
 };
 
-// 💳 PADDLE CONFIGURATION
+// 💳 PADDLE CONFIGURATION (Live API Integration)
 export const PADDLE_CONFIG = {
-  environment: import.meta.env.VITE_PADDLE_ENVIRONMENT || 'sandbox',
+  environment: import.meta.env.VITE_PADDLE_ENVIRONMENT || 'live',
   vendorId: import.meta.env.VITE_PADDLE_VENDOR_ID,
   apiKey: import.meta.env.VITE_PADDLE_API_KEY,
   publicKey: import.meta.env.VITE_PADDLE_PUBLIC_KEY,
@@ -149,11 +149,13 @@ export const PADDLE_CONFIG = {
     core: {
       productId: import.meta.env.VITE_PADDLE_CORE_PRODUCT_ID,
       planId: import.meta.env.VITE_PADDLE_CORE_PLAN_ID,
+      priceId: import.meta.env.VITE_PADDLE_CORE_PRICE_ID || 'pri_core_plan',
       price: 19.99
     },
     studio: {
       productId: import.meta.env.VITE_PADDLE_STUDIO_PRODUCT_ID,
       planId: import.meta.env.VITE_PADDLE_STUDIO_PLAN_ID,
+      priceId: import.meta.env.VITE_PADDLE_STUDIO_PRICE_ID || 'pri_studio_plan',
       price: 179.99
     }
   },

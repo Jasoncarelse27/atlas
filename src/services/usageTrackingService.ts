@@ -198,12 +198,25 @@ class UsageTrackingService {
       const modelName = tierFeatures[tier].model as keyof typeof this.COST_PER_TOKEN;
       const estimatedCost = tokensUsed * this.COST_PER_TOKEN[modelName];
 
+      // Get current values first
+      const { data: current, error: fetchError } = await supabase
+        .from('daily_usage')
+        .select('conversations_count, total_tokens_used, api_cost_estimate')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch current usage: ${fetchError.message}`);
+      }
+
+      // Update with calculated values
       const { error } = await supabase
         .from('daily_usage')
         .update({
-          conversations_count: supabase.sql`conversations_count + 1`,
-          total_tokens_used: supabase.sql`total_tokens_used + ${tokensUsed}`,
-          api_cost_estimate: supabase.sql`api_cost_estimate + ${estimatedCost}`,
+          conversations_count: (current?.conversations_count || 0) + 1,
+          total_tokens_used: (current?.total_tokens_used || 0) + tokensUsed,
+          api_cost_estimate: (current?.api_cost_estimate || 0) + estimatedCost,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId)

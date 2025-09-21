@@ -1,17 +1,18 @@
-import React from "react";
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from "react";
 import { BrowserRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import AuthPage from '../../../pages/AuthPage';
 
 // Mock Supabase
-vi.mock('../../../lib/supabase', () => ({
+vi.mock('../../../lib/supabaseClient', () => ({
   supabase: {
     auth: {
       signInWithPassword: vi.fn(),
       signUp: vi.fn()
     }
-  }
+  },
+  checkSupabaseHealth: vi.fn(() => Promise.resolve({ ok: true }))
 }));
 
 // Mock useNavigate
@@ -63,7 +64,7 @@ describe('AuthPage', () => {
     });
 
     it('submits form with correct data', async () => {
-      const { supabase } = await import('../../../lib/supabase');
+      const { supabase } = await import('../../../lib/supabaseClient');
       const mockSignIn = vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
         data: { user: { id: '123' }, session: {} },
         error: null
@@ -90,7 +91,7 @@ describe('AuthPage', () => {
     });
 
     it('shows error message on login failure', async () => {
-      const { supabase } = await import('../../../lib/supabase');
+      const { supabase } = await import('../../../lib/supabaseClient');
       vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
         data: { user: null, session: null },
         error: { message: 'Invalid credentials' }
@@ -123,7 +124,7 @@ describe('AuthPage', () => {
     });
 
     it('shows success message on signup', async () => {
-      const { supabase } = await import('../../../lib/supabase');
+      const { supabase } = await import('../../../lib/supabaseClient');
       vi.mocked(supabase.auth.signUp).mockResolvedValue({
         data: { user: { id: '123' }, session: null },
         error: null
@@ -161,7 +162,7 @@ describe('AuthPage', () => {
     });
 
     it('disables submit button while loading', async () => {
-      const { supabase } = await import('../../../lib/supabase');
+      const { supabase } = await import('../../../lib/supabaseClient');
       vi.mocked(supabase.auth.signInWithPassword).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100))
       );

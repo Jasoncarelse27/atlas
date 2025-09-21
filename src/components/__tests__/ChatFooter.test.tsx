@@ -71,7 +71,7 @@ describe("ChatFooter", () => {
     render(<ChatFooter />);
     
     expect(screen.getByText("⚠️ Usage unavailable")).toBeInTheDocument();
-    expect(screen.getByText("⚠️ Usage data unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Usage data unavailable")).toBeInTheDocument();
   });
 
   it("calls refreshUsage when refresh button is clicked", () => {

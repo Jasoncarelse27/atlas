@@ -12,12 +12,31 @@ import type { Tier } from '../types/tier';
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: vi.fn(() => ({
-      select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn() })) })),
+      select: vi.fn(() => ({ 
+        eq: vi.fn(() => ({ 
+          eq: vi.fn(() => ({ 
+            single: vi.fn(() => ({ data: null, error: null })),
+            gt: vi.fn(() => ({ data: [], error: null }))
+          })),
+          single: vi.fn(() => ({ data: null, error: null })),
+          gt: vi.fn(() => ({ data: [], error: null }))
+        })),
+        gt: vi.fn(() => ({ data: [], error: null }))
+      })),
       insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn() })) })),
-      update: vi.fn(() => ({ eq: vi.fn() })),
-      delete: vi.fn(() => ({ eq: vi.fn() })),
+      update: vi.fn(() => ({ 
+        eq: vi.fn(() => ({ 
+          eq: vi.fn(() => ({ data: null, error: null })) 
+        })) 
+      })),
+      delete: vi.fn(() => ({ 
+        eq: vi.fn(() => ({ 
+          lt: vi.fn(() => ({ data: null, error: null })) 
+        })) 
+      })),
       upsert: vi.fn()
-    }))
+    })),
+    rpc: vi.fn(() => ({ data: null, error: null }))
   }
 }));
 
