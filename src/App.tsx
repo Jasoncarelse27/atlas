@@ -108,6 +108,42 @@ function App() {
     deleteConversation,
     clearConversations
   } = useConversations(user);
+  
+  // 🧠 SIMPLE MEMORY: Direct conversation ID management
+  const [atlasConversationId, setAtlasConversationId] = useState<string | null>(() => {
+    // Load from localStorage on startup
+    const saved = localStorage.getItem('atlas_conversation_id');
+    if (saved) {
+      console.log('🧠 [STARTUP] Loaded conversation ID from storage:', saved);
+    }
+    return saved;
+  });
+  
+  // Update conversation ID with localStorage persistence
+  const saveConversationId = (id: string | null) => {
+    console.log('🧠 [MEMORY] Saving conversation ID:', id);
+    setAtlasConversationId(id);
+    
+    if (id) {
+      localStorage.setItem('atlas_conversation_id', id);
+      console.log('💾 [MEMORY] Persisted to localStorage:', id);
+    } else {
+      localStorage.removeItem('atlas_conversation_id');
+      console.log('🗑️ [MEMORY] Cleared from localStorage');
+    }
+  };
+  
+  // Start new chat function
+  const startNewChat = () => {
+    console.log('🆕 [FRONTEND] Starting new chat');
+    
+    // Clear stored conversation ID
+    localStorage.removeItem("atlas_conversation_id");
+    console.log("🗑️ [FRONTEND] Cleared conversationId — starting fresh");
+    
+    // Clear UI conversations
+    clearConversations();
+  };
 
   // Refs 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -381,35 +417,29 @@ function App() {
     setResponse('');
     setAudioUrl(null);
     
-    // Create or get current conversation
-    let conversationToUse = currentConversation;
-    if (!conversationToUse) {
-      conversationToUse = createConversation();
-      console.log('Created new conversation:', conversationToUse.id); 
-    }
+    // Simple conversation management - bypass complex system
+    console.log('💬 Current backend conversation ID:', backendConversationId);
     
-    // Add user message to conversation
+    // Add user message to local display (simple approach)
     const userMessage: Message = {
       id: uuidv4(),
       role: 'user',
       content: message,
       timestamp: new Date().toISOString()
     };
+    
+    // For now, just add to the current conversation or create a simple one
+    let conversationToUse = currentConversation;
+    if (!conversationToUse) {
+      conversationToUse = createConversation();
+      console.log('Created frontend conversation for display:', conversationToUse.id); 
+    }
      
     try {
       addMessageToConversation(conversationToUse.id, userMessage);
     } catch (error) {
-      console.error('Error adding message to conversation:', error);
-      // If adding message fails, create a new conversation and try again
-      conversationToUse = createConversation();
-      console.log('Created fallback conversation:', conversationToUse.id);
-      try { 
-        addMessageToConversation(conversationToUse.id, userMessage);
-      } catch (fallbackError) {
-        console.error('Error adding message to fallback conversation:', fallbackError);
-        setIsProcessing(false);
-        return;
-      }
+      console.warn('Frontend conversation system error (continuing anyway):', error);
+      // Continue with backend call even if frontend conversation fails
     }
      
     try {
@@ -420,40 +450,68 @@ function App() {
       // Use local backend
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
-      const response = await fetch(`${backendUrl}/message?stream=1`, { 
+      // Get proper auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+      
+      if (!authToken) {
+        throw new Error('No authentication token available');
+      }
+
+      // 🧠 MEMORY: Get stored conversation ID from localStorage
+      let conversationId = localStorage.getItem("atlas_conversation_id");
+      console.log("🧠 [FRONTEND] Loaded conversationId from localStorage:", conversationId);
+
+      const requestPayload = {
+        message: message,
+        userId: user?.id || '65fcb50a-d67d-453e-a405-50c6aef959be',
+        tier: tier || 'free',
+        conversationId: conversationId || null, // 🧠 Use stored or null for new conversation
+        model: claudeModelName
+      };
+      
+      console.log("🚀 [FRONTEND] SENDING TO BACKEND:", {
+        message: message.slice(0, 30) + '...',
+        conversationId: conversationId,
+        hasConversationId: !!conversationId
+      });
+
+      // Use regular JSON response to capture conversation ID
+      const response = await fetch(`${backendUrl}/message`, { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer mock-token-for-development`
+          'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({
-          message: message,
-          userId: user?.id || '65fcb50a-d67d-453e-a405-50c6aef959be', // Use current user ID
-          tier: tier || 'free', // Use current tier
-          conversationId: conversationToUse.id,
-          model: claudeModelName // 🎯 TIER-BASED MODEL ROUTING
-        })
+        body: JSON.stringify(requestPayload)
       });
        
       if (!response.ok) {
         throw new Error(`Backend failed with status ${response.status}`);
       }
       
+      // Handle JSON response and capture conversation ID
       const responseData = await response.json();
       console.log('📥 Received response from backend:', responseData);
       
+      // 🧠 MEMORY: Store conversation ID if backend provides one
+      if (responseData.conversationId) {
+        localStorage.setItem("atlas_conversation_id", responseData.conversationId);
+        console.log("💾 [FRONTEND] Persisted conversationId:", responseData.conversationId);
+      }
+      
       // Check if we have a valid response 
-      if (!responseData.response || !responseData.response.content) {
+      if (!responseData.response || !responseData.response.trim()) {
         throw new Error('No response received from backend');
       }
       
-      // Add assistant response to conversation
+      // Create assistant message with the response
       const assistantMessage: Message = {
-        id: responseData.response.id || uuidv4(),
+        id: uuidv4(),
         role: 'assistant',
-        content: responseData.response.content.text || responseData.response.content,
-        timestamp: responseData.response.timestamp || new Date().toISOString(),
-        audioUrl: responseData.response.audioUrl
+        content: responseData.response,
+        timestamp: new Date().toISOString(),
+        audioUrl: responseData.audioUrl
       };
        
       try {
@@ -462,8 +520,8 @@ function App() {
         console.error('Error adding assistant message to conversation:', error);
       }
       
-      setResponse(responseData.response.content.text || responseData.response.content);
-      setAudioUrl(responseData.audioUrl); 
+      setResponse(responseData.response);
+      // Note: Audio URL not available in streaming mode yet 
       
       // 🎯 INCREMENT MESSAGE COUNT
       setMessageCount(prev => prev + 1);

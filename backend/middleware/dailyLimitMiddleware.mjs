@@ -45,7 +45,7 @@ export default async function dailyLimitMiddleware(req, res, next) {
       const { supabase } = await import('../config/supabaseClient.mjs');
       const { data, error } = await supabase
         .from('daily_usage')
-        .select('count')
+        .select('conversations_count')
         .eq('user_id', userId)
         .eq('date', today)
         .maybeSingle();
@@ -56,7 +56,7 @@ export default async function dailyLimitMiddleware(req, res, next) {
         return handleInMemoryTracking(userId, tier, today, limit, req, res, next);
       }
 
-      const currentCount = data?.count || 0;
+      const currentCount = data?.conversations_count || 0;
 
       if (currentCount >= limit) {
         return res.status(429).json({
@@ -73,7 +73,8 @@ export default async function dailyLimitMiddleware(req, res, next) {
         .upsert({
           user_id: userId,
           date: today,
-          count: currentCount + 1,
+          conversations_count: currentCount + 1,
+          tier: tier
         });
 
       if (upsertErr) {

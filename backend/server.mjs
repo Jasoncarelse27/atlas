@@ -65,7 +65,6 @@ import { logError, logInfo, logWarn } from "./utils/logger.mjs";
 
 // 🛡️ Import middleware stack
 import authMiddleware from "./middleware/authMiddleware.mjs";
-import dailyLimitMiddleware from "./middleware/dailyLimitMiddleware.mjs";
 
 // 🧠 Import intelligent tier gate system
 import { estimateRequestCost, selectOptimalModel } from './config/intelligentTierSystem.mjs';
@@ -73,6 +72,7 @@ import { estimateRequestCost, selectOptimalModel } from './config/intelligentTie
 // 🔐 Import Supabase client (now with lazy initialization)
 import { supabase } from './config/supabaseClient.mjs';
 import { budgetCeilingService } from './services/budgetCeilingService.mjs';
+import { promptCacheService } from './services/promptCacheService.mjs';
 
 // ⏰ Import cron service for automated tasks
 import { startWeeklyReportCron } from './services/cronService.mjs';
@@ -82,16 +82,10 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const app = express();
 
-// 🤖 Initialize Anthropic client lazily
-let anthropic = null;
-const getAnthropicClient = () => {
-  if (!anthropic && process.env.ANTHROPIC_API_KEY) {
-    anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return anthropic;
-};
+// 🤖 Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 // 🛡️ Production Security Middleware
 app.use(helmet({
@@ -125,7 +119,8 @@ const verifyJWT = async (req, res, next) => {
     
     // Development mode: allow mock token
     if (token === 'mock-token-for-development') {
-      req.user = { id: '550e8400-e29b-41d4-a716-446655440000' };
+      const mockUserId = '65fcb50a-d67d-453e-a405-50c6aef959be'; // Use real user ID from logs
+      req.user = { id: mockUserId };
       return next();
     }
     
@@ -196,7 +191,7 @@ app.use((req, res, next) => {
   }
   
   // Skip auth middleware for routes that use their own auth (verifyJWT or requireAdminDev)
-  if (req.path.startsWith('/v1/user_profiles') || req.path === '/message' || req.path.startsWith('/admin') || req.path.startsWith('/debug')) {
+  if (req.path.startsWith('/v1/user_profiles') || req.path === '/message' || req.path.startsWith('/admin')) {
     return next();
   }
   
@@ -236,17 +231,6 @@ app.get("/healthz", async (req, res) => {
 });
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: new Date().toISOString() }));
-
-// 🔍 Debug endpoint to check environment variables
-app.get("/debug/env", (req, res) => {
-  res.json({
-    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
-    anthropicKeyLength: process.env.ANTHROPIC_API_KEY?.length || 0,
-    anthropicKeyPrefix: process.env.ANTHROPIC_API_KEY?.substring(0, 20) || 'NOT_FOUND',
-    nodeEnv: process.env.NODE_ENV,
-    envLoaded: Object.keys(process.env).filter(key => key.includes('ANTHROPIC')).length
-  });
-});
 
 // --- User Profile Endpoints ---
 // User profile endpoint with fallback creation
@@ -364,20 +348,141 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
   }
 });
 
-// --- Enhanced message endpoint with intelligent tier gate system ---
+// --- Enhanced message endpoint with conversation memory ---
 app.post("/message", 
-  messageLimiter, // Apply message-specific rate limiting
   verifyJWT, // JWT verification
-  dailyLimitMiddleware,
+  // Smart daily limit middleware - only for free tier
+  async (req, res, next) => {
+    try {
+      // Development bypass
+      if (process.env.DEV_BYPASS_LIMITS === 'true') {
+        console.log('[DEV] Bypassing all limits for development');
+        return next();
+      }
+      
+      const { tier = 'free' } = req.body;
+      const userId = req.user?.id;
+      
+      // Only apply limits to free tier
+      if (tier !== 'free') {
+        console.log(`[USAGE] userId=${userId}, tier=${tier}, unlimited=true`);
+        return next();
+      }
+      
+      // Check daily usage for free tier
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('daily_usage')
+        .select('conversations_count')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle();
+        
+      if (error) {
+        console.error('Error checking daily usage:', error);
+        return next(); // Allow on error
+      }
+      
+      const currentCount = data?.conversations_count || 0;
+      console.log(`[USAGE] userId=${userId}, tier=${tier}, messagesToday=${currentCount}`);
+      
+      if (currentCount >= 15) {
+        return res.status(429).json({
+          success: false,
+          message: 'Daily free message limit reached (15/day). Upgrade to Core for unlimited messages.',
+          upgrade: true,
+          remainingMessages: 0
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Daily limit middleware error:', error);
+      next(); // Allow on error
+    }
+  },
   async (req, res) => {
     try {
-      const { userId, message, type = 'chat', tier = 'free' } = req.body;
+      const { userId, message, type = 'chat', tier = 'free', conversationId } = req.body;
+      const actualUserId = req.user?.id || userId;
+      
+      // DEBUG: Log incoming request
+      console.log("[DEBUG] Incoming message request:", {
+        hasMessage: !!message,
+        hasTier: !!tier,
+        hasUserId: !!actualUserId,
+        incomingConversationId: conversationId,
+        messagePreview: message?.slice(0, 50) + '...'
+      });
       
       if (!message || !tier) {
         return res.status(400).json({ 
           success: false, 
           message: 'Missing required fields: message and tier' 
         });
+      }
+      
+      // 🧠 CONVERSATION MEMORY: Find or create conversation
+      let currentConversationId = conversationId;
+      
+      if (!currentConversationId) {
+        // Create new conversation with first message as title
+        const conversationTitle = message.length > 50 
+          ? message.substring(0, 47) + '...' 
+          : message;
+          
+        const { data: newConversation, error: convError } = await supabase
+          .from('conversations')
+          .insert({
+            user_id: actualUserId,
+            title: conversationTitle
+          })
+          .select()
+          .single();
+          
+        if (convError) {
+          console.error('Error creating conversation:', convError);
+          // Continue without conversation tracking
+        } else {
+          currentConversationId = newConversation.id;
+          console.log(`[MEMORY] Created new conversation: ${currentConversationId}`);
+        }
+      } else {
+        console.log(`[MEMORY] Continuing conversation: ${currentConversationId}`);
+      }
+      
+      // 💾 MEMORY: Store user message
+      if (currentConversationId) {
+        const { error: userMsgError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: currentConversationId,
+            role: 'user',
+            content: message
+          });
+          
+        if (userMsgError) {
+          console.error('Error storing user message:', userMsgError);
+        }
+      }
+      
+      // 🧠 MEMORY: Load conversation context for Claude
+      let conversationMessages = [];
+      if (currentConversationId) {
+        const { data: previousMessages, error: msgError } = await supabase
+          .from('messages')
+          .select('role, content')
+          .eq('conversation_id', currentConversationId)
+          .order('created_at', { ascending: true })
+          .limit(20); // Last 20 messages for context
+          
+        if (!msgError && previousMessages) {
+          conversationMessages = previousMessages.map(msg => ({
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: msg.content
+          }));
+          console.log(`[MEMORY] Loaded ${conversationMessages.length} previous messages for context`);
+        }
       }
 
       await logInfo("Message API called with intelligent tier system", { 
@@ -400,8 +505,12 @@ app.post("/message",
       // 🧠 STEP 2: Intelligent model selection
       const selectedModelName = selectOptimalModel(tier, message, type);
       
-      // 💾 STEP 3: Use system prompt directly (bypass cache for now)
-      const systemPrompt = `You are an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support. You help users develop emotional intelligence, manage stress, and build healthier habits. You provide supportive, empathetic responses while maintaining professional boundaries.`;
+      // 💾 STEP 3: Get cached system prompt
+      const systemPrompt = await promptCacheService.get(
+        'systemPersonality', 
+        { tier, userId }, 
+        `You are Atlas, an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support. You help users develop emotional intelligence, manage stress, and build healthier habits.`
+      );
 
       await logInfo("Intelligent tier processing", { 
         tier,
@@ -416,9 +525,6 @@ app.post("/message",
       let actualOutputTokens = 0;
       
       try {
-        console.log('🔍 DEBUG: ANTHROPIC_API_KEY exists?', !!process.env.ANTHROPIC_API_KEY);
-        console.log('🔍 DEBUG: ANTHROPIC_API_KEY length:', process.env.ANTHROPIC_API_KEY?.length || 0);
-        
         if (process.env.ANTHROPIC_API_KEY) {
           await logInfo("Calling Anthropic API", {
             model: selectedModelName,
@@ -427,21 +533,21 @@ app.post("/message",
             tier
           });
           
-          const anthropicClient = getAnthropicClient();
-          if (!anthropicClient) {
-            throw new Error('Anthropic client not available - API key missing');
+          // 🧠 Build messages array with conversation context
+          const messages = [...conversationMessages];
+          // Always ensure the current message is included (in case it's not in DB yet)
+          if (messages.length === 0 || messages[messages.length - 1].content !== message) {
+            messages.push({
+              role: 'user',
+              content: message
+            });
           }
-          
-          const response = await anthropicClient.messages.create({
+
+          const response = await anthropic.messages.create({
             model: selectedModelName,
             max_tokens: 1000,
             system: systemPrompt,
-            messages: [
-              {
-                role: 'user',
-                content: message
-              }
-            ]
+            messages: messages
           });
           
           aiResponse = response.content[0].text;
@@ -468,22 +574,7 @@ app.post("/message",
           actualOutputTokens = Math.ceil(aiResponse.length / 4);
         }
       } catch (error) {
-        console.error('🚨 ANTHROPIC API ERROR:', error);
-        console.error('🚨 Error details:', {
-          message: error.message,
-          status: error.status,
-          type: error.type,
-          hasApiKey: !!process.env.ANTHROPIC_API_KEY,
-          apiKeyLength: process.env.ANTHROPIC_API_KEY?.length || 0
-        });
-        
-        await logError("AI response generation failed", { 
-          error: error.message, 
-          model: selectedModelName, 
-          tier,
-          hasApiKey: !!process.env.ANTHROPIC_API_KEY,
-          errorType: error.type || 'unknown'
-        });
+        await logError("AI response generation failed", { error: error.message, model: selectedModelName, tier });
         
         // Graceful fallback
         aiResponse = `I'm experiencing some technical difficulties right now. Please try again in a moment. ` +
@@ -511,6 +602,29 @@ app.post("/message",
         });
       }
 
+      // 💾 MEMORY: Store assistant response
+      if (currentConversationId && aiResponse) {
+        const { error: assistantMsgError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: currentConversationId,
+            role: 'assistant',
+            content: aiResponse
+          });
+          
+        if (assistantMsgError) {
+          console.error('Error storing assistant message:', assistantMsgError);
+        } else {
+          console.log(`[MEMORY] Stored assistant response in conversation: ${currentConversationId}`);
+        }
+      }
+      
+      // DEBUG: Log what we're returning
+      console.log("[DEBUG] Returning response:", {
+        conversationId: currentConversationId,
+        preview: aiResponse?.slice(0, 80) + '...'
+      });
+
       await logInfo("Message processed with intelligent tier system", { 
         tier, 
         selectedModel: selectedModelName, 
@@ -518,12 +632,14 @@ app.post("/message",
         totalTokens,
         inputTokens: actualInputTokens,
         outputTokens: actualOutputTokens,
-        budgetPriority: budgetCheck.priorityOverride || false
+        budgetPriority: budgetCheck.priorityOverride || false,
+        conversationId: currentConversationId
       });
 
       res.json({
         success: true,
         response: aiResponse,
+        conversationId: currentConversationId,
         metadata: {
           tier,
           model: selectedModelName,
@@ -560,6 +676,74 @@ app.post("/message",
     }
   }
 );
+
+// --- Conversation History API Endpoints (Future-Proof) ---
+
+// Get user's conversations
+app.get("/api/conversations", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    console.log(`[HISTORY] Fetching conversations for user ${userId}`);
+    
+    const { data: conversations, error } = await supabase
+      .from('conversations')
+      .select('id, title, created_at, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(50); // Limit to recent 50 conversations
+      
+    if (error) {
+      console.error('Error fetching conversations:', error);
+      return res.status(500).json({ error: 'Failed to fetch conversations' });
+    }
+    
+    console.log(`[HISTORY] Found ${conversations?.length || 0} conversations for user ${userId}`);
+    res.json({ conversations: conversations || [] });
+  } catch (error) {
+    console.error('Conversations endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get messages for a specific conversation
+app.get("/api/conversations/:id/messages", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const conversationId = req.params.id;
+    console.log(`[HISTORY] Fetching messages for conversation ${conversationId} (user: ${userId})`);
+    
+    // Verify user owns this conversation
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('id', conversationId)
+      .eq('user_id', userId)
+      .single();
+      
+    if (convError || !conversation) {
+      console.log(`[HISTORY] Conversation ${conversationId} not found or not owned by user ${userId}`);
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+    
+    // Fetch messages
+    const { data: messages, error: msgError } = await supabase
+      .from('messages')
+      .select('id, role, content, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+      
+    if (msgError) {
+      console.error('Error fetching messages:', msgError);
+      return res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+    
+    console.log(`[HISTORY] Found ${messages?.length || 0} messages for conversation ${conversationId}`);
+    res.json({ messages: messages || [] });
+  } catch (error) {
+    console.error('Messages endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // --- Other routes ---
 // Load admin routes dynamically after environment variables are set

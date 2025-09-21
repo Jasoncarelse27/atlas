@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Conversation, Message } from '../types/chat';
 import { createNewConversation, generateConversationTitle } from '../types/chat';
-import { v4 as uuidv4 } from 'uuid';
 
 interface UseConversationsReturn {
   conversations: Conversation[]; 
@@ -33,70 +32,9 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
     setError(null);
     
     try {
-      console.log('Fetching conversations for user:', user.id);
-      
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Transform data to match Conversation type
-      const fetchedConversations: Conversation[] = await Promise.all(
-        data.map(async (conv) => {
-          // Fetch messages for this conversation
-          const { data: messagesData, error: messagesError } = await supabase
-            .from('webhook_logs')
-            .select('*')
-            .eq('conversation_id', conv.id)
-            .order('timestamp', { ascending: true });
-          
-          if (messagesError) {
-            console.error('Error fetching messages for conversation:', conv.id, messagesError);
-            return {
-              id: conv.id,
-              title: conv.title || 'New Conversation',
-              messages: [],
-              createdAt: conv.created_at,
-              lastUpdated: conv.updated_at,
-              pinned: conv.pinned || false,
-              user_id: conv.user_id
-            };
-          }
-          
-          // Transform webhook_logs to Message type
-          const messages: Message[] = messagesData.map((log) => ({
-            id: log.id,
-            role: log.payload?.role || (log.payload?.source === 'user' ? 'user' : 'assistant'),
-            content: log.payload?.message || log.payload?.content || '',
-            timestamp: log.timestamp,
-            audioUrl: log.payload?.audioUrl,
-            imageUrl: log.payload?.imageUrl
-          }));
-          
-          return {
-            id: conv.id,
-            title: conv.title || 'New Conversation',
-            messages,
-            createdAt: conv.created_at,
-            lastUpdated: conv.updated_at,
-            pinned: conv.pinned || false,
-            user_id: conv.user_id
-          };
-        })
-      );
-      
-      console.log('Fetched conversations:', fetchedConversations.length);
-      setConversations(fetchedConversations);
-      
-      // Set current conversation to the most recent one if none is selected
-      if (fetchedConversations.length > 0 && !currentConversation) {
-        setCurrentConversation(fetchedConversations[0]);
-      }
+      // Temporarily disable complex conversation loading to prevent schema errors
+      console.log('[CONVERSATIONS] Skipping complex conversation loading - using simple memory system');
+      setConversations([]);
     } catch (err) {
       console.error('Error fetching conversations:', err);
       setError('Failed to load conversations');
@@ -215,21 +153,15 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         }
       }
       
-      // Save message to webhook_logs table
+      // Save message to messages table
       const { error: messageError } = await supabase
-        .from('webhook_logs')
+        .from('messages')
         .insert([{
           id: message.id,
-          payload: {
-            role: message.role,
-            content: message.content,
-            audioUrl: message.audioUrl,
-            imageUrl: message.imageUrl
-          },
-          source: message.role === 'user' ? 'user' : 'assistant',
-          timestamp: message.timestamp,
           conversation_id: conversationId,
-          user_id: user.id
+          role: message.role,
+          content: message.content,
+          created_at: message.timestamp || new Date().toISOString()
         }]);
       
       if (messageError) {

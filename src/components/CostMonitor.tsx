@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Database, HardDrive, Activity, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Activity, AlertTriangle, Database, HardDrive, TrendingUp } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface CostMetrics {
@@ -7,7 +7,7 @@ interface CostMetrics {
   databaseSize: number;
   rowCounts: {
     conversations: number;
-    webhook_logs: number;
+    messages: number;
     user_profiles: number;
   };
   expensiveQueries: Array<{
@@ -54,7 +54,7 @@ const CostMonitor: React.FC = () => {
         databaseSize: storageData?.reduce((sum: number, table: any) => sum + (table.size_bytes || 0), 0) || 0,
         rowCounts: {
           conversations: rowCountsMap.conversations || 0,
-          webhook_logs: rowCountsMap.webhook_logs || 0,
+          messages: rowCountsMap.messages || 0,
           user_profiles: rowCountsMap.user_profiles || 0,
         },
         expensiveQueries: expensiveQueries || []
@@ -88,7 +88,7 @@ const CostMonitor: React.FC = () => {
   };
 
   const getRowCountWarning = (count: number, table: string) => {
-    if (table === 'webhook_logs' && count > 10000) return 'High message count - consider archiving';
+    if (table === 'messages' && count > 10000) return 'High message count - consider archiving';
     if (table === 'conversations' && count > 1000) return 'High conversation count';
     return 'Normal';
   };

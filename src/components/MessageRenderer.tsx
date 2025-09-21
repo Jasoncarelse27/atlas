@@ -55,7 +55,7 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ className = ''
   const { messages } = useMessageStore();
   
   return (
-    <div className={`flex flex-col space-y-2 p-4 ${className}`}>
+    <div className={`flex flex-col space-y-2 p-4 min-h-full ${className}`}>
       {messages.length === 0 ? (
         <div className="flex items-center justify-center py-12 text-gray-500">
           <div className="text-center">
@@ -65,9 +65,13 @@ export const MessageRenderer: React.FC<MessageRendererProps> = ({ className = ''
           </div>
         </div>
       ) : (
-        messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))
+        <>
+          {messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))}
+          {/* Spacer to ensure proper scrolling */}
+          <div className="h-4" />
+        </>
       )}
     </div>
   );
