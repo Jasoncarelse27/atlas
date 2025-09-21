@@ -58,7 +58,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
             {/* Message Input */}
             <MessageInput
               onSendMessage={handleSendMessage}
+              onVoiceTranscription={handleSendMessage}
               isProcessing={isProcessing}
+              userId={user?.id}
+              tier={tier}
+              sessionId={conversation?.id}
             />
           </div>
         </main>

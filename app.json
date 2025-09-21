@@ -16,16 +16,24 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Atlas needs your microphone to transcribe your voice and provide audio responses."
+      },
+      "bundleIdentifier": "com.jason-carelse.atlas"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./public/vite.svg",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./public/vite.svg"
     }
   }
-} 
+}

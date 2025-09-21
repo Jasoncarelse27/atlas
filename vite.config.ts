@@ -14,6 +14,16 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
+    optimizeDeps: {
+      exclude: [
+        'expo-av',
+        'expo-file-system',
+        'expo-image-picker',
+        'expo-image-manipulator',
+        'react-native',
+        'react-native-web'
+      ]
+    },
     base: process.env.NODE_ENV === 'production' ? '/' : '/',
     build: {
       outDir: 'dist',

@@ -4,6 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate } from 'react-router-dom';
 import MessageErrorBoundary from '../components/MessageErrorBoundary';
 import MessageRenderer from '../components/MessageRenderer';
+import ChatInputBar from '../features/chat/components/ChatInputBar';
 import { supabase } from '../lib/supabase';
 import { fetchWithAuthJSON } from '../services/fetchWithAuth';
 import { useMessageStore } from '../stores/useMessageStore';
@@ -498,62 +499,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
               
               {/* Usage Indicator Footer */}
               
-              {/* Enhanced Input with Tier-based Counter */}
+              {/* Enhanced Chat Input Bar with Tier-based Features */}
               <div className="p-4 border-t border-gray-700">
-                <div className="flex space-x-2">
-                  <div className="relative flex-1">
-                    <input
-                      id="chat-input"
-                      name="chatInput"
-                      type="text"
-                      placeholder="Type your message..."
-                      className="w-full px-4 py-2 pr-16 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                      disabled={isProcessing}
-                      onFocus={scrollToBottom} // Scroll to bottom when input is focused
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && e.currentTarget.value.trim() && !isProcessing) {
-                          const messageContent = e.currentTarget.value.trim();
-                          const messageId = Date.now().toString(); // Simple ID for tracking
-                          setLastSentMessageId(messageId); // Trigger scroll to bottom
-                          handleSendMessage(messageContent);
-                          e.currentTarget.value = '';
-                        }
-                      }}
-                    />
-
-                    {/* Overlay counter only for free tier */}
-                    {userTier === "free" && (
-                      <div
-                        className={`
-                          absolute bottom-1 right-3 text-[10px] font-medium cursor-help
-                          ${messagesRemaining <= 0 ? "text-red-500" :
-                            messagesRemaining <= 5 ? "text-yellow-500" :
-                            "text-gray-400"}
-                        `}
-                        title={`${messagesRemaining} messages remaining today`}
-                      >
-                        {messagesRemaining} left
-                      </div>
-                    )}
+                <ChatInputBar
+                  onSendMessage={handleSendMessage}
+                  onVoiceTranscription={handleSendMessage}
+                  isProcessing={isProcessing}
+                  userId={user?.id}
+                  tier={userTier}
+                  sessionId={conversation?.id || 'default'}
+                  placeholder="Ask anything..."
+                />
+                
+                {/* Message counter for free tier */}
+                {userTier === "free" && (
+                  <div className="mt-2 text-center">
+                    <span
+                      className={`
+                        text-xs font-medium
+                        ${messagesRemaining <= 0 ? "text-red-500" :
+                          messagesRemaining <= 5 ? "text-yellow-500" :
+                          "text-gray-400"}
+                      `}
+                    >
+                      {messagesRemaining} messages remaining today
+                    </span>
                   </div>
-                  
-                  <button
-                    onClick={() => {
-                      const input = document.querySelector('input[placeholder="Type your message..."]') as HTMLInputElement;
-                      if (input?.value.trim() && !isProcessing) {
-                        const messageContent = input.value.trim();
-                        const messageId = Date.now().toString(); // Simple ID for tracking
-                        setLastSentMessageId(messageId); // Trigger scroll to bottom
-                        handleSendMessage(messageContent);
-                        input.value = '';
-                      }
-                    }}
-                    disabled={isProcessing}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
-                  >
-                    {isProcessing ? 'Sending...' : 'Send'}
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           </div>

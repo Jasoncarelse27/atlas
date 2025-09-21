@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "../lib/supabaseClient";
 import { useMessageStore } from "../stores/useMessageStore";
-import { authApi } from "../utils/authFetch";
+import { audioService } from "./audioService";
 import { fetchWithAuthJSON } from "./fetchWithAuth";
 
 interface SendMessagePayload {
@@ -93,6 +93,20 @@ export const sendMessageToBackend = async ({
       content: fullMessage,
       streaming: false 
     });
+
+    // Play TTS for Core/Studio users
+    if (tier !== 'free' && fullMessage) {
+      try {
+        await audioService.playTTS(fullMessage, {
+          user_id: userId,
+          tier: tier as "core" | "studio",
+          session_id: conversationId,
+        });
+      } catch (ttsError) {
+        console.warn("TTS playback failed:", ttsError);
+        // Don't fail the entire message if TTS fails
+      }
+    }
 
     onComplete?.(fullMessage);
     return fullMessage;
