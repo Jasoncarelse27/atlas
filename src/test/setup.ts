@@ -43,6 +43,50 @@ Object.defineProperty(global, 'crypto', {
 // Mock fetch
 global.fetch = vi.fn();
 
+// Mock Supabase with comprehensive chaining support
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => {
+    const createChainableMethods = () => ({
+      eq: vi.fn(() => createChainableMethods()),
+      gt: vi.fn(() => createChainableMethods()),
+      lt: vi.fn(() => createChainableMethods()),
+      gte: vi.fn(() => createChainableMethods()),
+      lte: vi.fn(() => createChainableMethods()),
+      single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      order: vi.fn(() => createChainableMethods()),
+      limit: vi.fn(() => createChainableMethods()),
+    });
+
+    return {
+      from: vi.fn(() => ({
+        select: vi.fn(() => createChainableMethods()),
+        insert: vi.fn(() => ({
+          select: vi.fn(() => createChainableMethods()),
+          ...createChainableMethods(),
+        })),
+        update: vi.fn(() => createChainableMethods()),
+        delete: vi.fn(() => createChainableMethods()),
+        upsert: vi.fn(() => createChainableMethods()),
+      })),
+      sql: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      auth: {
+        getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+        getUser: vi.fn(() => Promise.resolve({ data: { user: null }, error: null })),
+        signOut: vi.fn(() => Promise.resolve({ error: null })),
+        onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+      },
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          download: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          remove: vi.fn(() => Promise.resolve({ data: null, error: null })),
+        })),
+      },
+    };
+  }),
+}));
+
 // Mock localStorage
 const localStorageMock = {
   getItem: vi.fn(),

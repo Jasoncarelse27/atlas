@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import ChatFooter from "../ChatFooter";
 
 // Mock the useUsageIndicator hook
-const mockUseUsageIndicator = vi.fn();
-vi.mock("../../hooks/useUsageIndicator", () => ({
-  useUsageIndicator: mockUseUsageIndicator,
-}));
+vi.mock("../../hooks/useUsageIndicator");
+
+import { useUsageIndicator } from "../../hooks/useUsageIndicator";
+const mockUseUsageIndicator = vi.mocked(useUsageIndicator);
 
 // Mock window.location
 Object.defineProperty(window, 'location', {

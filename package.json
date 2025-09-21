@@ -35,7 +35,6 @@
     "test:e2e": "playwright test",
     "check:failures": "ts-node scripts/checkFailures.ts",
     "send:test": "node scripts/sendTestEmail.cjs",
-    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run test",
     "prepare": "husky",

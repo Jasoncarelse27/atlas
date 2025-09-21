@@ -8,6 +8,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts', './src/test/setup.ts'],
     globals: true,
+    env: {
+      // Test environment variables
+      VITE_SUPABASE_URL: 'https://test.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+      VITE_API_URL: 'http://localhost:3000',
+      NODE_ENV: 'test',
+    },
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
