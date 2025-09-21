@@ -65,7 +65,8 @@ export default defineConfig(({ mode }) => {
         }
     },
     server: {
-      port: 5173,
+      host: '0.0.0.0', // Allow external connections
+      port: 5174,
       proxy: {
         '/v1': {
           target: 'http://localhost:3000',

@@ -1,5 +1,8 @@
-import { ImageIcon, Mic, Plus, Send } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ImageIcon, Mic, Plus, Send, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import UpgradeModal from '../../../components/UpgradeModal';
+import { imageService } from '../../../services/imageService';
 import VoiceInputWeb from './VoiceInputWeb';
 
 interface ChatInputBarProps {
@@ -26,7 +29,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [showVoiceInput, setShowVoiceInput] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<'voice' | 'image'>('voice');
   const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isPremium = tier === "core" || tier === "studio";
 
   const handleSubmit = () => {
@@ -49,7 +57,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
   const handleMicClick = () => {
     if (!isPremium) {
-      alert("Voice recording is available for Core and Studio subscribers. Upgrade to unlock this feature!");
+      setUpgradeFeature('voice');
+      setShowUpgradeModal(true);
       setExpanded(false);
       return;
     }
@@ -58,19 +67,89 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   };
 
   const handleVoiceTranscription = (text: string) => {
+    // Close the voice input overlay
     setShowVoiceInput(false);
-    onSendMessage(text);
+    
+    // Send the transcribed text as a message
+    if (onVoiceTranscription) {
+      onVoiceTranscription(text);
+    } else {
+      onSendMessage(text);
+    }
   };
 
   const handleImageClick = () => {
     if (!isPremium) {
-      alert("Image upload is available for Core and Studio subscribers. Upgrade to unlock this feature!");
+      setUpgradeFeature('image');
+      setShowUpgradeModal(true);
       setExpanded(false);
       return;
     }
-    // TODO: Implement image upload
-    console.log("Image upload clicked");
-    setExpanded(false);
+    handleImageUpload();
+  };
+
+  const handleImageUpload = () => {
+    if (!userId) {
+      alert("User not authenticated for image upload.");
+      return;
+    }
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.onchange = async (event) => {
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      // Validate file size (e.g., max 10MB)
+      const MAX_FILE_SIZE_MB = 10;
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        alert("Image file is too large. Please choose a file under 10MB.");
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert("Please select a valid image file.");
+        return;
+      }
+
+      try {
+        setIsUploadingImage(true);
+        setExpanded(false);
+
+        console.log(`[ImageUpload] Starting upload for user ${userId}`, {
+          fileName: file.name,
+          size: file.size,
+          type: file.type
+        });
+
+        // Upload image to Supabase Storage
+        const uploadResult = await imageService.uploadImage(file, userId);
+        
+        console.log(`[ImageUpload] Upload successful:`, uploadResult);
+        
+        // Show success feedback
+        alert(`Image uploaded successfully!`);
+        
+        // For now, just show a placeholder message (we'll add Claude Vision analysis later)
+        onSendMessage(`Image uploaded: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+
+      } catch (error) {
+        console.error("[ImageUpload] Upload failed:", error);
+        alert(`Image upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setIsUploadingImage(false);
+      }
+    };
+
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
   };
 
   // Close menu when clicking outside
@@ -88,72 +167,122 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   }, []);
 
   return (
-    <div className="flex-row items-center bg-[#1e1e1e] p-2 rounded-xl shadow-md flex">
-      {/* Expandable + menu */}
-      <div className="relative mr-2" ref={menuRef}>
-        <button
+    <div className="chat-input-bar">
+      {/* Expandable + button */}
+      <div className="relative" ref={menuRef}>
+        <motion.button
           onClick={toggleExpanded}
           disabled={disabled}
-          className={`p-2 rounded-full transition-all duration-200 ${
-            expanded ? 'bg-[#F4E5D9] text-black' : 'bg-[#B2BDA3] text-white hover:bg-[#B2BDA3]/90'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className="p-2 rounded-full bg-[#334155] text-white hover:bg-[#475569] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="More options"
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }}
+          transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
-          <Plus 
-            size={20} 
-            className={`transition-transform duration-200 ${expanded ? 'rotate-45' : 'rotate-0'}`} 
-          />
-        </button>
+          <motion.div
+            animate={{ rotate: expanded ? 45 : 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+          >
+            {expanded ? <X size={20} /> : <Plus size={20} />}
+          </motion.div>
+        </motion.button>
 
-        {/* Expanded menu */}
-        {expanded && (
-          <div className="absolute bottom-12 left-0 flex flex-col space-y-2 animate-in fade-in-0 zoom-in-95 duration-200">
-            {/* Mic button */}
-            <button
-              onClick={handleMicClick}
-              disabled={disabled || isProcessing}
-              className={`p-3 rounded-full bg-[#1e1e1e] shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                !isPremium ? 'opacity-50' : ''
-              }`}
-              title={!isPremium ? "Voice recording (Core/Studio only)" : "Voice recording"}
+        {/* Floating overlay menu */}
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              className="absolute bottom-12 left-0 flex gap-3 bg-[#1E293B] rounded-lg shadow-lg p-2 border border-gray-600"
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              transition={{ 
+                duration: 0.15, 
+                ease: "easeOut"
+              }}
             >
-              <Mic size={20} className="text-white" />
-            </button>
+              {/* Mic button */}
+              <motion.button
+                onClick={handleMicClick}
+                disabled={disabled || isProcessing}
+                className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  !isPremium ? 'opacity-50 bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+                title={!isPremium ? "Voice recording (Core/Studio only)" : "Voice recording"}
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                <Mic size={18} className="text-white" />
+              </motion.button>
 
-            {/* Image button */}
-            <button
-              onClick={handleImageClick}
-              disabled={disabled || isProcessing}
-              className={`p-3 rounded-full bg-[#1e1e1e] shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                !isPremium ? 'opacity-50' : ''
-              }`}
-              title={!isPremium ? "Upload image (Core/Studio only)" : "Upload image"}
-            >
-              <ImageIcon size={20} className="text-white" />
-            </button>
-          </div>
-        )}
+              {/* Image button */}
+              <motion.button
+                onClick={handleImageClick}
+                disabled={disabled || isProcessing || isUploadingImage}
+                className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  !isPremium ? 'opacity-50 bg-gray-500' : 'bg-green-600 hover:bg-green-700'
+                }`}
+                title={
+                  isUploadingImage 
+                    ? "Uploading image..." 
+                    : !isPremium 
+                      ? "Upload image (Core/Studio only)" 
+                      : "Upload image"
+                }
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                {isUploadingImage ? (
+                  <motion.div 
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  />
+                ) : (
+                  <ImageIcon size={18} className="text-white" />
+                )}
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Center: Text input */}
-      <input
+      {/* Text input */}
+      <motion.input
+        ref={inputRef}
         type="text"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyPress={handleKeyPress}
+        onFocus={() => {
+          setIsInputFocused(true);
+          setExpanded(false); // Auto-close menu when typing
+        }}
+        onBlur={() => setIsInputFocused(false)}
         placeholder={placeholder}
-        className="flex-1 px-3 py-2 text-white bg-transparent border border-[#B2BDA3] rounded-lg placeholder-gray-400 focus:outline-none focus:border-[#F4E5D9] focus:ring-1 focus:ring-[#F4E5D9]"
+        className="flex-1 bg-transparent text-white px-2 py-2 text-base focus:outline-none"
         disabled={isProcessing || disabled}
+        autoComplete="off"
+        autoCapitalize="sentences"
+        autoCorrect="on"
+        spellCheck="true"
+        inputMode="text"
+        whileFocus={{ scale: 1.01 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
       />
 
-      {/* Send button (always visible) */}
-      <button
+      {/* Send button */}
+      <motion.button
         onClick={handleSubmit}
         disabled={isProcessing || disabled || !inputValue.trim()}
-        className="p-2 ml-2 rounded-lg bg-[#F4E5D9] hover:bg-[#F4E5D9]/90 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+        className="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-500 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.05 }}
+        transition={{ type: "spring", stiffness: 400, damping: 17 }}
       >
-        <Send size={20} className="text-black" />
-      </button>
+        <Send size={18} />
+      </motion.button>
 
       {/* Voice Input Overlay */}
       {showVoiceInput && (
@@ -178,6 +307,36 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           </div>
         </div>
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature={upgradeFeature}
+        userTier={tier}
+        onUpgrade={() => {
+          // TODO: Integrate with Paddle checkout
+          console.log(`User wants to upgrade for ${upgradeFeature} features`);
+        }}
+        onUpgradeSuccess={() => {
+          // Auto-trigger the feature they just unlocked
+          if (upgradeFeature === 'voice') {
+            // Reopen the + menu and auto-trigger voice recording
+            setExpanded(true);
+            setTimeout(() => {
+              setShowVoiceInput(true);
+              setExpanded(false);
+            }, 100);
+          } else if (upgradeFeature === 'image') {
+            // Reopen the + menu and auto-trigger image upload
+            setExpanded(true);
+            setTimeout(() => {
+              handleImageUpload();
+              setExpanded(false);
+            }, 100);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -1,249 +1,168 @@
-// src/services/audioService.ts
+import { supabase } from '../lib/supabaseClient';
 
-import { Audio } from "expo-av";
-import * as FileSystem from "expo-file-system";
-import { supabase } from "../lib/supabaseClient";
-import { sendMessageToBackend } from "./chatService";
+export interface AudioTranscriptionResult {
+  text: string;
+  confidence?: number;
+  duration?: number;
+}
 
-// --- Types ---
-export type AudioEvent =
-  | "audio_record_start"
-  | "audio_record_complete"
-  | "audio_stt_success"
-  | "audio_stt_fail"
-  | "audio_tts_playback"
-  | "audio_tts_fail";
-
-interface AudioProps {
+export interface AudioEvent {
+  event_type: 'recording_start' | 'recording_stop' | 'transcription_success' | 'transcription_fail';
   user_id: string;
-  tier: "free" | "core" | "studio";
-  session_id: string;
+  session_id?: string;
+  tier: string;
+  metadata?: Record<string, any>;
 }
 
-// --- Core Service ---
-// TTS cache to avoid re-generating audio for the same text
-const ttsCache = new Map<string, { base64Audio: string; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-export const audioService = {
+class AudioService {
   /**
-   * Transcribe audio and send to chat service
+   * Transcribe audio blob using Supabase Edge Function
    */
-  async transcribeAndSend(
-    fileUri: string,
-    props: AudioProps,
-    onMessage?: (partial: string) => void,
-    onComplete?: (full: string) => void,
-    onError?: (error: string) => void
-  ): Promise<void> {
+  async transcribeAudio(audioBlob: Blob, userId: string, sessionId?: string, tier: string = 'free'): Promise<AudioTranscriptionResult> {
     try {
-      // 1. Log event: record complete
-      await logAudioEvent("audio_record_complete", props, {
-        fileUri,
+      console.log('[AudioService] Starting transcription for user:', userId);
+
+      // Log recording start event
+      await this.logAudioEvent({
+        event_type: 'recording_start',
+        user_id: userId,
+        session_id: sessionId,
+        tier,
+        metadata: {
+          blob_size: audioBlob.size,
+          blob_type: audioBlob.type
+        }
       });
 
-      // 2. Run STT (Speech-to-Text)
-      const audioBuffer = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const transcription = await runWhisperSTT(audioBuffer);
+      // Convert blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-      if (!transcription) {
-        await logAudioEvent("audio_stt_fail", props, { error: "no_result" });
-        onError?.("Failed to transcribe audio. Please try again.");
-        return;
-      }
+      console.log('[AudioService] Audio blob size:', audioBlob.size, 'bytes');
+      console.log('[AudioService] Base64 length:', base64Audio.length);
 
-      await logAudioEvent("audio_stt_success", props, {
-        chars_output: transcription.length,
-      });
-
-      // 3. Pass transcribed text into chatService
-      await sendMessageToBackend({
-        message: transcription,
-        conversationId: props.session_id,
-        userId: props.user_id,
-        tier: props.tier,
-        onMessage,
-        onComplete,
-        onError
-      });
-
-    } catch (err) {
-      console.error("audioService.transcribeAndSend error:", err);
-      await logAudioEvent("audio_stt_fail", props, { error: String(err) });
-      onError?.(String(err));
-    }
-  },
-
-  /**
-   * Play TTS for Core/Studio users
-   */
-  async playTTS(text: string, props: AudioProps): Promise<void> {
-    try {
-      // Only play TTS for Core/Studio users
-      if (props.tier === "free") {
-        console.log("TTS skipped for free tier user");
-        return;
-      }
-
-      // Check cache first
-      const cacheKey = `${text}-en-US-JennyNeural`;
-      const cached = ttsCache.get(cacheKey);
-      let base64Audio: string;
-
-      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-        console.log("Using cached TTS audio");
-        base64Audio = cached.base64Audio;
-      } else {
-        // 1. Call Edge-TTS (Supabase Edge Function wrapper)
-        const { data, error } = await supabase.functions.invoke("tts", {
-          body: { text, voice: "en-US-JennyNeural" },
-        });
-
-        if (error) throw error;
-        base64Audio = data.base64Audio;
-
-        // Cache the result
-        ttsCache.set(cacheKey, {
-          base64Audio,
-          timestamp: Date.now()
-        });
-      }
-
-      // 2. Save audio file locally
-      const fileUri = `${FileSystem.cacheDirectory}tts-${Date.now()}.mp3`;
-      await FileSystem.writeAsStringAsync(fileUri, base64Audio, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // 3. Play audio using expo-av
-      const { sound } = await Audio.Sound.createAsync({ uri: fileUri });
-      await sound.playAsync();
-
-      // 4. Clean up - CRITICAL: prevent memory leaks
-      await sound.unloadAsync();
-      await FileSystem.deleteAsync(fileUri, { idempotent: true });
-
-      // 5. Log event
-      await logAudioEvent("audio_tts_playback", props, {
-        chars_input: text.length,
-        cached: !!cached
-      });
-
-    } catch (err) {
-      console.error("audioService.playTTS error:", err);
-      await logAudioEvent("audio_tts_fail", props, { error: String(err) });
-    }
-  },
-
-  /**
-   * Record audio using expo-av
-   */
-  async startRecording(): Promise<Audio.Recording> {
-    try {
-      console.log("Requesting audio permissions...");
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(
-        Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-      );
-      await recording.startAsync();
-
-      return recording;
-    } catch (err) {
-      console.error("Failed to start recording:", err);
-      throw new Error("Failed to start recording. Please check microphone permissions.");
-    }
-  },
-
-  /**
-   * Stop recording and get file URI
-   */
-  async stopRecording(recording: Audio.Recording): Promise<string> {
-    try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      
-      if (!uri) {
-        throw new Error("No recording URI available");
-      }
-      
-      return uri;
-    } catch (err) {
-      console.error("Failed to stop recording:", err);
-      throw new Error("Failed to stop recording");
-    }
-  }
-};
-
-// --- Helpers ---
-
-/**
- * Run STT using Nova backend or Supabase Edge Function
- */
-async function runWhisperSTT(base64Audio: string): Promise<string | null> {
-  try {
-    // Try Nova backend first (if available)
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    
-    try {
-      const response = await fetch(`${API_URL}/stt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Call STT Edge Function
+      const { data, error } = await supabase.functions.invoke('stt', {
+        body: { 
+          audio: base64Audio,
+          format: audioBlob.type || 'audio/wav'
         },
-        body: JSON.stringify({ audio: base64Audio }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        return data.text || null;
+      if (error) {
+        console.error('[AudioService] STT error:', error);
+        
+        // Log transcription failure
+        await this.logAudioEvent({
+          event_type: 'transcription_fail',
+          user_id: userId,
+          session_id: sessionId,
+          tier,
+          metadata: { error: error.message }
+        });
+
+        throw new Error(`STT service error: ${error.message}`);
       }
-    } catch (novaError) {
-      console.log("Nova backend not available, trying Supabase Edge Function");
-    }
 
-    // Fallback to Supabase Edge Function
-    const { data, error } = await supabase.functions.invoke("stt", {
-      body: { audio: base64Audio },
-    });
-    
-    if (error) {
-      console.error("STT error:", error);
-      return null;
+      if (!data?.text) {
+        console.error('[AudioService] No transcription text received');
+        
+        await this.logAudioEvent({
+          event_type: 'transcription_fail',
+          user_id: userId,
+          session_id: sessionId,
+          tier,
+          metadata: { error: 'No transcription text received' }
+        });
+
+        throw new Error('No transcription text received');
+      }
+
+      console.log('[AudioService] Transcription successful:', data.text);
+
+      // Log transcription success
+      await this.logAudioEvent({
+        event_type: 'transcription_success',
+        user_id: userId,
+        session_id: sessionId,
+        tier,
+        metadata: {
+          text_length: data.text.length,
+          confidence: data.confidence,
+          duration: data.duration
+        }
+      });
+
+      return {
+        text: data.text,
+        confidence: data.confidence,
+        duration: data.duration
+      };
+
+    } catch (error) {
+      console.error('[AudioService] Transcription failed:', error);
+      
+      // Log transcription failure
+      await this.logAudioEvent({
+        event_type: 'transcription_fail',
+        user_id: userId,
+        session_id: sessionId,
+        tier,
+        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+      });
+
+      throw error;
     }
-    
-    return data?.text || null;
-  } catch (error) {
-    console.error("STT service error:", error);
-    return null;
+  }
+
+  /**
+   * Log audio events to Supabase analytics
+   */
+  async logAudioEvent(event: AudioEvent): Promise<void> {
+    try {
+      console.log('[AudioService] Logging audio event:', event.event_type);
+
+      const { error } = await supabase
+        .from('audio_events')
+        .insert({
+          event_type: event.event_type,
+          user_id: event.user_id,
+          session_id: event.session_id,
+          tier: event.tier,
+          metadata: event.metadata,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('[AudioService] Failed to log audio event:', error);
+        // Don't throw - logging failures shouldn't break the user flow
+      } else {
+        console.log('[AudioService] Audio event logged successfully');
+      }
+    } catch (error) {
+      console.error('[AudioService] Error logging audio event:', error);
+      // Don't throw - logging failures shouldn't break the user flow
+    }
+  }
+
+  /**
+   * Check if user has audio permissions (Core/Studio tier)
+   */
+  canUseAudio(tier: string): boolean {
+    return tier === 'core' || tier === 'studio';
+  }
+
+  /**
+   * Get audio tier restriction message
+   */
+  getAudioRestrictionMessage(tier: string): string {
+    if (tier === 'free') {
+      return 'Voice recording is available for Core/Studio users. Upgrade to unlock audio features!';
+    }
+    return '';
   }
 }
 
-/**
- * Log audio events to Supabase
- */
-async function logAudioEvent(
-  event: AudioEvent,
-  props: AudioProps,
-  extra: Record<string, any> = {}
-) {
-  try {
-    await supabase.from("audio_events").insert({
-      user_id: props.user_id,
-      event_name: event,
-      props: { ...props, ...extra },
-      created_at: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Failed to log audio event:", error);
-  }
-}
-
+// Export singleton instance
+export const audioService = new AudioService();
 export default audioService;

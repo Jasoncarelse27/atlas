@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react';
 import React from 'react';
 import { useMessageStore, type ChatMessage } from '../stores/useMessageStore';
 
@@ -27,7 +28,7 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
       >
         {hasError ? (
           <div className="flex items-center space-x-2">
-            <span className="text-red-500">⚠️</span>
+            <AlertTriangle className="w-4 h-4 text-red-500" />
             <span>{message.error}</span>
           </div>
         ) : (

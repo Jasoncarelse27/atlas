@@ -1,7 +1,7 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 
 // Login Toggle Component
 const LoginToggle = ({ mode, setMode }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void }) => (
@@ -36,7 +36,18 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Check Supabase health on component mount
+  useEffect(() => {
+    (async () => {
+      const result = await checkSupabaseHealth();
+      if (!result.ok) {
+        setHealthError("⚠️ Cannot connect to Atlas servers. Please check your internet connection and try again.");
+      }
+    })();
+  }, []);
 
   const togglePassword = () => setShowPassword((prev) => !prev);
 
@@ -69,6 +80,15 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
       setLoading(false);
     }
   };
+
+  // Show health error if Supabase is unreachable
+  if (healthError) {
+    return (
+      <div className="p-4 bg-red-100 text-red-800 rounded-md text-center border border-red-200">
+        {healthError}
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

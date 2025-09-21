@@ -21,17 +21,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   sessionId
 }) => {
   return (
-    <div className="p-4 border-t border-gray-700">
-      <ChatInputBar
-        onSendMessage={onSendMessage}
-        onVoiceTranscription={onVoiceTranscription}
-        isProcessing={isProcessing}
-        disabled={disabled}
-        userId={userId}
-        tier={tier}
-        sessionId={sessionId}
-        placeholder="Type your message..."
-      />
-    </div>
+    <ChatInputBar
+      onSendMessage={onSendMessage}
+      onVoiceTranscription={onVoiceTranscription}
+      isProcessing={isProcessing}
+      disabled={disabled}
+      userId={userId}
+      tier={tier}
+      sessionId={sessionId}
+      placeholder="Type your message..."
+    />
   );
 };

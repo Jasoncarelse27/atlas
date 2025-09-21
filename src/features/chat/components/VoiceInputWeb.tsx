@@ -1,5 +1,6 @@
 import { AlertCircle, Mic, Square } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { audioService } from '../../../services/audioService';
 
 interface VoiceInputWebProps {
   onTranscriptionComplete: (text: string) => void;
@@ -121,15 +122,17 @@ const VoiceInputWeb: React.FC<VoiceInputWebProps> = ({
 
   const processAudioBlob = async (audioBlob: Blob) => {
     try {
-      // Convert blob to base64
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      if (!userId) {
+        setError('User not authenticated for audio transcription.');
+        if (onSoundPlay) onSoundPlay('error');
+        return;
+      }
+
+      // Use audioService for transcription
+      const result = await audioService.transcribeAudio(audioBlob, userId, sessionId, tier);
       
-      // Call STT service
-      const transcription = await callSTTService(base64Audio);
-      
-      if (transcription) {
-        onTranscriptionComplete(transcription);
+      if (result.text) {
+        onTranscriptionComplete(result.text);
         if (onSoundPlay) onSoundPlay('success');
       } else {
         setError('Could not transcribe audio. Please try again.');
@@ -137,6 +140,7 @@ const VoiceInputWeb: React.FC<VoiceInputWebProps> = ({
       }
       
     } catch (err) {
+      console.error('[VoiceInputWeb] Audio processing error:', err);
       setError('Failed to process audio. Please try again.');
       if (onSoundPlay) onSoundPlay('error');
     } finally {
@@ -144,36 +148,6 @@ const VoiceInputWeb: React.FC<VoiceInputWebProps> = ({
     }
   };
 
-  const callSTTService = async (base64Audio: string): Promise<string | null> => {
-    try {
-      // For now, return a placeholder since STT service needs to be properly configured
-      // TODO: Implement actual STT service integration
-      console.log("Audio captured, length:", base64Audio.length);
-      
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Return a placeholder transcription for testing
-      return "This is a placeholder transcription from voice input. The STT service needs to be properly configured.";
-      
-      // Uncomment below when STT service is ready:
-      /*
-      const { data, error } = await supabase.functions.invoke("stt", {
-        body: { audio: base64Audio },
-      });
-      
-      if (error) {
-        console.error("STT error:", error);
-        return null;
-      }
-      
-      return data?.text || null;
-      */
-    } catch (error) {
-      console.error("STT service error:", error);
-      return null;
-    }
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

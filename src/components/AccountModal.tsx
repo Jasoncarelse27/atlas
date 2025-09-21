@@ -671,7 +671,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                   ) : (
                     <div className="space-y-4">
                       <div className="p-4 bg-red-100 rounded-lg">
-                        <h5 className="font-medium text-red-900 mb-2">⚠️ Account Deletion</h5>
+                        <h5 className="font-medium text-red-900 mb-2">Account Deletion</h5>
                         <p className="text-sm text-red-700 mb-3">
                           This will permanently delete your account and all associated data including:
                         </p>

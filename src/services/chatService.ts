@@ -134,6 +134,36 @@ export const sendMessageToBackend = async ({
   }
 };
 
+// Image analysis service
+export const sendImage = async (
+  imageUrl: string,
+  userText: string,
+  props: { user_id: string; tier: string; session_id: string }
+): Promise<string | null> => {
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    
+    // Send image analysis request to backend
+    const data = await fetchWithAuthJSON(
+      `${API_URL}/message`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ 
+          message: userText,
+          userId: props.user_id, 
+          tier: props.tier,
+          imageUrl: imageUrl
+        })
+      }
+    );
+
+    return data.response || null;
+  } catch (error: any) {
+    console.error("Image analysis error:", error);
+    throw error;
+  }
+};
+
 export const getSupabaseUserTier = async (userId: string) => {
   const { data, error } = await supabase
     .from("profiles")

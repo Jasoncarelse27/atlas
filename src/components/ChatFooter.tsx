@@ -94,7 +94,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
       {/* Error State */}
       {error && !loading && (
         <div className="text-xs text-red-500">
-          ⚠️ Usage data unavailable
+          Usage data unavailable
         </div>
       )}
     </div>

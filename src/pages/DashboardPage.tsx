@@ -1,9 +1,9 @@
-import { Brain, Heart, LogOut, MessageSquare, Settings, User } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate } from 'react-router-dom';
 import MessageErrorBoundary from '../components/MessageErrorBoundary';
 import MessageRenderer from '../components/MessageRenderer';
+import NavBar from '../components/NavBar';
 import ChatInputBar from '../features/chat/components/ChatInputBar';
 import { supabase } from '../lib/supabase';
 import { fetchWithAuthJSON } from '../services/fetchWithAuth';
@@ -303,75 +303,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo and Brand */}
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Atlas AI
-              </span>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex items-center space-x-4">
-              <button className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                <MessageSquare className="w-4 h-4" />
-                <span>Chat</span>
-              </button>
-              <button className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                <Heart className="w-4 h-4" />
-                <span>Insights</span>
-              </button>
-              <button className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                <Settings className="w-4 h-4" />
-                <span>Settings</span>
-              </button>
-            </nav>
-
-            {/* User Menu */}
-            <div className="flex items-center space-x-4">
-              {/* SafeMode Toggle */}
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isSafeMode}
-                    onChange={(e) => setIsSafeMode(e.target.checked)}
-                    className="sr-only"
-                  />
-                  <div className={`w-6 h-6 rounded border-2 border-gray-400 flex items-center justify-center transition-all duration-200 ${
-                    isSafeMode ? 'bg-green-500 border-green-500' : 'bg-transparent'
-                  }`}>
-                    {isSafeMode && <span className="text-white text-xs">🔒</span>}
-                  </div>
-                </label>
-                <span className="text-xs text-gray-400">
-                  {isSafeMode ? 'SafeSpace' : 'Normal'}
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-sm font-medium">{user?.email}</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-red-600 transition-colors bg-red-500/20 hover:bg-red-500/30"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Navigation */}
+      <NavBar
+        user={user}
+        tier="free"
+        messageCount={0}
+        onLogout={handleLogout}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -499,38 +437,39 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
               
               {/* Usage Indicator Footer */}
               
-              {/* Enhanced Chat Input Bar with Tier-based Features */}
-              <div className="p-4 border-t border-gray-700">
-                <ChatInputBar
-                  onSendMessage={handleSendMessage}
-                  onVoiceTranscription={handleSendMessage}
-                  isProcessing={isProcessing}
-                  userId={user?.id}
-                  tier={userTier}
-                  sessionId={conversation?.id || 'default'}
-                  placeholder="Ask anything..."
-                />
-                
-                {/* Message counter for free tier */}
-                {userTier === "free" && (
-                  <div className="mt-2 text-center">
-                    <span
-                      className={`
-                        text-xs font-medium
-                        ${messagesRemaining <= 0 ? "text-red-500" :
-                          messagesRemaining <= 5 ? "text-yellow-500" :
-                          "text-gray-400"}
-                      `}
-                    >
-                      {messagesRemaining} messages remaining today
-                    </span>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Message Input */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <ChatInputBar
+          onSendMessage={handleSendMessage}
+          onVoiceTranscription={handleSendMessage}
+          isProcessing={isProcessing}
+          userId={user?.id}
+          tier={userTier}
+          sessionId={conversation?.id || 'default'}
+          placeholder="Ask anything..."
+        />
+        
+        {/* Message counter for free tier */}
+        {userTier === "free" && (
+          <div className="mt-2 text-center">
+            <span
+              className={`
+                text-xs font-medium
+                ${messagesRemaining <= 0 ? "text-red-500" :
+                  messagesRemaining <= 5 ? "text-yellow-500" :
+                  "text-gray-400"}
+              `}
+            >
+              {messagesRemaining} messages remaining today
+            </span>
+          </div>
+        )}
+      </div>
       </div>
     </ErrorBoundary>
   );

@@ -177,29 +177,66 @@ function App() {
     browserSupportsSpeechRecognition
   } = useVoiceRecognition();
 
+  // Viewport height fix for mobile browsers
+  useEffect(() => {
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    // Set initial viewport height
+    setViewportHeight();
+
+    // Update on resize (including mobile keyboard open/close)
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+    };
+  }, []);
+
   // Load auth state
   useEffect(() => {
     const loadUser = async () => {
       try {
         setIsAuthLoading(true);
         setAuthError(null);
-        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth timeout')), 3000)
+        );
+        
+        const authPromise = supabase.auth.getSession();
+        
+        const result = await Promise.race([authPromise, timeoutPromise]) as any;
+        const { data: { session }, error } = result;
+        
         if (error) {
+          console.log('Auth error:', error.message);
           setAuthError(error.message);
-          return;
-        }
-        if (session?.user) {
+        } else if (session?.user) {
           setUser(session.user);
+          console.log('User loaded:', session.user.email);
+        } else {
+          console.log('No user session found');
         }
-      } catch (_error) {
+      } catch (error) {
+        console.log('Auth loading failed:', error);
         setAuthError('Failed to load user session');
       } finally {
         setIsAuthLoading(false);
+        console.log('Auth loading completed');
       }
     };
+    
     loadUser();
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event);
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
           setAuthError(null);
@@ -211,14 +248,10 @@ function App() {
         }
       }
     );
+    
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-  
-  // Set isAuthLoading to false since we're bypassing auth
-  useEffect(() => {
-    setIsAuthLoading(false);
   }, []);
 
   // Check connection status

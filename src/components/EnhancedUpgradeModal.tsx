@@ -59,7 +59,7 @@ export function EnhancedUpgradeModal({
           source: 'upgrade_modal'
         },
         successCallback: async () => {
-          toast.success(`✅ Successfully upgraded to ${plan.charAt(0).toUpperCase() + plan.slice(1)}!`);
+          toast.success(`Successfully upgraded to ${plan.charAt(0).toUpperCase() + plan.slice(1)}!`);
           
           // Verify subscription update
           if (user?.id) {

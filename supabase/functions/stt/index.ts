@@ -43,6 +43,7 @@ serve(async (req: Request) => {
     const allowedOrigins = [
       "https://atlas-production-2123.up.railway.app",
       "http://localhost:5173",
+      "http://localhost:5174",
       "http://localhost:3000"
     ];
     
