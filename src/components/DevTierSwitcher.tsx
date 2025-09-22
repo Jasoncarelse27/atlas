@@ -144,7 +144,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
   }
 
   return (
-    <div className="fixed bottom-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 shadow-lg z-50">
+    <div className="fixed top-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 shadow-lg z-50">
       <div className="text-xs font-semibold text-yellow-800 mb-2">
         🧪 Dev Tier Switcher
       </div>

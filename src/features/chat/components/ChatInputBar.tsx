@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ImageIcon, Mic, Plus, Send, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import UpgradeModal from '../../../components/UpgradeModal';
-import { MicButton } from '../../../components/MicButton';
 import { ImageButton } from '../../../components/ImageButton';
+import { MicButton } from '../../../components/MicButton';
+import UpgradeModal from '../../../components/UpgradeModal';
 import { imageService } from '../../../services/imageService';
 import VoiceInputWeb from './VoiceInputWeb';
 
@@ -318,6 +318,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         >
           <Send size={18} />
         </motion.button>
+        </div>
       </div>
 
       {/* Voice Input Overlay */}
