@@ -34,22 +34,25 @@ export default function AttachmentMenu({
     const viewportWidth = window.innerWidth;
     const isMobile = viewportWidth < 640; // sm breakpoint
     
-    if (isMobile) {
-      // On mobile, center the menu and position it above the trigger
-      return {
-        left: Math.max(16, Math.min(triggerPosition.x - (menuWidth / 2), viewportWidth - menuWidth - 16)),
-        top: triggerPosition.y - 200,
-      };
-    } else {
-      // On desktop, use the original positioning
-      return {
-        left: triggerPosition.x - 140,
-        top: triggerPosition.y - 220,
-      };
-    }
+    // Simplified positioning for debugging
+    const position = {
+      left: Math.max(16, Math.min(triggerPosition.x - (menuWidth / 2), viewportWidth - menuWidth - 16)),
+      top: Math.max(16, triggerPosition.y - 200),
+    };
+    
+    console.log('🔍 Position calculation:', {
+      viewportWidth,
+      isMobile,
+      triggerPosition,
+      menuWidth,
+      finalPosition: position
+    });
+    
+    return position;
   };
 
   const menuPosition = getMenuPosition();
+  console.log('📍 Calculated menu position:', menuPosition);
 
   const handleFeaturePress = async (feature: 'photo' | 'image' | 'mic') => {
     if (!user) {
@@ -101,6 +104,7 @@ export default function AttachmentMenu({
           style={{
             left: `${menuPosition.left}px`,
             top: `${menuPosition.top}px`,
+            zIndex: 9999,
           }}
           initial={{ 
             scale: 0.3,
