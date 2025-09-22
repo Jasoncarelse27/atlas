@@ -68,4 +68,6 @@ paths = [
   '''\.env\.local\.example''',
   '''\.env\.production\.example''',
   '''\.env\.test\.example''',
+  '''\.gitleaks\.toml''',
+  '''scripts/.*''',
 ]
