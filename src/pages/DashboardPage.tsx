@@ -411,7 +411,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
                         isSafeMode={isSafeMode}
                       />
                     </div>
-                  </div>
                 </motion.aside>
               </>
             )}
