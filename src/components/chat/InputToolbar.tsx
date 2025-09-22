@@ -114,7 +114,7 @@ export default function InputToolbar({
   };
 
   return (
-    <div className="p-4 bg-white border-t border-gray-200 safe-area-inset-bottom">
+    <div className="p-4 bg-gray-900 border-t border-gray-700 safe-area-inset-bottom">
       <div className="flex items-center space-x-3">
         {/* + Button */}
         <motion.button
@@ -130,11 +130,11 @@ export default function InputToolbar({
             setMenuVisible(true);
           }}
           disabled={disabled}
-          className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           whileTap={{ scale: 0.95 }}
           title="Add attachment"
         >
-          <Plus size={20} className="text-gray-600" />
+          <Plus size={20} className="text-gray-300" />
         </motion.button>
 
         {/* Text Input */}
@@ -145,7 +145,7 @@ export default function InputToolbar({
           onChange={(e) => setText(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
-          className="flex-1 bg-gray-100 rounded-full px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+          className="flex-1 bg-gray-700 rounded-full px-4 py-3 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-600 transition-colors"
           disabled={isProcessing || disabled}
           autoComplete="off"
           autoCapitalize="sentences"
@@ -159,18 +159,18 @@ export default function InputToolbar({
         <motion.button
           onClick={handleMicPress}
           disabled={isProcessing || disabled}
-          className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           whileTap={{ scale: 0.95 }}
           title="Voice recording"
         >
-          <Mic size={20} className="text-gray-600" />
+          <Mic size={20} className="text-gray-300" />
         </motion.button>
 
         {/* Send Button */}
         <motion.button
           onClick={handleSend}
           disabled={isProcessing || disabled || !text.trim()}
-          className="p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+          className="p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-600"
           whileTap={{ scale: 0.95 }}
           title="Send message"
         >
