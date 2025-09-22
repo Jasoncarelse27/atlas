@@ -1,11 +1,11 @@
-import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Mic, Send } from 'lucide-react';
+import { Mic, Plus, Send } from 'lucide-react';
+import React, { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import AttachmentMenu from './AttachmentMenu';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useTierAccess } from '../../hooks/useTierAccess';
 import { featureService } from '../../services/featureService';
+import AttachmentMenu from './AttachmentMenu';
 
 interface InputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -26,7 +26,9 @@ export default function InputToolbar({
   const { canUseFeature, showUpgradeModal } = useTierAccess();
   const [text, setText] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
+  const [triggerPosition, setTriggerPosition] = useState({ x: 0, y: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+  const plusButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleSend = () => {
     if (!text.trim() || isProcessing || disabled) return;
@@ -116,7 +118,17 @@ export default function InputToolbar({
       <div className="flex items-center space-x-3">
         {/* + Button */}
         <motion.button
-          onClick={() => setMenuVisible(true)}
+          ref={plusButtonRef}
+          onClick={() => {
+            if (plusButtonRef.current) {
+              const rect = plusButtonRef.current.getBoundingClientRect();
+              setTriggerPosition({
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+              });
+            }
+            setMenuVisible(true);
+          }}
           disabled={disabled}
           className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           whileTap={{ scale: 0.95 }}
@@ -173,6 +185,7 @@ export default function InputToolbar({
         onPhotoSelect={handlePhotoSelect}
         onImageSelect={handleImageSelect}
         onMicSelect={handleMicSelect}
+        triggerPosition={triggerPosition}
       />
     </div>
   );

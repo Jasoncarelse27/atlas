@@ -1,10 +1,9 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Camera, ImageIcon, Mic, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
-import { featureService } from '../../services/featureService';
 import { useTierAccess } from '../../hooks/useTierAccess';
+import { featureService } from '../../services/featureService';
 
 interface AttachmentMenuProps {
   visible: boolean;
@@ -12,6 +11,7 @@ interface AttachmentMenuProps {
   onPhotoSelect?: () => void;
   onImageSelect?: () => void;
   onMicSelect?: () => void;
+  triggerPosition?: { x: number; y: number };
 }
 
 export default function AttachmentMenu({ 
@@ -19,7 +19,8 @@ export default function AttachmentMenu({
   onClose, 
   onPhotoSelect,
   onImageSelect,
-  onMicSelect 
+  onMicSelect,
+  triggerPosition = { x: 0, y: 0 }
 }: AttachmentMenuProps) {
   const { user } = useSupabaseAuth();
   const { canUseFeature, showUpgradeModal } = useTierAccess();
@@ -58,76 +59,116 @@ export default function AttachmentMenu({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 bg-black/50 flex items-end justify-center z-50"
+        className="fixed inset-0 bg-black/30 z-50"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
         <motion.div
-          className="bg-white rounded-t-2xl p-6 w-full max-w-md"
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="absolute bg-white rounded-2xl p-4 shadow-2xl border border-gray-200 w-80"
+          style={{
+            left: triggerPosition.x - 160, // Center the menu (320px width / 2)
+            top: triggerPosition.y - 200,  // Position above the trigger
+          }}
+          initial={{ 
+            scale: 0.3,
+            opacity: 0,
+            y: 20,
+            transformOrigin: "bottom center"
+          }}
+          animate={{ 
+            scale: 1,
+            opacity: 1,
+            y: 0
+          }}
+          exit={{ 
+            scale: 0.3,
+            opacity: 0,
+            y: 20
+          }}
+          transition={{ 
+            type: 'spring', 
+            damping: 25, 
+            stiffness: 300,
+            duration: 0.2
+          }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Add Attachment</h3>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <X size={20} className="text-gray-500" />
-            </button>
-          </div>
-
           {/* Options */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             {/* Photo (Camera) */}
             <motion.button
               onClick={() => handleFeaturePress('photo')}
-              className="w-full flex items-center space-x-4 p-4 rounded-xl hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <div className="p-3 rounded-full bg-blue-100">
-                <Camera size={24} className="text-blue-600" />
-              </div>
-              <div className="text-left">
-                <div className="font-medium text-gray-900">Take Photo</div>
-                <div className="text-sm text-gray-500">Use camera to capture image</div>
-              </div>
+              <Camera size={20} className="text-gray-600" />
+              <span className="text-gray-700">Add photos & files</span>
             </motion.button>
 
             {/* Image (Gallery) */}
             <motion.button
               onClick={() => handleFeaturePress('image')}
-              className="w-full flex items-center space-x-4 p-4 rounded-xl hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <div className="p-3 rounded-full bg-green-100">
-                <ImageIcon size={24} className="text-green-600" />
-              </div>
-              <div className="text-left">
-                <div className="font-medium text-gray-900">Choose Image</div>
-                <div className="text-sm text-gray-500">Select from gallery or files</div>
-              </div>
+              <ImageIcon size={20} className="text-gray-600" />
+              <span className="text-gray-700">Add from Google Drive</span>
             </motion.button>
 
-            {/* Mic (Voice) */}
+            {/* Divider */}
+            <div className="border-t border-gray-200 my-2"></div>
+
+            {/* Deep research */}
             <motion.button
               onClick={() => handleFeaturePress('mic')}
-              className="w-full flex items-center space-x-4 p-4 rounded-xl hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <div className="p-3 rounded-full bg-purple-100">
-                <Mic size={24} className="text-purple-600" />
-              </div>
-              <div className="text-left">
-                <div className="font-medium text-gray-900">Voice Recording</div>
-                <div className="text-sm text-gray-500">Record audio message</div>
-              </div>
+              <Mic size={20} className="text-gray-600" />
+              <span className="text-gray-700">Deep research</span>
+            </motion.button>
+
+            {/* Create image */}
+            <motion.button
+              onClick={() => handleFeaturePress('image')}
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              whileTap={{ scale: 0.98 }}
+            >
+              <ImageIcon size={20} className="text-gray-600" />
+              <span className="text-gray-700">Create image</span>
+            </motion.button>
+
+            {/* Agent mode */}
+            <motion.button
+              onClick={() => handleFeaturePress('mic')}
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              whileTap={{ scale: 0.98 }}
+            >
+              <Mic size={20} className="text-gray-600" />
+              <span className="text-gray-700">Agent mode</span>
+            </motion.button>
+
+            {/* Use connectors */}
+            <motion.button
+              onClick={() => handleFeaturePress('image')}
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              whileTap={{ scale: 0.98 }}
+            >
+              <ImageIcon size={20} className="text-gray-600" />
+              <span className="text-gray-700">Use connectors</span>
+            </motion.button>
+
+            {/* More */}
+            <motion.button
+              onClick={onClose}
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              whileTap={{ scale: 0.98 }}
+            >
+              <span className="text-gray-400">...</span>
+              <span className="text-gray-700">More</span>
+              <span className="text-gray-400 ml-auto">→</span>
             </motion.button>
           </div>
         </motion.div>
