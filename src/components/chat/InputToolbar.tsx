@@ -121,6 +121,7 @@ export default function InputToolbar({
           ref={plusButtonRef}
           onClick={() => {
             console.log('🔘 Plus button clicked!');
+            alert('Plus button clicked!'); // Simple test
             if (plusButtonRef.current) {
               const rect = plusButtonRef.current.getBoundingClientRect();
               setTriggerPosition({
