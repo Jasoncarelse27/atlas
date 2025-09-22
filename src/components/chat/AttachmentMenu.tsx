@@ -91,14 +91,7 @@ export default function AttachmentMenu({
   console.log('📋 AttachmentMenu rendering with visible=true');
 
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 bg-black/30 z-50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      >
+    <div className="fixed inset-0 bg-black/30 z-[60]" onClick={onClose}>
         <motion.div
           className="absolute bg-gray-900 rounded-2xl p-4 shadow-2xl border border-gray-700 w-80 max-w-[calc(100vw-2rem)] sm:w-80"
           style={{
@@ -208,7 +201,6 @@ export default function AttachmentMenu({
             </motion.button>
           </div>
         </motion.div>
-      </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }
