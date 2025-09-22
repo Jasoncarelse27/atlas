@@ -120,14 +120,20 @@ export default function InputToolbar({
         <motion.button
           ref={plusButtonRef}
           onClick={() => {
+            console.log('🔘 Plus button clicked!');
             if (plusButtonRef.current) {
               const rect = plusButtonRef.current.getBoundingClientRect();
               setTriggerPosition({
                 x: rect.left + rect.width / 2,
                 y: rect.top + rect.height / 2
               });
+              console.log('📍 Trigger position set:', {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+              });
             }
             setMenuVisible(true);
+            console.log('📱 Menu visibility set to true');
           }}
           disabled={disabled}
           className="p-2 sm:p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"

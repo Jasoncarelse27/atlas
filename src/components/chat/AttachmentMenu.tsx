@@ -25,6 +25,9 @@ export default function AttachmentMenu({
   const { user } = useSupabaseAuth();
   const { canUseFeature, showUpgradeModal } = useTierAccess();
 
+  // Debug logging
+  console.log('📋 AttachmentMenu render:', { visible, triggerPosition });
+
   // Calculate responsive positioning
   const getMenuPosition = () => {
     const menuWidth = 320; // 320px (w-80)
@@ -77,7 +80,12 @@ export default function AttachmentMenu({
     onClose();
   };
 
-  if (!visible) return null;
+  if (!visible) {
+    console.log('📋 AttachmentMenu not visible, returning null');
+    return null;
+  }
+
+  console.log('📋 AttachmentMenu rendering with visible=true');
 
   return (
     <AnimatePresence>
