@@ -7,18 +7,22 @@ jobs:
   slack-success-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Send success Slack alert
+      - name: Send success Slack alert via proxy
+        env:
+          ALERT_PROXY_URL: ${{ secrets.ALERT_PROXY_URL }}
+          ALERT_TOKEN: ${{ secrets.CICD_ALERT_TOKEN }}
         run: |
-          curl -X POST -H 'Content-type: application/json' \
-          --data "{
-            \"attachments\": [
-              {
-                \"color\": \"#36a64f\",
-                \"title\": \"✅ Atlas CICD Test Alert\",
-                \"text\": \"Webhook is working! This is a SUCCESS message.\",
-                \"footer\": \"GitHub Actions • Atlas Security\",
-                \"ts\": $(date +%s)
-              }
-            ]
-          }" \
-          ${{ secrets.CICD_ALERT_URL }}
+          curl -X POST -H "Content-type: application/json" \
+               -H "Authorization: Bearer $ALERT_TOKEN" \
+               --data "{
+                 \"attachments\": [
+                   {
+                     \"color\": \"#36a64f\",
+                     \"title\": \"✅ Atlas CICD Success Test\",
+                     \"text\": \"Alert proxy is working! This is a SUCCESS message via Supabase Edge Function.\",
+                     \"footer\": \"GitHub Actions • Atlas Security • Alert Proxy\",
+                     \"ts\": $(date +%s)
+                   }
+                 ]
+               }" \
+               $ALERT_PROXY_URL
