@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 
 interface DevTierSwitcherProps {
   onTierChange?: (newTier: string) => void;
 }
 
 export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }) => {
-  const { user } = useAuth();
-  const [currentTier, setCurrentTier] = useState<string>('free');
+  const { user, tier } = useSupabaseAuth();
+  const [currentTier, setCurrentTier] = useState<string>(tier || 'free');
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Only render in development mode
@@ -21,6 +21,12 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
       fetchCurrentTier();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (tier) {
+      setCurrentTier(tier);
+    }
+  }, [tier]);
 
   const fetchCurrentTier = async () => {
     if (!user) return;
