@@ -319,9 +319,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           <Send size={18} />
         </motion.button>
         </div>
-      </div>
 
-      {/* Voice Input Overlay */}
+        {/* Voice Input Overlay */}
       {showVoiceInput && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[#1e1e1e] rounded-xl p-6 shadow-2xl border border-gray-600">
@@ -345,36 +344,36 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         </div>
       )}
 
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        feature={upgradeFeature}
-        userTier={tier}
-        onUpgrade={() => {
-          // TODO: Integrate with Paddle checkout
-          console.log(`User wants to upgrade for ${upgradeFeature} features`);
-        }}
-        onUpgradeSuccess={() => {
-          // Auto-trigger the feature they just unlocked
-          if (upgradeFeature === 'voice') {
-            // Reopen the + menu and auto-trigger voice recording
-            setExpanded(true);
-            setTimeout(() => {
-              setShowVoiceInput(true);
-              setExpanded(false);
-            }, 100);
-          } else if (upgradeFeature === 'image') {
-            // Reopen the + menu and auto-trigger image upload
-            setExpanded(true);
-            setTimeout(() => {
-              handleImageUpload();
-              setExpanded(false);
-            }, 100);
-          }
-        }}
-      />
-    </div>
+        {/* Upgrade Modal */}
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          feature={upgradeFeature}
+          userTier={tier}
+          onUpgrade={() => {
+            // TODO: Integrate with Paddle checkout
+            console.log(`User wants to upgrade for ${upgradeFeature} features`);
+          }}
+          onUpgradeSuccess={() => {
+            // Auto-trigger the feature they just unlocked
+            if (upgradeFeature === 'voice') {
+              // Reopen the + menu and auto-trigger voice recording
+              setExpanded(true);
+              setTimeout(() => {
+                setShowVoiceInput(true);
+                setExpanded(false);
+              }, 100);
+            } else if (upgradeFeature === 'image') {
+              // Reopen the + menu and auto-trigger image upload
+              setExpanded(true);
+              setTimeout(() => {
+                handleImageUpload();
+                setExpanded(false);
+              }, 100);
+            }
+          }}
+        />
+      </div>
   );
 };
 
