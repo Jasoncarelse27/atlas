@@ -3,7 +3,7 @@
  * Tests tier enforcement, feature logging, and UI behavior
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock dependencies
 const mockSupabase = {

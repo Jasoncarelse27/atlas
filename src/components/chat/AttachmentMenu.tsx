@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Camera, ImageIcon, Mic } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';

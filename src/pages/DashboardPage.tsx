@@ -1,7 +1,7 @@
+import { AnimatePresence, motion } from 'framer-motion';
 import React, { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import MessageErrorBoundary from '../components/MessageErrorBoundary';
 import MessageRenderer from '../components/MessageRenderer';
 import NavBar from '../components/NavBar';
