@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { subscriptionApi } from '../../../services/subscriptionApi';
 
 export type UserTier = 'free' | 'core' | 'studio';
 
@@ -42,15 +43,19 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
       try {
         setIsLoading(true);
         
-        // Get user profile from Supabase
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
+        // Get access token for backend API calls
+        const session = await supabase.auth.getSession();
+        const accessToken = session.data.session?.access_token;
+        
+        if (!accessToken) {
+          throw new Error('No access token available');
+        }
 
-        if (profileError) {
-          console.warn('Profile not found, using default free tier:', profileError.message);
+        // Use subscription API instead of direct Supabase call
+        const profile = await subscriptionApi.getUserProfile(userId, accessToken);
+
+        if (!profile) {
+          console.warn('Profile not found, using default free tier');
           setCurrentTier('free');
         } else {
           setCurrentTier(profile.subscription_tier || 'free');
@@ -89,14 +94,14 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
         last_reset_date: currentMonth
       }));
       
-      // Update in database
+      // Update in database via subscription API
       try {
-        await supabase
-          .from('user_profiles')
-          .update({
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
+        const session = await supabase.auth.getSession();
+        const accessToken = session.data.session?.access_token;
+        
+        if (accessToken) {
+          await subscriptionApi.updateSubscriptionTier(userId, currentTier, accessToken);
+        }
       } catch (err) {
         console.warn('Failed to reset monthly usage count:', err);
       }
@@ -159,12 +164,14 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
 
     setUsageStats(newStats);
 
-    // Update in database
+    // Update in database via subscription API
     try {
-      await supabase
-        .from('profiles')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', userId);
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (accessToken) {
+        await subscriptionApi.updateSubscriptionTier(userId, currentTier, accessToken);
+      }
     } catch (err) {
       console.warn('Failed to update usage stats:', err);
     }

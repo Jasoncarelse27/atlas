@@ -1,6 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { subscriptionApi } from '../services/subscriptionApi';
 
 type UserTier = 'free' | 'core' | 'studio';
 
@@ -60,24 +61,14 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
 
   useEffect(() => {
     const loadTier = async () => {
-      if (!user) {
+      if (!user || !accessToken) {
         setTier('free');
         return;
       }
       try {
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('tier')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle();
-
-        if (error) {
-          setTier('free');
-          return;
-        }
-
-        const dbTier = (data?.tier as UserTier | undefined) ?? 'free';
+        // Use subscription API instead of direct Supabase call
+        const profile = await subscriptionApi.getUserProfile(user.id, accessToken);
+        const dbTier = (profile?.subscription_tier as UserTier | undefined) ?? 'free';
         setTier(dbTier);
       } catch {
         setTier('free');
@@ -85,7 +76,7 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
     };
 
     loadTier();
-  }, [user?.id]);
+  }, [user?.id, accessToken]);
 
   return { session, user, accessToken, tier, isLoading, error };
 }

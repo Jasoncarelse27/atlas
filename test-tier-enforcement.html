@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas Tier Enforcement Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        .button {
+            background: #404040;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #505050;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #4ade80;
+        }
+        .error {
+            color: #f87171;
+        }
+        .info {
+            color: #60a5fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Atlas Tier Enforcement Test</h1>
+        
+        <div class="test-section">
+            <h2>🎯 Test Instructions</h2>
+            <p>Open <a href="http://localhost:5174" target="_blank" class="info">http://localhost:5174</a> and test these scenarios:</p>
+            <ol>
+                <li><strong>Free Tier Test:</strong> Use DevTierSwitcher to set to "Free", then try:
+                    <ul>
+                        <li>Click the <strong>🎤 Mic button</strong> → Should show upgrade prompt</li>
+                        <li>Click the <strong>+ button</strong> → Menu should appear above the button</li>
+                        <li>Try <strong>📎 Add Photo</strong> → Should show upgrade prompt</li>
+                        <li>Try <strong>📷 Take Photo</strong> → Should show upgrade prompt</li>
+                        <li>Try <strong>🎤 Record Audio</strong> → Should show upgrade prompt</li>
+                    </ul>
+                </li>
+                <li><strong>Core/Studio Tier Test:</strong> Use DevTierSwitcher to set to "Core" or "Studio", then try:
+                    <ul>
+                        <li>Click the <strong>🎤 Mic button</strong> → Should work (show "coming soon" message)</li>
+                        <li>Click the <strong>+ button</strong> → Menu should appear above the button</li>
+                        <li>Try all menu options → Should work (show "coming soon" messages)</li>
+                        <li><strong>Click outside the menu</strong> → Menu should disappear</li>
+                        <li><strong>Press Escape key</strong> → Menu should disappear</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Expected Results</h2>
+            <div class="success">
+                <strong>Free Tier:</strong>
+                <ul>
+                    <li>Mic button shows: "Voice features are available in Core & Studio plans. Upgrade to unlock!"</li>
+                    <li>Menu items show: "[feature] features are available in Core & Studio plans. Upgrade to unlock!"</li>
+                    <li>Upgrade modal appears when features are blocked</li>
+                </ul>
+            </div>
+            <div class="success">
+                <strong>Core/Studio Tier:</strong>
+                <ul>
+                    <li>All features work and show "feature coming soon" messages</li>
+                    <li>No upgrade prompts appear</li>
+                </ul>
+            </div>
+            <div class="success">
+                <strong>Popper.js Positioning & UX:</strong>
+                <ul>
+                    <li>Attachment menu always appears above the + button</li>
+                    <li>Menu stays properly positioned on scroll/resize</li>
+                    <li>Menu has smooth animations</li>
+                    <li>Clicking outside the menu closes it</li>
+                    <li>Pressing Escape key closes the menu</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🐛 Troubleshooting</h2>
+            <p>If something isn't working:</p>
+            <ul>
+                <li>Check browser console for errors</li>
+                <li>Verify DevTierSwitcher is working (should see tier changes in console)</li>
+                <li>Ensure backend is running on port 3000</li>
+                <li>Check that Popper.js is loaded (should see no positioning errors)</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Feature Attempt Logging</h2>
+            <p>Check Supabase for logged feature attempts:</p>
+            <pre style="background: #1a1a1a; padding: 10px; border-radius: 4px; overflow-x: auto;">
+SELECT * FROM feature_attempts 
+ORDER BY attempted_at DESC 
+LIMIT 10;
+            </pre>
+        </div>
+    </div>
+
+    <script>
+        console.log('🧪 Atlas Tier Enforcement Test Page Loaded');
+        console.log('📋 Test the attachment menu positioning and tier enforcement at http://localhost:5174');
+    </script>
+</body>
+</html>

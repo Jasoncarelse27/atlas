@@ -1,179 +1,172 @@
-import { useEffect, useRef } from "react";
-import { toast } from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
-
-declare global { interface Window { Paddle?: any; } }
-
-const CORE_PRICE_ID = import.meta.env.VITE_PADDLE_CORE_PRICE_ID!;
-const STUDIO_PRICE_ID = import.meta.env.VITE_PADDLE_STUDIO_PRICE_ID!;
-const PADDLE_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN!;
-const PADDLE_ENV = import.meta.env.VITE_PADDLE_ENVIRONMENT || "sandbox";
+import { AnimatePresence, motion } from 'framer-motion';
+import { Image, Mic, Sparkles, X, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useTierAccess } from '../hooks/useTierAccess';
 
 interface EnhancedUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentTier: string;
-  reason?: string;
-  onUpgrade?: (tier: string) => void;
+  feature?: string;
 }
 
-export function EnhancedUpgradeModal({ 
-  isOpen, 
-  onClose, 
-  currentTier,
-  reason = 'upgrade',
-  onUpgrade
-}: EnhancedUpgradeModalProps) {
-  const paddleReady = useRef(false);
+export default function EnhancedUpgradeModal({ isOpen, onClose, feature }: EnhancedUpgradeModalProps) {
+  const { showUpgradeModal } = useTierAccess();
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (paddleReady.current || !isOpen) return;
-    const s = document.createElement("script");
-    s.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-    s.async = true;
-    s.onload = () => {
-      window.Paddle?.Environment?.set(PADDLE_ENV);
-      window.Paddle?.Setup?.({ token: PADDLE_TOKEN });
-      paddleReady.current = true;
-    };
-    document.head.appendChild(s);
+    if (isOpen) {
+      setIsVisible(true);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+      const timer = setTimeout(() => setIsVisible(false), 300);
+      return () => clearTimeout(timer);
+    }
   }, [isOpen]);
 
-  const checkout = async (plan: "core" | "studio") => {
-    if (!window.Paddle) {
-      toast.error('Payment system loading... Please try again in a moment.');
-      return;
-    }
-
-    try {
-      // Get current user for checkout
-      const { data: { user } } = await supabase.auth.getUser();
-      const priceId = plan === "core" ? CORE_PRICE_ID : STUDIO_PRICE_ID;
-      
-      window.Paddle?.Checkout?.open({
-        items: [{ priceId, quantity: 1 }],
-        customer: user?.email ? { email: user.email } : undefined,
-        customData: {
-          userId: user?.id,
-          targetTier: plan,
-          source: 'upgrade_modal'
-        },
-        successCallback: async () => {
-          toast.success(`Successfully upgraded to ${plan.charAt(0).toUpperCase() + plan.slice(1)}!`);
-          
-          // Verify subscription update
-          if (user?.id) {
-            try {
-              const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-              const response = await fetch(`${baseUrl}/admin/verify-subscription?userId=${user.id}`);
-              const result = await response.json();
-              
-              if (result.success) {
-                console.log('Subscription verified:', result.tier);
-                onUpgrade?.(result.tier);
-              }
-            } catch (error) {
-              console.warn('Failed to verify subscription:', error);
-            }
-          }
-          
-          onClose();
-        },
-        closeCallback: () => {
-          console.log('Paddle checkout closed');
-        },
-        errorCallback: (error: any) => {
-          console.error('Paddle checkout error:', error);
-          toast.error('Payment failed. Please try again.');
-        }
-      });
-    } catch (error) {
-      console.error('Failed to open checkout:', error);
-      toast.error('Failed to open checkout. Please try again.');
-    }
+  const handleUpgrade = (tier: 'core' | 'studio') => {
+    // TODO: Integrate with Paddle checkout
+    console.log(`Upgrading to ${tier} tier`);
+    onClose();
   };
 
-  const getReasonMessage = () => {
-    switch (reason) {
-      case 'daily_limit':
-        return "You've used all 15 conversations today! 🎯";
-      case 'budget_limit':
-        return "Daily budget limit reached 💰";
-      default:
-        return "Upgrade for unlimited access 🚀";
-    }
+  const features = {
+    core: [
+      { icon: Mic, text: 'Voice recording & transcription', available: true },
+      { icon: Image, text: 'Image upload & analysis', available: true },
+      { icon: Zap, text: 'Unlimited messages', available: true },
+      { icon: Sparkles, text: 'Claude Sonnet model', available: true },
+    ],
+    studio: [
+      { icon: Mic, text: 'Advanced voice features', available: true },
+      { icon: Image, text: 'High-res image analysis', available: true },
+      { icon: Zap, text: 'Priority processing', available: true },
+      { icon: Sparkles, text: 'Claude Opus model', available: true },
+    ]
   };
 
-  if (!isOpen) return null;
-  
+  if (!isVisible) return null;
+
   return (
-    <div className="fixed inset-0 grid place-items-center bg-black/40 z-50">
-      <div className="w-[min(92vw,520px)] rounded-2xl p-6"
-           style={{ background: "#F4E5D9", border: "2px solid #B2BDA3" }}>
-        
-        <h2 className="text-xl font-semibold mb-2 text-center">
-          {getReasonMessage()}
-        </h2>
-        <p className="opacity-80 mb-6 text-center">
-          Choose the plan that fits your emotional wellbeing journey
-        </p>
-        
-        <div className="grid gap-4 mb-6">
-          {/* Core Plan */}
-          <div className="bg-white rounded-xl p-4 border-2 border-transparent hover:border-green-200 transition-colors">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-semibold text-lg">🌱 Core</h3>
-                <p className="text-2xl font-bold text-green-600">$19.99<span className="text-sm font-normal text-gray-500">/month</span></p>
-              </div>
-            </div>
-            <ul className="text-sm space-y-1 mb-4 text-gray-600">
-              <li>• Unlimited messages</li>
-              <li>• Claude Sonnet access</li>
-              <li>• Persistent memory</li>
-              <li>• EQ challenges</li>
-            </ul>
-            <button 
-              onClick={() => checkout("core")} 
-              className="w-full rounded-xl py-3 font-medium text-white transition-colors hover:opacity-90" 
-              style={{ background: "#B2BDA3" }}
-            >
-              Upgrade to Core
-            </button>
-          </div>
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
 
-          {/* Studio Plan */}
-          <div className="bg-white rounded-xl p-4 border-2 border-transparent hover:border-purple-200 transition-colors">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-semibold text-lg">🚀 Studio</h3>
-                <p className="text-2xl font-bold text-purple-600">$179.99<span className="text-sm font-normal text-gray-500">/month</span></p>
+          {/* Modal */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="relative w-full max-w-md mx-4 bg-gray-900 rounded-2xl shadow-2xl border border-gray-700"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-gray-800" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-white">Upgrade Atlas</h2>
+                  <p className="text-sm text-gray-400">Unlock premium features</p>
+                </div>
               </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
             </div>
-            <ul className="text-sm space-y-1 mb-4 text-gray-600">
-              <li>• Everything in Core</li>
-              <li>• Claude Opus access</li>
-              <li>• Advanced analytics</li>
-              <li>• Priority processing</li>
-              <li>• Premium insights</li>
-            </ul>
-            <button 
-              onClick={() => checkout("studio")} 
-              className="w-full rounded-xl py-3 font-medium text-white bg-purple-500 hover:bg-purple-600 transition-colors"
-            >
-              Upgrade to Studio
-            </button>
-          </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Feature Context */}
+              {feature && (
+                <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <p className="text-sm text-blue-300">
+                    <strong>{feature}</strong> features are available with Core & Studio plans
+                  </p>
+                </div>
+              )}
+
+              {/* Pricing Cards */}
+              <div className="space-y-4">
+                {/* Core Plan */}
+                <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-[#B2BDA3]/30 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-white">Core</h3>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-white">$19.99</div>
+                      <div className="text-sm text-gray-400">/month</div>
+                    </div>
+                  </div>
+                  
+                  <ul className="space-y-2 mb-4">
+                    {features.core.map((feature, index) => (
+                      <li key={index} className="flex items-center space-x-3 text-sm">
+                        <feature.icon className="w-4 h-4 text-[#B2BDA3]" />
+                        <span className="text-gray-300">{feature.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <button
+                    onClick={() => handleUpgrade('core')}
+                    className="w-full py-3 bg-[#B2BDA3] hover:bg-[#B2BDA3]/80 text-gray-900 font-semibold rounded-lg transition-colors"
+                  >
+                    Upgrade to Core
+                  </button>
+                </div>
+
+                {/* Studio Plan */}
+                <div className="p-4 bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 rounded-xl border border-[#B2BDA3]/30 hover:border-[#B2BDA3]/50 transition-colors relative">
+                  <div className="absolute -top-2 left-4 px-3 py-1 bg-[#B2BDA3] text-gray-900 text-xs font-semibold rounded-full">
+                    Most Popular
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-white">Studio</h3>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-white">$179.99</div>
+                      <div className="text-sm text-gray-400">/month</div>
+                    </div>
+                  </div>
+                  
+                  <ul className="space-y-2 mb-4">
+                    {features.studio.map((feature, index) => (
+                      <li key={index} className="flex items-center space-x-3 text-sm">
+                        <feature.icon className="w-4 h-4 text-[#F4E5D9]" />
+                        <span className="text-gray-300">{feature.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <button
+                    onClick={() => handleUpgrade('studio')}
+                    className="w-full py-3 bg-gradient-to-r from-[#B2BDA3] to-[#F4E5D9] hover:from-[#B2BDA3]/80 hover:to-[#F4E5D9]/80 text-gray-900 font-semibold rounded-lg transition-colors"
+                  >
+                    Upgrade to Studio
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <p className="text-xs text-gray-500 text-center">
+                All plans include secure payment processing and can be cancelled anytime
+              </p>
+            </div>
+          </motion.div>
         </div>
-        
-        <div className="text-center">
-          <button onClick={onClose} className="text-sm underline opacity-80 hover:opacity-100 transition-opacity">
-            Maybe later
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
-
-export default EnhancedUpgradeModal;

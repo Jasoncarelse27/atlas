@@ -15,13 +15,14 @@ import type { Message } from './types/chat';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import LoadingSpinner from './components/LoadingSpinner';
 import { DevTierSwitcher } from './components/DevTierSwitcher';
+import LoadingSpinner from './components/LoadingSpinner';
 import AuthPage from './pages/AuthPage';
 import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
 import DebugPage from './pages/DebugPage';
 import DebugProfile from './pages/DebugProfile';
+import EnhancedUIDemo from './pages/EnhancedUIDemo';
 import PaddleTestPage from './pages/PaddleTestPage';
 
 // Create a client
@@ -707,6 +708,10 @@ function App() {
             <Route
               path="/chat"
               element={user ? <ChatPage user={user} /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/demo"
+              element={<EnhancedUIDemo />}
             />
             <Route
               path="/debug"

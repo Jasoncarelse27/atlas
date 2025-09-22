@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { EnhancedUpgradeModal } from '../components/EnhancedUpgradeModal';
+import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import NavBar from '../components/NavBar';
-import ConversationView from '../features/chat/components/ConversationView';
-import { MessageInput } from '../features/chat/components/MessageInput';
+import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
+import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useChat } from '../features/chat/hooks/useChat';
 import MessageStoreDebugger from '../features/debug/MessageStoreDebugger';
 import ErrorBoundary from '../lib/errorBoundary';
@@ -16,6 +16,7 @@ interface ChatPageProps {
 const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
   // Use the new modular useChat hook
   const {
@@ -34,6 +35,16 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
     upgradeReason,
     handleUpgrade
   } = useChat(user?.id);
+
+  // Handle enhanced message sending with typing effect
+  const handleEnhancedSendMessage = async (message: string) => {
+    await handleSendMessage(message);
+    setIsTyping(true);
+    
+    // Simulate typing effect duration based on message length
+    const typingDuration = Math.min(Math.max(message.length * 50, 1000), 3000);
+    setTimeout(() => setIsTyping(false), typingDuration);
+  };
 
   // Health check with auto-retry every 30 seconds
   useEffect(() => {
@@ -106,27 +117,47 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
         {/* Main Chat Content */}
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 chat-messages-container">
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden">
-            {/* Chat Messages */}
-            <div className="h-[calc(100vh-300px)] min-h-[400px] overflow-y-auto">
-              <ConversationView
-                conversation={conversation}
-                onDeleteMessage={deleteMessage}
-                onCopyMessage={copyMessage}
-                onUpdateTitle={updateTitle}
-              />
+            {/* Enhanced Chat Messages */}
+            <div className="h-[calc(100vh-250px)] min-h-[400px] overflow-y-auto p-6 pb-24">
+              <div className="max-w-4xl mx-auto space-y-4">
+                {conversation?.messages?.map((message, index) => (
+                  <EnhancedMessageBubble
+                    key={message.id}
+                    message={message}
+                    isLatest={index === conversation.messages.length - 1}
+                    isTyping={index === conversation.messages.length - 1 && isTyping}
+                  />
+                ))}
+                
+                {/* Typing Indicator */}
+                {isTyping && !conversation?.messages?.length && (
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                    <div className="flex-1 max-w-3xl">
+                      <div className="px-4 py-3 bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 rounded-2xl rounded-bl-md">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </main>
 
-        {/* Message Input */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <MessageInput
-            onSendMessage={handleSendMessage}
-            onVoiceTranscription={handleSendMessage}
+        {/* Enhanced Message Input */}
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 via-gray-900/95 to-transparent pt-8 pb-4">
+          <EnhancedInputToolbar
+            onSendMessage={handleEnhancedSendMessage}
+            onVoiceTranscription={handleEnhancedSendMessage}
             isProcessing={isProcessing}
-            userId={user?.id}
-            tier={tier}
-            sessionId={conversation?.id}
+            placeholder="Ask Atlas anything..."
           />
         </div>
 

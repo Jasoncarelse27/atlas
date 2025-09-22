@@ -25,10 +25,9 @@ export default function InputToolbar({
   const { user } = useSupabaseAuth();
   const { canUseFeature, showUpgradeModal } = useTierAccess();
   const [text, setText] = useState('');
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [triggerPosition, setTriggerPosition] = useState({ x: 0, y: 0 });
+  const [menuOpen, setMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const plusButtonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleSend = () => {
     if (!text.trim() || isProcessing || disabled) return;
@@ -69,72 +68,16 @@ export default function InputToolbar({
     toast.success('Voice recording started (feature coming soon)');
   };
 
-  const handlePhotoSelect = async () => {
-    if (!user) {
-      toast.error('Please log in to use camera features');
-      return;
-    }
-
-    const canUse = canUseFeature('image');
-    
-    // Log the attempt
-    await featureService.logAttempt(user.id, 'photo', canUse, !canUse);
-    
-    if (!canUse) {
-      showUpgradeModal('image');
-      return;
-    }
-
-    // TODO: Implement camera access
-    toast.success('Camera access requested (feature coming soon)');
-  };
-
-  const handleImageSelect = async () => {
-    if (!user) {
-      toast.error('Please log in to use image features');
-      return;
-    }
-
-    const canUse = canUseFeature('image');
-    
-    // Log the attempt
-    await featureService.logAttempt(user.id, 'image', canUse, !canUse);
-    
-    if (!canUse) {
-      showUpgradeModal('image');
-      return;
-    }
-
-    // TODO: Implement file picker
-    toast.success('Image picker opened (feature coming soon)');
-  };
-
-  const handleMicSelect = async () => {
-    await handleMicPress();
-  };
 
   return (
-    <div className="p-3 sm:p-4 bg-transparent safe-area-inset-bottom">
-      <div className="flex items-center space-x-2 sm:space-x-3">
+    <div className="pl-1 pr-3 py-4 sm:pl-2 sm:pr-4 sm:py-4 bg-transparent safe-area-inset-bottom">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* + Button */}
         <motion.button
-          ref={plusButtonRef}
+          ref={buttonRef}
           onClick={() => {
             console.log('🔘 Plus button clicked!');
-            alert('Plus button clicked!'); // Simple test
-            if (plusButtonRef.current) {
-              const rect = plusButtonRef.current.getBoundingClientRect();
-              setTriggerPosition({
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-              });
-              console.log('📍 Trigger position set:', {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-              });
-            }
-            setMenuVisible(true);
-            console.log('📱 Menu visibility set to true');
+            setMenuOpen(!menuOpen);
           }}
           disabled={disabled}
           className="p-2 sm:p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
@@ -164,7 +107,14 @@ export default function InputToolbar({
 
         {/* Mic Button */}
         <motion.button
-          onClick={handleMicPress}
+          onClick={() => {
+            if (!canUseFeature('audio')) {
+              toast.error('Voice features are available in Core & Studio plans. Upgrade to unlock!');
+              showUpgradeModal();
+              return;
+            }
+            handleMicPress();
+          }}
           disabled={isProcessing || disabled}
           className="p-2 sm:p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
           whileTap={{ scale: 0.95 }}
@@ -186,14 +136,12 @@ export default function InputToolbar({
       </div>
 
       {/* Attachment Menu */}
-      <AttachmentMenu
-        visible={menuVisible}
-        onClose={() => setMenuVisible(false)}
-        onPhotoSelect={handlePhotoSelect}
-        onImageSelect={handleImageSelect}
-        onMicSelect={handleMicSelect}
-        triggerPosition={triggerPosition}
-      />
+      {menuOpen && (
+        <AttachmentMenu
+          anchorRef={buttonRef}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
     </div>
   );
 }

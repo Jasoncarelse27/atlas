@@ -1,36 +1,36 @@
-import { supabase } from '../lib/supabase';
 
 export interface FeatureAttempt {
-  feature: 'mic' | 'image' | 'photo';
-  success: boolean;
-  upgradeShown?: boolean;
+  feature: 'mic' | 'image' | 'photo' | 'camera' | 'audio';
+  tier: 'free' | 'core' | 'studio';
 }
 
 export class FeatureService {
   /**
-   * Log a feature attempt to Supabase
+   * Log a feature attempt via backend API
    */
   async logAttempt(
     userId: string, 
     feature: FeatureAttempt['feature'], 
-    success: boolean,
-    upgradeShown: boolean = false
+    tier: FeatureAttempt['tier']
   ): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('feature_attempts')
-        .insert({
-          user_id: userId,
+      // Use backend API instead of direct Supabase calls
+      const response = await fetch('/api/feature-attempts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
           feature,
-          success,
-          upgrade_shown: upgradeShown,
-          attempted_at: new Date().toISOString()
-        });
+          tier
+        })
+      });
 
-      if (error) {
-        console.error('Failed to log feature attempt:', error);
+      if (!response.ok) {
+        console.error('Failed to log feature attempt:', response.statusText);
       } else {
-        console.log(`Feature attempt logged: ${feature}, success: ${success}, upgrade_shown: ${upgradeShown}`);
+        console.log(`Feature attempt logged: ${feature}, tier: ${tier}`);
       }
     } catch (err) {
       console.error('Error logging feature attempt:', err);
@@ -38,44 +38,42 @@ export class FeatureService {
   }
 
   /**
-   * Get feature attempt stats for a user
+   * Get feature attempt stats for a user via backend API
    */
   async getUserStats(userId: string): Promise<{
-    total: number;
-    successful: number;
-    failed: number;
-    byFeature: Record<string, { total: number; successful: number }>;
+    totalAttempts: number;
+    featureCounts: Record<string, number>;
+    attempts: Array<{
+      id: string;
+      feature: string;
+      tier: string;
+      created_at: string;
+    }>;
   }> {
     try {
-      const { data, error } = await supabase
-        .from('feature_attempts')
-        .select('feature, success')
-        .eq('user_id', userId);
+      // Use backend API instead of direct Supabase calls
+      const response = await fetch(`/api/feature-attempts/stats/${userId}`, {
+        method: 'GET'
+      });
 
-      if (error) {
-        console.error('Failed to fetch user stats:', error);
-        return { total: 0, successful: 0, failed: 0, byFeature: {} };
+      if (!response.ok) {
+        console.error('Failed to fetch user stats:', response.statusText);
+        return { 
+          totalAttempts: 0, 
+          featureCounts: {}, 
+          attempts: [] 
+        };
       }
 
-      const total = data.length;
-      const successful = data.filter(d => d.success).length;
-      const failed = total - successful;
-
-      const byFeature = data.reduce((acc, item) => {
-        if (!acc[item.feature]) {
-          acc[item.feature] = { total: 0, successful: 0 };
-        }
-        acc[item.feature].total++;
-        if (item.success) {
-          acc[item.feature].successful++;
-        }
-        return acc;
-      }, {} as Record<string, { total: number; successful: number }>);
-
-      return { total, successful, failed, byFeature };
+      const data = await response.json();
+      return data;
     } catch (err) {
       console.error('Error fetching user stats:', err);
-      return { total: 0, successful: 0, failed: 0, byFeature: {} };
+      return { 
+        totalAttempts: 0, 
+        featureCounts: {}, 
+        attempts: [] 
+      };
     }
   }
 }

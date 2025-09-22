@@ -2,14 +2,23 @@
 // Centralized tier enforcement and feature access logic
 // 🎯 REVENUE PROTECTION + USAGE MANAGEMENT
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { getClaudeModelName, getTierPricing, isValidTier, tierFeatures } from '../config/featureAccess';
-import { supabase } from '../lib/supabase';
 import { usageTrackingService, type UsageCheckResult } from '../services/usageTrackingService';
 import type { Tier } from '../types/tier';
 import { useSubscription } from './useSubscription';
 import { useSupabaseAuth } from './useSupabaseAuth';
+
+// 🚀 PERFORMANCE: Cache for tier access data
+const tierAccessCache = new Map<string, {
+  data: any;
+  timestamp: number;
+  ttl: number;
+}>();
+
+const CACHE_TTL = 30000; // 30 seconds cache
+const DEBOUNCE_DELAY = 1000; // 1 second debounce
 
 export interface TierAccessReturn {
   // Current tier info
@@ -58,37 +67,66 @@ export function useTierAccess(): TierAccessReturn {
   const tier: Tier = (profile?.tier && isValidTier(profile.tier)) ? profile.tier as Tier : 'free';
   const features = tierFeatures[tier];
   
-  // Load usage data on mount and tier change
+  // 🚀 PERFORMANCE: Debounced usage data loading with caching
   useEffect(() => {
     if (!user?.id) return;
     
-    const loadUsageData = async () => {
+    const cacheKey = `usage_${user.id}_${tier}`;
+    const cached = tierAccessCache.get(cacheKey);
+    
+    // Use cache if available and not expired
+    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+      setUsageCheck(cached.data.usageCheck);
+      setConversationsToday(cached.data.conversationsToday);
+      setBudgetStatus(cached.data.budgetStatus);
+      setIsMaintenanceMode(cached.data.isMaintenanceMode);
+      return;
+    }
+    
+    // Debounce API calls
+    const timeoutId = setTimeout(async () => {
       try {
         // Check current usage status
         const check = await usageTrackingService.checkUsageBeforeConversation(user.id, tier);
-        setUsageCheck(check);
         
         // Get today's conversation count
         const stats = await usageTrackingService.getUsageStats(user.id);
-        setConversationsToday(stats.today.conversations_count);
         
         // Check budget health
         const budget = await usageTrackingService.checkBudgetHealth();
+        
+        const data = {
+          usageCheck: check,
+          conversationsToday: stats.today.conversations_count,
+          budgetStatus: budget.status,
+          isMaintenanceMode: budget.status === 'critical'
+        };
+        
+        // Update state
+        setUsageCheck(check);
+        setConversationsToday(stats.today.conversations_count);
         setBudgetStatus(budget.status);
         setIsMaintenanceMode(budget.status === 'critical');
+        
+        // Cache the result
+        tierAccessCache.set(cacheKey, {
+          data,
+          timestamp: Date.now(),
+          ttl: CACHE_TTL
+        });
         
       } catch (error) {
         console.error('Failed to load usage data:', error);
         // Graceful fallback
         setUsageCheck({ canProceed: true, remainingConversations: 'unlimited', upgradeRequired: false });
       }
-    };
+    }, DEBOUNCE_DELAY);
     
-    loadUsageData();
+    return () => clearTimeout(timeoutId);
   }, [user?.id, tier]);
   
   // 🎯 NEW: Conversation limit check with daily tracking
-  const canStartConversation = async (): Promise<boolean> => {
+  const canStartConversation = useCallback(async (): Promise<boolean> => {
     if (!user?.id) return false;
     
     // Development bypass
@@ -127,10 +165,10 @@ export function useTierAccess(): TierAccessReturn {
       console.error('Conversation check failed:', error);
       return true; // Graceful fallback
     }
-  };
+  }, [user?.id, tier, isMaintenanceMode]);
   
-  // Feature access checks
-  const canUseFeature = (feature: 'text' | 'audio' | 'image'): boolean => {
+  // 🚀 PERFORMANCE: Memoized feature checks
+  const canUseFeature = useCallback((feature: 'text' | 'audio' | 'image'): boolean => {
     // Development bypass
     if (import.meta.env.DEV) {
       console.log('🔓 DEV MODE: Bypassing feature access for', feature);
@@ -138,23 +176,23 @@ export function useTierAccess(): TierAccessReturn {
     }
     
     return !!features[feature];
-  };
+  }, [features]);
   
   // Legacy message limit check (kept for compatibility)
-  const isWithinLimit = (currentCount: number): boolean => {
+  const isWithinLimit = useCallback((currentCount: number): boolean => {
     const maxConversations = features.maxConversationsPerDay;
     if (maxConversations === -1) return true; // Unlimited
     return currentCount < maxConversations;
-  };
+  }, [features]);
   
-  // Model routing with token limits
-  const model = features.model;
-  const claudeModelName = getClaudeModelName(tier);
-  const maxTokensPerResponse = features.maxTokensPerResponse;
-  const maxContextWindow = features.maxContextWindow;
+  // 🚀 PERFORMANCE: Memoized model routing
+  const model = useMemo(() => features.model, [features]);
+  const claudeModelName = useMemo(() => getClaudeModelName(tier), [tier]);
+  const maxTokensPerResponse = useMemo(() => features.maxTokensPerResponse, [features]);
+  const maxContextWindow = useMemo(() => features.maxContextWindow, [features]);
   
   // 🎯 NEW: Record successful conversation with token usage
-  const recordConversation = async (tokensUsed: number): Promise<void> => {
+  const recordConversation = useCallback(async (tokensUsed: number): Promise<void> => {
     if (!user?.id) return;
     
     try {
@@ -167,32 +205,39 @@ export function useTierAccess(): TierAccessReturn {
       const newCheck = await usageTrackingService.checkUsageBeforeConversation(user.id, tier);
       setUsageCheck(newCheck);
       
+      // Clear cache to force refresh
+      const cacheKey = `usage_${user.id}_${tier}`;
+      tierAccessCache.delete(cacheKey);
+      
     } catch (error) {
       console.error('Failed to record conversation:', error);
     }
-  };
+  }, [user?.id, tier]);
   
   // Log feature attempts for analytics
-  const logFeatureAttempt = async (feature: string, allowed: boolean): Promise<void> => {
+  const logFeatureAttempt = useCallback(async (feature: string, allowed: boolean): Promise<void> => {
     if (!user?.id) return;
     
     try {
-      await supabase
-        .from('feature_attempts')
-        .insert({
-          user_id: user.id,
+      // Use backend API to log feature attempts
+      await fetch('/api/feature-attempts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: user.id,
           feature,
-          tier,
-          allowed,
-          timestamp: new Date().toISOString()
-        });
+          tier
+        })
+      });
     } catch (error) {
       console.warn('Failed to log feature attempt:', error);
     }
-  };
+  }, [user?.id, tier]);
   
   // 🎯 ENHANCED: Upgrade modal with specific pricing
-  const showUpgradeModal = (feature: string): void => {
+  const showUpgradeModal = useCallback((feature: string): void => {
     const message = getUpgradeMessage(feature);
     const suggestedTier = feature === 'daily_limit' && tier === 'free' ? 'basic' : 'premium';
     const price = getTierPricing(suggestedTier);
@@ -209,10 +254,10 @@ export function useTierAccess(): TierAccessReturn {
         }
       }
     });
-  };
+  }, [tier, logFeatureAttempt]);
   
   // 🎯 UPDATED: Get upgrade message with new pricing
-  const getUpgradeMessage = (feature: string): string => {
+  const getUpgradeMessage = useCallback((feature: string): string => {
     switch (feature) {
       case 'audio':
         return 'Voice features require Atlas Basic ($9.99/month) or Premium ($19.99/month)';
@@ -228,7 +273,7 @@ export function useTierAccess(): TierAccessReturn {
       default:
         return 'This feature requires an upgrade to Atlas Basic or Premium';
     }
-  };
+  }, [tier]);
   
   return {
     // Current tier info
@@ -268,7 +313,7 @@ export function useTierAccess(): TierAccessReturn {
 export function useFeatureAccess(feature: 'text' | 'audio' | 'image') {
   const { canUseFeature, showUpgradeModal, logFeatureAttempt } = useTierAccess();
   
-  const attemptFeature = async (): Promise<boolean> => {
+  const attemptFeature = useCallback(async (): Promise<boolean> => {
     const allowed = canUseFeature(feature);
     await logFeatureAttempt(feature, allowed);
     
@@ -277,7 +322,7 @@ export function useFeatureAccess(feature: 'text' | 'audio' | 'image') {
     }
     
     return allowed;
-  };
+  }, [canUseFeature, feature, logFeatureAttempt, showUpgradeModal]);
   
   return {
     canUse: canUseFeature(feature),
@@ -289,7 +334,7 @@ export function useFeatureAccess(feature: 'text' | 'audio' | 'image') {
 export function useMessageLimit() {
   const { isWithinLimit, showUpgradeModal, logFeatureAttempt } = useTierAccess();
   
-  const checkAndAttemptMessage = async (currentCount: number): Promise<boolean> => {
+  const checkAndAttemptMessage = useCallback(async (currentCount: number): Promise<boolean> => {
     const allowed = isWithinLimit(currentCount);
     await logFeatureAttempt('text', allowed);
     
@@ -298,7 +343,7 @@ export function useMessageLimit() {
     }
     
     return allowed;
-  };
+  }, [isWithinLimit, logFeatureAttempt, showUpgradeModal]);
   
   return {
     isWithinLimit,

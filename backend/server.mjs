@@ -139,25 +139,30 @@ const verifyJWT = async (req, res, next) => {
   }
 };
 
-// 🚦 Rate Limiting - more lenient for development
+// 🚦 Rate Limiting - DISABLED for development
+const isDev = process.env.NODE_ENV === 'development';
+console.log(`🚦 Rate Limiting - NODE_ENV: ${process.env.NODE_ENV}, isDev: ${isDev}`);
+
+// Create a no-op rate limiter for development
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Higher limit for dev
+  max: isDev ? 999999 : 100, // Essentially unlimited for dev
   message: { error: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests from this IP' },
-  standardHeaders: true,
+  standardHeaders: false, // Disable rate limit headers in development
   legacyHeaders: false,
 });
 
 const messageLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 20, // limit each IP to 20 message requests per minute
+  max: process.env.NODE_ENV === 'development' ? 200 : 20, // Much higher limit for dev
   message: { error: 'MESSAGE_RATE_LIMIT_EXCEEDED', message: 'Too many message requests' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Apply global rate limiting
+// Apply global rate limiting (always enabled, but with high limits in development)
 app.use(globalLimiter);
+console.log(`🚦 Rate limiting configured - isDev: ${isDev}, max requests: ${isDev ? 999999 : 100}`);
 
 // Middleware
 app.use(express.json({ limit: '2mb' }));
@@ -187,6 +192,30 @@ app.use(cors({
 // Handle preflight requests
 app.options("*", cors());
 
+// Add debug route for subscription inspection (bypasses auth for debugging)
+app.get("/api/debug/subscriptions/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`[DEBUG] Checking paddle_subscriptions for user: ${userId}`);
+    
+    const { data, error } = await supabase
+      .from("paddle_subscriptions")
+      .select("*")
+      .eq("id", userId);
+      
+    if (error) {
+      console.error(`[DEBUG] Supabase error:`, error);
+      return res.status(500).json({ source: "supabase", error: error.message });
+    }
+    
+    console.log(`[DEBUG] Found ${data?.length || 0} paddle subscription records`);
+    res.json({ source: "supabase", data, count: data?.length || 0 });
+  } catch (err) {
+    console.error("Debug route error:", err.message);
+    res.status(500).json({ error: "Debug route failed", details: err.message });
+  }
+});
+
 // Global auth middleware (except for health endpoints, paddle test, and JWT-protected routes)
 app.use((req, res, next) => {
   // Skip auth middleware for public endpoints
@@ -195,7 +224,7 @@ app.use((req, res, next) => {
   }
   
   // Skip auth middleware for routes that use their own auth (verifyJWT or requireAdminDev)
-  if (req.path.startsWith('/v1/user_profiles') || req.path === '/message' || req.path.startsWith('/admin')) {
+  if (req.path.startsWith('/v1/user_profiles') || req.path === '/message' || req.path.startsWith('/admin') || req.path.startsWith('/api/feature-attempts') || req.path.startsWith('/api/debug')) {
     return next();
   }
   
@@ -782,6 +811,20 @@ try {
   console.warn("⚠️ Paddle webhook routes not found, continuing without them:", error.message);
   await logWarn("Paddle webhook routes not found", { error: error.message });
 }
+
+// Load feature attempts routes
+try {
+  const { default: featureAttemptsRoutes } = await import("./routes/feature-attempts.mjs");
+  app.use("/api/feature-attempts", featureAttemptsRoutes);
+  console.log("✅ Feature attempts routes loaded successfully");
+  await logInfo("Feature attempts routes loaded successfully");
+} catch (error) {
+  console.warn("⚠️ Feature attempts routes not found, continuing without them:", error.message);
+  await logWarn("Feature attempts routes not found", { error: error.message });
+}
+
+
+
 
 // 🛡️ Global Error Handler
 app.use((err, req, res, next) => {

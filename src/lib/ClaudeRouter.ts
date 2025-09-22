@@ -1,3 +1,4 @@
+import { subscriptionApi } from '../services/subscriptionApi';
 import { supabase } from './supabaseClient';
 
 // Types
@@ -35,21 +36,24 @@ const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1/messages';
  */
 export async function getUserTier(userId: string): Promise<UserTier> {
   try {
-    const { data, error } = await supabase
-      .from('user_subscriptions')
-      .select('tier')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      console.warn('Error fetching user tier:', error);
-      return 'core'; // Default to core tier
+    // Get access token for backend API calls
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+    
+    if (!accessToken) {
+      console.warn('No access token available, defaulting to core tier');
+      return 'core';
     }
 
-    return data?.tier || 'core';
+    // Use subscription API service
+    const tier = await subscriptionApi.getUserTier(userId, accessToken);
+    console.log('[ClaudeRouter] Loaded tier via backend API:', tier);
+    
+    // Convert to UserTier type
+    return tier === 'studio' ? 'studio' : 'core';
   } catch (error) {
     console.warn('Error in getUserTier:', error);
-    return 'core';
+    return 'core'; // Default to core tier
   }
 }
 

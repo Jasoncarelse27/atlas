@@ -1,92 +1,84 @@
-// supabase/functions/paddle-webhook/index.ts
+import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-Deno.serve(async (req) => {
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+serve(async (req) => {
   try {
-    // ✅ Detect test mode
-    const isTest = new URL(req.url).searchParams.get("test") === "1";
-
-    // ✅ Parse JSON body
-    if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid method" }),
-        { status: 405 }
-      );
-    }
-
-    if (!req.headers.get("content-type")?.includes("application/json")) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing content type" }),
-        { status: 400 }
-      );
-    }
+    // Verify webhook signature (implement when real Paddle is configured)
+    // const signature = req.headers.get('paddle-signature');
+    // if (!verifyPaddleSignature(req.body, signature)) {
+    //   return new Response("Invalid signature", { status: 401 });
+    // }
 
     const body = await req.json();
+    console.log('Paddle webhook received:', JSON.stringify(body, null, 2));
 
-    // ✅ Signature validation (skipped in test mode)
-    if (!isTest) {
-      const signature = req.headers.get("Paddle-Signature");
-      if (!signature) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Missing signature" }),
-          { status: 401 }
-        );
-      }
-      // TODO: Add real Paddle signature verification here later
+    const subscription = body?.data;
+    if (!subscription) {
+      console.error('Invalid payload: no subscription data');
+      return new Response("Invalid payload", { status: 400 });
     }
 
-    // ✅ Extract key info
-    const customerId =
-      body?.data?.customer_id || body?.customer_id || body?.user_id;
-    const priceId =
-      body?.data?.items?.[0]?.price?.id || body?.price_id || null;
-
-    if (!customerId || !priceId) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Missing customer_id or price_id",
-        }),
-        { status: 400 }
-      );
+    // Extract user ID from subscription metadata or custom data
+    const userId = subscription.custom_data?.user_id || 
+                   subscription.customer_id || 
+                   subscription.subscription_id;
+    
+    if (!userId) {
+      console.error('No user ID found in subscription data');
+      return new Response("No user ID found", { status: 400 });
     }
 
-    // ✅ Decide tier
-    let newTier = "free";
-    if (priceId.includes("core")) newTier = "core";
-    if (priceId.includes("studio")) newTier = "studio";
+    // Determine tier based on price_id
+    const corePriceId = Deno.env.get("VITE_PADDLE_CORE_PRICE_ID");
+    const studioPriceId = Deno.env.get("VITE_PADDLE_STUDIO_PRICE_ID");
+    
+    let tier: 'free' | 'core' | 'studio' = 'free';
+    if (subscription.price_id === corePriceId) {
+      tier = 'core';
+    } else if (subscription.price_id === studioPriceId) {
+      tier = 'studio';
+    }
 
-    // ✅ Update Supabase profiles table
-    const { error } = await supabase
+    // Update profiles table
+    const { error: profileError } = await supabase
       .from("profiles")
-      .update({ subscription_tier: newTier })
-      .eq("id", customerId);
+      .update({ 
+        subscription_tier: tier,
+        subscription_status: 'active',
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
 
-    if (error) {
-      console.error("Supabase update error:", error);
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { status: 500 }
-      );
+    if (profileError) {
+      console.error('Error updating profile:', profileError);
+      return new Response("Database error", { status: 500 });
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Updated user ${customerId} to tier ${newTier}`,
-      }),
-      { status: 200 }
-    );
+    // Update paddle_subscriptions table
+    const { error: paddleError } = await supabase
+      .from("paddle_subscriptions")
+      .upsert({
+        id: userId,
+        price_id: subscription.price_id,
+        status: subscription.status || 'active',
+        subscription_tier: tier,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (paddleError) {
+      console.error('Error updating paddle subscription:', paddleError);
+      return new Response("Database error", { status: 500 });
+    }
+
+    console.log(`Successfully updated user ${userId} to tier ${tier}`);
+    return new Response("OK", { status: 200 });
   } catch (err) {
-    console.error("Webhook error:", err);
-    return new Response(
-      JSON.stringify({ success: false, error: "Server error" }),
-      { status: 500 }
-    );
+    console.error("Paddle webhook error:", err);
+    return new Response("Internal Server Error", { status: 500 });
   }
 });

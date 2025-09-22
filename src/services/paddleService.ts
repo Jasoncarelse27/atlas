@@ -4,6 +4,7 @@
 import { PADDLE_CONFIG } from '../config/featureAccess';
 import { supabase } from '../lib/supabase';
 import type { Tier } from '../types/tier';
+import { subscriptionApi } from './subscriptionApi';
 
 export interface PaddleSubscription {
   id: string;
@@ -65,32 +66,37 @@ class PaddleService {
     }
 
     try {
-      const { data: subscription, error } = await supabase
-        .from('paddle_subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .single();
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        console.warn('No access token available for subscription status check');
+        return { tier: 'free', isActive: false };
+      }
+
+      // Use subscription API instead of direct Supabase call
+      const profile = await subscriptionApi.getUserProfile(userId, accessToken);
 
       let tier: Tier = 'free';
       let isActive = false;
 
-      if (subscription && !error) {
-        tier = subscription.tier;
-        isActive = this.isSubscriptionActive(subscription);
+      if (profile) {
+        tier = profile.subscription_tier;
+        isActive = profile.subscription_status === 'active';
       }
 
       // Cache the result
       this.subscriptionCache.set(userId, {
         userId,
         tier,
-        status: subscription?.status || 'none',
+        status: profile?.subscription_status || 'none',
         isActive,
         expiresAt: Date.now() + PADDLE_CONFIG.cacheTimeout,
         cachedAt: Date.now()
       });
 
-      return { tier, isActive, subscription };
+      return { tier, isActive };
 
     } catch (error) {
       console.error('Failed to get user subscription:', error);
