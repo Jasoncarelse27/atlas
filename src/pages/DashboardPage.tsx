@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import MessageErrorBoundary from '../components/MessageErrorBoundary';
 import MessageRenderer from '../components/MessageRenderer';
 import NavBar from '../components/NavBar';
@@ -9,6 +10,45 @@ import { supabase } from '../lib/supabase';
 import { fetchWithAuthJSON } from '../services/fetchWithAuth';
 import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
+
+// Sidebar Content Component
+interface SidebarContentProps {
+  onNewChat: () => void;
+  isSafeMode: boolean;
+}
+
+const SidebarContent: React.FC<SidebarContentProps> = ({ onNewChat, isSafeMode }) => {
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+      <div className="space-y-3">
+        <button 
+          onClick={onNewChat}
+          className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          Start New Chat
+        </button>
+        <button className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors">
+          View History
+        </button>
+        <button className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors">
+          Emotional Insights
+        </button>
+      </div>
+      
+      {/* SafeMode Status */}
+      <div className="mt-6 p-4 bg-gray-700/50 rounded-lg">
+        <h4 className="text-sm font-medium mb-2">Privacy Mode</h4>
+        <p className="text-xs text-gray-300">
+          {isSafeMode 
+            ? '🔒 SafeSpace Mode: Messages stored locally only'
+            : '🌐 Normal Mode: Messages may be processed by AI services'
+          }
+        </p>
+      </div>
+    </div>
+  );
+};
 
 // Error fallback component for production safety
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
@@ -46,6 +86,7 @@ interface DashboardPageProps {
 const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
   const navigate = useNavigate();
   const { clearMessages } = useMessageStore();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [conversation, setConversation] = useState({
     id: 'default',
     title: 'Welcome to Atlas AI',
@@ -302,78 +343,125 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* Navigation */}
-      <NavBar
-        user={user}
-        tier="free"
-        messageCount={0}
-        onLogout={handleLogout}
-      />
+      <div className="flex flex-col h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+        {/* Navigation */}
+        <NavBar
+          user={user}
+          tier="free"
+          messageCount={0}
+          onLogout={handleLogout}
+        />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button 
-                  onClick={() => {
-                    console.log('🆕 [FRONTEND] Starting new chat');
-                    // Clear stored conversation ID
-                    localStorage.removeItem("atlas_conversation_id");
-                    console.log("🗑️ [FRONTEND] Cleared conversationId — starting fresh");
-                    // Reset conversation state
-                    setConversation({
-                      id: 'default',
-                      title: 'Welcome to Atlas AI',
-                      messages: [
-                        {
-                          id: '1',
-                          role: 'assistant',
-                          content: 'Hello! I\'m Atlas, your AI-powered emotional intelligence companion. How can I help you today?',
-                          timestamp: new Date().toISOString()
-                        }
-                      ],
-                      lastUpdated: new Date().toISOString(),
-                      createdAt: new Date().toISOString()
-                    });
-                  }}
-                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors"
+        {/* Main Layout Container */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Mobile Sidebar Overlay */}
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                  onClick={() => setIsSidebarOpen(false)}
+                />
+                
+                {/* Sidebar */}
+                <motion.aside
+                  initial={{ x: "-100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "-100%" }}
+                  transition={{ type: "spring", stiffness: 200, damping: 30 }}
+                  className="fixed top-0 left-0 h-full w-80 bg-gray-800/95 backdrop-blur-xl z-50 border-r border-gray-700 md:hidden"
                 >
-                  Start New Chat
-                </button>
-                <button className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors">
-                  View History
-                </button>
-                <button className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors">
-                  Emotional Insights
-                </button>
-              </div>
-              
-              {/* SafeMode Status */}
-              <div className="mt-6 p-4 bg-gray-700/50 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Privacy Mode</h4>
-                <p className="text-xs text-gray-300">
-                  {isSafeMode 
-                    ? '🔒 SafeSpace Mode: Messages stored locally only'
-                    : '🌐 Normal Mode: Messages may be processed by AI services'
-                  }
-                </p>
-              </div>
+                  <div className="p-6">
+                    {/* Close Button */}
+                    <div className="flex justify-end mb-6">
+                      <button
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                      {/* Sidebar Content */}
+                      <SidebarContent 
+                        onNewChat={() => {
+                          console.log('🆕 [FRONTEND] Starting new chat');
+                          localStorage.removeItem("atlas_conversation_id");
+                          console.log("🗑️ [FRONTEND] Cleared conversationId — starting fresh");
+                          setConversation({
+                            id: 'default',
+                            title: 'Welcome to Atlas AI',
+                            messages: [{
+                              id: '1',
+                              role: 'assistant',
+                              content: 'Hello! I\'m Atlas, your AI-powered emotional intelligence companion. How can I help you today?',
+                              timestamp: new Date().toISOString()
+                            }],
+                            lastUpdated: new Date().toISOString(),
+                            createdAt: new Date().toISOString()
+                          });
+                          setIsSidebarOpen(false); // Close mobile sidebar
+                        }}
+                        isSafeMode={isSafeMode}
+                      />
+                    </div>
+                  </div>
+                </motion.aside>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* Desktop Sidebar */}
+          <aside className="hidden md:block w-80 bg-gray-800/50 backdrop-blur-sm border-r border-gray-700 overflow-y-auto">
+            <div className="p-6">
+              <SidebarContent 
+                onNewChat={() => {
+                  console.log('🆕 [FRONTEND] Starting new chat');
+                  localStorage.removeItem("atlas_conversation_id");
+                  console.log("🗑️ [FRONTEND] Cleared conversationId — starting fresh");
+                  setConversation({
+                    id: 'default',
+                    title: 'Welcome to Atlas AI',
+                    messages: [{
+                      id: '1',
+                      role: 'assistant',
+                      content: 'Hello! I\'m Atlas, your AI-powered emotional intelligence companion. How can I help you today?',
+                      timestamp: new Date().toISOString()
+                    }],
+                    lastUpdated: new Date().toISOString(),
+                    createdAt: new Date().toISOString()
+                  });
+                }}
+                isSafeMode={isSafeMode}
+              />
             </div>
-          </div>
+          </aside>
 
           {/* Chat Area */}
-          <div className="lg:col-span-3">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden flex flex-col h-[600px]">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden flex flex-col h-full">
               {/* Chat Header */}
               <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">💬 Welcome to Atlas AI</h2>
-                  <p className="text-gray-400 text-sm">Your emotionally intelligent AI companion</p>
+                <div className="flex items-center gap-4">
+                  {/* Mobile Hamburger Menu */}
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="md:hidden p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">💬 Welcome to Atlas AI</h2>
+                    <p className="text-gray-400 text-sm">Your emotionally intelligent AI companion</p>
+                  </div>
                 </div>
                 <button
                   onClick={() => {
@@ -435,41 +523,38 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ user }) => {
                 )}
               </div>
               
-              {/* Usage Indicator Footer */}
-              
             </div>
           </div>
         </div>
-      </main>
 
-      {/* Message Input */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <ChatInputBar
-          onSendMessage={handleSendMessage}
-          onVoiceTranscription={handleSendMessage}
-          isProcessing={isProcessing}
-          userId={user?.id}
-          tier={userTier}
-          sessionId={conversation?.id || 'default'}
-          placeholder="Ask anything..."
-        />
-        
-        {/* Message counter for free tier */}
-        {userTier === "free" && (
-          <div className="mt-2 text-center">
-            <span
-              className={`
-                text-xs font-medium
-                ${messagesRemaining <= 0 ? "text-red-500" :
-                  messagesRemaining <= 5 ? "text-yellow-500" :
-                  "text-gray-400"}
-              `}
-            >
-              {messagesRemaining} messages remaining today
-            </span>
-          </div>
-        )}
-      </div>
+        {/* Message Input */}
+        <div className="p-4 bg-gray-900/50 backdrop-blur-sm border-t border-gray-700 safe-area-inset-bottom">
+          <ChatInputBar
+            onSendMessage={handleSendMessage}
+            onVoiceTranscription={handleSendMessage}
+            isProcessing={isProcessing}
+            userId={user?.id}
+            tier={userTier}
+            sessionId={conversation?.id || 'default'}
+            placeholder="Ask anything..."
+          />
+          
+          {/* Message counter for free tier */}
+          {userTier === "free" && (
+            <div className="mt-2 text-center">
+              <span
+                className={`
+                  text-xs font-medium
+                  ${messagesRemaining <= 0 ? "text-red-500" :
+                    messagesRemaining <= 5 ? "text-yellow-500" :
+                    "text-gray-400"}
+                `}
+              >
+                {messagesRemaining} messages remaining today
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </ErrorBoundary>
   );
