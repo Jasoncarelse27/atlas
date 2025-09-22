@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageUploader } from '../../components/ImageUploader';
 import { VoiceRecorder } from '../../components/VoiceRecorder';
+import { MicButton } from '../../components/MicButton';
+import { ImageButton } from '../../components/ImageButton';
 import { useMessageLimit } from '../../hooks/useMessageLimit';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUserTier } from '../../hooks/useUserTier';
@@ -101,7 +103,19 @@ export function InputToolbar({
     }
   }, [inputState.text, onSendMessage, blocked, onUpgrade, onError, increment]);
 
-  // Handle voice transcript
+  // Handle speech-to-text transcript (from MicButton)
+  const handleSpeechTranscript = useCallback((transcript: string) => {
+    // Add the transcribed text to the input field
+    setInputState(prev => ({ ...prev, text: transcript }));
+    
+    // Focus the textarea so user can review/edit
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(transcript.length, transcript.length);
+    }
+  }, []);
+
+  // Handle voice transcript (from VoiceRecorder modal)
   const handleVoiceTranscript = useCallback((transcript: string) => {
     if (blocked) {
       if (onUpgrade) {
@@ -117,7 +131,32 @@ export function InputToolbar({
     setInputState(prev => ({ ...prev, showVoiceRecorder: false }));
   }, [onSendMessage, blocked, onUpgrade, onError, increment]);
 
-  // Handle image selection
+  // Handle image file upload (from ImageButton)
+  const handleImageUpload = useCallback((file: File) => {
+    if (blocked) {
+      if (onUpgrade) {
+        onUpgrade();
+      } else {
+        onError('⚠️ Free tier limited to 15 messages. Upgrade to continue!');
+      }
+      return;
+    }
+
+    // Convert file to data URL for now (in production, you'd upload to a service)
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageUrl = e.target?.result as string;
+      onSendMessage(imageUrl, 'image', { 
+        fileName: file.name, 
+        fileSize: file.size, 
+        fileType: file.type 
+      });
+      increment(); // Increment message count
+    };
+    reader.readAsDataURL(file);
+  }, [onSendMessage, blocked, onUpgrade, onError, increment]);
+
+  // Handle image selection (from ImageUploader modal)
   const handleImageSelected = useCallback((imageUrl: string, metadata: any) => {
     if (blocked) {
       if (onUpgrade) {
@@ -195,7 +234,7 @@ export function InputToolbar({
   return (
     <>
       {/* Main Input Toolbar */}
-      <div className="border-t border-gray-200 bg-white p-4">
+      <div className="border-t border-gray-200 bg-white p-4 pb-safe">
         <div className="flex items-end space-x-3">
           {/* Text Input */}
           <div className="flex-1 relative">
@@ -231,62 +270,71 @@ export function InputToolbar({
             )}
           </div>
 
-          {/* Voice Button */}
-          <button
-            onClick={handleVoiceClick}
-            disabled={!canUseVoice}
-            className={`p-2 rounded-lg transition-colors ${
-              canUseVoice
-                ? 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
-                : 'text-gray-400 cursor-not-allowed'
-            }`}
-            title={
-              !canUse('audio') 
-                ? 'Voice features available in Atlas Core' 
-                : !isOnline 
-                  ? 'Voice unavailable offline' 
-                  : 'Record voice message'
-            }
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
-          </button>
+          {/* Action Buttons Row */}
+          <div className="flex flex-row items-center gap-2">
+            {/* Mic Button (speech-to-text) */}
+            <MicButton onTranscribe={handleSpeechTranscript} />
 
-          {/* Image Button */}
-          <button
-            onClick={handleImageClick}
-            disabled={!canUseImage}
-            className={`p-2 rounded-lg transition-colors ${
-              canUseImage
-                ? 'text-green-600 hover:bg-green-50 hover:text-green-700'
-                : 'text-gray-400 cursor-not-allowed'
-            }`}
-            title={
-              !canUse('image') 
-                ? 'Image analysis available in Atlas Core' 
-                : !isOnline 
-                  ? 'Image upload unavailable offline' 
-                  : 'Add image'
-            }
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </button>
+            {/* Image Button (file upload) */}
+            <ImageButton onImageUpload={handleImageUpload} />
 
-          {/* Send Button */}
-          <button
-            onClick={handleSend}
-            disabled={!canSendText}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              canSendText
-                ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            Send
-          </button>
+            {/* Legacy Voice Button (opens modal) */}
+            <button
+              onClick={handleVoiceClick}
+              disabled={!canUseVoice}
+              className={`p-2 rounded-lg transition-colors ${
+                canUseVoice
+                  ? 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+                  : 'text-gray-400 cursor-not-allowed'
+              }`}
+              title={
+                !canUse('audio') 
+                  ? 'Voice features available in Atlas Core' 
+                  : !isOnline 
+                    ? 'Voice unavailable offline' 
+                    : 'Record voice message (modal)'
+              }
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+
+            {/* Legacy Image Button (opens modal) */}
+            <button
+              onClick={handleImageClick}
+              disabled={!canUseImage}
+              className={`p-2 rounded-lg transition-colors ${
+                canUseImage
+                  ? 'text-green-600 hover:bg-green-50 hover:text-green-700'
+                  : 'text-gray-400 cursor-not-allowed'
+              }`}
+              title={
+                !canUse('image') 
+                  ? 'Image analysis available in Atlas Core' 
+                  : !isOnline 
+                    ? 'Image upload unavailable offline' 
+                    : 'Add image (modal)'
+              }
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+
+            {/* Send Button */}
+            <button
+              onClick={handleSend}
+              disabled={!canSendText}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                canSendText
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Send
+            </button>
+          </div>
         </div>
 
         {/* Status Messages */}
