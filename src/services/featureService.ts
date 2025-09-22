@@ -1,95 +1,83 @@
-// Feature Attempt Logging Service
-// Tracks feature usage attempts for analytics and upgrade funnel analysis
-
 import { supabase } from '../lib/supabase';
 
 export interface FeatureAttempt {
-  user_id: string;
-  feature: string;
-  tier: string;
-  allowed: boolean;
-  upgrade_shown: boolean;
-  timestamp: string;
+  feature: 'mic' | 'image' | 'photo';
+  success: boolean;
+  upgradeShown?: boolean;
 }
 
-class FeatureService {
+export class FeatureService {
   /**
-   * Log a feature attempt for analytics
+   * Log a feature attempt to Supabase
    */
-  async logFeatureAttempt(
-    feature: string, 
-    allowed: boolean, 
+  async logAttempt(
+    userId: string, 
+    feature: FeatureAttempt['feature'], 
+    success: boolean,
     upgradeShown: boolean = false
   ): Promise<void> {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.warn('No user found for feature attempt logging');
-        return;
-      }
-
-      // Get user's current tier
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', user.id)
-        .single();
-
-      const tier = profile?.subscription_tier || 'free';
-
-      // Log the attempt
       const { error } = await supabase
         .from('feature_attempts')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           feature,
-          tier,
-          allowed,
+          success,
           upgrade_shown: upgradeShown,
-          timestamp: new Date().toISOString()
+          attempted_at: new Date().toISOString()
         });
 
       if (error) {
         console.error('Failed to log feature attempt:', error);
       } else {
-        console.log(`[FeatureService] Logged ${feature} attempt: allowed=${allowed}, upgrade_shown=${upgradeShown}`);
+        console.log(`Feature attempt logged: ${feature}, success: ${success}, upgrade_shown: ${upgradeShown}`);
       }
-    } catch (error) {
-      console.error('Error in logFeatureAttempt:', error);
+    } catch (err) {
+      console.error('Error logging feature attempt:', err);
     }
   }
 
   /**
-   * Get feature attempt statistics
+   * Get feature attempt stats for a user
    */
-  async getFeatureStats(feature?: string): Promise<FeatureAttempt[]> {
+  async getUserStats(userId: string): Promise<{
+    total: number;
+    successful: number;
+    failed: number;
+    byFeature: Record<string, { total: number; successful: number }>;
+  }> {
     try {
       const { data, error } = await supabase
         .from('feature_attempts')
-        .select('*')
-        .order('timestamp', { ascending: false });
+        .select('feature, success')
+        .eq('user_id', userId);
 
       if (error) {
-        console.error('Failed to fetch feature stats:', error);
-        return [];
+        console.error('Failed to fetch user stats:', error);
+        return { total: 0, successful: 0, failed: 0, byFeature: {} };
       }
 
-      return feature ? data.filter(attempt => attempt.feature === feature) : data;
-    } catch (error) {
-      console.error('Error fetching feature stats:', error);
-      return [];
+      const total = data.length;
+      const successful = data.filter(d => d.success).length;
+      const failed = total - successful;
+
+      const byFeature = data.reduce((acc, item) => {
+        if (!acc[item.feature]) {
+          acc[item.feature] = { total: 0, successful: 0 };
+        }
+        acc[item.feature].total++;
+        if (item.success) {
+          acc[item.feature].successful++;
+        }
+        return acc;
+      }, {} as Record<string, { total: number; successful: number }>);
+
+      return { total, successful, failed, byFeature };
+    } catch (err) {
+      console.error('Error fetching user stats:', err);
+      return { total: 0, successful: 0, failed: 0, byFeature: {} };
     }
   }
 }
 
 export const featureService = new FeatureService();
-
-// Convenience function for logging feature attempts
-export const logFeatureAttempt = async (
-  feature: string, 
-  allowed: boolean = false, 
-  upgradeShown: boolean = false
-): Promise<void> => {
-  await featureService.logFeatureAttempt(feature, allowed, upgradeShown);
-};
