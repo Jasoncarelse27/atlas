@@ -68,13 +68,13 @@ export default function AttachmentMenu({
         <motion.div
           className="absolute bg-gray-900 rounded-2xl p-4 shadow-2xl border border-gray-700 w-80"
           style={{
-            left: triggerPosition.x - 160, // Center the menu (320px width / 2)
-            top: triggerPosition.y - 200,  // Position above the trigger
+            left: triggerPosition.x - 140, // Center the menu (320px width / 2) - slight adjustment
+            top: triggerPosition.y - 220,  // Position above the trigger with more spacing
           }}
           initial={{ 
             scale: 0.3,
             opacity: 0,
-            y: 20,
+            y: 30,
             transformOrigin: "bottom center"
           }}
           animate={{ 
@@ -85,7 +85,8 @@ export default function AttachmentMenu({
           exit={{ 
             scale: 0.3,
             opacity: 0,
-            y: 20
+            y: 30,
+            transition: { duration: 0.15 }
           }}
           transition={{ 
             type: 'spring', 
