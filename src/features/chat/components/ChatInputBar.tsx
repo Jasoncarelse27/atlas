@@ -12,7 +12,7 @@ interface ChatInputBarProps {
   placeholder?: string;
 }
 
-export const ChatInputBar: React.FC<ChatInputBarProps> = ({
+const ChatInputBar: React.FC<ChatInputBarProps> = ({
   onSendMessage,
   onVoiceTranscription,
   isProcessing,
@@ -32,3 +32,5 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     />
   );
 };
+
+export default ChatInputBar;
