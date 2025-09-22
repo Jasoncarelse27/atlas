@@ -1,0 +1,24 @@
+name: Test Slack Success Alert
+
+on:
+  workflow_dispatch:
+
+jobs:
+  slack-success-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send success Slack alert
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+            \"attachments\": [
+              {
+                \"color\": \"#36a64f\",
+                \"title\": \"✅ Atlas CICD Test Alert\",
+                \"text\": \"Webhook is working! This is a SUCCESS message.\",
+                \"footer\": \"GitHub Actions • Atlas Security\",
+                \"ts\": $(date +%s)
+              }
+            ]
+          }" \
+          ${{ secrets.CICD_ALERT_URL }}

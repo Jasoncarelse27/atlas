@@ -1,0 +1,24 @@
+name: Test Slack Failure Alert
+
+on:
+  workflow_dispatch:
+
+jobs:
+  slack-failure-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure Slack alert
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+            \"attachments\": [
+              {
+                \"color\": \"#FF0000\",
+                \"title\": \"🚨 Atlas CICD Failure Test\",
+                \"text\": \"This is a FAILURE message test. Use this format for secret scan alerts.\",
+                \"footer\": \"GitHub Actions • Atlas Security\",
+                \"ts\": $(date +%s)
+              }
+            ]
+          }" \
+          ${{ secrets.CICD_ALERT_URL }}
