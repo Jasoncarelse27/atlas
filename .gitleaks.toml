@@ -12,7 +12,7 @@ tags = ["paddle", "apikey"]
 [[rules]]
 id = "supabase-key"
 description = "Supabase Service Key"
-regex = '''SUPABASE_[A-Z0-9_]+'''
+regex = '''SUPABASE_SERVICE_KEY|SUPABASE_SERVICE_ROLE_KEY'''
 tags = ["supabase", "apikey"]
 
 [[rules]]
@@ -59,15 +59,54 @@ regexes = [
   '''pri_core_plan''',
   '''pri_studio_plan''',
   '''your_client_token_here''',
+  '''test-anon-key''',
+  '''test\.supabase\.co''',
+  '''VITE_SUPABASE_URL''',
+  '''VITE_SUPABASE_ANON_KEY''',
+  '''SUPABASE_URL''',
+  '''SUPABASE_ANON_KEY''',
+  '''SUPABASE_SERVICE_KEY''',
+  '''SUPABASE_SERVICE_ROLE_KEY''',
+  '''process\.env\.SUPABASE''',
+  '''Deno\.env\.get\("SUPABASE''',
+  '''import\.meta\.env\.VITE_SUPABASE''',
 ]
 paths = [
-  '''supabase.env.example''',
-  '''README.md''',
+  '''supabase\.env\.example''',
+  '''README\.md''',
+  '''README\.LAUNCH\.md''',
   '''docs/.*''',
   '''\.env\.example''',
   '''\.env\.local\.example''',
   '''\.env\.production\.example''',
   '''\.env\.test\.example''',
+  '''\.env\.staging\.example''',
+  '''\.env\.backup.*''',
   '''\.gitleaks\.toml''',
   '''scripts/.*''',
+  '''supabase/\.temp/.*''',
+  '''supabase/supabase-temp-backup/.*''',
+  '''test-.*\.sh''',
+  '''tier-gate-setup\.sh''',
+  '''vitest\.config\.ts''',
+  '''src/vite-env\.d\.ts''',
+  '''src/lib/supabaseClient\.ts''',
+  '''src/utils/authFetch\.ts''',
+  '''\.github/workflows/.*''',
+  '''backend/.*''',
+  '''config/.*''',
+  '''deploy.*\.sh''',
+  '''atlas-migration.*''',
+  '''monitor-.*\.sh''',
+  '''sanity-.*\.sh''',
+  '''setup-.*\.sh''',
+  '''deploy-config\.js''',
+  '''public/\.env''',
+  '''\.md$''',
+  '''\.pem$''',
+  '''test-.*\.js''',
+  '''src/__tests__/.*''',
+  '''src/components/.*''',
+  '''src/lib/.*''',
+  '''supabase/functions/.*''',
 ]
