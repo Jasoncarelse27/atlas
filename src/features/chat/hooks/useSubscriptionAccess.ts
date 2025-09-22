@@ -162,7 +162,7 @@ export function useSubscriptionAccess({ userId }: UseSubscriptionAccessParams) {
     // Update in database
     try {
       await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', userId);
     } catch (err) {

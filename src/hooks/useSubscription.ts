@@ -116,9 +116,9 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         return;
       }
 
-      // Then fetch or create user_profile safely
+      // Then fetch or create profile safely
       const { data: profile, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
@@ -129,7 +129,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         const defaultProfile = createDefaultProfile(user.id);
         
         const { error: insertError } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .insert(defaultProfile);
 
         if (insertError) {
@@ -335,9 +335,9 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
 
       // Update the profile in the database
       const { error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ 
-          tier, 
+          subscription_tier: tier, 
           subscription_status: 'active',
           updated_at: new Date().toISOString(),
           // If upgrading from free, set a subscription ID

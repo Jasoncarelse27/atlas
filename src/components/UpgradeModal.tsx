@@ -37,15 +37,48 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 }) => {
   const config = featureConfig[feature];
 
-  const handleUpgrade = () => {
+  const handleUpgrade = async () => {
     // TODO: Integrate with Paddle checkout
     console.log(`Upgrade to Core/Studio for ${feature} features`);
     
     if (onUpgrade) {
       onUpgrade();
     } else {
-      // Default upgrade action - could redirect to Paddle
-      window.open('https://atlas-ai.com/pricing', '_blank');
+      // For development: directly update tier in profiles table
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const targetTier = feature === 'voice' ? 'core' : 'studio';
+          
+          const { error } = await supabase
+            .from('profiles')
+            .update({ 
+              subscription_tier: targetTier,
+              subscription_status: 'active',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+
+          if (error) {
+            console.error('Error updating tier:', error);
+            toast.error('Failed to upgrade. Please try again.');
+            return;
+          }
+
+          console.log(`✅ Upgrade successful! Tier: ${targetTier} (voice + image unlocked)`);
+          toast.success(`✅ Upgrade successful! Tier: ${targetTier} (voice + image unlocked)`);
+          
+          // Refresh the page to update all components
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('Error in upgrade:', error);
+        toast.error('Failed to upgrade. Please try again.');
+      }
     }
     
     // Simulate successful upgrade for demo purposes

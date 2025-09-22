@@ -43,7 +43,7 @@ class SubscriptionService {
   async getUserProfile(userId: string): Promise<SubscriptionProfile | null> {
     try {
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
@@ -66,6 +66,7 @@ class SubscriptionService {
   async getUserTier(userId: string): Promise<UserTier> {
     try {
       const profile = await this.getUserProfile(userId);
+      console.log('[Subscription] Loaded tier:', profile?.subscription_tier);
       return profile?.subscription_tier || 'free';
     } catch (error) {
       const chatError = createChatError(error, {
@@ -223,7 +224,7 @@ class SubscriptionService {
 
       // Update user profile with new tier
       const { error: updateError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ 
           subscription_tier: request.newTier,
           subscription_status: 'trialing',

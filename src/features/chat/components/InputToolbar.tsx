@@ -165,9 +165,11 @@ export function InputToolbar({
   // Handle voice button click
   const handleVoiceClick = useCallback(() => {
     if (!canUse('audio')) {
+      console.log('[Gating] Free user blocked from voice features');
       showUpgradeModal('Voice');
       return;
     }
+    console.log('[Gating] Core/Studio user granted voice access');
     if (!isOnline) {
       onError('Voice features require an internet connection');
       return;
@@ -178,9 +180,11 @@ export function InputToolbar({
   // Handle image button click
   const handleImageClick = useCallback(() => {
     if (!canUse('image')) {
+      console.log('[Gating] Free user blocked from image features');
       showUpgradeModal('Image analysis');
       return;
     }
+    console.log('[Gating] Core/Studio user granted image access');
     if (!isOnline) {
       onError('Image features require an internet connection');
       return;

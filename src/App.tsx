@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import LoadingSpinner from './components/LoadingSpinner';
+import { DevTierSwitcher } from './components/DevTierSwitcher';
 import AuthPage from './pages/AuthPage';
 import ChatPage from './pages/ChatPage';
 import DashboardPage from './pages/DashboardPage';
@@ -725,6 +726,9 @@ function App() {
             />
           </Routes>
         </Router>
+        
+        {/* Developer Tier Switcher - Only shows in development */}
+        <DevTierSwitcher />
       </QueryClientProvider>
     </>
   );
