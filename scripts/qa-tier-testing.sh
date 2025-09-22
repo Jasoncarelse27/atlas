@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 # Test configuration
 FRONTEND_URL="http://localhost:5175"
 BACKEND_URL="http://localhost:3000"
-SUPABASE_URL="https://rbwabemtucdkytvvpzvk.supabase.co"
+SUPABASE_URL=${SUPABASE_URL:?Supabase URL must be set in env}
 
 # Test user credentials
 FREE_USER="freeuser@test.com"
