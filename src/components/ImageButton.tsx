@@ -1,7 +1,7 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 import { useFeatureAccess } from '../hooks/useTierAccess';
 import { logFeatureAttempt } from '../services/featureService';
-import toast from 'react-hot-toast';
 
 interface ImageButtonProps {
   onImageUpload: (file: File) => void;

@@ -167,10 +167,14 @@ app.use(cors({
   origin: [
     "http://localhost:5173",   // Vite dev server
     "http://localhost:5174",   // Backup Vite port
+    "http://localhost:5175",   // Additional Vite port
+    "http://localhost:5176",   // Additional Vite port
     "http://localhost:8081",   // Expo web
     "http://localhost:3000",   // Backend self-calls
     "http://192.168.0.10:5173",
     "http://192.168.0.10:5174",
+    "http://192.168.0.10:5175",
+    "http://192.168.0.10:5176",
     /^https:\/\/atlas-.*\.vercel\.app$/,
     /^https:\/\/atlas.*\.up\.railway\.app$/,
     /^https:\/\/.*\.railway\.app$/

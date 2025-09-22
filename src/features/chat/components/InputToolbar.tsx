@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ImageUploader } from '../../components/ImageUploader';
-import { VoiceRecorder } from '../../components/VoiceRecorder';
-import { MicButton } from '../../components/MicButton';
 import { ImageButton } from '../../components/ImageButton';
+import { ImageUploader } from '../../components/ImageUploader';
+import { MicButton } from '../../components/MicButton';
+import { VoiceRecorder } from '../../components/VoiceRecorder';
 import { useMessageLimit } from '../../hooks/useMessageLimit';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUserTier } from '../../hooks/useUserTier';
@@ -234,7 +234,7 @@ export function InputToolbar({
   return (
     <>
       {/* Main Input Toolbar */}
-      <div className="border-t border-gray-200 bg-white p-4 pb-safe">
+      <div className="border-t border-gray-200 bg-white p-4 pb-6 safe-area-inset-bottom">
         <div className="flex items-end space-x-3">
           {/* Text Input */}
           <div className="flex-1 relative">
