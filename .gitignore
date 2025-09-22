@@ -13,11 +13,11 @@ dist-ssr
 *.local
 
 # Environment files (contains sensitive API keys)
-.env
-.env.local
-.env.production
-.env.development
-.env.*.local
+.env*
+!.env.example
+!.env.local.example
+!.env.production.example
+!.env.test.example
 
 # Editor directories and files
 .vscode/*
@@ -30,8 +30,3 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
-.env
-.env.local
-.env.local
-.env
-.env.*.backup

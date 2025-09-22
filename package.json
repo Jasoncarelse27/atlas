@@ -13,6 +13,7 @@
     ]
   },
   "scripts": {
+    "prepare": "husky install",
     "start": "NODE_ENV=production node backend/server.mjs",
     "dev": "NODE_ENV=development USE_MOCK_MAILER=true vite",
     "dev:qr": "./scripts/dev-qr.sh",

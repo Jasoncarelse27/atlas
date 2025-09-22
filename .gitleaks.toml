@@ -1,0 +1,71 @@
+title = "Atlas Secret Scanning Rules"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "paddle-api-key"
+description = "Paddle API Key"
+regex = '''pdl_(live|test)_[0-9a-zA-Z]{20,}'''
+tags = ["paddle", "apikey"]
+
+[[rules]]
+id = "supabase-key"
+description = "Supabase Service Key"
+regex = '''SUPABASE_[A-Z0-9_]+'''
+tags = ["supabase", "apikey"]
+
+[[rules]]
+id = "slack-token"
+description = "Slack Webhook or Token"
+regex = '''xox[baprs]-[0-9a-zA-Z-]+'''
+tags = ["slack", "token"]
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api[_-]?key|secret|token)\s*=\s*["']?[0-9a-zA-Z_-]{20,}["']?'''
+tags = ["generic", "apikey"]
+
+[[rules]]
+id = "openai-key"
+description = "OpenAI API Key"
+regex = '''sk-(live|test)?-[0-9a-zA-Z]{20,}'''
+tags = ["openai", "apikey"]
+
+[[rules]]
+id = "anthropic-key"
+description = "Anthropic API Key"
+regex = '''sk-ant-[0-9a-zA-Z-]+'''
+tags = ["anthropic", "apikey"]
+
+[[rules]]
+id = "database-url"
+description = "Database URL with credentials"
+regex = '''postgresql://[^:]+:[^@]+@[^/]+'''
+tags = ["database", "credentials"]
+
+[allowlist]
+description = "Allow safe patterns and files"
+# Example safe env placeholders
+regexes = [
+  '''your_api_key_here''',
+  '''example_key''',
+  '''dummy_secret''',
+  '''your_token_here''',
+  '''your_webhook_secret_here''',
+  '''your_supabase_url''',
+  '''your_supabase_anon_key''',
+  '''pri_core_plan''',
+  '''pri_studio_plan''',
+  '''your_client_token_here''',
+]
+paths = [
+  '''supabase.env.example''',
+  '''README.md''',
+  '''docs/.*''',
+  '''\.env\.example''',
+  '''\.env\.local\.example''',
+  '''\.env\.production\.example''',
+  '''\.env\.test\.example''',
+]

@@ -146,7 +146,7 @@ atlas/
 ### **Production Configuration**
 ```bash
 # Paddle Live API
-PADDLE_API_KEY=pdl_live_apikey_01k5pv2ptmhrfn8km6k35bvha2_dkb16PH8jPPwVYBVbT1Ka0_At7
+PADDLE_API_KEY=${{ secrets.PADDLE_API_KEY }}
 PADDLE_WEBHOOK_SECRET=your_webhook_secret_here
 
 # Frontend

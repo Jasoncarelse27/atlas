@@ -2,6 +2,9 @@
 
 A modern, scalable AI chat application with support for multiple AI models (Claude, Groq, Opus), voice input, image processing, and real-time insights.
 
+## 🔐 Security Status
+[![Secret Scan](https://github.com/Jasoncarelse27/atlas/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/Jasoncarelse27/atlas/actions/workflows/secret-scan.yml)
+
 ## 🚀 Features
 
 - **Multi-Model AI Support**: Switch between Claude, Groq, and Opus models

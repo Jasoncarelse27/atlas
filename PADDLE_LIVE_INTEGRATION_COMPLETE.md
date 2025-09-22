@@ -9,7 +9,7 @@
 ## 🎯 **What's Been Implemented**
 
 ### **1. Live Paddle API Integration**
-- ✅ **Live API Key**: `pdl_live_apikey_01k5pv2ptmhrfn8km6k35bvha2_dkb16PH8jPPwVYBVbT1Ka0_At7`
+- ✅ **Live API Key**: `${{ secrets.PADDLE_API_KEY }}`
 - ✅ **Production Environment**: Switched from sandbox to live
 - ✅ **Secure Backend**: API key only accessible server-side
 - ✅ **Checkout Sessions**: Dynamic checkout URL generation
@@ -45,7 +45,7 @@ VITE_PADDLE_CORE_PRICE_ID=pri_core_plan
 VITE_PADDLE_STUDIO_PRICE_ID=pri_studio_plan
 
 # Server-side API Keys
-PADDLE_API_KEY=pdl_live_apikey_01k5pv2ptmhrfn8km6k35bvha2_dkb16PH8jPPwVYBVbT1Ka0_At7
+PADDLE_API_KEY=${{ secrets.PADDLE_API_KEY }}
 PADDLE_WEBHOOK_SECRET=your_webhook_secret_here
 ```
 

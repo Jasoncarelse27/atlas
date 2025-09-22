@@ -2,14 +2,14 @@ name: Rollback Test (Staging)
 
 on:
   schedule:
-    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1' # Every Monday at 06:00 UTC
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  RECIPIENTS: "admin@otiumcreations.com,rima@otiumcreations.com"
+  RECIPIENTS: 'admin@otiumcreations.com,rima@otiumcreations.com'
 
 jobs:
   check-secrets:
@@ -37,6 +37,18 @@ jobs:
             echo "❌ Missing SUPABASE_DB_URL secret"
             exit 1
           fi
+          if [ -z "${{ secrets.SUPABASE_DB_HOST }}" ]; then
+            echo "❌ Missing SUPABASE_DB_HOST secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_DB_USER }}" ]; then
+            echo "❌ Missing SUPABASE_DB_USER secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_DB_PASS }}" ]; then
+            echo "❌ Missing SUPABASE_DB_PASS secret"
+            exit 1
+          fi
           echo "✅ All required secrets are configured"
 
   rollback-test:
@@ -58,17 +70,90 @@ jobs:
       - name: Dry Run Rollback SQL
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASS: ${{ secrets.SUPABASE_DB_PASS }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
         run: |
           echo "🧪 Running dry-run rollback test..."
-          psql "${SUPABASE_DB_URL}" -f supabase/migrations/20250914_rollback_subscription_columns.sql --set=ON_ERROR_STOP=off
+
+          # Debug: Show connection details (masked for security)
+          echo "🔍 Database connection details:"
+          echo "Host: ${SUPABASE_DB_HOST}"
+          echo "User: ${SUPABASE_DB_USER}"
+          echo "Database: ${SUPABASE_DB_NAME}"
+          echo "URL format: $(echo "${SUPABASE_DB_URL}" | sed 's/:[^:]*@/:***@/')"
+
+          # Validate host format
+          if [[ "${SUPABASE_DB_HOST}" =~ \.supabase\.co$ ]]; then
+            echo "✅ Host format is correct (.supabase.co)"
+          else
+            echo "❌ Host format is incorrect - should end with .supabase.co"
+            echo "Current host: ${SUPABASE_DB_HOST}"
+            exit 1
+          fi
+
+          # Test connection using individual parameters
+          echo "🔌 Testing database connection..."
+          PGPASSWORD="${SUPABASE_DB_PASS}" psql \
+            -h "${SUPABASE_DB_HOST}" \
+            -U "${SUPABASE_DB_USER}" \
+            -d "${SUPABASE_DB_NAME}" \
+            -c "SELECT 1;" || {
+            echo "❌ Database connection failed"
+            echo "Trying with full URL as fallback..."
+            psql "${SUPABASE_DB_URL}" -c "SELECT 1;" || {
+              echo "❌ Both connection methods failed"
+              exit 1
+            }
+          }
+
+          # Run the rollback migration using individual parameters
+          echo "📝 Running rollback migration..."
+          PGPASSWORD="${SUPABASE_DB_PASS}" psql \
+            -h "${SUPABASE_DB_HOST}" \
+            -U "${SUPABASE_DB_USER}" \
+            -d "${SUPABASE_DB_NAME}" \
+            -f supabase/migrations/20250914_rollback_subscription_columns.sql \
+            --set=ON_ERROR_STOP=off || {
+            echo "⚠️ Individual connection failed, trying URL method..."
+            psql "${SUPABASE_DB_URL}" -f supabase/migrations/20250914_rollback_subscription_columns.sql --set=ON_ERROR_STOP=off
+          }
           echo "✅ Dry run completed"
 
       - name: Confirm Audit Log
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASS: ${{ secrets.SUPABASE_DB_PASS }}
+          SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
         run: |
           echo "📊 Checking audit log..."
-          echo "SELECT * FROM migration_log ORDER BY executed_at DESC LIMIT 5;" | psql "${SUPABASE_DB_URL}"
+
+          # Test connection before querying
+          echo "🔌 Testing database connection for audit log..."
+          PGPASSWORD="${SUPABASE_DB_PASS}" psql \
+            -h "${SUPABASE_DB_HOST}" \
+            -U "${SUPABASE_DB_USER}" \
+            -d "${SUPABASE_DB_NAME}" \
+            -c "SELECT 1;" || {
+            echo "❌ Individual connection failed, trying URL method..."
+            psql "${SUPABASE_DB_URL}" -c "SELECT 1;" || {
+              echo "❌ Database connection failed for audit log"
+              exit 1
+            }
+          }
+
+          # Query audit log using individual parameters
+          echo "SELECT * FROM migration_log ORDER BY executed_at DESC LIMIT 5;" | \
+          PGPASSWORD="${SUPABASE_DB_PASS}" psql \
+            -h "${SUPABASE_DB_HOST}" \
+            -U "${SUPABASE_DB_USER}" \
+            -d "${SUPABASE_DB_NAME}" || {
+            echo "⚠️ Individual connection failed, trying URL method..."
+            echo "SELECT * FROM migration_log ORDER BY executed_at DESC LIMIT 5;" | psql "${SUPABASE_DB_URL}"
+          }
           echo "✅ Audit log check completed"
 
       - name: Run Rollback Notification (SUCCEEDED)
