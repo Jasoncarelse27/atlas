@@ -25,6 +25,29 @@ export default function AttachmentMenu({
   const { user } = useSupabaseAuth();
   const { canUseFeature, showUpgradeModal } = useTierAccess();
 
+  // Calculate responsive positioning
+  const getMenuPosition = () => {
+    const menuWidth = 320; // 320px (w-80)
+    const viewportWidth = window.innerWidth;
+    const isMobile = viewportWidth < 640; // sm breakpoint
+    
+    if (isMobile) {
+      // On mobile, center the menu and position it above the trigger
+      return {
+        left: Math.max(16, Math.min(triggerPosition.x - (menuWidth / 2), viewportWidth - menuWidth - 16)),
+        top: triggerPosition.y - 200,
+      };
+    } else {
+      // On desktop, use the original positioning
+      return {
+        left: triggerPosition.x - 140,
+        top: triggerPosition.y - 220,
+      };
+    }
+  };
+
+  const menuPosition = getMenuPosition();
+
   const handleFeaturePress = async (feature: 'photo' | 'image' | 'mic') => {
     if (!user) {
       toast.error('Please log in to use this feature');
@@ -66,10 +89,10 @@ export default function AttachmentMenu({
         onClick={onClose}
       >
         <motion.div
-          className="absolute bg-gray-900 rounded-2xl p-4 shadow-2xl border border-gray-700 w-80"
+          className="absolute bg-gray-900 rounded-2xl p-4 shadow-2xl border border-gray-700 w-80 max-w-[calc(100vw-2rem)] sm:w-80"
           style={{
-            left: triggerPosition.x - 140, // Center the menu (320px width / 2) - slight adjustment
-            top: triggerPosition.y - 220,  // Position above the trigger with more spacing
+            left: `${menuPosition.left}px`,
+            top: `${menuPosition.top}px`,
           }}
           initial={{ 
             scale: 0.3,
@@ -101,7 +124,7 @@ export default function AttachmentMenu({
             {/* Photo (Camera) */}
             <motion.button
               onClick={() => handleFeaturePress('photo')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-800 transition-colors touch-manipulation"
               whileTap={{ scale: 0.98 }}
             >
               <Camera size={20} className="text-gray-400" />
@@ -111,7 +134,7 @@ export default function AttachmentMenu({
             {/* Image (Gallery) */}
             <motion.button
               onClick={() => handleFeaturePress('image')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-800 transition-colors touch-manipulation"
               whileTap={{ scale: 0.98 }}
             >
               <ImageIcon size={20} className="text-gray-400" />
@@ -124,7 +147,7 @@ export default function AttachmentMenu({
             {/* Deep research */}
             <motion.button
               onClick={() => handleFeaturePress('mic')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-800 transition-colors touch-manipulation"
               whileTap={{ scale: 0.98 }}
             >
               <Mic size={20} className="text-gray-400" />
@@ -134,7 +157,7 @@ export default function AttachmentMenu({
             {/* Create image */}
             <motion.button
               onClick={() => handleFeaturePress('image')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-800 transition-colors touch-manipulation"
               whileTap={{ scale: 0.98 }}
             >
               <ImageIcon size={20} className="text-gray-400" />
@@ -144,7 +167,7 @@ export default function AttachmentMenu({
             {/* Agent mode */}
             <motion.button
               onClick={() => handleFeaturePress('mic')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-800 transition-colors touch-manipulation"
               whileTap={{ scale: 0.98 }}
             >
               <Mic size={20} className="text-gray-400" />
@@ -154,7 +177,7 @@ export default function AttachmentMenu({
             {/* Use connectors */}
             <motion.button
               onClick={() => handleFeaturePress('image')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-800 transition-colors touch-manipulation"
               whileTap={{ scale: 0.98 }}
             >
               <ImageIcon size={20} className="text-gray-400" />
@@ -164,7 +187,7 @@ export default function AttachmentMenu({
             {/* More */}
             <motion.button
               onClick={onClose}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="w-full flex items-center space-x-3 p-4 rounded-lg hover:bg-gray-800 transition-colors touch-manipulation"
               whileTap={{ scale: 0.98 }}
             >
               <span className="text-gray-400">...</span>

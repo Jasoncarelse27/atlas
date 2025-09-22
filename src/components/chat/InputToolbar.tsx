@@ -114,8 +114,8 @@ export default function InputToolbar({
   };
 
   return (
-    <div className="p-4 bg-transparent safe-area-inset-bottom">
-      <div className="flex items-center space-x-3">
+    <div className="p-3 sm:p-4 bg-transparent safe-area-inset-bottom">
+      <div className="flex items-center space-x-2 sm:space-x-3">
         {/* + Button */}
         <motion.button
           ref={plusButtonRef}
@@ -130,7 +130,7 @@ export default function InputToolbar({
             setMenuVisible(true);
           }}
           disabled={disabled}
-          className="p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 sm:p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
           whileTap={{ scale: 0.95 }}
           title="Add attachment"
         >
@@ -145,7 +145,7 @@ export default function InputToolbar({
           onChange={(e) => setText(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
-          className="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-full px-4 py-3 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-700/70 transition-colors"
+          className="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-full px-3 py-2 sm:px-4 sm:py-3 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-700/70 transition-colors text-base"
           disabled={isProcessing || disabled}
           autoComplete="off"
           autoCapitalize="sentences"
@@ -159,7 +159,7 @@ export default function InputToolbar({
         <motion.button
           onClick={handleMicPress}
           disabled={isProcessing || disabled}
-          className="p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 sm:p-2 rounded-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
           whileTap={{ scale: 0.95 }}
           title="Voice recording"
         >
