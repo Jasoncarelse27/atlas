@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ImageIcon, Mic, Plus, Send, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import UpgradeModal from '../../../components/UpgradeModal';
+import { MicButton } from '../../../components/MicButton';
+import { ImageButton } from '../../../components/ImageButton';
 import { imageService } from '../../../services/imageService';
 import VoiceInputWeb from './VoiceInputWeb';
 
@@ -75,6 +77,18 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       onVoiceTranscription(text);
     } else {
       onSendMessage(text);
+    }
+  };
+
+  // Handle speech-to-text from MicButton
+  const handleSpeechToText = (transcript: string) => {
+    // Add the transcribed text to the input field
+    setInputValue(transcript);
+    
+    // Focus the input so user can review/edit
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.setSelectionRange(transcript.length, transcript.length);
     }
   };
 
@@ -167,122 +181,144 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   }, []);
 
   return (
-    <div className="chat-input-bar">
-      {/* Expandable + button */}
-      <div className="relative" ref={menuRef}>
+    <div className="relative p-4 bg-gray-800/50 backdrop-blur-sm border-t border-gray-700">
+      <div className="flex items-center space-x-3">
+        {/* Mic Button (speech-to-text) */}
+        <MicButton onTranscribe={handleSpeechToText} />
+
+        {/* Image Button (file upload) */}
+        <ImageButton onImageUpload={(file) => {
+          // Handle image upload directly
+          if (!userId) {
+            alert("User not authenticated for image upload.");
+            return;
+          }
+          
+          // Convert file to data URL for now
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const imageUrl = e.target?.result as string;
+            onSendMessage(`Image uploaded: ${file.name}`);
+          };
+          reader.readAsDataURL(file);
+        }} />
+
+        {/* Expandable + button */}
+        <div className="relative" ref={menuRef}>
+          <motion.button
+            onClick={toggleExpanded}
+            disabled={disabled}
+            className="p-2 rounded-full bg-[#334155] text-white hover:bg-[#475569] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="More options"
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+          >
+            <motion.div
+              animate={{ rotate: expanded ? 45 : 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+            >
+              {expanded ? <X size={20} /> : <Plus size={20} />}
+            </motion.div>
+          </motion.button>
+
+          {/* Floating overlay menu */}
+          <AnimatePresence>
+            {expanded && (
+              <motion.div
+                className="absolute bottom-12 left-0 flex gap-3 bg-[#1E293B] rounded-lg shadow-lg p-2 border border-gray-600"
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                transition={{ 
+                  duration: 0.15, 
+                  ease: "easeOut"
+                }}
+              >
+                {/* Legacy Voice button (opens modal) */}
+                <motion.button
+                  onClick={handleMicClick}
+                  disabled={disabled || isProcessing}
+                  className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    !isPremium ? 'opacity-50 bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                  title={!isPremium ? "Voice recording (Core/Studio only)" : "Voice recording (modal)"}
+                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <Mic size={18} className="text-white" />
+                </motion.button>
+
+                {/* Legacy Image button (opens modal) */}
+                <motion.button
+                  onClick={handleImageClick}
+                  disabled={disabled || isProcessing || isUploadingImage}
+                  className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    !isPremium ? 'opacity-50 bg-gray-500' : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                  title={
+                    isUploadingImage 
+                      ? "Uploading image..." 
+                      : !isPremium 
+                        ? "Upload image (Core/Studio only)" 
+                        : "Upload image (modal)"
+                  }
+                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  {isUploadingImage ? (
+                    <motion.div 
+                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    />
+                  ) : (
+                    <ImageIcon size={18} className="text-white" />
+                  )}
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Text input */}
+        <motion.input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={handleKeyPress}
+          onFocus={() => {
+            setIsInputFocused(true);
+            setExpanded(false); // Auto-close menu when typing
+          }}
+          onBlur={() => setIsInputFocused(false)}
+          placeholder={placeholder}
+          className="flex-1 bg-transparent text-white px-2 py-2 text-base focus:outline-none"
+          disabled={isProcessing || disabled}
+          autoComplete="off"
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          spellCheck="true"
+          inputMode="text"
+          whileFocus={{ scale: 1.01 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        />
+
+        {/* Send button */}
         <motion.button
-          onClick={toggleExpanded}
-          disabled={disabled}
-          className="p-2 rounded-full bg-[#334155] text-white hover:bg-[#475569] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="More options"
+          onClick={handleSubmit}
+          disabled={isProcessing || disabled || !inputValue.trim()}
+          className="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-500 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
           whileTap={{ scale: 0.9 }}
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
-          <motion.div
-            animate={{ rotate: expanded ? 45 : 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-          >
-            {expanded ? <X size={20} /> : <Plus size={20} />}
-          </motion.div>
+          <Send size={18} />
         </motion.button>
-
-        {/* Floating overlay menu */}
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              className="absolute bottom-12 left-0 flex gap-3 bg-[#1E293B] rounded-lg shadow-lg p-2 border border-gray-600"
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.9 }}
-              transition={{ 
-                duration: 0.15, 
-                ease: "easeOut"
-              }}
-            >
-              {/* Mic button */}
-              <motion.button
-                onClick={handleMicClick}
-                disabled={disabled || isProcessing}
-                className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  !isPremium ? 'opacity-50 bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-                title={!isPremium ? "Voice recording (Core/Studio only)" : "Voice recording"}
-                whileTap={{ scale: 0.9 }}
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              >
-                <Mic size={18} className="text-white" />
-              </motion.button>
-
-              {/* Image button */}
-              <motion.button
-                onClick={handleImageClick}
-                disabled={disabled || isProcessing || isUploadingImage}
-                className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  !isPremium ? 'opacity-50 bg-gray-500' : 'bg-green-600 hover:bg-green-700'
-                }`}
-                title={
-                  isUploadingImage 
-                    ? "Uploading image..." 
-                    : !isPremium 
-                      ? "Upload image (Core/Studio only)" 
-                      : "Upload image"
-                }
-                whileTap={{ scale: 0.9 }}
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              >
-                {isUploadingImage ? (
-                  <motion.div 
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  />
-                ) : (
-                  <ImageIcon size={18} className="text-white" />
-                )}
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
-
-      {/* Text input */}
-      <motion.input
-        ref={inputRef}
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyPress={handleKeyPress}
-        onFocus={() => {
-          setIsInputFocused(true);
-          setExpanded(false); // Auto-close menu when typing
-        }}
-        onBlur={() => setIsInputFocused(false)}
-        placeholder={placeholder}
-        className="flex-1 bg-transparent text-white px-2 py-2 text-base focus:outline-none"
-        disabled={isProcessing || disabled}
-        autoComplete="off"
-        autoCapitalize="sentences"
-        autoCorrect="on"
-        spellCheck="true"
-        inputMode="text"
-        whileFocus={{ scale: 1.01 }}
-        transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      />
-
-      {/* Send button */}
-      <motion.button
-        onClick={handleSubmit}
-        disabled={isProcessing || disabled || !inputValue.trim()}
-        className="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-500 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-        whileTap={{ scale: 0.9 }}
-        whileHover={{ scale: 1.05 }}
-        transition={{ type: "spring", stiffness: 400, damping: 17 }}
-      >
-        <Send size={18} />
-      </motion.button>
 
       {/* Voice Input Overlay */}
       {showVoiceInput && (
