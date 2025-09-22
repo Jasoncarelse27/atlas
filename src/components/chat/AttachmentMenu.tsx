@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Camera, ImageIcon, Mic, X } from 'lucide-react';
+import { Camera, ImageIcon, Mic } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useTierAccess } from '../../hooks/useTierAccess';
@@ -66,7 +66,7 @@ export default function AttachmentMenu({
         onClick={onClose}
       >
         <motion.div
-          className="absolute bg-white rounded-2xl p-4 shadow-2xl border border-gray-200 w-80"
+          className="absolute bg-gray-900 rounded-2xl p-4 shadow-2xl border border-gray-700 w-80"
           style={{
             left: triggerPosition.x - 160, // Center the menu (320px width / 2)
             top: triggerPosition.y - 200,  // Position above the trigger
@@ -100,74 +100,74 @@ export default function AttachmentMenu({
             {/* Photo (Camera) */}
             <motion.button
               onClick={() => handleFeaturePress('photo')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <Camera size={20} className="text-gray-600" />
-              <span className="text-gray-700">Add photos & files</span>
+              <Camera size={20} className="text-gray-400" />
+              <span className="text-gray-200">Add photos & files</span>
             </motion.button>
 
             {/* Image (Gallery) */}
             <motion.button
               onClick={() => handleFeaturePress('image')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <ImageIcon size={20} className="text-gray-600" />
-              <span className="text-gray-700">Add from Google Drive</span>
+              <ImageIcon size={20} className="text-gray-400" />
+              <span className="text-gray-200">Add from Google Drive</span>
             </motion.button>
 
             {/* Divider */}
-            <div className="border-t border-gray-200 my-2"></div>
+            <div className="border-t border-gray-700 my-2"></div>
 
             {/* Deep research */}
             <motion.button
               onClick={() => handleFeaturePress('mic')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <Mic size={20} className="text-gray-600" />
-              <span className="text-gray-700">Deep research</span>
+              <Mic size={20} className="text-gray-400" />
+              <span className="text-gray-200">Deep research</span>
             </motion.button>
 
             {/* Create image */}
             <motion.button
               onClick={() => handleFeaturePress('image')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <ImageIcon size={20} className="text-gray-600" />
-              <span className="text-gray-700">Create image</span>
+              <ImageIcon size={20} className="text-gray-400" />
+              <span className="text-gray-200">Create image</span>
             </motion.button>
 
             {/* Agent mode */}
             <motion.button
               onClick={() => handleFeaturePress('mic')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <Mic size={20} className="text-gray-600" />
-              <span className="text-gray-700">Agent mode</span>
+              <Mic size={20} className="text-gray-400" />
+              <span className="text-gray-200">Agent mode</span>
             </motion.button>
 
             {/* Use connectors */}
             <motion.button
               onClick={() => handleFeaturePress('image')}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <ImageIcon size={20} className="text-gray-600" />
-              <span className="text-gray-700">Use connectors</span>
+              <ImageIcon size={20} className="text-gray-400" />
+              <span className="text-gray-200">Use connectors</span>
             </motion.button>
 
             {/* More */}
             <motion.button
               onClick={onClose}
-              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
               <span className="text-gray-400">...</span>
-              <span className="text-gray-700">More</span>
+              <span className="text-gray-200">More</span>
               <span className="text-gray-400 ml-auto">→</span>
             </motion.button>
           </div>
