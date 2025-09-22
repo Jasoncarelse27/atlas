@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { subscriptionApi } from '../services/subscriptionApi';
 
 interface DevTierSwitcherProps {
   onTierChange?: (newTier: string) => void;
@@ -32,18 +33,36 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching current tier:', error);
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        console.error('No access token available');
         return;
       }
 
-      setCurrentTier(data.subscription_tier || 'free');
+      // Use backend API to get current tier
+      try {
+        const tier = await subscriptionApi.getUserTier(user.id, accessToken);
+        setCurrentTier(tier);
+      } catch (apiError) {
+        console.warn('Backend API failed, falling back to direct Supabase:', apiError);
+        
+        // Fallback to direct Supabase call
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching current tier:', error);
+          return;
+        }
+
+        setCurrentTier(data.subscription_tier || 'free');
+      }
     } catch (err) {
       console.error('Error fetching tier:', err);
     }
@@ -56,29 +75,62 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
     try {
       console.log(`[DevTierSwitcher] Updating tier from ${currentTier} to ${newTier}`);
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          subscription_tier: newTier,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Error updating tier:', error);
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        console.error('No access token available');
         return;
       }
 
-      setCurrentTier(newTier);
-      onTierChange?.(newTier);
-      
-      // Show success message
-      console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
-      
-      // Refresh the page to update all components
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Use backend API to update tier
+      try {
+        const updatedProfile = await subscriptionApi.updateSubscriptionTier(
+          user.id, 
+          newTier as 'free' | 'core' | 'studio', 
+          accessToken
+        );
+        
+        console.log('✅ Tier updated via backend API:', updatedProfile);
+        setCurrentTier(newTier);
+        onTierChange?.(newTier);
+        
+        // Show success message
+        console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
+        
+        // Refresh the page to update all components
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } catch (apiError) {
+        console.warn('Backend API update failed, falling back to direct Supabase:', apiError);
+        
+        // Fallback to direct Supabase update
+        const { error } = await supabase
+          .from('profiles')
+          .update({ 
+            subscription_tier: newTier,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('Error updating tier:', error);
+          return;
+        }
+
+        setCurrentTier(newTier);
+        onTierChange?.(newTier);
+        
+        // Show success message
+        console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
+        
+        // Refresh the page to update all components
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
 
     } catch (err) {
       console.error('Error updating tier:', err);

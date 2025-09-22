@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { subscriptionApi } from '../services/subscriptionApi';
 import type { UsageCheck, UserProfile } from '../types/subscription';
 import { TIER_CONFIGS } from '../types/subscription';
 
@@ -52,98 +53,69 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     try {
       console.log('📊 Fetching user profile for:', user.id);
 
-      // First check if the user ID exists in auth.users
-      const { data: authUser, error: authError } = await supabase.auth.getUser();
-      if (authError || !authUser?.user?.id) {
-        throw new Error("Missing or invalid authenticated user.");
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
       }
 
-      // Try backend endpoint first with fallback creation
+      // Use the new subscription API service
       try {
-        const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const session = await supabase.auth.getSession();
-        const accessToken = session.data.session?.access_token;
+        const profile = await subscriptionApi.getUserProfile(user.id, accessToken);
         
-        if (!accessToken) {
-          throw new Error("No access token available");
+        if (profile) {
+          console.log('✅ Profile fetched from backend API:', profile);
+          setProfile(profile);
+        } else {
+          // Profile doesn't exist, create it
+          console.log('📊 Creating new profile via backend API...');
+          const newProfile = await subscriptionApi.createUserProfile(user.id, accessToken);
+          console.log('✅ Profile created via backend API:', newProfile);
+          setProfile(newProfile);
         }
+      } catch (apiError) {
+        console.warn('⚠️ Backend API failed, falling back to direct Supabase:', apiError);
         
-        const res = await fetch(`${backendUrl}/v1/user_profiles/${user.id}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (res.ok) {
-          const profileData = await res.json();
-          console.log('✅ Profile fetched from backend:', profileData);
-          setProfile(profileData);
+        // Fallback to direct Supabase client
+        if (!supabase || typeof supabase.from !== 'function') {
+          console.warn('⚠️ Supabase not configured, using mock profile');
+          const mockProfile = createDefaultProfile(user.id);
+          setProfile(mockProfile);
           setIsLoading(false);
           return;
-        } else if (res.status === 400) {
-          // Profile missing, auto-create fallback profile
-          console.warn('No profile found. Creating fallback profile...');
-          const createRes = await fetch(`${backendUrl}/v1/user_profiles`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              user_id: user.id
-            })
-          });
-
-          if (createRes.ok) {
-            const newProfile = await createRes.json();
-            console.log('✅ Created fallback profile:', newProfile);
-            setProfile(newProfile);
-            setIsLoading(false);
-            return;
-          }
         }
-      } catch (backendError) {
-        console.warn('⚠️ Backend profile fetch failed, falling back to direct Supabase:', backendError);
-      }
 
-      // Fallback to direct Supabase client
-      if (!supabase || typeof supabase.from !== 'function') {
-        console.warn('⚠️ Supabase not configured, using mock profile');
-        const mockProfile = createDefaultProfile(user.id);
-        setProfile(mockProfile);
-        setIsLoading(false);
-        return;
-      }
-
-      // Then fetch or create profile safely
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code === 'PGRST116') {
-        // Create fallback profile if missing
-        console.log('📊 Creating fallback profile for new user');
-        const defaultProfile = createDefaultProfile(user.id);
-        
-        const { error: insertError } = await supabase
+        // Then fetch or create profile safely
+        const { data: profile, error } = await supabase
           .from('profiles')
-          .insert(defaultProfile);
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-        if (insertError) {
-          console.error('❌ Error creating profile:', insertError);
-          setError(insertError.message);
+        if (error && error.code === 'PGRST116') {
+          // Create fallback profile if missing
+          console.log('📊 Creating fallback profile for new user');
+          const defaultProfile = createDefaultProfile(user.id);
+          
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert(defaultProfile);
+
+          if (insertError) {
+            console.error('❌ Error creating profile:', insertError);
+            setError(insertError.message);
+          } else {
+            setProfile(defaultProfile);
+          }
+        } else if (error) {
+          console.error('❌ Error fetching profile:', error);
+          setError(error.message);
         } else {
-          setProfile(defaultProfile);
+          console.log('✅ Profile fetched successfully:', profile);
+          setProfile(profile);
         }
-      } else if (error) {
-        console.error('❌ Error fetching profile:', error);
-        setError(error.message);
-      } else {
-        console.log('✅ Profile fetched successfully:', profile);
-        setProfile(profile);
       }
     } catch (err) {
       console.error('❌ Unexpected error in fetchProfile:', err);
@@ -321,47 +293,69 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     try {
       console.log('📊 Updating subscription tier to:', tier);
       
-      // Check if supabase is properly configured
-      if (!supabase || typeof supabase.from !== 'function') {
-        console.warn('⚠️ Supabase not configured, updating local state only');
-        setProfile(prev => prev ? { 
-          ...prev, 
-          tier, 
-          subscription_status: 'active',
-          updated_at: new Date().toISOString()
-        } : null);
-        return;
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
       }
 
-      // Update the profile in the database
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          subscription_tier: tier, 
-          subscription_status: 'active',
-          updated_at: new Date().toISOString(),
-          // If upgrading from free, set a subscription ID
-          ...(profile.tier === 'free' ? { 
-            subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-          } : {})
-        })
-        .eq('id', user.id);
+      // Use the subscription API service to update tier
+      try {
+        const updatedProfile = await subscriptionApi.updateSubscriptionTier(
+          user.id, 
+          tier as 'free' | 'core' | 'studio', 
+          accessToken
+        );
+        
+        console.log('✅ Subscription tier updated via backend API:', updatedProfile);
+        setProfile(updatedProfile);
+      } catch (apiError) {
+        console.warn('⚠️ Backend API update failed, falling back to direct Supabase:', apiError);
+        
+        // Fallback to direct Supabase client
+        if (!supabase || typeof supabase.from !== 'function') {
+          console.warn('⚠️ Supabase not configured, updating local state only');
+          setProfile(prev => prev ? { 
+            ...prev, 
+            tier, 
+            subscription_status: 'active',
+            updated_at: new Date().toISOString()
+          } : null);
+          return;
+        }
 
-      if (error) {
-        console.warn('⚠️ Error updating subscription tier:', error);
-        throw new Error(`Failed to update subscription: ${error.message}`);
-      } else {
-        console.log('✅ Subscription tier updated successfully');
-        // Update local state
-        setProfile(prev => prev ? { 
-          ...prev, 
-          tier, 
-          subscription_status: 'active',
-          updated_at: new Date().toISOString(),
-          ...(prev.tier === 'free' ? { 
-            subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-          } : {})
-        } : null);
+        // Update the profile in the database
+        const { error } = await supabase
+          .from('profiles')
+          .update({ 
+            subscription_tier: tier, 
+            subscription_status: 'active',
+            updated_at: new Date().toISOString(),
+            // If upgrading from free, set a subscription ID
+            ...(profile.tier === 'free' ? { 
+              subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+            } : {})
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          console.warn('⚠️ Error updating subscription tier:', error);
+          throw new Error(`Failed to update subscription: ${error.message}`);
+        } else {
+          console.log('✅ Subscription tier updated successfully');
+          // Update local state
+          setProfile(prev => prev ? { 
+            ...prev, 
+            tier, 
+            subscription_status: 'active',
+            updated_at: new Date().toISOString(),
+            ...(prev.tier === 'free' ? { 
+              subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+            } : {})
+          } : null);
+        }
       }
     } catch (err) {
       console.error('⚠️ Error in updateSubscriptionTier:', err);

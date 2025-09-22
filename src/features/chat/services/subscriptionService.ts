@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabase';
+import { subscriptionApi } from '../../../services/subscriptionApi';
 import type { UserTier } from '../hooks/useSubscriptionAccess';
 import { createChatError } from '../lib/errorHandler';
 
@@ -42,14 +43,31 @@ class SubscriptionService {
    */
   async getUserProfile(userId: string): Promise<SubscriptionProfile | null> {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
+      }
 
-      if (error) throw error;
-      return data;
+      // Use backend API to get profile
+      try {
+        const profile = await subscriptionApi.getUserProfile(userId, accessToken);
+        return profile as SubscriptionProfile | null;
+      } catch (apiError) {
+        console.warn('Backend API failed, falling back to direct Supabase:', apiError);
+        
+        // Fallback to direct Supabase call
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) throw error;
+        return data;
+      }
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'getUserProfile',
@@ -65,9 +83,27 @@ class SubscriptionService {
    */
   async getUserTier(userId: string): Promise<UserTier> {
     try {
-      const profile = await this.getUserProfile(userId);
-      console.log('[Subscription] Loaded tier:', profile?.subscription_tier);
-      return profile?.subscription_tier || 'free';
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
+      }
+
+      // Use backend API to get tier
+      try {
+        const tier = await subscriptionApi.getUserTier(userId, accessToken);
+        console.log('[Subscription] Loaded tier via backend API:', tier);
+        return tier;
+      } catch (apiError) {
+        console.warn('Backend API failed, falling back to direct Supabase:', apiError);
+        
+        // Fallback to direct Supabase call
+        const profile = await this.getUserProfile(userId);
+        console.log('[Subscription] Loaded tier via fallback:', profile?.subscription_tier);
+        return profile?.subscription_tier || 'free';
+      }
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'getUserTier',
@@ -211,35 +247,52 @@ class SubscriptionService {
    */
   async upgradeTier(request: UpgradeRequest): Promise<UpgradeResponse> {
     try {
-      // Create Paddle checkout session
-      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-paddle-checkout', {
-        body: {
-          userId: request.userId,
-          tier: request.newTier,
-          paymentMethod: request.paymentMethod,
-        },
-      });
+      // Get access token for backend API calls
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No access token available");
+      }
 
-      if (checkoutError) throw checkoutError;
+      // Use backend API to update tier
+      try {
+        const updatedProfile = await subscriptionApi.updateSubscriptionTier(
+          request.userId, 
+          request.newTier, 
+          accessToken
+        );
+        
+        console.log('✅ Tier upgraded via backend API:', updatedProfile);
+        
+        return {
+          success: true,
+          newTier: request.newTier,
+          subscriptionId: updatedProfile.subscription_id || `sub_${Date.now()}`,
+          checkoutUrl: undefined, // For development, no checkout URL needed
+        };
+      } catch (apiError) {
+        console.warn('Backend API upgrade failed, falling back to direct Supabase:', apiError);
+        
+        // Fallback to direct Supabase update
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            subscription_tier: request.newTier,
+            subscription_status: 'trialing',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', request.userId);
 
-      // Update user profile with new tier
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          subscription_tier: request.newTier,
-          subscription_status: 'trialing',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', request.userId);
+        if (updateError) throw updateError;
 
-      if (updateError) throw updateError;
-
-      return {
-        success: true,
-        newTier: request.newTier,
-        subscriptionId: checkoutData.subscriptionId,
-        checkoutUrl: checkoutData.checkoutUrl,
-      };
+        return {
+          success: true,
+          newTier: request.newTier,
+          subscriptionId: `sub_${Date.now()}`,
+          checkoutUrl: undefined,
+        };
+      }
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'upgradeTier',
