@@ -558,3 +558,4 @@ For support and questions:
 # Trigger new workflow run
 # Test Gitleaks license - run 2
 # Force Vercel deployment with latest fixes
+# Force new Vercel deployment
