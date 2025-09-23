@@ -1,14 +1,17 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { Camera, Image, Mic, Plus, Send } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Mic, Plus, Send } from 'lucide-react';
+import React, { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useTierAccess } from '../../hooks/useTierAccess';
 import { featureService } from '../../services/featureService';
+import type { Message } from '../../types/chat';
+import AttachmentMenu from './AttachmentMenu';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
   onVoiceTranscription?: (text: string) => void;
+  onFileMessage?: (message: Message) => void;
   isProcessing?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -17,6 +20,7 @@ interface EnhancedInputToolbarProps {
 export default function EnhancedInputToolbar({
   onSendMessage,
   onVoiceTranscription,
+  onFileMessage,
   isProcessing = false,
   disabled = false,
   placeholder = "Ask anything..."
@@ -28,7 +32,6 @@ export default function EnhancedInputToolbar({
   const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const handleSend = () => {
     if (!text.trim() || isProcessing || disabled) return;
@@ -104,24 +107,7 @@ export default function EnhancedInputToolbar({
     setMenuOpen(false);
   };
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current && 
-        !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setMenuOpen(false);
-      }
-    };
-
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [menuOpen]);
+  // Click outside detection is handled by AttachmentMenu component
 
   return (
     <div className="px-4 pb-4 bg-transparent">
@@ -142,42 +128,13 @@ export default function EnhancedInputToolbar({
           </motion.button>
 
           {/* Attachment Menu */}
-          <AnimatePresence>
-            {menuOpen && (
-              <motion.div
-                ref={menuRef}
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ duration: 0.15 }}
-                className="absolute bottom-full left-0 mb-2 bg-gray-900 rounded-lg shadow-lg border border-gray-700 p-2 flex flex-col min-w-[200px] z-50"
-              >
-                <button
-                  onClick={() => handleFeatureClick('image')}
-                  className="p-3 text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-3"
-                >
-                  <Image size={18} className="text-blue-400" />
-                  <span>Add Photo</span>
-                </button>
-                
-                <button
-                  onClick={() => handleFeatureClick('camera')}
-                  className="p-3 text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-3"
-                >
-                  <Camera size={18} className="text-green-400" />
-                  <span>Take Photo</span>
-                </button>
-                
-                <button
-                  onClick={() => handleFeatureClick('audio')}
-                  className="p-3 text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-3"
-                >
-                  <Mic size={18} className="text-purple-400" />
-                  <span>Record Audio</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {menuOpen && (
+            <AttachmentMenu
+              anchorRef={buttonRef}
+              onClose={() => setMenuOpen(false)}
+              onSendMessage={onFileMessage}
+            />
+          )}
         </div>
 
         {/* Text Input */}

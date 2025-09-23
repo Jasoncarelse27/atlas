@@ -9,6 +9,16 @@ export interface Message {
   status?: 'sending' | 'sent' | 'failed';
   audioUrl?: string;
   imageUrl?: string;
+  // Extended file support
+  type?: 'text' | 'image' | 'audio' | 'file';
+  url?: string; // for uploaded files
+  metadata?: {
+    filename?: string;
+    size?: number;
+    duration?: number; // for audio
+    dimensions?: { width: number; height: number }; // for images
+    transcript?: string; // for audio
+  };
 }
 
 export interface Conversation {

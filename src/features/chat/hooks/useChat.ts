@@ -25,6 +25,7 @@ interface UseChatReturn {
   
   // Actions
   handleSendMessage: (message: string) => Promise<void>;
+  handleFileMessage: (message: Message) => void;
   handleLogout: () => Promise<void>;
   deleteMessage: (id: string) => void;
   copyMessage: (content: string) => void;
@@ -174,6 +175,19 @@ export function useChat(userId?: string): UseChatReturn {
     }
   }, [userId, sendMessageMiddleware, isProcessing, middlewareLoading, conversation.id]);
 
+  // Handle file message (images, audio, etc.)
+  const handleFileMessage = useCallback((message: Message) => {
+    // Add file message to conversation
+    setConversation(prev => ({
+      ...prev,
+      messages: [...prev.messages, message],
+      lastUpdated: new Date().toISOString()
+    }));
+    
+    // Show success message
+    toast.success('File uploaded successfully!');
+  }, []);
+
   // Handle upgrade flow
   const handleUpgrade = useCallback(async (selectedTier: Tier) => {
     try {
@@ -217,6 +231,7 @@ export function useChat(userId?: string): UseChatReturn {
     
     // Actions
     handleSendMessage,
+    handleFileMessage,
     handleLogout,
     deleteMessage,
     copyMessage,

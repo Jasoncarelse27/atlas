@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
-import { useEffect, useRef, useState } from 'react';
+import { debounce } from 'lodash';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useConversations } from './hooks/useConversations';
 import { useCustomization } from './hooks/useCustomization';
@@ -9,6 +10,7 @@ import useThemeMode from './hooks/useThemeMode';
 import { useMessageLimit, useTierAccess } from './hooks/useTierAccess';
 import useVoiceRecognition from './hooks/useVoiceRecognition';
 import { supabase } from './lib/supabase';
+import { syncPendingUploads, testBackendConnection } from './services/syncService';
 import type { Message } from './types/chat';
 
 // Components
@@ -256,6 +258,19 @@ function App() {
     };
   }, []);
 
+  // 🔄 Debounced backend sync for upload retries
+  const debouncedSyncUploads = useMemo(
+    () =>
+      debounce(async () => {
+        const ok = await testBackendConnection();
+        if (ok) {
+          console.log("✅ Backend reachable, syncing pending uploads...");
+          await syncPendingUploads(); // Dexie flush + Edge retry
+        }
+      }, 30000), // 30 second debounce
+    []
+  );
+
   // Check connection status
   useEffect(() => {
     const checkConnection = async () => {
@@ -282,6 +297,9 @@ function App() {
             const data = await response.json();
             console.log('✅ Backend is alive:', data);
             console.log(`📊 Backend response time: ${Date.now() - Date.now()}ms`);
+            
+            // 🔄 Trigger debounced upload sync when backend is available
+            debouncedSyncUploads();
           } else {
             console.warn('⚠️ Backend responded with error:', response.status, response.statusText);
           }

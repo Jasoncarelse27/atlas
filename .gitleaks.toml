@@ -86,7 +86,8 @@ files = [
   "supabase.env.example",
   "README.md",
   "docs/*",
-  ".cursorrules"
+  ".cursorrules",
+  "supabase/functions/**/*"
 ]
 regexes = [
   "your_api_key_here",

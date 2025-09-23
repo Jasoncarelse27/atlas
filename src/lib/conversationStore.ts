@@ -21,15 +21,34 @@ export interface CachedConversation {
   user_id?: string;
 }
 
+export type PendingUploadStatus = "pending" | "sent" | "failed";
+export type PendingUploadType = "image" | "file" | "audio";
+
+export interface PendingUpload {
+  id?: number;
+  userId: string;
+  conversationId?: string | null;
+  feature: "attachments";
+  type: PendingUploadType;
+  fileName: string;
+  contentType: string;
+  blob: Blob;
+  status: PendingUploadStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
 class ConversationDB extends Dexie {
   messages!: Table<CachedMessage, string>;
   conversations!: Table<CachedConversation, string>;
+  pendingUploads!: Table<PendingUpload, number>;
 
   constructor() {
     super('AtlasConversationDB');
-    this.version(1).stores({
+    this.version(3).stores({
       conversations: 'id, lastUpdated, createdAt, user_id',
-      messages: 'id, conversation_id, role, timestamp, status'
+      messages: 'id, conversation_id, role, timestamp, status',
+      pendingUploads: '++id, userId, type, status, createdAt, conversationId'
     });
   }
 }

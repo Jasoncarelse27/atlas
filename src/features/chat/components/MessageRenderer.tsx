@@ -8,7 +8,7 @@ interface MessageRendererProps {
   onRetry?: () => void;
 }
 
-const MessageRenderer: React.FC<MessageRendererProps> = ({ message, isLastMessage = false, onRetry }) => {
+const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onRetry }) => {
   const { isSafeMode } = useSafeMode();
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
@@ -16,7 +16,70 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, isLastMessag
   const hasError = message.error || message.status === 'failed';
 
   const renderContent = () => {
-    // Content is a string, so we can render it directly
+    // Handle different message types
+    if (message.type === 'image' && message.url) {
+      return (
+        <div className="space-y-2">
+          <div className="text-sm text-gray-300">{message.content}</div>
+          <img
+            src={message.url}
+            alt="Uploaded image"
+            className="max-w-xs rounded-lg border border-gray-600 shadow-lg"
+            style={{ maxHeight: '300px', objectFit: 'cover' }}
+          />
+          {message.metadata?.dimensions && (
+            <div className="text-xs text-gray-400">
+              {message.metadata.dimensions.width} × {message.metadata.dimensions.height}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (message.type === 'audio' && message.url) {
+      return (
+        <div className="space-y-2">
+          <div className="text-sm text-gray-300">{message.content}</div>
+          <audio 
+            controls 
+            src={message.url} 
+            className="w-full max-w-sm"
+            style={{ backgroundColor: '#333', borderRadius: '8px' }}
+          >
+            Your browser does not support the audio element.
+          </audio>
+          {message.metadata?.duration && (
+            <div className="text-xs text-gray-400">
+              Duration: {Math.round(message.metadata.duration)}s
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (message.type === 'file' && message.url) {
+      return (
+        <div className="space-y-2">
+          <div className="text-sm text-gray-300">{message.content}</div>
+          <a
+            href={message.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-2 text-blue-400 hover:text-blue-300 underline"
+          >
+            <span>📎</span>
+            <span>{message.metadata?.filename || 'Download file'}</span>
+          </a>
+          {message.metadata?.size && (
+            <div className="text-xs text-gray-400">
+              Size: {(message.metadata.size / 1024 / 1024).toFixed(2)} MB
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Default text content
     return message.content || '';
   };
 

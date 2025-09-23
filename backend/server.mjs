@@ -61,6 +61,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
+import multer from "multer";
 import { logError, logInfo, logWarn } from "./utils/logger.mjs";
 
 // 🛡️ Import middleware stack
@@ -837,6 +838,89 @@ app.use((err, req, res, next) => {
     error: 'INTERNAL_ERROR',
     message: message
   });
+});
+
+// Configure multer for file uploads
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Auth sanity check endpoint
+app.get("/api/me", verifyJWT, (req, res) => {
+  res.json({ ok: true, user: req.user });
+});
+
+// --- File upload route: handles image, camera, audio, and file uploads ---
+app.post("/api/upload", verifyJWT, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const userId = req.user.id;
+    const filename = `${userId}/${Date.now()}-${req.file.originalname}`;
+    
+    console.log("📤 Upload request received for user:", userId, "file:", req.file.originalname);
+
+    // Upload to Supabase Storage
+    const { error: upErr } = await supabase.storage
+      .from("uploads")
+      .upload(filename, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true,
+      });
+    
+    if (upErr) {
+      console.error("❌ Supabase storage error:", upErr);
+      throw upErr;
+    }
+
+    const { data } = supabase.storage.from("uploads").getPublicUrl(filename);
+
+    // Insert into attachments table
+    await supabase.from("attachments").insert({
+      user_id: userId,
+      feature: req.body.feature || "file",
+      url: data.publicUrl,
+      content_type: req.file.mimetype,
+      size_bytes: req.file.size,
+      status: "sent", // Mark as successfully uploaded
+    });
+
+    console.log("✅ Upload successful:", data.publicUrl);
+    res.json({ url: data.publicUrl });
+  } catch (err) {
+    console.error("❌ Upload error:", err);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+// --- Ingestion route: records uploaded files so Atlas Brain can process them ---
+app.post("/api/ingest", express.json(), async (req, res) => {
+  try {
+    const { userId, conversationId = null, feature, url, contentType = null, size = null } = req.body;
+    if (!userId || !feature || !url) return res.status(400).json({ error: "Missing fields" });
+
+    const { error } = await supabase
+      .from("attachments")
+      .insert({ 
+        user_id: userId, 
+        conversation_id: conversationId, 
+        feature, 
+        url, 
+        content_type: contentType, 
+        size_bytes: size,
+        status: "sent" // Mark as successfully ingested
+      });
+
+    if (error) throw error;
+
+    // 👇 Stub hook for Atlas Brain (wire this later to your pipeline/queue)
+    console.log("[Ingest] queued for processing:", { userId, feature, url });
+
+    res.json({ ingested: true });
+  } catch (err) {
+    console.error("Ingest error:", err);
+    res.status(500).json({ error: "Ingest failed" });
+  }
 });
 
 // 🚨 Handle unhandled promise rejections

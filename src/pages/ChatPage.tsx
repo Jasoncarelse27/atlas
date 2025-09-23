@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
+import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import NavBar from '../components/NavBar';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
@@ -26,6 +27,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
     tier,
     model,
     handleSendMessage,
+    handleFileMessage,
     handleLogout,
     deleteMessage,
     copyMessage,
@@ -120,32 +122,34 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
             {/* Enhanced Chat Messages */}
             <div className="h-[calc(100vh-250px)] min-h-[400px] overflow-y-auto p-6 pb-24">
               <div className="max-w-4xl mx-auto space-y-4">
-                {conversation?.messages?.map((message, index) => (
-                  <EnhancedMessageBubble
-                    key={message.id}
-                    message={message}
-                    isLatest={index === conversation.messages.length - 1}
-                    isTyping={index === conversation.messages.length - 1 && isTyping}
-                  />
-                ))}
-                
-                {/* Typing Indicator */}
-                {isTyping && !conversation?.messages?.length && (
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center">
-                      <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                    <div className="flex-1 max-w-3xl">
-                      <div className="px-4 py-3 bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 rounded-2xl rounded-bl-md">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <MessageListWithPreviews>
+                  {conversation?.messages?.map((message, index) => (
+                    <EnhancedMessageBubble
+                      key={message.id}
+                      message={message}
+                      isLatest={index === conversation.messages.length - 1}
+                      isTyping={index === conversation.messages.length - 1 && isTyping}
+                    />
+                  ))}
+                  
+                  {/* Typing Indicator */}
+                  {isTyping && !conversation?.messages?.length && (
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                      <div className="flex-1 max-w-3xl">
+                        <div className="px-4 py-3 bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 rounded-2xl rounded-bl-md">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <div className="w-2 h-2 bg-[#B2BDA3] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </MessageListWithPreviews>
               </div>
             </div>
           </div>
@@ -156,6 +160,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           <EnhancedInputToolbar
             onSendMessage={handleEnhancedSendMessage}
             onVoiceTranscription={handleEnhancedSendMessage}
+            onFileMessage={handleFileMessage}
             isProcessing={isProcessing}
             placeholder="Ask Atlas anything..."
           />
