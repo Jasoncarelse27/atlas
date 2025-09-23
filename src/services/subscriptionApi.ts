@@ -162,27 +162,25 @@ class SubscriptionApiService {
     accessToken: string
   ): Promise<SubscriptionProfile> {
     try {
-      // For now, we'll use direct Supabase update since backend doesn't have this endpoint yet
-      // TODO: Add PUT /v1/user_profiles/:id endpoint to backend
-      const { supabase } = await import('../lib/supabase');
+      console.log(`[SubscriptionAPI] Updating tier for user ${userId} to ${newTier}`);
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ 
-          subscription_tier: newTier,
-          subscription_status: 'active',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+      const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}/tier`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ tier: newTier })
+      });
 
-      if (error) {
-        throw new Error(`Failed to update tier: ${error.message}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Failed to update subscription tier: ${response.status} ${response.statusText} - ${errorData.message || 'Unknown error'}`);
       }
 
-      console.log('[SubscriptionAPI] Tier updated to:', newTier);
-      return data;
+      const updatedProfile = await response.json();
+      console.log('[SubscriptionAPI] Tier updated successfully:', updatedProfile);
+      return updatedProfile;
     } catch (error) {
       console.error('[SubscriptionAPI] Error updating subscription tier:', error);
       throw error;

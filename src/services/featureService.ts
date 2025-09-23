@@ -1,4 +1,6 @@
 
+import debounce from 'lodash/debounce';
+
 export interface FeatureAttempt {
   feature: 'mic' | 'image' | 'photo' | 'camera' | 'audio';
   tier: 'free' | 'core' | 'studio';
@@ -6,13 +8,9 @@ export interface FeatureAttempt {
 
 export class FeatureService {
   /**
-   * Log a feature attempt via backend API
+   * Debounced feature attempt logging to prevent 429 spam
    */
-  async logAttempt(
-    userId: string, 
-    feature: FeatureAttempt['feature'], 
-    tier: FeatureAttempt['tier']
-  ): Promise<void> {
+  private debouncedLogAttempt = debounce(async (userId: string, feature: FeatureAttempt['feature'], tier: FeatureAttempt['tier']) => {
     try {
       // Use backend API instead of direct Supabase calls
       const response = await fetch('/api/feature-attempts', {
@@ -35,6 +33,17 @@ export class FeatureService {
     } catch (err) {
       console.error('Error logging feature attempt:', err);
     }
+  }, 1000, { leading: true, trailing: false });
+
+  /**
+   * Log a feature attempt via backend API (debounced)
+   */
+  async logAttempt(
+    userId: string, 
+    feature: FeatureAttempt['feature'], 
+    tier: FeatureAttempt['tier']
+  ): Promise<void> {
+    this.debouncedLogAttempt(userId, feature, tier);
   }
 
   /**

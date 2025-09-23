@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 import { useFeatureAccess } from '../hooks/useTierAccess';
-import { logFeatureAttempt } from '../services/featureService';
+import { FeatureService } from '../services/featureService';
 
 interface MicButtonProps {
   onTranscribe: (text: string) => void;
@@ -9,19 +10,25 @@ interface MicButtonProps {
 
 export function MicButton({ onTranscribe }: MicButtonProps) {
   const { canUse, attemptFeature } = useFeatureAccess('audio');
+  const { user } = useAuth();
   const [listening, setListening] = useState(false);
+  const featureService = new FeatureService();
 
   const handlePress = async () => {
     // Check if user has access to audio features
     const hasAccess = await attemptFeature();
     if (!hasAccess) {
       // Log the blocked attempt
-      await logFeatureAttempt('audio', false, true);
+      if (user?.id) {
+        await featureService.logAttempt(user.id, 'audio', 'free');
+      }
       return; // attemptFeature already shows upgrade modal
     }
 
     // Log successful access
-    await logFeatureAttempt('audio', true, false);
+    if (user?.id) {
+      await featureService.logAttempt(user.id, 'audio', 'free');
+    }
 
     // Check if browser supports speech recognition
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;

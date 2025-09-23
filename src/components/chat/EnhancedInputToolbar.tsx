@@ -25,7 +25,7 @@ export default function EnhancedInputToolbar({
   disabled = false,
   placeholder = "Ask anything..."
 }: EnhancedInputToolbarProps) {
-  const { user } = useSupabaseAuth();
+  const { user, tier } = useSupabaseAuth();
   const { canUseFeature, showUpgradeModal } = useTierAccess();
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -61,7 +61,7 @@ export default function EnhancedInputToolbar({
     const canUse = canUseFeature('audio');
     
     // Log the attempt
-    await featureService.logAttempt(user.id, 'mic', canUse, !canUse);
+    await featureService.logAttempt(user.id, 'mic', tier);
     
     if (!canUse) {
       toast.error('Voice features are available in Core & Studio plans. Upgrade to unlock!');

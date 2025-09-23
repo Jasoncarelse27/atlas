@@ -22,7 +22,7 @@ export default function InputToolbar({
   disabled = false,
   placeholder = "Ask anything..."
 }: InputToolbarProps) {
-  const { user } = useSupabaseAuth();
+  const { user, tier } = useSupabaseAuth();
   const { canUseFeature, showUpgradeModal } = useTierAccess();
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,7 +57,7 @@ export default function InputToolbar({
     const canUse = canUseFeature('audio');
     
     // Log the attempt
-    await featureService.logAttempt(user.id, 'mic', canUse, !canUse);
+    await featureService.logAttempt(user.id, 'mic', tier);
     
     if (!canUse) {
       showUpgradeModal('audio');

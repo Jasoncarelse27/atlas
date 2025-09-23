@@ -227,7 +227,7 @@ export function useTierAccess(): TierAccessReturn {
   // 🎯 ENHANCED: Upgrade modal with specific pricing
   const showUpgradeModal = useCallback((feature: string): void => {
     const message = getUpgradeMessage(feature);
-    const suggestedTier = feature === 'daily_limit' && tier === 'free' ? 'basic' : 'premium';
+    const suggestedTier = feature === 'daily_limit' && tier === 'free' ? 'core' : 'studio';
     const price = getTierPricing(suggestedTier);
     
     toast.error(message, {

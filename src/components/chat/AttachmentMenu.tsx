@@ -5,7 +5,7 @@ import { useSupabaseAuth } from "../../hooks/useSupabaseAuth";
 import { useTierAccess } from "../../hooks/useTierAccess";
 import { db } from "../../lib/conversationStore";
 import { supabase } from "../../lib/supabase";
-import { pushAttachmentPreview } from "../../services/chatPreview";
+// import { pushAttachmentPreview } from "../../services/chatPreview";
 import { featureService } from "../../services/featureService";
 import { syncPendingUploads } from "../../services/syncService";
 import { uploadWithAuth } from "../../services/uploadService";
@@ -61,13 +61,17 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       uploaded.contentType?.startsWith("image/") ? 'image' :
       uploaded.contentType?.startsWith("audio/") ? 'audio' : 'file';
 
-    pushAttachmentPreview({
-      id: crypto.randomUUID(),
-      kind,
-      url: uploaded.url,
-      filename,
-      contentType: uploaded.contentType
-    });
+    // Create a preview message for the uploaded file
+    if (onSendMessage) {
+      onSendMessage({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: `Uploaded ${kind}: ${filename}`,
+        type: kind,
+        url: uploaded.url,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // 2) Ingest record for Atlas Brain
     try {

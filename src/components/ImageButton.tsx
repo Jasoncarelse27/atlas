@@ -1,7 +1,8 @@
 import React from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 import { useFeatureAccess } from '../hooks/useTierAccess';
-import { logFeatureAttempt } from '../services/featureService';
+import { FeatureService } from '../services/featureService';
 
 interface ImageButtonProps {
   onImageUpload: (file: File) => void;
@@ -9,18 +10,24 @@ interface ImageButtonProps {
 
 export function ImageButton({ onImageUpload }: ImageButtonProps) {
   const { canUse, attemptFeature } = useFeatureAccess('image');
+  const { user } = useAuth();
+  const featureService = new FeatureService();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     // Check if user has access to image features
     const hasAccess = await attemptFeature();
     if (!hasAccess) {
       // Log the blocked attempt
-      await logFeatureAttempt('image', false, true);
+      if (user?.id) {
+        await featureService.logAttempt(user.id, 'image', 'free');
+      }
       return; // attemptFeature already shows upgrade modal
     }
 
     // Log successful access
-    await logFeatureAttempt('image', true, false);
+    if (user?.id) {
+      await featureService.logAttempt(user.id, 'image', 'free');
+    }
 
     const file = e.target.files?.[0];
     if (!file) return;

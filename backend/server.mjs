@@ -122,21 +122,30 @@ const verifyJWT = async (req, res, next) => {
     if (token === 'mock-token-for-development') {
       const mockUserId = '65fcb50a-d67d-453e-a405-50c6aef959be'; // Use real user ID from logs
       req.user = { id: mockUserId };
+      console.log('🔓 Using mock token for development, user:', mockUserId);
       return next();
     }
     
-    // Production mode: verify the JWT token with Supabase
+    // Verify the JWT token with Supabase (both dev and prod)
+    console.log('🔐 Verifying JWT token with Supabase...');
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
-    if (error || !user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+    if (error) {
+      console.error('❌ JWT verification error:', error);
+      return res.status(401).json({ error: 'Invalid or expired token', details: error.message });
+    }
+    
+    if (!user) {
+      console.error('❌ No user found in JWT token');
+      return res.status(401).json({ error: 'No user found in token' });
     }
 
+    console.log('✅ JWT verified successfully for user:', user.id);
     req.user = user;
     next();
   } catch (error) {
-    console.error('JWT verification error:', error);
-    res.status(401).json({ error: 'Token verification failed' });
+    console.error('❌ JWT verification error:', error);
+    res.status(401).json({ error: 'Token verification failed', details: error.message });
   }
 };
 
@@ -378,6 +387,57 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Create profile endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- Update subscription tier (for dev tier switcher) ---
+app.patch('/v1/user_profiles/:id/tier', verifyJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tier } = req.body;
+    const requestingUserId = req.user.id;
+
+    console.log('🔍 Update tier endpoint called for user:', id, 'to tier:', tier);
+
+    // Verify the requesting user can update this profile (must be the same user)
+    if (requestingUserId !== id) {
+      return res.status(403).json({ 
+        error: 'Forbidden',
+        message: 'You can only update your own subscription tier'
+      });
+    }
+
+    // Validate tier
+    const validTiers = ['free', 'core', 'studio'];
+    if (!validTiers.includes(tier)) {
+      return res.status(400).json({ 
+        error: 'Invalid tier',
+        message: `Tier must be one of: ${validTiers.join(', ')}`
+      });
+    }
+
+    // Update the profile
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from("profiles")
+      .update({ 
+        subscription_tier: tier,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Error updating tier:', updateError);
+      return res.status(500).json({ error: 'Failed to update subscription tier' });
+    }
+
+    console.log('✅ Tier updated successfully:', updatedProfile);
+    res.json(updatedProfile);
+
+  } catch (error) {
+    console.error('❌ Update tier endpoint error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
