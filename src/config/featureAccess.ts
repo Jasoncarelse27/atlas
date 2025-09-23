@@ -12,6 +12,7 @@ export const tierFeatures = {
     text: true, 
     audio: false, 
     image: false,
+    camera: false,
     voiceEmotionAnalysis: false,
     // Usage Limits
     maxConversationsPerDay: 15,  // Reset at midnight UTC
@@ -34,7 +35,8 @@ export const tierFeatures = {
   core: { 
     text: true, 
     audio: true, 
-    image: false,
+    image: true,
+    camera: false,
     voiceEmotionAnalysis: false,
     // Usage Limits
     maxConversationsPerDay: 150,
@@ -58,6 +60,7 @@ export const tierFeatures = {
     text: true, 
     audio: true, 
     image: true,
+    camera: true,
     voiceEmotionAnalysis: true,  // Advanced voice emotion analysis
     // Usage Limits
     maxConversationsPerDay: 500,

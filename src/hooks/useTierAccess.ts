@@ -31,7 +31,7 @@ export interface TierAccessReturn {
   conversationsToday: number;
   
   // Feature access checks
-  canUseFeature: (feature: 'text' | 'audio' | 'image') => boolean;
+  canUseFeature: (feature: 'text' | 'audio' | 'image' | 'camera') => boolean;
   isWithinLimit: (currentCount: number) => boolean;
   
   // Model routing with token limits
@@ -129,12 +129,6 @@ export function useTierAccess(): TierAccessReturn {
   const canStartConversation = useCallback(async (): Promise<boolean> => {
     if (!user?.id) return false;
     
-    // Development bypass
-    if (import.meta.env.DEV) {
-      console.log('🔓 DEV MODE: Bypassing conversation limits');
-      return true;
-    }
-    
     // Check maintenance mode
     if (isMaintenanceMode) {
       toast.error('Atlas is temporarily in maintenance mode. Please try again later.', {
@@ -168,13 +162,7 @@ export function useTierAccess(): TierAccessReturn {
   }, [user?.id, tier, isMaintenanceMode]);
   
   // 🚀 PERFORMANCE: Memoized feature checks
-  const canUseFeature = useCallback((feature: 'text' | 'audio' | 'image'): boolean => {
-    // Development bypass
-    if (import.meta.env.DEV) {
-      console.log('🔓 DEV MODE: Bypassing feature access for', feature);
-      return true;
-    }
-    
+  const canUseFeature = useCallback((feature: 'text' | 'audio' | 'image' | 'camera'): boolean => {
     return !!features[feature];
   }, [features]);
   
@@ -310,7 +298,7 @@ export function useTierAccess(): TierAccessReturn {
 }
 
 // Helper hook for specific feature checks
-export function useFeatureAccess(feature: 'text' | 'audio' | 'image') {
+export function useFeatureAccess(feature: 'text' | 'audio' | 'image' | 'camera') {
   const { canUseFeature, showUpgradeModal, logFeatureAttempt } = useTierAccess();
   
   const attemptFeature = useCallback(async (): Promise<boolean> => {
