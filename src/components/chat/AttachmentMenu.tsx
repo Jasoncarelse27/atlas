@@ -5,7 +5,7 @@ import { useSupabaseAuth } from "../../hooks/useSupabaseAuth";
 import { useTierAccess } from "../../hooks/useTierAccess";
 import { db } from "../../lib/conversationStore";
 import { supabase } from "../../lib/supabase";
-import { pushAttachmentPreview } from "../../services/chatPreview.ts";
+import { pushAttachmentPreview } from "../../services/chatPreview";
 import { featureService } from "../../services/featureService";
 import { syncPendingUploads } from "../../services/syncService";
 import { uploadWithAuth } from "../../services/uploadService";
