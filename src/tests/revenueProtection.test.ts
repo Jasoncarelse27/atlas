@@ -71,12 +71,14 @@ describe('Revenue Protection System', () => {
       // Free tier
       expect(tierFeatures.free.audio).toBe(false);
       expect(tierFeatures.free.image).toBe(false);
+      expect(tierFeatures.free.camera).toBe(false);
       expect(tierFeatures.free.habitTracking).toBe(false);
       expect(tierFeatures.free.supportLevel).toBe('community');
       
       // Core tier
       expect(tierFeatures.core.audio).toBe(true);
-      expect(tierFeatures.core.image).toBe(false);
+      expect(tierFeatures.core.image).toBe(true);
+      expect(tierFeatures.core.camera).toBe(false);
       expect(tierFeatures.core.habitTracking).toBe(true);
       expect(tierFeatures.core.reflectionMode).toBe(true);
       expect(tierFeatures.core.supportLevel).toBe('email');
@@ -84,6 +86,7 @@ describe('Revenue Protection System', () => {
       // Studio tier
       expect(tierFeatures.studio.audio).toBe(true);
       expect(tierFeatures.studio.image).toBe(true);
+      expect(tierFeatures.studio.camera).toBe(true);
       expect(tierFeatures.studio.voiceEmotionAnalysis).toBe(true);
       expect(tierFeatures.studio.priorityProcessing).toBe(true);
       expect(tierFeatures.studio.weeklyInsights).toBe(true);
