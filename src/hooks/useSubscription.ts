@@ -379,12 +379,6 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
   };
 
   const canAccessFeature = (feature: string): boolean => {
-    // DEVELOPMENT BYPASS: In development mode, allow access to all features
-    if (import.meta.env.DEV) {
-      console.log('🔓 DEV MODE: Bypassing feature access restrictions for', feature);
-      return true;
-    }
-
     if (!profile) return false;
 
     const tierConfig = TIER_CONFIGS[profile.tier];
