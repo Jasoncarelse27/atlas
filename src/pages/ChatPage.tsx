@@ -253,6 +253,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
                 onFileMessage={handleEnhancedFileMessage}
                 isProcessing={isProcessing}
                 placeholder="Ask Atlas anything..."
+                onShowUpgradeModal={() => setUpgradeModalVisible(true)}
               />
             </div>
           </div>

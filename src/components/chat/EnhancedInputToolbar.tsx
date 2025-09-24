@@ -15,6 +15,7 @@ interface EnhancedInputToolbarProps {
   isProcessing?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  onShowUpgradeModal?: () => void;
 }
 
 export default function EnhancedInputToolbar({
@@ -23,7 +24,8 @@ export default function EnhancedInputToolbar({
   onFileMessage,
   isProcessing = false,
   disabled = false,
-  placeholder = "Ask anything..."
+  placeholder = "Ask anything...",
+  onShowUpgradeModal
 }: EnhancedInputToolbarProps) {
   const { user, tier } = useSupabaseAuth();
   const { canUseFeature, showUpgradeModal, messageCount, maxMessages, remainingMessages } = useTierAccess(user?.id || '');
@@ -38,7 +40,7 @@ export default function EnhancedInputToolbar({
     
     // Check message limit for free tier
     if (tier === 'free' && remainingMessages <= 0) {
-      showUpgradeModal('daily_limit');
+      onShowUpgradeModal?.();
       toast.error('Daily message limit reached! Upgrade to continue chatting.', {
         duration: 5000,
         icon: '⚠️'
@@ -127,7 +129,7 @@ export default function EnhancedInputToolbar({
           <p className="text-red-200 text-sm text-center">
             ⚠️ Daily conversation limit reached ({messageCount}/{maxMessages}). 
             <button 
-              onClick={() => showUpgradeModal('daily_limit')}
+              onClick={() => onShowUpgradeModal?.()}
               className="ml-1 text-red-300 hover:text-red-100 underline"
             >
               Upgrade to continue
