@@ -24,10 +24,10 @@ export default function UsageCounter() {
 
   const getTierTooltip = (tier: string) => {
     switch (tier) {
-      case 'free': return '15 messages/day. Upgrade for unlimited messages and advanced features.';
+      case 'free': return '15 conversations/day. Upgrade for unlimited conversations and advanced features.';
       case 'core': return 'Unlimited text + voice + image analysis with Claude Sonnet.';
       case 'studio': return 'All features unlocked with Claude Opus and priority support.';
-      default: return '15 messages/day. Upgrade for unlimited messages and advanced features.';
+      default: return '15 conversations/day. Upgrade for unlimited conversations and advanced features.';
     }
   };
 
@@ -53,7 +53,7 @@ export default function UsageCounter() {
       ) : (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Messages Today</span>
+            <span className="text-gray-400">Conversations Today</span>
             <span className="text-gray-200">{messageCount} / {maxMessages}</span>
           </div>
           
@@ -65,7 +65,7 @@ export default function UsageCounter() {
           </div>
           
           <p className="text-gray-400 text-xs text-center">
-            {remainingMessages} messages remaining
+            {remainingMessages} conversations remaining
           </p>
           
           {remainingMessages <= 3 && (

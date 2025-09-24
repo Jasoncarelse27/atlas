@@ -125,7 +125,7 @@ export default function EnhancedInputToolbar({
       {tier === 'free' && remainingMessages <= 0 && (
         <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded-lg max-w-4xl mx-auto">
           <p className="text-red-200 text-sm text-center">
-            ⚠️ Daily limit reached ({messageCount}/{maxMessages}). 
+            ⚠️ Daily conversation limit reached ({messageCount}/{maxMessages}). 
             <button 
               onClick={() => showUpgradeModal('daily_limit')}
               className="ml-1 text-red-300 hover:text-red-100 underline"
