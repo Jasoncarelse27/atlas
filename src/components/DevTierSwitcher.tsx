@@ -95,12 +95,15 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         );
         
         console.log('✅ Tier updated via backend API:', updatedProfile);
+        console.log('✅ New tier set in DevTierSwitcher:', newTier);
         setCurrentTier(newTier);
         
         // Clear the profile cache to force a refresh
         subscriptionApi.clearProfileCache(user.id);
+        console.log('✅ Profile cache cleared for user:', user.id);
         
         onTierChange?.(newTier);
+        console.log('✅ onTierChange callback called');
         
         // Show success message
         console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
@@ -124,11 +127,14 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         }
 
         setCurrentTier(newTier);
+        console.log('✅ Tier updated via direct Supabase, new tier:', newTier);
         
         // Clear the profile cache to force a refresh
         subscriptionApi.clearProfileCache(user.id);
+        console.log('✅ Profile cache cleared for user (fallback):', user.id);
         
         onTierChange?.(newTier);
+        console.log('✅ onTierChange callback called (fallback)');
         
         // Show success message
         console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);

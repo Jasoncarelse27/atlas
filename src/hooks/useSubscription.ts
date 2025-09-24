@@ -52,6 +52,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
 
     try {
       console.log('📊 Fetching user profile for:', user.id);
+      console.log('📊 fetchProfile called at:', new Date().toISOString());
 
       // Get access token for backend API calls
       const session = await supabase.auth.getSession();
@@ -493,6 +494,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         },
         (payload) => {
           console.log('🔄 Profile updated in real-time:', payload);
+          console.log('🔄 New tier from real-time update:', payload.new?.subscription_tier);
           // Refresh the profile when it's updated
           fetchProfile();
         }
