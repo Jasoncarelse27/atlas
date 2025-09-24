@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
-import NavBar from '../components/NavBar';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useChat } from '../features/chat/hooks/useChat';
@@ -267,7 +266,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           reason={upgradeReason === 'daily_limit' ? 'daily_limit' : 'audio'}
           onUpgrade={handleUpgrade}
         />
-        </div>
       </div>
     </ErrorBoundary>
   );
