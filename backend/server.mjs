@@ -178,23 +178,48 @@ console.log(`🚦 Rate limiting configured - isDev: ${isDev}, max requests: ${is
 app.use(express.json({ limit: '2mb' }));
 
 // CORS middleware - allow frontend connections
+const allowedOrigins = [
+  "http://localhost:5173",   // Vite dev server
+  "http://localhost:5174",   // Backup Vite port
+  "http://localhost:5175",   // Additional Vite port
+  "http://localhost:5176",   // Additional Vite port
+  "http://localhost:4173",   // Vite preview server (production build)
+  "http://127.0.0.1:4173",   // Vite preview server (127.0.0.1 variant)
+  "http://localhost:8081",   // Expo web
+  "http://localhost:3000",   // Backend self-calls
+  "http://192.168.0.10:5173",
+  "http://192.168.0.10:5174",
+  "http://192.168.0.10:5175",
+  "http://192.168.0.10:5176",
+  "http://192.168.0.10:4173", // Network preview server
+  /^https:\/\/atlas-.*\.vercel\.app$/,
+  /^https:\/\/atlas.*\.up\.railway\.app$/,
+  /^https:\/\/.*\.railway\.app$/
+];
+
 app.use(cors({
-  origin: [
-    "http://localhost:5173",   // Vite dev server
-    "http://localhost:5174",   // Backup Vite port
-    "http://localhost:5175",   // Additional Vite port
-    "http://localhost:5176",   // Additional Vite port
-    "http://localhost:4173",   // Vite preview server (production build)
-    "http://localhost:8081",   // Expo web
-    "http://localhost:3000",   // Backend self-calls
-    "http://192.168.0.10:5173",
-    "http://192.168.0.10:5174",
-    "http://192.168.0.10:5175",
-    "http://192.168.0.10:5176",
-    /^https:\/\/atlas-.*\.vercel\.app$/,
-    /^https:\/\/atlas.*\.up\.railway\.app$/,
-    /^https:\/\/.*\.railway\.app$/
-  ],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return origin === allowedOrigin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      console.log(`✅ CORS: Allowing origin: ${origin}`);
+      callback(null, true);
+    } else {
+      console.log(`❌ CORS: Blocking origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'authorization']
