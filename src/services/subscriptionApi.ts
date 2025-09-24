@@ -70,6 +70,7 @@ class SubscriptionApiService {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
           'Content-Type': 'application/json',
         },
       });
@@ -117,6 +118,7 @@ class SubscriptionApiService {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ user_id: userId }),
@@ -168,7 +170,8 @@ class SubscriptionApiService {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
         },
         body: JSON.stringify({ tier: newTier })
       });
@@ -209,6 +212,7 @@ class SubscriptionApiService {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
           'Content-Type': 'application/json',
         },
       });
@@ -256,6 +260,7 @@ class SubscriptionApiService {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
