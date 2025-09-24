@@ -477,6 +477,33 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     fetchProfile();
   }, [user]);
 
+  // Listen for real-time changes to the profile
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('🔄 Profile updated in real-time:', payload);
+          // Refresh the profile when it's updated
+          fetchProfile();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   return {
     profile,
     isLoading,

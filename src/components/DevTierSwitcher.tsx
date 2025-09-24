@@ -96,6 +96,10 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         
         console.log('✅ Tier updated via backend API:', updatedProfile);
         setCurrentTier(newTier);
+        
+        // Clear the profile cache to force a refresh
+        subscriptionApi.clearProfileCache(user.id);
+        
         onTierChange?.(newTier);
         
         // Show success message
@@ -120,6 +124,10 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         }
 
         setCurrentTier(newTier);
+        
+        // Clear the profile cache to force a refresh
+        subscriptionApi.clearProfileCache(user.id);
+        
         onTierChange?.(newTier);
         
         // Show success message
