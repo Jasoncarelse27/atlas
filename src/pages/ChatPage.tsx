@@ -148,7 +148,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-400">{tier} tier</span>
                 <button
                   onClick={handleLogout}
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"

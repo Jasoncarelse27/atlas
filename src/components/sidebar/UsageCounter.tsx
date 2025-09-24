@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTierAccess } from '../../hooks/useTierAccess';
 import { UpgradeButton } from '../UpgradeButton';
 
@@ -23,13 +22,25 @@ export default function UsageCounter() {
     }
   };
 
+  const getTierTooltip = (tier: string) => {
+    switch (tier) {
+      case 'free': return '15 messages/day. Upgrade for unlimited messages and advanced features.';
+      case 'core': return 'Unlimited text + voice + image analysis with Claude Sonnet.';
+      case 'studio': return 'All features unlocked with Claude Opus and priority support.';
+      default: return '15 messages/day. Upgrade for unlimited messages and advanced features.';
+    }
+  };
+
   const isUnlimited = tier === 'core' || tier === 'studio';
 
   return (
     <div className="bg-[#2c2f36] p-4 rounded-lg shadow">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-gray-300 text-sm font-medium">Current Tier</h3>
-        <span className={`text-xs font-semibold ${getTierColor(tier)}`}>
+        <span 
+          className={`text-xs font-semibold ${getTierColor(tier)} cursor-help`}
+          title={getTierTooltip(tier)}
+        >
           {getTierDisplayName(tier)}
         </span>
       </div>
