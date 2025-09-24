@@ -13,7 +13,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Only render in development mode
-  if (process.env.NODE_ENV === 'production') {
+  if (import.meta.env.MODE !== 'development') {
     return null;
   }
 
