@@ -26,7 +26,7 @@ export default function EnhancedInputToolbar({
   placeholder = "Ask anything..."
 }: EnhancedInputToolbarProps) {
   const { user, tier } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal } = useTierAccess();
+  const { canUseFeature, showUpgradeModal } = useTierAccess(user?.id || '');
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);

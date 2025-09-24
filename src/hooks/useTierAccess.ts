@@ -4,7 +4,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { getClaudeModelName, getTierPricing, isValidTier, tierFeatures } from '../config/featureAccess';
+import { getUpgradeMessage as getUpgradeMessageFromConfig } from '../config/tierAccess';
+import { getClaudeModelName, getTierPricing, tierConfig } from '../config/tierConfig';
 import { usageTrackingService, type UsageCheckResult } from '../services/usageTrackingService';
 import type { Tier } from '../types/tier';
 import { useSubscription } from './useSubscription';
@@ -23,7 +24,7 @@ const DEBOUNCE_DELAY = 1000; // 1 second debounce
 export interface TierAccessReturn {
   // Current tier info
   tier: Tier;
-  features: typeof tierFeatures[Tier];
+  features: typeof tierConfig[Tier];
   
   // 🎯 CONVERSATION LIMITS (NEW)
   canStartConversation: () => Promise<boolean>;
@@ -63,15 +64,20 @@ export function useTierAccess(): TierAccessReturn {
   const [conversationsToday, setConversationsToday] = useState(0);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   
-  // Get current tier with fallback to 'free'
-  const tier: Tier = (profile?.tier && isValidTier(profile.tier)) ? profile.tier as Tier : 'free';
-  const features = tierFeatures[tier];
+  // ✅ Always use normalized .tier
+  const currentTier: Tier = (profile?.tier && ['free', 'core', 'studio'].includes(profile.tier)) ? profile.tier as Tier : 'free';
+  const features = tierConfig[currentTier];
+  
+  // Debug logging to track tier changes
+  useEffect(() => {
+    console.log('🔍 [useTierAccess] Tier changed:', currentTier, 'Profile:', profile);
+  }, [currentTier, profile]);
   
   // 🚀 PERFORMANCE: Debounced usage data loading with caching
   useEffect(() => {
     if (!user?.id) return;
     
-    const cacheKey = `usage_${user.id}_${tier}`;
+    const cacheKey = `usage_${user.id}_${currentTier}`;
     const cached = tierAccessCache.get(cacheKey);
     
     // Use cache if available and not expired
@@ -87,7 +93,7 @@ export function useTierAccess(): TierAccessReturn {
     const timeoutId = setTimeout(async () => {
       try {
         // Check current usage status
-        const check = await usageTrackingService.checkUsageBeforeConversation(user.id, tier);
+        const check = await usageTrackingService.checkUsageBeforeConversation(user.id, currentTier);
         
         // Get today's conversation count
         const stats = await usageTrackingService.getUsageStats(user.id);
@@ -123,7 +129,7 @@ export function useTierAccess(): TierAccessReturn {
     }, DEBOUNCE_DELAY);
     
     return () => clearTimeout(timeoutId);
-  }, [user?.id, tier]);
+  }, [user?.id, currentTier]);
   
   // 🎯 NEW: Conversation limit check with daily tracking
   const canStartConversation = useCallback(async (): Promise<boolean> => {
@@ -139,7 +145,7 @@ export function useTierAccess(): TierAccessReturn {
     }
     
     try {
-      const check = await usageTrackingService.checkUsageBeforeConversation(user.id, tier);
+      const check = await usageTrackingService.checkUsageBeforeConversation(user.id, currentTier);
       setUsageCheck(check);
       
       if (!check.canProceed) {
@@ -159,12 +165,12 @@ export function useTierAccess(): TierAccessReturn {
       console.error('Conversation check failed:', error);
       return true; // Graceful fallback
     }
-  }, [user?.id, tier, isMaintenanceMode]);
+  }, [user?.id, currentTier, isMaintenanceMode]);
   
   // 🚀 PERFORMANCE: Memoized feature checks
   const canUseFeature = useCallback((feature: 'text' | 'audio' | 'image' | 'camera'): boolean => {
-    return !!features[feature];
-  }, [features]);
+    return canAccessFeature(feature, currentTier);
+  }, [currentTier]);
   
   // Legacy message limit check (kept for compatibility)
   const isWithinLimit = useCallback((currentCount: number): boolean => {
@@ -175,7 +181,7 @@ export function useTierAccess(): TierAccessReturn {
   
   // 🚀 PERFORMANCE: Memoized model routing
   const model = useMemo(() => features.model, [features]);
-  const claudeModelName = useMemo(() => getClaudeModelName(tier), [tier]);
+  const claudeModelName = useMemo(() => getClaudeModelName(currentTier), [currentTier]);
   const maxTokensPerResponse = useMemo(() => features.maxTokensPerResponse, [features]);
   const maxContextWindow = useMemo(() => features.maxContextWindow, [features]);
   
@@ -184,27 +190,29 @@ export function useTierAccess(): TierAccessReturn {
     if (!user?.id) return;
     
     try {
-      await usageTrackingService.recordConversation(user.id, tier, tokensUsed);
+      await usageTrackingService.recordConversation(user.id, currentTier, tokensUsed);
       
       // Update local state
       setConversationsToday(prev => prev + 1);
       
       // Refresh usage check for next conversation
-      const newCheck = await usageTrackingService.checkUsageBeforeConversation(user.id, tier);
+      const newCheck = await usageTrackingService.checkUsageBeforeConversation(user.id, currentTier);
       setUsageCheck(newCheck);
       
       // Clear cache to force refresh
-      const cacheKey = `usage_${user.id}_${tier}`;
+      const cacheKey = `usage_${user.id}_${currentTier}`;
       tierAccessCache.delete(cacheKey);
       
     } catch (error) {
       console.error('Failed to record conversation:', error);
     }
-  }, [user?.id, tier]);
+  }, [user?.id, currentTier]);
   
   // Log feature attempts for analytics
   const logFeatureAttempt = useCallback(async (feature: string, allowed: boolean): Promise<void> => {
     if (!user?.id) return;
+    
+    console.log('🔍 [logFeatureAttempt] Logging feature attempt:', { feature, tier: currentTier, profile });
     
     try {
       // Use backend API to log feature attempts
@@ -216,24 +224,33 @@ export function useTierAccess(): TierAccessReturn {
         body: JSON.stringify({
           userId: user.id,
           feature,
-          tier
+          tier: currentTier
         })
       });
     } catch (error) {
       console.warn('Failed to log feature attempt:', error);
     }
-  }, [user?.id, tier]);
+  }, [user?.id, currentTier, profile]);
   
   // 🎯 ENHANCED: Upgrade modal with specific pricing
   const showUpgradeModal = useCallback((feature: string): void => {
+    // Studio tier has access to all features - don't show upgrade modal
+    if (currentTier === 'studio') {
+      return;
+    }
+
     const message = getUpgradeMessage(feature);
-    const suggestedTier = feature === 'daily_limit' && tier === 'free' ? 'core' : 'studio';
+    if (!message) return; // Don't show modal if no message
+    
+    // Suggest Core for audio/image, Studio for camera
+    const suggestedTier = feature === 'camera' ? 'studio' : 'core';
     const price = getTierPricing(suggestedTier);
+    const tierName = suggestedTier === 'core' ? 'Core' : 'Studio';
     
     toast.error(message, {
       duration: 8000,
       action: {
-        label: `Upgrade $${price}/mo`,
+        label: `Upgrade to ${tierName} $${price}/mo`,
         onClick: () => {
           // TODO: Open Paddle checkout modal with specific tier
           console.log('Open upgrade modal for', feature, 'to', suggestedTier);
@@ -242,30 +259,17 @@ export function useTierAccess(): TierAccessReturn {
         }
       }
     });
-  }, [tier, logFeatureAttempt]);
+  }, [currentTier, logFeatureAttempt]);
   
-  // 🎯 UPDATED: Get upgrade message with new pricing
+  // 🎯 UPDATED: Get upgrade message with correct Atlas tier structure and model mapping
   const getUpgradeMessage = useCallback((feature: string): string => {
-    switch (feature) {
-      case 'audio':
-        return 'Voice features require Atlas Basic ($9.99/month) or Premium ($19.99/month)';
-      case 'image':
-        return 'Image analysis requires Atlas Premium ($19.99/month)';
-      case 'daily_limit':
-        if (tier === 'free') {
-          return `You've used all 20 conversations today! Upgrade to Basic for 100 daily conversations ($9.99/month)`;
-        }
-        return `You've used all 100 conversations today! Upgrade to Premium for unlimited conversations ($19.99/month)`;
-      case 'text':
-        return 'You\'ve reached your daily conversation limit. Upgrade to continue chatting!';
-      default:
-        return 'This feature requires an upgrade to Atlas Basic or Premium';
-    }
-  }, [tier]);
+    const message = getUpgradeMessageFromConfig(feature, currentTier);
+    return message || '';
+  }, [currentTier]);
   
   return {
     // Current tier info
-    tier,
+    tier: currentTier,
     features,
     
     // 🎯 NEW: Conversation limits

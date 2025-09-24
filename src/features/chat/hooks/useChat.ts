@@ -25,7 +25,7 @@ interface UseChatReturn {
   
   // Actions
   handleSendMessage: (message: string) => Promise<void>;
-  handleFileMessage: (message: Message) => void;
+  handleFileMessage: (message: Message) => Promise<void>;
   handleLogout: () => Promise<void>;
   deleteMessage: (id: string) => void;
   copyMessage: (content: string) => void;
@@ -176,17 +176,65 @@ export function useChat(userId?: string): UseChatReturn {
   }, [userId, sendMessageMiddleware, isProcessing, middlewareLoading, conversation.id]);
 
   // Handle file message (images, audio, etc.)
-  const handleFileMessage = useCallback((message: Message) => {
-    // Add file message to conversation
-    setConversation(prev => ({
-      ...prev,
-      messages: [...prev.messages, message],
-      lastUpdated: new Date().toISOString()
-    }));
+  const handleFileMessage = useCallback(async (message: Message) => {
+    if (isProcessing || middlewareLoading || !userId) return;
     
-    // Show success message
-    toast.success('File uploaded successfully!');
-  }, []);
+    setIsProcessing(true);
+    
+    try {
+      // Add file message to conversation
+      setConversation(prev => ({
+        ...prev,
+        messages: [...prev.messages, message],
+        lastUpdated: new Date().toISOString()
+      }));
+      
+      // Show success message
+      toast.success('File uploaded successfully!');
+      
+      // Trigger AI response based on file type
+      let prompt = '';
+      if (message.type === 'audio') {
+        prompt = 'Please analyze this audio and provide insights or respond to what was said.';
+      } else if (message.type === 'image') {
+        prompt = 'Please analyze this image and describe what you see.';
+      } else if (message.type === 'file') {
+        prompt = 'Please analyze this file and provide relevant information.';
+      }
+      
+      if (prompt) {
+        // Send the prompt to get AI response
+        const response = await sendMessageMiddleware(userId, prompt);
+        
+        if (response.success) {
+          // Add AI response to conversation
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: response.data?.response || 'I received your file, but there was an issue generating a response.',
+            timestamp: new Date().toISOString()
+          };
+          
+          setConversation(prev => ({
+            ...prev,
+            messages: [...prev.messages, assistantMessage],
+            lastUpdated: new Date().toISOString()
+          }));
+          
+          // Update message count
+          setMessageCount(prev => prev + 1);
+        } else {
+          toast.error('Failed to get AI response for your file.');
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error handling file message:', error);
+      toast.error('An error occurred while processing your file.');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [userId, sendMessageMiddleware, isProcessing, middlewareLoading, conversation.id]);
 
   // Handle upgrade flow
   const handleUpgrade = useCallback(async (selectedTier: Tier) => {

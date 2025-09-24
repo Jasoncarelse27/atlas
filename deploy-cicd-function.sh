@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_REF="rbwabemtucdkytvvpzvk"
+PROJECT_REF="your-project-ref"
 FUNCTIONS=("cicd-alert" "mailerWebhook")
 
 echo "🔍 Checking Supabase project ref..."

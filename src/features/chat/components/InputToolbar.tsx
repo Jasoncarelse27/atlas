@@ -36,7 +36,7 @@ export function InputToolbar({
 }: InputToolbarProps) {
   const { isOnline } = useNetworkStatus();
   const { tier } = useUserTier(userId);
-  const { canUse } = useTierAccess(tier);
+  const { canUseFeature: canUse } = useTierAccess(userId);
   const { blocked, remaining, increment, isUnlimited } = useMessageLimit(conversationId, userId);
   
   const [inputState, setInputState] = useState<InputState>({

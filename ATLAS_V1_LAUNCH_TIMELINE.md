@@ -66,7 +66,7 @@ NODE_ENV=production
 PORT=3000
 
 # Supabase (from your Supabase dashboard)
-SUPABASE_URL=https://rbwabemtucdkytvvpzvk.supabase.co
+SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 SUPABASE_ANON_KEY=your_anon_key
 

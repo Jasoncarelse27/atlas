@@ -67,13 +67,39 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         
         if (profile) {
           console.log('✅ Profile fetched from backend API:', profile);
-          setProfile(profile);
+          // ✅ Normalize subscription_tier → tier
+          const normalizedProfile = {
+            ...profile,
+            tier: profile.subscription_tier || profile.tier || "free",
+          };
+          
+          console.log(
+            "🎯 Normalized tier:",
+            normalizedProfile.tier,
+            "from",
+            profile
+          );
+          
+          setProfile(normalizedProfile);
         } else {
           // Profile doesn't exist, create it
           console.log('📊 Creating new profile via backend API...');
           const newProfile = await subscriptionApi.createUserProfile(user.id, accessToken);
           console.log('✅ Profile created via backend API:', newProfile);
-          setProfile(newProfile);
+          // ✅ Normalize subscription_tier → tier
+          const normalizedProfile = {
+            ...newProfile,
+            tier: newProfile.subscription_tier || newProfile.tier || "free",
+          };
+          
+          console.log(
+            "🎯 Normalized tier:",
+            normalizedProfile.tier,
+            "from",
+            newProfile
+          );
+          
+          setProfile(normalizedProfile);
         }
       } catch (apiError) {
         console.warn('⚠️ Backend API failed, falling back to direct Supabase:', apiError);
@@ -114,7 +140,20 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
           setError(error.message);
         } else {
           console.log('✅ Profile fetched successfully:', profile);
-          setProfile(profile);
+          // ✅ Normalize subscription_tier → tier
+          const normalizedProfile = {
+            ...profile,
+            tier: profile.subscription_tier || profile.tier || "free",
+          };
+          
+          console.log(
+            "🎯 Normalized tier:",
+            normalizedProfile.tier,
+            "from",
+            profile
+          );
+          
+          setProfile(normalizedProfile);
         }
       }
     } catch (err) {
@@ -310,7 +349,20 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
         );
         
         console.log('✅ Subscription tier updated via backend API:', updatedProfile);
-        setProfile(updatedProfile);
+        // ✅ Normalize subscription_tier → tier
+        const normalizedProfile = {
+          ...updatedProfile,
+          tier: updatedProfile.subscription_tier || updatedProfile.tier || "free",
+        };
+        
+        console.log(
+          "🎯 Normalized tier after update:",
+          normalizedProfile.tier,
+          "from",
+          updatedProfile
+        );
+        
+        setProfile(normalizedProfile);
       } catch (apiError) {
         console.warn('⚠️ Backend API update failed, falling back to direct Supabase:', apiError);
         

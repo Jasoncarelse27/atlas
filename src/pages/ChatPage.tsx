@@ -8,6 +8,7 @@ import { useChat } from '../features/chat/hooks/useChat';
 import MessageStoreDebugger from '../features/debug/MessageStoreDebugger';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth } from '../lib/supabaseClient';
+import type { Message } from '../types/chat';
 import type { Tier } from '../types/tier';
 
 interface ChatPageProps {
@@ -45,6 +46,16 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
     
     // Simulate typing effect duration based on message length
     const typingDuration = Math.min(Math.max(message.length * 50, 1000), 3000);
+    setTimeout(() => setIsTyping(false), typingDuration);
+  };
+
+  // Handle enhanced file message with typing effect
+  const handleEnhancedFileMessage = async (message: Message) => {
+    await handleFileMessage(message);
+    setIsTyping(true);
+    
+    // Simulate typing effect duration for file processing
+    const typingDuration = 2000; // 2 seconds for file processing
     setTimeout(() => setIsTyping(false), typingDuration);
   };
 
@@ -160,7 +171,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           <EnhancedInputToolbar
             onSendMessage={handleEnhancedSendMessage}
             onVoiceTranscription={handleEnhancedSendMessage}
-            onFileMessage={handleFileMessage}
+            onFileMessage={handleEnhancedFileMessage}
             isProcessing={isProcessing}
             placeholder="Ask Atlas anything..."
           />

@@ -29,6 +29,8 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
       isProcessing={isProcessing}
       disabled={disabled}
       placeholder={placeholder}
+      userId={userId}
+      tier={tier}
     />
   );
 };

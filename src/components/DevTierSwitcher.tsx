@@ -23,11 +23,13 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
     }
   }, [user]);
 
-  useEffect(() => {
-    if (tier) {
-      setCurrentTier(tier);
-    }
-  }, [tier]);
+  // Remove this useEffect - it's causing the tier to reset to 'free'
+  // The tier from useSupabaseAuth is not refreshed after updates
+  // useEffect(() => {
+  //   if (tier) {
+  //     setCurrentTier(tier);
+  //   }
+  // }, [tier]);
 
   const fetchCurrentTier = async () => {
     if (!user) return;
@@ -99,10 +101,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         // Show success message
         console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
         
-        // Refresh the page to update all components
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // No need to reload the page - the tier change will be reflected immediately
       } catch (apiError) {
         console.warn('Backend API update failed, falling back to direct Supabase:', apiError);
         
@@ -126,10 +125,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         // Show success message
         console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
         
-        // Refresh the page to update all components
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // No need to reload the page - the tier change will be reflected immediately
       }
 
     } catch (err) {
@@ -144,7 +140,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
   }
 
   return (
-    <div className="fixed top-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 shadow-lg z-50">
+    <div className="fixed top-20 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 shadow-lg z-50">
       <div className="text-xs font-semibold text-yellow-800 mb-2">
         🧪 Dev Tier Switcher
       </div>

@@ -180,6 +180,10 @@ class SubscriptionApiService {
 
       const updatedProfile = await response.json();
       console.log('[SubscriptionAPI] Tier updated successfully:', updatedProfile);
+      
+      // Clear cache since tier was updated
+      this.clearProfileCache(userId);
+      
       return updatedProfile;
     } catch (error) {
       console.error('[SubscriptionAPI] Error updating subscription tier:', error);

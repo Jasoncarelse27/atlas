@@ -5,7 +5,6 @@ import { useSupabaseAuth } from "../../hooks/useSupabaseAuth";
 import { useTierAccess } from "../../hooks/useTierAccess";
 import { db } from "../../lib/conversationStore";
 import { supabase } from "../../lib/supabase";
-import { pushAttachmentPreview } from "../../services/chatPreview";
 import { featureService } from "../../services/featureService";
 import { syncPendingUploads } from "../../services/syncService";
 import { uploadWithAuth } from "../../services/uploadService";
@@ -21,8 +20,8 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { canUseFeature, showUpgradeModal, tier } = useTierAccess();
   const { user } = useSupabaseAuth();
+  const { canUseFeature, showUpgradeModal, tier } = useTierAccess(user?.id || '');
 
   const [loadingFeature, setLoadingFeature] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);

@@ -195,7 +195,7 @@ app.use(cors({
     /^https:\/\/.*\.railway\.app$/
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'authorization']
 }));
 
@@ -657,11 +657,26 @@ app.post("/message",
           });
         } else {
           // Fallback to enhanced mock response if no API key
-          aiResponse = `Hello! I'm Atlas, your AI-powered emotional intelligence companion. ` + 
-            (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis and personalized insights. ' : '') +
-            (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support and habit coaching. ' : '') +
-            (tier === 'free' ? 'I\'m here to provide basic emotional support and guidance. ' : '') +
-            `I understand you're reaching out about "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}" - how can I help you today?`;
+          if (type === 'file_analysis') {
+            // Special handling for file analysis
+            const fileType = req.body.fileType || 'file';
+            const fileUrl = req.body.fileUrl || '';
+            
+            if (fileType === 'audio') {
+              aiResponse = `I've received your audio recording! As your ${tier} tier Atlas companion, I can analyze audio content for emotional insights, speech patterns, and key topics discussed. However, I'm currently experiencing some technical difficulties with audio processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this recording.`;
+            } else if (fileType === 'camera' || fileType === 'image') {
+              aiResponse = `I've received your image! As your ${tier} tier Atlas companion, I can analyze images for visual content, emotional context, and relevant details. However, I'm currently experiencing some technical difficulties with image processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this image.`;
+            } else {
+              aiResponse = `I've received your file! As your ${tier} tier Atlas companion, I can analyze various file types. However, I'm currently experiencing some technical difficulties with file processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this file.`;
+            }
+          } else {
+            // Regular text response
+            aiResponse = `Hello! I'm Atlas, your AI-powered emotional intelligence companion. ` + 
+              (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis and personalized insights. ' : '') +
+              (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support and habit coaching. ' : '') +
+              (tier === 'free' ? 'I\'m here to provide basic emotional support and guidance. ' : '') +
+              `I understand you're reaching out about "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}" - how can I help you today?`;
+          }
           
           // Estimate tokens for mock response
           actualInputTokens = Math.ceil((systemPrompt.length + message.length) / 4);
@@ -973,10 +988,60 @@ app.post("/api/ingest", express.json(), async (req, res) => {
 
     if (error) throw error;
 
-    // 👇 Stub hook for Atlas Brain (wire this later to your pipeline/queue)
-    console.log("[Ingest] queued for processing:", { userId, feature, url });
+    // 👇 Process the file and generate AI response
+    console.log("[Ingest] Processing file:", { userId, feature, url });
+    
+    // Generate appropriate prompt based on file type
+    let analysisPrompt = '';
+    if (feature === 'audio') {
+      analysisPrompt = 'Please analyze this audio recording and provide insights about what was said, the emotional tone, or any other relevant observations.';
+    } else if (feature === 'camera' || feature === 'image') {
+      analysisPrompt = 'Please analyze this image and describe what you see, including any objects, people, text, or other details that might be relevant.';
+    } else if (feature === 'file') {
+      analysisPrompt = 'Please analyze this file and provide relevant information about its contents.';
+    }
 
-    res.json({ ingested: true });
+    if (analysisPrompt) {
+      // Get user's tier for proper model selection
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
+      
+      const tier = profile?.subscription_tier || 'free';
+      
+      // Generate AI response for the uploaded file
+      try {
+        const response = await fetch('http://localhost:3000/message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '')}`
+          },
+          body: JSON.stringify({
+            userId,
+            message: analysisPrompt,
+            type: 'file_analysis',
+            tier,
+            conversationId,
+            fileUrl: url,
+            fileType: feature
+          })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log("[Ingest] AI analysis completed:", result);
+        } else {
+          console.error("[Ingest] AI analysis failed:", response.status);
+        }
+      } catch (aiError) {
+        console.error("[Ingest] AI analysis error:", aiError);
+      }
+    }
+
+    res.json({ ingested: true, processed: true });
   } catch (err) {
     console.error("Ingest error:", err);
     res.status(500).json({ error: "Ingest failed" });

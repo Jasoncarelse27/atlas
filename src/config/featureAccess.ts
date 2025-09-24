@@ -174,7 +174,7 @@ export function isValidTier(tier: string): tier is Tier {
 // Map tiers → Claude model with exact model names
 export function getClaudeModelName(tier: Tier): string {
   if (tier === 'studio') return 'claude-3-opus-20240229';
-  if (tier === 'core') return 'claude-3-sonnet-20240229';
+  if (tier === 'core') return 'claude-3.5-sonnet-20240620';
   return 'claude-3-haiku-20240307'; // fallback for free
 }
 

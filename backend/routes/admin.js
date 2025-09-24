@@ -484,6 +484,53 @@ router.post('/reports/weekly/run', async (req, res) => {
   }
 });
 
+// 📊 NEW: GET /admin/subscriptions/overview - Subscription overview with analytics
+router.get('/subscriptions/overview', async (req, res) => {
+  try {
+    // For now, get basic subscription data from profiles table
+    // TODO: Implement full subscription_audit table for detailed analytics
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('email, subscription_tier, created_at, updated_at')
+      .order('updated_at', { ascending: false });
+    
+    if (error) {
+      console.error('[AdminSubs] DB error:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'DB query failed',
+        message: error.message 
+      });
+    }
+    
+    // Transform data to match expected format
+    const overview = (profiles || []).map(profile => ({
+      email: profile.email,
+      current_tier: profile.subscription_tier,
+      activations: 0, // TODO: Implement with subscription_audit table
+      cancellations: 0, // TODO: Implement with subscription_audit table
+      upgrades: 0, // TODO: Implement with subscription_audit table
+      downgrades: 0, // TODO: Implement with subscription_audit table
+      last_change: profile.updated_at
+    }));
+    
+    res.json({ 
+      success: true,
+      overview: overview,
+      timestamp: new Date().toISOString(),
+      note: 'Basic subscription data - full analytics require subscription_audit table'
+    });
+    
+  } catch (error) {
+    console.error('Error in subscription overview endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch subscription overview',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // 📊 NEW: GET /admin/analytics/summary - Analytics data for dashboard
 router.get('/analytics/summary', async (req, res) => {
   try {

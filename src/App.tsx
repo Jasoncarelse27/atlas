@@ -80,7 +80,7 @@ function App() {
     updated_at: new Date().toISOString()
   } as const;
   
-  const { profile = mockProfile } = useSubscription(user);
+  const { profile = mockProfile, refreshProfile } = useSubscription(user);
   
   const { 
     customization,
@@ -751,7 +751,7 @@ function App() {
         </Router>
         
         {/* Developer Tier Switcher - Only shows in development */}
-        <DevTierSwitcher />
+        <DevTierSwitcher onTierChange={() => refreshProfile()} />
       </QueryClientProvider>
     </>
   );

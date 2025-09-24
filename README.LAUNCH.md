@@ -139,7 +139,7 @@ curl -H "Authorization: Bearer <ADMIN_TOKEN>" \
 ### **Required Environment Variables:**
 ```bash
 # Production (.env.production)
-SUPABASE_URL=https://rbwabemtucdkytvvpzvk.supabase.co
+SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
