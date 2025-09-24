@@ -184,6 +184,7 @@ app.use(cors({
     "http://localhost:5174",   // Backup Vite port
     "http://localhost:5175",   // Additional Vite port
     "http://localhost:5176",   // Additional Vite port
+    "http://localhost:4173",   // Vite preview server (production build)
     "http://localhost:8081",   // Expo web
     "http://localhost:3000",   // Backend self-calls
     "http://192.168.0.10:5173",
