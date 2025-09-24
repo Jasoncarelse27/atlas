@@ -41,16 +41,27 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'connecting'>('connecting');
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showWidgets, setShowWidgets] = useState(false);
   const [showControlCenter, setShowControlCenter] = useState(false);
   const [showTestingPanel, setShowTestingPanel] = useState(false);
   const [showDashboardTester, setShowDashboardTester] = useState(false);
   
   // 🎯 TIER ENFORCEMENT: Add tier access hooks
-  const { tier, model, claudeModelName, canStartConversation } = useTierAccess();
+  const { tier, canUseFeature } = useTierAccess(user?.id);
+  
+  // Get model name from tier
+  const getClaudeModelName = (tier: string) => {
+    switch (tier) {
+      case 'studio': return 'claude-3-opus-20240229';
+      case 'core': return 'claude-3.5-sonnet-20240620';
+      case 'free':
+      default: return 'claude-3-haiku-20240307';
+    }
+  };
+  
+  const model = getClaudeModelName(tier);
+  const claudeModelName = getClaudeModelName(tier);
+  const canStartConversation = canUseFeature('text');
   const [messageCount, setMessageCount] = useState(0);
   const [showNetworkCheck, setShowNetworkCheck] = useState(false);
   const [showSpeedTest, setShowSpeedTest] = useState(false);
@@ -79,7 +90,7 @@ function App() {
     updated_at: new Date().toISOString()
   } as const;
   
-  const { profile = mockProfile, refreshProfile } = useSubscription(user);
+  const { profile = mockProfile, refresh: refreshProfile } = useSubscription(user?.id);
   
   // Customization hook (currently unused but available for future features)
   useCustomization(user);
@@ -91,11 +102,7 @@ function App() {
   } = useSoundEffects();
 
   // Theme mode
-  const { 
-    themeMode, 
-    setTheme,
-    isDarkMode
-  } = useThemeMode();
+  useThemeMode();
 
   // Conversation state
   const {
@@ -151,7 +158,6 @@ function App() {
   // Helper function to handle auth errors and force logout
   const handleAuthError = (error: any) => {
     console.error('Authentication error:', error);
-    setAuthError('Authentication failed. Please log in again.');
     setUser(null);
   };
 
@@ -202,7 +208,6 @@ function App() {
     const loadUser = async () => {
       try {
         setIsAuthLoading(true);
-        setAuthError(null);
         
         // Add timeout to prevent infinite loading
         const timeoutPromise = new Promise((_, reject) => 
@@ -216,7 +221,6 @@ function App() {
         
         if (error) {
           console.log('Auth error:', error.message);
-          setAuthError(error.message);
         } else if (session?.user) {
           setUser(session.user);
           console.log('User loaded:', session.user.email);
@@ -225,7 +229,6 @@ function App() {
         }
       } catch (error) {
         console.log('Auth loading failed:', error);
-        setAuthError('Failed to load user session');
       } finally {
         setIsAuthLoading(false);
         console.log('Auth loading completed');
@@ -239,10 +242,8 @@ function App() {
         console.log('Auth state change:', event);
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
-          setAuthError(null);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          setAuthError(null);
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           setUser(session.user);
         }
@@ -271,9 +272,7 @@ function App() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        setConnectionStatus('connecting');
         // Connection test removed - using simplified Supabase client
-        setConnectionStatus('online');
 
         // Test backend connection (use local in development)
         try {
@@ -305,7 +304,6 @@ function App() {
         }
       } catch (error) {
         console.error('❌ Connection test error:', error); 
-        setConnectionStatus('offline');
         
         // Check if the error is authentication-related
         if (error instanceof Error && 
@@ -457,8 +455,7 @@ function App() {
     if (isProcessing || !message.trim()) return;
     
     // 🎯 TIER ENFORCEMENT: Check message limit
-    const canSend = await canStartConversation();
-    if (!canSend) {
+    if (!canStartConversation) {
       return; // Toast already shown by hook
     }
      
@@ -633,7 +630,6 @@ function App() {
     try { 
       await supabase.auth.signOut();
       setUser(null);
-      setAuthError(null);
       
       // Clear local state
       setResponse('');
@@ -652,14 +648,8 @@ function App() {
     
     // Simulate upgrade process
     setTimeout(() => {
-      setShowUpgradeModal(false);
-      setShowPaymentSuccess(true);
+      console.log('Upgrade completed for tier:', tier);
       playSound('success');
-      
-      // Hide success modal after 3 seconds
-      setTimeout(() => {
-        setShowPaymentSuccess(false);
-      }, 3000);
     }, 1000);
   };
 

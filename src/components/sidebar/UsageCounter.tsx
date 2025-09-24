@@ -1,8 +1,10 @@
+import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useTierAccess } from '../../hooks/useTierAccess';
 import { UpgradeButton } from '../UpgradeButton';
 
 export default function UsageCounter() {
-  const { tier, messageCount, maxMessages, remainingMessages } = useTierAccess();
+  const { user } = useSupabaseAuth();
+  const { tier, messageCount, maxMessages, remainingMessages } = useTierAccess(user?.id);
 
   const getTierDisplayName = (tier: string) => {
     switch (tier) {

@@ -53,7 +53,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     isTrialExpired,
     canAccessFeature,
     getUsagePercentage
-  } = useSubscription(user);
+  } = useSubscription(user?.id);
 
   const addTestResult = useCallback((result: TestResult) => {
     const resultWithTimestamp = {

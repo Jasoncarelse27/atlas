@@ -23,7 +23,7 @@ export default function InputToolbar({
   placeholder = "Ask anything..."
 }: InputToolbarProps) {
   const { user, tier } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal } = useTierAccess();
+  const { canUseFeature, showUpgradeModal } = useTierAccess(user?.id);
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);

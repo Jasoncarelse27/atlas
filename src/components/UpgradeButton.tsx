@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useTierAccess } from '../hooks/useTierAccess';
 
 interface UpgradeButtonProps {
@@ -14,7 +15,8 @@ export function UpgradeButton({
   variant = 'primary',
   children = 'Upgrade Now'
 }: UpgradeButtonProps) {
-  const { showUpgradeModal } = useTierAccess();
+  const { user } = useSupabaseAuth();
+  const { showUpgradeModal } = useTierAccess(user?.id);
 
   const getSizeStyles = () => {
     switch (size) {

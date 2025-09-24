@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { useSupabaseAuth } from './useSupabaseAuth';
 import { useTierAccess } from './useTierAccess';
 
 interface MiddlewareResponse {
@@ -23,7 +24,8 @@ interface UseTierMiddlewareReturn {
 }
 
 export function useTierMiddleware(): UseTierMiddlewareReturn {
-  const { tier } = useTierAccess();
+  const { user } = useSupabaseAuth();
+  const { tier } = useTierAccess(user?.id);
   const [isLoading, setIsLoading] = useState(false);
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState('');

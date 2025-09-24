@@ -949,6 +949,52 @@ app.get("/api/me", verifyJWT, (req, res) => {
   res.json({ ok: true, user: req.user });
 });
 
+// --- Get user's daily usage ---
+app.get("/api/usage/:userId", verifyJWT, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const requestingUserId = req.user.id;
+
+    // Verify the requesting user can access this usage (must be the same user)
+    if (requestingUserId !== userId) {
+      return res.status(403).json({ 
+        error: 'Forbidden',
+        message: 'You can only access your own usage data'
+      });
+    }
+
+    console.log('📊 Usage endpoint called for user:', userId);
+
+    // Get today's usage
+    const today = new Date().toISOString().split('T')[0];
+    const { data: usage, error } = await supabase
+      .from('daily_usage')
+      .select('conversations_count, total_tokens_used, api_cost_estimate')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .maybeSingle();
+
+    if (error) {
+      console.error('❌ Error fetching usage:', error);
+      return res.status(500).json({ error: 'Failed to fetch usage data' });
+    }
+
+    // Return usage data (default to 0 if no record exists)
+    const usageData = usage || {
+      conversations_count: 0,
+      total_tokens_used: 0,
+      api_cost_estimate: 0
+    };
+
+    console.log('✅ Usage data retrieved:', usageData);
+    res.json(usageData);
+
+  } catch (error) {
+    console.error('❌ Usage endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // --- File upload route: handles image, camera, audio, and file uploads ---
 app.post("/api/upload", verifyJWT, upload.single("file"), async (req, res) => {
   try {

@@ -21,7 +21,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal, tier } = useTierAccess();
+  const { canUseFeature, showUpgradeModal, tier } = useTierAccess(user?.id);
 
   const [loadingFeature, setLoadingFeature] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -147,7 +147,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
     if (!canUseFeature('image')) {
       toast.error('Image features are available in Core & Studio plans. Upgrade to unlock!');
       showUpgradeModal('image');
-      featureService.logAttempt(user.id, 'image', tier);
+      featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
       onClose();
       return;
     }
@@ -167,7 +167,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       const result = await uploadWithAuth(file, "image", user.id);
       
       // Log feature attempt
-      featureService.logAttempt(user.id, 'image', tier);
+      featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
 
       // Handle preview and ingestion
       await handleAfterUpload({
@@ -204,7 +204,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
     if (!canUseFeature('camera')) {
       toast.error('Camera features are available in Studio plans only. Upgrade to unlock!');
       showUpgradeModal('camera');
-      featureService.logAttempt(user.id, 'camera', tier);
+      featureService.logAttempt(user.id, 'camera', tier === 'loading' ? 'free' : tier);
       onClose();
       return;
     }
@@ -248,7 +248,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
             const result = await uploadWithAuth(file, "camera", user.id);
             
             // Log feature attempt
-            featureService.logAttempt(user.id, 'camera', tier);
+            featureService.logAttempt(user.id, 'camera', tier === 'loading' ? 'free' : tier);
 
             // Handle preview and ingestion
             await handleAfterUpload({
@@ -290,7 +290,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
     if (!canUseFeature('file')) {
       toast.error('File upload features are available in Core & Studio plans. Upgrade to unlock!');
       showUpgradeModal('file');
-      featureService.logAttempt(user.id, 'file', tier);
+      featureService.logAttempt(user.id, 'file', tier === 'loading' ? 'free' : tier);
       onClose();
       return;
     }
@@ -310,7 +310,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       const result = await uploadWithAuth(file, "file", user.id);
       
       // Log feature attempt
-      featureService.logAttempt(user.id, 'file', tier);
+      featureService.logAttempt(user.id, 'file', tier === 'loading' ? 'free' : tier);
 
       // Determine feature type for ingestion
       const kindGuess = file.type.startsWith("audio/") ? "audio" : "file";
@@ -347,7 +347,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
     if (!canUseFeature('audio')) {
       toast.error('Audio recording features are available in Core & Studio plans. Upgrade to unlock!');
       showUpgradeModal('audio');
-      featureService.logAttempt(user.id, 'audio', tier);
+      featureService.logAttempt(user.id, 'audio', tier === 'loading' ? 'free' : tier);
       onClose();
       return;
     }
@@ -406,7 +406,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       });
 
       // Log feature attempt
-      featureService.logAttempt(user.id, 'audio', tier);
+      featureService.logAttempt(user.id, 'audio', tier === 'loading' ? 'free' : tier);
 
       // Try immediate sync; if offline, cron/edge will retry
       syncPendingUploads().catch(() => {});

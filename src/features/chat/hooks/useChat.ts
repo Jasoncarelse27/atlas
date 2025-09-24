@@ -42,7 +42,7 @@ export function useChat(userId?: string): UseChatReturn {
   const navigate = useNavigate();
   
   // Tier enforcement hooks
-  const { tier, model, claudeModelName, canStartConversation } = useTierAccess();
+  const { tier, model, claudeModelName, canStartConversation } = useTierAccess(userId);
   
   // New middleware integration
   const {

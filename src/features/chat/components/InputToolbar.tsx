@@ -36,7 +36,7 @@ export function InputToolbar({
 }: InputToolbarProps) {
   const { isOnline } = useNetworkStatus();
   const { tier } = useUserTier(userId);
-  const { canUseFeature: canUse, canStartConversation } = useTierAccess();
+  const { canUseFeature: canUse, canStartConversation } = useTierAccess(userId);
   
   const [inputState, setInputState] = useState<InputState>({
     text: '',

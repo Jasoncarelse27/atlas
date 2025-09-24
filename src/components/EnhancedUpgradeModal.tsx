@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Image, Mic, Sparkles, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useTierAccess } from '../hooks/useTierAccess';
 
 interface EnhancedUpgradeModalProps {
@@ -10,7 +11,8 @@ interface EnhancedUpgradeModalProps {
 }
 
 export default function EnhancedUpgradeModal({ isOpen, onClose, feature }: EnhancedUpgradeModalProps) {
-  const { showUpgradeModal } = useTierAccess();
+  const { user } = useSupabaseAuth();
+  const { showUpgradeModal } = useTierAccess(user?.id);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
