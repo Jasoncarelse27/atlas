@@ -26,7 +26,7 @@ export default function EnhancedInputToolbar({
   placeholder = "Ask anything..."
 }: EnhancedInputToolbarProps) {
   const { user, tier } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal } = useTierAccess(user?.id || '');
+  const { canUseFeature, showUpgradeModal, messageCount, maxMessages, remainingMessages } = useTierAccess(user?.id || '');
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -35,6 +35,16 @@ export default function EnhancedInputToolbar({
 
   const handleSend = () => {
     if (!text.trim() || isProcessing || disabled) return;
+    
+    // Check message limit for free tier
+    if (tier === 'free' && remainingMessages <= 0) {
+      showUpgradeModal('daily_limit');
+      toast.error('Daily message limit reached! Upgrade to continue chatting.', {
+        duration: 5000,
+        icon: '⚠️'
+      });
+      return;
+    }
     
     onSendMessage(text.trim());
     setText('');
@@ -111,6 +121,21 @@ export default function EnhancedInputToolbar({
 
   return (
     <div className="px-4 pb-4 bg-transparent">
+      {/* Message Limit Warning */}
+      {tier === 'free' && remainingMessages <= 0 && (
+        <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded-lg max-w-4xl mx-auto">
+          <p className="text-red-200 text-sm text-center">
+            ⚠️ Daily limit reached ({messageCount}/{maxMessages}). 
+            <button 
+              onClick={() => showUpgradeModal('daily_limit')}
+              className="ml-1 text-red-300 hover:text-red-100 underline"
+            >
+              Upgrade to continue
+            </button>
+          </p>
+        </div>
+      )}
+      
       {/* Main Input Container - iOS Style */}
       <div className="flex items-center w-full max-w-4xl mx-auto px-4 py-3 bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-700/50">
         

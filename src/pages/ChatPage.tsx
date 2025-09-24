@@ -47,24 +47,28 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
     handleUpgrade
   } = useChat(user?.id);
 
-  // Handle enhanced message sending with typing effect
+  // Handle enhanced message sending with clean single response
   const handleEnhancedSendMessage = async (message: string) => {
-    await handleSendMessage(message);
     setIsTyping(true);
     
-    // Simulate typing effect duration based on message length
-    const typingDuration = Math.min(Math.max(message.length * 50, 1000), 3000);
-    setTimeout(() => setIsTyping(false), typingDuration);
+    try {
+      await handleSendMessage(message);
+    } finally {
+      // Clear typing state after message is processed
+      setTimeout(() => setIsTyping(false), 1000);
+    }
   };
 
-  // Handle enhanced file message with typing effect
+  // Handle enhanced file message with clean single response
   const handleEnhancedFileMessage = async (message: Message) => {
-    await handleFileMessage(message);
     setIsTyping(true);
     
-    // Simulate typing effect duration for file processing
-    const typingDuration = 2000; // 2 seconds for file processing
-    setTimeout(() => setIsTyping(false), typingDuration);
+    try {
+      await handleFileMessage(message);
+    } finally {
+      // Clear typing state after file is processed
+      setTimeout(() => setIsTyping(false), 1500);
+    }
   };
 
   // Health check with auto-retry every 30 seconds
