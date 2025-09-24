@@ -214,6 +214,20 @@ export function useTierAccess(): TierAccessReturn {
     }
   }, [user?.id, currentTier]);
   
+  // Get message limits based on tier
+  const getMessageLimit = (tier: Tier): number => {
+    switch (tier) {
+      case 'free': return 15;
+      case 'core': return 999999; // Essentially unlimited
+      case 'studio': return 999999; // Essentially unlimited
+      default: return 15;
+    }
+  };
+
+  const maxMessages = getMessageLimit(currentTier);
+  const messageCount = conversationsToday;
+  const remainingMessages = Math.max(0, maxMessages - messageCount);
+
   // Create system message for tier enforcement
   const createSystemMessage = useCallback((type: 'limit_reached' | 'feature_locked' | 'upgrade_required', feature?: string) => {
     const messages = {
@@ -334,7 +348,12 @@ export function useTierAccess(): TierAccessReturn {
     
     // Budget protection
     budgetStatus,
-    isMaintenanceMode
+    isMaintenanceMode,
+    
+    // Message tracking for sidebar
+    messageCount,
+    maxMessages,
+    remainingMessages
   };
 }
 
