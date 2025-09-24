@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { getUpgradeMessage as getUpgradeMessageFromConfig } from '../config/tierAccess';
-import { getClaudeModelName, getTierPricing, tierConfig } from '../config/tierConfig';
+import { getClaudeModelName, tierConfig } from '../config/tierConfig';
 import { usageTrackingService, type UsageCheckResult } from '../services/usageTrackingService';
 import type { Tier } from '../types/tier';
 import { useSubscription } from './useSubscription';
@@ -23,7 +23,7 @@ const DEBOUNCE_DELAY = 1000; // 1 second debounce
 
 export interface TierAccessReturn {
   // Current tier info
-  tier: Tier;
+  tier: Tier | 'loading';
   features: typeof tierConfig[Tier];
   
   // 🎯 CONVERSATION LIMITS (NEW)
@@ -35,6 +35,9 @@ export interface TierAccessReturn {
   canUseFeature: (feature: 'text' | 'audio' | 'image' | 'camera') => boolean;
   isWithinLimit: (currentCount: number) => boolean;
   
+  // Loading state
+  isProfileLoading: boolean;
+  
   // Model routing with token limits
   model: string;
   claudeModelName: string;
@@ -45,188 +48,65 @@ export interface TierAccessReturn {
   logFeatureAttempt: (feature: string, allowed: boolean) => Promise<void>;
   recordConversation: (tokensUsed: number) => Promise<void>;
   
+  // System message creation for tier enforcement
+  createSystemMessage: (type: 'limit_reached' | 'feature_locked' | 'upgrade_required', feature?: string) => any;
+  
   // Upgrade helpers
-  showUpgradeModal: (feature: string) => void;
+  showUpgradeModal: (reason?: string) => void;
   getUpgradeMessage: (feature: string) => string;
   
   // Budget protection
-  budgetStatus: 'ok' | 'warning' | 'critical';
+  budgetStatus: 'healthy' | 'warning' | 'critical' | 'maintenance';
   isMaintenanceMode: boolean;
+  
+  // Message tracking for sidebar
+  messageCount: number;
+  maxMessages: number;
+  remainingMessages: number;
 }
 
 export function useTierAccess(): TierAccessReturn {
   const { user } = useSupabaseAuth();
-  const { profile, canAccessFeature, updateUsage } = useSubscription(user);
+  const { profile, canAccessFeature, updateUsage, isLoading } = useSubscription(user);
   
   // State for usage tracking
   const [usageCheck, setUsageCheck] = useState<UsageCheckResult | null>(null);
-  const [budgetStatus, setBudgetStatus] = useState<'ok' | 'warning' | 'critical'>('ok');
-  const [conversationsToday, setConversationsToday] = useState(0);
+  const [budgetStatus, setBudgetStatus] = useState<'healthy' | 'warning' | 'critical' | 'maintenance'>('healthy');
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+
+  // ✅ GOLDEN STANDARD: Handle loading state properly
+  const currentTier: Tier | 'loading' = profile?.tier || 'loading';
   
-  // ✅ FUTURE-PROOF TIER SYSTEM: Always use normalized tier values
-  // This ensures the frontend only depends on these 3 tier values from backend profile
-  // Tier mapping to AI models:
-  // - 'free' → Claude Haiku (fast, cost-effective)
-  // - 'core' → Claude Sonnet (balanced performance)  
-  // - 'studio' → Claude Opus (most advanced)
-  // Fallback to 'free' if no profile or invalid tier value
-  const currentTier: Tier = (profile?.tier && ['free', 'core', 'studio'].includes(profile.tier)) ? profile.tier as Tier : 'free';
-  const features = tierConfig[currentTier];
-  
-  // Debug logging to track tier changes
+  // Log tier changes for debugging
   useEffect(() => {
-    console.log('🔍 [useTierAccess] Tier changed:', currentTier, 'Profile:', profile);
-  }, [currentTier, profile]);
-  
-  // 🚀 PERFORMANCE: Debounced usage data loading with caching
-  useEffect(() => {
-    if (!user?.id) return;
-    
-    const cacheKey = `usage_${user.id}_${currentTier}`;
-    const cached = tierAccessCache.get(cacheKey);
-    
-    // Use cache if available and not expired
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      setUsageCheck(cached.data.usageCheck);
-      setConversationsToday(cached.data.conversationsToday);
-      setBudgetStatus(cached.data.budgetStatus);
-      setIsMaintenanceMode(cached.data.isMaintenanceMode);
-      return;
-    }
-    
-    // Debounce API calls
-    const timeoutId = setTimeout(async () => {
-      try {
-        // Check current usage status
-        const check = await usageTrackingService.checkUsageBeforeConversation(user.id, currentTier);
-        
-        // Get today's conversation count
-        const stats = await usageTrackingService.getUsageStats(user.id);
-        
-        // Check budget health
-        const budget = await usageTrackingService.checkBudgetHealth();
-        
-        const data = {
-          usageCheck: check,
-          conversationsToday: stats.today.conversations_count,
-          budgetStatus: budget.status,
-          isMaintenanceMode: budget.status === 'critical'
-        };
-        
-        // Update state
-        setUsageCheck(check);
-        setConversationsToday(stats.today.conversations_count);
-        setBudgetStatus(budget.status);
-        setIsMaintenanceMode(budget.status === 'critical');
-        
-        // Cache the result
-        tierAccessCache.set(cacheKey, {
-          data,
-          timestamp: Date.now(),
-          ttl: CACHE_TTL
-        });
-        
-      } catch (error) {
-        console.error('Failed to load usage data:', error);
-        // Graceful fallback
-        setUsageCheck({ canProceed: true, remainingConversations: 'unlimited', upgradeRequired: false });
-      }
-    }, DEBOUNCE_DELAY);
-    
-    return () => clearTimeout(timeoutId);
-  }, [user?.id, currentTier]);
-  
-  // 🎯 NEW: Conversation limit check with daily tracking
-  const canStartConversation = useCallback(async (): Promise<boolean> => {
-    if (!user?.id) return false;
-    
-    // Check maintenance mode
-    if (isMaintenanceMode) {
-      toast.error('Atlas is temporarily in maintenance mode. Please try again later.', {
-        duration: 5000,
-        icon: '🛠️'
-      });
-      return false;
-    }
-    
-    try {
-      const check = await usageTrackingService.checkUsageBeforeConversation(user.id, currentTier);
-      setUsageCheck(check);
-      
-      if (!check.canProceed) {
-        if (check.reason === 'daily_limit') {
-          showUpgradeModal('daily_limit');
-        } else if (check.reason === 'budget_exceeded') {
-          toast.error('Daily usage limit reached. Please try again tomorrow.', {
-            duration: 5000,
-            icon: '💰'
-          });
-        }
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Conversation check failed:', error);
-      return true; // Graceful fallback
-    }
-  }, [user?.id, currentTier, isMaintenanceMode]);
-  
-  // 🚀 PERFORMANCE: Memoized feature checks
-  const canUseFeature = useCallback((feature: 'text' | 'audio' | 'image' | 'camera'): boolean => {
-    return canAccessFeature(feature, currentTier);
+    console.log(`[useTierAccess] Tier changed: ${currentTier}`);
   }, [currentTier]);
-  
-  // Legacy message limit check (kept for compatibility)
-  const isWithinLimit = useCallback((currentCount: number): boolean => {
-    const maxConversations = features.maxConversationsPerDay;
-    if (maxConversations === -1) return true; // Unlimited
-    return currentCount < maxConversations;
-  }, [features]);
-  
-  // 🚀 PERFORMANCE: Memoized model routing
-  const model = useMemo(() => features.model, [features]);
-  const claudeModelName = useMemo(() => getClaudeModelName(currentTier), [currentTier]);
-  const maxTokensPerResponse = useMemo(() => features.maxTokensPerResponse, [features]);
-  const maxContextWindow = useMemo(() => features.maxContextWindow, [features]);
-  
-  // 🎯 NEW: Record successful conversation with token usage
-  const recordConversation = useCallback(async (tokensUsed: number): Promise<void> => {
-    if (!user?.id) return;
-    
-    try {
-      await usageTrackingService.recordConversation(user.id, currentTier, tokensUsed);
-      
-      // Update local state
-      setConversationsToday(prev => prev + 1);
-      
-      // Refresh usage check for next conversation
-      const newCheck = await usageTrackingService.checkUsageBeforeConversation(user.id, currentTier);
-      setUsageCheck(newCheck);
-      
-      // Clear cache to force refresh
-      const cacheKey = `usage_${user.id}_${currentTier}`;
-      tierAccessCache.delete(cacheKey);
-      
-    } catch (error) {
-      console.error('Failed to record conversation:', error);
-    }
-  }, [user?.id, currentTier]);
-  
+
   // Get message limits based on tier
-  const getMessageLimit = (tier: Tier): number => {
+  const getMessageLimit = (tier: Tier | 'loading'): number => {
     switch (tier) {
       case 'free': return 15;
       case 'core': return 999999; // Essentially unlimited
       case 'studio': return 999999; // Essentially unlimited
+      case 'loading': return 15; // Conservative during loading
       default: return 15;
     }
   };
 
   const maxMessages = getMessageLimit(currentTier);
-  const messageCount = conversationsToday;
-  const remainingMessages = Math.max(0, maxMessages - messageCount);
+  const messageCount = usageCheck?.conversationsToday || 0;
+  const remainingMessages = currentTier === 'loading' ? 15 : Math.max(0, maxMessages - messageCount);
+
+  // Feature access with loading state handling
+  const canUseFeature = useCallback((feature: 'text' | 'audio' | 'image' | 'camera'): boolean => {
+    // ✅ GOLDEN STANDARD: Optimistic access during loading
+    if (currentTier === 'loading') {
+      console.log(`[useTierAccess] Loading state - allowing optimistic access to ${feature}`);
+      return true; // Don't block during loading
+    }
+    
+    return canAccessFeature(feature);
+  }, [currentTier, canAccessFeature]);
 
   // Create system message for tier enforcement
   const createSystemMessage = useCallback((type: 'limit_reached' | 'feature_locked' | 'upgrade_required', feature?: string) => {
@@ -255,12 +135,12 @@ export function useTierAccess(): TierAccessReturn {
     };
   }, [maxMessages]);
 
-  // Log feature attempts for analytics
+  // Log feature attempts
   const logFeatureAttempt = useCallback(async (feature: string, allowed: boolean): Promise<void> => {
     if (!user?.id) return;
-    
+
     console.log('🔍 [logFeatureAttempt] Logging feature attempt:', { feature, tier: currentTier, profile });
-    
+
     try {
       // Use backend API to log feature attempts - use Railway backend URL
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -279,42 +159,114 @@ export function useTierAccess(): TierAccessReturn {
       console.warn('Failed to log feature attempt:', error);
     }
   }, [user?.id, currentTier, profile]);
-  
-  // 🎯 ENHANCED: Upgrade modal with specific pricing
-  const showUpgradeModal = useCallback((feature: string): void => {
-    // Studio tier has access to all features - don't show upgrade modal
-    if (currentTier === 'studio') {
-      return;
+
+  // Record conversation usage
+  const recordConversation = useCallback(async (tokensUsed: number): Promise<void> => {
+    if (!user?.id) return;
+
+    try {
+      await updateUsage('ai_prompts_this_month', 1);
+      console.log('📊 Conversation recorded:', { tokensUsed, tier: currentTier });
+    } catch (error) {
+      console.error('Failed to record conversation:', error);
+    }
+  }, [user?.id, updateUsage, currentTier]);
+
+  // Check if user can start a conversation
+  const canStartConversation = useCallback(async (): Promise<boolean> => {
+    if (currentTier === 'loading') {
+      console.log('[useTierAccess] Loading state - allowing optimistic conversation start');
+      return true; // Optimistic during loading
     }
 
-    const message = getUpgradeMessage(feature);
-    if (!message) return; // Don't show modal if no message
-    
-    // Suggest Core for audio/image, Studio for camera
-    const suggestedTier = feature === 'camera' ? 'studio' : 'core';
-    const price = getTierPricing(suggestedTier);
-    const tierName = suggestedTier === 'core' ? 'Core' : 'Studio';
-    
-    toast.error(message, {
-      duration: 8000,
-      action: {
-        label: `Upgrade to ${tierName} $${price}/mo`,
-        onClick: () => {
-          // TODO: Open Paddle checkout modal with specific tier
-          console.log('Open upgrade modal for', feature, 'to', suggestedTier);
-          // Track upgrade intent
-          logFeatureAttempt(`upgrade_intent_${suggestedTier}`, true);
-        }
-      }
+    try {
+      const result = await usageTrackingService.checkUsageBeforeConversation(user?.id || '', currentTier as Tier);
+      setUsageCheck(result);
+      return result.allowed;
+    } catch (error) {
+      console.error('Failed to check conversation limit:', error);
+      return true; // Fail open
+    }
+  }, [user?.id, currentTier]);
+
+  // Check if within limit
+  const isWithinLimit = useCallback((currentCount: number): boolean => {
+    if (currentTier === 'loading') return true; // Optimistic during loading
+    return currentCount < maxMessages;
+  }, [currentTier, maxMessages]);
+
+  // Show upgrade modal (placeholder - will be connected to actual modal)
+  const showUpgradeModal = useCallback((reason: string = 'upgrade') => {
+    console.log(`[useTierAccess] Upgrade modal requested: ${reason}`);
+    toast.error(`Upgrade required: ${reason}`, {
+      duration: 5000,
+      icon: '🚀'
     });
-  }, [currentTier, logFeatureAttempt]);
-  
-  // 🎯 UPDATED: Get upgrade message with correct Atlas tier structure and model mapping
+  }, []);
+
+  // Get upgrade message
   const getUpgradeMessage = useCallback((feature: string): string => {
-    const message = getUpgradeMessageFromConfig(feature, currentTier);
-    return message || '';
+    return getUpgradeMessageFromConfig(feature, currentTier as Tier);
   }, [currentTier]);
-  
+
+  // Model routing based on tier
+  const model = useMemo(() => {
+    if (currentTier === 'loading') return 'groq'; // Conservative during loading
+    
+    switch (currentTier) {
+      case 'free': return 'groq'; // Free tier uses Groq
+      case 'core': return 'claude'; // Core tier uses Claude Sonnet
+      case 'studio': return 'opus'; // Studio tier uses Claude Opus
+      default: return 'groq';
+    }
+  }, [currentTier]);
+
+  const claudeModelName = useMemo(() => {
+    if (currentTier === 'loading') return 'claude-3-haiku-20240307';
+    
+    return getClaudeModelName(currentTier as Tier);
+  }, [currentTier]);
+
+  const maxTokensPerResponse = useMemo(() => {
+    if (currentTier === 'loading') return 1000;
+    
+    switch (currentTier) {
+      case 'free': return 1000;
+      case 'core': return 4000;
+      case 'studio': return 8000;
+      default: return 1000;
+    }
+  }, [currentTier]);
+
+  const maxContextWindow = useMemo(() => {
+    if (currentTier === 'loading') return 200000;
+    
+    switch (currentTier) {
+      case 'free': return 200000;
+      case 'core': return 200000;
+      case 'studio': return 200000;
+      default: return 200000;
+    }
+  }, [currentTier]);
+
+  // Get features for current tier
+  const features = useMemo(() => {
+    if (currentTier === 'loading') {
+      return tierConfig.free; // Conservative during loading
+    }
+    
+    return tierConfig[currentTier as Tier] || tierConfig.free;
+  }, [currentTier]);
+
+  // Load usage data on mount and tier change
+  useEffect(() => {
+    if (user?.id && currentTier !== 'loading') {
+      usageTrackingService.checkUsageBeforeConversation(user.id, currentTier as Tier)
+        .then(setUsageCheck)
+        .catch(console.error);
+    }
+  }, [user?.id, currentTier]);
+
   return {
     // Current tier info
     tier: currentTier,
@@ -323,11 +275,14 @@ export function useTierAccess(): TierAccessReturn {
     // 🎯 NEW: Conversation limits
     canStartConversation,
     remainingConversations: usageCheck?.remainingConversations || 0,
-    conversationsToday,
+    conversationsToday: usageCheck?.conversationsToday || 0,
     
     // Feature access checks
     canUseFeature,
     isWithinLimit,
+    
+    // Loading state
+    isProfileLoading: isLoading,
     
     // Model routing with token limits
     model,
@@ -354,47 +309,5 @@ export function useTierAccess(): TierAccessReturn {
     messageCount,
     maxMessages,
     remainingMessages
-  };
-}
-
-// Helper hook for specific feature checks
-export function useFeatureAccess(feature: 'text' | 'audio' | 'image' | 'camera') {
-  const { canUseFeature, showUpgradeModal, logFeatureAttempt } = useTierAccess();
-  
-  const attemptFeature = useCallback(async (): Promise<boolean> => {
-    const allowed = canUseFeature(feature);
-    await logFeatureAttempt(feature, allowed);
-    
-    if (!allowed) {
-      showUpgradeModal(feature);
-    }
-    
-    return allowed;
-  }, [canUseFeature, feature, logFeatureAttempt, showUpgradeModal]);
-  
-  return {
-    canUse: canUseFeature(feature),
-    attemptFeature
-  };
-}
-
-// Helper hook for message limits
-export function useMessageLimit() {
-  const { isWithinLimit, showUpgradeModal, logFeatureAttempt } = useTierAccess();
-  
-  const checkAndAttemptMessage = useCallback(async (currentCount: number): Promise<boolean> => {
-    const allowed = isWithinLimit(currentCount);
-    await logFeatureAttempt('text', allowed);
-    
-    if (!allowed) {
-      showUpgradeModal('text');
-    }
-    
-    return allowed;
-  }, [isWithinLimit, logFeatureAttempt, showUpgradeModal]);
-  
-  return {
-    isWithinLimit,
-    checkAndAttemptMessage
   };
 }

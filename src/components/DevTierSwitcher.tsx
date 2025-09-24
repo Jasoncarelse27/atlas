@@ -1,149 +1,76 @@
 import React, { useEffect, useState } from 'react';
+import { useSubscription } from '../hooks/useSubscription';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { supabase } from '../lib/supabase';
-import { subscriptionApi } from '../services/subscriptionApi';
 
 interface DevTierSwitcherProps {
   onTierChange?: (newTier: string) => void;
 }
 
 export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }) => {
-  const { user, tier } = useSupabaseAuth();
-  const [currentTier, setCurrentTier] = useState<string>(tier || 'free');
+  const { user } = useSupabaseAuth();
+  const { profile, refreshProfile } = useSubscription(user);
+  const [currentTier, setCurrentTier] = useState<string>('free');
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Only render in development mode
-  if (import.meta.env.MODE !== 'development') {
+  // Hide in production builds
+  if (import.meta.env.MODE === 'production') {
     return null;
   }
 
   useEffect(() => {
-    if (user) {
-      fetchCurrentTier();
+    if (profile?.tier) {
+      setCurrentTier(profile.tier);
+      console.log(`[DevTierSwitcher] Current tier from profile: ${profile.tier}`);
     }
-  }, [user]);
-
-  // Remove this useEffect - it's causing the tier to reset to 'free'
-  // The tier from useSupabaseAuth is not refreshed after updates
-  // useEffect(() => {
-  //   if (tier) {
-  //     setCurrentTier(tier);
-  //   }
-  // }, [tier]);
-
-  const fetchCurrentTier = async () => {
-    if (!user) return;
-
-    try {
-      // Get access token for backend API calls
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-      
-      if (!accessToken) {
-        console.error('No access token available');
-        return;
-      }
-
-      // Use backend API to get current tier
-      try {
-        const tier = await subscriptionApi.getUserTier(user.id, accessToken);
-        setCurrentTier(tier);
-      } catch (apiError) {
-        console.warn('Backend API failed, falling back to direct Supabase:', apiError);
-        
-        // Fallback to direct Supabase call
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching current tier:', error);
-          return;
-        }
-
-        setCurrentTier(data.subscription_tier || 'free');
-      }
-    } catch (err) {
-      console.error('Error fetching tier:', err);
-    }
-  };
+  }, [profile?.tier]);
 
   const handleTierChange = async (newTier: string) => {
     if (!user || isUpdating) return;
 
     setIsUpdating(true);
+    console.log(`[DevTierSwitcher] Updating tier to ${newTier}...`);
+
     try {
-      console.log(`[DevTierSwitcher] Updating tier from ${currentTier} to ${newTier}`);
+      // 1. Update backend via Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          subscription_tier: newTier,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
 
-      // Get access token for backend API calls
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-      
-      if (!accessToken) {
-        console.error('No access token available');
-        return;
+      if (error) {
+        console.error('❌ Backend update failed:', error);
+        throw error;
       }
 
-      // Use backend API to update tier
+      console.log('✅ Backend tier updated');
+
+      // 2. Clear Dexie cache (force next read to pull from backend)
       try {
-        const updatedProfile = await subscriptionApi.updateSubscriptionTier(
-          user.id, 
-          newTier as 'free' | 'core' | 'studio', 
-          accessToken
-        );
-        
-        console.log('✅ Tier updated via backend API:', updatedProfile);
-        console.log('✅ New tier set in DevTierSwitcher:', newTier);
-        setCurrentTier(newTier);
-        
-        // Clear the profile cache to force a refresh
-        subscriptionApi.clearProfileCache(user.id);
-        console.log('✅ Profile cache cleared for user:', user.id);
-        
-        onTierChange?.(newTier);
-        console.log('✅ onTierChange callback called');
-        
-        // Show success message
-        console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
-        
-        // No need to reload the page - the tier change will be reflected immediately
-      } catch (apiError) {
-        console.warn('Backend API update failed, falling back to direct Supabase:', apiError);
-        
-        // Fallback to direct Supabase update
-        const { error } = await supabase
-          .from('profiles')
-          .update({ 
-            subscription_tier: newTier,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id);
-
-        if (error) {
-          console.error('Error updating tier:', error);
-          return;
+        // Clear any cached profile data
+        if (window.db?.profiles) {
+          await window.db.profiles.clear();
+          console.log('✅ Dexie cache cleared');
         }
-
-        setCurrentTier(newTier);
-        console.log('✅ Tier updated via direct Supabase, new tier:', newTier);
-        
-        // Clear the profile cache to force a refresh
-        subscriptionApi.clearProfileCache(user.id);
-        console.log('✅ Profile cache cleared for user (fallback):', user.id);
-        
-        onTierChange?.(newTier);
-        console.log('✅ onTierChange callback called (fallback)');
-        
-        // Show success message
-        console.log(`✅ Upgrade successful! Tier: ${newTier} (voice + image unlocked)`);
-        
-        // No need to reload the page - the tier change will be reflected immediately
+      } catch (dexieError) {
+        console.warn('⚠️ Dexie cache clear failed (non-critical):', dexieError);
       }
 
-    } catch (err) {
-      console.error('Error updating tier:', err);
+      // 3. Refresh React state (re-fetch profile from backend)
+      await refreshProfile();
+      console.log('✅ React state refreshed');
+
+      // 4. Update local state
+      setCurrentTier(newTier);
+      onTierChange?.(newTier);
+
+      console.log(`🎉 Tier sync complete: ${newTier}`);
+
+    } catch (error) {
+      console.error('❌ Tier update failed:', error);
     } finally {
       setIsUpdating(false);
     }

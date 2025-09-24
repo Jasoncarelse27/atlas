@@ -3,7 +3,7 @@ import { ImageButton } from '../../components/ImageButton';
 import { ImageUploader } from '../../components/ImageUploader';
 import { MicButton } from '../../components/MicButton';
 import { VoiceRecorder } from '../../components/VoiceRecorder';
-import { useMessageLimit } from '../../hooks/useMessageLimit';
+// Removed useMessageLimit - using useTierAccess instead
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useUserTier } from '../../hooks/useUserTier';
 import { useTierAccess } from '../hooks/useSubscription';
@@ -36,8 +36,7 @@ export function InputToolbar({
 }: InputToolbarProps) {
   const { isOnline } = useNetworkStatus();
   const { tier } = useUserTier(userId);
-  const { canUseFeature: canUse } = useTierAccess(userId);
-  const { blocked, remaining, increment, isUnlimited } = useMessageLimit(conversationId, userId);
+  const { canUseFeature: canUse, canStartConversation } = useTierAccess();
   
   const [inputState, setInputState] = useState<InputState>({
     text: '',

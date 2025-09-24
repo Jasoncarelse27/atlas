@@ -209,15 +209,43 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           <div className="flex-1 overflow-y-auto px-4 py-6">
             <div className="max-w-4xl mx-auto space-y-4">
               <MessageListWithPreviews>
-                {conversation?.messages?.map((message, index) => (
-                  <EnhancedMessageBubble
-                    key={message.id}
-                    message={message}
-                    isLatest={index === conversation.messages.length - 1}
-                    isTyping={index === conversation.messages.length - 1 && isTyping}
-                    onRetry={() => handleRetry(message.id)}
-                  />
-                ))}
+                {(() => {
+                  console.log('🔍 [ChatPage] Rendering messages:', {
+                    conversation: conversation,
+                    messagesLength: conversation?.messages?.length,
+                    hasMessages: conversation?.messages?.length > 0
+                  });
+                  
+                  if (conversation?.messages?.length > 0) {
+                    return conversation.messages.map((message, index) => (
+                      <EnhancedMessageBubble
+                        key={message.id}
+                        message={message}
+                        isLatest={index === conversation.messages.length - 1}
+                        isTyping={index === conversation.messages.length - 1 && isTyping}
+                        onRetry={() => handleRetry(message.id)}
+                      />
+                    ));
+                  } else {
+                    console.log('🔍 [ChatPage] Showing welcome message');
+                    return (
+                      <div className="flex justify-center items-center h-64">
+                        <div className="text-center text-gray-400">
+                          <div className="mb-4">
+                            <img 
+                              src="/atlas-logo.png" 
+                              alt="Atlas AI" 
+                              className="w-16 h-16 mx-auto object-contain"
+                            />
+                          </div>
+                          <h2 className="text-xl font-semibold mb-2">Welcome to Atlas AI</h2>
+                          <p className="text-sm">Your emotionally intelligent AI assistant is ready to help.</p>
+                          <p className="text-xs mt-2 text-gray-500">Start a conversation below!</p>
+                        </div>
+                      </div>
+                    );
+                  }
+                })()}
               </MessageListWithPreviews>
               
               {/* Typing Indicator */}

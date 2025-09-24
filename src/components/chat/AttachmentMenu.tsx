@@ -21,7 +21,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal, tier } = useTierAccess(user?.id || '');
+  const { canUseFeature, showUpgradeModal, tier } = useTierAccess();
 
   const [loadingFeature, setLoadingFeature] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -141,6 +141,9 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       return;
     }
 
+    // Dev-only gate check for debugging
+    console.log('[GateCheck] Image upload:', { tier, image: canUseFeature('image'), camera: canUseFeature('camera'), audio: canUseFeature('audio') });
+    
     if (!canUseFeature('image')) {
       toast.error('Image features are available in Core & Studio plans. Upgrade to unlock!');
       showUpgradeModal('image');
@@ -195,6 +198,9 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       return;
     }
 
+    // Dev-only gate check for debugging
+    console.log('[GateCheck] Camera:', { tier, image: canUseFeature('image'), camera: canUseFeature('camera'), audio: canUseFeature('audio') });
+    
     if (!canUseFeature('camera')) {
       toast.error('Camera features are available in Studio plans only. Upgrade to unlock!');
       showUpgradeModal('camera');

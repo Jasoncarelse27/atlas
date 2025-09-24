@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { Bot, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import SystemMessage from './SystemMessage';
 import { UpgradeButton } from '../UpgradeButton';
+import SystemMessage from './SystemMessage';
 
 interface EnhancedMessageBubbleProps {
   message: {

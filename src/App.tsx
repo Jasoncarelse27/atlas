@@ -2,6 +2,16 @@ import type { User } from '@supabase/supabase-js';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useConversations } from './hooks/useConversations';
+import { useCustomization } from './hooks/useCustomization';
+import { useSoundEffects } from './hooks/useSoundEffects';
+import { useSubscription } from './hooks/useSubscription';
+import useThemeMode from './hooks/useThemeMode';
+import { useTierAccess } from './hooks/useTierAccess';
+import useVoiceRecognition from './hooks/useVoiceRecognition';
+import { supabase } from './lib/supabase';
+import { syncPendingUploads, testBackendConnection } from './services/syncService';
+import type { Message } from './types/chat';
 
 // 🚨 CONFIG GUARD: Ensure VITE_API_URL is set
 if (!import.meta.env.VITE_API_URL) {
@@ -9,16 +19,6 @@ if (!import.meta.env.VITE_API_URL) {
   console.error('   Example: VITE_API_URL=https://atlas-production-2123.up.railway.app');
   throw new Error('VITE_API_URL environment variable is required');
 }
-import { useConversations } from './hooks/useConversations';
-import { useCustomization } from './hooks/useCustomization';
-import { useSoundEffects } from './hooks/useSoundEffects';
-import { useSubscription } from './hooks/useSubscription';
-import useThemeMode from './hooks/useThemeMode';
-import { useMessageLimit, useTierAccess } from './hooks/useTierAccess';
-import useVoiceRecognition from './hooks/useVoiceRecognition';
-import { supabase } from './lib/supabase';
-import { syncPendingUploads, testBackendConnection } from './services/syncService';
-import type { Message } from './types/chat';
 
 // Components
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -42,13 +42,7 @@ function App() {
   
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  
-  // Connection state
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'connecting'>('connecting');
-  
-  // UI state
-  const [showSideMenu, setShowSideMenu] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showWidgets, setShowWidgets] = useState(false);
   const [showControlCenter, setShowControlCenter] = useState(false);
@@ -56,8 +50,7 @@ function App() {
   const [showDashboardTester, setShowDashboardTester] = useState(false);
   
   // 🎯 TIER ENFORCEMENT: Add tier access hooks
-  const { tier, model, claudeModelName } = useTierAccess();
-  const { checkAndAttemptMessage } = useMessageLimit();
+  const { tier, model, claudeModelName, canStartConversation } = useTierAccess();
   const [messageCount, setMessageCount] = useState(0);
   const [showNetworkCheck, setShowNetworkCheck] = useState(false);
   const [showSpeedTest, setShowSpeedTest] = useState(false);
@@ -88,11 +81,8 @@ function App() {
   
   const { profile = mockProfile, refreshProfile } = useSubscription(user);
   
-  const { 
-    customization,
-    updateCustomization,
-    isLoading: isCustomizationLoading 
-  } = useCustomization(user);
+  // Customization hook (currently unused but available for future features)
+  useCustomization(user);
 
   // Sound effects
   const { 
@@ -467,7 +457,7 @@ function App() {
     if (isProcessing || !message.trim()) return;
     
     // 🎯 TIER ENFORCEMENT: Check message limit
-    const canSend = await checkAndAttemptMessage(messageCount);
+    const canSend = await canStartConversation();
     if (!canSend) {
       return; // Toast already shown by hook
     }
@@ -477,7 +467,7 @@ function App() {
     setAudioUrl(null);
     
     // Simple conversation management - bypass complex system
-    console.log('💬 Current backend conversation ID:', backendConversationId);
+    console.log('💬 Current backend conversation ID:', atlasConversationId);
     
     // Add user message to local display (simple approach)
     const userMessage: Message = {

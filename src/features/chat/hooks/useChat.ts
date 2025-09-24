@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { useMessageLimit, useTierAccess } from '../../../hooks/useTierAccess';
+import { useTierAccess } from '../../../hooks/useTierAccess';
 import { useTierMiddleware } from '../../../hooks/useTierMiddleware';
 import { supabase } from '../../../lib/supabase';
 import type { Message } from '../../../types/chat';
@@ -42,8 +42,7 @@ export function useChat(userId?: string): UseChatReturn {
   const navigate = useNavigate();
   
   // Tier enforcement hooks
-  const { tier, model, claudeModelName } = useTierAccess();
-  const { checkAndAttemptMessage } = useMessageLimit();
+  const { tier, model, claudeModelName, canStartConversation } = useTierAccess();
   
   // New middleware integration
   const {
@@ -60,14 +59,7 @@ export function useChat(userId?: string): UseChatReturn {
   const [conversation, setConversation] = useState<Conversation>({
     id: 'default',
     title: 'Atlas AI Chat',
-    messages: [
-      {
-        id: '1',
-        role: 'assistant',
-        content: 'Hello! I\'m Atlas, your AI-powered emotional intelligence companion. How can I help you today?',
-        timestamp: new Date().toISOString()
-      }
-    ],
+    messages: [], // Start with empty messages to show welcome screen
     lastUpdated: new Date().toISOString(),
     createdAt: new Date().toISOString()
   });

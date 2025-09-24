@@ -1,7 +1,6 @@
 import type { User } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { subscriptionApi } from '../services/subscriptionApi';
 import type { UsageCheck, UserProfile } from '../types/subscription';
 import { TIER_CONFIGS } from '../types/subscription';
 
@@ -23,12 +22,15 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // ✅ FUTURE-PROOF: Keep last known valid profile to prevent null flicker
+  const [lastValidProfile, setLastValidProfile] = useState<UserProfile | null>(null);
 
   const createDefaultProfile = (userId: string): UserProfile => {
     return {
       id: userId,
       tier: 'free',
-      trial_ends_at: null, // Free tier doesn't have a trial
+      trial_ends_at: null,
       subscription_status: 'active',
       subscription_id: null,
       usage_stats: {
@@ -44,441 +46,102 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     };
   };
 
-  const fetchProfile = async () => {
+  // ✅ GOLDEN STANDARD: Backend-first refresh with Dexie fallback
+  const refreshProfile = useCallback(async () => {
     if (!user) {
+      setProfile(null);
+      setLastValidProfile(null);
       setIsLoading(false);
       return;
     }
 
+    console.log('📊 Refreshing profile...');
+    setIsLoading(true);
+    setError(null);
+
     try {
-      console.log('📊 Fetching user profile for:', user.id);
-      console.log('📊 fetchProfile called at:', new Date().toISOString());
+      // 1. Backend first - fetch from Supabase
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-      // Get access token for backend API calls
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error("No access token available");
+      if (fetchError) {
+        throw fetchError;
       }
 
-      // Use the new subscription API service
+      // ✅ Normalize subscription_tier → tier
+      const normalizedProfile: UserProfile = {
+        ...data,
+        tier: data.subscription_tier || data.tier || 'free',
+      };
+
+      // 2. Update React state
+      setProfile(normalizedProfile);
+      setLastValidProfile(normalizedProfile);
+
+      // 3. Sync to Dexie cache
       try {
-        const profile = await subscriptionApi.getUserProfile(user.id, accessToken);
-        
-        if (profile) {
-          console.log('✅ Profile fetched from backend API:', profile);
-          // ✅ Normalize subscription_tier → tier
-          const normalizedProfile = {
-            ...profile,
-            tier: profile.subscription_tier || profile.tier || "free",
-          };
-          
-          console.log(
-            "🎯 Normalized tier:",
-            normalizedProfile.tier,
-            "from",
-            profile
-          );
-          
-          setProfile(normalizedProfile);
-        } else {
-          // Profile doesn't exist, create it
-          console.log('📊 Creating new profile via backend API...');
-          const newProfile = await subscriptionApi.createUserProfile(user.id, accessToken);
-          console.log('✅ Profile created via backend API:', newProfile);
-          // ✅ Normalize subscription_tier → tier
-          const normalizedProfile = {
-            ...newProfile,
-            tier: newProfile.subscription_tier || newProfile.tier || "free",
-          };
-          
-          console.log(
-            "🎯 Normalized tier:",
-            normalizedProfile.tier,
-            "from",
-            newProfile
-          );
-          
-          setProfile(normalizedProfile);
+        if (window.db?.profiles) {
+          await window.db.profiles.put(normalizedProfile);
+          console.log('✅ Profile synced from backend to Dexie');
         }
-      } catch (apiError) {
-        console.warn('⚠️ Backend API failed, falling back to direct Supabase:', apiError);
-        
-        // Fallback to direct Supabase client
-        if (!supabase || typeof supabase.from !== 'function') {
-          console.warn('⚠️ Supabase not configured, using mock profile');
-          const mockProfile = createDefaultProfile(user.id);
-          setProfile(mockProfile);
-          setIsLoading(false);
-          return;
-        }
-
-        // Then fetch or create profile safely
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error && error.code === 'PGRST116') {
-          // Create fallback profile if missing
-          console.log('📊 Creating fallback profile for new user');
-          const defaultProfile = createDefaultProfile(user.id);
-          
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert(defaultProfile);
-
-          if (insertError) {
-            console.error('❌ Error creating profile:', insertError);
-            setError(insertError.message);
-          } else {
-            setProfile(defaultProfile);
-          }
-        } else if (error) {
-          console.error('❌ Error fetching profile:', error);
-          setError(error.message);
-        } else {
-          console.log('✅ Profile fetched successfully:', profile);
-          // ✅ Normalize subscription_tier → tier
-          const normalizedProfile = {
-            ...profile,
-            tier: profile.subscription_tier || profile.tier || "free",
-          };
-          
-          console.log(
-            "🎯 Normalized tier:",
-            normalizedProfile.tier,
-            "from",
-            profile
-          );
-          
-          setProfile(normalizedProfile);
-        }
+      } catch (dexieError) {
+        console.warn('⚠️ Dexie sync failed (non-critical):', dexieError);
       }
+
+      console.log('✅ Profile synced from backend');
+
     } catch (err) {
-      console.error('❌ Unexpected error in fetchProfile:', err);
-      setError('Failed to fetch user profile');
+      console.warn('⚠️ Backend unavailable, falling back to Dexie');
+      
+      // 4. Fallback to Dexie if backend is unavailable
+      try {
+        if (window.db?.profiles) {
+          const cached = await window.db.profiles.get(user.id);
+          if (cached) {
+            setProfile(cached);
+            setLastValidProfile(cached);
+            console.log('✅ Profile loaded from Dexie cache');
+          } else {
+            // No cached data, use default
+            const defaultProfile = createDefaultProfile(user.id);
+            setProfile(defaultProfile);
+            setLastValidProfile(defaultProfile);
+            console.log('✅ Using default profile (no cache)');
+          }
+        } else {
+          // No Dexie available, use default
+          const defaultProfile = createDefaultProfile(user.id);
+          setProfile(defaultProfile);
+          setLastValidProfile(defaultProfile);
+          console.log('✅ Using default profile (no Dexie)');
+        }
+      } catch (dexieError) {
+        console.error('❌ Dexie fallback failed:', dexieError);
+        const defaultProfile = createDefaultProfile(user.id);
+        setProfile(defaultProfile);
+        setLastValidProfile(defaultProfile);
+        console.log('✅ Using default profile (fallback)');
+      }
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const clientSideUsageCheck = (actionType: string): UsageCheck => {
-    if (!profile) {
-      return { allowed: false, reason: 'Profile not found' };
-    }
-
-    console.log('📊 Client-side usage check for:', actionType, 'Profile:', profile);
-
-    const tierConfig = TIER_CONFIGS[profile.tier];
-    if (!tierConfig) {
-      return { allowed: false, reason: 'Invalid tier' };
-    }
-
-    const usage = profile.usage_stats;
-
-    // Check specific action limits
-    switch (actionType) {
-      case 'mood_tracking':
-        if (tierConfig.limits.mood_tracking_days_per_month !== -1 && 
-            usage.mood_tracking_days >= tierConfig.limits.mood_tracking_days_per_month) {
-          return { allowed: false, reason: 'Monthly mood tracking limit exceeded' };
-        }
-        break;
-      case 'emotional_insight':
-        if (tierConfig.limits.emotional_insights_per_month !== -1 && 
-            usage.emotional_insights_this_month >= tierConfig.limits.emotional_insights_per_month) {
-          return { allowed: false, reason: 'Monthly emotional insights limit exceeded' };
-        }
-        break;
-      case 'journal_entry':
-        if (tierConfig.limits.journal_entries_per_month !== -1 && 
-            usage.journal_entries_this_month >= tierConfig.limits.journal_entries_per_month) {
-          return { allowed: false, reason: 'Monthly journal entries limit exceeded' };
-        }
-        break;
-      case 'ai_prompt': {
-        if (tierConfig.limits.ai_prompts_per_day !== -1) {
-          // Check daily limit - would need to track daily usage
-          // For now, using monthly as approximation
-          const monthlyLimit = tierConfig.limits.ai_prompts_per_day * 30;
-          if (usage.ai_prompts_this_month >= monthlyLimit) {
-            return { allowed: false, reason: 'Daily AI prompts limit exceeded' };
-          }
-        }
-        break;
-      }
-    }
-
-    return {
-      allowed: true,
-      tier: profile.tier,
-      limits: tierConfig.limits,
-      usage: usage
-    };
-  };
-
-  const checkUsageLimit = async (actionType: string): Promise<UsageCheck> => {
-    if (!user || !profile) {
-      return { allowed: false, reason: 'User not authenticated' };
-    }
-
-    try {
-      console.log('📊 Checking usage limit for:', actionType);
-      
-      // Check if supabase is properly configured before trying RPC
-      if (!supabase || typeof supabase.rpc !== 'function') {
-        console.warn('⚠️ Supabase not configured, using client-side check');
-        return clientSideUsageCheck(actionType);
-      }
-      
-      // Try RPC function with timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('RPC timeout')), 3000);
-      });
-
-      const rpcPromise = supabase.rpc('check_tier_limits', {
-        user_id: user.id,
-        action_type: actionType
-      });
-
-      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as { data: UsageCheck; error: any };
-
-      if (error) {
-        console.warn('⚠️ RPC function failed, using client-side check:', error);
-        return clientSideUsageCheck(actionType);
-      }
-
-      console.log('✅ Usage check result:', data);
-      return data as UsageCheck;
-    } catch (err) {
-      console.warn('⚠️ Error checking usage limits, falling back to client-side:', err);
-      return clientSideUsageCheck(actionType);
-    }
-  };
-
-  const clientSideUsageUpdate = async (actionType: string, amount: number = 1): Promise<void> => {
-    if (!profile) return;
-
-    console.log('📊 Client-side usage update:', actionType, 'amount:', amount);
-
-    const updatedUsage = { ...profile.usage_stats };
-
-    switch (actionType) {
-      case 'mood_tracking':
-        updatedUsage.mood_tracking_days += amount;
-        break;
-      case 'emotional_insight':
-        updatedUsage.emotional_insights_this_month += amount;
-        break;
-      case 'journal_entry':
-        updatedUsage.journal_entries_this_month += amount;
-        break;
-      case 'ai_prompt':
-        updatedUsage.ai_prompts_this_month += amount;
-        break;
-      case 'streak_update':
-        updatedUsage.streak_days = amount; // Set to new streak value
-        break;
-    }
-
-    setProfile(prev => prev ? { ...prev, usage_stats: updatedUsage } : null);
-  };
-
-  const updateUsage = async (actionType: string, amount: number = 1): Promise<void> => {
-    if (!user || !profile) return;
-
-    try {
-      console.log('📊 Updating usage:', actionType, 'amount:', amount);
-      
-      // Check if supabase is properly configured before trying RPC
-      if (!supabase || typeof supabase.rpc !== 'function') {
-        console.warn('⚠️ Supabase not configured, using client-side update');
-        await clientSideUsageUpdate(actionType, amount);
-        return;
-      }
-      
-      // Try RPC with timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('RPC timeout')), 3000);
-      });
-
-      const rpcPromise = supabase.rpc('update_usage_stats', {
-        user_id: user.id,
-        action_type: actionType,
-        amount: amount
-      });
-
-      const { error } = await Promise.race([rpcPromise, timeoutPromise]) as { error: any };
-
-      if (error) {
-        console.warn('⚠️ RPC update failed, using client-side update:', error);
-        await clientSideUsageUpdate(actionType, amount);
-      } else {
-        console.log('✅ Usage updated via RPC');
-        // Refresh profile to get updated usage
-        await fetchProfile();
-      }
-    } catch (err) {
-      console.warn('⚠️ Error updating usage stats, falling back to client-side:', err);
-      await clientSideUsageUpdate(actionType, amount);
-    }
-  };
-
-  const updateSubscriptionTier = async (tier: string): Promise<void> => {
-    if (!user || !profile) return;
-
-    try {
-      console.log('📊 Updating subscription tier to:', tier);
-      
-      // Get access token for backend API calls
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error("No access token available");
-      }
-
-      // Use the subscription API service to update tier
-      try {
-        const updatedProfile = await subscriptionApi.updateSubscriptionTier(
-          user.id, 
-          tier as 'free' | 'core' | 'studio', 
-          accessToken
-        );
-        
-        console.log('✅ Subscription tier updated via backend API:', updatedProfile);
-        // ✅ Normalize subscription_tier → tier
-        const normalizedProfile = {
-          ...updatedProfile,
-          tier: updatedProfile.subscription_tier || updatedProfile.tier || "free",
-        };
-        
-        console.log(
-          "🎯 Normalized tier after update:",
-          normalizedProfile.tier,
-          "from",
-          updatedProfile
-        );
-        
-        setProfile(normalizedProfile);
-      } catch (apiError) {
-        console.warn('⚠️ Backend API update failed, falling back to direct Supabase:', apiError);
-        
-        // Fallback to direct Supabase client
-        if (!supabase || typeof supabase.from !== 'function') {
-          console.warn('⚠️ Supabase not configured, updating local state only');
-          setProfile(prev => prev ? { 
-            ...prev, 
-            tier, 
-            subscription_status: 'active',
-            updated_at: new Date().toISOString()
-          } : null);
-          return;
-        }
-
-        // Update the profile in the database
-        const { error } = await supabase
-          .from('profiles')
-          .update({ 
-            subscription_tier: tier, 
-            subscription_status: 'active',
-            updated_at: new Date().toISOString(),
-            // If upgrading from free, set a subscription ID
-            ...(profile.tier === 'free' ? { 
-              subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-            } : {})
-          })
-          .eq('id', user.id);
-
-        if (error) {
-          console.warn('⚠️ Error updating subscription tier:', error);
-          throw new Error(`Failed to update subscription: ${error.message}`);
-        } else {
-          console.log('✅ Subscription tier updated successfully');
-          // Update local state
-          setProfile(prev => prev ? { 
-            ...prev, 
-            tier, 
-            subscription_status: 'active',
-            updated_at: new Date().toISOString(),
-            ...(prev.tier === 'free' ? { 
-              subscription_id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-            } : {})
-          } : null);
-        }
-      }
-    } catch (err) {
-      console.error('⚠️ Error in updateSubscriptionTier:', err);
-      throw err;
-    }
-  };
-
-  const refreshProfile = async (): Promise<void> => {
-    console.log('📊 Refreshing profile...');
-    await fetchProfile();
-  };
-
-  const getDaysRemaining = (): number | null => {
-    // Free tier doesn't have trial days
-      return null;
-  };
-
-  const isTrialExpired = (): boolean => {
-    // Free tier doesn't have trial
-      return false;
-  };
-
-  const canAccessFeature = (feature: string): boolean => {
-    if (!profile) return false;
-
-    const tierConfig = TIER_CONFIGS[profile.tier];
-    if (!tierConfig) return false;
-
-    return tierConfig.limits.features.includes(feature);
-  };
-
-  const getUsagePercentage = (type: 'mood_tracking' | 'emotional_insights' | 'journal_entries' | 'ai_prompts'): number => {
-    if (!profile) return 0;
-
-    const tierConfig = TIER_CONFIGS[profile.tier];
-    if (!tierConfig) return 0;
-
-    const usage = profile.usage_stats;
-    
-    switch (type) {
-      case 'mood_tracking':
-        if (tierConfig.limits.mood_tracking_days_per_month === -1) return 0; // Unlimited
-        return Math.min(100, (usage.mood_tracking_days / tierConfig.limits.mood_tracking_days_per_month) * 100);
-      
-      case 'emotional_insights':
-        if (tierConfig.limits.emotional_insights_per_month === -1) return 0; // Unlimited
-        return Math.min(100, (usage.emotional_insights_this_month / tierConfig.limits.emotional_insights_per_month) * 100);
-      
-      case 'journal_entries':
-        if (tierConfig.limits.journal_entries_per_month === -1) return 0; // Unlimited
-        return Math.min(100, (usage.journal_entries_this_month / tierConfig.limits.journal_entries_per_month) * 100);
-      
-      case 'ai_prompts': {
-        if (tierConfig.limits.ai_prompts_per_day === -1) return 0; // Unlimited
-        // Using monthly as approximation for daily limit
-        const dailyLimit = tierConfig.limits.ai_prompts_per_day;
-        const monthlyLimit = dailyLimit * 30;
-        return Math.min(100, (usage.ai_prompts_this_month / monthlyLimit) * 100);
-      }
-      
-      default:
-        return 0;
-    }
-  };
-
-  useEffect(() => {
-    fetchProfile();
   }, [user]);
 
-  // Listen for real-time changes to the profile
+  // Initialize profile on mount
+  useEffect(() => {
+    if (user) {
+      // ✅ STRUCTURAL FIX: Initialize with default profile to prevent null flicker
+      const defaultProfile = createDefaultProfile(user.id);
+      setLastValidProfile(defaultProfile);
+      console.log('🚀 [useSubscription] Initialized with default profile:', defaultProfile);
+    }
+    refreshProfile();
+  }, [user, refreshProfile]);
+
+  // Real-time subscription for profile changes
   useEffect(() => {
     if (!user?.id) return;
 
@@ -496,7 +159,7 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
           console.log('🔄 Profile updated in real-time:', payload);
           console.log('🔄 New tier from real-time update:', payload.new?.subscription_tier);
           // Refresh the profile when it's updated
-          fetchProfile();
+          refreshProfile();
         }
       )
       .subscribe();
@@ -504,10 +167,130 @@ export const useSubscription = (user: User | null): UseSubscriptionReturn => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, refreshProfile]);
+
+  // Feature access check
+  const canAccessFeature = useCallback((feature: string): boolean => {
+    const currentProfile = profile || lastValidProfile;
+    if (!currentProfile) return false;
+
+    const tierConfig = TIER_CONFIGS[currentProfile.tier as keyof typeof TIER_CONFIGS];
+    return tierConfig?.features?.includes(feature) || false;
+  }, [profile, lastValidProfile]);
+
+  // Usage limit check
+  const checkUsageLimit = useCallback(async (actionType: string): Promise<UsageCheck> => {
+    const currentProfile = profile || lastValidProfile;
+    if (!currentProfile) {
+      return { allowed: false, remaining: 0, limit: 0 };
+    }
+
+    const tierConfig = TIER_CONFIGS[currentProfile.tier as keyof typeof TIER_CONFIGS];
+    const limit = tierConfig?.limits?.[actionType as keyof typeof tierConfig.limits] || 0;
+    const current = currentProfile.usage_stats?.[actionType as keyof typeof currentProfile.usage_stats] || 0;
+    
+    return {
+      allowed: current < limit,
+      remaining: Math.max(0, limit - current),
+      limit
+    };
+  }, [profile, lastValidProfile]);
+
+  // Update usage
+  const updateUsage = useCallback(async (actionType: string, amount: number = 1): Promise<void> => {
+    const currentProfile = profile || lastValidProfile;
+    if (!currentProfile) return;
+
+    const updatedUsage = {
+      ...currentProfile.usage_stats,
+      [actionType]: (currentProfile.usage_stats?.[actionType as keyof typeof currentProfile.usage_stats] || 0) + amount
+    };
+
+    const updatedProfile = {
+      ...currentProfile,
+      usage_stats: updatedUsage,
+      updated_at: new Date().toISOString()
+    };
+
+    setProfile(updatedProfile);
+    setLastValidProfile(updatedProfile);
+
+    // Update in Supabase
+    try {
+      await supabase
+        .from('profiles')
+        .update({ usage_stats: updatedUsage })
+        .eq('id', currentProfile.id);
+    } catch (error) {
+      console.error('Failed to update usage in Supabase:', error);
+    }
+  }, [profile, lastValidProfile]);
+
+  // Update subscription tier
+  const updateSubscriptionTier = useCallback(async (tier: string): Promise<void> => {
+    const currentProfile = profile || lastValidProfile;
+    if (!currentProfile) return;
+
+    const updatedProfile = {
+      ...currentProfile,
+      tier,
+      subscription_status: 'active',
+      updated_at: new Date().toISOString()
+    };
+
+    setProfile(updatedProfile);
+    setLastValidProfile(updatedProfile);
+
+    // Update in Supabase
+    try {
+      await supabase
+        .from('profiles')
+        .update({ 
+          subscription_tier: tier,
+          subscription_status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentProfile.id);
+    } catch (error) {
+      console.error('Failed to update subscription tier in Supabase:', error);
+    }
+  }, [profile, lastValidProfile]);
+
+  // Get days remaining in trial
+  const getDaysRemaining = useCallback((): number | null => {
+    const currentProfile = profile || lastValidProfile;
+    if (!currentProfile?.trial_ends_at) return null;
+
+    const trialEnd = new Date(currentProfile.trial_ends_at);
+    const now = new Date();
+    const diffTime = trialEnd.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return Math.max(0, diffDays);
+  }, [profile, lastValidProfile]);
+
+  // Check if trial is expired
+  const isTrialExpired = useCallback((): boolean => {
+    const daysRemaining = getDaysRemaining();
+    return daysRemaining !== null && daysRemaining <= 0;
+  }, [getDaysRemaining]);
+
+  // Get usage percentage
+  const getUsagePercentage = useCallback((type: 'mood_tracking' | 'emotional_insights' | 'journal_entries' | 'ai_prompts'): number => {
+    const currentProfile = profile || lastValidProfile;
+    if (!currentProfile) return 0;
+
+    const tierConfig = TIER_CONFIGS[currentProfile.tier as keyof typeof TIER_CONFIGS];
+    const limit = tierConfig?.limits?.[type] || 0;
+    const current = currentProfile.usage_stats?.[type] || 0;
+    
+    if (limit === 0) return 0;
+    return Math.min(100, (current / limit) * 100);
+  }, [profile, lastValidProfile]);
 
   return {
-    profile,
+    // ✅ STRUCTURAL FIX: Never emit null profile - use lastValidProfile as fallback
+    profile: profile || lastValidProfile,
     isLoading,
     error,
     checkUsageLimit,
