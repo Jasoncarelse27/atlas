@@ -2,6 +2,13 @@ import type { User } from '@supabase/supabase-js';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+
+// 🚨 CONFIG GUARD: Ensure VITE_API_URL is set
+if (!import.meta.env.VITE_API_URL) {
+  console.error('❌ Missing VITE_API_URL. Please set it in .env.local before running Atlas.');
+  console.error('   Example: VITE_API_URL=https://atlas-production-2123.up.railway.app');
+  throw new Error('VITE_API_URL environment variable is required');
+}
 import { useConversations } from './hooks/useConversations';
 import { useCustomization } from './hooks/useCustomization';
 import { useSoundEffects } from './hooks/useSoundEffects';
@@ -21,7 +28,6 @@ import { DevTierSwitcher } from './components/DevTierSwitcher';
 import LoadingSpinner from './components/LoadingSpinner';
 import AuthPage from './pages/AuthPage';
 import ChatPage from './pages/ChatPage';
-import DashboardPage from './pages/DashboardPage';
 import DebugPage from './pages/DebugPage';
 import DebugProfile from './pages/DebugProfile';
 import EnhancedUIDemo from './pages/EnhancedUIDemo';
@@ -719,14 +725,14 @@ function App() {
           <Routes>
             {/* Always use your custom AuthPage for /login */}
             <Route path="/login" element={<AuthPage />} />
-            <Route
-              path="/dashboard"
-              element={user ? <DashboardPage user={user} /> : <Navigate to="/login" replace />}
-            />
+            {/* Redirect dashboard to chat - unified experience */}
+            <Route path="/dashboard" element={<Navigate to="/chat" replace />} />
             <Route
               path="/chat"
               element={user ? <ChatPage user={user} /> : <Navigate to="/login" replace />}
             />
+            {/* Default route redirects to chat */}
+            <Route path="/" element={<Navigate to="/chat" replace />} />
             <Route
               path="/demo"
               element={<EnhancedUIDemo />}
@@ -745,7 +751,7 @@ function App() {
             />
             <Route
               path="*"
-              element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />}
+              element={user ? <Navigate to="/chat" replace /> : <Navigate to="/login" replace />}
             />
           </Routes>
         </Router>

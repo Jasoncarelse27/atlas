@@ -21,7 +21,8 @@ export async function syncPendingUploads() {
       form.append("feature", item.type);
       if (item.conversationId) form.append("conversationId", item.conversationId);
 
-      const res = await fetch("/api/upload", {
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const res = await fetch(`${backendUrl}/api/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -32,7 +33,7 @@ export async function syncPendingUploads() {
       const result = await res.json();
 
       // Also ingest to attachments table
-      await fetch("/api/ingest", {
+      await fetch(`${backendUrl}/api/ingest`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

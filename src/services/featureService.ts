@@ -12,8 +12,9 @@ export class FeatureService {
    */
   private debouncedLogAttempt = debounce(async (userId: string, feature: FeatureAttempt['feature'], tier: FeatureAttempt['tier']) => {
     try {
-      // Use backend API instead of direct Supabase calls
-      const response = await fetch('/api/feature-attempts', {
+      // Use backend API instead of direct Supabase calls - use Railway backend URL
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${backendUrl}/api/feature-attempts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -60,8 +61,9 @@ export class FeatureService {
     }>;
   }> {
     try {
-      // Use backend API instead of direct Supabase calls
-      const response = await fetch(`/api/feature-attempts/stats/${userId}`, {
+      // Use backend API instead of direct Supabase calls - use Railway backend URL
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${backendUrl}/api/feature-attempts/stats/${userId}`, {
         method: 'GET'
       });
 

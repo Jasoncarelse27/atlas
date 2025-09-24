@@ -9,7 +9,8 @@ export async function uploadWithAuth(file: File, feature: string, userId: string
   form.append("feature", feature);
   form.append("userId", userId);
 
-  const res = await fetch("/api/upload", {
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const res = await fetch(`${backendUrl}/api/upload`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: form,

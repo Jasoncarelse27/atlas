@@ -11,6 +11,12 @@ import { checkSupabaseHealth } from '../lib/supabaseClient';
 import type { Message } from '../types/chat';
 import type { Tier } from '../types/tier';
 
+// Sidebar components
+import QuickActions from '../components/sidebar/QuickActions';
+import UsageCounter from '../components/sidebar/UsageCounter';
+import InsightsWidget from '../components/sidebar/InsightsWidget';
+import PrivacyToggle from '../components/sidebar/PrivacyToggle';
+
 interface ChatPageProps {
   user?: any;
 }
@@ -118,14 +124,24 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-        {/* Navigation */}
-        <NavBar
-          user={user}
-          tier={tier}
-          messageCount={messageCount}
-          onLogout={handleLogout}
-        />
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex">
+        {/* Sidebar */}
+        <div className="w-80 bg-[#1e1f24] border-r border-gray-800 p-4 space-y-6 overflow-y-auto">
+          <QuickActions />
+          <UsageCounter />
+          <InsightsWidget />
+          <PrivacyToggle />
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Navigation */}
+          <NavBar
+            user={user}
+            tier={tier}
+            messageCount={messageCount}
+            onLogout={handleLogout}
+          />
 
         {/* Main Chat Content */}
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 chat-messages-container">
@@ -188,6 +204,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           reason={upgradeReason === 'daily_limit' ? 'daily_limit' : 'audio'}
           onUpgrade={handleUpgrade}
         />
+        </div>
       </div>
     </ErrorBoundary>
   );

@@ -87,7 +87,7 @@ describe('AuthPage', () => {
         });
       });
       
-      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+      expect(mockNavigate).toHaveBeenCalledWith('/chat');
     });
 
     it('shows error message on login failure', async () => {

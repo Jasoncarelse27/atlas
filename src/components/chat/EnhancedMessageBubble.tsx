@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion';
 import { Bot, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import SystemMessage from './SystemMessage';
+import { UpgradeButton } from '../UpgradeButton';
 
 interface EnhancedMessageBubbleProps {
   message: {
     id: string;
     content: string;
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'system';
     timestamp?: string;
+    messageType?: 'info' | 'warning' | 'error' | 'success';
   };
   isLatest?: boolean;
   isTyping?: boolean;
@@ -15,8 +18,20 @@ interface EnhancedMessageBubbleProps {
 
 export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false }: EnhancedMessageBubbleProps) {
   const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Handle system messages
+  if (isSystem) {
+    return (
+      <SystemMessage 
+        text={message.content} 
+        type={message.messageType || 'info'}
+        action={<UpgradeButton size="sm" />}
+      />
+    );
+  }
 
   // Typing effect for AI messages
   useEffect(() => {

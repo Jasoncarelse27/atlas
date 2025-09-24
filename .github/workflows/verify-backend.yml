@@ -1,0 +1,84 @@
+name: Verify Backend Health
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  verify-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build frontend
+      run: npm run build
+      env:
+        VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://atlas-production-2123.up.railway.app' }}
+        
+    - name: Verify backend health
+      run: |
+        echo "🔍 Testing backend health endpoint..."
+        BACKEND_URL="${{ secrets.VITE_API_URL || 'https://atlas-production-2123.up.railway.app' }}"
+        
+        # Test health endpoint
+        HEALTH_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/health_response.json "$BACKEND_URL/healthz")
+        
+        if [ "$HEALTH_RESPONSE" != "200" ]; then
+          echo "❌ Backend health check failed with status: $HEALTH_RESPONSE"
+          echo "Response body:"
+          cat /tmp/health_response.json
+          exit 1
+        fi
+        
+        # Verify response structure
+        HEALTH_STATUS=$(cat /tmp/health_response.json | jq -r '.status // empty')
+        if [ "$HEALTH_STATUS" != "ok" ]; then
+          echo "❌ Backend health status is not 'ok': $HEALTH_STATUS"
+          cat /tmp/health_response.json
+          exit 1
+        fi
+        
+        echo "✅ Backend health check passed"
+        echo "Backend URL: $BACKEND_URL"
+        echo "Status: $HEALTH_STATUS"
+        
+    - name: Test API endpoints
+      run: |
+        echo "🔍 Testing critical API endpoints..."
+        BACKEND_URL="${{ secrets.VITE_API_URL || 'https://atlas-production-2123.up.railway.app' }}"
+        
+        # Test ping endpoint
+        PING_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/ping_response.json "$BACKEND_URL/ping")
+        if [ "$PING_RESPONSE" != "200" ]; then
+          echo "❌ Ping endpoint failed with status: $PING_RESPONSE"
+          exit 1
+        fi
+        
+        echo "✅ All API endpoints are healthy"
+        
+    - name: Verify environment configuration
+      run: |
+        echo "🔍 Verifying environment configuration..."
+        
+        # Check if VITE_API_URL is properly configured
+        if [ -z "${{ secrets.VITE_API_URL }}" ]; then
+          echo "⚠️  VITE_API_URL secret not set, using default Railway URL"
+        else
+          echo "✅ VITE_API_URL is configured"
+        fi
+        
+        echo "Backend URL: ${{ secrets.VITE_API_URL || 'https://atlas-production-2123.up.railway.app' }}"

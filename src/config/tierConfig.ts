@@ -3,6 +3,16 @@
  * 
  * This file defines the exact feature access for each tier.
  * All tier gating logic should reference this configuration.
+ * 
+ * 🎯 FUTURE-PROOF DESIGN:
+ * - Frontend only depends on these 3 tier values: 'free', 'core', 'studio'
+ * - Backend can change payment providers without breaking frontend
+ * - New tiers can be added by extending this config
+ * 
+ * 🤖 AI MODEL MAPPING:
+ * - free → Claude Haiku (fast, cost-effective, 15 messages/day)
+ * - core → Claude Sonnet (balanced performance, unlimited messages)
+ * - studio → Claude Opus (most advanced, unlimited messages + all features)
  */
 
 export type Tier = 'free' | 'core' | 'studio';

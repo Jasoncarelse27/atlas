@@ -43,7 +43,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
         {/* Center: Desktop Links */}
         <div className="hidden md:flex space-x-8 text-sm font-medium">
           <a 
-            href="/dashboard" 
+            href="/chat" 
             className="flex items-center space-x-2 hover:text-[#B2BDA3] transition-colors"
           >
             <MessageSquare className="w-4 h-4" />
@@ -142,7 +142,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
             {/* Navigation Links */}
             <div className="space-y-4">
               <a 
-                href="/dashboard" 
+                href="/chat" 
                 className="flex items-center space-x-3 hover:text-[#B2BDA3] transition-colors py-2"
                 onClick={() => setMobileOpen(false)}
               >

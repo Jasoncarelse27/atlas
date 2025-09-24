@@ -150,7 +150,7 @@ const verifyJWT = async (req, res, next) => {
 };
 
 // 🚦 Rate Limiting - DISABLED for development
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
 console.log(`🚦 Rate Limiting - NODE_ENV: ${process.env.NODE_ENV}, isDev: ${isDev}`);
 
 // Create a no-op rate limiter for development
@@ -164,7 +164,7 @@ const globalLimiter = rateLimit({
 
 const messageLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: process.env.NODE_ENV === 'development' ? 200 : 20, // Much higher limit for dev
+  max: isDev ? 200 : 20, // Much higher limit for dev
   message: { error: 'MESSAGE_RATE_LIMIT_EXCEEDED', message: 'Too many message requests' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -449,7 +449,7 @@ app.post("/message",
   async (req, res, next) => {
     try {
       // Development bypass
-      if (process.env.DEV_BYPASS_LIMITS === 'true') {
+      if (process.env.DEV_BYPASS_LIMITS === 'true' || process.env.DISABLE_RATE_LIMIT === 'true') {
         console.log('[DEV] Bypassing all limits for development');
         return next();
       }

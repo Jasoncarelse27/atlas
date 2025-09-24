@@ -64,7 +64,13 @@ export function useTierAccess(): TierAccessReturn {
   const [conversationsToday, setConversationsToday] = useState(0);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   
-  // ✅ Always use normalized .tier
+  // ✅ FUTURE-PROOF TIER SYSTEM: Always use normalized tier values
+  // This ensures the frontend only depends on these 3 tier values from backend profile
+  // Tier mapping to AI models:
+  // - 'free' → Claude Haiku (fast, cost-effective)
+  // - 'core' → Claude Sonnet (balanced performance)  
+  // - 'studio' → Claude Opus (most advanced)
+  // Fallback to 'free' if no profile or invalid tier value
   const currentTier: Tier = (profile?.tier && ['free', 'core', 'studio'].includes(profile.tier)) ? profile.tier as Tier : 'free';
   const features = tierConfig[currentTier];
   
@@ -208,6 +214,33 @@ export function useTierAccess(): TierAccessReturn {
     }
   }, [user?.id, currentTier]);
   
+  // Create system message for tier enforcement
+  const createSystemMessage = useCallback((type: 'limit_reached' | 'feature_locked' | 'upgrade_required', feature?: string) => {
+    const messages = {
+      limit_reached: {
+        text: `You've reached your daily limit (${maxMessages} messages). Upgrade to continue.`,
+        type: 'warning' as const
+      },
+      feature_locked: {
+        text: `This feature requires Core or Studio tier. Upgrade to unlock ${feature || 'this feature'}.`,
+        type: 'error' as const
+      },
+      upgrade_required: {
+        text: `❌ Upgrade required to upload images or audio.`,
+        type: 'error' as const
+      }
+    };
+
+    return {
+      id: `system-${Date.now()}`,
+      type: 'system' as const,
+      text: messages[type].text,
+      messageType: messages[type].type,
+      timestamp: new Date().toISOString(),
+      sender: 'system'
+    };
+  }, [maxMessages]);
+
   // Log feature attempts for analytics
   const logFeatureAttempt = useCallback(async (feature: string, allowed: boolean): Promise<void> => {
     if (!user?.id) return;
@@ -215,8 +248,9 @@ export function useTierAccess(): TierAccessReturn {
     console.log('🔍 [logFeatureAttempt] Logging feature attempt:', { feature, tier: currentTier, profile });
     
     try {
-      // Use backend API to log feature attempts
-      await fetch('/api/feature-attempts', {
+      // Use backend API to log feature attempts - use Railway backend URL
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      await fetch(`${backendUrl}/api/feature-attempts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -286,6 +320,9 @@ export function useTierAccess(): TierAccessReturn {
     claudeModelName,
     maxTokensPerResponse,
     maxContextWindow,
+    
+    // System message creation for tier enforcement
+    createSystemMessage,
     
     // Usage tracking & recording
     logFeatureAttempt,

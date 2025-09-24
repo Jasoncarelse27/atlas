@@ -77,7 +77,8 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       
-      await fetch("/api/ingest", {
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      await fetch(`${backendUrl}/api/ingest`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

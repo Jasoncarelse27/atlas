@@ -64,7 +64,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         } else {
           console.log('Login successful');
           // Redirect to dashboard after successful login
-          navigate('/dashboard');
+          navigate('/chat');
         }
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
