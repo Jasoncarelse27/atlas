@@ -675,7 +675,7 @@ app.post("/message",
             model: selectedModelName,
             hasApiKey: !!process.env.ANTHROPIC_API_KEY,
             messageLength: message.length,
-            tier
+            tier: effectiveTier
           });
           
           // 🧠 Build messages array with conversation context
@@ -704,7 +704,7 @@ app.post("/message",
             inputTokens: actualInputTokens,
             outputTokens: actualOutputTokens,
             responseLength: aiResponse.length,
-            tier
+            tier: effectiveTier
           });
         } else {
           // Fallback to enhanced mock response if no API key
@@ -734,11 +734,11 @@ app.post("/message",
           actualOutputTokens = Math.ceil(aiResponse.length / 4);
         }
       } catch (error) {
-        await logError("AI response generation failed", { error: error.message, model: selectedModelName, tier });
+        await logError("AI response generation failed", { error: error.message, model: selectedModelName, tier: effectiveTier });
         
         // Graceful fallback
         aiResponse = `I'm experiencing some technical difficulties right now. Please try again in a moment. ` +
-          `As your ${tier} tier Atlas companion, I'm here to help with emotional intelligence and support.`;
+          `As your ${effectiveTier} tier Atlas companion, I'm here to help with emotional intelligence and support.`;
         actualInputTokens = Math.ceil((systemPrompt.length + message.length) / 4);
         actualOutputTokens = Math.ceil(aiResponse.length / 4);
       }
@@ -748,7 +748,7 @@ app.post("/message",
       const estimatedCost = estimateRequestCost(selectedModelName, actualInputTokens, actualOutputTokens);
 
       // 📊 STEP 6: Record budget spend and usage
-      await budgetCeilingService.recordSpend(tier, estimatedCost, 1);
+      await budgetCeilingService.recordSpend(effectiveTier, estimatedCost, 1);
 
       // 📊 STEP 7: Update daily usage tracking
       const { supabase: client } = await import('./config/supabaseClient.mjs');
@@ -756,7 +756,7 @@ app.post("/message",
         // Update daily usage with actual tokens and cost
         await client.rpc('increment_conversation_count', {
           p_user_id: userId,
-          p_tier: tier,
+          p_tier: effectiveTier,
           p_tokens_used: totalTokens,
           p_cost_estimate: estimatedCost
         });
@@ -786,7 +786,7 @@ app.post("/message",
       });
 
       await logInfo("Message processed with intelligent tier system", { 
-        tier, 
+        tier: effectiveTier, 
         selectedModel: selectedModelName, 
         estimatedCost: estimatedCost.toFixed(6),
         totalTokens,
@@ -801,7 +801,7 @@ app.post("/message",
         response: aiResponse,
         conversationId: currentConversationId,
         metadata: {
-          tier,
+          tier: effectiveTier,
           model: selectedModelName,
           tokensUsed: totalTokens,
           estimatedCost: estimatedCost.toFixed(6),
@@ -825,7 +825,7 @@ app.post("/message",
         error: error.message, 
         stack: error.stack,
         userId: req.body?.userId,
-        tier: req.body?.tier
+        tier: req.body?.tier || 'free'
       });
       
       res.status(500).json({
@@ -1120,7 +1120,7 @@ app.post("/api/ingest", express.json(), async (req, res) => {
             userId,
             message: analysisPrompt,
             type: 'file_analysis',
-            tier,
+            tier: tier,
             conversationId,
             fileUrl: url,
             fileType: feature
