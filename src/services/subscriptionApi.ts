@@ -3,6 +3,23 @@
 // instead of direct Supabase calls, ensuring proper security and CORS handling
 
 import { db } from '../lib/db';
+import { showToast } from './toastService';
+
+// Track active mode clearly
+let activeMode: "dexie" | "backend" | null = null;
+
+// Safe fetch helper with toast fallback
+async function safeFetch(url: string, options?: RequestInit) {
+  try {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn("[SubscriptionAPI] Backend fetch failed, falling back to Dexie:", err);
+    showToast("⚠️ Backend unreachable, using offline mode", "warning");
+    return null;
+  }
+}
 
 interface SubscriptionProfile {
   id: string;
@@ -10,13 +27,13 @@ interface SubscriptionProfile {
   subscription_tier: 'free' | 'core' | 'studio';
   subscription_status: 'active' | 'inactive' | 'cancelled' | 'trialing';
   subscription_id?: string;
-  paddle_subscription_id?: string;
+  fastspring_subscription_id?: string;
   trial_ends_at?: string;
   created_at: string;
   updated_at: string;
 }
 
-interface PaddleSubscription {
+interface FastSpringSubscription {
   id: string;
   price_id?: string;
   status: 'free' | 'active' | 'canceled' | 'past_due';
@@ -36,6 +53,19 @@ class SubscriptionApiService {
   private isMockMode: boolean;
   private profileCache: Map<string, { data: SubscriptionProfile; timestamp: number }> = new Map();
   private readonly CACHE_TTL = 30000; // 30 seconds
+  private pendingRequests: Map<string, Promise<SubscriptionProfile | null>> = new Map();
+
+  private setMode(mode: "dexie" | "backend") {
+    if (activeMode !== mode) {
+      activeMode = mode;
+      if (mode === "dexie") {
+        console.warn("[SubscriptionAPI] ⚠️ Running in Dexie fallback mode (offline)");
+        showToast("⚡ Using offline subscription mode", "warning");
+      } else {
+        console.log("[SubscriptionAPI] ✅ Using backend API for subscriptions");
+      }
+    }
+  }
 
   constructor() {
     // Use backend URL from environment or default to localhost
@@ -45,11 +75,7 @@ class SubscriptionApiService {
     this.isMockMode = !import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 
                      import.meta.env.VITE_PADDLE_CLIENT_TOKEN === 'mock-client-token';
     
-    console.log('[Atlas] Subscription API running in backend+Dexie mode 🚀');
-    
-    if (this.isMockMode) {
-      console.log('[SubscriptionAPI] Running in mock mode - using paddle_subscriptions table');
-    }
+    console.log('[Atlas] Subscription API initialized with backend+Dexie fallback 🚀');
   }
 
   /**
@@ -63,10 +89,31 @@ class SubscriptionApiService {
       return cached.data;
     }
 
+    // Check if there's already a pending request for this user
+    const pendingRequest = this.pendingRequests.get(userId);
+    if (pendingRequest) {
+      console.log('[SubscriptionAPI] Reusing pending request for', userId);
+      return pendingRequest;
+    }
+
+    // Create new request and store it
+    const requestPromise = this.fetchUserProfile(userId, accessToken);
+    this.pendingRequests.set(userId, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      return result;
+    } finally {
+      // Clean up pending request
+      this.pendingRequests.delete(userId);
+    }
+  }
+
+  private async fetchUserProfile(userId: string, accessToken: string): Promise<SubscriptionProfile | null> {
     try {
       console.log('[SubscriptionAPI] Fetching subscription status for', userId);
       
-      const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
+      const profile = await safeFetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -75,16 +122,13 @@ class SubscriptionApiService {
         },
       });
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.log('[SubscriptionAPI] User profile not found, will be created on first access');
-          return null;
-        }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (profile === null) {
+        // Backend failed, fall back to Dexie
+        this.setMode("dexie");
+        return await this.getProfileFromDexie(userId);
       }
 
-      const profile: SubscriptionProfile = await response.json();
-      console.log('[SubscriptionAPI] Using backend API ✅', profile);
+      this.setMode("backend");
       
       // Cache the result
       this.profileCache.set(userId, { data: profile, timestamp: Date.now() });
@@ -92,7 +136,9 @@ class SubscriptionApiService {
       return profile;
     } catch (error) {
       console.error('[SubscriptionAPI] Error fetching user profile:', error);
-      throw error;
+      // Fall back to Dexie on any error
+      this.setMode("dexie");
+      return await this.getProfileFromDexie(userId);
     }
   }
 
@@ -330,6 +376,38 @@ class SubscriptionApiService {
       // Return empty stats if no cache available
       console.warn('[SubscriptionAPI] No cached stats available, returning empty data');
       return { usage: [], attempts: [] };
+    }
+  }
+
+  /**
+   * Fallback method to get profile from Dexie cache when backend is unavailable
+   */
+  private async getProfileFromDexie(userId: string): Promise<SubscriptionProfile | null> {
+    try {
+      // Try to get from Dexie cache
+      const cached = await db.user_profiles
+        .where('id')
+        .equals(userId)
+        .last();
+
+      if (cached) {
+        console.log('[SubscriptionAPI] Using Dexie cache (offline) 🗄️', new Date(cached.updatedAt));
+        return cached.data;
+      }
+
+      // Return default free tier profile if no cache available
+      console.warn('[SubscriptionAPI] No cached profile available, returning default free tier');
+      return {
+        id: userId,
+        email: 'unknown@example.com',
+        subscription_tier: 'free',
+        subscription_status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('[SubscriptionAPI] Error getting profile from Dexie:', error);
+      return null;
     }
   }
 }

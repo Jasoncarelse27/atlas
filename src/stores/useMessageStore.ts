@@ -1,58 +1,34 @@
-import { create } from 'zustand';
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  streaming?: boolean;
-  error?: string;
-  timestamp: string;
-}
+import { create } from "zustand";
+import type { Message } from "../types/chat";
 
 interface MessageStore {
-  messages: ChatMessage[];
-  addMessage: (message: ChatMessage) => void;
-  updateMessage: (id: string, patch: Partial<ChatMessage>) => void;
-  setError: (id: string, error: string) => void;
+  messages: Message[];
+  addMessage: (msg: Message) => void;
+  updateMessage: (id: string, patch: Partial<Message>) => void;
   clearMessages: () => void;
-  getLastMessage: () => ChatMessage | undefined;
 }
 
-export const useMessageStore = create<MessageStore>((set, get) => ({
+export const useMessageStore = create<MessageStore>((set) => ({
   messages: [],
-  
-  addMessage: (message: ChatMessage) => {
-    console.log('[MessageStore] Adding message:', message);
-    set((state) => ({
-      messages: [...state.messages, message]
-    }));
-  },
-  
-  updateMessage: (id: string, patch: Partial<ChatMessage>) => {
-    console.log('[MessageStore] Updating message:', id, patch);
-    set((state) => ({
-      messages: state.messages.map((msg) =>
-        msg.id === id ? { ...msg, ...patch } : msg
-      )
-    }));
-  },
-  
-  setError: (id: string, error: string) => {
-    console.log('[MessageStore] Setting error:', id, error);
-    set((state) => ({
-      messages: state.messages.map((msg) =>
-        msg.id === id ? { ...msg, error, streaming: false } : msg
-      )
-    }));
-  },
-  
-  clearMessages: () => {
-    console.log('[MessageStore] Clearing messages');
-    set({ messages: [] });
-  },
-  
-  getLastMessage: () => {
-    const { messages } = get();
-    return messages[messages.length - 1];
-  }
+  addMessage: (msg: Message) => set(state => {
+    console.log("[STORE] addMessage called with:", msg);
+    if (!msg?.id) {
+      console.warn("[STORE] Skipping invalid message:", msg);
+      return state;
+    }
+    if (state.messages.some(m => m.id === msg.id)) {
+      console.warn("[STORE] Duplicate message blocked:", msg);
+      return state;
+    }
+    console.log("[STORE] ✅ Added message:", msg);
+    console.log("[STORE] Total messages now:", state.messages.length + 1);
+    return { messages: [...state.messages, msg] };
+  }),
+  updateMessage: (id, patch) =>
+    set((s) => ({
+      messages: s.messages.map((m) =>
+        m.id === id ? { ...m, ...patch } : m
+      ),
+    })),
+  clearMessages: () => set({ messages: [] }),
 }));

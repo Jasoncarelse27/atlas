@@ -13,8 +13,8 @@ export function MessageListWithPreviews({ children }: { children: React.ReactNod
   return (
     <>
       {/* Newest preview at top; style to match your bubbles */}
-      {previews.map(p => (
-        <div key={p.id} className="mb-2 rounded-xl p-2 bg-slate-800/40 border border-slate-700">
+      {previews.map((p, index) => (
+        <div key={`${p.id}-${index}`} className="mb-2 rounded-xl p-2 bg-slate-800/40 border border-slate-700">
           {p.kind === "image" && <img src={p.url} alt={p.filename ?? "image"} className="max-w-[280px] rounded-lg" />}
           {p.kind === "audio" && (
             <audio controls src={p.url} className="w-[280px]" />

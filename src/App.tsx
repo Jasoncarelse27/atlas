@@ -24,7 +24,6 @@ if (!import.meta.env.VITE_API_URL) {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import { DevTierSwitcher } from './components/DevTierSwitcher';
 import LoadingSpinner from './components/LoadingSpinner';
 import AuthPage from './pages/AuthPage';
 import ChatPage from './pages/ChatPage';
@@ -36,7 +35,8 @@ import PaddleTestPage from './pages/PaddleTestPage';
 // Create a client
 const queryClient = new QueryClient()
 
-function App() {
+// App content component that uses React Query hooks
+function AppContent() {
   // Auth state
   const [user, setUser] = useState<User | null>(null);
   
@@ -221,6 +221,12 @@ function App() {
         
         if (error) {
           console.log('Auth error:', error.message);
+          // If it's a refresh token error, clear the session
+          if (error.message.includes('Invalid Refresh Token') || error.message.includes('Refresh Token Not Found')) {
+            console.log('Clearing invalid session...');
+            await supabase.auth.signOut();
+            setUser(null);
+          }
         } else if (session?.user) {
           setUser(session.user);
           console.log('User loaded:', session.user.email);
@@ -450,157 +456,12 @@ function App() {
     }, 3000);
   };
 
-  // Handle sending message to backend
+  // Message handling is now done by ChatPage.tsx using useMessageStore
+  // This function is kept for backward compatibility but does nothing
   const handleSendMessage = async (message: string) => {
-    if (isProcessing || !message.trim()) return;
-    
-    // 🎯 TIER ENFORCEMENT: Check message limit
-    if (!canStartConversation) {
-      return; // Toast already shown by hook
-    }
-     
-    setIsProcessing(true);
-    setResponse('');
-    setAudioUrl(null);
-    
-    // Simple conversation management - bypass complex system
-    console.log('💬 Current backend conversation ID:', atlasConversationId);
-    
-    // Add user message to local display (simple approach)
-    const userMessage: Message = {
-      id: uuidv4(),
-      role: 'user',
-      content: message,
-      timestamp: new Date().toISOString()
-    };
-    
-    // For now, just add to the current conversation or create a simple one
-    let conversationToUse = currentConversation;
-    if (!conversationToUse) {
-      conversationToUse = createConversation();
-      console.log('Created frontend conversation for display:', conversationToUse.id); 
-    }
-     
-    try {
-      addMessageToConversation(conversationToUse.id, userMessage);
-    } catch (error) {
-      console.warn('Frontend conversation system error (continuing anyway):', error);
-      // Continue with backend call even if frontend conversation fails
-    }
-     
-    try {
-      // Send message to local backend
-      console.log('📤 Sending message to local backend:', message);
-      console.log('🎯 Using tier:', tier, 'Model:', claudeModelName);
-      
-      // Use local backend
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
-      // Get proper auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      const authToken = session?.access_token;
-      
-      if (!authToken) {
-        throw new Error('No authentication token available');
-      }
-
-      // 🧠 MEMORY: Get stored conversation ID from localStorage
-      let conversationId = localStorage.getItem("atlas_conversation_id");
-      console.log("🧠 [FRONTEND] Loaded conversationId from localStorage:", conversationId);
-
-      const requestPayload = {
-        message: message,
-        userId: user?.id || '65fcb50a-d67d-453e-a405-50c6aef959be',
-        tier: tier || 'free',
-        conversationId: conversationId || null, // 🧠 Use stored or null for new conversation
-        model: claudeModelName
-      };
-      
-      console.log("🚀 [FRONTEND] SENDING TO BACKEND:", {
-        message: message.slice(0, 30) + '...',
-        conversationId: conversationId,
-        hasConversationId: !!conversationId
-      });
-
-      // Use regular JSON response to capture conversation ID
-      const response = await fetch(`${backendUrl}/message`, { 
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(requestPayload)
-      });
-       
-      if (!response.ok) {
-        throw new Error(`Backend failed with status ${response.status}`);
-      }
-      
-      // Handle JSON response and capture conversation ID
-      const responseData = await response.json();
-      console.log('📥 Received response from backend:', responseData);
-      
-      // 🧠 MEMORY: Store conversation ID if backend provides one
-      if (responseData.conversationId) {
-        localStorage.setItem("atlas_conversation_id", responseData.conversationId);
-        console.log("💾 [FRONTEND] Persisted conversationId:", responseData.conversationId);
-      }
-      
-      // Check if we have a valid response 
-      if (!responseData.response || !responseData.response.trim()) {
-        throw new Error('No response received from backend');
-      }
-      
-      // Create assistant message with the response
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: responseData.response,
-        timestamp: new Date().toISOString(),
-        audioUrl: responseData.audioUrl
-      };
-       
-      try {
-        addMessageToConversation(conversationToUse.id, assistantMessage);
-      } catch (error) {
-        console.error('Error adding assistant message to conversation:', error);
-      }
-      
-      setResponse(responseData.response);
-      // Note: Audio URL not available in streaming mode yet 
-      
-      // 🎯 INCREMENT MESSAGE COUNT
-      setMessageCount(prev => prev + 1);
-      
-      // Play success sound
-      playSound('success');
-      
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
-      // Play error sound 
-      playSound('error');
-      
-      // Add error message to conversation
-      const errorMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: 'Sorry, there was an error processing your request. Please try again.',
-        timestamp: new Date().toISOString()
-      };
-       
-      try {
-        addMessageToConversation(conversationToUse.id, errorMessage);
-      } catch (error) {
-        console.error('Error adding error message to conversation:', error);
-      }
-      
-      setResponse(errorMessage.content);
-       
-    } finally {
-      setIsProcessing(false);
-      resetTranscript();
-    }
+    console.log('⚠️ App.tsx handleSendMessage called - this should be handled by ChatPage.tsx');
+    // Do nothing - ChatPage.tsx handles all message sending now
+    return;
   };
 
   // Handle mode change
@@ -698,48 +559,50 @@ function App() {
   }
 
   return (
-    <>
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <Toaster position="top-center" />
-          <Routes>
-            {/* Always use your custom AuthPage for /login */}
-            <Route path="/login" element={<AuthPage />} />
-            {/* Redirect dashboard to chat - unified experience */}
-            <Route path="/dashboard" element={<Navigate to="/chat" replace />} />
-            <Route
-              path="/chat"
-              element={user ? <ChatPage user={user} /> : <Navigate to="/login" replace />}
-            />
-            {/* Default route redirects to chat */}
-            <Route path="/" element={<Navigate to="/chat" replace />} />
-            <Route
-              path="/demo"
-              element={<EnhancedUIDemo />}
-            />
-            <Route
-              path="/debug"
-              element={user ? <DebugPage user={user} /> : <Navigate to="/login" replace />}
-            />
-            <Route
-              path="/debug-profile"
-              element={user ? <DebugProfile user={user} /> : <Navigate to="/login" replace />}
-            />
-            <Route
-              path="/paddle-test"
-              element={user ? <PaddleTestPage /> : <Navigate to="/login" replace />}
-            />
-            <Route
-              path="*"
-              element={user ? <Navigate to="/chat" replace /> : <Navigate to="/login" replace />}
-            />
-          </Routes>
-        </Router>
-        
-        {/* Developer Tier Switcher - Only shows in development */}
-        <DevTierSwitcher onTierChange={() => refreshProfile()} />
-      </QueryClientProvider>
-    </>
+    <Router>
+      <Toaster position="top-center" />
+      <Routes>
+        {/* Always use your custom AuthPage for /login */}
+        <Route path="/login" element={<AuthPage />} />
+        {/* Redirect dashboard to chat - unified experience */}
+        <Route path="/dashboard" element={<Navigate to="/chat" replace />} />
+        <Route
+          path="/chat"
+          element={user ? <ChatPage user={user} /> : <Navigate to="/login" replace />}
+        />
+        {/* Default route redirects to chat */}
+        <Route path="/" element={<Navigate to="/chat" replace />} />
+        <Route
+          path="/demo"
+          element={<EnhancedUIDemo />}
+        />
+        <Route
+          path="/debug"
+          element={user ? <DebugPage user={user} /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/debug-profile"
+          element={user ? <DebugProfile user={user} /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/paddle-test"
+          element={user ? <PaddleTestPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="*"
+          element={user ? <Navigate to="/chat" replace /> : <Navigate to="/login" replace />}
+        />
+      </Routes>
+      
+    </Router>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
+    </QueryClientProvider>
   );
 }
 

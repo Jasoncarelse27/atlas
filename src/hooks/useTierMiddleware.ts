@@ -15,7 +15,7 @@ interface MiddlewareResponse {
 }
 
 interface UseTierMiddlewareReturn {
-  sendMessage: (userId: string, message: string, promptType?: string) => Promise<MiddlewareResponse>;
+  sendMessage: (userId: string, message: string, conversationId?: string, promptType?: string) => Promise<MiddlewareResponse>;
   isLoading: boolean;
   showUpgradeModal: () => void;
   upgradeModalVisible: boolean;
@@ -38,6 +38,7 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
   const sendMessage = useCallback(async (
     userId: string, 
     message: string, 
+    conversationId?: string,
     promptType?: string
   ): Promise<MiddlewareResponse> => {
     setIsLoading(true);
@@ -59,6 +60,7 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
           userId,
           message,
           tier,
+          ...(conversationId && { conversationId }),
           promptType
         })
       });
@@ -171,6 +173,7 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
         success: true,
         data: {
           response: data.response,
+          conversationId: data.conversationId,
           metadata: data.metadata
         }
       };

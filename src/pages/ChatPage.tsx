@@ -3,14 +3,15 @@ import { Menu, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
+import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
-import { useChat } from '../features/chat/hooks/useChat';
-import MessageStoreDebugger from '../features/debug/MessageStoreDebugger';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth } from '../lib/supabaseClient';
+import { chatService } from '../services/chatService';
+import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
-import type { Tier } from '../types/tier';
 
 // Sidebar components
 import InsightsWidget from '../components/sidebar/InsightsWidget';
@@ -22,58 +23,74 @@ interface ChatPageProps {
   user?: any;
 }
 
-const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
+const ChatPage: React.FC<ChatPageProps> = () => {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Use the new modular useChat hook
-  const {
-    conversation,
-    isProcessing,
-    messageCount,
-    tier,
-    model,
-    handleSendMessage,
-    handleFileMessage,
-    handleLogout,
-    deleteMessage,
-    copyMessage,
-    updateTitle,
-    upgradeModalVisible,
-    setUpgradeModalVisible,
-    upgradeReason,
-    handleUpgrade
-  } = useChat(user?.id);
+  // Use the simplified useChat hook
 
-  // Handle enhanced message sending with clean single response
-  const handleEnhancedSendMessage = async (message: string) => {
-    setIsTyping(true);
-    
+  // Message store for unified message handling
+  const { messages } = useMessageStore();
+
+  // Modern scroll system
+  const { bottomRef, scrollToBottom, showScrollButton } = useAutoScroll([messages]);
+
+  // Simple logout function
+  const handleLogout = async () => {
     try {
-      await handleSendMessage(message);
-    } finally {
-      // Clear typing state after message is processed
-      setTimeout(() => setIsTyping(false), 1000);
+      const { supabase } = await import('../lib/supabase');
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
     }
   };
 
-  // Handle enhanced file message with clean single response
+
+  // Placeholder variables for components that need them
+  const isProcessing = false; // Will be managed by chatService
+  const upgradeModalVisible = false;
+  const setUpgradeModalVisible = (visible: boolean) => {
+    console.log('Upgrade modal visibility:', visible);
+  };
+  const upgradeReason = 'audio';
+
+
+  // Handle text messages - delegate to chatService
+  const handleTextMessage = async (text: string) => {
+    setIsTyping(true);
+    
+    try {
+      // Use chatService as the single source of truth
+      await chatService.sendMessage(text, () => {
+        setIsTyping(false);
+      });
+    } catch (error) {
+      console.error('Text message handling error:', error);
+      setIsTyping(false);
+    }
+  };
+
+  // Handle enhanced file message - delegate to chatService
   const handleEnhancedFileMessage = async (message: Message) => {
     setIsTyping(true);
     
     try {
-      await handleFileMessage(message);
-    } finally {
-      // Clear typing state after file is processed
-      setTimeout(() => setIsTyping(false), 1500);
+      // Use chatService as the single source of truth
+      await chatService.handleFileMessage(message, () => {
+        setIsTyping(false);
+      });
+    } catch (error) {
+      console.error('File message handling error:', error);
+      setIsTyping(false);
     }
   };
 
   // Health check with auto-retry every 30 seconds
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
 
     async function runHealthCheck() {
       setRetrying(true);
@@ -91,6 +108,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
 
     return () => clearInterval(interval);
   }, []);
+
 
   // Show health error fallback if Supabase is unreachable
   if (healthError) {
@@ -208,40 +226,36 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-6">
             <div className="max-w-4xl mx-auto space-y-4">
+              
               <MessageListWithPreviews>
                 {(() => {
-                  console.log('🔍 [ChatPage] Rendering messages:', {
-                    conversation: conversation,
-                    messagesLength: conversation?.messages?.length,
-                    hasMessages: conversation?.messages?.length > 0
-                  });
-                  
-                  if (conversation?.messages?.length > 0) {
-                    return conversation.messages.map((message, index) => (
+                  if (messages.length > 0) {
+                    return messages.map((message: Message, index: number) => (
                       <EnhancedMessageBubble
                         key={message.id}
                         message={message}
-                        isLatest={index === conversation.messages.length - 1}
-                        isTyping={index === conversation.messages.length - 1 && isTyping}
-                        onRetry={() => handleRetry(message.id)}
+                        isLatest={index === messages.length - 1}
+                        isTyping={index === messages.length - 1 && isTyping}
                       />
                     ));
                   } else {
-                    console.log('🔍 [ChatPage] Showing welcome message');
                     return (
-                      <div className="flex justify-center items-center h-64">
-                        <div className="text-center text-gray-400">
-                          <div className="mb-4">
-                            <img 
-                              src="/atlas-logo.png" 
-                              alt="Atlas AI" 
-                              className="w-16 h-16 mx-auto object-contain"
-                            />
+                      <div className="space-y-4">
+                        <div className="flex justify-center items-center h-32">
+                          <div className="text-center text-gray-400">
+                            <div className="mb-4">
+                              <img 
+                                src="/atlas-logo.png" 
+                                alt="Atlas AI" 
+                                className="w-16 h-16 mx-auto object-contain"
+                              />
+                            </div>
+                            <h2 className="text-xl font-semibold mb-2">Welcome to Atlas AI</h2>
+                            <p className="text-sm">Your emotionally intelligent AI assistant is ready to help.</p>
+                            <p className="text-xs mt-2 text-gray-500">Start a conversation below!</p>
                           </div>
-                          <h2 className="text-xl font-semibold mb-2">Welcome to Atlas AI</h2>
-                          <p className="text-sm">Your emotionally intelligent AI assistant is ready to help.</p>
-                          <p className="text-xs mt-2 text-gray-500">Start a conversation below!</p>
                         </div>
+                        
                       </div>
                     );
                   }
@@ -269,6 +283,9 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
                   </div>
                 </motion.div>
               )}
+              
+              {/* Scroll anchor */}
+              <div ref={bottomRef} />
             </div>
           </div>
 
@@ -276,8 +293,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           <div className="bg-gray-800/50 backdrop-blur-sm border-t border-gray-700/50 p-4">
             <div className="max-w-4xl mx-auto">
               <EnhancedInputToolbar
-                onSendMessage={handleEnhancedSendMessage}
-                onVoiceTranscription={handleEnhancedSendMessage}
+                onSendMessage={handleTextMessage}
                 onFileMessage={handleEnhancedFileMessage}
                 isProcessing={isProcessing}
                 placeholder="Ask Atlas anything..."
@@ -287,16 +303,18 @@ const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* Development Debugger */}
-        <MessageStoreDebugger />
+        {/* Modern scroll-to-bottom button */}
+        <ScrollToBottomButton
+          onClick={scrollToBottom}
+          visible={showScrollButton}
+        />
+
 
         {/* Upgrade Modal */}
         <EnhancedUpgradeModal
           isOpen={upgradeModalVisible}
           onClose={() => setUpgradeModalVisible(false)}
-          currentTier={tier as Tier}
-          reason={upgradeReason === 'daily_limit' ? 'daily_limit' : 'audio'}
-          onUpgrade={handleUpgrade}
+          feature={upgradeReason}
         />
       </div>
     </ErrorBoundary>

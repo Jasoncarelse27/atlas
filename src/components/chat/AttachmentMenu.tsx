@@ -5,6 +5,7 @@ import { useSupabaseAuth } from "../../hooks/useSupabaseAuth";
 import { useTierAccess } from "../../hooks/useTierAccess";
 import { db } from "../../lib/conversationStore";
 import { supabase } from "../../lib/supabase";
+import { chatService } from "../../services/chatService";
 import { featureService } from "../../services/featureService";
 import { syncPendingUploads } from "../../services/syncService";
 import { uploadWithAuth } from "../../services/uploadService";
@@ -13,15 +14,14 @@ import type { Message } from '../../types/chat';
 interface AttachmentMenuProps {
   anchorRef: React.RefObject<HTMLButtonElement>;
   onClose: () => void;
-  onSendMessage?: (message: Message) => void;
 }
 
-export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: AttachmentMenuProps) {
+export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal, tier } = useTierAccess(user?.id);
+  const { canUseFeature, showUpgradeModal, tier, forceRefresh } = useTierAccess(user?.id);
 
   const [loadingFeature, setLoadingFeature] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -44,33 +44,16 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
   async function handleAfterUpload({
     userId,
     feature,          // 'image' | 'camera' | 'audio' | 'file'
-    fileOrUrl,        // File | { url: string, filename?: string }
     uploaded,         // { url, contentType?, size? }
     conversationId,   // if you track one
   }: {
     userId: string;
     feature: 'image'|'camera'|'audio'|'file';
-    fileOrUrl: File | { url: string; filename?: string };
     uploaded: { url: string; contentType?: string; size?: number };
     conversationId?: string | null;
   }) {
-    // 1) Local preview bubble
-    const filename = (fileOrUrl instanceof File) ? fileOrUrl.name : fileOrUrl.filename;
-    const kind: 'image'|'audio'|'file' =
-      uploaded.contentType?.startsWith("image/") ? 'image' :
-      uploaded.contentType?.startsWith("audio/") ? 'audio' : 'file';
-
-    // Create a preview message for the uploaded file
-    if (onSendMessage) {
-      onSendMessage({
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: `Uploaded ${kind}: ${filename}`,
-        type: kind,
-        url: uploaded.url,
-        timestamp: new Date().toISOString()
-      });
-    }
+    // Note: Message creation is now handled by the upload flow above
+    // This function only handles backend ingestion
 
     // 2) Ingest record for Atlas Brain
     try {
@@ -145,43 +128,126 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
     console.log('[GateCheck] Image upload:', { tier, image: canUseFeature('image'), camera: canUseFeature('camera'), audio: canUseFeature('audio') });
     
     if (!canUseFeature('image')) {
-      toast.error('Image features are available in Core & Studio plans. Upgrade to unlock!');
-      showUpgradeModal('image');
-      featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
-      onClose();
+      // Force refresh profile data in case of caching issue
+      console.log('🔄 Forcing profile refresh due to tier mismatch...');
+      forceRefresh().then(() => {
+        // Wait a moment for the refresh to complete
+        setTimeout(() => {
+          // Check again after refresh
+          if (!canUseFeature('image')) {
+            toast.error('Image features are available in Core & Studio plans. Upgrade to unlock!');
+            showUpgradeModal('image');
+            featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
+            onClose();
+            return;
+          } else {
+            // If refresh worked, proceed with file selection
+            console.log('✅ Tier refresh successful, proceeding with image upload');
+            fileInputRef.current?.click();
+            onClose();
+          }
+        }, 1000);
+      });
       return;
     }
+    
+    // If tier check passes, proceed with file selection
+    console.log('✅ Tier check passed, opening file selector');
     fileInputRef.current?.click();
     onClose();
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !user) return;
+
+    console.log('[QUEUE] Starting image upload for', files.length, 'files');
+
+    // 1) Create immediate preview with blob URLs
+    const tempId = crypto.randomUUID();
+    const blobUrls = files.map(file => URL.createObjectURL(file));
+    
+    // Add temporary message with blob URLs for immediate preview
+    const tempMessage: Message = {
+      id: tempId,
+      role: 'user',
+      content: blobUrls, // Array of blob URLs for immediate preview
+      type: 'image',
+      timestamp: new Date().toISOString(),
+      status: 'uploading' // Show uploading state
+    };
+    
+    // Use chatService as single source of truth
+    console.log('[QUEUE] About to call chatService.handleFileMessage with:', tempMessage);
+    await chatService.handleFileMessage(tempMessage);
+    
+    console.log('[QUEUE] Added temp message with blob previews:', { tempId, blobUrls });
 
     setLoadingFeature("image");
     try {
-      toast.loading('Uploading image...');
+      if (files.length === 1) {
+        toast.loading('Uploading image...');
+      } else {
+        toast.loading(`Uploading ${files.length} images...`);
+      }
       
-      // Use the new upload service
-      const result = await uploadWithAuth(file, "image", user.id);
+      const uploadPromises = files.map(async (file) => {
+        // Use the new upload service
+        const result = await uploadWithAuth(file, "image", user.id);
+        
+        return {
+          file,
+          result,
+          uploaded: { url: result.url, contentType: file.type, size: file.size }
+        };
+      });
+
+      const uploadResults = await Promise.all(uploadPromises);
       
       // Log feature attempt
       featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
 
-      // Handle preview and ingestion
-      await handleAfterUpload({
-        userId: user.id,
-        feature: "image",
-        fileOrUrl: file,
-        uploaded: { url: result.url, contentType: file.type, size: file.size },
-        conversationId: null // TODO: get current conversation ID
-      });
+      // 2) Replace blob URLs with remote URLs and create final message
+      const remoteUrls = uploadResults.map(({ uploaded }) => uploaded.url);
+      console.log('[QUEUE] Upload complete, replacing with remote URLs:', remoteUrls);
+
+      // Update the existing message with remote URLs (replace blob URLs)
+      const finalMessage: Message = {
+        id: tempId, // Use same ID to replace the blob message
+        role: 'user',
+        content: remoteUrls, // Replace with remote URLs
+        type: 'image',
+        timestamp: new Date().toISOString(),
+        status: 'sent' // Mark as completed
+      };
       
-      toast.success('Image uploaded successfully!');
+      // Use chatService as single source of truth
+      await chatService.handleFileMessage(finalMessage);
+
+      // Note: Image analysis is handled by ChatPage.tsx when it detects the image message
+      // No need for separate handleAfterUpload call - the normal message flow will handle it
+      
+      if (files.length === 1) {
+        toast.success('Image uploaded successfully!');
+      } else {
+        toast.success(`${files.length} images uploaded successfully!`);
+      }
     } catch (err) {
       console.error("❌ Image upload error:", err);
-      toast.error('Failed to upload image');
+      toast.error('Failed to upload images');
+      
+      // Update message status to error
+      const errorMessage: Message = {
+        id: tempId,
+        role: 'user',
+        content: blobUrls, // Keep blob URLs but mark as error
+        type: 'image',
+        timestamp: new Date().toISOString(),
+        status: 'error' // Mark as failed
+      };
+      
+      // Use chatService as single source of truth
+      await chatService.handleFileMessage(errorMessage);
     } finally {
       setLoadingFeature(null);
       if (fileInputRef.current) {
@@ -254,7 +320,6 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
             await handleAfterUpload({
               userId: user.id,
               feature: "camera",
-              fileOrUrl: { url: result.url, filename: "camera.jpg" },
               uploaded: { url: result.url, contentType: "image/jpeg", size: blob.size },
               conversationId: null // TODO: get current conversation ID
             });
@@ -290,7 +355,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
     if (!canUseFeature('file')) {
       toast.error('File upload features are available in Core & Studio plans. Upgrade to unlock!');
       showUpgradeModal('file');
-      featureService.logAttempt(user.id, 'file', tier === 'loading' ? 'free' : tier);
+      featureService.logAttempt(user.id, 'photo', tier === 'loading' ? 'free' : tier);
       onClose();
       return;
     }
@@ -310,7 +375,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       const result = await uploadWithAuth(file, "file", user.id);
       
       // Log feature attempt
-      featureService.logAttempt(user.id, 'file', tier === 'loading' ? 'free' : tier);
+      featureService.logAttempt(user.id, 'photo', tier === 'loading' ? 'free' : tier);
 
       // Determine feature type for ingestion
       const kindGuess = file.type.startsWith("audio/") ? "audio" : "file";
@@ -319,7 +384,6 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
       await handleAfterUpload({
         userId: user.id,
         feature: kindGuess,
-        fileOrUrl: file,
         uploaded: { url: result.url, contentType: file.type, size: file.size },
         conversationId: null // TODO: get current conversation ID
       });
@@ -428,6 +492,7 @@ export default function AttachmentMenu({ anchorRef, onClose, onSendMessage }: At
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         style={{ display: "none" }}
         onChange={handleImageUpload}
       />

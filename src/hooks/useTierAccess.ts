@@ -1,23 +1,41 @@
+import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useState } from "react"
+import { supabase } from "../lib/supabase"
 import { useSubscription } from "./useSubscription"
 
 export function useTierAccess(userId?: string) {
-  const { profile, loading } = useSubscription(userId)
-  const tier = profile?.subscription_tier || "free"
+  const { profile, loading, forceRefresh } = useSubscription(userId)
+  const queryClient = useQueryClient()
   
-  // Usage tracking state
+  // Usage tracking state - MUST be called before any conditional returns
   const [messageCount, setMessageCount] = useState(0)
   const [maxMessages, setMaxMessages] = useState(15)
   const [remainingMessages, setRemainingMessages] = useState(15)
-
+  
   // Fetch usage from backend
   const fetchUsage = useCallback(async () => {
     if (!userId || loading) return
     
     try {
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession()
+      let token = session?.access_token
+      
+      // Use mock token for development if no real token
+      if (!token && import.meta.env.DEV) {
+        token = 'mock-token-for-development'
+        console.log('🔓 Using mock token for development')
+      }
+      
+      if (!token) {
+        console.warn('No access token available for usage fetch')
+        return
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/usage/${userId}`, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         credentials: 'include'
       })
@@ -25,14 +43,19 @@ export function useTierAccess(userId?: string) {
       if (response.ok) {
         const usage = await response.json()
         setMessageCount(usage.conversations_count || 0)
+      } else if (response.status === 401) {
+        console.warn('Unauthorized access to usage endpoint - token may be expired')
       }
     } catch (error) {
       console.warn('Failed to fetch usage:', error)
     }
-  }, [userId, loading])
+  }, [userId])
 
   // Set limits based on tier
   useEffect(() => {
+    if (!profile) return
+    
+    const tier = profile.subscription_tier || "free"
     switch (tier) {
       case 'free':
         setMaxMessages(15)
@@ -44,7 +67,7 @@ export function useTierAccess(userId?: string) {
       default:
         setMaxMessages(15)
     }
-  }, [tier])
+  }, [profile])
 
   // Calculate remaining messages
   useEffect(() => {
@@ -60,22 +83,52 @@ export function useTierAccess(userId?: string) {
     fetchUsage()
   }, [fetchUsage])
 
+  const incrementMessageCount = useCallback(() => {
+    if (profile?.subscription_tier === 'free') {
+      setMessageCount(prev => prev + 1)
+    }
+  }, [profile?.subscription_tier])
+
+  // ✅ Don't default to "free" if profile hasn't loaded yet
+  if (loading || !profile) {
+    return {
+      tier: "loading",
+      loading: true,
+      canUseFeature: () => false,
+      showUpgradeModal: () => {},
+      messageCount: 0,
+      maxMessages: 0,
+      remainingMessages: 0,
+      incrementMessageCount: () => {},
+      refreshUsage: () => Promise.resolve(),
+      forceRefresh
+    };
+  }
+
+  const tier = profile.subscription_tier || "free"
+  
+  // Debug logging
+  console.log("🔍 useTierAccess - profile:", profile)
+  console.log("🔍 useTierAccess - tier:", tier)
+
   const canUseFeature = (feature: string) => {
     if (loading) return false
+    if (!profile) return false // Don't allow features if profile is not loaded
     if (tier === "studio") return true
-    if (tier === "core") return feature !== "studio-only"
-    return feature === "text"
+    if (tier === "core") {
+      // Core tier gets text, image, audio, and other features (not studio-only)
+      return feature !== "studio-only"
+    }
+    if (tier === "free") {
+      // Free tier only gets text chat
+      return feature === "text"
+    }
+    return false
   }
 
   const showUpgradeModal = (feature: string) => {
     console.log(`⚠️ Upgrade required for: ${feature}`)
   }
-
-  const incrementMessageCount = useCallback(() => {
-    if (tier === 'free') {
-      setMessageCount(prev => prev + 1)
-    }
-  }, [tier])
 
   return { 
     tier, 
@@ -86,6 +139,7 @@ export function useTierAccess(userId?: string) {
     maxMessages,
     remainingMessages,
     incrementMessageCount,
-    refreshUsage: fetchUsage
+    refreshUsage: fetchUsage,
+    forceRefresh
   }
 }

@@ -161,6 +161,14 @@ class AudioService {
     }
     return '';
   }
+
+  /**
+   * Play TTS audio (placeholder for future implementation)
+   */
+  play(text: string): void {
+    console.log('[AudioService] TTS playback requested:', text.substring(0, 50) + '...');
+    // TODO: Implement TTS playback
+  }
 }
 
 // Export singleton instance

@@ -1,179 +1,163 @@
-import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "../lib/supabaseClient";
 import { useMessageStore } from "../stores/useMessageStore";
+import type { Message } from "../types/chat";
 import { audioService } from "./audioService";
-import { fetchWithAuthJSON } from "./fetchWithAuth";
+import { getUserTier } from "./subscriptionService";
 
-interface SendMessagePayload {
-  message: string;
-  conversationId: string;
-  userId: string; // Required for backend
-  tier?: string; // Optional, will default to 'free' if not provided
-  onMessage: (partial: string) => void;
-  onComplete?: (full: string) => void;
-  onError?: (error: string) => void;
-}
+export const chatService = {
+  sendMessage: async (text: string, onComplete?: () => void) => {
+    console.log("[FLOW] sendMessage called with text:", text);
+    const { addMessage } = useMessageStore.getState();
 
-export const sendMessageToBackend = async ({
-  message,
-  conversationId,
-  userId,
-  tier = 'free',
-  onMessage,
-  onComplete,
-  onError,
-}: SendMessagePayload) => {
-  const { addMessage, updateMessage, setError } = useMessageStore.getState();
-  
-  // Create user message
-  const userMessageId = uuidv4();
-  const userMessage = {
-    id: userMessageId,
-    role: 'user' as const,
-    content: message,
-    timestamp: new Date().toISOString()
-  };
-  
-  // Add user message to store immediately
-  addMessage(userMessage);
-  
-  // Create placeholder assistant message
-  const assistantMessageId = uuidv4();
-  const assistantMessage = {
-    id: assistantMessageId,
-    role: 'assistant' as const,
-    content: '',
-    streaming: true,
-    timestamp: new Date().toISOString()
-  };
-  
-  // Add streaming assistant message to store
-  addMessage(assistantMessage);
-  
-  try {
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    
-    // Debug log in development
-    if (import.meta.env.DEV) {
-      console.log(`Sending message with userId: ${userId}, tier: ${tier}`);
-    }
-    
-    // Use fetchWithAuthJSON for automatic token handling and error management
-    const data = await fetchWithAuthJSON(
-      `${API_URL}/message`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ message, userId, tier })
-      }
-    );
-
-    const fullMessage = data.response || "Hello! I'm Atlas, your AI assistant. How can I help you today?";
-    
-    // Simulate streaming by sending the message in chunks
-    const words = fullMessage.split(' ');
-    let currentMessage = '';
-    
-    for (let i = 0; i < words.length; i++) {
-      currentMessage += words[i] + ' ';
-      
-      // Update the assistant message in the store
-      updateMessage(assistantMessageId, { 
-        content: currentMessage.trim(),
-        streaming: true 
-      });
-      
-      // Call the callback for backward compatibility
-      onMessage?.(words[i] + ' ');
-      
-      await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for streaming effect
-    }
-
-    // Mark streaming as complete
-    updateMessage(assistantMessageId, { 
-      content: fullMessage,
-      streaming: false 
+    // Add user message
+    addMessage({ 
+      id: crypto.randomUUID(), 
+      role: "user", 
+      content: text,
+      timestamp: new Date().toISOString()
     });
 
-    // Play TTS for Core/Studio users
-    if (tier !== 'free' && fullMessage) {
-      try {
-        await audioService.playTTS(fullMessage, {
-          user_id: userId,
-          tier: tier as "core" | "studio",
-          session_id: conversationId,
-        });
-      } catch (ttsError) {
-        console.warn("TTS playback failed:", ttsError);
-        // Don't fail the entire message if TTS fails
-      }
+    // Don't create placeholder assistant message - let ChatPage handle typing indicator
+    const assistantId = crypto.randomUUID();
+
+    // Get JWT token for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || 'mock-token-for-development';
+
+    // Get user's tier for the request
+    const currentTier = await getUserTier();
+    
+    // Get response from backend (JSON response, not streaming)
+    const response = await fetch("http://localhost:3000/message", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        message: text,
+        tier: currentTier
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Backend error:', errorData);
+      // Create error message
+      addMessage({
+        id: assistantId,
+        role: "assistant",
+        content: `Error: ${errorData.error || 'Failed to get response'}`,
+        timestamp: new Date().toISOString()
+      });
+      return;
     }
 
-    onComplete?.(fullMessage);
-    return fullMessage;
-  } catch (error: any) {
-    console.error("Chat service error:", error);
-    const errorMessage = error?.message || "Unknown error";
+    const data = await response.json();
     
-    // Only show fallback for actual connection failures, not API errors
-    if (
-      errorMessage.includes("Failed to fetch") ||
-      errorMessage.includes("NetworkError") ||
-      errorMessage.includes("ECONNREFUSED") ||
-      errorMessage.includes("ERR_NETWORK") ||
-      errorMessage.includes("ERR_INTERNET_DISCONNECTED")
-    ) {
-      // Real network/connection error - show fallback
-      setError(assistantMessageId, "I'm experiencing some technical difficulties right now. Please try again in a moment.");
-    } else {
-      // API error or other issue - show the actual error for debugging
-      setError(assistantMessageId, `Error: ${errorMessage}`);
+    if (!data.success) {
+      // Create error message
+      addMessage({
+        id: assistantId,
+        role: "assistant",
+        content: `Error: ${data.message || 'Failed to get response'}`,
+        timestamp: new Date().toISOString()
+      });
+      return;
     }
-    
-    onError?.(errorMessage);
-    throw new Error(errorMessage);
-  }
-};
 
-// Image analysis service
-export const sendImage = async (
-  imageUrl: string,
-  userText: string,
-  props: { user_id: string; tier: string; session_id: string }
-): Promise<string | null> => {
-  try {
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    
-    // Send image analysis request to backend
-    const data = await fetchWithAuthJSON(
-      `${API_URL}/message`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ 
-          message: userText,
-          userId: props.user_id, 
-          tier: props.tier,
-          imageUrl: imageUrl
-        })
+    // Create assistant message with the actual response
+    const responseText = data.response;
+    addMessage({
+      id: assistantId,
+      role: "assistant",
+      content: responseText,
+      timestamp: new Date().toISOString()
+    });
+
+    // 🔊 Play TTS if tier allows
+    if (currentTier !== "free" && typeof audioService.play === "function") {
+      audioService.play(responseText);
+    }
+
+    // Call completion callback to clear typing indicator
+    onComplete?.();
+  },
+
+  handleFileMessage: async (message: Message, onComplete?: () => void) => {
+    try {
+      console.log("[FLOW] handleFileMessage called:", { type: message.type, content: message.content });
+      const { addMessage, updateMessage, messages } = useMessageStore.getState();
+
+      // Check if this message already exists (for updates)
+      const existingMessage = messages.find(m => m.id === message.id);
+      
+      if (existingMessage) {
+        // Update existing message
+        console.log("[FLOW] Updating existing message:", message.id);
+        updateMessage(message.id, message);
+      } else {
+        // Add new message
+        console.log("[FLOW] Adding new message:", message.id);
+        addMessage(message);
       }
-    );
+      
+      // If it's an image, send it to Atlas for analysis
+      if (message.type === 'image') {
+        // Get the image URL(s) - could be in url field or content array
+        const imageUrls = message.url ? [message.url] : 
+                         (Array.isArray(message.content) ? message.content : []);
+        
+        if (imageUrls.length > 0) {
+          // Get user info for the request
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token || 'mock-token-for-development';
+          
+          // Get user's tier for the request
+          const imageTier = await getUserTier();
+          
+          // Send image analysis request to backend
+          const response = await fetch("http://localhost:3000/message", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ 
+              message: "Please analyze this image",
+              tier: imageTier,
+              imageUrl: imageUrls[0] // Send first image for analysis
+            }),
+          });
 
-    return data.response || null;
-  } catch (error: any) {
-    console.error("Image analysis error:", error);
-    throw error;
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              // Add Atlas's response about the image
+              addMessage({
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: data.response,
+                timestamp: new Date().toISOString()
+              });
+            }
+          } else {
+            // Add error message
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: "Sorry, I couldn't analyze that image. Please try again.",
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      // Call completion callback
+      onComplete?.();
+    } catch (error) {
+      console.error("[FLOW] Error in handleFileMessage:", error);
+      throw error;
+    }
   }
-};
-
-export const getSupabaseUserTier = async (userId: string) => {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("subscription_tier")
-    .eq("id", userId)
-    .single();
-
-  if (error) {
-    console.warn('Could not get user tier, defaulting to free:', error.message);
-    return 'free';
-  }
-  return data.subscription_tier || 'free';
 };

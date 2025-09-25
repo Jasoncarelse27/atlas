@@ -3,14 +3,14 @@ import { v4 as uuidv4 } from 'uuid';
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  content: string | string[]; // Support multiple images as array
   timestamp: string;
   error?: string;
-  status?: 'sending' | 'sent' | 'failed';
+  status?: 'sending' | 'sent' | 'failed' | 'pending' | 'error' | 'uploading';
   audioUrl?: string;
   imageUrl?: string;
   // Extended file support
-  type?: 'text' | 'image' | 'audio' | 'file';
+  type?: 'text' | 'image' | 'audio' | 'file' | 'system';
   url?: string; // for uploaded files
   metadata?: {
     filename?: string;
@@ -50,8 +50,10 @@ export const generateConversationTitle = (messages: Message[]): string => {
     return 'New Conversation';
   }
   
-  // Truncate the message to create a title
-  const content = firstUserMessage.content;
+  // Get content as string (handle both string and array)
+  const content = Array.isArray(firstUserMessage.content) 
+    ? firstUserMessage.content.join(' ') 
+    : firstUserMessage.content;
   
   if (content.length <= 30) {
     return content;

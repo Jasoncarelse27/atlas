@@ -1,99 +1,111 @@
-// Test harness for FastSpring webhook integration
-// Run with: deno run --allow-net --allow-env scripts/test-fastspring-webhook.ts
+#!/usr/bin/env ts-node
 
-const WEBHOOK_URL = "http://localhost:54321/functions/v1/fastspring-webhook";
-const TEST_USER_ID = "65fcb50a-d67d-453e-a405-50c6aef959be"; // Replace with real user UUID from profiles
+/**
+ * FastSpring Webhook Test Script
+ * 
+ * This script simulates FastSpring webhook events to test subscription
+ * activation, update, cancellation, and deactivation without relying
+ * on the FastSpring dashboard.
+ */
 
-interface WebhookPayload {
-  eventType: string;
-  accountId: string;
-  oldTier?: string;
-  newTier: string;
+import fetch from 'node-fetch';
+
+// Configuration
+const baseUrl = process.env.RAILWAY_URL || "http://localhost:3000";
+const webhookUrl = `${baseUrl}/api/fastspring-webhook`;
+
+// Test user ID - replace with a real user ID from your Supabase
+const testUserId = "65fcb50a-d67d-453e-a405-50c6aef959be"; // Replace with actual user ID
+
+interface TestEvent {
+  id: string;
+  event: string;
+  data: {
+    userId: string;
+    subscription: {
+      id: string;
+      status: string;
+      plan: string;
+    };
+  };
 }
 
-async function testWebhook(payload: WebhookPayload) {
-  console.log(`🧪 Testing webhook: ${payload.eventType}`);
-  
+/**
+ * Send a test event to the FastSpring webhook
+ */
+async function sendTestEvent(event: string, userId: string, plan: string = 'core'): Promise<void> {
+  const payload: TestEvent = {
+    id: `test-${Date.now()}`,
+    event,
+    data: {
+      userId,
+      subscription: {
+        id: `sub_test_${Date.now()}`,
+        status: event.includes("canceled") || event.includes("deactivated") ? "canceled" : "active",
+        plan: plan
+      }
+    }
+  };
+
+  console.log(`\n🚀 Sending ${event} event...`);
+  console.log(`📦 Payload:`, JSON.stringify(payload, null, 2));
+
   try {
-    const res = await fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(payload)
     });
 
-    const result = await res.json();
+    const responseText = await response.text();
     
-    if (res.ok) {
-      console.log("✅ Success:", result);
+    if (response.ok) {
+      console.log(`✅ Success (${response.status}):`, responseText);
     } else {
-      console.log("❌ Error:", result);
+      console.log(`❌ Error (${response.status}):`, responseText);
     }
-    
-    return result;
   } catch (error) {
-    console.error("❌ Network error:", error);
-    return { success: false, error: error.message };
+    console.error(`💥 Network error:`, error);
   }
 }
 
-async function runTests() {
-  console.log("🚀 FastSpring Webhook Test Harness");
-  console.log("=====================================");
-  
+/**
+ * Main test function
+ */
+async function runTests(): Promise<void> {
+  console.log('🧪 FastSpring Webhook Test Suite');
+  console.log('================================');
+  console.log(`🎯 Target: ${webhookUrl}`);
+  console.log(`👤 Test User: ${testUserId}`);
+  console.log('');
+
+  // Test sequence
   const tests = [
-    {
-      name: "Subscription Activation",
-      payload: {
-        eventType: "subscription.activated",
-        accountId: TEST_USER_ID,
-        newTier: "core"
-      }
-    },
-    {
-      name: "Trial Conversion",
-      payload: {
-        eventType: "subscription.trial.converted",
-        accountId: TEST_USER_ID,
-        newTier: "studio"
-      }
-    },
-    {
-      name: "Subscription Upgrade",
-      payload: {
-        eventType: "subscription.updated",
-        accountId: TEST_USER_ID,
-        oldTier: "core",
-        newTier: "studio"
-      }
-    },
-    {
-      name: "Subscription Downgrade",
-      payload: {
-        eventType: "subscription.updated",
-        accountId: TEST_USER_ID,
-        oldTier: "studio",
-        newTier: "core"
-      }
-    },
-    {
-      name: "Subscription Cancellation",
-      payload: {
-        eventType: "subscription.canceled",
-        accountId: TEST_USER_ID,
-        newTier: "free"
-      }
-    }
+    { event: "subscription.activated", plan: "atlas-core" },
+    { event: "subscription.updated", plan: "atlas-studio" },
+    { event: "subscription.canceled", plan: "atlas-studio" },
+    { event: "subscription.deactivated", plan: "atlas-studio" }
   ];
 
   for (const test of tests) {
-    console.log(`\n📋 ${test.name}`);
-    await testWebhook(test.payload);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between tests
+    await sendTestEvent(test.event, testUserId, test.plan);
+    
+    // Wait between tests
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
-  
-  console.log("\n🎯 All tests completed!");
-  console.log("Check the subscription_audit table and profiles table for changes.");
+
+  console.log('\n🎉 Test suite completed!');
+  console.log('\n📋 Next steps:');
+  console.log('1. Check Supabase profiles table for tier updates');
+  console.log('2. Check subscription_audit table for event logging');
+  console.log('3. Verify Atlas frontend reflects tier changes');
 }
 
 // Run the tests
-runTests().catch(console.error);
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runTests().catch(console.error);
+}
+
+export { runTests, sendTestEvent };

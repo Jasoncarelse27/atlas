@@ -23,3 +23,22 @@ export async function uploadWithAuth(file: File, feature: string, userId: string
   
   return res.json(); // {url}
 }
+
+// Enhanced image upload with direct Supabase storage
+export async function uploadImage(file: File): Promise<string> {
+  const filePath = `uploads/${Date.now()}-${file.name}`;
+
+  // 1. Upload to Supabase Storage
+  const { error } = await supabase.storage
+    .from("attachments")
+    .upload(filePath, file);
+
+  if (error) throw error;
+
+  // 2. Get a public or signed URL
+  const { data } = supabase.storage
+    .from("attachments")
+    .getPublicUrl(filePath);
+
+  return data.publicUrl; // return usable URL for chat bubble
+}

@@ -75,3 +75,18 @@ body {
   background: #111827;
   border-top-color: rgba(255, 255, 255, 0.1);
 }
+
+/* Smart scroll system animations */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0px rgba(59, 130, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 1.5s infinite;
+}

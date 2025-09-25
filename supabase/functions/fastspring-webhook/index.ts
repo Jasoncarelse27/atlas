@@ -31,14 +31,30 @@ export const mapEventType = (eventType: string, oldTier?: string, newTier?: stri
 serve(async (req) => {
   try {
     const payload = await req.json();
-    console.log("[FastSpring Webhook] Received payload:", payload);
+    console.log("[FastSpring Webhook] Received payload:", JSON.stringify(payload, null, 2));
     
-    const { eventType, accountId, oldTier, newTier } = payload;
+    // Handle both test payloads and real FastSpring payloads
+    let eventType, userId, newTier, oldTier;
+    
+    if (payload.event) {
+      // Real FastSpring payload format
+      eventType = payload.event;
+      userId = payload.data?.account?.id || payload.data?.userId;
+      newTier = payload.data?.subscription?.plan?.id === 'atlas-studio' ? 'studio' : 
+                payload.data?.subscription?.plan?.id === 'atlas-core' ? 'core' : 'free';
+      oldTier = 'free'; // Default for new subscriptions
+    } else {
+      // Test payload format
+      eventType = payload.eventType;
+      userId = payload.accountId;
+      newTier = payload.newTier;
+      oldTier = payload.oldTier;
+    }
 
-    if (!accountId || !newTier) {
+    if (!userId || !newTier) {
       return new Response(JSON.stringify({ 
         success: false, 
-        error: "Missing required fields: accountId, newTier" 
+        error: "Missing required fields: userId, newTier" 
       }), { 
         status: 400,
         headers: { "Content-Type": "application/json" }
@@ -47,21 +63,21 @@ serve(async (req) => {
 
     const mappedEvent = mapEventType(eventType, oldTier, newTier);
     
-    if (mappedEvent) {
-      console.log(`[FastSpring Webhook] Logging ${mappedEvent} for user ${accountId}`);
-      
-      const { error: auditError } = await supabase.from("subscription_audit").insert({
-        user_id: accountId,
-        event_type: mappedEvent,
-        old_tier: oldTier,
-        new_tier: newTier,
-        source: "fastspring"
-      });
-      
-      if (auditError) {
-        console.error("[FastSpring Webhook] Audit error:", auditError);
-        throw auditError;
-      }
+    // Always log to subscription_audit
+    console.log(`[FastSpring Webhook] Logging ${mappedEvent || 'unknown'} for user ${userId}`);
+    
+    const { error: auditError } = await supabase.from("subscription_audit").insert({
+      profile_id: userId,
+      event_type: mappedEvent || 'unknown',
+      old_tier: oldTier,
+      new_tier: newTier,
+      provider: "fastspring",
+      metadata: payload
+    });
+    
+    if (auditError) {
+      console.error("[FastSpring Webhook] Audit error:", auditError);
+      throw auditError;
     }
 
     // Update user's subscription tier
@@ -69,21 +85,22 @@ serve(async (req) => {
       .from("profiles")
       .update({ 
         subscription_tier: newTier,
+        subscription_status: eventType.includes('canceled') || eventType.includes('deactivated') ? 'cancelled' : 'active',
         updated_at: new Date().toISOString()
       })
-      .eq("id", accountId);
+      .eq("id", userId);
 
     if (updateError) {
       console.error("[FastSpring Webhook] Update error:", updateError);
       throw updateError;
     }
 
-    console.log(`[FastSpring Webhook] Successfully processed ${eventType} for user ${accountId}`);
+    console.log(`[FastSpring Webhook] Successfully processed ${eventType} for user ${userId} -> ${newTier}`);
     
     return new Response(JSON.stringify({ 
       success: true,
       eventType: mappedEvent,
-      userId: accountId,
+      userId: userId,
       newTier: newTier
     }), { 
       status: 200,

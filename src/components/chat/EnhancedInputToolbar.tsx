@@ -81,9 +81,93 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    // TODO: Implement speech-to-text
-    setIsListening(!isListening);
-    toast.success(isListening ? 'Voice recording stopped' : 'Voice recording started');
+    if (!isListening) {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks: Blob[] = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+        
+        mediaRecorder.onstop = async () => {
+          try {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // Upload audio to Supabase Storage
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+            
+            const uploadResponse = await fetch('/api/upload', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${user.access_token || 'mock-token-for-development'}`
+              },
+              body: formData
+            });
+            
+            if (!uploadResponse.ok) {
+              throw new Error('Upload failed');
+            }
+            
+            const { url } = await uploadResponse.json();
+            
+            // Transcribe the audio
+            const transcribeResponse = await fetch('/api/transcribe', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.access_token || 'mock-token-for-development'}`
+              },
+              body: JSON.stringify({ audioUrl: url })
+            });
+            
+            if (!transcribeResponse.ok) {
+              throw new Error('Transcription failed');
+            }
+            
+            const { transcript } = await transcribeResponse.json();
+            
+            // Set the transcribed text in the input for user to review and send
+            setText(transcript);
+            
+            toast.success('Voice message transcribed successfully!');
+            
+          } catch (error) {
+            console.error('Voice processing error:', error);
+            toast.error('Failed to process voice message. Please try again.');
+          } finally {
+            setIsListening(false);
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+          }
+        };
+        
+        mediaRecorder.start();
+        setIsListening(true);
+        toast.success('Recording started... Speak now!');
+        
+        // Auto-stop after 30 seconds
+        setTimeout(() => {
+          if (isListening) {
+            mediaRecorder.stop();
+          }
+        }, 30000);
+        
+      } catch (error) {
+        console.error('Microphone access error:', error);
+        toast.error('Microphone access denied. Please allow microphone permissions.');
+        setIsListening(false);
+      }
+    } else {
+      // Stop recording
+      setIsListening(false);
+      toast.success('Recording stopped. Processing...');
+    }
   };
 
   const handleFeatureClick = async (feature: 'image' | 'camera' | 'audio') => {
@@ -159,7 +243,6 @@ export default function EnhancedInputToolbar({
             <AttachmentMenu
               anchorRef={buttonRef}
               onClose={() => setMenuOpen(false)}
-              onSendMessage={onFileMessage}
             />
           )}
         </div>

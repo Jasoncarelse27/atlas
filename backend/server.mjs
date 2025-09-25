@@ -523,22 +523,47 @@ app.post("/message",
   },
   async (req, res) => {
     try {
-      const { userId, message, type = 'chat', tier = 'free', conversationId } = req.body;
+      const { userId, message, type = 'chat', tier: clientTier = 'free', conversationId } = req.body;
       const actualUserId = req.user?.id || userId;
+      
+      // 1. Fetch subscription tier from Supabase (authoritative source)
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("subscription_tier")
+        .eq("id", actualUserId)
+        .single();
+
+      if (error) {
+        console.error("[Tier] Supabase error", error);
+        return res.status(500).json({ error: "Failed to fetch profile" });
+      }
+
+      const dbTier = profile?.subscription_tier || "free";
+
+      // 2. Compare client vs backend tier
+      if (clientTier && clientTier !== dbTier) {
+        console.warn(`[Tier] Mismatch: client=${clientTier}, db=${dbTier}`);
+      }
+
+      // 3. Always trust the DB
+      const effectiveTier = dbTier;
       
       // DEBUG: Log incoming request
       console.log("[DEBUG] Incoming message request:", {
         hasMessage: !!message,
-        hasTier: !!tier,
+        hasTier: !!clientTier,
         hasUserId: !!actualUserId,
         incomingConversationId: conversationId,
-        messagePreview: message?.slice(0, 50) + '...'
+        messagePreview: message?.slice(0, 50) + '...',
+        clientTier,
+        dbTier,
+        effectiveTier
       });
       
-      if (!message || !tier) {
+      if (!message) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Missing required fields: message and tier' 
+          message: 'Missing required field: message' 
         });
       }
       
@@ -607,33 +632,33 @@ app.post("/message",
 
       await logInfo("Message API called with intelligent tier system", { 
         userId, 
-        tier, 
+        tier: effectiveTier, 
         hasMessage: !!message,
         messageLength: message.length
       });
 
       // 🛡️ STEP 1: Budget ceiling check
-      const budgetCheck = await budgetCeilingService.checkBudgetCeiling(tier);
+      const budgetCheck = await budgetCeilingService.checkBudgetCeiling(effectiveTier);
       if (!budgetCheck.allowed) {
         return res.status(429).json({
           success: false,
           message: budgetCheck.message,
-          upgrade: tier === 'free'
+          upgrade: effectiveTier === 'free'
         });
       }
 
       // 🧠 STEP 2: Intelligent model selection
-      const selectedModelName = selectOptimalModel(tier, message, type);
+      const selectedModelName = selectOptimalModel(effectiveTier, message, type);
       
       // 💾 STEP 3: Get cached system prompt
       const systemPrompt = await promptCacheService.get(
         'systemPersonality', 
-        { tier, userId }, 
+        { tier: effectiveTier, userId }, 
         `You are Atlas, an emotionally intelligent AI assistant focused on emotional wellbeing and mental health support. You help users develop emotional intelligence, manage stress, and build healthier habits.`
       );
 
       await logInfo("Intelligent tier processing", { 
-        tier,
+        tier: effectiveTier,
         selectedModel: selectedModelName,
         systemPromptCached: systemPrompt.includes('User Context'),
         budgetPriority: budgetCheck.priorityOverride || false
@@ -689,18 +714,18 @@ app.post("/message",
             const fileUrl = req.body.fileUrl || '';
             
             if (fileType === 'audio') {
-              aiResponse = `I've received your audio recording! As your ${tier} tier Atlas companion, I can analyze audio content for emotional insights, speech patterns, and key topics discussed. However, I'm currently experiencing some technical difficulties with audio processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this recording.`;
+              aiResponse = `I've received your audio recording! As your ${effectiveTier} tier Atlas companion, I can analyze audio content for emotional insights, speech patterns, and key topics discussed. However, I'm currently experiencing some technical difficulties with audio processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this recording.`;
             } else if (fileType === 'camera' || fileType === 'image') {
-              aiResponse = `I've received your image! As your ${tier} tier Atlas companion, I can analyze images for visual content, emotional context, and relevant details. However, I'm currently experiencing some technical difficulties with image processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this image.`;
+              aiResponse = `I've received your image! As your ${effectiveTier} tier Atlas companion, I can analyze images for visual content, emotional context, and relevant details. However, I'm currently experiencing some technical difficulties with image processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this image.`;
             } else {
-              aiResponse = `I've received your file! As your ${tier} tier Atlas companion, I can analyze various file types. However, I'm currently experiencing some technical difficulties with file processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this file.`;
+              aiResponse = `I've received your file! As your ${effectiveTier} tier Atlas companion, I can analyze various file types. However, I'm currently experiencing some technical difficulties with file processing. Please try again in a moment, or feel free to describe what you'd like me to help you with regarding this file.`;
             }
           } else {
             // Regular text response
             aiResponse = `Hello! I'm Atlas, your AI-powered emotional intelligence companion. ` + 
-              (tier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis and personalized insights. ' : '') +
-              (tier === 'core' ? 'As a Core user, you have access to comprehensive emotional support and habit coaching. ' : '') +
-              (tier === 'free' ? 'I\'m here to provide basic emotional support and guidance. ' : '') +
+              (effectiveTier === 'studio' ? 'As a Studio user, you get my most advanced emotional analysis and personalized insights. ' : '') +
+              (effectiveTier === 'core' ? 'As a Core user, you have access to comprehensive emotional support and habit coaching. ' : '') +
+              (effectiveTier === 'free' ? 'I\'m here to provide basic emotional support and guidance. ' : '') +
               `I understand you're reaching out about "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}" - how can I help you today?`;
           }
           
@@ -1130,6 +1155,36 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (error) => {
   console.error('🚨 Uncaught Exception:', error);
   // Don't crash the process, just log it
+});
+
+// --- Audio transcription endpoint ---
+app.post('/api/transcribe', verifyJWT, async (req, res) => {
+  try {
+    const { audioUrl, language = 'en' } = req.body;
+    const userId = req.user.id;
+    
+    console.log('🎤 Transcription request from user:', userId, 'for audio:', audioUrl);
+    
+    if (!audioUrl) {
+      return res.status(400).json({ error: 'Audio URL is required' });
+    }
+    
+    // For now, we'll use a simple mock transcription
+    // In production, you would integrate with a real STT service like OpenAI Whisper, Google Speech-to-Text, etc.
+    const mockTranscription = {
+      transcript: "This is a mock transcription. Please implement a real speech-to-text service for production use.",
+      confidence: 0.95,
+      language: language,
+      duration: 5.2
+    };
+    
+    console.log('✅ Mock transcription completed:', mockTranscription.transcript);
+    res.json(mockTranscription);
+    
+  } catch (error) {
+    console.error('❌ Transcription error:', error);
+    res.status(500).json({ error: 'Transcription failed' });
+  }
 });
 
 // Server startup

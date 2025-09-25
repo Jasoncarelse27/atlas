@@ -14,10 +14,13 @@ export const FEATURE_GATES = {
 };
 
 export const MODEL_COSTS = {
+  'claude-3-5-haiku-20241022':  { input: 0.00025, output: 0.00125 },
+  'claude-3-5-sonnet-20241022': { input: 0.003,   output: 0.015   },
+  'claude-3-5-opus-20241022':   { input: 0.015,   output: 0.075   },
+  // Legacy model names for backward compatibility
   'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 },
   'claude-3.5-sonnet-20240620': { input: 0.003,   output: 0.015   },
   'claude-3-opus-20240229':   { input: 0.015,   output: 0.075   },
-  // Legacy model names for backward compatibility
   'claude-3-haiku':  { input: 0.00025, output: 0.00125 },
   'claude-3-sonnet': { input: 0.003,   output: 0.015   },
   'claude-3-opus':   { input: 0.015,   output: 0.075   }
@@ -36,13 +39,15 @@ export const SYSTEM_LIMITS = {
 };
 
 export function selectOptimalModel(userTier, messageContent = '', requestType = '') {
-  // Use the correct model mapping based on tier
-  if (userTier === 'free') return 'claude-3-haiku-20240307';
-  if (userTier === 'core') return 'claude-3.5-sonnet-20240620';
-  if (userTier === 'studio') return 'claude-3-opus-20240229';
-
-  // Fallback to Haiku for unknown tiers
-  return 'claude-3-haiku-20240307';
+  // Use only working models - all tiers use Haiku until Sonnet/Opus are available
+  // TODO: Update when Sonnet/Opus models become available
+  console.log('🔍 DEBUG: Model selection:', {
+    tier: userTier,
+    selectedModel: 'claude-3-5-haiku-20241022',
+    messageLength: messageContent.length,
+    type: requestType
+  });
+  return 'claude-3-5-haiku-20241022';
 }
 
 export function estimateRequestCost(model, inputTokens = 0, outputTokens = 0) {

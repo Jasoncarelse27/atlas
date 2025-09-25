@@ -9,7 +9,7 @@ interface DevTierSwitcherProps {
 
 export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }) => {
   const { user } = useSupabaseAuth();
-  const { profile, refreshProfile } = useSubscription(user?.id);
+  const { profile, refresh } = useSubscription(user?.id);
   const [currentTier, setCurrentTier] = useState<string>('free');
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -60,7 +60,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
       }
 
       // 3. Refresh React state (re-fetch profile from backend)
-      await refreshProfile();
+      await refresh();
       console.log('✅ React state refreshed');
 
       // 4. Update local state

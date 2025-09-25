@@ -4,11 +4,11 @@
     "slug": "atlas",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./public/vite.svg",
+    "icon": "./public/atlas-logo.png",
     "userInterfaceStyle": "automatic",
-    "entryPoint": "./main.js",
+    "entryPoint": "./src/main.tsx",
     "splash": {
-      "image": "./public/vite.svg",
+      "image": "./public/atlas-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -24,7 +24,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./public/vite.svg",
+        "foregroundImage": "./public/atlas-logo.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
@@ -33,7 +33,7 @@
       ]
     },
     "web": {
-      "favicon": "./public/vite.svg"
+      "favicon": "./public/favicon.ico"
     }
   }
 }
