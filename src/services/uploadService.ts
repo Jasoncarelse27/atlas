@@ -35,7 +35,8 @@ export async function uploadImageWithProgress(
     onError?: (error: Error) => void;
   }
 ): Promise<void> {
-  return new Promise<void>(async (resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
+    const executeUpload = async () => {
     const xhr = new XMLHttpRequest();
 
     // Track upload progress
@@ -126,6 +127,9 @@ export async function uploadImageWithProgress(
     console.log('[DEBUG] UploadService - Sending safeFileName to backend:', safeFileName);
     
     xhr.send(formData);
+    };
+    
+    executeUpload().catch(reject);
   });
 }
 
