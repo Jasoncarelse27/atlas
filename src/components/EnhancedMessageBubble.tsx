@@ -1,6 +1,6 @@
-import React from "react";
 import { useCallback, useState } from 'react';
 import type { MediaMessage } from '../features/chat/hooks/useMessages';
+import ImageMessageBubble from './messages/ImageMessageBubble';
 
 interface EnhancedMessageBubbleProps {
   message: MediaMessage;
@@ -86,7 +86,7 @@ export function EnhancedMessageBubble({
 
   // Render message content based on type
   const renderMessageContent = () => {
-    switch (message.messageType) {
+    switch (message.type) {
       case 'voice':
         return (
           <div className="space-y-2">
@@ -150,44 +150,19 @@ export function EnhancedMessageBubble({
         );
 
       case 'image':
+        console.log('[DEBUG] Rendering image message:', {
+          id: message.id,
+          type: message.type,
+          content: message.content,
+          metadata: message.metadata,
+          imageUrl: message.metadata?.imageUrl,
+          status: message.status
+        });
         return (
-          <div className="space-y-2">
-            {/* Image Preview */}
-            <div className="relative">
-              <img
-                src={message.metadata?.imageUrl || message.content}
-                alt="Shared image"
-                className={`rounded-lg cursor-pointer transition-all duration-200 ${
-                  isImageExpanded 
-                    ? 'max-w-none max-h-none' 
-                    : 'max-w-xs max-h-64 object-cover'
-                }`}
-                onClick={handleImageClick}
-              />
-              
-              {/* Expand/Collapse indicator */}
-              <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                {isImageExpanded ? 'Click to collapse' : 'Click to expand'}
-              </div>
-            </div>
-            
-            {/* Image Metadata */}
-            {message.metadata && (
-              <div className="text-xs text-gray-500 space-y-1">
-                {message.metadata.filename && (
-                  <div>File: {message.metadata.filename}</div>
-                )}
-                {message.metadata.size && (
-                  <div>Size: {(message.metadata.size / 1024 / 1024).toFixed(2)} MB</div>
-                )}
-                {message.metadata.dimensions && (
-                  <div>
-                    Dimensions: {message.metadata.dimensions.width} × {message.metadata.dimensions.height}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ImageMessageBubble 
+            message={message}
+            onRetry={onRetry ? () => onRetry(message.id) : undefined}
+          />
         );
 
       case 'text':

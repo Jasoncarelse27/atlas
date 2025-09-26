@@ -13,6 +13,8 @@ interface EnhancedMessageBubbleProps {
 }
 
 export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false }: EnhancedMessageBubbleProps) {
+  console.log("[RENDER] message:", message);
+  
   // Early return if message is invalid
   if (!message) {
     console.warn('Invalid message object:', message);
@@ -42,6 +44,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
   // For image/audio messages, use the new MessageRenderer directly
   if (message.type === 'image' || message.type === 'audio') {
+    console.log("[RENDER] Rendering image/audio message with MessageRenderer");
     return (
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -71,7 +74,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               ? 'bg-blue-600 text-white rounded-br-md' 
               : 'bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 text-gray-100 rounded-bl-md'
           }`}>
-            <MessageRenderer message={message} />
+            <MessageRenderer message={message} allMessages={useMessageStore.getState().messages} />
             
             {/* Timestamp */}
             {message.timestamp && (
@@ -84,6 +87,47 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                 })}
               </div>
             )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Debug fallback for unexpected message types
+  if (message.type && message.type !== 'text') {
+    console.log("[RENDER] Unexpected message type:", message.type, "falling back to debug renderer");
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ 
+          duration: 0.3,
+          ease: [0.4, 0, 0.2, 1],
+          delay: isLatest ? 0.1 : 0
+        }}
+        className={`flex items-start space-x-3 mb-6 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
+      >
+        {/* Avatar */}
+        <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            isUser 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] text-gray-800'
+          }`}>
+            {isUser ? <User size={16} /> : <Bot size={16} />}
+          </div>
+        </div>
+
+        {/* Message Content - Debug Fallback */}
+        <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
+          <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
+            isUser 
+              ? 'bg-blue-600 text-white rounded-br-md' 
+              : 'bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 text-gray-100 rounded-bl-md'
+          }`}>
+            <pre style={{ color: "red", fontSize: 12, whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(message, null, 2)}
+            </pre>
           </div>
         </div>
       </motion.div>

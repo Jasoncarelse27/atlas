@@ -5,11 +5,15 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
+import { uploadImage } from '../../services/uploadService';
+import { useMessageStore } from '../../stores/useMessageStore';
 import type { Message } from '../../types/chat';
+import { ImageMessageBubble } from './ImageMessageBubble';
 
 interface MessageRendererProps {
   message: Message;
   className?: string;
+  allMessages?: Message[];
 }
 
 // Legacy support for string content
@@ -18,7 +22,7 @@ interface LegacyMessageRendererProps {
   className?: string;
 }
 
-export function MessageRenderer({ message, className = '' }: MessageRendererProps) {
+export function MessageRenderer({ message, className = '', allMessages = [] }: MessageRendererProps) {
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
 
   const handleCopy = async (codeContent: string, codeId: string) => {
@@ -33,66 +37,43 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
     }
   };
 
-  const retryUpload = (messageId: string) => {
+  const retryUpload = async (messageId: string) => {
     console.log("Retrying upload for", messageId);
-    // TODO: connect to Dexie/offline queue resend
+    
+    // Find the message and retry upload
+    const message = useMessageStore.getState().messages.find(m => m.id === messageId);
+    if (message && message.localUrl) {
+      // Reset error state
+      useMessageStore.getState().updateMessage(messageId, { 
+        error: false, 
+        uploading: true, 
+        status: 'uploading' 
+      });
+      
+      // Create a new file from the blob URL and retry upload
+      try {
+        const response = await fetch(message.localUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'retry-upload.jpg', { type: blob.type });
+        
+        // Retry the upload
+        await uploadImage(messageId, file);
+      } catch (error) {
+        console.error('Retry upload failed:', error);
+        useMessageStore.getState().markUploadFailed(messageId);
+      }
+    }
   };
 
   // Handle image messages with professional preview
   if (message.type === "image") {
-    const images = Array.isArray(message.content)
-      ? message.content
-      : [message.content];
-
     return (
-      <div className={`my-2 flex flex-col items-start ${className}`}>
-        {/* Image Grid */}
-        <div
-          className={`grid gap-2 ${
-            images.length === 1 ? "grid-cols-1" : "grid-cols-2"
-          }`}
-        >
-          {images.map((src, idx) => (
-            <div
-              key={idx}
-              className="relative overflow-hidden rounded-xl border border-gray-700 bg-gray-800 max-w-[240px] max-h-[240px]"
-            >
-              <img
-                src={src}
-                alt={`Uploaded ${idx + 1}`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = "/placeholder.png"; // fallback if broken
-                }}
-              />
-              {message.status === "uploading" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
-                  <span className="text-white text-sm">Uploading...</span>
-                </div>
-              )}
-              {message.status === "error" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-red-500/50 rounded-xl">
-                  <button
-                    onClick={() => retryUpload(message.id)}
-                    className="px-3 py-1 bg-white text-red-600 rounded-md text-sm"
-                  >
-                    Retry
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Caption */}
-        <p className="mt-1 text-xs text-gray-400">
-          {message.status === "uploading"
-            ? "Uploading..."
-            : message.status === "error"
-            ? "Upload failed - click retry"
-            : `${images.length} image${images.length > 1 ? "s" : ""} sent`}
-        </p>
-      </div>
+      <ImageMessageBubble 
+        message={message} 
+        onRetry={retryUpload}
+        allMessages={allMessages}
+        className={className}
+      />
     );
   }
 

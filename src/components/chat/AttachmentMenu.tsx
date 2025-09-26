@@ -1,14 +1,15 @@
 import { Camera, Image, Loader2, Mic, Square, Upload } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import toast from 'react-hot-toast';
+import { v4 as uuid } from 'uuid';
 import { useSupabaseAuth } from "../../hooks/useSupabaseAuth";
 import { useTierAccess } from "../../hooks/useTierAccess";
 import { db } from "../../lib/conversationStore";
 import { supabase } from "../../lib/supabase";
-import { chatService } from "../../services/chatService";
 import { featureService } from "../../services/featureService";
 import { syncPendingUploads } from "../../services/syncService";
-import { uploadWithAuth } from "../../services/uploadService";
+import { uploadImageWithProgress, uploadWithAuth } from "../../services/uploadService";
+import { useMessageStore } from "../../stores/useMessageStore";
 import type { Message } from '../../types/chat';
 
 interface AttachmentMenuProps {
@@ -21,12 +22,151 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal, tier, forceRefresh } = useTierAccess(user?.id);
+  const { canUseFeature, showUpgradeModal, tier } = useTierAccess(user?.id);
 
   const [loadingFeature, setLoadingFeature] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<BlobPart[]>([]);
+
+  // Add manual event listener for file input
+  useEffect(() => {
+    const input = fileInputRef.current;
+    if (!input) return;
+
+    const handleChange = (e: Event) => {
+      console.log("[DEBUG] Manual event listener triggered!");
+      const target = e.target as HTMLInputElement;
+      console.log("[DEBUG] Manual listener files:", target.files);
+      if (target.files && target.files.length > 0) {
+        handleImageUpload(e as any);
+      }
+    };
+
+    input.addEventListener('change', handleChange);
+    return () => input.removeEventListener('change', handleChange);
+  }, []);
+
+  // Handle file selection with instant preview
+  // Helper function to sanitize filenames for Supabase Storage
+  const sanitizeFileName = (fileName: string): string => {
+    return fileName
+      .replace(/\s+/g, "_")         // replace spaces with underscores
+      .replace(/[()]/g, "")         // remove parentheses
+      .replace(/[^a-zA-Z0-9._-]/g, ""); // remove other unsafe chars
+  };
+
+  const handleFileSelect = async (file: File) => {
+    // 🔍 Immediate debug log to confirm entry
+    console.log("[DEBUG] ENTERED handleFileSelect with file:", {
+      name: file?.name,
+      type: file?.type,
+      size: file?.size,
+      hasFile: !!file,
+    });
+    
+    if (!file) {
+      console.warn("[WARN] handleFileSelect called with null/undefined file");
+      return;
+    }
+    
+    try {
+      console.log('[DEBUG] handleFileSelect function started');
+      console.log('[DEBUG] handleFileSelect called with file:', file.name, file.type, file.size);
+      console.log('[DEBUG] User ID:', user?.id);
+      console.log('[DEBUG] User object:', user);
+      
+      // Sanitize the filename to prevent 400 errors
+      const safeFileName = sanitizeFileName(file.name);
+      console.log('[DEBUG] Original filename:', file.name);
+      console.log('[DEBUG] Sanitized filename:', safeFileName);
+      
+      if (!file) {
+        console.warn('[WARN] No file provided to handleFileSelect');
+        return;
+      }
+
+      if (!user?.id) {
+        console.log('[DEBUG] No user ID, returning early');
+        return;
+      }
+
+      const id = uuid();
+      const blobUrl = URL.createObjectURL(file);
+      console.log('[DEBUG] Generated ID:', id, 'Blob URL:', blobUrl);
+
+      // Create message object with all required fields
+      const message: Message = {
+        id,
+        type: "image",
+        role: "user" as const,
+        content: blobUrl,
+        timestamp: new Date().toISOString(),
+        status: "uploading",
+        localUrl: blobUrl,
+        uploading: true,
+        progress: 0,
+        localFile: file
+      };
+
+      console.log('[DEBUG] Adding image message to store:', message);
+      useMessageStore.getState().addMessage(message);
+      console.log('[DEBUG] Message added to store. Current store state:', useMessageStore.getState().messages);
+
+      // 2. Start upload with progress tracking
+      console.log('[DEBUG] Upload started for message:', id);
+      await uploadImageWithProgress(file, id, {
+        onProgress: (progress) => {
+          useMessageStore.getState().updateMessage(id, { progress });
+          console.log(`[DEBUG] Upload progress for ${id}: ${progress}%`);
+        },
+            onSuccess: async (publicUrl) => {
+              console.log(`[DEBUG] Upload success for ${id} → URL: ${publicUrl}`);
+              console.log(`[DEBUG] Updating message ${id} with content:`, publicUrl);
+              
+              // Always store the safe public URL in both content and metadata
+              const updatedMessage = {
+                content: publicUrl, // used by renderer
+                metadata: {
+                  url: publicUrl,   // explicit image URL for ImageMessageBubble
+                  fileName: safeFileName,
+                  mimeType: file.type,
+                  size: file.size,
+                },
+                status: "done" as const,
+                uploading: false,
+                progress: 100,
+                localFile: undefined,
+              };
+              
+              useMessageStore.getState().updateMessage(id, updatedMessage);
+              
+              // Verify the update worked
+              const finalMessage = useMessageStore.getState().messages.find(m => m.id === id);
+              console.log(`[DEBUG] Updated message with metadata:`, finalMessage);
+              
+              // Send image to Atlas AI for analysis
+              const { chatService } = await import('../../services/chatService');
+              if (finalMessage) {
+                console.log('[DEBUG] Sending image to Atlas AI for analysis:', publicUrl);
+                await chatService.handleFileMessage(finalMessage);
+              }
+            },
+        onError: (err) => {
+          useMessageStore.getState().updateMessage(id, {
+            status: "error",
+            error: err.message || "Upload failed",
+            uploading: false
+          });
+          console.error(`[ERROR] Upload failed for ${id}:`, err);
+        }
+      });
+
+    } catch (err) {
+      console.error('[ERROR] handleFileSelect failed:', err);
+    }
+  };
+
 
   // Pick a supported mime type for audio recording
   const pickMimeType = () => {
@@ -117,142 +257,101 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
 
 
   // ---- IMAGE UPLOAD ----
-  const handleImageClick = () => {
-    if (!user) {
-      toast.error('Please log in to use this feature');
-      onClose();
+  // const handleImageClick = () => {
+  //   if (!user) {
+  //     toast.error('Please log in to use this feature');
+  //     onClose();
+  //     return;
+  //   }
+
+  //   // Dev-only gate check for debugging
+  //   console.log('[GateCheck] Image upload:', { tier, image: canUseFeature('image'), camera: canUseFeature('camera'), audio: canUseFeature('audio') });
+  //   
+  //   if (!canUseFeature('image')) {
+  //     // Force refresh profile data in case of caching issue
+  //     console.log('🔄 Forcing profile refresh due to tier mismatch...');
+  //     forceRefresh().then(() => {
+  //       // Wait a moment for the refresh to complete
+  //       setTimeout(() => {
+  //         // Check again after refresh
+  //         if (!canUseFeature('image')) {
+  //           toast.error('Image features are available in Core & Studio plans. Upgrade to unlock!');
+  //           showUpgradeModal('image');
+  //           featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
+  //           onClose();
+  //           return;
+  //         } else {
+  //           // If refresh worked, proceed with file selection
+  //           console.log('✅ Tier refresh successful, proceeding with image upload');
+  //           console.log('[DEBUG] fileInputRef.current:', fileInputRef.current);
+  //           fileInputRef.current?.click();
+  //           onClose();
+  //         }
+  //       }, 1000);
+  //     });
+  //     return;
+  //   }
+  //   
+  //   // If tier check passes, proceed with file selection
+  //   console.log('✅ Tier check passed, opening file selector');
+  //   console.log('[DEBUG] fileInputRef.current:', fileInputRef.current);
+  //   
+  //   // Reset the file input to ensure onChange fires even for the same file
+  //   if (fileInputRef.current) {
+  //     fileInputRef.current.value = "";
+  //     // Small delay to ensure the reset takes effect
+  //     setTimeout(() => {
+  //       console.log('[DEBUG] About to click file input');
+  //       fileInputRef.current?.click();
+  //       console.log('[DEBUG] File input clicked');
+  //       onClose();
+  //     }, 10);
+  //   } else {
+  //     onClose();
+  //   }
+  // };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[DEBUG] handleImageUpload triggered with files:', e.target.files);
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      console.warn('[DEBUG] handleImageUpload: no files selected');
       return;
     }
+    console.log('[DEBUG] handleImageUpload received:', files);
+    console.log('[DEBUG] Files count:', files.length);
 
-    // Dev-only gate check for debugging
-    console.log('[GateCheck] Image upload:', { tier, image: canUseFeature('image'), camera: canUseFeature('camera'), audio: canUseFeature('audio') });
+    console.log('[DEBUG] About to loop through files...');
+    console.log('[DEBUG] typeof handleFileSelect:', typeof handleFileSelect);
     
-    if (!canUseFeature('image')) {
-      // Force refresh profile data in case of caching issue
-      console.log('🔄 Forcing profile refresh due to tier mismatch...');
-      forceRefresh().then(() => {
-        // Wait a moment for the refresh to complete
-        setTimeout(() => {
-          // Check again after refresh
-          if (!canUseFeature('image')) {
-            toast.error('Image features are available in Core & Studio plans. Upgrade to unlock!');
-            showUpgradeModal('image');
-            featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
-            onClose();
-            return;
-          } else {
-            // If refresh worked, proceed with file selection
-            console.log('✅ Tier refresh successful, proceeding with image upload');
-            fileInputRef.current?.click();
-            onClose();
-          }
-        }, 1000);
-      });
+    if (typeof handleFileSelect !== "function") {
+      console.error("[ERROR] handleFileSelect is not a function! Current value:", handleFileSelect);
       return;
     }
     
-    // If tier check passes, proceed with file selection
-    console.log('✅ Tier check passed, opening file selector');
-    fileInputRef.current?.click();
-    onClose();
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length || !user) return;
-
-    console.log('[QUEUE] Starting image upload for', files.length, 'files');
-
-    // 1) Create immediate preview with blob URLs
-    const tempId = crypto.randomUUID();
-    const blobUrls = files.map(file => URL.createObjectURL(file));
-    
-    // Add temporary message with blob URLs for immediate preview
-    const tempMessage: Message = {
-      id: tempId,
-      role: 'user',
-      content: blobUrls, // Array of blob URLs for immediate preview
-      type: 'image',
-      timestamp: new Date().toISOString(),
-      status: 'uploading' // Show uploading state
-    };
-    
-    // Use chatService as single source of truth
-    console.log('[QUEUE] About to call chatService.handleFileMessage with:', tempMessage);
-    await chatService.handleFileMessage(tempMessage);
-    
-    console.log('[QUEUE] Added temp message with blob previews:', { tempId, blobUrls });
-
-    setLoadingFeature("image");
-    try {
-      if (files.length === 1) {
-        toast.loading('Uploading image...');
-      } else {
-        toast.loading(`Uploading ${files.length} images...`);
+    console.log('[DEBUG] ✅ About to start forEach loop with', files.length, 'files');
+    Array.from(files).forEach((file, index) => {
+      console.log(`[DEBUG] Processing file ${index + 1}:`, file.name, file.type, file.size);
+      console.log('[DEBUG] About to call handleFileSelect...');
+      try {
+        handleFileSelect(file);
+        console.log('[DEBUG] handleFileSelect completed successfully');
+      } catch (error) {
+        console.error('[DEBUG] handleFileSelect error:', error);
       }
-      
-      const uploadPromises = files.map(async (file) => {
-        // Use the new upload service
-        const result = await uploadWithAuth(file, "image", user.id);
-        
-        return {
-          file,
-          result,
-          uploaded: { url: result.url, contentType: file.type, size: file.size }
-        };
-      });
+    });
 
-      const uploadResults = await Promise.all(uploadPromises);
-      
-      // Log feature attempt
+    // Reset the input to ensure onChange fires even for the same file
+    e.target.value = "";
+
+    // Log feature attempt
+    if (user) {
       featureService.logAttempt(user.id, 'image', tier === 'loading' ? 'free' : tier);
-
-      // 2) Replace blob URLs with remote URLs and create final message
-      const remoteUrls = uploadResults.map(({ uploaded }) => uploaded.url);
-      console.log('[QUEUE] Upload complete, replacing with remote URLs:', remoteUrls);
-
-      // Update the existing message with remote URLs (replace blob URLs)
-      const finalMessage: Message = {
-        id: tempId, // Use same ID to replace the blob message
-        role: 'user',
-        content: remoteUrls, // Replace with remote URLs
-        type: 'image',
-        timestamp: new Date().toISOString(),
-        status: 'sent' // Mark as completed
-      };
-      
-      // Use chatService as single source of truth
-      await chatService.handleFileMessage(finalMessage);
-
-      // Note: Image analysis is handled by ChatPage.tsx when it detects the image message
-      // No need for separate handleAfterUpload call - the normal message flow will handle it
-      
-      if (files.length === 1) {
-        toast.success('Image uploaded successfully!');
-      } else {
-        toast.success(`${files.length} images uploaded successfully!`);
-      }
-    } catch (err) {
-      console.error("❌ Image upload error:", err);
-      toast.error('Failed to upload images');
-      
-      // Update message status to error
-      const errorMessage: Message = {
-        id: tempId,
-        role: 'user',
-        content: blobUrls, // Keep blob URLs but mark as error
-        type: 'image',
-        timestamp: new Date().toISOString(),
-        status: 'error' // Mark as failed
-      };
-      
-      // Use chatService as single source of truth
-      await chatService.handleFileMessage(errorMessage);
-    } finally {
-      setLoadingFeature(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    }
+    
+    // Clear file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -494,29 +593,72 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
         accept="image/*"
         multiple
         style={{ display: "none" }}
-        onChange={handleImageUpload}
+        onClick={() => {
+          console.log('[DEBUG] File input clicked - dialog should open');
+        }}
+        onChange={(e) => {
+          console.log("[DEBUG] onChange event fired!");
+          console.log("[DEBUG] handleImageUpload triggered with files:", e.target.files);
+          handleImageUpload(e);
+          e.target.value = ""; // allow same file selection again
+        }}
+        onInput={() => {
+          console.log("[DEBUG] onInput event fired!");
+        }}
+        onFocus={() => {
+          console.log("[DEBUG] File input focused");
+        }}
+        onBlur={() => {
+          console.log("[DEBUG] File input blurred");
+        }}
       />
+      
+      {/* WORKING: Direct file input (replaces programmatic click) */}
+      <div style={{ margin: '10px 0', padding: '10px', background: '#333', borderRadius: '5px' }}>
+        <div style={{ color: 'white', fontSize: '12px', marginBottom: '5px' }}>📸 Upload Images</div>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555' }}
+          onChange={(e) => {
+            console.log("[DEBUG] DIRECT FILE INPUT onChange fired!");
+            console.log("[DEBUG] DIRECT FILE INPUT files:", e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+              handleImageUpload(e);
+            }
+          }}
+        />
+      </div>
       <input
         ref={uploadFileInputRef}
         type="file"
         style={{ display: "none" }}
-        onChange={handleFileUpload}
+        onChange={(e) => {
+          console.log("[DEBUG] handleFileUpload triggered with files:", e.target.files);
+          handleFileUpload(e);
+          e.target.value = "";
+        }}
       />
 
       {/* Buttons */}
-      <button 
-        onClick={handleImageClick} 
-        className="p-3 text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-3 disabled:opacity-50"
-        disabled={loadingFeature !== null}
-        title="Upload Image"
-      >
+      <label className="p-3 text-white hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-3 disabled:opacity-50 cursor-pointer">
         {loadingFeature === "image" ? (
           <Loader2 size={18} className="animate-spin text-blue-400" />
         ) : (
           <Image size={18} className="text-blue-400" />
         )}
         <span>Add Photo</span>
-      </button>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageUpload}
+          className="hidden"
+          disabled={loadingFeature !== null}
+        />
+      </label>
+      
       
       <button 
         onClick={handleCameraClick} 

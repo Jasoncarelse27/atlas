@@ -105,15 +105,15 @@ export function useTierAccess(userId?: string) {
     };
   }
 
-  const tier = profile.subscription_tier || "free"
-  
   // Debug logging
   console.log("🔍 useTierAccess - profile:", profile)
-  console.log("🔍 useTierAccess - tier:", tier)
+  console.log("🔍 useTierAccess - tier:", profile?.subscription_tier || "free")
 
   const canUseFeature = (feature: string) => {
     if (loading) return false
     if (!profile) return false // Don't allow features if profile is not loaded
+    
+    const tier = profile.subscription_tier || "free"
     if (tier === "studio") return true
     if (tier === "core") {
       // Core tier gets text, image, audio, and other features (not studio-only)
@@ -131,7 +131,7 @@ export function useTierAccess(userId?: string) {
   }
 
   return { 
-    tier, 
+    tier: profile?.subscription_tier || "free", 
     loading, 
     canUseFeature, 
     showUpgradeModal,

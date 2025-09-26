@@ -5,13 +5,18 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string | string[]; // Support multiple images as array
   timestamp: string;
-  error?: string;
-  status?: 'sending' | 'sent' | 'failed' | 'pending' | 'error' | 'uploading';
+  error?: string | boolean; // Support both string error messages and boolean upload failure
+  status?: 'sending' | 'sent' | 'failed' | 'pending' | 'error' | 'uploading' | 'done';
   audioUrl?: string;
   imageUrl?: string;
   // Extended file support
   type?: 'text' | 'image' | 'audio' | 'file' | 'system';
   url?: string; // for uploaded files
+  // Upload state management
+  localUrl?: string; // blob URL for instant preview
+  uploading?: boolean; // true while uploading
+  progress?: number; // upload progress percentage (0-100)
+  localFile?: File; // Store original file for retry
   metadata?: {
     filename?: string;
     size?: number;
