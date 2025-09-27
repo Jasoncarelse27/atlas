@@ -283,4 +283,4 @@ export async function sendMessageWithAttachments({
     console.error("[chatService] ❌ sendMessageWithAttachments failed:", err);
     throw err;
   }
-}
+}// Force Vercel rebuild Sat Sep 27 16:47:24 SAST 2025
