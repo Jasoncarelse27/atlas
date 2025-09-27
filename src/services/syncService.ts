@@ -1,104 +1,252 @@
-import { db } from "@/lib/conversationStore";
-import { supabase } from "@/lib/supabase";
+import { supabase } from '../lib/supabaseClient';
+import { offlineMessageStore } from './offlineMessageStore';
+import { useMessageStore } from '../stores/useMessageStore';
+import type { Message } from '../types/chat';
 
-export async function syncPendingUploads() {
-  const pending = await db.pendingUploads.where("status").equals("pending").toArray();
-  if (!pending.length) return;
+export interface SyncStatus {
+  isOnline: boolean;
+  isSyncing: boolean;
+  lastSyncTime: string | null;
+  pendingCount: number;
+  failedCount: number;
+}
 
-  console.log(`📂 Found ${pending.length} pending uploads, syncing...`);
+class SyncService {
+  private syncInterval: NodeJS.Timeout | null = null;
+  private isOnline = navigator.onLine;
+  private syncInProgress = false;
 
-  const synced: string[] = [];
-  const failed: string[] = [];
+  constructor() {
+    // Listen for online/offline events
+    window.addEventListener('online', () => {
+      this.isOnline = true;
+      console.log('[SYNC] Back online, starting sync...');
+      this.startPeriodicSync();
+    });
 
-  for (const item of pending) {
-    try {
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!token) throw new Error("No auth token");
+    window.addEventListener('offline', () => {
+      this.isOnline = false;
+      console.log('[SYNC] Gone offline, stopping sync...');
+      this.stopPeriodicSync();
+    });
 
-      // Send to your existing backend route – it already handles auth + storage
-      const form = new FormData();
-      form.append("file", item.blob, item.fileName);
-      form.append("feature", item.type);
-      if (item.conversationId) form.append("conversationId", item.conversationId);
-
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const res = await fetch(`${backendUrl}/api/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-
-      const result = await res.json();
-
-      // Also ingest to attachments table
-      await fetch(`${backendUrl}/api/ingest`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId: item.userId,
-          conversationId: item.conversationId,
-          feature: item.type,
-          url: result.url,
-          contentType: item.contentType,
-          size: item.blob.size,
-        }),
-      });
-
-      await db.pendingUploads.update(item.id!, { status: "sent", updatedAt: Date.now() });
-      synced.push(item.fileName);
-      console.log(`✅ Synced upload: ${item.fileName}`);
-    } catch (err) {
-      // Leave as "pending" for cron/edge retry to pick up later
-      failed.push(item.fileName);
-      console.warn(`[syncPendingUploads] retry later for ${item.fileName}:`, err);
+    // Start sync if already online
+    if (this.isOnline) {
+      this.startPeriodicSync();
     }
   }
 
-  // 🔔 Trigger Edge Function retry as a safety net
-  try {
-    const { data, error } = await supabase.functions.invoke("retryFailedUploads", {
-      method: "POST",
-      body: { trigger: "dexie-sync" },
-    });
-    if (error) throw error;
-    console.log("🔄 Server-side retry triggered:", data);
-  } catch (err) {
-    console.error("⚠️ Failed to trigger server retry:", err);
+  /**
+   * Start periodic sync every 30 seconds when online
+   */
+  startPeriodicSync() {
+    if (this.syncInterval) return;
+    
+    this.syncInterval = setInterval(() => {
+      if (this.isOnline && !this.syncInProgress) {
+        this.syncPendingMessages();
+      }
+    }, 30000); // 30 seconds
+
+    // Also sync immediately
+    this.syncPendingMessages();
   }
 
-  // 📊 Log the sync attempt
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("retry_logs").insert({
-      user_id: user?.id || null,
-      source: "dexie-sync",
-      attempted_count: pending.length,
-      success_count: synced.length,
-      failed_count: failed.length,
-      file_type: "audio", // Since this handles audio uploads
-      details: { synced, failed },
-    });
-    console.log("📊 Logged dexie-sync attempt");
-  } catch (err) {
-    console.error("⚠️ Failed to log sync attempt:", err);
+  /**
+   * Stop periodic sync
+   */
+  stopPeriodicSync() {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
+  }
+
+  /**
+   * Get current sync status
+   */
+  async getSyncStatus(): Promise<SyncStatus> {
+    const pendingMessages = await offlineMessageStore.getPendingMessages();
+    const failedMessages = await offlineMessageStore.getFailedMessages();
+    
+    return {
+      isOnline: this.isOnline,
+      isSyncing: this.syncInProgress,
+      lastSyncTime: localStorage.getItem('lastSyncTime'),
+      pendingCount: pendingMessages.length,
+      failedCount: failedMessages.length,
+    };
+  }
+
+  /**
+   * Sync all pending messages to Supabase
+   */
+  async syncPendingMessages(): Promise<void> {
+    if (!this.isOnline || this.syncInProgress) return;
+
+    this.syncInProgress = true;
+    console.log('[SYNC] Starting sync of pending messages...');
+
+    try {
+      const pendingMessages = await offlineMessageStore.getPendingMessages();
+      const failedMessages = await offlineMessageStore.getFailedMessages();
+      const allMessages = [...pendingMessages, ...failedMessages];
+
+      if (allMessages.length === 0) {
+        console.log('[SYNC] No messages to sync');
+        return;
+      }
+
+      console.log(`[SYNC] Syncing ${allMessages.length} messages...`);
+
+      for (const message of allMessages) {
+        try {
+          await this.syncSingleMessage(message);
+        } catch (error) {
+          console.error(`[SYNC] Failed to sync message ${message.id}:`, error);
+          await offlineMessageStore.markAsSyncFailed(message.id, error.message);
+        }
+      }
+
+      // Update last sync time
+      localStorage.setItem('lastSyncTime', new Date().toISOString());
+      console.log('[SYNC] ✅ Sync completed successfully');
+
+    } catch (error) {
+      console.error('[SYNC] Sync failed:', error);
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  /**
+   * Sync a single message to Supabase
+   */
+  private async syncSingleMessage(message: any): Promise<void> {
+    console.log(`[SYNC] Syncing message ${message.id}...`);
+
+    // Prepare message data for Supabase
+    const messageData = {
+      id: message.id,
+      conversation_id: message.conversation_id,
+      user_id: message.user_id,
+      role: message.role,
+      message_type: message.type || 'text',
+      content: message.content,
+      metadata: message.metadata || {},
+      created_at: message.timestamp,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Insert or update in Supabase
+    const { error } = await supabase
+      .from('messages')
+      .upsert(messageData, { onConflict: 'id' });
+
+    if (error) {
+      throw new Error(`Supabase error: ${error.message}`);
+    }
+
+    // Mark as synced in offline store
+    await offlineMessageStore.markAsSynced(message.id);
+    console.log(`[SYNC] ✅ Message ${message.id} synced successfully`);
+  }
+
+  /**
+   * Force sync all messages (for manual trigger)
+   */
+  async forceSyncAll(): Promise<void> {
+    console.log('[SYNC] Force syncing all messages...');
+    await this.syncPendingMessages();
+  }
+
+  /**
+   * Retry failed messages
+   */
+  async retryFailedMessages(): Promise<void> {
+    console.log('[SYNC] Retrying failed messages...');
+    const failedMessages = await offlineMessageStore.getFailedMessages();
+    
+    for (const message of failedMessages) {
+      await offlineMessageStore.markAsRetried(message.id);
+    }
+    
+    await this.syncPendingMessages();
+  }
+
+  /**
+   * Pull latest messages from Supabase and update local store
+   */
+  async pullLatestMessages(conversationId: string): Promise<void> {
+    if (!this.isOnline) return;
+
+    try {
+      console.log(`[SYNC] Pulling latest messages for conversation ${conversationId}...`);
+      
+      const { data: supabaseMessages, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        throw new Error(`Failed to fetch messages: ${error.message}`);
+      }
+
+      if (!supabaseMessages || supabaseMessages.length === 0) {
+        console.log('[SYNC] No messages found in Supabase');
+        return;
+      }
+
+      // Convert Supabase messages to local format and save
+      for (const msg of supabaseMessages) {
+        const localMessage = {
+          id: msg.id,
+          conversation_id: msg.conversation_id,
+          user_id: msg.user_id,
+          role: msg.role,
+          type: msg.message_type || 'text',
+          content: msg.content,
+          attachments: msg.metadata?.attachments,
+          timestamp: msg.created_at,
+          status: 'sent',
+          sync_status: 'synced' as const,
+          retry_count: 0,
+          metadata: msg.metadata || {},
+        };
+
+        await offlineMessageStore.saveMessage(localMessage);
+      }
+
+      // Update the Zustand store with latest messages
+      const messageStore = useMessageStore.getState();
+      if (messageStore.conversationId === conversationId) {
+        await messageStore.hydrateFromOffline(conversationId);
+      }
+
+      console.log(`[SYNC] ✅ Pulled ${supabaseMessages.length} messages from Supabase`);
+
+    } catch (error) {
+      console.error('[SYNC] Failed to pull latest messages:', error);
+    }
+  }
+
+  /**
+   * Cleanup old synced messages (keep last 1000 per conversation)
+   */
+  async cleanupOldMessages(): Promise<void> {
+    try {
+      console.log('[SYNC] Cleaning up old messages...');
+      
+      // This would need to be implemented based on your cleanup strategy
+      // For now, we'll keep all messages
+      console.log('[SYNC] Cleanup completed (no cleanup implemented yet)');
+      
+    } catch (error) {
+      console.error('[SYNC] Cleanup failed:', error);
+    }
   }
 }
 
-// Helper function to test backend connection
-export async function testBackendConnection(): Promise<boolean> {
-  try {
-    const response = await fetch("/ping", { 
-      method: "GET",
-      signal: AbortSignal.timeout(5000) // 5 second timeout
-    });
-    return response.ok;
-  } catch (err) {
-    console.warn("Backend connection test failed:", err);
-    return false;
-  }
-}
+// Export singleton instance
+export const syncService = new SyncService();

@@ -4,13 +4,14 @@ import React, { useEffect, useState } from 'react';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
+import SyncStatus from '../components/SyncStatus';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import { usePersistentMessages } from '../hooks/usePersistentMessages';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
-import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
 
 // Sidebar components
@@ -28,11 +29,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [retrying, setRetrying] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [conversationId] = useState<string>('default-conversation');
+  const [userId] = useState<string>('default-user');
 
-  // Use the simplified useChat hook
-
-  // Message store for unified message handling
-  const { messages } = useMessageStore();
+  // Use persistent messages with offline sync
+  const {
+    messages,
+    addMessage,
+    updateMessage,
+  } = usePersistentMessages({
+    conversationId,
+    userId,
+    autoSync: true,
+    autoResend: true,
+  });
 
   // Modern scroll system
   const { bottomRef, scrollToBottom, showScrollButton } = useAutoScroll([messages]);
@@ -63,9 +73,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     setIsTyping(true);
     
     try {
+      // Create message for persistent store
+      const message: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        type: 'text',
+        content: text,
+        timestamp: new Date().toISOString(),
+        status: 'sending',
+      };
+
+      // Add to persistent store
+      await addMessage(message);
+
       // Use chatService as the single source of truth
       await chatService.sendMessage(text, () => {
         setIsTyping(false);
+        // Update message status to sent
+        updateMessage(message.id, { status: 'sent' });
       });
     } catch (error) {
       console.error('Text message handling error:', error);
@@ -78,13 +103,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     setIsTyping(true);
     
     try {
+      // Add to persistent store
+      await addMessage(message);
+
       // Use chatService as the single source of truth
       await chatService.handleFileMessage(message, () => {
         setIsTyping(false);
+        // Update message status to sent
+        updateMessage(message.id, { status: 'sent' });
       });
     } catch (error) {
       console.error('File message handling error:', error);
       setIsTyping(false);
+      // Update message status to failed
+      updateMessage(message.id, { status: 'failed', error: String(error) });
     }
   };
 
@@ -166,6 +198,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                <SyncStatus className="hidden md:flex" />
                 <button
                   onClick={handleLogout}
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
