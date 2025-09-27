@@ -48,8 +48,12 @@ export async function uploadImageWithProgress(
     };
 
     xhr.onload = async () => {
+      console.log('[DEBUG] UploadService - HTTP Status:', xhr.status);
+      console.log('[DEBUG] UploadService - Response Text:', xhr.responseText);
+      
       if (xhr.status !== 200) {
-        const error = new Error("Upload failed");
+        const error = new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`);
+        console.error('[DEBUG] UploadService - Upload failed:', error.message);
         callbacks.onError?.(error);
         reject(error);
         return;
@@ -61,30 +65,44 @@ export async function uploadImageWithProgress(
         console.log('[DEBUG] UploadService - Public URL from backend:', response.url);
         
         if (response.url) {
-          // Fix the URL by replacing problematic characters in the filename
-          // This handles cases where the backend ignores our sanitized filename
-          const sanitizedUrl = response.url
-            .replace(/\(/g, '')           // Remove opening parentheses
-            .replace(/\)/g, '')           // Remove closing parentheses  
-            .replace(/%20/g, '_')         // Replace URL-encoded spaces with underscores
-            .replace(/\s+/g, '_');       // Replace any remaining spaces with underscores
+          // ✅ Use the exact Supabase URL, no extra sanitization
+          const finalUrl = response.url;
           
-          console.log('[DEBUG] UploadService - Fixed URL:', sanitizedUrl);
+          console.log('[DEBUG] UploadService - Final URL (no sanitization):', finalUrl);
           
-          callbacks.onSuccess?.(sanitizedUrl);
+          // Update message with BOTH content and metadata, preserving file for retry
+          const { updateMessage } = useMessageStore.getState();
+          const currentMessage = useMessageStore.getState().messages.find(m => m.id === messageId);
+          updateMessage(messageId, {
+            content: finalUrl,
+            metadata: { 
+              ...currentMessage?.metadata,
+              file: currentMessage?.metadata?.file, // Preserve file for retry
+              imageUrl: finalUrl 
+            },
+          });
+          console.log('[DEBUG] Updated message with metadata:', {
+            content: finalUrl,
+            metadata: { imageUrl: finalUrl },
+          });
+          
+          callbacks.onSuccess?.(finalUrl);
           resolve();
         } else {
+          console.error('[DEBUG] UploadService - No URL in response:', response);
           throw new Error("No URL returned from upload");
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
+        console.error('[DEBUG] UploadService - Parse error:', err.message);
         callbacks.onError?.(err);
         reject(err);
       }
     };
 
     xhr.onerror = () => {
-      const error = new Error("Upload failed");
+      const error = new Error("Network error during upload");
+      console.error('[DEBUG] UploadService - Network error:', error.message);
       callbacks.onError?.(error);
       reject(error);
     };

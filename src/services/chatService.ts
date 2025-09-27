@@ -28,7 +28,7 @@ export const chatService = {
     const currentTier = await getUserTier();
     
     // Get response from backend (JSON response, not streaming)
-    const response = await fetch("http://localhost:3000/message", {
+    const response = await fetch("http://localhost:8000/message", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -102,13 +102,55 @@ export const chatService = {
         addMessage(message);
       }
       
-      // If it's an image, send it to Atlas for analysis
-      if (message.type === 'image') {
-        // Get the image URL(s) - could be in url field or content array
-        const imageUrls = message.url ? [message.url] : 
-                         (Array.isArray(message.content) ? message.content : []);
+      // Handle messages with attachments (new multi-attachment support)
+      if (message.attachments && message.attachments.length > 0) {
+        console.log("[FLOW] Sending multi-attachment message for analysis:", message.attachments);
         
-        if (imageUrls.length > 0) {
+        // Get user info for the request
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || 'mock-token-for-development';
+        
+        // Get user's tier for the request
+        const imageTier = await getUserTier();
+        
+        // Send multi-attachment analysis request to backend
+        const response = await fetch("http://localhost:8000/message", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            message: "Please analyze these attachments",
+            tier: imageTier,
+            attachments: message.attachments // Send attachments array
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            // Add Atlas's response about the attachments
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: data.response,
+              timestamp: new Date().toISOString()
+            });
+          }
+        } else {
+          console.error("Failed to analyze attachments:", response.status);
+        }
+      }
+      // Legacy: Handle single image messages
+      else if (message.type === 'image') {
+        // Get the image URL - check content (string) or metadata.imageUrl
+        const imageUrl = message.metadata?.imageUrl || 
+                        (typeof message.content === 'string' && message.content.startsWith('http') ? message.content : null);
+        
+        if (imageUrl) {
+          console.log("[FLOW] Sending image for analysis:", imageUrl);
+          
           // Get user info for the request
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token || 'mock-token-for-development';
@@ -117,21 +159,37 @@ export const chatService = {
           const imageTier = await getUserTier();
           
           // Send image analysis request to backend
-          const response = await fetch("http://localhost:3000/message", {
+          const requestBody = { 
+            message: "Please analyze this image",
+            tier: imageTier,
+            imageUrl: imageUrl // Send image URL for analysis
+          };
+          
+          console.log("[DEBUG] Frontend sending request to backend:", {
+            url: "http://localhost:8000/message",
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
               "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ 
-              message: "Please analyze this image",
-              tier: imageTier,
-              imageUrl: imageUrls[0] // Send first image for analysis
-            }),
+            body: requestBody
+          });
+          
+          const response = await fetch("http://localhost:8000/message", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(requestBody),
           });
 
+          console.log("[DEBUG] Backend response status:", response.status);
+          console.log("[DEBUG] Backend response headers:", Object.fromEntries(response.headers.entries()));
+          
           if (response.ok) {
             const data = await response.json();
+            console.log("[DEBUG] Backend response data:", data);
             if (data.success) {
               // Add Atlas's response about the image
               addMessage({
@@ -142,6 +200,8 @@ export const chatService = {
               });
             }
           } else {
+            const errorText = await response.text();
+            console.error("Failed to analyze image:", response.status, errorText);
             // Add error message
             addMessage({
               id: crypto.randomUUID(),

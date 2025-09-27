@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Bot, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useMessageStore } from '../../stores/useMessageStore';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
 import { LegacyMessageRenderer, MessageRenderer } from './MessageRenderer';

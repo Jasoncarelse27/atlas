@@ -13,7 +13,7 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
   const [showFullscreen, setShowFullscreen] = useState(false);
   
   // Gallery navigation state
-  const images = allMessages.filter((m) => m.type === "image" && (m.metadata?.url || m.content));
+  const images = allMessages.filter((m) => m.type === "image" && (m.metadata?.imageUrl || m.content));
   const currentIndex = images.findIndex((m) => m.id === message.id);
   const [index, setIndex] = useState(currentIndex);
   
@@ -27,10 +27,15 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
   const pinchRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<number>(0);
 
-  // ✅ Prefer metadata.url, fall back to content
-  const url = message.metadata?.url || message.content;
-  const isUploading = message.uploading === true;
+  // Always prefer metadata.imageUrl, fallback to content
+  const imageUrl = message?.metadata?.imageUrl || message?.content;
+  const isUploading = message.metadata?.uploading === true;
   const hasError = message.error === true;
+  const uploadError = message.metadata?.uploadError === true;
+  const localPreview = message.metadata?.localPreview; // blob URL
+  const uploadProgress = message.metadata?.uploadProgress ?? 0;
+  
+  console.log("[ImageMessageBubble] Final render URL:", imageUrl);
 
   const openViewer = () => {
     setIndex(currentIndex);
@@ -141,8 +146,12 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
     setImageError(false);
   };
 
-  if (!url) {
-    return <div className="text-red-500 text-sm">⚠️ No image available</div>;
+  if (!imageUrl) {
+    return (
+      <div className="text-yellow-400 flex items-center gap-2">
+        ⚠️ No image available
+      </div>
+    );
   }
 
   return (
@@ -150,34 +159,69 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
       {/* Inline bubble preview */}
       <div className="my-2 flex flex-col items-start">
         <div className="relative overflow-hidden rounded-2xl border border-gray-700 bg-dark-700">
-          {imageError ? (
-            <div className="flex h-40 w-full items-center justify-center bg-gray-800">
-              <X className="h-8 w-8 text-gray-500" />
-            </div>
-          ) : (
-            <img
-              src={url}
-              alt="Uploaded"
-              className="h-40 w-full cursor-pointer object-cover transition-opacity hover:opacity-90"
-              onError={handleImageError}
-              onClick={openViewer}
-            />
-          )}
-
-          {/* Uploading Overlay with Progress */}
-          {isUploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
-              <div className="flex flex-col items-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span className="mt-2 text-sm text-white font-semibold">
-                  {message.progress ?? 0}%
-                </span>
+          {/* Show local preview during upload */}
+          {localPreview && isUploading && !uploadError && (
+            <div className="relative">
+              <img
+                src={localPreview}
+                alt="Uploading"
+                className="h-40 w-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
+                <div className="flex flex-col items-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span className="mt-2 text-sm text-white font-semibold">
+                    {uploadProgress}%
+                  </span>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Error Overlay */}
-          {hasError && (
+          {/* Show error state with retry */}
+          {localPreview && uploadError && (
+            <div className="relative">
+              <img
+                src={localPreview}
+                alt="Upload failed"
+                className="h-40 w-full object-cover opacity-60 blur-sm"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-800/50 rounded-xl">
+                <span className="text-sm text-white mb-2">Upload failed</span>
+                <button
+                  className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                  onClick={handleRetry}
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Show final uploaded image */}
+          {imageUrl && !isUploading && !uploadError && (
+            <>
+              {imageError ? (
+                <div className="flex h-40 w-full items-center justify-center bg-gray-800">
+                  <X className="h-8 w-8 text-gray-500" />
+                </div>
+              ) : (
+                <img
+                  src={imageUrl}
+                  alt="uploaded"
+                  className="h-40 w-full cursor-pointer object-cover transition-opacity hover:opacity-90"
+                  onError={(e) => {
+                    console.error("[ImageMessageBubble] Failed to load:", imageUrl);
+                    handleImageError(e);
+                  }}
+                  onClick={openViewer}
+                />
+              )}
+            </>
+          )}
+
+          {/* Legacy error overlay for backward compatibility */}
+          {hasError && !uploadError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60">
               <span className="text-sm text-red-400">Upload failed</span>
               <button
@@ -195,8 +239,12 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
         <p className="mt-1 text-xs text-gray-400">
           {isUploading
             ? "Uploading..."
+            : uploadError
+            ? "Upload failed - click retry"
             : hasError
             ? "Retry required"
+            : !imageUrl
+            ? "No image available"
             : "1 image sent"}
         </p>
       </div>
@@ -222,7 +270,7 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
           onTouchEnd={endDrag}
         >
           <img
-            src={images[index].metadata?.url || images[index].content}
+            src={images[index].metadata?.imageUrl || images[index].content}
             alt="Full image"
             style={{
               transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`,

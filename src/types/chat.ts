@@ -1,16 +1,25 @@
 import { v4 as uuidv4 } from 'uuid';
 
+export interface Attachment {
+  type: "image" | "audio" | "file";
+  url: string;
+  progress?: number;       // upload % (0–100)
+  failed?: boolean;        // mark failed uploads
+  file?: File;            // original file for retry
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: string | string[]; // Support multiple images as array
+  type?: 'text' | 'image' | 'audio' | 'file' | 'mixed' | 'system';
+  content?: string;                // legacy single text/image/audio
+  attachments?: Attachment[];      // ✅ new: multiple files
   timestamp: string;
   error?: string | boolean; // Support both string error messages and boolean upload failure
   status?: 'sending' | 'sent' | 'failed' | 'pending' | 'error' | 'uploading' | 'done';
   audioUrl?: string;
   imageUrl?: string;
   // Extended file support
-  type?: 'text' | 'image' | 'audio' | 'file' | 'system';
   url?: string; // for uploaded files
   // Upload state management
   localUrl?: string; // blob URL for instant preview
@@ -23,6 +32,15 @@ export interface Message {
     duration?: number; // for audio
     dimensions?: { width: number; height: number }; // for images
     transcript?: string; // for audio
+    // Upload state management
+    url?: string; // final uploaded URL
+    localPreview?: string; // blob URL for preview
+    uploading?: boolean; // true while uploading
+    uploadProgress?: number; // upload progress percentage (0-100)
+    uploadError?: boolean; // true if upload failed
+    fileName?: string; // sanitized filename
+    mimeType?: string; // file MIME type
+    file?: File; // Store raw File for retry functionality
   };
 }
 

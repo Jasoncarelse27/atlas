@@ -523,7 +523,11 @@ app.post("/message",
   },
   async (req, res) => {
     try {
-      const { userId, message, type = 'chat', tier: clientTier = 'free', conversationId } = req.body;
+      // DEBUG: Log raw request body to see what's actually being sent
+      console.log("[DEBUG] Raw request body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] Request headers:", JSON.stringify(req.headers, null, 2));
+      
+      const { userId, message, type = 'chat', tier: clientTier = 'free', conversationId, imageUrl, attachments } = req.body;
       const actualUserId = req.user?.id || userId;
       
       // 1. Fetch subscription tier from Supabase (authoritative source)
@@ -553,6 +557,9 @@ app.post("/message",
         hasMessage: !!message,
         hasTier: !!clientTier,
         hasUserId: !!actualUserId,
+        hasImageUrl: !!imageUrl,
+        hasAttachments: !!attachments,
+        attachmentCount: attachments?.length || 0,
         incomingConversationId: conversationId,
         messagePreview: message?.slice(0, 50) + '...',
         clientTier,
@@ -560,10 +567,13 @@ app.post("/message",
         effectiveTier
       });
       
-      if (!message) {
+      // DEBUG: Log raw request body to see what's actually being sent
+      console.log("[DEBUG] Raw request body:", JSON.stringify(req.body, null, 2));
+      
+      if (!message && !imageUrl && (!attachments || attachments.length === 0)) {
         return res.status(400).json({ 
           success: false, 
-          message: 'Missing required field: message' 
+          message: 'Missing required field: message, imageUrl, or attachments' 
         });
       }
       
@@ -680,12 +690,76 @@ app.post("/message",
           
           // 🧠 Build messages array with conversation context
           const messages = [...conversationMessages];
-          // Always ensure the current message is included (in case it's not in DB yet)
-          if (messages.length === 0 || messages[messages.length - 1].content !== message) {
+          
+          // Handle multi-attachment analysis if attachments are provided
+          if (attachments && attachments.length > 0) {
+            console.log("[ATTACHMENTS] Processing multi-attachment analysis for:", attachments.length, "files");
+            
+            const content = [
+              {
+                type: 'text',
+                text: message || 'Please analyze these attachments'
+              }
+            ];
+            
+            // Add each attachment to the content
+            attachments.forEach((attachment, index) => {
+              if (attachment.type === 'image') {
+                content.push({
+                  type: 'image',
+                  source: {
+                    type: 'url',
+                    url: attachment.url
+                  }
+                });
+              } else if (attachment.type === 'audio') {
+                // For audio, we'll include it as text reference for now
+                // Future: could transcribe or analyze audio content
+                content.push({
+                  type: 'text',
+                  text: `[Audio attachment ${index + 1}: ${attachment.url}]`
+                });
+              } else {
+                // For other file types, include as text reference
+                content.push({
+                  type: 'text',
+                  text: `[File attachment ${index + 1}: ${attachment.url}]`
+                });
+              }
+            });
+            
             messages.push({
               role: 'user',
-              content: message
+              content: content
             });
+          }
+          // Handle single image analysis if imageUrl is provided
+          else if (imageUrl) {
+            console.log("[IMAGE] Processing single image analysis for:", imageUrl);
+            messages.push({
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: message || 'Please analyze this image'
+                },
+                {
+                  type: 'image',
+                  source: {
+                    type: 'url',
+                    url: imageUrl
+                  }
+                }
+              ]
+            });
+          } else {
+            // Always ensure the current message is included (in case it's not in DB yet)
+            if (messages.length === 0 || messages[messages.length - 1].content !== message) {
+              messages.push({
+                role: 'user',
+                content: message
+              });
+            }
           }
 
           const response = await anthropic.messages.create({
@@ -1032,12 +1106,14 @@ app.post("/api/upload", verifyJWT, upload.single("file"), async (req, res) => {
     
     console.log("📤 Upload request received for user:", userId, "file:", req.file.originalname);
 
-    // Upload to Supabase Storage
+    // Upload to Supabase Storage with proper owner
     const { error: upErr } = await supabase.storage
       .from("uploads")
       .upload(filename, req.file.buffer, {
         contentType: req.file.mimetype,
         upsert: true,
+        // Set the owner to the authenticated user
+        owner: userId
       });
     
     if (upErr) {

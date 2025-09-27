@@ -56,8 +56,114 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
       .replace(/[^a-zA-Z0-9._-]/g, ""); // remove other unsafe chars
   };
 
+  const handleMultipleFileSelect = async (files: FileList) => {
+    if (!files || files.length === 0) return;
+    if (!user?.id) return;
+
+    const id = uuid();
+    const timestamp = new Date().toISOString();
+
+    // Create blob previews for all files
+    const attachments = Array.from(files).map((file) => {
+      const blobUrl = URL.createObjectURL(file);
+      let type: "image" | "audio" | "file" = "file";
+      if (file.type.startsWith("image/")) type = "image";
+      else if (file.type.startsWith("audio/")) type = "audio";
+      return { 
+        type, 
+        url: blobUrl, 
+        progress: 0,
+        file // Store original file for retry
+      };
+    });
+
+    // Create message with multiple attachments
+    const message: Message = {
+      id,
+      role: "user" as const,
+      type: "mixed",
+      attachments,
+      status: "uploading",
+      timestamp,
+    };
+
+    console.log('[DEBUG] Adding multi-attachment message to store:', message);
+    useMessageStore.getState().addMessage(message);
+
+    try {
+      const uploaded: typeof attachments = [];
+      
+      for (const [i, file] of Array.from(files).entries()) {
+        const safeName = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+        
+        try {
+          // Upload to Supabase with progress tracking
+          const { data, error } = await supabase.storage
+            .from("uploads")
+            .upload(`${id}/${safeName}`, file, {
+              cacheControl: "3600",
+              upsert: true,
+            });
+
+          if (error) throw error;
+
+          const publicUrl = supabase.storage
+            .from("uploads")
+            .getPublicUrl(data.path).data.publicUrl;
+
+          uploaded.push({ 
+            type: attachments[i].type, 
+            url: publicUrl, 
+            progress: 100,
+            file: attachments[i].file
+          });
+
+          // Update progress for this specific attachment
+          const state = useMessageStore.getState();
+          const msg = state.messages.find((m) => m.id === id);
+          if (msg && msg.attachments) {
+            const updated = [...msg.attachments];
+            updated[i] = { ...updated[i], progress: 100, url: publicUrl };
+            state.updateMessage(id, { attachments: updated });
+          }
+        } catch (err) {
+          console.error(`[AttachmentMenu] Upload failed for file ${i}:`, err);
+          
+          // Mark this attachment as failed
+          const state = useMessageStore.getState();
+          const msg = state.messages.find((m) => m.id === id);
+          if (msg && msg.attachments) {
+            const updated = [...msg.attachments];
+            updated[i] = { ...updated[i], failed: true, progress: 0 };
+            state.updateMessage(id, { attachments: updated, status: "failed" });
+          }
+        }
+      }
+
+      // Update final state
+      const hasFailures = uploaded.some(att => att.failed);
+      useMessageStore.getState().updateMessage(id, {
+        status: hasFailures ? "failed" : "sent",
+        attachments: uploaded,
+      });
+
+      // Send to AI if all uploads succeeded
+      if (!hasFailures) {
+        const { chatService } = await import('../../services/chatService');
+        const finalMessage = useMessageStore.getState().messages.find(m => m.id === id);
+        if (finalMessage) {
+          console.log('[DEBUG] Sending multi-attachment message to Atlas AI');
+          await chatService.handleFileMessage(finalMessage);
+        }
+      }
+    } catch (err) {
+      console.error("[AttachmentMenu] Multi-file upload failed", err);
+      useMessageStore.getState().updateMessage(id, { status: "failed" });
+    }
+  };
+
+  // Legacy single file handler for backward compatibility
   const handleFileSelect = async (file: File) => {
-    // 🔍 Immediate debug log to confirm entry
     console.log("[DEBUG] ENTERED handleFileSelect with file:", {
       name: file?.name,
       type: file?.type,
@@ -65,35 +171,15 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
       hasFile: !!file,
     });
     
-    if (!file) {
-      console.warn("[WARN] handleFileSelect called with null/undefined file");
+    if (!file || !user?.id) {
+      console.warn("[WARN] handleFileSelect called with invalid file or no user");
       return;
     }
     
     try {
-      console.log('[DEBUG] handleFileSelect function started');
-      console.log('[DEBUG] handleFileSelect called with file:', file.name, file.type, file.size);
-      console.log('[DEBUG] User ID:', user?.id);
-      console.log('[DEBUG] User object:', user);
-      
-      // Sanitize the filename to prevent 400 errors
       const safeFileName = sanitizeFileName(file.name);
-      console.log('[DEBUG] Original filename:', file.name);
-      console.log('[DEBUG] Sanitized filename:', safeFileName);
-      
-      if (!file) {
-        console.warn('[WARN] No file provided to handleFileSelect');
-        return;
-      }
-
-      if (!user?.id) {
-        console.log('[DEBUG] No user ID, returning early');
-        return;
-      }
-
       const id = uuid();
       const blobUrl = URL.createObjectURL(file);
-      console.log('[DEBUG] Generated ID:', id, 'Blob URL:', blobUrl);
 
       // Create message object with all required fields
       const message: Message = {
@@ -106,59 +192,69 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
         localUrl: blobUrl,
         uploading: true,
         progress: 0,
-        localFile: file
+        localFile: file,
+        metadata: { file } // Store raw File for retry functionality
       };
 
       console.log('[DEBUG] Adding image message to store:', message);
       useMessageStore.getState().addMessage(message);
-      console.log('[DEBUG] Message added to store. Current store state:', useMessageStore.getState().messages);
 
-      // 2. Start upload with progress tracking
-      console.log('[DEBUG] Upload started for message:', id);
+      // Start upload with progress tracking
       await uploadImageWithProgress(file, id, {
         onProgress: (progress) => {
-          useMessageStore.getState().updateMessage(id, { progress });
-          console.log(`[DEBUG] Upload progress for ${id}: ${progress}%`);
+          useMessageStore.getState().updateMessage(id, { 
+            progress,
+            metadata: {
+              ...useMessageStore.getState().messages.find(m => m.id === id)?.metadata,
+              uploading: true,
+              localPreview: blobUrl,
+              uploadProgress: progress
+            }
+          });
         },
-            onSuccess: async (publicUrl) => {
-              console.log(`[DEBUG] Upload success for ${id} → URL: ${publicUrl}`);
-              console.log(`[DEBUG] Updating message ${id} with content:`, publicUrl);
-              
-              // Always store the safe public URL in both content and metadata
-              const updatedMessage = {
-                content: publicUrl, // used by renderer
-                metadata: {
-                  url: publicUrl,   // explicit image URL for ImageMessageBubble
-                  fileName: safeFileName,
-                  mimeType: file.type,
-                  size: file.size,
-                },
-                status: "done" as const,
-                uploading: false,
-                progress: 100,
-                localFile: undefined,
-              };
-              
-              useMessageStore.getState().updateMessage(id, updatedMessage);
-              
-              // Verify the update worked
-              const finalMessage = useMessageStore.getState().messages.find(m => m.id === id);
-              console.log(`[DEBUG] Updated message with metadata:`, finalMessage);
-              
-              // Send image to Atlas AI for analysis
-              const { chatService } = await import('../../services/chatService');
-              if (finalMessage) {
-                console.log('[DEBUG] Sending image to Atlas AI for analysis:', publicUrl);
-                await chatService.handleFileMessage(finalMessage);
-              }
+        onSuccess: async (publicUrl) => {
+          const updatedMessage = {
+            content: publicUrl,
+            metadata: {
+              url: publicUrl,
+              imageUrl: publicUrl,
+              fileName: safeFileName,
+              mimeType: file.type,
+              size: file.size,
+              uploading: false,
+              uploadProgress: 100,
+              uploadError: false,
+              localPreview: undefined,
             },
+            status: "done" as const,
+            uploading: false,
+            progress: 100,
+            localFile: undefined,
+          };
+          
+          useMessageStore.getState().updateMessage(id, updatedMessage);
+          
+          // Send image to Atlas AI for analysis
+          const { chatService } = await import('../../services/chatService');
+          const finalMessage = useMessageStore.getState().messages.find(m => m.id === id);
+          if (finalMessage) {
+            console.log('[DEBUG] Sending image to Atlas AI for analysis:', publicUrl);
+            await chatService.handleFileMessage(finalMessage);
+          }
+        },
         onError: (err) => {
+          console.error(`[ERROR] Upload failed for ${id}:`, err);
           useMessageStore.getState().updateMessage(id, {
             status: "error",
             error: err.message || "Upload failed",
-            uploading: false
+            uploading: false,
+            metadata: {
+              ...useMessageStore.getState().messages.find(m => m.id === id)?.metadata,
+              uploading: false,
+              uploadError: true,
+              localPreview: blobUrl,
+            }
           });
-          console.error(`[ERROR] Upload failed for ${id}:`, err);
         }
       });
 
@@ -318,28 +414,15 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
       console.warn('[DEBUG] handleImageUpload: no files selected');
       return;
     }
-    console.log('[DEBUG] handleImageUpload received:', files);
-    console.log('[DEBUG] Files count:', files.length);
 
-    console.log('[DEBUG] About to loop through files...');
-    console.log('[DEBUG] typeof handleFileSelect:', typeof handleFileSelect);
-    
-    if (typeof handleFileSelect !== "function") {
-      console.error("[ERROR] handleFileSelect is not a function! Current value:", handleFileSelect);
-      return;
+    // Use multi-file handler for multiple files, legacy handler for single file
+    if (files.length > 1) {
+      console.log('[DEBUG] Multiple files detected, using multi-file handler');
+      handleMultipleFileSelect(files);
+    } else {
+      console.log('[DEBUG] Single file detected, using legacy handler');
+      handleFileSelect(files[0]);
     }
-    
-    console.log('[DEBUG] ✅ About to start forEach loop with', files.length, 'files');
-    Array.from(files).forEach((file, index) => {
-      console.log(`[DEBUG] Processing file ${index + 1}:`, file.name, file.type, file.size);
-      console.log('[DEBUG] About to call handleFileSelect...');
-      try {
-        handleFileSelect(file);
-        console.log('[DEBUG] handleFileSelect completed successfully');
-      } catch (error) {
-        console.error('[DEBUG] handleFileSelect error:', error);
-      }
-    });
 
     // Reset the input to ensure onChange fires even for the same file
     e.target.value = "";
@@ -590,46 +673,17 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,audio/*,.pdf,.doc,.docx,.txt"
         multiple
         style={{ display: "none" }}
-        onClick={() => {
-          console.log('[DEBUG] File input clicked - dialog should open');
-        }}
         onChange={(e) => {
           console.log("[DEBUG] onChange event fired!");
           console.log("[DEBUG] handleImageUpload triggered with files:", e.target.files);
           handleImageUpload(e);
           e.target.value = ""; // allow same file selection again
         }}
-        onInput={() => {
-          console.log("[DEBUG] onInput event fired!");
-        }}
-        onFocus={() => {
-          console.log("[DEBUG] File input focused");
-        }}
-        onBlur={() => {
-          console.log("[DEBUG] File input blurred");
-        }}
       />
       
-      {/* WORKING: Direct file input (replaces programmatic click) */}
-      <div style={{ margin: '10px 0', padding: '10px', background: '#333', borderRadius: '5px' }}>
-        <div style={{ color: 'white', fontSize: '12px', marginBottom: '5px' }}>📸 Upload Images</div>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #555' }}
-          onChange={(e) => {
-            console.log("[DEBUG] DIRECT FILE INPUT onChange fired!");
-            console.log("[DEBUG] DIRECT FILE INPUT files:", e.target.files);
-            if (e.target.files && e.target.files.length > 0) {
-              handleImageUpload(e);
-            }
-          }}
-        />
-      </div>
       <input
         ref={uploadFileInputRef}
         type="file"

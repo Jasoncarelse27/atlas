@@ -5,9 +5,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
-import { uploadImage } from '../../services/uploadService';
 import { useMessageStore } from '../../stores/useMessageStore';
-import type { Message } from '../../types/chat';
+import type { Attachment, Message } from '../../types/chat';
+import { AudioMessageBubble } from './AudioMessageBubble';
 import { ImageMessageBubble } from './ImageMessageBubble';
 
 interface MessageRendererProps {
@@ -24,6 +24,7 @@ interface LegacyMessageRendererProps {
 
 export function MessageRenderer({ message, className = '', allMessages = [] }: MessageRendererProps) {
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
+  const updateMessage = useMessageStore((state) => state.updateMessage);
 
   const handleCopy = async (codeContent: string, codeId: string) => {
     try {
@@ -37,52 +38,188 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
     }
   };
 
-  const retryUpload = async (messageId: string) => {
-    console.log("Retrying upload for", messageId);
-    
-    // Find the message and retry upload
-    const message = useMessageStore.getState().messages.find(m => m.id === messageId);
-    if (message && message.localUrl) {
-      // Reset error state
-      useMessageStore.getState().updateMessage(messageId, { 
-        error: false, 
-        uploading: true, 
-        status: 'uploading' 
-      });
+  const retryAttachmentUpload = async (messageId: string, attachment: Attachment, idx: number) => {
+    try {
+      if (!attachment.file) {
+        console.error('No file available for retry');
+        return;
+      }
+
+      const safeName = `${Date.now()}-retry-${idx}.${attachment.file.name.split('.').pop()}`;
       
-      // Create a new file from the blob URL and retry upload
-      try {
-        const response = await fetch(message.localUrl);
-        const blob = await response.blob();
-        const file = new File([blob], 'retry-upload.jpg', { type: blob.type });
-        
-        // Retry the upload
-        await uploadImage(messageId, file);
-      } catch (error) {
-        console.error('Retry upload failed:', error);
-        useMessageStore.getState().markUploadFailed(messageId);
+      // Reset attachment state
+      const state = useMessageStore.getState();
+      const msg = state.messages.find((m) => m.id === messageId);
+      if (!msg || !msg.attachments) return;
+
+      const updated = [...msg.attachments];
+      updated[idx] = { ...attachment, failed: false, progress: 0 };
+      updateMessage(messageId, { attachments: updated, status: 'uploading' });
+
+      // Upload to Supabase
+      const { supabase } = await import('../../lib/supabaseClient');
+      const { data, error } = await supabase.storage
+        .from("uploads")
+        .upload(`${messageId}/${safeName}`, attachment.file, { upsert: true });
+
+      if (error) throw error;
+
+      const publicUrl = supabase.storage
+        .from("uploads")
+        .getPublicUrl(data.path).data.publicUrl;
+
+      // Update with success
+      const finalUpdated = [...updated];
+      finalUpdated[idx] = { ...attachment, url: publicUrl, failed: false, progress: 100 };
+      updateMessage(messageId, { attachments: finalUpdated, status: 'sent' });
+    } catch (err) {
+      console.error("[MessageRenderer] Retry failed:", err);
+      // Mark as failed
+      const state = useMessageStore.getState();
+      const msg = state.messages.find((m) => m.id === messageId);
+      if (msg && msg.attachments) {
+        const updated = [...msg.attachments];
+        updated[idx] = { ...attachment, failed: true, progress: 0 };
+        updateMessage(messageId, { attachments: updated, status: 'failed' });
       }
     }
   };
 
-  // Handle image messages with professional preview
+  // Handle messages with multiple attachments
+  if (message.attachments && message.attachments.length > 0) {
+    const images = message.attachments.filter((a) => a.type === "image");
+    const audios = message.attachments.filter((a) => a.type === "audio");
+    const files = message.attachments.filter((a) => a.type === "file");
+
+    return (
+      <div className={`flex flex-col gap-2 ${className}`}>
+        {/* Gallery for images */}
+        {images.length > 0 && (
+          <div
+            className={`grid gap-2 ${
+              images.length === 1
+                ? "grid-cols-1"
+                : images.length === 2
+                ? "grid-cols-2"
+                : "grid-cols-3"
+            }`}
+          >
+            {images.map((img, idx) => (
+              <div key={idx} className="relative border rounded p-1">
+                <ImageMessageBubble 
+                  message={{ ...message, content: img.url, type: 'image' }} 
+                  allMessages={allMessages}
+                />
+                
+                {/* Progress bar */}
+                {message.status === "uploading" && img.progress !== undefined && !img.failed && (
+                  <div className="absolute bottom-1 left-1 right-1 bg-gray-200 rounded">
+                    <div
+                      className="bg-green-500 h-1 rounded"
+                      style={{ width: `${img.progress}%` }}
+                    />
+                  </div>
+                )}
+
+                {/* Retry button on failure */}
+                {img.failed && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-red-50 bg-opacity-80">
+                    <button
+                      className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => retryAttachmentUpload(message.id, img, idx)}
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Audio attachments */}
+        {audios.map((aud, idx) => (
+          <div key={idx} className="relative border rounded p-1">
+            <AudioMessageBubble 
+              message={{ ...message, content: aud.url, type: 'audio' }} 
+            />
+            
+            {/* Progress bar */}
+            {message.status === "uploading" && aud.progress !== undefined && !aud.failed && (
+              <div className="absolute bottom-1 left-1 right-1 bg-gray-200 rounded">
+                <div
+                  className="bg-green-500 h-1 rounded"
+                  style={{ width: `${aud.progress}%` }}
+                />
+              </div>
+            )}
+
+            {/* Retry button on failure */}
+            {aud.failed && (
+              <div className="absolute inset-0 flex items-center justify-center bg-red-50 bg-opacity-80">
+                <button
+                  className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                  onClick={() => retryAttachmentUpload(message.id, aud, idx)}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* File attachments */}
+        {files.map((f, idx) => (
+          <div key={idx} className="relative border rounded p-1">
+            <a href={f.url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">
+              📄 Download file
+            </a>
+            
+            {/* Progress bar */}
+            {message.status === "uploading" && f.progress !== undefined && !f.failed && (
+              <div className="absolute bottom-1 left-1 right-1 bg-gray-200 rounded">
+                <div
+                  className="bg-green-500 h-1 rounded"
+                  style={{ width: `${f.progress}%` }}
+                />
+              </div>
+            )}
+
+            {/* Retry button on failure */}
+            {f.failed && (
+              <div className="absolute inset-0 flex items-center justify-center bg-red-50 bg-opacity-80">
+                <button
+                  className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                  onClick={() => retryAttachmentUpload(message.id, f, idx)}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Legacy: Handle single image messages
   if (message.type === "image") {
     return (
       <ImageMessageBubble 
         message={message} 
-        onRetry={retryUpload}
         allMessages={allMessages}
         className={className}
       />
     );
   }
 
-  // Handle audio messages
+  // Legacy: Handle single audio messages
   if (message.type === "audio") {
     return (
-      <div className={`my-2 rounded-xl bg-gray-800 p-2 text-white ${className}`}>
-        🎤 Sent an audio recording
-      </div>
+      <AudioMessageBubble 
+        message={message}
+        className={className}
+      />
     );
   }
 
