@@ -1,5 +1,8 @@
 import Dexie, { type Table } from "dexie";
 
+// Database name constant for consistent deletion
+export const DB_NAME = "AtlasDB";
+
 export interface Message {
   id?: number;
   conversationId: string;
@@ -20,7 +23,7 @@ class AtlasDatabase extends Dexie {
   conversations!: Table<Conversation>;
 
   constructor() {
-    super("AtlasDB");
+    super(DB_NAME);
     this.version(1).stores({
       messages: "++id, conversationId, createdAt, synced",
       conversations: "++id, createdAt"

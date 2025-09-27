@@ -16,6 +16,7 @@ export function AudioMessageBubble({ message, className = '' }: AudioMessageBubb
   // Get audio URL from message content or metadata
   const audioUrl = message.metadata?.audioUrl || 
                   (typeof message.content === 'string' && message.content.startsWith('http') ? message.content : null);
+  const caption = message.metadata?.caption; // Get caption from metadata
 
   const handlePlayPause = () => {
     if (!audioRef.current) return;
@@ -92,6 +93,13 @@ export function AudioMessageBubble({ message, className = '' }: AudioMessageBubb
           </div>
         </div>
       </div>
+
+      {/* Caption */}
+      {caption && (
+        <div className="mt-3 p-2 bg-gray-700/50 rounded-lg">
+          <p className="text-sm text-gray-300">{caption}</p>
+        </div>
+      )}
 
       <audio
         ref={audioRef}

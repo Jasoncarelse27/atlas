@@ -13,6 +13,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
+    // ✅ Force Supabase to use browser localStorage instead of Dexie
+    storage: localStorage,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'pkce'

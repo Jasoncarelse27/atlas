@@ -1,6 +1,6 @@
 import { db } from '../db';
-import type { Message } from '../types/chat';
 import { createChatError } from '../features/chat/lib/errorHandler';
+import type { Message } from '../types/chat';
 
 export interface OfflineMessage extends Message {
   sync_status: 'synced' | 'pending' | 'failed';
@@ -32,8 +32,8 @@ export const offlineMessageStore = {
       return await db.messages
         .where('conversation_id')
         .equals(conversationId)
-        .orderBy('timestamp')
-        .toArray();
+        .toArray()
+        .then(messages => messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'getMessagesByConversation',
@@ -76,7 +76,7 @@ export const offlineMessageStore = {
         query = query.limit(options.limit);
       }
 
-      return await query.orderBy('timestamp').toArray();
+      return await query.toArray().then(messages => messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'getMessages',
@@ -252,9 +252,17 @@ export const offlineMessageStore = {
       return await db.messages
         .where('sync_status')
         .equals('pending')
-        .orderBy('created_at')
-        .toArray();
+        .toArray()
+        .then(messages => messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
     } catch (error) {
+      // Handle Dexie schema errors with auto-reset
+      if (error?.name === "SchemaError" || error?.message?.includes("not indexed")) {
+        console.warn("🚨 Schema error in getPendingMessages, triggering auto-reset");
+        const { handleDexieError } = await import('../utils/dexieErrorHandler');
+        await handleDexieError(error);
+        return []; // Return empty array while resetting
+      }
+      
       const chatError = createChatError(error, {
         operation: 'getPendingMessages',
         timestamp: new Date().toISOString(),
@@ -271,8 +279,8 @@ export const offlineMessageStore = {
       return await db.messages
         .where('sync_status')
         .equals('failed')
-        .orderBy('created_at')
-        .toArray();
+        .toArray()
+        .then(messages => messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'getFailedMessages',
@@ -290,8 +298,8 @@ export const offlineMessageStore = {
       return await db.messages
         .where('status')
         .equals(status)
-        .orderBy('created_at')
-        .toArray();
+        .toArray()
+        .then(messages => messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'getMessagesByStatus',

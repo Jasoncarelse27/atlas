@@ -12,6 +12,8 @@ import { usePersistentMessages } from '../hooks/usePersistentMessages';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
+import { runDbMigrations } from '../services/dbMigrations';
+import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
 
 // Sidebar components
@@ -29,8 +31,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [retrying, setRetrying] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [conversationId] = useState<string>('default-conversation');
-  const [userId] = useState<string>('default-user');
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [userId] = useState<string>('65fcb50a-d67d-453e-a405-50c6aef959be'); // Hardcoded for now
+  const { initConversation } = useMessageStore();
 
   // Use persistent messages with offline sync
   const {
@@ -38,7 +41,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     addMessage,
     updateMessage,
   } = usePersistentMessages({
-    conversationId,
+    conversationId: conversationId || '',
     userId,
     autoSync: true,
     autoResend: true,
@@ -120,6 +123,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
+  // Initialize conversation and run migrations
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Run database migrations first
+        await runDbMigrations(userId);
+        
+        // Initialize conversation with proper UUID
+        const id = await initConversation(userId);
+        setConversationId(id);
+        
+        console.log("[ChatPage] ✅ App initialized with conversation:", id);
+      } catch (error) {
+        console.error("[ChatPage] ❌ Failed to initialize app:", error);
+      }
+    };
+
+    initializeApp();
+  }, [userId, initConversation]);
+
   // Health check with auto-retry every 30 seconds
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -198,7 +221,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <SyncStatus className="hidden md:flex" />
+                {conversationId && (
+                  <SyncStatus conversationId={conversationId} userId={userId} className="hidden md:flex" />
+                )}
                 <button
                   onClick={handleLogout}
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"

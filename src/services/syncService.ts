@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
-import { offlineMessageStore } from './offlineMessageStore';
 import { useMessageStore } from '../stores/useMessageStore';
-import type { Message } from '../types/chat';
+import { offlineMessageStore } from './offlineMessageStore';
 
 export interface SyncStatus {
   isOnline: boolean;

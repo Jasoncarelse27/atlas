@@ -6,6 +6,7 @@ export interface Attachment {
   progress?: number;       // upload % (0–100)
   failed?: boolean;        // mark failed uploads
   file?: File;            // original file for retry
+  caption?: string;        // user-added caption for the attachment
 }
 
 export interface Message {
@@ -41,6 +42,7 @@ export interface Message {
     fileName?: string; // sanitized filename
     mimeType?: string; // file MIME type
     file?: File; // Store raw File for retry functionality
+    caption?: string; // user-added caption for the attachment
   };
 }
 
@@ -76,7 +78,7 @@ export const generateConversationTitle = (messages: Message[]): string => {
   // Get content as string (handle both string and array)
   const content = Array.isArray(firstUserMessage.content) 
     ? firstUserMessage.content.join(' ') 
-    : firstUserMessage.content;
+    : firstUserMessage.content || '';
   
   if (content.length <= 30) {
     return content;

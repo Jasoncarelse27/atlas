@@ -1,6 +1,9 @@
 import Dexie, { type Table } from 'dexie';
-import type { Message } from '../types/chat';
-import type { SubscriptionProfile } from '../features/chat/services/subscriptionService';
+import { handleDexieError } from '../utils/dexieErrorHandler';
+import { immediateReset } from '../utils/immediateReset';
+
+// Database name constant for consistent deletion
+export const DB_NAME = 'AtlasDB';
 
 // Extend Dexie with our table types
 export class AtlasDB extends Dexie {
@@ -52,21 +55,73 @@ export class AtlasDB extends Dexie {
   }>;
 
   constructor() {
-    super('AtlasDB');
+    super(DB_NAME);
     
-    this.version(1).stores({
-      conversations: 'id, user_id, title, updated_at, status',
-      messages: 'id, conversation_id, user_id, created_at, status, sync_status',
-      subscriptions: 'user_id, tier, status, last_synced, sync_status',
-      pending_operations: 'id, type, created_at, status, retry_count',
+    try {
+      this.version(1).stores({
+        conversations: 'id, user_id, title, updated_at, status',
+        messages: 'id, conversation_id, user_id, created_at, status, sync_status',
+        subscriptions: 'user_id, tier, status, last_synced, sync_status',
+        pending_operations: 'id, type, created_at, status, retry_count',
+      });
+
+      // Add indexes for better query performance
+      this.version(2).stores({
+        conversations: 'id, user_id, title, updated_at, status, user_id+status',
+        messages: 'id, conversation_id, user_id, created_at, status, sync_status, conversation_id+status',
+        subscriptions: 'user_id, tier, status, last_synced, sync_status',
+        pending_operations: 'id, type, created_at, status, retry_count, type+status',
+      });
+
+      // Add explicit sync_status index for queries
+      this.version(3).stores({
+        conversations: 'id, user_id, title, updated_at, status, user_id+status',
+        messages: 'id, conversation_id, user_id, created_at, status, sync_status, conversation_id+status, sync_status+created_at',
+        subscriptions: 'user_id, tier, status, last_synced, sync_status',
+        pending_operations: 'id, type, created_at, status, retry_count, type+status',
+      });
+
+      // Force schema update to ensure sync_status is properly indexed
+      this.version(4).stores({
+        conversations: 'id, user_id, title, updated_at, status, user_id+status',
+        messages: 'id, conversation_id, user_id, created_at, status, sync_status, conversation_id+status, sync_status+created_at',
+        subscriptions: 'user_id, tier, status, last_synced, sync_status',
+        pending_operations: 'id, type, created_at, status, retry_count, type+status',
+      });
+
+      // 🚀 Bumped version to 6 to force a clean rebuild
+      this.version(6).stores({
+        conversations: 'id, user_id, title, updated_at, status, user_id+status',
+        messages: 'id, conversation_id, user_id, created_at, status, sync_status, conversation_id+status, sync_status+created_at',
+        subscriptions: 'user_id, tier, status, last_synced, sync_status',
+        pending_operations: 'id, type, created_at, status, retry_count, type+status',
+      });
+    } catch (err) {
+      console.error("🚨 Dexie schema error during initialization:", err);
+      handleDexieError(err); // Auto-reset on schema error
+    }
+
+    // 🔥 Auto-reset on schema mismatch
+    this.on("blocked", () => {
+      console.warn("⚠️ Dexie blocked — forcing reset");
+      immediateReset();
     });
 
-    // Add indexes for better query performance
-    this.version(2).stores({
-      conversations: 'id, user_id, title, updated_at, status, user_id+status',
-      messages: 'id, conversation_id, user_id, created_at, status, sync_status, conversation_id+status',
-      subscriptions: 'user_id, tier, status, last_synced, sync_status',
-      pending_operations: 'id, type, created_at, status, retry_count, type+status',
+    // ✅ Auto-handle schema mismatch
+    this.open().catch(err => {
+      console.error("🚨 Dexie error during open:", err);
+      if (err.name === "SchemaError" || err.name === "VersionError" || err.name === "DexieError2") {
+        console.error("🚨 Dexie schema mismatch — auto-resetting…", err);
+        immediateReset();
+      } else {
+        throw err;
+      }
+    });
+
+    // 🔥 Additional error handler for runtime schema errors
+    this.on('error', (err) => {
+      console.error("🚨 Dexie runtime error:", err);
+      handleDexieError(err);
     });
   }
 }

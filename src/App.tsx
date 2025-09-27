@@ -9,9 +9,14 @@ import { useSubscription } from './hooks/useSubscription';
 import useThemeMode from './hooks/useThemeMode';
 import { useTierAccess } from './hooks/useTierAccess';
 import useVoiceRecognition from './hooks/useVoiceRecognition';
-import { supabase } from './lib/supabase';
+import { supabase } from './lib/supabaseClient';
 import { syncPendingUploads, testBackendConnection } from './services/syncService';
 import type { Message } from './types/chat';
+import './utils/emergencyReset'; // Import to make emergencyReset available globally
+import './utils/forceSchemaUpdate'; // Import to make forceSchemaUpdate available globally
+import { immediateReset } from './utils/immediateReset'; // Import for auto-reset
+import './utils/manualResetDB'; // Import to make resetDB available globally
+import './utils/resetLocalData'; // Import to make atlasReset available globally
 
 // 🚨 CONFIG GUARD: Ensure VITE_API_URL is set
 if (!import.meta.env.VITE_API_URL) {
@@ -183,6 +188,42 @@ function AppContent() {
     browserSupportsSpeechRecognition
   } = useVoiceRecognition();
 
+  // 🔥 Auto-reset on Dexie schema errors
+  useEffect(() => {
+    const handleSchemaError = (event: any) => {
+      const error = event?.reason || event?.error || event;
+      
+      if (
+        error?.name === "SchemaError" ||
+        error?.name === "DexieError2" ||
+        error?.message?.includes("not indexed") ||
+        error?.message?.includes("KeyPath") ||
+        error?.message?.includes("sync_status") ||
+        error?.message?.includes("SchemaError")
+      ) {
+        console.error("🚨 Dexie schema error detected, triggering immediate reset", error);
+        immediateReset();
+      }
+    };
+
+    // Catch unhandled promise rejections (Dexie errors often come through here)
+    window.addEventListener("unhandledrejection", (e) => {
+      console.log("🔍 Unhandled rejection:", e.reason);
+      handleSchemaError(e);
+    });
+    
+    // Catch general errors
+    window.addEventListener("error", (e) => {
+      console.log("🔍 General error:", e.error);
+      handleSchemaError(e);
+    });
+
+    return () => {
+      window.removeEventListener("unhandledrejection", handleSchemaError);
+      window.removeEventListener("error", handleSchemaError);
+    };
+  }, []);
+
   // Viewport height fix for mobile browsers
   useEffect(() => {
     const setViewportHeight = () => {
@@ -252,6 +293,10 @@ function AppContent() {
           setUser(null);
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           setUser(session.user);
+        } else if (event === 'INITIAL_SESSION' && !session) {
+          // If no session and we're getting schema errors, reset the database
+          console.warn('⚠️ No initial session found, checking for schema issues...');
+          // The database will auto-reset if there are schema errors
         }
       }
     );

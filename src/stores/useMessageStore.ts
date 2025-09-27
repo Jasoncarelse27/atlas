@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import type { Message } from "../types/chat";
 import { offlineMessageStore } from "../services/offlineMessageStore";
+import type { Message } from "../types/chat";
+import { getOrCreateDefaultConversation } from "./useConversations";
 
 interface MessageStore {
   messages: Message[];
@@ -14,6 +15,7 @@ interface MessageStore {
   setConversationId: (id: string | null) => void;
   hydrateFromOffline: (conversationId: string) => Promise<void>;
   syncToOffline: (message: Message) => Promise<void>;
+  initConversation: (userId: string) => Promise<string>;
 }
 
 export const useMessageStore = create<MessageStore>((set, get) => ({
@@ -170,5 +172,11 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       console.error("[STORE] Failed to sync message to offline store:", error);
       throw error;
     }
+  },
+
+  initConversation: async (userId: string) => {
+    const conversationId = await getOrCreateDefaultConversation(userId);
+    set({ conversationId });
+    return conversationId;
   },
 }));

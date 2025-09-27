@@ -28,6 +28,9 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<BlobPart[]>([]);
+  const [showCaptionModal, setShowCaptionModal] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [captions, setCaptions] = useState<Record<string, string>>({});
 
   // Add manual event listener for file input
   useEffect(() => {
@@ -116,7 +119,7 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
             url: publicUrl, 
             progress: 100,
             file: attachments[i].file
-          });
+          } as any);
 
           // Update progress for this specific attachment
           const state = useMessageStore.getState();
@@ -141,7 +144,7 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
       }
 
       // Update final state
-      const hasFailures = uploaded.some(att => att.failed);
+      const hasFailures = uploaded.some(att => (att as any).failed);
       useMessageStore.getState().updateMessage(id, {
         status: hasFailures ? "failed" : "sent",
         attachments: uploaded,
@@ -175,6 +178,18 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
       console.warn("[WARN] handleFileSelect called with invalid file or no user");
       return;
     }
+
+    // For single files, show caption modal
+    setPendingFiles([file]);
+    setShowCaptionModal(true);
+  };
+
+  // Process files with captions
+  const processFilesWithCaptions = async () => {
+    if (!user?.id || pendingFiles.length === 0) return;
+
+    const file = pendingFiles[0]; // For single file
+    const caption = captions[file.name] || "";
     
     try {
       const safeFileName = sanitizeFileName(file.name);
@@ -193,7 +208,10 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
         uploading: true,
         progress: 0,
         localFile: file,
-        metadata: { file } // Store raw File for retry functionality
+        metadata: { 
+          file,
+          caption // Add caption to metadata
+        }
       };
 
       console.log('[DEBUG] Adding image message to store:', message);
@@ -225,6 +243,7 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
               uploadProgress: 100,
               uploadError: false,
               localPreview: undefined,
+              caption, // Include caption in final metadata
             },
             status: "done" as const,
             uploading: false,
@@ -259,7 +278,12 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
       });
 
     } catch (err) {
-      console.error('[ERROR] handleFileSelect failed:', err);
+      console.error('[ERROR] processFilesWithCaptions failed:', err);
+    } finally {
+      // Clean up
+      setShowCaptionModal(false);
+      setPendingFiles([]);
+      setCaptions({});
     }
   };
 
@@ -665,6 +689,7 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
   };
 
   return (
+    <>
     <div 
       ref={menuRef}
       className="absolute bottom-full left-0 mb-2 z-50 bg-gray-900 rounded-lg shadow-lg border border-gray-700 p-2 flex flex-col min-w-[200px]"
@@ -764,5 +789,65 @@ export default function AttachmentMenu({ anchorRef, onClose }: AttachmentMenuPro
         </button>
       )}
     </div>
+
+          {/* Caption Modal */}
+          {showCaptionModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div 
+                className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-auto shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Add Captions
+          </h3>
+          
+          <div className="space-y-4">
+            {pendingFiles.map((file) => (
+              <div key={file.name} className="space-y-2">
+                <div className="text-sm text-gray-300">
+                  {file.name} ({file.type.startsWith('image/') ? 'Image' : 'Audio'})
+                </div>
+                <textarea
+                  value={captions[file.name] || ''}
+                  onChange={(e) => setCaptions(prev => ({
+                    ...prev,
+                    [file.name]: e.target.value
+                  }))}
+                  placeholder={`Add a caption for ${file.name}...`}
+                  className="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
+                  rows={3}
+                />
+              </div>
+            ))}
+          </div>
+          
+                <div className="flex space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCaptionModal(false);
+                      setPendingFiles([]);
+                      setCaptions({});
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      processFilesWithCaptions();
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Upload
+                  </button>
+                </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

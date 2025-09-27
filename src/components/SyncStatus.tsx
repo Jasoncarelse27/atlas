@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { syncService } from '../services/syncService';
+import { AlertCircle, CheckCircle, Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { resendService } from '../services/resendService';
+import { syncService } from '../services/syncService';
 
 interface SyncStatusProps {
+  conversationId: string;
+  userId: string;
   className?: string;
 }
 
-export const SyncStatus: React.FC<SyncStatusProps> = ({ className = '' }) => {
+export const SyncStatus: React.FC<SyncStatusProps> = ({ conversationId, userId, className = '' }) => {
   const [status, setStatus] = useState({
     isOnline: navigator.onLine,
     isSyncing: false,
