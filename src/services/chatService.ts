@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { useMessageStore } from "../stores/useMessageStore";
-import type { Message } from "../types/chat";
+import type { Message, Attachment } from "../types/chat";
 import { audioService } from "./audioService";
 import { getUserTier } from "./subscriptionService";
 
@@ -144,8 +144,8 @@ export const chatService = {
       }
       // Legacy: Handle single image messages
       else if (message.type === 'image') {
-        // Get the image URL - check content (string) or metadata.imageUrl
-        const imageUrl = message.metadata?.imageUrl || 
+        // Get the image URL - check content (string) or metadata.url
+        const imageUrl = message.metadata?.url || 
                         (typeof message.content === 'string' && message.content.startsWith('http') ? message.content : null);
         
         if (imageUrl) {
@@ -221,3 +221,66 @@ export const chatService = {
     }
   }
 };
+
+// Export the sendMessageWithAttachments function for resendService
+export async function sendMessageWithAttachments({ 
+  conversationId, 
+  userId, 
+  text, 
+  attachments 
+}: {
+  conversationId: string;
+  userId: string;
+  text: string;
+  attachments: Attachment[];
+}) {
+  console.debug("[chatService] sendMessageWithAttachments", { conversationId, userId, text, attachments });
+
+  const safeAttachments = (attachments || []).slice(0, 5);
+
+  const content: any[] = [];
+
+  if (text && text.trim().length > 0) {
+    content.push({ type: "text", text });
+  }
+
+  safeAttachments.forEach((file) => {
+    content.push({
+      type: "image_url",
+      image_url: { url: file.url },
+    });
+  });
+
+  const payload = {
+    messages: [
+      {
+        role: "user",
+        content: content.length > 0
+          ? content
+          : [{ type: "text", text: "Please analyze the following images:" }],
+      },
+    ],
+    max_tokens: 1000,
+  };
+
+  console.debug("[chatService] Final payload for Anthropic:", payload);
+
+  try {
+    const response = await fetch(`http://localhost:8000/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.debug("[chatService] ✅ Backend response:", data);
+    return data;
+  } catch (err) {
+    console.error("[chatService] ❌ sendMessageWithAttachments failed:", err);
+    throw err;
+  }
+}

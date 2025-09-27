@@ -255,7 +255,6 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
           ref={pinchRef}
           className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 overflow-hidden touch-none"
           onClick={closeViewer}
-          onTouchEnd={handleDoubleTap}
           onDoubleClick={handleDoubleTap}
           onMouseDown={(e) => startDrag(e.clientX, e.clientY)}
           onMouseMove={(e) => moveDrag(e.clientX, e.clientY)}
@@ -267,7 +266,13 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
           onTouchMove={(e) => {
             if (e.touches.length === 1) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
           }}
-          onTouchEnd={endDrag}
+          onTouchEnd={(e) => {
+            endDrag();
+            // Handle double tap for zoom
+            if (e.touches.length === 0) {
+              handleDoubleTap();
+            }
+          }}
         >
           <img
             src={images[index].metadata?.imageUrl || images[index].content}

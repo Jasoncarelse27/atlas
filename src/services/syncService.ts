@@ -250,3 +250,14 @@ class SyncService {
 
 // Export singleton instance
 export const syncService = new SyncService();
+
+// Legacy export for backward compatibility
+export const syncPendingUploads = () => syncService.syncPendingMessages();
+export const testBackendConnection = async () => {
+  try {
+    const response = await fetch('http://localhost:8000/healthz');
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
