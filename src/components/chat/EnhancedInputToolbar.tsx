@@ -202,7 +202,7 @@ export default function EnhancedInputToolbar({
   return (
     <div className="px-4 pb-4 bg-transparent">
       {/* Message Limit Warning - Temporarily disabled */}
-      {false && (
+      {/* {false && (
         <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded-lg max-w-4xl mx-auto">
           <p className="text-red-200 text-sm text-center">
             ⚠️ Daily conversation limit reached. 
@@ -214,7 +214,7 @@ export default function EnhancedInputToolbar({
             </button>
           </p>
         </div>
-      )}
+      )} */}
       
       {/* Main Input Container - iOS Style */}
       <div className="flex items-center w-full max-w-4xl mx-auto px-4 py-3 bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-700/50">
