@@ -1,5 +1,5 @@
-import { db } from '../db';
 import { createChatError } from '../features/chat/lib/errorHandler';
+import db from '../lib/db';
 import type { Message } from '../types/chat';
 
 export interface OfflineMessage extends Message {

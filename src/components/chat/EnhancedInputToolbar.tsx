@@ -12,6 +12,7 @@ interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
   onVoiceTranscription?: (text: string) => void;
   onFileMessage?: (message: Message) => void;
+  onImageUpload?: (file: File) => void;
   isProcessing?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -22,13 +23,14 @@ export default function EnhancedInputToolbar({
   onSendMessage,
   onVoiceTranscription,
   onFileMessage,
+  onImageUpload,
   isProcessing = false,
   disabled = false,
   placeholder = "Ask anything...",
   onShowUpgradeModal
 }: EnhancedInputToolbarProps) {
-  const { user, tier } = useSupabaseAuth();
-  const { canUseFeature, showUpgradeModal, messageCount, maxMessages, remainingMessages } = useTierAccess(user?.id || '');
+  const { user } = useSupabaseAuth();
+  const { tier, canUseFeature, showUpgradeModal } = useTierAccess();
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -38,15 +40,7 @@ export default function EnhancedInputToolbar({
   const handleSend = () => {
     if (!text.trim() || isProcessing || disabled) return;
     
-    // Check message limit for free tier
-    if (tier === 'free' && remainingMessages <= 0) {
-      onShowUpgradeModal?.();
-      toast.error('Daily message limit reached! Upgrade to continue chatting.', {
-        duration: 5000,
-        icon: '⚠️'
-      });
-      return;
-    }
+    // Message limit checking removed for now - focus on tier logic
     
     onSendMessage(text.trim());
     setText('');
@@ -207,11 +201,11 @@ export default function EnhancedInputToolbar({
 
   return (
     <div className="px-4 pb-4 bg-transparent">
-      {/* Message Limit Warning */}
-      {tier === 'free' && remainingMessages <= 0 && (
+      {/* Message Limit Warning - Temporarily disabled */}
+      {false && (
         <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded-lg max-w-4xl mx-auto">
           <p className="text-red-200 text-sm text-center">
-            ⚠️ Daily conversation limit reached ({messageCount}/{maxMessages}). 
+            ⚠️ Daily conversation limit reached. 
             <button 
               onClick={() => onShowUpgradeModal?.()}
               className="ml-1 text-red-300 hover:text-red-100 underline"
@@ -241,8 +235,17 @@ export default function EnhancedInputToolbar({
           {/* Attachment Menu */}
           {menuOpen && (
             <AttachmentMenu
-              anchorRef={buttonRef}
               onClose={() => setMenuOpen(false)}
+              onImageUpload={onImageUpload}
+              onSelect={(files) => {
+                // Handle multiple files
+                files.forEach(file => {
+                  if (file.type.startsWith('image/') && onImageUpload) {
+                    onImageUpload(file);
+                  }
+                });
+                setMenuOpen(false);
+              }}
             />
           )}
         </div>

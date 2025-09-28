@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { db } from "../db";
+import db from "../lib/db";
 import { supabase } from "../lib/supabaseClient";
 import { immediateReset } from "../utils/immediateReset";
 
@@ -11,8 +11,10 @@ export async function runDbMigrations(userId?: string) {
 
   // Force clear and rebuild database if schema issues persist
   try {
-    // Test the specific query that's failing
-    await db.messages.where('sync_status').equals('pending').limit(1).toArray();
+    // Test the specific query that's failing (only if messages table exists)
+    if (db.messages) {
+      await db.messages.where('sync_status').equals('pending').limit(1).toArray();
+    }
     console.log("[DB MIGRATION] Database schema is healthy");
   } catch (error) {
     console.warn("[DB MIGRATION] Schema error detected:", error);
@@ -24,30 +26,38 @@ export async function runDbMigrations(userId?: string) {
     throw error;
   }
 
-  // 1. Clear invalid messages
-  const allMessages = await db.messages.toArray();
-  const invalidMessages = allMessages.filter(
-    (m) => !m.conversation_id || !UUID_REGEX.test(m.conversation_id)
-  );
-
-  if (invalidMessages.length > 0) {
-    console.warn(
-      `[DB MIGRATION] Found ${invalidMessages.length} invalid messages → clearing`
+  // 1. Clear invalid messages (only if table exists)
+  if (db.messages) {
+    const allMessages = await db.messages.toArray();
+    const invalidMessages = allMessages.filter(
+      (m) => !m.conversation_id || !UUID_REGEX.test(m.conversation_id)
     );
-    await db.messages.bulkDelete(invalidMessages.map((m) => m.id));
+
+    if (invalidMessages.length > 0) {
+      console.warn(
+        `[DB MIGRATION] Found ${invalidMessages.length} invalid messages → clearing`
+      );
+      await db.messages.bulkDelete(invalidMessages.map((m) => m.id));
+    }
+  } else {
+    console.log("[DB MIGRATION] messages table not found, skipping");
   }
 
-  // 2. Clear invalid conversations
-  const allConversations = await db.conversations.toArray();
-  const invalidConversations = allConversations.filter(
-    (c) => !c.id || !UUID_REGEX.test(c.id)
-  );
-
-  if (invalidConversations.length > 0) {
-    console.warn(
-      `[DB MIGRATION] Found ${invalidConversations.length} invalid conversations → clearing`
+  // 2. Clear invalid conversations (only if table exists)
+  if (db.conversations) {
+    const allConversations = await db.conversations.toArray();
+    const invalidConversations = allConversations.filter(
+      (c) => !c.id || !UUID_REGEX.test(c.id)
     );
-    await db.conversations.bulkDelete(invalidConversations.map((c) => c.id));
+
+    if (invalidConversations.length > 0) {
+      console.warn(
+        `[DB MIGRATION] Found ${invalidConversations.length} invalid conversations → clearing`
+      );
+      await db.conversations.bulkDelete(invalidConversations.map((c) => c.id));
+    }
+  } else {
+    console.log("[DB MIGRATION] conversations table not found, skipping");
   }
 
   // 3. Remove old localStorage key

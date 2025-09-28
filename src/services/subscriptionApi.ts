@@ -2,8 +2,8 @@
 // This service handles all subscription/tier queries through our backend API
 // instead of direct Supabase calls, ensuring proper security and CORS handling
 
-import { db } from '../lib/db';
-import { showToast } from './toastService';
+import db from '../lib/db';
+import { safeToast } from './toastService';
 
 // Track active mode clearly
 let activeMode: "dexie" | "backend" | null = null;
@@ -16,7 +16,7 @@ async function safeFetch(url: string, options?: RequestInit) {
     return await res.json();
   } catch (err) {
     console.warn("[SubscriptionAPI] Backend fetch failed, falling back to Dexie:", err);
-    showToast("⚠️ Backend unreachable, using offline mode", "warning");
+    safeToast("⚠️ Backend unreachable, using offline mode", "error");
     return null;
   }
 }
@@ -60,7 +60,7 @@ class SubscriptionApiService {
       activeMode = mode;
       if (mode === "dexie") {
         console.warn("[SubscriptionAPI] ⚠️ Running in Dexie fallback mode (offline)");
-        showToast("⚡ Using offline subscription mode", "warning");
+        safeToast("⚡ Using offline subscription mode", "error");
       } else {
         console.log("[SubscriptionAPI] ✅ Using backend API for subscriptions");
       }
@@ -85,7 +85,7 @@ class SubscriptionApiService {
     // Check cache first
     const cached = this.profileCache.get(userId);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      console.log('[SubscriptionAPI] Using cached profile ✅', userId);
+      console.log('[SubscriptionAPI] Using cached profile ✅', userId, 'tier:', cached.data?.subscription_tier);
       return cached.data;
     }
 
@@ -409,6 +409,24 @@ class SubscriptionApiService {
       console.error('[SubscriptionAPI] Error getting profile from Dexie:', error);
       return null;
     }
+  }
+
+  /**
+   * Clear all caches
+   */
+  clearCache(): void {
+    this.profileCache.clear();
+    this.pendingRequests.clear();
+    console.log('[SubscriptionAPI] All caches cleared');
+  }
+
+  /**
+   * Clear cache for specific user
+   */
+  clearUserCache(userId: string): void {
+    this.profileCache.delete(userId);
+    this.pendingRequests.delete(userId);
+    console.log('[SubscriptionAPI] Cache cleared for user:', userId);
   }
 }
 

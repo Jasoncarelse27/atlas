@@ -1,9 +1,11 @@
 // Immediate database reset - call this right now
+import { preserveLocalStorage } from './preserveLocalStorage';
+
 export const immediateReset = async () => {
   console.log('🚨 IMMEDIATE RESET: Forcing complete database deletion...');
   
   try {
-    // Delete the specific database
+    // Delete IndexedDB databases
     const deleteReq = indexedDB.deleteDatabase('AtlasDB');
     
     await new Promise((resolve) => {
@@ -21,8 +23,15 @@ export const immediateReset = async () => {
       };
     });
     
-    // Clear all storage
-    localStorage.clear();
+    // Clear storage while preserving Supabase keys
+    preserveLocalStorage();
+    
+    // Delete only non-Supabase localStorage entries
+    Object.keys(localStorage)
+      .filter(key => !key.startsWith('sb-'))
+      .forEach(key => localStorage.removeItem(key));
+    
+    // Clear sessionStorage completely
     sessionStorage.clear();
     
     // Clear caches
@@ -34,12 +43,10 @@ export const immediateReset = async () => {
     }
     
     console.log('✅ IMMEDIATE RESET COMPLETE! Reloading page...');
-    // Force reload immediately
     window.location.reload();
     
   } catch (error) {
     console.error('❌ IMMEDIATE RESET FAILED:', error);
-    // Force reload anyway
     window.location.reload();
   }
 };

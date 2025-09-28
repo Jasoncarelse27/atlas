@@ -1,21 +1,15 @@
 import Dexie from "dexie";
 
-export interface SubscriptionStat {
-  id?: number;
-  userId: string;
-  data: any; // JSON payload with usage + attempts
-  updatedAt: number;
+let db: Dexie | null = null;
+
+try {
+  db = new Dexie("atlas_db");
+  db.version(1).stores({
+    messages: "++id, content, created_at, sync_status",
+  });
+} catch (err) {
+  console.error("[Dexie] Failed to init DB:", err);
+  db = null;
 }
 
-export class AtlasDB extends Dexie {
-  subscription_stats!: Dexie.Table<SubscriptionStat>;
-
-  constructor() {
-    super("AtlasDB");
-    this.version(2).stores({
-      subscription_stats: "++id,userId,updatedAt"
-    });
-  }
-}
-
-export const db = new AtlasDB();
+export default db;

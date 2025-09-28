@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Conversation, Message, db } from '../db';
+import db from '../lib/db';
 
 describe('Atlas Database (Dexie)', () => {
   beforeEach(async () => {

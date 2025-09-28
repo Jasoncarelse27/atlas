@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
-import { Bot, User } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Bot, Loader2, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useMessageStore } from '../../stores/useMessageStore';
 import type { Message } from '../../types/chat';
@@ -15,6 +15,13 @@ interface EnhancedMessageBubbleProps {
 
 export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false }: EnhancedMessageBubbleProps) {
   console.log("[RENDER] message:", message);
+  
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // ✅ Determine if this message has image attachments
+  const imageAttachments = message.metadata?.attachments?.filter(
+    (att: any) => att.type === "image"
+  ) || [];
   
   // Early return if message is invalid
   if (!message) {
@@ -208,6 +215,67 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               />
             )}
           </div>
+
+                {/* ✅ Render image attachments */}
+                {imageAttachments.length > 0 && (
+                  <div className="image-attachments mt-3 space-y-2">
+                    {imageAttachments.map((img: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="relative cursor-pointer bg-transparent"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                      >
+                        <motion.img
+                          src={img.previewUrl || img.url || message.metadata?.imageUrl}
+                          alt={img.name || "uploaded image"}
+                          className={`chat-image rounded-lg max-w-full h-auto transition-all duration-200 ${
+                            isExpanded ? "max-w-none" : "max-w-xs cursor-pointer hover:opacity-90"
+                          }`}
+                          style={{ backgroundColor: 'transparent' }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.3 }}
+                          onError={(e) => {
+                            console.warn("[ImageBubble] Failed to load", img, e);
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                        
+                        {/* ✅ Upload overlay with fade-out */}
+                        <AnimatePresence>
+                          {message.status === "uploading" && (
+                            <motion.div
+                              className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white text-sm rounded-lg"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Loader2 className="w-5 h-5 animate-spin mb-1" />
+                              Uploading...
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        
+                        {!isExpanded && (
+                          <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 rounded-lg transition-all duration-200 flex items-center justify-center">
+                            <span className="text-white text-xs opacity-0 hover:opacity-100 transition-opacity">
+                              Click to expand
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+          {/* ✅ Show uploading status */}
+          {message.status === "uploading" && (
+            <div className="mt-2 text-xs opacity-70 flex items-center">
+              <span className="animate-spin mr-2">⏳</span>
+              Uploading...
+            </div>
+          )}
           
           {/* Timestamp */}
           {message.timestamp && !showTypingIndicator && (

@@ -18,7 +18,8 @@ if git diff --cached --name-only | grep -v -E '\.(example|md)$|^scripts/' | xarg
 fi
 
 # Block SUPABASE_ patterns only in non-example files, scripts, config files, and Edge Functions
-if git diff --cached --name-only | grep -v -E '\.(example|md)$|^scripts/|\.gitleaks\.toml$|^supabase/functions/' | xargs git diff --cached | grep -E 'SUPABASE_[A-Z0-9_]+'; then
+# Allow environment variable names but block actual secret values
+if git diff --cached --name-only | grep -v -E '\.(example|md)$|^scripts/|\.gitleaks\.toml$|^supabase/functions/' | xargs git diff --cached | grep -E 'SUPABASE_[A-Z0-9_]+.*["\x27][a-zA-Z0-9+/=]{20,}["\x27]'; then
   echo "❌ ERROR: SUPABASE secret detected in commit!"
   echo "👉 Remove the secret and store it in GitHub Secrets or .env (ignored)."
   exit 1

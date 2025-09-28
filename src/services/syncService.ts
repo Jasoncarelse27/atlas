@@ -16,6 +16,18 @@ class SyncService {
   private syncInProgress = false;
 
   constructor() {
+    // Feature flag to control sync service
+    const SYNC_ENABLED = import.meta.env.VITE_SYNC_ENABLED === "true";
+    
+    if (SYNC_ENABLED) {
+      console.log('[SYNC] SyncService enabled - starting sync...');
+      this.startSync();
+    } else {
+      console.log('[SYNC] SyncService disabled via VITE_SYNC_ENABLED=false');
+    }
+  }
+
+  private startSync() {
     // Listen for online/offline events
     window.addEventListener('online', () => {
       this.isOnline = true;
@@ -82,22 +94,22 @@ class SyncService {
    */
   async syncPendingMessages(): Promise<void> {
     if (!this.isOnline || this.syncInProgress) return;
-
+    
     this.syncInProgress = true;
     console.log('[SYNC] Starting sync of pending messages...');
-
+    
     try {
       const pendingMessages = await offlineMessageStore.getPendingMessages();
       const failedMessages = await offlineMessageStore.getFailedMessages();
       const allMessages = [...pendingMessages, ...failedMessages];
-
+      
       if (allMessages.length === 0) {
         console.log('[SYNC] No messages to sync');
         return;
       }
-
+      
       console.log(`[SYNC] Syncing ${allMessages.length} messages...`);
-
+      
       for (const message of allMessages) {
         try {
           await this.syncSingleMessage(message);
@@ -106,11 +118,11 @@ class SyncService {
           await offlineMessageStore.markAsSyncFailed(message.id, error.message);
         }
       }
-
+      
       // Update last sync time
       localStorage.setItem('lastSyncTime', new Date().toISOString());
       console.log('[SYNC] ✅ Sync completed successfully');
-
+      
     } catch (error) {
       console.error('[SYNC] Sync failed:', error);
     } finally {

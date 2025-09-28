@@ -47,8 +47,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     autoResend: true,
   });
 
+  // Debug log for messages state
+  console.log("[ChatPage] messages state:", messages, "type:", typeof messages, "isArray:", Array.isArray(messages));
+
   // Modern scroll system
-  const { bottomRef, scrollToBottom, showScrollButton } = useAutoScroll([messages]);
+  const { bottomRef, scrollToBottom, showScrollButton } = useAutoScroll([messages || []]);
 
   // Simple logout function
   const handleLogout = async () => {
@@ -98,6 +101,119 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     } catch (error) {
       console.error('Text message handling error:', error);
       setIsTyping(false);
+    }
+  };
+
+  // Handle image upload with instant preview
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+
+    console.log("[ChatPage] Starting image upload:", file.name);
+
+    // 1️⃣ Create temp message with preview
+    const tempId = crypto.randomUUID();
+    const previewUrl = URL.createObjectURL(file);
+
+    const tempMessage: Message = {
+      id: tempId,
+      role: 'user',
+      type: 'image',
+      content: '',
+      timestamp: new Date().toISOString(),
+      status: 'uploading',
+      attachments: [
+        {
+          type: 'image',
+          url: previewUrl, // Use previewUrl as the initial URL
+          caption: '',
+          file,
+        },
+      ],
+      metadata: {
+        filename: file.name,
+        size: file.size,
+        mimeType: file.type,
+        localPreview: previewUrl,
+        uploading: true,
+        file,
+      },
+    };
+
+    // Add temp message to show instant preview
+    await addMessage(tempMessage);
+
+    try {
+      // 2️⃣ Upload to Supabase Storage
+      const { supabase } = await import('../lib/supabaseClient');
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `uploads/${userId}/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(uploadData.path);
+
+      // 3️⃣ Update message with final URL and mark as sent
+      await updateMessage(tempId, {
+        status: 'sent',
+        attachments: [
+          {
+            type: 'image',
+            url: publicUrl,
+            caption: '',
+            file,
+          },
+        ],
+        metadata: {
+          filename: file.name,
+          size: file.size,
+          mimeType: file.type,
+          url: publicUrl,
+          uploading: false,
+          file,
+        },
+      });
+
+      console.log("[ChatPage] ✅ Image uploaded successfully:", publicUrl);
+
+      // 4️⃣ Send to AI for analysis
+      const analysisMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        type: 'text',
+        content: 'Analyzing your image...',
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+      };
+
+      await addMessage(analysisMessage);
+
+      // Call chatService for AI analysis
+      const { chatService } = await import('../services/chatService');
+      await chatService.handleFileMessage(tempMessage, () => {
+        console.log("[ChatPage] ✅ AI analysis completed");
+      });
+
+    } catch (error) {
+      console.error("[ChatPage] ❌ Image upload failed:", error);
+      
+      // Update message status to failed
+      await updateMessage(tempId, {
+        status: 'failed',
+        error: String(error),
+        metadata: {
+          ...tempMessage.metadata,
+          uploading: false,
+          uploadError: true,
+        },
+      });
     }
   };
 
@@ -287,13 +403,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               
               <MessageListWithPreviews>
                 {(() => {
-                  if (messages.length > 0) {
-                    return messages.map((message: Message, index: number) => (
+                  const safeMessages = messages || [];
+                  if (safeMessages.length > 0) {
+                    return safeMessages.map((message: Message, index: number) => (
                       <EnhancedMessageBubble
                         key={message.id}
                         message={message}
-                        isLatest={index === messages.length - 1}
-                        isTyping={index === messages.length - 1 && isTyping}
+                        isLatest={index === safeMessages.length - 1}
+                        isTyping={index === safeMessages.length - 1 && isTyping}
                       />
                     ));
                   } else {
@@ -353,6 +470,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               <EnhancedInputToolbar
                 onSendMessage={handleTextMessage}
                 onFileMessage={handleEnhancedFileMessage}
+                onImageUpload={handleImageUpload}
                 isProcessing={isProcessing}
                 placeholder="Ask Atlas anything..."
                 onShowUpgradeModal={() => setUpgradeModalVisible(true)}

@@ -1,24 +1,15 @@
 import { supabase } from "../lib/supabaseClient";
-import { useMessageStore } from "../stores/useMessageStore";
-import type { Message, Attachment } from "../types/chat";
+import type { PendingAttachment } from "../stores/useMessageStore";
+import type { Message } from "../types/chat";
 import { audioService } from "./audioService";
 import { getUserTier } from "./subscriptionService";
+import { uploadWithAuth } from "./uploadService";
 
 export const chatService = {
   sendMessage: async (text: string, onComplete?: () => void) => {
     console.log("[FLOW] sendMessage called with text:", text);
-    const { addMessage } = useMessageStore.getState();
 
-    // Add user message
-    addMessage({ 
-      id: crypto.randomUUID(), 
-      role: "user", 
-      content: text,
-      timestamp: new Date().toISOString()
-    });
-
-    // Don't create placeholder assistant message - let ChatPage handle typing indicator
-    const assistantId = crypto.randomUUID();
+    // Message management is handled by the calling component
 
     // Get JWT token for authentication
     const { data: { session } } = await supabase.auth.getSession();
@@ -43,37 +34,22 @@ export const chatService = {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Backend error:', errorData);
-      // Create error message
-      addMessage({
-        id: assistantId,
-        role: "assistant",
-        content: `Error: ${errorData.error || 'Failed to get response'}`,
-        timestamp: new Date().toISOString()
-      });
+      // Log error - message management handled by calling component
+      console.error('Backend error:', errorData);
       return;
     }
 
     const data = await response.json();
     
     if (!data.success) {
-      // Create error message
-      addMessage({
-        id: assistantId,
-        role: "assistant",
-        content: `Error: ${data.message || 'Failed to get response'}`,
-        timestamp: new Date().toISOString()
-      });
+      // Log error - message management handled by calling component
+      console.error('Backend response error:', data.message || 'Failed to get response');
       return;
     }
 
-    // Create assistant message with the actual response
+    // Return response - message management handled by calling component
     const responseText = data.response;
-    addMessage({
-      id: assistantId,
-      role: "assistant",
-      content: responseText,
-      timestamp: new Date().toISOString()
-    });
+    console.log('Backend response:', responseText);
 
     // 🔊 Play TTS if tier allows
     if (currentTier !== "free" && typeof audioService.play === "function") {
@@ -82,25 +58,16 @@ export const chatService = {
 
     // Call completion callback to clear typing indicator
     onComplete?.();
+    
+    return responseText;
   },
 
   handleFileMessage: async (message: Message, onComplete?: () => void) => {
     try {
       console.log("[FLOW] handleFileMessage called:", { type: message.type, content: message.content });
-      const { addMessage, updateMessage, messages } = useMessageStore.getState();
+      // Message management is handled by the calling component
 
-      // Check if this message already exists (for updates)
-      const existingMessage = messages.find(m => m.id === message.id);
-      
-      if (existingMessage) {
-        // Update existing message
-        console.log("[FLOW] Updating existing message:", message.id);
-        updateMessage(message.id, message);
-      } else {
-        // Add new message
-        console.log("[FLOW] Adding new message:", message.id);
-        addMessage(message);
-      }
+      // Message management is handled by the calling component
       
       // Handle messages with attachments (new multi-attachment support)
       if (message.attachments && message.attachments.length > 0) {
@@ -130,13 +97,8 @@ export const chatService = {
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            // Add Atlas's response about the attachments
-            addMessage({
-              id: crypto.randomUUID(),
-              role: "assistant",
-              content: data.response,
-              timestamp: new Date().toISOString()
-            });
+            // Log response - message management handled by calling component
+            console.log('Multi-attachment response:', data.response);
           }
         } else {
           console.error("Failed to analyze attachments:", response.status);
@@ -191,24 +153,14 @@ export const chatService = {
             const data = await response.json();
             console.log("[DEBUG] Backend response data:", data);
             if (data.success) {
-              // Add Atlas's response about the image
-              addMessage({
-                id: crypto.randomUUID(),
-                role: "assistant",
-                content: data.response,
-                timestamp: new Date().toISOString()
-              });
+              // Log response - message management handled by calling component
+              console.log('Image analysis response:', data.response);
             }
           } else {
             const errorText = await response.text();
             console.error("Failed to analyze image:", response.status, errorText);
-            // Add error message
-            addMessage({
-              id: crypto.randomUUID(),
-              role: "assistant",
-              content: "Sorry, I couldn't analyze that image. Please try again.",
-              timestamp: new Date().toISOString()
-            });
+            // Log error - message management handled by calling component
+            console.error("Image analysis failed");
           }
         }
       }
@@ -223,17 +175,14 @@ export const chatService = {
 };
 
 // Export the sendMessageWithAttachments function for resendService
-export async function sendMessageWithAttachments({ 
-  conversationId, 
-  userId, 
-  text, 
-  attachments 
-}: {
-  conversationId: string;
-  userId: string;
-  text: string;
-  attachments: Attachment[];
-}) {
+export async function sendMessageWithAttachments(
+  conversationId: string,
+  userId: string,
+  { text, attachments }: {
+    text: string;
+    attachments: PendingAttachment[];
+  }
+) {
   console.debug("[chatService] sendMessageWithAttachments", { conversationId, userId, text, attachments });
 
   const safeAttachments = (attachments || []).slice(0, 5);
@@ -244,12 +193,29 @@ export async function sendMessageWithAttachments({
     content.push({ type: "text", text });
   }
 
-  safeAttachments.forEach((file) => {
-    content.push({
-      type: "image_url",
-      image_url: { url: file.url },
-    });
-  });
+  // Upload attachments and add them to content
+  for (const attachment of safeAttachments) {
+    try {
+      // Upload the file and get the URL
+      const uploadResult = await uploadWithAuth(attachment.file, userId, attachment.caption || "");
+      
+      // Add to content with caption if provided
+      const attachmentContent: any = {
+        type: "image_url",
+        image_url: { url: uploadResult.url },
+      };
+      
+      // Include caption if provided
+      if (attachment.caption) {
+        attachmentContent.caption = attachment.caption;
+      }
+      
+      content.push(attachmentContent);
+    } catch (error) {
+      console.error("Failed to upload attachment:", error);
+      // Continue with other attachments even if one fails
+    }
+  }
 
   const payload = {
     messages: [

@@ -1,5 +1,5 @@
-import { db } from '../db';
 import { createChatError } from '../features/chat/lib/errorHandler';
+import db from '../lib/db';
 import { offlineMessageStore } from '../services/offlineMessageStore';
 
 export interface PendingOperation {

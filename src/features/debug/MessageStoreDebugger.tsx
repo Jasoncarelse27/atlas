@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../../db';
+import { useEffect, useState } from 'react';
+import db from '../../lib/db';
 
 export default function MessageStoreDebugger() {
   const [messageCount, setMessageCount] = useState(0);

@@ -5,21 +5,24 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("❌ Missing Supabase environment variables");
-  console.error("Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file");
+  throw new Error("Missing required environment variables");
 }
 
 // Create and export a single Supabase client instance
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
-    // ✅ Force Supabase to use browser localStorage instead of Dexie
-    storage: localStorage,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    storage: localStorage,
   },
 });
+
+// Dev-only: expose for console debugging
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as any).supabase = supabase;
+  console.log('🔧 Supabase client exposed globally for DevTools testing');
+}
 
 // Health-check helper
 export async function checkSupabaseHealth() {

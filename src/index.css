@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Atlas Attachment Menu Styles */
+.menu-item {
+  @apply flex items-center gap-2 px-3 py-2 w-full text-left rounded-md transition-colors;
+  @apply hover:bg-gray-700 hover:text-[#F4E5D9];
+}
+
+/* Atlas Image Styles */
+.chat-image {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
 /* Safe area support for mobile devices */
 .safe-area-inset-bottom {
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
