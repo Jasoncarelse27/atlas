@@ -17,7 +17,7 @@ export const chatService = {
     const currentTier = await getUserTier();
     
     // Get response from backend (JSON response, not streaming)
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(`${backendUrl}/message`, {
       method: "POST",
       headers: { 
@@ -25,8 +25,8 @@ export const chatService = {
         "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify({ 
-        message: text,
-        tier: currentTier
+        text: text,
+        userId: session?.user?.id || 'anonymous'
       }),
     });
 
@@ -47,7 +47,7 @@ export const chatService = {
     }
 
     // Return response - message management handled by calling component
-    const responseText = data.response;
+    const responseText = data.reply;
     console.log('Backend response:', responseText);
 
     // 🔊 Play TTS if tier allows
