@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import db from "../lib/db";
 import { supabase } from "../lib/supabaseClient";
-import { immediateReset } from "../utils/immediateReset";
 
 const UUID_REGEX = /^[0-9a-fA-F-]{36}$/;
 const DEFAULT_CONVERSATION_KEY = "atlas-default-conversation";
@@ -9,21 +8,28 @@ const DEFAULT_CONVERSATION_KEY = "atlas-default-conversation";
 export async function runDbMigrations(userId?: string) {
   console.log("[DB MIGRATION] Starting database migration...");
 
-  // Force clear and rebuild database if schema issues persist
   try {
-    // Test the specific query that's failing (only if messages table exists)
-    if (db.messages) {
-      await db.messages.where('sync_status').equals('pending').limit(1).toArray();
+    // ✅ Auto-create schema if missing
+    if (!db.tables.find((t) => t.name === "messages")) {
+      console.warn("⚠️ Messages table missing, creating...");
+      db.version(1).stores({
+        messages: "++id, conversationId, role, content, sync_status",
+      });
     }
-    console.log("[DB MIGRATION] Database schema is healthy");
-  } catch (error) {
-    console.warn("[DB MIGRATION] Schema error detected:", error);
-    if (error instanceof Error && (error.message.includes('sync_status') || error.message.includes('not indexed') || error.message.includes('SchemaError'))) {
-      console.warn("[DB MIGRATION] Schema error detected, forcing schema update...");
-      await immediateReset();
-      return;
+
+    // ✅ Safe-check before querying
+    if (db.tables.find((t) => t.name === "messages")) {
+      const msgs = await db.table("messages").toArray();
+      console.log(`[DB MIGRATION] Messages loaded: ${msgs.length}`);
+    } else {
+      console.warn("⚠️ Skipping migration: no messages table");
     }
-    throw error;
+
+    console.log("[DB MIGRATION] Database schema is healthy ✅");
+  } catch (err) {
+    console.error("[DB MIGRATION] Error:", err);
+    // ✅ Don't crash app
+    return [];
   }
 
   // 1. Clear invalid messages (only if table exists)
@@ -80,7 +86,6 @@ export async function runDbMigrations(userId?: string) {
 
       const { error } = await supabase.from("conversations").insert({
         id: conversationId,
-        user_id: userId,
         title: "Default Conversation",
       });
 

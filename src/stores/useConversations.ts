@@ -13,7 +13,6 @@ export async function getOrCreateDefaultConversation(userId: string) {
     // Create conversation in Supabase if not exists
     const { error } = await supabase.from("conversations").insert({
       id: conversationId,
-      user_id: userId,
       title: "Default Conversation",
     });
 

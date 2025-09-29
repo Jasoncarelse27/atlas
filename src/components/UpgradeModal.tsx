@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Image, Lock, Mic, X } from 'lucide-react';
-import React from 'react';
+import { Image, Loader2, Lock, Mic, X } from 'lucide-react';
+import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../lib/supabaseClient';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -36,84 +37,29 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
   userTier = 'free'
 }) => {
   const config = featureConfig[feature];
+  const [loading, setLoading] = useState<'core' | 'studio' | null>(null);
 
-  const handleUpgrade = async () => {
-    // TODO: Integrate with Paddle checkout
-    console.log(`Upgrade to Core/Studio for ${feature} features`);
-    
-    if (onUpgrade) {
-      onUpgrade();
-    } else {
-      // For development: directly update tier in profiles table
-      try {
-        const { supabase } = await import('../lib/supabase');
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          const targetTier = feature === 'voice' ? 'core' : 'studio';
-          
-          const { error } = await supabase
-            .from('profiles')
-            .update({ 
-              subscription_tier: targetTier,
-              subscription_status: 'active',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', user.id);
+  const handleUpgrade = async (tier: 'core' | 'studio') => {
+    try {
+      setLoading(tier);
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("Not logged in");
 
-          if (error) {
-            console.error('Error updating tier:', error);
-            toast.error('Failed to upgrade. Please try again.');
-            return;
-          }
+      const { error } = await supabase
+        .from("profiles")
+        .update({ subscription_tier: tier })
+        .eq("id", user.id);
 
-          console.log(`✅ Upgrade successful! Tier: ${targetTier} (voice + image unlocked)`);
-          toast.success(`✅ Upgrade successful! Tier: ${targetTier} (voice + image unlocked)`);
-          
-          // Refresh the page to update all components
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        }
-      } catch (error) {
-        console.error('Error in upgrade:', error);
-        toast.error('Failed to upgrade. Please try again.');
-      }
+      if (error) throw error;
+      console.log(`[UpgradeModal] ✅ Upgraded to ${tier}`);
+      onClose();
+      window.location.reload();
+    } catch (err) {
+      console.error("[UpgradeModal] ❌ Upgrade failed:", err);
+      toast.error("Upgrade failed. Please try again.");
+    } finally {
+      setLoading(null);
     }
-    
-    // Simulate successful upgrade for demo purposes
-    // In real implementation, this would be called after Paddle success
-    setTimeout(() => {
-      // Determine target tier based on feature
-      const targetTier = feature === 'voice' ? 'core' : 'studio';
-      
-      // Feature-specific toast notification with retry action
-      const featureMessage =
-        feature === "voice"
-          ? "You can now record and transcribe voice messages"
-          : feature === "image"
-          ? "You can now upload and analyze images"
-          : "Your premium features are unlocked";
-
-      toast.success(
-        `Upgrade successful! Welcome to ${
-          targetTier === "core" ? "Core" : "Studio"
-        }. ${featureMessage}`,
-        {
-          duration: 5000,
-          action: {
-            label: "Try again now",
-            onClick: () => {
-              if (typeof onUpgradeSuccess === "function") {
-                onUpgradeSuccess();
-              }
-            },
-          },
-        }
-      );
-    }, 1500); // Simulate processing time
-    
-    onClose();
   };
 
   return (
@@ -192,23 +138,33 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
               {/* Buttons */}
               <div className="flex gap-3">
                 <motion.button
-                  onClick={handleUpgrade}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  disabled={loading !== null}
+                  className="flex-1 px-4 py-2 rounded-xl bg-[#B2BDA3] text-white font-medium hover:opacity-90 flex items-center justify-center"
+                  onClick={() => handleUpgrade("core")}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 >
-                  Upgrade Now
+                  {loading === "core" ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    "Upgrade to Core"
+                  )}
                 </motion.button>
                 
                 <motion.button
-                  onClick={onClose}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium py-3 px-4 rounded-lg transition-colors"
+                  disabled={loading !== null}
+                  className="flex-1 px-4 py-2 rounded-xl bg-[#F4E5D9] text-gray-900 font-medium hover:opacity-90 flex items-center justify-center"
+                  onClick={() => handleUpgrade("studio")}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 >
-                  Cancel
+                  {loading === "studio" ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    "Upgrade to Studio"
+                  )}
                 </motion.button>
               </div>
             </div>

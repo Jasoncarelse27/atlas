@@ -1,64 +1,29 @@
+// 🎯 Phase 1: Core-First AttachmentMenu
+// ✅ Optimistic UI - files appear instantly
+// ✅ Background sync - database failures don't block UX
+// ✅ No tier blocking - core features always work
+// ✅ Future-proof - ready for Phase 3 business logic
+
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, FileUp, Image as ImageIcon, Mic, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "react-hot-toast";
-import { useTierAccess } from "../../hooks/useTierAccess";
-import { canUseFeature, useFeatureService } from "../../services/featureService";
-import { useMessageStore, type PendingAttachment } from "../../stores/useMessageStore";
+import { Camera, File, Image as ImageIcon, Mic } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { sendMessageWithAttachments } from "../../services/chatService";
+import { useMessageStore } from "../../stores/useMessageStore";
 
 interface AttachmentMenuProps {
-  onClose: () => void;
   conversationId?: string;
-  userId?: string;
-  onImageUpload?: (file: File) => void;
-  onSelect?: (files: File[]) => void;
+  onClose: () => void;
+  onFileSelect?: (files: FileList, type: string) => void;
 }
 
-const menuItems = [
-  { label: "Add Photo", icon: ImageIcon, type: "photo" },
-  { label: "Take Photo", icon: Camera, type: "camera" },
-  { label: "Upload File", icon: FileUp, type: "file" },
-  { label: "Start Audio", icon: Mic, type: "audio" },
-];
-
-// Framer Motion variants for staggered animation
-const containerVariants = {
-  open: {
-    transition: {
-      staggerChildren: 0.05, // 50ms between each button
-      delayChildren: 0.05,
-    },
-  },
-  closed: {
-    transition: {
-      staggerChildren: 0.02,
-      staggerDirection: -1,
-    },
-  },
-};
-
-const itemVariants = {
-  closed: { opacity: 0, y: 8 },
-  open: { opacity: 1, y: 0 },
-};
-
-export default function AttachmentMenu({ onClose, onImageUpload, onSelect }: AttachmentMenuProps) {
+const AttachmentMenu: React.FC<AttachmentMenuProps> = ({ conversationId, onClose }) => {
   const menuRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [showCamera, setShowCamera] = useState(false);
-  const addPendingAttachments = useMessageStore((state) => state.addPendingAttachments);
-  const { tier, loading } = useTierAccess();
-  const { checkFeature } = useFeatureService();
+  const addMessage = useMessageStore((s) => s.addMessage);
 
-  // Debug tier loading (only log when loading changes)
   useEffect(() => {
-    console.log(`🔍 AttachmentMenu: tier=${tier}, loading=${loading}`);
-  }, [tier, loading]);
-
-  // ✅ Close when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
@@ -66,218 +31,172 @@ export default function AttachmentMenu({ onClose, onImageUpload, onSelect }: Att
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  // ✅ File pickers
-  const handleImageUpload = () => {
-    if (!canUseFeature(tier, "image")) {
-      checkFeature("image", tier); // This will show upgrade modal
-      return;
-    }
-
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.multiple = true;
-    input.onchange = (e: any) => {
-      const files = Array.from(e.target.files) as File[];
-      if (onSelect) {
-        onSelect(files);
-    } else {
-        // Fallback to old flow
-        files.forEach(file => {
-          if (file.type.startsWith('image/') && onImageUpload) {
-            onImageUpload(file);
-          }
-        });
-      }
-      onClose();
+  // Cleanup object URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Note: Object URLs are cleaned up when the component unmounts
+      // The actual cleanup happens in the message store when messages are processed
     };
-    input.click();
-  };
+  }, []);
 
-  const handleFileUpload = () => {
-    if (!canUseFeature(tier, "file")) {
-      checkFeature("file", tier);
-      return;
-    }
-
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".pdf,.doc,.docx,.txt,.zip,.csv,.xlsx,.pptx";
-    input.multiple = true;
-    input.onchange = (e: any) => {
-      const files = Array.from(e.target.files) as File[];
-      if (onSelect) {
-        onSelect(files);
+  // 🎯 Core Function: File Upload with Optimistic UI
+  const handleFileUpload = async (files: FileList, type: string) => {
+    console.log(`📎 Uploading ${files.length} ${type} file(s)`);
+    
+    // ✅ Step 0: File size validation (10MB max per file)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+    
+    Array.from(files).forEach(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
       } else {
-        // Fallback to old flow
-        files.forEach(file => {
-          const tempUrl = URL.createObjectURL(file);
-          const attachment: PendingAttachment = {
-            id: crypto.randomUUID(),
-            file,
-            previewUrl: tempUrl,
-            caption: "",
-          };
-          addPendingAttachments([attachment]);
-        });
+        validFiles.push(file);
       }
-      onClose();
+    });
+    
+    // Show user-friendly error for oversized files
+    if (invalidFiles.length > 0) {
+      const errorMsg = `Files too large (max 10MB): ${invalidFiles.join(', ')}`;
+      console.warn(`⚠️ ${errorMsg}`);
+      alert(errorMsg);
+    }
+    
+    // If no valid files, don't proceed
+    if (validFiles.length === 0) {
+      console.log("❌ No valid files to upload");
+      return;
+    }
+    
+    // ✅ Step 1: Create optimistic message immediately (only with valid files)
+    const optimisticMessage = {
+      id: uuidv4(),
+      role: "user" as const,
+      type: "file" as const, // Use valid Message type
+      content: "", // User can add caption later
+      attachments: validFiles.map(file => ({
+        type: inferFileType(file) as "image" | "audio" | "file",
+        url: URL.createObjectURL(file),
+        file: file,
+        name: file.name,
+        size: file.size
+      })),
+      status: "pending" as const,
+      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
+
+    // ✅ Step 2: Add to UI immediately (optimistic)
+    addMessage(optimisticMessage);
+    console.log("✅ Message added optimistically to UI");
+
+    // ✅ Step 3: Background sync (non-blocking)
+    if (conversationId) {
+      try {
+        console.log("🔄 Starting background sync...");
+        await sendMessageWithAttachments(conversationId, optimisticMessage.attachments, addMessage);
+        console.log("✅ Background sync completed");
+      } catch (error) {
+        console.warn("⚠️ Background sync failed, but UI still works:", error);
+        // Message stays in pending state, resendService will handle retry
+      }
+    } else {
+      console.log("📝 No conversation ID, using local-only mode");
+    }
+
+    // ✅ Step 4: Close menu
+    onClose();
+  };
+
+  // 🎯 Core Function: Create file input and handle selection
+  const createFileInput = (options: { accept?: string; capture?: string; multiple?: boolean }, label: string) => {
+    console.log(`📎 ${label} clicked`);
+    
+    const input = document.createElement("input");
+    input.type = "file";
+    if (options.accept) input.accept = options.accept;
+    if (options.capture) input.capture = options.capture as any;
+    if (options.multiple) input.multiple = options.multiple;
+    
+    input.onchange = (e: any) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        const fileType = options.accept?.includes("image") ? "image" : 
+                        options.accept?.includes("audio") ? "audio" : "file";
+        handleFileUpload(files, fileType);
+      }
+    };
+    
     input.click();
   };
 
-  // ✅ Camera flow
-  const handleTakePhoto = async () => {
-    if (!canUseFeature(tier, "image")) {
-      checkFeature("image", tier);
-      return;
-    }
+  // 🎯 Core Function: Infer file type for proper handling
+  const inferFileType = (file: File): string => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("audio/")) return "audio";
+    if (file.type.startsWith("video/")) return "video";
+    return "file";
+  };
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setShowCamera(true);
+  // 🎯 Simple Options - No tier checking, just core functionality
+  const options = [
+    { 
+      label: "Take a Photo", 
+      icon: <Camera size={18} />, 
+      accept: "image/*", 
+      capture: "environment",
+      onClick: () => createFileInput({ accept: "image/*", capture: "environment" }, "Take a Photo")
+    },
+    { 
+      label: "Upload Image", 
+      icon: <ImageIcon size={18} />, 
+      accept: "image/*", 
+      multiple: true,
+      onClick: () => createFileInput({ accept: "image/*", multiple: true }, "Upload Image")
+    },
+    { 
+      label: "Record Audio", 
+      icon: <Mic size={18} />, 
+      onClick: () => {
+        console.log("🎤 Audio recording - coming soon!");
+        alert("🎤 Audio recording coming soon!");
+        onClose();
       }
-          } catch (err) {
-      toast.error("Camera access denied ❌");
-    }
-  };
-
-  const capturePhoto = () => {
-    const canvas = document.createElement("canvas");
-    const video = videoRef.current;
-    if (!video) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (ctx) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob((blob) => {
-      if (blob) {
-        const file = new File([blob], `photo-${Date.now()}.jpg`, { type: "image/jpeg" });
-        if (onSelect) {
-          onSelect([file]);
-        } else if (onImageUpload) {
-          onImageUpload(file);
-        }
-        toast.success("Photo captured ✅");
-        closeCamera();
-      }
-    }, "image/jpeg");
-  };
-
-  const closeCamera = () => {
-    setShowCamera(false);
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((track) => track.stop());
-    }
-  };
-
-  // ✅ Audio
-  const handleStartAudio = async () => {
-    if (!canUseFeature(tier, "audio")) {
-      checkFeature("mic", tier); // Use "mic" for the upgrade modal
-      return;
-    }
-
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      toast.success("Microphone permission granted ✅");
-      // TODO: Integrate recorder logic here
-      onClose();
-    } catch (err) {
-      toast.error("Microphone access denied ❌");
-    }
-  };
-
-  const handleSelect = (type: string) => {
-    switch (type) {
-      case "photo":
-        handleImageUpload();
-        break;
-      case "camera":
-        handleTakePhoto();
-        break;
-      case "file":
-        handleFileUpload();
-        break;
-      case "audio":
-        handleStartAudio();
-        break;
-    }
-  };
+    },
+    { 
+      label: "Upload File", 
+      icon: <File size={18} />, 
+      multiple: true,
+      onClick: () => createFileInput({ multiple: true }, "Upload File")
+    },
+  ];
 
   return (
-    <>
-      {/* 📂 Main menu */}
-      <AnimatePresence>
-        <motion.div
-      ref={menuRef}
-          initial="closed"
-          animate="open"
-          exit="closed"
-          variants={containerVariants}
-          className="absolute bottom-14 left-0 bg-[#1c1f26] text-white rounded-xl shadow-lg p-2 space-y-2 z-50 min-w-max"
-        >
-              {menuItems.map((item) => (
-                <motion.button
-                  key={item.type}
-                  variants={itemVariants}
-                  onClick={() => handleSelect(item.type)}
-                  className="flex items-center space-x-2 w-full px-3 py-2 rounded-lg text-sm text-white hover:bg-[#2a2e37] transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <item.icon size={18} className="text-[#F4E5D9]" />
-                  <span>{item.label}</span>
-                </motion.button>
-              ))}
-        </motion.div>
-      </AnimatePresence>
-
-      {/* 📸 Camera Modal */}
-      <AnimatePresence>
-        {showCamera && (
-          <motion.div
-            className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+    <AnimatePresence>
+      <motion.div
+        ref={menuRef}
+        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+        transition={{ 
+          duration: 0.2, 
+          ease: [0.4, 0, 0.2, 1] 
+        }}
+        className="absolute bottom-14 left-2 flex flex-col gap-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 z-50 w-64 border border-gray-200 dark:border-gray-700"
+      >
+        {options.map((option, index) => (
+          <button
+            key={index}
+            onClick={option.onClick}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-105"
           >
-            <div className="relative w-full max-w-md bg-[#1c1f26] rounded-lg p-4">
-        <button 
-                onClick={closeCamera}
-                className="absolute top-2 right-2 text-white hover:text-gray-300 transition-colors"
-              >
-                <X size={24} />
-        </button>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="rounded-md w-full h-64 object-cover"
-              />
-              <div className="flex gap-2 mt-4">
-        <button 
-                  onClick={capturePhoto}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-md transition-colors font-medium"
-                >
-                  📸 Capture Photo
-        </button>
-                  <button
-                  onClick={closeCamera}
-                  className="px-4 bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-md transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-        </div>
-          </motion.div>
-    )}
-      </AnimatePresence>
-    </>
+            {option.icon} {option.label}
+          </button>
+        ))}
+      </motion.div>
+    </AnimatePresence>
   );
-}
+};
+
+export default AttachmentMenu;

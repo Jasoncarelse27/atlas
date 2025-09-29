@@ -60,7 +60,6 @@ class ConversationService {
   async createConversation(userId: string, title: string): Promise<Conversation> {
     try {
       const newConversation = {
-        user_id: userId,
         title,
         last_updated: new Date().toISOString(),
         created_at: new Date().toISOString(),

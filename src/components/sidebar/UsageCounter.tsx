@@ -1,10 +1,15 @@
+import { useSimpleTier } from '../../hooks/useSimpleTier';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
-import { useTierAccess } from '../../hooks/useTierAccess';
 import { UpgradeButton } from '../UpgradeButton';
 
 export default function UsageCounter() {
   const { user } = useSupabaseAuth();
-  const { tier, messageCount, maxMessages, remainingMessages } = useTierAccess(user?.id);
+  const { tier, loading, error } = useSimpleTier(user?.id);
+  
+  // Simple usage calculation for now
+  const messageCount = 0; // TODO: Implement message counting
+  const maxMessages = tier === 'free' ? 15 : tier === 'core' ? 1000 : 10000;
+  const remainingMessages = maxMessages - messageCount;
 
   const getTierDisplayName = (tier: string) => {
     switch (tier) {

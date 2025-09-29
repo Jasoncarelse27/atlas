@@ -1,45 +1,78 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabaseClient"
 
-export function useTierAccess() {
-  const [tier, setTier] = useState<"free" | "core" | "studio">("free")
+export function useTierAccess(userId?: string) {
+  const [tier, setTier] = useState<"free" | "core" | "studio" | null>(null)
   const [profile, setProfile] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    let active = true
+
+    const fetchTier = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          setTier("free")
-          setLoading(false)
+        console.log("🔍 useTierAccess - Fetching subscription tier...")
+
+        if (!userId) {
+          if (active) {
+            setTier("free")
+          }
           return
         }
 
         const { data, error } = await supabase
           .from("profiles")
           .select("subscription_tier")
-          .eq("id", user.id)
+          .eq("id", userId)
           .single()
 
+        if (!active) return
+
         if (!error && data?.subscription_tier) {
-          setTier(data.subscription_tier as "free" | "core" | "studio")
-          setProfile(data)
           console.log("🔍 useTierAccess - tier from Supabase:", data.subscription_tier)
+          const newTier = data.subscription_tier as "free" | "core" | "studio"
+          setTier(newTier)
+          setProfile(data)
+          console.log("🔍 useTierAccess - ✅ Tier set to:", newTier)
         } else {
-          console.warn("🔍 useTierAccess - profile fetch error:", error)
+          console.warn("🔍 useTierAccess - ⚠️ Invalid or missing tier, defaulting to free:", error)
           setTier("free")
         }
       } catch (error) {
-        console.error("🔍 useTierAccess - fetch error:", error)
-        setTier("free")
+        console.error("🔍 useTierAccess - ❌ Failed to fetch tier:", error)
+        if (active) setTier("free")
       } finally {
-        setLoading(false)
+        // ✅ No loading state needed - tier is either set or null
+        console.log("🔍 useTierAccess - ✅ Loading finished, tier:", tier)
       }
     }
 
-    fetchProfile()
-  }, [])
+    fetchTier()
+
+    // Real-time listener for tier updates
+    const channel = supabase
+      .channel("tier-updates")
+      .on(
+        "postgres_changes",
+        { 
+          event: "*", 
+          schema: "public", 
+          table: "profiles", 
+          filter: `id=eq.${userId}` 
+        },
+        (payload) => {
+          console.log("🔄 Real-time tier update:", payload.new?.subscription_tier)
+          if (active) {
+            setTier(payload.new?.subscription_tier || "free")
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      active = false
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
 
   // ✅ helper
   const requireTier = (required: "core" | "studio") => {
@@ -49,7 +82,7 @@ export function useTierAccess() {
   }
 
   const canUseFeature = (feature: string) => {
-    if (loading) return false
+    if (tier === null) return false
     if (!profile) return false
     
     if (tier === "studio") return true
@@ -71,7 +104,7 @@ export function useTierAccess() {
   return { 
     tier, 
     profile, 
-    loading, 
+    isLoading: tier === null,
     requireTier,
     canUseFeature, 
     showUpgradeModal

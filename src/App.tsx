@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
+import { TierProvider } from "./contexts/TierContext";
 import AuthPage from "./pages/AuthPage";
 import ChatPage from "./pages/ChatPage";
 import UpgradePage from "./pages/UpgradePage";
@@ -36,16 +37,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <Toaster position="top-center" />
-          <Routes>
-            <Route path="/login" element={<PublicAuthRoute />} />
-            <Route path="/chat" element={<ProtectedChatRoute />} />
-            <Route path="/upgrade" element={<UpgradePage />} />
-            <Route path="/" element={<Navigate to="/chat" replace />} />
-            <Route path="*" element={<Navigate to="/chat" replace />} />
-          </Routes>
-        </Router>
+        <TierProvider>
+          <Router>
+            <Toaster position="top-center" />
+            <Routes>
+              <Route path="/login" element={<PublicAuthRoute />} />
+              <Route path="/chat" element={<ProtectedChatRoute />} />
+              <Route path="/upgrade" element={<UpgradePage />} />
+              <Route path="/" element={<Navigate to="/chat" replace />} />
+              <Route path="*" element={<Navigate to="/chat" replace />} />
+            </Routes>
+          </Router>
+        </TierProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

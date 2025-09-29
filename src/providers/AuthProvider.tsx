@@ -17,17 +17,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial session fetch
+    // Load initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session) {
+        localStorage.setItem("supabase_session", JSON.stringify(session));
+      }
       setLoading(false);
     });
 
-    // Listen for session changes
+    // Keep session refreshed & synced
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session) {
+        localStorage.setItem("supabase_session", JSON.stringify(session));
+      } else {
+        localStorage.removeItem("supabase_session");
+      }
       setLoading(false);
     });
 

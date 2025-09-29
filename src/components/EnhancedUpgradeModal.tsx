@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Image, Mic, Sparkles, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSimpleTier } from '../hooks/useSimpleTier';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
-import { useTierAccess } from '../hooks/useTierAccess';
 
 interface EnhancedUpgradeModalProps {
   isOpen: boolean;
@@ -12,7 +12,12 @@ interface EnhancedUpgradeModalProps {
 
 export default function EnhancedUpgradeModal({ isOpen, onClose, feature }: EnhancedUpgradeModalProps) {
   const { user } = useSupabaseAuth();
-  const { showUpgradeModal } = useTierAccess(user?.id);
+  const { tier, loading, error } = useSimpleTier();
+  
+  // Simple upgrade modal handler
+  const showUpgradeModal = (feature: string) => {
+    console.log(`⚠️ Upgrade required for: ${feature}`);
+  };
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {

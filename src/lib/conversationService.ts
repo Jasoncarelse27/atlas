@@ -118,7 +118,6 @@ class ConversationServiceImpl implements ConversationService {
         .from('conversations')
         .insert({
           id: conversationId,
-          user_id: session.user.id,
           title: conversationTitle,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()

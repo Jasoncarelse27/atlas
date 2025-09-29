@@ -1,9 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
-import type { PendingAttachment } from "../stores/useMessageStore";
 import type { Message } from "../types/chat";
 import { audioService } from "./audioService";
 import { getUserTier } from "./subscriptionService";
-import { uploadWithAuth } from "./uploadService";
 
 export const chatService = {
   sendMessage: async (text: string, onComplete?: () => void) => {
@@ -19,7 +17,8 @@ export const chatService = {
     const currentTier = await getUserTier();
     
     // Get response from backend (JSON response, not streaming)
-    const response = await fetch("http://localhost:8000/message", {
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${backendUrl}/message`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -81,7 +80,7 @@ export const chatService = {
         const imageTier = await getUserTier();
         
         // Send multi-attachment analysis request to backend
-        const response = await fetch("http://localhost:8000/message", {
+        const response = await fetch("${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
@@ -128,7 +127,7 @@ export const chatService = {
           };
           
           console.log("[DEBUG] Frontend sending request to backend:", {
-            url: "http://localhost:8000/message",
+            url: "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message",
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -137,7 +136,7 @@ export const chatService = {
             body: requestBody
           });
           
-          const response = await fetch("http://localhost:8000/message", {
+          const response = await fetch("${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message", {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -177,76 +176,159 @@ export const chatService = {
 // Export the sendMessageWithAttachments function for resendService
 export async function sendMessageWithAttachments(
   conversationId: string,
-  userId: string,
-  { text, attachments }: {
-    text: string;
-    attachments: PendingAttachment[];
-  }
+  attachments: any[],
+  addMessage: (msg: any) => void,
+  caption?: string
 ) {
-  console.debug("[chatService] sendMessageWithAttachments", { conversationId, userId, text, attachments });
+  console.debug("[chatService] sendMessageWithAttachments", { conversationId, attachments, caption });
 
-  const safeAttachments = (attachments || []).slice(0, 5);
+  const tempId = crypto.randomUUID();
 
-  const content: any[] = [];
-
-  if (text && text.trim().length > 0) {
-    content.push({ type: "text", text });
-  }
-
-  // Upload attachments and add them to content
-  for (const attachment of safeAttachments) {
-    try {
-      // Upload the file and get the URL
-      const uploadResult = await uploadWithAuth(attachment.file, userId, attachment.caption || "");
-      
-      // Add to content with caption if provided
-      const attachmentContent: any = {
-        type: "image_url",
-        image_url: { url: uploadResult.url },
-      };
-      
-      // Include caption if provided
-      if (attachment.caption) {
-        attachmentContent.caption = attachment.caption;
-      }
-      
-      content.push(attachmentContent);
-    } catch (error) {
-      console.error("Failed to upload attachment:", error);
-      // Continue with other attachments even if one fails
-    }
-  }
-
-  const payload = {
-    messages: [
-      {
-        role: "user",
-        content: content.length > 0
-          ? content
-          : [{ type: "text", text: "Please analyze the following images:" }],
-      },
-    ],
-    max_tokens: 1000,
+  // ✅ Single message with all attachments and one caption
+  const newMessage = {
+    id: tempId,
+    conversationId,
+    role: "user",
+    type: "attachment", // ✅ mark as attachment type
+    content: caption || "", // ✅ single caption as content
+    attachments, // ✅ all attachments grouped together
+    status: "pending",
+    createdAt: new Date().toISOString(),
   };
 
-  console.debug("[chatService] Final payload for Anthropic:", payload);
+  console.log("[chatService] Sending message with caption + attachments:", newMessage);
+
+  // Show optimistically in UI
+  addMessage(newMessage);
 
   try {
-    const response = await fetch(`http://localhost:8000/message`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    // Upload each file to Supabase Storage
+    const uploadedAttachments = await Promise.all(
+      attachments.map(async (att) => {
+        if (!att.file) return att;
+        const fileName = `${Date.now()}-${att.file.name}`;
+        const filePath = `${conversationId}/${fileName}`;
+
+        const { error } = await supabase.storage
+          .from("uploads")
+          .upload(filePath, att.file, { upsert: true });
+
+        if (error) {
+          console.error("[chatService] Upload failed:", error);
+          return att;
+        }
+
+        const { data } = supabase.storage.from("uploads").getPublicUrl(filePath);
+        return { ...att, url: data.publicUrl };
+      })
+    );
+
+    // Save single message in Supabase with all attachments
+    const { error: dbError } = await supabase.from("messages").insert({
+      id: tempId,
+      conversation_id: conversationId,
+      role: "user",
+      content: caption || "", // ✅ single caption
+      metadata: { attachments: uploadedAttachments }, // ✅ all attachments together
+      created_at: new Date().toISOString(),
     });
 
-    if (!response.ok) {
-      throw new Error(`Backend error: ${response.status}`);
-    }
+    if (dbError) throw dbError;
 
-    const data = await response.json();
-    console.debug("[chatService] ✅ Backend response:", data);
-    return data;
+    console.log("[chatService] ✅ Message stored with caption + attachments");
+
+    // ✅ NEW: Send to backend for AI analysis
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || 'mock-token-for-development';
+      
+      // Get user's tier for the request
+      const currentTier = await getUserTier();
+      
+      console.log("[chatService] 🧠 Sending attachments to backend for AI analysis...");
+      
+      const response = await fetch("${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: caption || "Please analyze these images",
+          attachments: uploadedAttachments.map(att => ({
+            type: att.type,
+            url: att.url,
+            name: att.name
+          })),
+          conversationId: conversationId,
+          tier: currentTier
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[chatService] Backend analysis error:', errorData);
+        
+        // ✅ Handle tier gating response
+        if (response.status === 403 && errorData.upgrade) {
+          console.log("[chatService] ⚠️ Tier upgrade required for image analysis");
+          
+          // Add upgrade message to chat
+          const upgradeMessage = {
+            id: crypto.randomUUID(),
+            conversationId,
+            role: "assistant",
+            content: errorData.message,
+            createdAt: new Date().toISOString(),
+          };
+          
+          addMessage(upgradeMessage);
+          
+          // Save upgrade message to Supabase
+          await supabase.from("messages").insert({
+            id: upgradeMessage.id,
+            conversation_id: conversationId,
+            role: "assistant",
+            content: errorData.message,
+            created_at: new Date().toISOString(),
+          });
+        }
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.response) {
+        console.log("[chatService] ✅ AI analysis complete:", data.response);
+        
+        // ✅ Add AI response as assistant message
+        const aiMessage = {
+          id: crypto.randomUUID(),
+          conversationId,
+          role: "assistant",
+          content: data.response,
+          createdAt: new Date().toISOString(),
+        };
+        
+        addMessage(aiMessage);
+        
+        // Save AI response to Supabase
+        await supabase.from("messages").insert({
+          id: aiMessage.id,
+          conversation_id: conversationId,
+          role: "assistant",
+          content: data.response,
+          created_at: new Date().toISOString(),
+        });
+        
+        console.log("[chatService] ✅ AI response saved to database");
+      }
+    } catch (aiError) {
+      console.error("[chatService] ❌ AI analysis failed:", aiError);
+      // Don't throw - user message is still saved
+    }
   } catch (err) {
-    console.error("[chatService] ❌ sendMessageWithAttachments failed:", err);
-    throw err;
+    console.error("[chatService] ❌ Failed to send message:", err);
+    // Optionally mark message as failed in store
   }
 }// Force Vercel rebuild Sat Sep 27 16:47:24 SAST 2025

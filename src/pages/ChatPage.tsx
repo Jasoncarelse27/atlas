@@ -474,6 +474,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 isProcessing={isProcessing}
                 placeholder="Ask Atlas anything..."
                 onShowUpgradeModal={() => setUpgradeModalVisible(true)}
+                conversationId={conversationId || undefined}
               />
             </div>
           </div>

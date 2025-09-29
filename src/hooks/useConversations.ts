@@ -63,14 +63,12 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
     
     try {
       const newConversation = createNewConversation(title);
-      newConversation.user_id = user.id;
       
       // Insert into Supabase
       supabase
         .from('conversations')
         .insert([{
           id: newConversation.id,
-          user_id: user.id,
           title: newConversation.title,
           created_at: newConversation.createdAt,
           updated_at: newConversation.lastUpdated,
@@ -98,7 +96,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       
       // Fallback to local-only conversation if Supabase fails
       const fallbackConversation = createNewConversation(title);
-      fallbackConversation.user_id = user.id;
       
       setConversations(prev => [fallbackConversation, ...prev]);
       setCurrentConversation(fallbackConversation);
@@ -339,7 +336,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       
       // Fallback: create a new conversation locally
       const newConversation = createNewConversation();
-      newConversation.user_id = user.id;
       
       setConversations([newConversation]);
       setCurrentConversation(newConversation);

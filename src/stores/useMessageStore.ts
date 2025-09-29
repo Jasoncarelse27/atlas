@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";
 
 export interface PendingAttachment {
@@ -48,14 +49,39 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   
   updateMessage: async (id: string, patch: Partial<Message>) => {
     set((state) => ({
-      messages: state.messages.map((msg) =>
-        msg.id === id ? { ...msg, ...patch } : msg
-      ),
+      messages: state.messages.map((msg) => {
+        if (msg.id === id) {
+          // If message is being marked as sent or failed, cleanup object URLs
+          if (patch.status === 'sent' || patch.status === 'failed') {
+            if (msg.attachments) {
+              msg.attachments.forEach(attachment => {
+                if (attachment.url && attachment.url.startsWith('blob:')) {
+                  URL.revokeObjectURL(attachment.url);
+                }
+              });
+            }
+          }
+          return { ...msg, ...patch };
+        }
+        return msg;
+      }),
     }));
     console.log("[useMessageStore] Updated message:", id, patch);
   },
   
   clearMessages: () => {
+    // Cleanup object URLs before clearing
+    const state = get();
+    state.messages.forEach(msg => {
+      if (msg.attachments) {
+        msg.attachments.forEach(attachment => {
+          if (attachment.url && attachment.url.startsWith('blob:')) {
+            URL.revokeObjectURL(attachment.url);
+          }
+        });
+      }
+    });
+    
     set({ messages: [], isHydrated: false });
     console.log("[useMessageStore] Cleared all messages");
   },
@@ -66,10 +92,53 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   },
   
   hydrateFromOffline: async (conversationId: string) => {
-    // For now, just mark as hydrated
-    // In the future, this would load messages from offline storage
-    set({ isHydrated: true });
-    console.log("[useMessageStore] Hydrated from offline for conversation:", conversationId);
+    try {
+      console.log("[useMessageStore] Hydrating messages for conversation:", conversationId);
+      
+      // Fetch messages from Supabase
+      const { data: messages, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("[useMessageStore] Failed to fetch messages:", error);
+        set({ isHydrated: true });
+        return;
+      }
+
+      if (messages && messages.length > 0) {
+        // Convert Supabase messages to local format
+        const localMessages: Message[] = messages.map(msg => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant' | 'system',
+          type: (msg.message_type || 'text') as 'text' | 'image' | 'audio' | 'file' | 'mixed' | 'system' | 'attachment',
+          content: msg.content || '',
+          attachments: msg.metadata?.attachments || [],
+          metadata: msg.metadata || {},
+          status: 'sent' as const,
+          timestamp: msg.created_at,
+          createdAt: msg.created_at
+        }));
+
+        set({ 
+          messages: localMessages, 
+          isHydrated: true 
+        });
+        
+        console.log(`[useMessageStore] ✅ Hydrated ${localMessages.length} messages from Supabase`);
+      } else {
+        set({ 
+          messages: [], 
+          isHydrated: true 
+        });
+        console.log("[useMessageStore] No messages found in Supabase");
+      }
+    } catch (error) {
+      console.error("[useMessageStore] Error hydrating messages:", error);
+      set({ isHydrated: true });
+    }
   },
   
   // Pending attachments state
@@ -95,9 +164,54 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   clearPendingAttachments: () => set({ pendingAttachments: [] }),
   
   initConversation: async (userId: string) => {
-    // Generate a new conversation ID
-    const conversationId = crypto.randomUUID();
-    console.log("[useMessageStore] Initialized conversation:", conversationId, "for user:", userId);
-    return conversationId;
+    console.log("[useMessageStore] Initializing conversation for user:", userId);
+    
+    try {
+      // Try to fetch an existing conversation
+      const { data: convs, error } = await supabase
+        .from("conversations")
+        .select("*")
+        .eq("user_id", userId)
+        .limit(1);
+
+      if (error) {
+        console.error("[useMessageStore] Failed to fetch conversation", error);
+        // Fallback: create a local conversation ID
+        const fallbackId = crypto.randomUUID();
+        set({ conversationId: fallbackId });
+        console.log("[useMessageStore] Using fallback conversation:", fallbackId);
+        return fallbackId;
+      }
+
+      let conversationId = convs?.[0]?.id;
+      if (!conversationId) {
+        // Create a new conversation if none exists
+        const newId = crypto.randomUUID();
+        const { error: insertError } = await supabase
+          .from("conversations")
+          .insert({ id: newId, title: "New conversation" });
+
+        if (insertError) {
+          console.error("[useMessageStore] Failed to create conversation", insertError);
+          // Fallback: use local conversation ID
+          set({ conversationId: newId });
+          console.log("[useMessageStore] Using local conversation:", newId);
+          return newId;
+        }
+
+        conversationId = newId;
+      }
+
+      set({ conversationId });
+      console.log("[useMessageStore] Initialized conversation:", conversationId);
+      return conversationId;
+    } catch (err) {
+      console.error("[useMessageStore] Conversation init failed:", err);
+      // Ultimate fallback
+      const fallbackId = crypto.randomUUID();
+      set({ conversationId: fallbackId });
+      console.log("[useMessageStore] Using emergency fallback conversation:", fallbackId);
+      return fallbackId;
+    }
   },
 }));

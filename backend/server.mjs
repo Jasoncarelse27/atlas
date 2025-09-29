@@ -695,6 +695,15 @@ app.post("/message",
           if (attachments && attachments.length > 0) {
             console.log("[ATTACHMENTS] Processing multi-attachment analysis for:", attachments.length, "files");
             
+            // ✅ TIER GATING: Check if user can analyze attachments
+            if (effectiveTier === 'free') {
+              return res.status(403).json({
+                success: false,
+                message: "Image and file analysis is available for Core and Studio users. Upgrade to unlock this feature!",
+                upgrade: true
+              });
+            }
+            
             const content = [
               {
                 type: 'text',

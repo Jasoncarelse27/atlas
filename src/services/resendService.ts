@@ -1,17 +1,19 @@
 import { useMessageStore } from '../stores/useMessageStore';
-import { offlineMessageStore } from './offlineMessageStore';
-import { syncService } from './syncService';
 import { sendMessageWithAttachments } from './chatService';
-import type { Message } from '../types/chat';
+import { offlineMessageStore } from './offlineMessageStore';
 
 export interface ResendResult {
   success: boolean;
   messageId: string;
   error?: string;
+  retryCount?: number;
 }
 
 class ResendService {
   private isResending = false;
+  private retryAttempts = new Map<string, number>(); // Track retry attempts per message
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s
 
   /**
    * Resend all failed messages when connection is restored
@@ -62,67 +64,120 @@ class ResendService {
   }
 
   /**
-   * Resend a single failed message
+   * Resend a single failed message with exponential backoff retry
    */
   async resendSingleMessage(message: any): Promise<ResendResult> {
-    console.log(`[RESEND] Resending message ${message.id}...`);
+    const messageId = message.id;
+    const currentRetries = this.retryAttempts.get(messageId) || 0;
+    
+    console.log(`[RESEND] Resending message ${messageId} (attempt ${currentRetries + 1}/${this.MAX_RETRIES})...`);
 
     try {
       // Mark as retried in offline store
-      await offlineMessageStore.markAsRetried(message.id);
+      await offlineMessageStore.markAsRetried(messageId);
 
       // Update the message in Zustand store to show retry status
       const messageStore = useMessageStore.getState();
-      messageStore.updateMessage(message.id, {
+      messageStore.updateMessage(messageId, {
         status: 'sending',
         error: false,
       });
 
       // Determine if this is a text message or has attachments
       if (message.attachments && message.attachments.length > 0) {
-        // Resend message with attachments
-        await sendMessageWithAttachments({
-          conversationId: message.conversation_id,
-          userId: message.user_id,
-          text: typeof message.content === 'string' ? message.content : '',
-          attachments: message.attachments,
-        });
+        // Resend message with attachments using retry logic
+        await this.resendMessageWithAttachments(message);
       } else {
         // Resend simple text message
         await this.resendTextMessage(message);
       }
 
       // Mark as sent in Zustand store
-      messageStore.updateMessage(message.id, {
+      messageStore.updateMessage(messageId, {
         status: 'sent',
         error: false,
       });
 
-      console.log(`[RESEND] ✅ Message ${message.id} resent successfully`);
+      // Clear retry attempts on success
+      this.retryAttempts.delete(messageId);
+
+      console.log(`[RESEND] ✅ Message ${messageId} resent successfully`);
       return {
         success: true,
-        messageId: message.id,
+        messageId: messageId,
+        retryCount: currentRetries + 1,
       };
 
     } catch (error) {
-      console.error(`[RESEND] Failed to resend message ${message.id}:`, error);
+      console.error(`[RESEND] Failed to resend message ${messageId}:`, error);
       
-      // Mark as failed in Zustand store
-      const messageStore = useMessageStore.getState();
-      messageStore.updateMessage(message.id, {
-        status: 'failed',
-        error: error.message,
-      });
+      const newRetryCount = currentRetries + 1;
+      this.retryAttempts.set(messageId, newRetryCount);
 
-      // Mark as sync failed in offline store
-      await offlineMessageStore.markAsSyncFailed(message.id, error.message);
+      // Check if we should retry again
+      if (newRetryCount < this.MAX_RETRIES) {
+        const delay = this.RETRY_DELAYS[newRetryCount - 1];
+        console.log(`[RESEND] Will retry message ${messageId} in ${delay}ms (attempt ${newRetryCount + 1}/${this.MAX_RETRIES})`);
+        
+        // Schedule retry with exponential backoff
+        setTimeout(async () => {
+          try {
+            await this.resendSingleMessage(message);
+          } catch (retryError) {
+            console.error(`[RESEND] Retry failed for message ${messageId}:`, retryError);
+          }
+        }, delay);
 
-      return {
-        success: false,
-        messageId: message.id,
-        error: error.message,
-      };
+        // Mark as pending retry in Zustand store
+        const messageStore = useMessageStore.getState();
+        messageStore.updateMessage(messageId, {
+          status: 'pending',
+          error: `Retrying in ${delay}ms...`,
+        });
+
+        return {
+          success: false,
+          messageId: messageId,
+          error: `Retrying in ${delay}ms...`,
+          retryCount: newRetryCount,
+        };
+      } else {
+        // Max retries exceeded, mark as failed
+        const messageStore = useMessageStore.getState();
+        messageStore.updateMessage(messageId, {
+          status: 'failed',
+          error: error.message,
+        });
+
+        // Mark as sync failed in offline store
+        await offlineMessageStore.markAsSyncFailed(messageId, error.message);
+
+        // Clear retry attempts
+        this.retryAttempts.delete(messageId);
+
+        return {
+          success: false,
+          messageId: messageId,
+          error: error.message,
+          retryCount: newRetryCount,
+        };
+      }
     }
+  }
+
+  /**
+   * Resend a message with attachments using retry logic
+   */
+  private async resendMessageWithAttachments(message: any): Promise<void> {
+    console.log(`[RESEND] Resending message with attachments ${message.id}`);
+    
+    // Use the existing sendMessageWithAttachments function with retry logic
+    const messageStore = useMessageStore.getState();
+    await sendMessageWithAttachments(
+      message.conversation_id,
+      message.attachments,
+      messageStore.addMessage
+    );
   }
 
   /**
