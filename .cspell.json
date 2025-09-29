@@ -1,0 +1,22 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "Dexie",
+    "dexie",
+    "Supabase",
+    "supabase",
+    "SUPABASE",
+    "apikey",
+    "healthz",
+    "PGRST",
+    "fastspring",
+    "popperjs",
+    "indexeddb",
+    "schemaname",
+    "rowsecurity",
+    "conv"
+  ],
+  "ignoreWords": [],
+  "import": []
+}

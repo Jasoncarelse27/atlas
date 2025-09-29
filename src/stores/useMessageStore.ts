@@ -44,7 +44,10 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
     set((state) => ({
       messages: [...state.messages, message],
     }));
-    console.log("[useMessageStore] Added message:", message.id);
+    // Reduced logging for performance
+    if (import.meta.env.DEV) {
+      console.log("[useMessageStore] Added message:", message.id);
+    }
   },
   
   updateMessage: async (id: string, patch: Partial<Message>) => {

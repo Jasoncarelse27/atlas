@@ -13,7 +13,10 @@ interface EnhancedMessageBubbleProps {
 }
 
 export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false }: EnhancedMessageBubbleProps) {
-  console.log("[RENDER] message:", message);
+  // Reduced logging for performance
+  if (import.meta.env.DEV && Math.random() < 0.01) { // Only log 1% of renders in dev
+    console.log("[RENDER] message:", message);
+  }
   
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -242,19 +245,22 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
     // For assistant messages, show typing effect if it's the latest message
     if (isLatest && !isUser) {
-      const timer = setTimeout(() => {
-        if (currentIndex < messageContent.length) {
-          setDisplayedText(messageContent.slice(0, currentIndex + 1));
-          setCurrentIndex(currentIndex + 1);
-        }
+      const timer = setInterval(() => {
+        setCurrentIndex(prevIndex => {
+          if (prevIndex < messageContent.length) {
+            setDisplayedText(messageContent.slice(0, prevIndex + 1));
+            return prevIndex + 1;
+          }
+          return prevIndex;
+        });
       }, 8); // Typing speed: 8ms per character (fast like before)
 
-      return () => clearTimeout(timer);
+      return () => clearInterval(timer);
     } else if (!isLatest) {
       // For older messages, show full content immediately
       setDisplayedText(messageContent);
     }
-  }, [currentIndex, messageContent, isUser, isLatest]);
+  }, [messageContent, isUser, isLatest]); // Removed currentIndex from dependencies
 
   // Reset typing effect when message changes
   useEffect(() => {

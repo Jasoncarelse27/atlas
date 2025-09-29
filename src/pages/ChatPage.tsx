@@ -10,7 +10,7 @@ import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { usePersistentMessages } from '../hooks/usePersistentMessages';
 import ErrorBoundary from '../lib/errorBoundary';
-import { checkSupabaseHealth } from '../lib/supabaseClient';
+import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
 import { runDbMigrations } from '../services/dbMigrations';
 import { useMessageStore } from '../stores/useMessageStore';
@@ -93,11 +93,48 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       await addMessage(message);
 
       // Use chatService as the single source of truth
-      await chatService.sendMessage(text, () => {
+      const assistantResponse = await chatService.sendMessage(text, () => {
         setIsTyping(false);
         // Update message status to sent
         updateMessage(message.id, { status: 'sent' });
       });
+
+      // ✅ Add assistant response to message store
+      if (assistantResponse) {
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          type: 'text',
+          content: assistantResponse,
+          timestamp: new Date().toISOString(),
+          status: 'sent',
+        };
+
+        await addMessage(assistantMessage);
+        
+        // ✅ Save assistant message to Supabase
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          const { error } = await supabase.from("messages").insert({
+            id: assistantMessage.id,
+            conversation_id: conversationId,
+            user_id: user?.id, // ✅ Include user_id for RLS compliance
+            role: 'assistant',
+            content: assistantResponse,
+            created_at: new Date().toISOString(),
+          });
+          
+          if (error) {
+            console.error("[ChatPage] Failed to save assistant message to Supabase:", error);
+          } else {
+            console.log("[ChatPage] ✅ Assistant message saved to Supabase");
+          }
+        } catch (error) {
+          console.error("[ChatPage] Error saving assistant message:", error);
+        }
+        
+        console.log("[ChatPage] ✅ Added assistant response to message store");
+      }
     } catch (error) {
       console.error('Text message handling error:', error);
       setIsTyping(false);

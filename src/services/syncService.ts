@@ -57,7 +57,7 @@ class SyncService {
       if (this.isOnline && !this.syncInProgress) {
         this.syncPendingMessages();
       }
-    }, 30000); // 30 seconds
+    }, 120000); // 2 minutes (reduced from 30 seconds)
 
     // Also sync immediately
     this.syncPendingMessages();
@@ -96,7 +96,10 @@ class SyncService {
     if (!this.isOnline || this.syncInProgress) return;
     
     this.syncInProgress = true;
-    console.log('[SYNC] Starting sync of pending messages...');
+    // Reduced logging for performance
+    if (import.meta.env.DEV) {
+      console.log('[SYNC] Starting sync of pending messages...');
+    }
     
     try {
       const pendingMessages = await offlineMessageStore.getPendingMessages();
@@ -104,7 +107,10 @@ class SyncService {
       const allMessages = [...pendingMessages, ...failedMessages];
       
       if (allMessages.length === 0) {
-        console.log('[SYNC] No messages to sync');
+        // Only log in development
+        if (import.meta.env.DEV) {
+          console.log('[SYNC] No messages to sync');
+        }
         return;
       }
       

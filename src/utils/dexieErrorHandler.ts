@@ -1,7 +1,7 @@
 
 
 
-let resetAttempts = 0;
+// let resetAttempts = 0; // Unused variable removed
 
 export async function handleDexieError(error: any) {
   // COMPLETELY DISABLED TO PREVENT RESET LOOPS
@@ -57,5 +57,7 @@ export async function handleDexieError(error: any) {
   //   }
   // } else {
   //   console.error("[DexieErrorHandler] Unhandled error:", error)
-  // }
+  //   }
 }
+
+// ESM export handled above

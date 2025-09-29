@@ -80,7 +80,7 @@ export const chatService = {
         const imageTier = await getUserTier();
         
         // Send multi-attachment analysis request to backend
-        const response = await fetch("${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message", {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
@@ -127,7 +127,7 @@ export const chatService = {
           };
           
           console.log("[DEBUG] Frontend sending request to backend:", {
-            url: "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message",
+            url: `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`,
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -136,7 +136,7 @@ export const chatService = {
             body: requestBody
           });
           
-          const response = await fetch("${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message", {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`, {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -247,7 +247,7 @@ export async function sendMessageWithAttachments(
       
       console.log("[chatService] 🧠 Sending attachments to backend for AI analysis...");
       
-      const response = await fetch("${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

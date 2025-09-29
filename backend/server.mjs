@@ -1,5 +1,5 @@
 // Load environment variables FIRST before any other imports
-import dotenv from "dotenv";
+import dotenvSafe from 'dotenv-safe';
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -16,17 +16,25 @@ console.log(`🌍 Environment: ${nodeEnv}`);
 console.log(`📁 Loading environment from: ${envFile}`);
 
 // Load environment variables from the appropriate .env file IMMEDIATELY
+import dotenv from "dotenv";
 dotenv.config({ path: path.join(__dirname, "..", envFile) });
 
+// Configure dotenv-safe with example file
+dotenvSafe.config({
+  path: path.join(__dirname, "..", envFile),
+  example: path.join(__dirname, "..", ".env.example"),
+  allowEmptyValues: true
+});
+
 // Verify critical environment variables are loaded
-const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+const requiredVars = ['ANTHROPIC_API_KEY', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'];
 const optionalVars = ['VITE_PADDLE_CLIENT_TOKEN', 'VITE_PADDLE_CORE_PRICE_ID', 'VITE_PADDLE_STUDIO_PRICE_ID'];
 
 const missingRequired = requiredVars.filter(varName => !process.env[varName]);
 const missingOptional = optionalVars.filter(varName => !process.env[varName]);
 
 if (missingRequired.length > 0) {
-  console.error(`❌ MISSING REQUIRED ENVIRONMENT VARIABLES: ${missingRequired.join(', ')}`);
+  console.error(`❌ Missing required env vars: ${missingRequired.join(', ')}`);
   console.error(`📁 Check your ${envFile} file`);
   
   if (isCI) {
@@ -43,7 +51,7 @@ if (missingOptional.length > 0) {
   console.warn(`📝 Paddle features will be disabled until these are configured`);
 }
 
-console.log('✅ Required environment variables loaded successfully');
+console.log('✅ All required env vars loaded');
 console.log(`✅ Supabase URL: ${process.env.SUPABASE_URL}`);
 console.log(`✅ Service Role Key: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '***configured***' : 'MISSING'}`);
 console.log(`✅ Anon Key: ${process.env.SUPABASE_ANON_KEY ? '***configured***' : 'MISSING'}`);
@@ -255,7 +263,7 @@ app.get("/api/debug/subscriptions/:userId", async (req, res) => {
 // Global auth middleware (except for health endpoints, paddle test, and JWT-protected routes)
 app.use((req, res, next) => {
   // Skip auth middleware for public endpoints
-  if (req.path === '/healthz' || req.path === '/api/healthz' || req.path === '/ping' || req.path === '/admin/paddle-test') {
+  if (req.path === '/healthz' || req.path === '/api/healthz' || req.path === '/ping' || req.path === '/admin/paddle-test' || req.path === '/test-ai') {
     return next();
   }
   
@@ -300,6 +308,31 @@ app.get("/healthz", async (req, res) => {
 });
 app.get("/api/healthz", (req, res) => res.status(200).json(healthPayload()));
 app.get("/ping", (req, res) => res.status(200).json({ status: "ok", timestamp: new Date().toISOString() }));
+
+// Simple test endpoint to check API key without auth (BEFORE auth middleware)
+app.post("/test-ai", (req, res) => {
+  console.log("🧪 TEST AI ENDPOINT CALLED");
+  console.log("🔍 API Key Debug:", {
+    hasKey: !!process.env.ANTHROPIC_API_KEY,
+    keyLength: process.env.ANTHROPIC_API_KEY?.length || 0,
+    keyStart: process.env.ANTHROPIC_API_KEY?.substring(0, 10) || 'none'
+  });
+  
+  if (process.env.ANTHROPIC_API_KEY) {
+    res.json({ 
+      success: true, 
+      message: "API key detected!",
+      keyLength: process.env.ANTHROPIC_API_KEY.length,
+      keyStart: process.env.ANTHROPIC_API_KEY.substring(0, 10)
+    });
+  } else {
+    res.json({ 
+      success: false, 
+      message: "No API key found" 
+    });
+  }
+});
+
 
 // --- User Profile Endpoints ---
 // User profile endpoint with fallback creation
@@ -473,6 +506,7 @@ app.post("/message",
   verifyJWT, // JWT verification
   // Smart daily limit middleware - only for free tier
   async (req, res, next) => {
+    console.log("🚀 MESSAGE REQUEST RECEIVED:", { body: req.body, user: req.user?.id });
     try {
       // Development bypass
       if (process.env.DEV_BYPASS_LIMITS === 'true' || process.env.DISABLE_RATE_LIMIT === 'true') {
@@ -680,6 +714,13 @@ app.post("/message",
       let actualOutputTokens = 0;
       
       try {
+        // 🔍 DEBUG: Check API key status
+        console.log("🔍 API Key Debug:", {
+          hasKey: !!process.env.ANTHROPIC_API_KEY,
+          keyLength: process.env.ANTHROPIC_API_KEY?.length || 0,
+          keyStart: process.env.ANTHROPIC_API_KEY?.substring(0, 10) || 'none'
+        });
+        
         if (process.env.ANTHROPIC_API_KEY) {
           await logInfo("Calling Anthropic API", {
             model: selectedModelName,
