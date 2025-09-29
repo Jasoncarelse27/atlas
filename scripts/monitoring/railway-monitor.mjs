@@ -94,17 +94,37 @@ async function testAPIEndpoints() {
           status: 'success', 
           responseTime: response.headers['x-response-time'] || 'N/A'
         });
+      } else if (response.status === 401 && endpoint.path === '/') {
+        // Root endpoint returning 401 is expected (auth required)
+        log('SUCCESS', `${endpoint.name} is working (401 auth required as expected)`);
+        results.push({ 
+          endpoint: endpoint.name, 
+          status: 'success', 
+          responseTime: response.headers['x-response-time'] || 'N/A',
+          note: '401 auth required (expected)'
+        });
       }
     } catch (error) {
-      log('ERROR', `${endpoint.name} failed`, {
-        status: error.response?.status,
-        message: error.message
-      });
-      results.push({ 
-        endpoint: endpoint.name, 
-        status: 'error', 
-        error: error.message 
-      });
+      // Don't treat 401 on root endpoint as an error (expected auth behavior)
+      if (error.response?.status === 401 && endpoint.path === '/') {
+        log('SUCCESS', `${endpoint.name} is working (401 auth required as expected)`);
+        results.push({ 
+          endpoint: endpoint.name, 
+          status: 'success', 
+          responseTime: 'N/A',
+          note: '401 auth required (expected)'
+        });
+      } else {
+        log('ERROR', `${endpoint.name} failed`, {
+          status: error.response?.status,
+          message: error.message
+        });
+        results.push({ 
+          endpoint: endpoint.name, 
+          status: 'error', 
+          error: error.message 
+        });
+      }
     }
   }
 
