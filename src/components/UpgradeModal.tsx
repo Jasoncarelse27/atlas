@@ -42,18 +42,34 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
   const handleUpgrade = async (tier: 'core' | 'studio') => {
     try {
       setLoading(tier);
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error("Not logged in");
+      
+      // For development, just update the database directly
+      if (process.env.NODE_ENV === 'development') {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) throw new Error("Not logged in");
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({ subscription_tier: tier })
-        .eq("id", user.id);
+        const { error } = await supabase
+          .from("profiles")
+          .update({ subscription_tier: tier })
+          .eq("id", user.id);
 
-      if (error) throw error;
-      console.log(`[UpgradeModal] ✅ Upgraded to ${tier}`);
-      onClose();
-      window.location.reload();
+        if (error) throw error;
+        console.log(`[UpgradeModal] ✅ Development: Upgraded to ${tier}`);
+        toast.success(`Upgraded to ${tier} tier!`);
+        onClose();
+        window.location.reload();
+        return;
+      }
+
+      // For production, redirect to payment page
+      const paymentUrls = {
+        core: 'https://your-payment-page.com/core', // Replace with your actual payment URLs
+        studio: 'https://your-payment-page.com/studio'
+      };
+      
+      console.log(`[UpgradeModal] 🚀 Redirecting to payment for ${tier}`);
+      window.location.href = paymentUrls[tier];
+      
     } catch (err) {
       console.error("[UpgradeModal] ❌ Upgrade failed:", err);
       toast.error("Upgrade failed. Please try again.");

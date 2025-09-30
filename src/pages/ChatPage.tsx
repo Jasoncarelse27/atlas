@@ -101,6 +101,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
       // ✅ Add assistant response to message store
       if (assistantResponse) {
+        console.log("[ChatPage] Adding assistant response to UI:", assistantResponse);
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -134,6 +135,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
         
         console.log("[ChatPage] ✅ Added assistant response to message store");
+      } else {
+        console.warn("[ChatPage] ⚠️ No assistant response received from chatService");
       }
     } catch (error) {
       console.error('Text message handling error:', error);

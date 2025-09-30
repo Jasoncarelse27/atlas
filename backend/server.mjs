@@ -69,14 +69,12 @@ try {
 
 // External AI API keys
 const ANTHROPIC_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY;
-const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
 
 // Log API key availability
 console.log('🔑 API Keys Status:');
 console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
-console.log(`  Groq: ${GROQ_API_KEY ? '✅ Available' : '❌ Missing'}`);
-if (!ANTHROPIC_API_KEY && !GROQ_API_KEY) {
-  console.log('⚠️  No AI API keys found - will use mock responses');
+if (!ANTHROPIC_API_KEY) {
+  console.log('⚠️  No AI API key found - will use mock responses');
 }
 
 // Model mapping by tier
@@ -114,9 +112,14 @@ async function streamAnthropicResponse({ content, model, res }) {
     })
   });
 
-  if (!response.ok || !response.body) {
+  if (!response.ok) {
     const errText = await response.text().catch(() => 'Anthropic request failed');
-    throw new Error(errText);
+    console.error('❌ Anthropic API Error:', errText);
+    throw new Error(`Anthropic API Error: ${errText}`);
+  }
+  
+  if (!response.body) {
+    throw new Error('No response body from Anthropic API');
   }
 
   // Proper SSE streaming with chunk processing
@@ -157,98 +160,60 @@ async function streamAnthropicResponse({ content, model, res }) {
   return fullText;
 }
 
-// Stream Groq response with proper SSE handling
-async function streamGroqResponse({ content, res }) {
-  if (!GROQ_API_KEY) {
-    throw new Error('Missing Groq API key');
-  }
-  
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Accept': 'text/event-stream'
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      stream: true,
-      messages: [{ role: 'user', content }]
-    })
-  });
 
-  if (!response.ok || !response.body) {
-    const errText = await response.text().catch(() => 'Groq request failed');
-    throw new Error(errText);
-  }
-
-  // Proper SSE streaming with chunk processing
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-          
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.choices?.[0]?.delta?.content) {
-              const textChunk = parsed.choices[0].delta.content;
-              fullText += textChunk;
-              // Send chunk to client using writeSSE helper
-              writeSSE(res, { chunk: textChunk });
-            }
-          } catch (e) {
-            // Skip invalid JSON
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  
-  return fullText;
-}
-
-// JWT verification middleware with development fallback
+// Enhanced JWT verification middleware with development fallback
 const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+      console.log('🔐 JWT: Missing or invalid authorization header');
+      return res.status(401).json({ 
+        error: 'Missing or invalid authorization header',
+        details: 'Please ensure you are logged in and try again'
+      });
     }
 
     const token = authHeader.substring(7);
     
-    // Development mode: allow mock token
-    if (token === 'mock-token-for-development') {
+    // Development mode: allow mock token or bypass for local testing
+    if (token === 'mock-token-for-development' || process.env.NODE_ENV === 'development') {
+      console.log('🔐 JWT: Using development mode bypass');
       req.user = { id: '550e8400-e29b-41d4-a716-446655440000' };
       return next();
     }
     
-    // Production mode: verify the JWT token with Supabase
+    // Enhanced Supabase JWT verification with better error handling
+    console.log('🔐 JWT: Verifying token with Supabase...');
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
-    if (error || !user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+    if (error) {
+      console.error('🔐 JWT: Supabase verification error:', error.message);
+      return res.status(401).json({ 
+        error: 'Invalid or expired token',
+        details: error.message,
+        code: 'TOKEN_VERIFICATION_FAILED'
+      });
+    }
+    
+    if (!user) {
+      console.error('🔐 JWT: No user found in token');
+      return res.status(401).json({ 
+        error: 'No user found in token',
+        details: 'Token may be expired or invalid',
+        code: 'NO_USER_IN_TOKEN'
+      });
     }
 
+    console.log('🔐 JWT: Token verified successfully for user:', user.id);
     req.user = user;
     next();
   } catch (error) {
-    console.error('JWT verification error:', error);
-    res.status(401).json({ error: 'Token verification failed' });
+    console.error('🔐 JWT: Unexpected error during verification:', error);
+    res.status(401).json({ 
+      error: 'Token verification failed',
+      details: error.message,
+      code: 'UNEXPECTED_ERROR'
+    });
   }
 };
 
@@ -262,7 +227,6 @@ app.use(helmet({
         "https://*.supabase.co",
         "https://openrouter.ai",
         "https://api.anthropic.com",
-        "https://api.groq.com",
         "ws://localhost:*",
         "wss://localhost:*"
       ],
@@ -290,9 +254,10 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.ALLOWED_ORIGINS?.split(',') || ['*']
     : [
+        'http://localhost:5174', 
+        'http://localhost:5175',
         'http://localhost:5173', 
         'http://localhost:3000', 
-        'http://localhost:5174', 
         'http://localhost:8081', 
         'http://127.0.0.1:8081', 
         'exp://127.0.0.1:19000', 
@@ -303,7 +268,7 @@ app.use(cors({
       ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'Accept']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -355,6 +320,20 @@ app.get('/api/status', (req, res) => {
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Authentication status endpoint for debugging
+app.get('/api/auth/status', (req, res) => {
+  const authHeader = req.headers.authorization;
+  const hasToken = authHeader && authHeader.startsWith('Bearer ');
+  
+  res.json({
+    hasAuthHeader: !!authHeader,
+    hasValidFormat: hasToken,
+    environment: process.env.NODE_ENV || 'development',
+    developmentMode: process.env.NODE_ENV === 'development',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -491,9 +470,9 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       selectedModel = 'claude-3-5-sonnet';
       routedProvider = 'claude';
     } else {
-      // Free tier - use Groq for cost efficiency
-      selectedModel = 'llama-3.3-70b-versatile';
-      routedProvider = 'groq';
+      // Free tier - use Claude Haiku for cost efficiency
+      selectedModel = 'claude-3-5-haiku-20241022';
+      routedProvider = 'claude';
     }
     
     console.log(`🎯 User tier: ${effectiveTier}, Selected model: ${selectedModel}, Provider: ${routedProvider}`);
@@ -520,29 +499,19 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       try {
         console.log(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
         
-        // 🎯 Real AI Model Logic - Prioritize Claude/Groq based on tier
+        // 🎯 Real AI Model Logic - Use Claude based on tier
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           console.log('🚀 Streaming Claude response...');
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
           console.log('✅ Claude streaming completed, final text length:', finalText.length);
-        } else if (routedProvider === 'groq' && GROQ_API_KEY) {
-          console.log('🚀 Streaming Groq response...');
-          finalText = await streamGroqResponse({ content: message.trim(), res });
-          console.log('✅ Groq streaming completed, final text length:', finalText.length);
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           console.log('🔄 Falling back to Claude...');
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
           console.log('✅ Claude fallback completed, final text length:', finalText.length);
-        } else if (GROQ_API_KEY) {
-          // Fallback to Groq if available
-          console.log('🔄 Falling back to Groq...');
-          finalText = await streamGroqResponse({ content: message.trim(), res });
-          console.log('✅ Groq fallback completed, final text length:', finalText.length);
         } else {
           console.log('⚠️ No AI API keys available, using mock streaming...');
           console.log(`   Claude API Key: ${ANTHROPIC_API_KEY ? 'Present' : 'Missing'}`);
-          console.log(`   Groq API Key: ${GROQ_API_KEY ? 'Present' : 'Missing'}`);
           // Fallback mock streaming for mobile
           const mockChunks = [
             'Hello! I received your message: ',
@@ -624,20 +593,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         });
         const data = await r.json();
         finalText = data?.content?.[0]?.text || finalText;
-              } else if (routedProvider === 'groq' && GROQ_API_KEY) {
-          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${GROQ_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: 'llama-3.3-70b-versatile',
-              messages: [{ role: 'user', content: message.trim() }]
-            })
-          });
-        const data = await r.json();
-        finalText = data?.choices?.[0]?.message?.content || finalText;
       } else if (ANTHROPIC_API_KEY) {
         // Fallback to Claude
         const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -655,21 +610,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         });
         const data = await r.json();
         finalText = data?.content?.[0]?.text || finalText;
-      } else if (GROQ_API_KEY) {
-        // Fallback to Groq
-        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: message.trim() }]
-          })
-        });
-        const data = await r.json();
-        finalText = data?.choices?.[0]?.message?.content || finalText;
       }
     } catch (oneShotErr) {
       console.error('One-shot provider error:', oneShotErr);
@@ -715,6 +655,95 @@ app.post('/api/message', verifyJWT, async (req, res) => {
   } catch (error) {
     console.error('Message processing error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Image analysis endpoint using Claude Vision
+app.post('/api/image-analysis', verifyJWT, async (req, res) => {
+  try {
+    const { imageUrl, userId, prompt = "Analyze this image and provide detailed insights about what you see." } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Image URL is required' });
+    }
+
+    console.log('🖼️ [Image Analysis] Processing image:', imageUrl);
+
+    // Call Claude Vision API
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: prompt
+              },
+              {
+                type: 'image',
+                source: {
+                  type: 'url',
+                  url: imageUrl
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Claude Vision API error');
+      console.error('❌ Claude Vision API Error:', errorText);
+      return res.status(500).json({ 
+        error: 'Image analysis failed',
+        details: errorText
+      });
+    }
+
+    const result = await response.json();
+    const analysis = result.content[0].text;
+
+    console.log('✅ [Image Analysis] Analysis complete');
+
+    // Store analysis in database (optional)
+    if (supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        await supabase.from('image_analyses').insert({
+          user_id: userId,
+          image_url: imageUrl,
+          analysis: analysis,
+          prompt: prompt,
+          created_at: new Date().toISOString()
+        });
+      } catch (dbError) {
+        console.error('Error storing image analysis:', dbError);
+        // Continue without failing the request
+      }
+    }
+
+    res.json({
+      success: true,
+      analysis: analysis,
+      imageUrl: imageUrl,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Image analysis error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 });
 
@@ -935,19 +964,11 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
       return res.status(400).json({ error: "Missing user ID" });
     }
 
-    // Extract the Bearer token from the Authorization header
-    const token = req.headers['authorization']?.replace('Bearer ', '').trim();
+    // User is already verified by JWT middleware
+    const authUser = req.user;
     
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided.' });
-    }
-
-    // Pass token explicitly to Supabase client
-    const { data: authUser, error: authError } = await supabase.auth.getUser(token);
-    
-    // Handle Supabase errors or missing user
-    if (authError || !authUser?.user?.id) {
-      console.error('Supabase getUser error:', authError);
+    if (!authUser?.id) {
+      console.error('No authenticated user found in request');
       return res.status(401).json({ error: 'Missing or invalid authenticated user.' });
     }
 

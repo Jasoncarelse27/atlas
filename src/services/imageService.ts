@@ -45,7 +45,8 @@ export const imageService = {
         metadata: { size: file.size, type: file.type },
       });
 
-      return { filePath, publicUrl: this.getPublicUrl(filePath) };
+      const publicUrl = this.getPublicUrl(filePath);
+      return { filePath, publicUrl, url: publicUrl };
     } catch (err) {
       console.error("Image upload error:", err);
       throw err;
@@ -57,7 +58,7 @@ export const imageService = {
     return data.publicUrl;
   },
 
-  async scanImage(filePath: string, userId: string) {
+  async scanImage(filePath: string, userId: string, prompt?: string) {
     try {
       logEvent("image_scan_request", { filePath });
 
@@ -66,25 +67,37 @@ export const imageService = {
         user_id: userId,
         event_name: "image_scan_request",
         file_path: filePath,
-        metadata: { model: "claude-opus" },
+        metadata: { model: "claude-3-5-sonnet-20241022" },
       });
 
-      // Call Claude Vision API through backend/edge function
-      const res = await fetch(`/functions/v1/image-scan`, {
+      // Get the public URL for the image
+      const imageUrl = this.getPublicUrl(filePath);
+
+      // Call our backend image analysis endpoint
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/image-analysis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filePath, userId }),
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ 
+          imageUrl, 
+          userId, 
+          prompt: prompt || "Analyze this image and provide detailed insights about what you see."
+        }),
       });
       
       if (!res.ok) {
-        logEvent("image_scan_fail", { error: "API call failed" });
+        const errorData = await res.json().catch(() => ({}));
+        logEvent("image_scan_fail", { error: errorData.details || "API call failed" });
         await supabase.from("image_events").insert({
           user_id: userId,
           event_name: "image_scan_fail",
           file_path: filePath,
-          metadata: { error: "API call failed" },
+          metadata: { error: errorData.details || "API call failed" },
         });
-        throw new Error("Image scan failed");
+        throw new Error(errorData.details || "Image scan failed");
       }
 
       const result = await res.json();
@@ -129,5 +142,19 @@ export const imageService = {
     } catch (err) {
       console.error("Failed to log upgrade prompt:", err);
     }
+  },
+
+  // File validation helpers
+  isFormatSupported(mimeType: string): boolean {
+    const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    return supportedFormats.includes(mimeType);
+  },
+
+  getSupportedFormats(): string[] {
+    return ['JPEG', 'PNG', 'GIF', 'WebP'];
+  },
+
+  getMaxFileSize(): number {
+    return 10 * 1024 * 1024; // 10MB
   },
 };

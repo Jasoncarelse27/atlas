@@ -7,6 +7,7 @@ interface ImageUploaderProps {
   onError: (error: string) => void;
   onCancel: () => void;
   isVisible: boolean;
+  userId: string;
 }
 
 interface UploadState {
@@ -20,7 +21,8 @@ export function ImageUploader({
   onImageSelected, 
   onError, 
   onCancel, 
-  isVisible 
+  isVisible,
+  userId
 }: ImageUploaderProps) {
   const { isOnline } = useNetworkStatus();
   const [uploadState, setUploadState] = useState<UploadState>({
@@ -88,7 +90,7 @@ export function ImageUploader({
       }, 100);
 
       // Upload to image service
-      const result = await imageService.uploadImage(uploadState.selectedFile);
+      const result = await imageService.uploadImage(uploadState.selectedFile, userId);
 
       clearInterval(progressInterval);
       setUploadState(prev => ({ ...prev, progress: 100 }));

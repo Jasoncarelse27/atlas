@@ -8,7 +8,7 @@ import { sendMessageWithAttachments } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 import { useMessageStore } from '../../stores/useMessageStore';
 import type { Message } from '../../types/chat';
-import AttachmentMenu from './AttachmentMenu';
+import { AttachmentMenu } from './AttachmentMenu';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -401,9 +401,10 @@ export default function EnhancedInputToolbar({
           {/* Attachment Menu */}
           {menuOpen && (
             <AttachmentMenu
-              conversationId={conversationId || ""}
+              isOpen={menuOpen}
               onClose={() => setMenuOpen(false)}
-              onFileSelect={handleFileSelect}
+              conversationId={conversationId || ""}
+              userId={user?.id || "0a8726d5-af01-44d3-b635-f0d276d3d3d3"}
             />
           )}
         </div>

@@ -272,7 +272,7 @@ export const syncService = new SyncService();
 export const syncPendingUploads = () => syncService.syncPendingMessages();
 export const testBackendConnection = async () => {
   try {
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const response = await fetch(`${backendUrl}/healthz`);
     return response.ok;
   } catch {

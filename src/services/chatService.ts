@@ -3,12 +3,15 @@ import type { Message } from "../types/chat";
 import { audioService } from "./audioService";
 import { getUserTier } from "./subscriptionService";
 
-export const chatService = {
-  sendMessage: async (text: string, onComplete?: () => void) => {
-    console.log("[FLOW] sendMessage called with text:", text);
-
-    // Message management is handled by the calling component
-
+// Simple function for AttachmentMenu to send messages with attachments
+export async function sendAttachmentMessage(
+  conversationId: string,
+  userId: string,
+  attachments: Array<{ type: string; url?: string; text?: string }>
+) {
+  console.log("[chatService] sendAttachmentMessage called:", { conversationId, userId, attachments });
+  
+  try {
     // Get JWT token for authentication
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token || 'mock-token-for-development';
@@ -16,8 +19,10 @@ export const chatService = {
     // Get user's tier for the request
     const currentTier = await getUserTier();
     
-    // Get response from backend (JSON response, not streaming)
+    // Send to backend
     const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    console.log(`[chatService] Sending attachments to backend: ${backendUrl}/message`);
+    
     const response = await fetch(`${backendUrl}/message`, {
       method: "POST",
       headers: { 
@@ -25,40 +30,102 @@ export const chatService = {
         "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify({ 
-        text: text,
-        userId: session?.user?.id || 'anonymous'
+        message: "Please analyze these attachments",
+        userId: userId,
+        tier: currentTier,
+        attachments: attachments
       }),
     });
 
+    console.log(`[chatService] Backend response status: ${response.status}`);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       console.error('Backend error:', errorData);
-      // Log error - message management handled by calling component
-      console.error('Backend error:', errorData);
-      return;
+      throw new Error(`Backend error: ${errorData.error || response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('Backend response data:', data);
     
-    if (!data.success) {
-      // Log error - message management handled by calling component
-      console.error('Backend response error:', data.message || 'Failed to get response');
-      return;
+    return data;
+  } catch (error) {
+    console.error('[chatService] Error in sendAttachmentMessage:', error);
+    throw error;
+  }
+}
+
+export const chatService = {
+  sendMessage: async (text: string, onComplete?: () => void) => {
+    console.log("[FLOW] sendMessage called with text:", text);
+
+    try {
+      // Get JWT token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || 'mock-token-for-development';
+
+      // Get user's tier for the request
+      const currentTier = await getUserTier();
+      
+      // Get response from backend (JSON response, not streaming)
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      console.log(`[FLOW] Sending to backend: ${backendUrl}/message`);
+      
+      const response = await fetch(`${backendUrl}/message`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          text: text,
+          userId: session?.user?.id || '0a8726d5-af01-44d3-b635-f0d276d3d3d3' // Use consistent test user ID
+        }),
+      });
+
+      console.log(`[FLOW] Backend response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Backend error:', errorData);
+        throw new Error(`Backend error: ${errorData.error || response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Backend response data:', data);
+      
+      // Handle different response formats
+      let responseText;
+      if (data.reply) {
+        responseText = data.reply;
+        console.log('✅ Using data.reply:', responseText);
+      } else if (data.response) {
+        responseText = data.response;
+        console.log('✅ Using data.response:', responseText);
+      } else if (typeof data === 'string') {
+        responseText = data;
+        console.log('✅ Using data as string:', responseText);
+      } else {
+        console.error('❌ Unexpected response format:', data);
+        responseText = "Sorry, I couldn't process that request.";
+      }
+
+      console.log('✅ Final response text:', responseText);
+
+      // 🔊 Play TTS if tier allows
+      if (currentTier !== "free" && typeof audioService.play === "function") {
+        audioService.play(responseText);
+      }
+
+      // Call completion callback to clear typing indicator
+      onComplete?.();
+      
+      return responseText;
+    } catch (error) {
+      console.error('[FLOW] Error in sendMessage:', error);
+      onComplete?.();
+      throw error;
     }
-
-    // Return response - message management handled by calling component
-    const responseText = data.reply;
-    console.log('Backend response:', responseText);
-
-    // 🔊 Play TTS if tier allows
-    if (currentTier !== "free" && typeof audioService.play === "function") {
-      audioService.play(responseText);
-    }
-
-    // Call completion callback to clear typing indicator
-    onComplete?.();
-    
-    return responseText;
   },
 
   handleFileMessage: async (message: Message, onComplete?: () => void) => {
@@ -80,7 +147,7 @@ export const chatService = {
         const imageTier = await getUserTier();
         
         // Send multi-attachment analysis request to backend
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
@@ -127,7 +194,7 @@ export const chatService = {
           };
           
           console.log("[DEBUG] Frontend sending request to backend:", {
-            url: `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`,
+            url: `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`,
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -136,7 +203,7 @@ export const chatService = {
             body: requestBody
           });
           
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`, {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -247,7 +314,7 @@ export async function sendMessageWithAttachments(
       
       console.log("[chatService] 🧠 Sending attachments to backend for AI analysis...");
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/message`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

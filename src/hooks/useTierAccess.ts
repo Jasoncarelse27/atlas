@@ -1,112 +1,77 @@
-import { useEffect, useState } from "react"
-import { supabase } from "../lib/supabaseClient"
+// ==========================
+// 📂 hooks/useTierAccess.ts
+// ==========================
+// ✅ Centralized tier gating
+// ✅ Uses Supabase now
+// ✅ FastSpring-ready later
 
-export function useTierAccess(userId?: string) {
-  const [tier, setTier] = useState<"free" | "core" | "studio" | null>(null)
-  const [profile, setProfile] = useState<any>(null)
+import { supabase } from "@/lib/supabaseClient"
+import { useEffect, useState } from "react"
+
+type FeatureType = "camera" | "image" | "audio" | "file"
+
+interface TierAccess {
+  hasAccess: (feature: FeatureType) => boolean
+  tier: string | null
+  loading: boolean
+}
+
+export function useTierAccess(): TierAccess {
+  const [tier, setTier] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let active = true
-
     const fetchTier = async () => {
       try {
-        console.log("🔍 useTierAccess - Fetching subscription tier...")
-
-        if (!userId) {
-          if (active) {
-            setTier("free")
-          }
+        // 🔑 Get current user first
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user?.id) {
+          console.log("[useTierAccess] No user found, defaulting to free")
+          setTier("free")
           return
         }
 
+        // 🔑 Pull from correct table with user filter
         const { data, error } = await supabase
-          .from("profiles")
+          .from("profiles")  // Fixed: use correct table name
           .select("subscription_tier")
-          .eq("id", userId)
+          .eq("id", user.id)  // Fixed: filter by current user
           .single()
 
-        if (!active) return
-
-        if (!error && data?.subscription_tier) {
-          console.log("🔍 useTierAccess - tier from Supabase:", data.subscription_tier)
-          const newTier = data.subscription_tier as "free" | "core" | "studio"
-          setTier(newTier)
-          setProfile(data)
-          console.log("🔍 useTierAccess - ✅ Tier set to:", newTier)
-        } else {
-          console.warn("🔍 useTierAccess - ⚠️ Invalid or missing tier, defaulting to free:", error)
-          setTier("free")
+        if (error) {
+          console.warn("[useTierAccess] Supabase tier fetch failed:", error.message)
         }
-      } catch (error) {
-        console.error("🔍 useTierAccess - ❌ Failed to fetch tier:", error)
-        if (active) setTier("free")
+
+        let resolvedTier = data?.subscription_tier || "free"
+
+        // 🔑 FastSpring integration can be added later
+        // const fastSpringTier = await paymentService.getCurrentTier()
+        // if (fastSpringTier) resolvedTier = fastSpringTier
+
+        setTier(resolvedTier)
+      } catch (err) {
+        console.error("[useTierAccess] Error:", err)
+        setTier("free") // Fallback to free on error
       } finally {
-        // ✅ No loading state needed - tier is either set or null
-        console.log("🔍 useTierAccess - ✅ Loading finished, tier:", tier)
+        setLoading(false)
       }
     }
 
     fetchTier()
+  }, [])
 
-    // Real-time listener for tier updates
-    const channel = supabase
-      .channel("tier-updates")
-      .on(
-        "postgres_changes",
-        { 
-          event: "*", 
-          schema: "public", 
-          table: "profiles", 
-          filter: `id=eq.${userId}` 
-        },
-        (payload) => {
-          console.log("🔄 Real-time tier update:", payload.new?.subscription_tier)
-          if (active) {
-            setTier(payload.new?.subscription_tier || "free")
-          }
-        }
-      )
-      .subscribe()
+  const hasAccess = (feature: FeatureType): boolean => {
+    if (!tier) return false
 
-    return () => {
-      active = false
-      supabase.removeChannel(channel)
+    const rules: Record<string, FeatureType[]> = {
+      free: [],
+      core: ["image", "audio"],
+      studio: ["camera", "image", "audio", "file"],
     }
-  }, [userId])
 
-  // ✅ helper
-  const requireTier = (required: "core" | "studio") => {
-    if (required === "core" && tier === "free") return false
-    if (required === "studio" && tier !== "studio") return false
-    return true
+    return rules[tier]?.includes(feature) ?? false
   }
 
-  const canUseFeature = (feature: string) => {
-    if (tier === null) return false
-    if (!profile) return false
-    
-    if (tier === "studio") return true
-    if (tier === "core") {
-      // Core tier gets text, image, audio, and other features (not studio-only)
-      return feature !== "studio-only"
-    }
-    if (tier === "free") {
-      // Free tier only gets text chat
-      return feature === "text"
-    }
-    return false
-  }
-
-  const showUpgradeModal = (feature: string) => {
-    console.log(`⚠️ Upgrade required for: ${feature}`)
-  }
-
-  return { 
-    tier, 
-    profile, 
-    isLoading: tier === null,
-    requireTier,
-    canUseFeature, 
-    showUpgradeModal
-  }
+  return { hasAccess, tier, loading }
 }
