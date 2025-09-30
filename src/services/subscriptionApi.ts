@@ -68,14 +68,14 @@ class SubscriptionApiService {
   }
 
   constructor() {
-    // Use backend URL from environment or default to localhost
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    // Use backend URL from environment or default to localhost:8000
+    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     
     // Check if we're in mock mode (no real Paddle credentials)
     this.isMockMode = !import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 
                      import.meta.env.VITE_PADDLE_CLIENT_TOKEN === 'mock-client-token';
     
-    console.log('[Atlas] Subscription API initialized with backend+Dexie fallback 🚀');
+    console.log('[Atlas] Subscription API initialized with backend+Dexie fallback 🚀', this.baseUrl);
   }
 
   /**

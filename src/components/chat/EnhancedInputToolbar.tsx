@@ -404,7 +404,7 @@ export default function EnhancedInputToolbar({
               isOpen={menuOpen}
               onClose={() => setMenuOpen(false)}
               conversationId={conversationId || ""}
-              userId={user?.id || "0a8726d5-af01-44d3-b635-f0d276d3d3d3"}
+              userId={user?.id || ""}
             />
           )}
         </div>

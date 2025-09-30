@@ -79,7 +79,7 @@ export const chatService = {
         },
         body: JSON.stringify({ 
           text: text,
-          userId: session?.user?.id || '0a8726d5-af01-44d3-b635-f0d276d3d3d3' // Use consistent test user ID
+          userId: session?.user?.id || '' // Use actual user ID from session
         }),
       });
 

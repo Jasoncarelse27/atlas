@@ -18,7 +18,7 @@ export function AttachmentMenu({
   conversationId,
   userId,
 }: AttachmentMenuProps) {
-  const { hasAccess } = useTierAccess()
+  const { hasAccess, loading } = useTierAccess()
   const [isProcessing, setIsProcessing] = useState(false)
 
   // --- Handlers ---
@@ -111,14 +111,14 @@ export function AttachmentMenu({
             const locked = !hasAccess(item.type as "file" | "image" | "camera" | "audio")
             return (
               <motion.button
-                key={item.type} // ✅ FIXED duplicate key issue
+                key={`menu-${item.type}`} // ✅ FIXED duplicate key issue
                 onClick={item.action}
-                disabled={locked || isProcessing}
+                disabled={locked || isProcessing || loading}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05, duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
                 className={`flex items-center space-x-3 w-full px-3 py-2 rounded-xl text-sm transition ${
-                  locked
+                  locked || loading
                     ? "opacity-40 cursor-not-allowed"
                     : "hover:bg-white/10 text-white"
                 }`}

@@ -975,7 +975,7 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
     // Then fetch or create user_profile safely
     console.log('🔍 Checking if profile exists for user:', userId);
     const { data: profile, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
@@ -994,7 +994,7 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
       console.log('🔍 Creating profile with data:', profileData);
       
       const { data: newProfile, error: createError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .insert([profileData])
         .select()
         .single();
@@ -1057,7 +1057,7 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
     console.log('🔍 Creating profile with data:', profileData);
 
     const { data: newProfile, error: createError } = await supabase
-      .from("user_profiles")
+      .from("profiles")
       .insert([profileData])
       .select()
       .single();
@@ -1073,6 +1073,34 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
     return res.status(201).json(newProfile);
   } catch (error) {
     console.error('Create user profile endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user profile tier endpoint
+app.put('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { subscription_tier } = req.body;
+    
+    console.log(`🔧 Updating tier for user ${userId} to ${subscription_tier}`);
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ subscription_tier })
+      .eq('id', userId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating profile:', error);
+      return res.status(500).json({ error: 'Failed to update profile' });
+    }
+    
+    console.log(`✅ Updated tier for user ${userId} to ${subscription_tier}`);
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error('Update profile endpoint error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

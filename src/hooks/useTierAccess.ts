@@ -1,58 +1,39 @@
-// ==========================
-// 📂 hooks/useTierAccess.ts
-// ==========================
-// ✅ Centralized tier gating
-// ✅ Uses Supabase now
-// ✅ FastSpring-ready later
-
 import { supabase } from "@/lib/supabaseClient"
 import { useEffect, useState } from "react"
 
-type FeatureType = "camera" | "image" | "audio" | "file"
+type Tier = "free" | "core" | "studio"
 
-interface TierAccess {
-  hasAccess: (feature: FeatureType) => boolean
-  tier: string | null
-  loading: boolean
-}
-
-export function useTierAccess(): TierAccess {
-  const [tier, setTier] = useState<string | null>(null)
+export function useTierAccess() {
+  const [tier, setTier] = useState<Tier>("free")
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchTier = async () => {
+      setLoading(true)
       try {
-        // 🔑 Get current user first
         const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user?.id) {
+        if (!user) {
           console.log("[useTierAccess] No user found, defaulting to free")
-          setTier("free")
+          setLoading(false)
           return
         }
 
-        // 🔑 Pull from correct table with user filter
+        console.log("[useTierAccess] Fetching tier for user:", user.id)
+
         const { data, error } = await supabase
-          .from("profiles")  // Fixed: use correct table name
+          .from("profiles")
           .select("subscription_tier")
-          .eq("id", user.id)  // Fixed: filter by current user
+          .eq("id", user.id)
           .single()
 
-        if (error) {
-          console.warn("[useTierAccess] Supabase tier fetch failed:", error.message)
+        if (!error && data?.subscription_tier) {
+          setTier(data.subscription_tier as Tier)
+          console.log("[useTierAccess] Fetched tier:", data.subscription_tier)
+        } else {
+          console.log("[useTierAccess] No profile found or error:", error)
         }
-
-        let resolvedTier = data?.subscription_tier || "free"
-
-        // 🔑 FastSpring integration can be added later
-        // const fastSpringTier = await paymentService.getCurrentTier()
-        // if (fastSpringTier) resolvedTier = fastSpringTier
-
-        setTier(resolvedTier)
       } catch (err) {
         console.error("[useTierAccess] Error:", err)
-        setTier("free") // Fallback to free on error
       } finally {
         setLoading(false)
       }
@@ -61,17 +42,11 @@ export function useTierAccess(): TierAccess {
     fetchTier()
   }, [])
 
-  const hasAccess = (feature: FeatureType): boolean => {
-    if (!tier) return false
-
-    const rules: Record<string, FeatureType[]> = {
-      free: [],
-      core: ["image", "audio"],
-      studio: ["camera", "image", "audio", "file"],
-    }
-
-    return rules[tier]?.includes(feature) ?? false
+  const hasAccess = (feature: "file" | "image" | "camera" | "audio") => {
+    if (tier === "studio") return true
+    if (tier === "core") return feature === "image" || feature === "audio"
+    return false
   }
 
-  return { hasAccess, tier, loading }
+  return { tier, hasAccess, loading }
 }
