@@ -5,6 +5,7 @@ import {
     Download,
     Edit3,
     MessageSquare,
+    MoreVertical,
     Pin,
     Plus,
     Search,
@@ -328,20 +329,20 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                   <div className="space-y-1">
                     {convs.map(conversation => (
                       <div key={conversation.id} className="relative">
-                        {/* Delete Confirmation */}
+                        {/* Delete Confirmation - Smaller buttons */}
                         {showDeleteConfirm === conversation.id && (
-                          <div className="absolute inset-0 bg-white rounded-lg border border-red-200 z-10 p-3 flex flex-col">
-                            <p className="text-sm text-gray-700 mb-3">Delete this conversation?</p>
-                            <div className="flex gap-2 mt-auto">
+                          <div className="absolute inset-0 bg-white rounded-lg border border-red-200 z-10 p-2 flex flex-col">
+                            <p className="text-xs text-gray-700 mb-2">Delete this conversation?</p>
+                            <div className="flex gap-1 mt-auto">
                               <button
                                 onClick={handleCancelDelete}
-                                className="neumorphic-button flex-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition-colors"
+                                className="neumorphic-button flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs transition-colors"
                               >
                                 Cancel
                               </button>
                               <button
                                 onClick={() => handleDeleteConversation(conversation.id)}
-                                className="neumorphic-button flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
+                                className="neumorphic-button flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
                               >
                                 Delete
                               </button>
@@ -356,6 +357,25 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                               ? 'neumorphic-inner bg-blue-50 text-blue-700'
                               : 'neumorphic-flat hover:bg-gray-100'
                           }`}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            // Simple right-click to delete for now
+                            handleConfirmDelete(conversation.id);
+                          }}
+                          onTouchStart={(e) => {
+                            // Long press to delete on mobile
+                            const timer = setTimeout(() => {
+                              handleConfirmDelete(conversation.id);
+                            }, 500);
+                            e.currentTarget.dataset.timer = timer.toString();
+                          }}
+                          onTouchEnd={(e) => {
+                            const timer = e.currentTarget.dataset.timer;
+                            if (timer) {
+                              clearTimeout(parseInt(timer));
+                              delete e.currentTarget.dataset.timer;
+                            }
+                          }}
                         >
                           {/* Editing Title */}
                           {editingConversationId === conversation.id ? (
@@ -424,32 +444,40 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                                 </div>
                               </div>
                               
-                              {/* Action Buttons */}
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Action Buttons - Smaller for mobile */}
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {/* Mobile hint */}
+                                <div className="sm:hidden">
+                                  <Tooltip content="Long press for more options">
+                                    <div className="p-1 text-gray-400">
+                                      <MoreVertical className="w-3 h-3" />
+                                    </div>
+                                  </Tooltip>
+                                </div>
                                 <Tooltip content={conversation.pinned ? "Unpin" : "Pin"}>
                                   <button
                                     onClick={() => handleTogglePin(conversation.id, !!conversation.pinned)}
-                                    className="neumorphic-button p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    className="neumorphic-button p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                                   >
-                                    <Pin className="w-3.5 h-3.5" />
+                                    <Pin className="w-3 h-3" />
                                   </button>
                                 </Tooltip>
                                 
                                 <Tooltip content="Edit title">
                                   <button
                                     onClick={() => handleStartEditing(conversation)}
-                                    className="neumorphic-button p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="neumorphic-button p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                                   >
-                                    <Edit3 className="w-3.5 h-3.5" />
+                                    <Edit3 className="w-3 h-3" />
                                   </button>
                                 </Tooltip>
                                 
                                 <Tooltip content="Delete">
                                   <button
                                     onClick={() => handleConfirmDelete(conversation.id)}
-                                    className="neumorphic-button p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="neumorphic-button p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3 h-3" />
                                   </button>
                                 </Tooltip>
                               </div>

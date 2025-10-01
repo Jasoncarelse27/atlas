@@ -3,6 +3,7 @@ import {
     Clock,
     Edit3,
     MessageSquare,
+    MoreVertical,
     Pin,
     Trash2,
     X
@@ -34,7 +35,11 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(conversation.title);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   // Focus edit input when editing starts
   useEffect(() => {
@@ -42,6 +47,20 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
       editInputRef.current.focus();
     }
   }, [isEditing]);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        setShowContextMenu(false);
+      }
+    };
+
+    if (showContextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showContextMenu]);
 
   const handleStartEditing = () => {
     if (onSoundPlay) onSoundPlay('click');
@@ -84,6 +103,47 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     setShowDeleteConfirm(false);
   };
 
+  // Context menu handlers
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowContextMenu(true);
+  };
+
+  const handleLongPress = () => {
+    setShowContextMenu(true);
+  };
+
+  const handleLongPressStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const timer = setTimeout(() => {
+      handleLongPress();
+    }, 500); // 500ms long press
+    setLongPressTimer(timer);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  const handleContextMenuAction = (action: string) => {
+    setShowContextMenu(false);
+    switch (action) {
+      case 'edit':
+        handleStartEditing();
+        break;
+      case 'pin':
+        handleTogglePin();
+        break;
+      case 'delete':
+        handleConfirmDelete();
+        break;
+    }
+  };
+
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], { 
       hour: '2-digit', 
@@ -121,6 +181,10 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
             ? 'neumorphic-inner bg-blue-50 text-blue-700'
             : 'neumorphic-flat hover:bg-gray-100'
         }`}
+        onContextMenu={handleContextMenu}
+        onTouchStart={handleLongPressStart}
+        onTouchEnd={handleLongPressEnd}
+        onTouchMove={handleLongPressEnd}
       >
         {/* Editing Title */}
         {isEditing ? (
@@ -184,38 +248,89 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
               </div>
             </div>
             
-            {/* Action Buttons */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Action Buttons - Smaller for mobile */}
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Desktop hint - right-click */}
+              <div className="hidden sm:block">
+                <Tooltip content="Right-click for more options">
+                  <button className="p-1 text-gray-400 hover:text-gray-600 rounded-md transition-colors">
+                    <MoreVertical className="w-3 h-3" />
+                  </button>
+                </Tooltip>
+              </div>
+              
+              {/* Mobile hint - long press */}
+              <div className="sm:hidden">
+                <Tooltip content="Long press for more options">
+                  <button className="p-1 text-gray-400 hover:text-gray-600 rounded-md transition-colors">
+                    <MoreVertical className="w-3 h-3" />
+                  </button>
+                </Tooltip>
+              </div>
               <Tooltip content={conversation.pinned ? "Unpin" : "Pin"}>
                 <button
                   onClick={handleTogglePin}
-                  className="neumorphic-button p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="neumorphic-button p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                 >
-                  <Pin className="w-3.5 h-3.5" />
+                  <Pin className="w-3 h-3" />
                 </button>
               </Tooltip>
               
               <Tooltip content="Edit title">
                 <button
                   onClick={handleStartEditing}
-                  className="neumorphic-button p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="neumorphic-button p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                 >
-                  <Edit3 className="w-3.5 h-3.5" />
+                  <Edit3 className="w-3 h-3" />
                 </button>
               </Tooltip>
               
               <Tooltip content="Delete">
                 <button
                   onClick={handleConfirmDelete}
-                  className="neumorphic-button p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  className="neumorphic-button p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3 h-3" />
                 </button>
               </Tooltip>
             </div>
           </>
         )}
       </div>
+
+      {/* Context Menu */}
+      {showContextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[120px]"
+          style={{
+            left: `${contextMenuPosition.x}px`,
+            top: `${contextMenuPosition.y}px`,
+          }}
+        >
+          <button
+            onClick={() => handleContextMenuAction('edit')}
+            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Edit3 className="w-4 h-4" />
+            Edit Title
+          </button>
+          <button
+            onClick={() => handleContextMenuAction('pin')}
+            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Pin className="w-4 h-4" />
+            {conversation.pinned ? 'Unpin' : 'Pin'}
+          </button>
+          <button
+            onClick={() => handleContextMenuAction('delete')}
+            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 };

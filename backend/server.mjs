@@ -25,8 +25,9 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your-servic
 
 let supabase;
 try {
-  if (supabaseUrl === 'https://your-project.supabase.co' || process.env.NODE_ENV === 'development') {
-    // Development mode - create a mock client
+  if (supabaseUrl === 'https://your-project.supabase.co' || !supabaseServiceKey || supabaseServiceKey === 'your-service-key') {
+    // Only use mock if credentials are actually missing
+    console.warn('⚠️ Supabase credentials missing, using mock client');
     supabase = {
       auth: {
         getUser: async (token) => {
@@ -337,13 +338,13 @@ app.get('/api/auth/status', (req, res) => {
   });
 });
 
-// ✅ Clean message endpoint with secure Supabase tier routing
+// ✅ Clean message endpoint with secure Supabase tier routing + conversation history
 app.post('/message', async (req, res) => {
   console.log('🔥 [/message] Handler ACTIVE – secure Supabase tier routing');
   
   try {
-    // Handle both frontend formats: {message, tier} and {text, userId}
-    const { message, text, tier, userId } = req.body;
+    // Handle both frontend formats: {message, tier} and {text, userId, conversationId}
+    const { message, text, tier, userId, conversationId } = req.body;
     const messageText = text || message;
     const userTier = tier;
     
@@ -351,15 +352,16 @@ app.post('/message', async (req, res) => {
       return res.status(400).json({ error: 'Missing message text' });
     }
 
-    console.log('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier });
+    console.log('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId });
 
-    const { reply, model, tier: detectedTier } = await processMessage(userId || null, messageText);
+    const { reply, model, tier: detectedTier, conversationId: returnedConvId } = await processMessage(userId || null, messageText, conversationId);
 
     res.json({
       success: true,
       model,
       tier: detectedTier,
       reply,
+      conversationId: returnedConvId, // ✅ Return conversationId so frontend can track it
     });
   } catch (err) {
     console.error('❌ [/message] Error:', err);

@@ -32,8 +32,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [userId] = useState<string>('65fcb50a-d67d-453e-a405-50c6aef959be'); // Hardcoded for now
-  const { initConversation } = useMessageStore();
+  const [userId, setUserId] = useState<string | null>(null); // ✅ Dynamic from Supabase auth
+  const { initConversation, hydrateFromOffline } = useMessageStore();
 
   // Use persistent messages with offline sync
   const {
@@ -42,7 +42,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     updateMessage,
   } = usePersistentMessages({
     conversationId: conversationId || '',
-    userId,
+    userId: userId || '', // ✅ Pass empty string if not loaded yet
     autoSync: true,
     autoResend: true,
   });
@@ -97,7 +97,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         setIsTyping(false);
         // Update message status to sent
         updateMessage(message.id, { status: 'sent' });
-      });
+      }, conversationId || undefined); // ✅ Pass conversationId to backend
 
       // ✅ Add assistant response to message store
       if (assistantResponse) {
@@ -113,27 +113,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         await addMessage(assistantMessage);
         
-        // ✅ Save assistant message to Supabase
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          const { error } = await supabase.from("messages").insert({
-            id: assistantMessage.id,
-            conversation_id: conversationId,
-            user_id: user?.id, // ✅ Include user_id for RLS compliance
-            role: 'assistant',
-            content: assistantResponse,
-            created_at: new Date().toISOString(),
-          });
-          
-          if (error) {
-            console.error("[ChatPage] Failed to save assistant message to Supabase:", error);
-          } else {
-            console.log("[ChatPage] ✅ Assistant message saved to Supabase");
-          }
-        } catch (error) {
-          console.error("[ChatPage] Error saving assistant message:", error);
-        }
-        
+        // Backend already saved both user + assistant messages to Supabase ✅
         console.log("[ChatPage] ✅ Added assistant response to message store");
       } else {
         console.warn("[ChatPage] ⚠️ No assistant response received from chatService");
@@ -279,15 +259,47 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
+  // Get authenticated user
+  useEffect(() => {
+    const getAuthUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        console.log("[ChatPage] ✅ Authenticated user:", user.id);
+      } else {
+        console.warn("[ChatPage] ⚠️ No authenticated user found");
+      }
+    };
+    getAuthUser();
+  }, []);
+
   // Initialize conversation and run migrations
   useEffect(() => {
+    if (!userId) return; // Wait for user ID
+    
     const initializeApp = async () => {
       try {
         // Run database migrations first
         await runDbMigrations(userId);
         
-        // Initialize conversation with proper UUID
-        const id = await initConversation(userId);
+        // ✅ Check if conversation ID is in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlConversationId = urlParams.get('conversation');
+        
+        let id: string;
+        if (urlConversationId) {
+          // Load existing conversation from URL
+          console.log("[ChatPage] 📜 Loading conversation from URL:", urlConversationId);
+          id = urlConversationId;
+          
+          // ✅ Hydrate messages from Supabase
+          await hydrateFromOffline(id);
+          console.log("[ChatPage] ✅ Messages loaded from history");
+        } else {
+          // Create new conversation
+          id = await initConversation(userId);
+        }
+        
         setConversationId(id);
         
         console.log("[ChatPage] ✅ App initialized with conversation:", id);
@@ -297,7 +309,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     };
 
     initializeApp();
-  }, [userId, initConversation]);
+  }, [userId, initConversation, hydrateFromOffline]);
 
   // Health check with auto-retry every 30 seconds
   useEffect(() => {

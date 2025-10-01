@@ -56,8 +56,8 @@ export async function sendAttachmentMessage(
 }
 
 export const chatService = {
-  sendMessage: async (text: string, onComplete?: () => void) => {
-    console.log("[FLOW] sendMessage called with text:", text);
+  sendMessage: async (text: string, onComplete?: () => void, conversationId?: string) => {
+    console.log("[FLOW] sendMessage called with text:", text, "conversationId:", conversationId);
 
     try {
       // Get JWT token for authentication
@@ -79,7 +79,8 @@ export const chatService = {
         },
         body: JSON.stringify({ 
           text: text,
-          userId: session?.user?.id || '' // Use actual user ID from session
+          userId: session?.user?.id || '', // Use actual user ID from session
+          conversationId: conversationId || null // ✅ Pass conversationId if available
         }),
       });
 
