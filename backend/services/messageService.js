@@ -25,31 +25,41 @@ function getSupabase() {
   return supabase;
 }
 
-// ✅ Tier → Model map
+// ✅ Tier → Model map (updated to non-deprecated models)
 const MODEL_MAP = {
   free: "claude-3-5-haiku-20241022",
-  core: "claude-3-5-sonnet-20241022",
-  studio: "claude-3-5-sonnet-20241022", // Use Sonnet for Studio tier (Opus is deprecated)
+  core: "claude-3-5-sonnet-20241022", 
+  studio: "claude-3-5-sonnet-20241022",
 };
 
 /**
  * Get subscription tier for a user from Supabase profiles
  */
 async function getUserTier(userId) {
-  if (!userId) return "free"; // fallback
-
-  const { data, error } = await getSupabase()
-    .from("profiles")
-    .select("subscription_tier")
-    .eq("id", userId)
-    .single();
-
-  if (error) {
-    console.warn("⚠️ [MessageService] Could not fetch profile:", error.message);
+  if (!userId) {
+    console.log("⚠️ [MessageService] No userId provided, defaulting to 'free'");
     return "free";
   }
 
-  return data?.subscription_tier || "free";
+  try {
+    const { data, error } = await getSupabase()
+      .from("profiles")
+      .select("subscription_tier")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.warn("⚠️ [MessageService] Could not fetch profile:", error.message);
+      return "free"; // Always default to free on error
+    }
+
+    const tier = data?.subscription_tier || "free";
+    console.log(`✅ [MessageService] User ${userId} tier: ${tier}`);
+    return tier;
+  } catch (err) {
+    console.error("❌ [MessageService] Error fetching tier:", err);
+    return "free"; // Always default to free on exception
+  }
 }
 
 /**

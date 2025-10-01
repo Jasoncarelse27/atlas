@@ -2,7 +2,7 @@
 // This service handles all subscription/tier queries through our backend API
 // instead of direct Supabase calls, ensuring proper security and CORS handling
 
-import db from '../lib/db';
+import db from '../db/index'; // ✅ FIXED: Import from correct db instance with subscriptions table
 import { safeToast } from './toastService';
 
 // Track active mode clearly
@@ -69,7 +69,10 @@ class SubscriptionApiService {
 
   constructor() {
     // Use backend URL from environment or default to localhost:8000
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    // In development, prioritize localhost for direct backend connection
+    this.baseUrl = import.meta.env.DEV 
+      ? 'http://localhost:8000' 
+      : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
     
     // Check if we're in mock mode (no real Paddle credentials)
     this.isMockMode = !import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 
@@ -384,15 +387,15 @@ class SubscriptionApiService {
    */
   private async getProfileFromDexie(userId: string): Promise<SubscriptionProfile | null> {
     try {
-      // Try to get from Dexie cache
-      const cached = await db.user_profiles
-        .where('id')
+      // ✅ FIXED: Use profiles table from Dexie
+      const profile = await db.profiles
+        ?.where('id')
         .equals(userId)
-        .last();
+        .first();
 
-      if (cached) {
-        console.log('[SubscriptionAPI] Using Dexie cache (offline) 🗄️', new Date(cached.updatedAt));
-        return cached.data;
+      if (profile) {
+        console.log('[SubscriptionAPI] Using Dexie cache (offline) 🗄️');
+        return profile;
       }
 
       // Return default free tier profile if no cache available

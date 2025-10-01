@@ -14,9 +14,9 @@ export const FEATURE_GATES = {
 };
 
 export const MODEL_COSTS = {
+  // Current models (updated Oct 2025)
   'claude-3-5-haiku-20241022':  { input: 0.00025, output: 0.00125 },
   'claude-3-5-sonnet-20241022': { input: 0.003,   output: 0.015   },
-  'claude-3-5-opus-20241022':   { input: 0.015,   output: 0.075   },
   // Legacy model names for backward compatibility
   'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 },
   'claude-3.5-sonnet-20240620': { input: 0.003,   output: 0.015   },
@@ -39,15 +39,24 @@ export const SYSTEM_LIMITS = {
 };
 
 export function selectOptimalModel(userTier, messageContent = '', requestType = '') {
-  // Use only working models - all tiers use Haiku until Sonnet/Opus are available
-  // TODO: Update when Sonnet/Opus models become available
+  // ✅ Tier-based model selection (aligned with messageService.js)
+  const MODEL_MAP = {
+    free: 'claude-3-5-haiku-20241022',
+    core: 'claude-3-5-sonnet-20241022',
+    studio: 'claude-3-5-sonnet-20241022', // Use Sonnet for Studio (Opus deprecated)
+  };
+  
+  const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;
+  
   console.log('🔍 DEBUG: Model selection:', {
     tier: userTier,
-    selectedModel: 'claude-3-5-haiku-20241022',
+    selectedModel,
     messageLength: messageContent.length,
     type: requestType
   });
-  return 'claude-3-5-haiku-20241022';
+  
+  // TODO: When Opus becomes available, update studio → 'claude-3-5-opus-20241022'
+  return selectedModel;
 }
 
 export function estimateRequestCost(model, inputTokens = 0, outputTokens = 0) {
