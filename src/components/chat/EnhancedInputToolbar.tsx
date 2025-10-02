@@ -2,8 +2,9 @@ import { motion } from 'framer-motion';
 import { Mic, Plus, Send, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { canUseFeature, useSimpleTier } from '../../hooks/useSimpleTier';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
+import { useTierAccess } from '../../hooks/useTierAccess';
+import { supabase } from '../../lib/supabaseClient';
 import { sendMessageWithAttachments } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 import { useMessageStore } from '../../stores/useMessageStore';
@@ -34,15 +35,10 @@ export default function EnhancedInputToolbar({
   conversationId
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
-  const { tier, loading: tierLoading, error: tierError } = useSimpleTier(user?.id);
+  const { tier, hasAccess, loading: tierLoading, showUpgradeModal } = useTierAccess();
   const addMessage = useMessageStore((s) => s.addMessage);
   
-  // Simple upgrade modal handler
-  const showUpgradeModal = (feature: string) => {
-    console.log(`⚠️ Upgrade required for: ${feature}`);
-    // For now, just show a toast - we can add modal later
-    toast.error(`${feature} features require Core or Studio plan. Upgrade to unlock!`);
-  };
+  // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -155,7 +151,7 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    const canUse = canUseFeature(tier, 'audio');
+    const canUse = hasAccess('audio');
     
     // Log the attempt
     await featureService.logAttempt(user.id, 'mic', tier);
@@ -190,7 +186,7 @@ export default function EnhancedInputToolbar({
             const uploadResponse = await fetch('/api/upload', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${user.access_token || 'mock-token-for-development'}`
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || 'mock-token-for-development'}`
               },
               body: formData
             });
@@ -206,7 +202,7 @@ export default function EnhancedInputToolbar({
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.access_token || 'mock-token-for-development'}`
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || 'mock-token-for-development'}`
               },
               body: JSON.stringify({ audioUrl: url })
             });
@@ -261,10 +257,10 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    const canUse = canUseFeature(tier, feature);
+    const canUse = hasAccess(feature as "image" | "camera" | "audio");
     
     // Log the attempt
-    await featureService.logAttempt(user.id, feature, canUse, !canUse);
+    await featureService.logAttempt(user.id, feature, tier);
     
     if (!canUse) {
       toast.error(`${feature} features are available in Core & Studio plans. Upgrade to unlock!`);

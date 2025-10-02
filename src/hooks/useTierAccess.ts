@@ -43,10 +43,18 @@ export function useTierAccess() {
   }, [])
 
   const hasAccess = (feature: "file" | "image" | "camera" | "audio") => {
+    // Don't allow access while still loading tier information
+    if (loading) return false
+    
     if (tier === "studio") return true
     if (tier === "core") return feature === "image" || feature === "audio"
     return false
   }
 
-  return { tier, hasAccess, loading }
+  const showUpgradeModal = (feature: string) => {
+    console.log(`⚠️ Upgrade required for: ${feature}`);
+    // TODO: Implement upgrade modal
+  }
+
+  return { tier, hasAccess, loading, showUpgradeModal }
 }

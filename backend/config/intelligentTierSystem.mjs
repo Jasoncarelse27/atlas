@@ -16,7 +16,7 @@ export const FEATURE_GATES = {
 export const MODEL_COSTS = {
   // Current models (updated Oct 2025)
   'claude-3-5-haiku-20241022':  { input: 0.00025, output: 0.00125 },
-  'claude-3-5-sonnet-20241022': { input: 0.003,   output: 0.015   },
+  'claude-3-5-sonnet-20240620': { input: 0.003,   output: 0.015   },
   // Legacy model names for backward compatibility
   'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 },
   'claude-3.5-sonnet-20240620': { input: 0.003,   output: 0.015   },
@@ -42,8 +42,8 @@ export function selectOptimalModel(userTier, messageContent = '', requestType = 
   // ✅ Tier-based model selection (aligned with messageService.js)
   const MODEL_MAP = {
     free: 'claude-3-5-haiku-20241022',
-    core: 'claude-3-5-sonnet-20241022',
-    studio: 'claude-3-5-sonnet-20241022', // Use Sonnet for Studio (Opus deprecated)
+    core: 'claude-3-5-sonnet-20240620',
+    studio: 'claude-3-5-sonnet-20240620', // Use Sonnet for Studio (Opus deprecated)
   };
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;

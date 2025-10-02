@@ -6,6 +6,87 @@ import { createClient } from "@supabase/supabase-js";
 let anthropic = null;
 let supabase = null;
 
+// Memory extraction functions (copied from frontend for backend use)
+function extractNameFromMessage(message) {
+  const patterns = [
+    // More specific patterns to avoid capturing too much
+    /(?:my name is|i'm|call me|i am)\s+([a-zA-Z]{2,20})(?:\s|$|,|\.|and)/i,
+    /(?:name|called)\s+([a-zA-Z]{2,20})(?:\s|$|,|\.|and)/i,
+    /^([a-zA-Z]{2,20})(?:\s+here|$)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      const name = match[1].trim();
+      // Basic validation - reasonable name length and characters
+      if (name.length >= 2 && name.length <= 20 && /^[a-zA-Z]+$/.test(name)) {
+        return name;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractContextFromMessage(message) {
+  const contextPatterns = [
+    // Better patterns to capture interests and preferences
+    /(?:i like|i love|i enjoy|i'm into|i'm interested in)\s+([^.!?]{5,100})/i,
+    /(?:i work|i'm a|i do)\s+([^.!?]{5,100})/i,
+    /(?:i live|i'm from|i'm based)\s+([^.!?]{3,50})/i,
+    /(?:my favorite|i prefer|i usually)\s+([^.!?]{5,100})/i,
+    // Additional pattern for "and I love X" constructions
+    /(?:and i love|and i like|and i enjoy)\s+([^.!?]{5,100})/i
+  ];
+
+  for (const pattern of contextPatterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      const context = match[1].trim();
+      if (context.length >= 3 && context.length <= 200) {
+        return context;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractMemoryFromMessage(message) {
+  const name = extractNameFromMessage(message);
+  const context = extractContextFromMessage(message);
+  
+  const memory = {};
+  
+  if (name) memory.name = name;
+  if (context) memory.context = context;
+  
+  return memory;
+}
+
+function mergeMemory(existing, newMemory) {
+  const merged = { ...existing };
+  
+  // Add name if found and not already set
+  if (newMemory.name && !merged.name) {
+    merged.name = newMemory.name;
+  }
+  
+  // Add context if found (can accumulate)
+  if (newMemory.context) {
+    const existingContext = merged.context || '';
+    merged.context = existingContext 
+      ? `${existingContext}; ${newMemory.context}`
+      : newMemory.context;
+  }
+  
+  // Update timestamp
+  merged.last_updated = new Date().toISOString();
+  
+  return merged;
+}
+
 function getAnthropic() {
   if (!anthropic) {
     anthropic = new Anthropic({
@@ -25,11 +106,11 @@ function getSupabase() {
   return supabase;
 }
 
-// ✅ Tier → Model map (updated to non-deprecated models)
+// ✅ Tier → Model map (updated to latest non-deprecated models)
 const MODEL_MAP = {
   free: "claude-3-5-haiku-20241022",
-  core: "claude-3-5-sonnet-20241022", 
-  studio: "claude-3-5-sonnet-20241022",
+  core: "claude-3-5-sonnet-20240620", 
+  studio: "claude-3-5-sonnet-20240620",
 };
 
 /**
@@ -147,6 +228,46 @@ export async function processMessage(userId, text, conversationId = null) {
   }
 
   try {
+    // Extract and update memory from user message
+    if (userId) {
+      try {
+        // Extract memory from the message
+        const extractedMemory = extractMemoryFromMessage(text);
+        console.log('🧠 [MessageService] Extracted memory:', JSON.stringify(extractedMemory));
+        
+        if (extractedMemory.name || extractedMemory.context) {
+          // Get current memory
+          const { data: profile, error: profileError } = await getSupabase()
+            .from('profiles')
+            .select('user_context')
+            .eq('id', userId)
+            .single();
+          
+          if (!profileError) {
+            const currentMemory = profile?.user_context || {};
+            const mergedMemory = mergeMemory(currentMemory, extractedMemory);
+            
+            // Update memory in database
+            const { error: updateError } = await getSupabase()
+              .from('profiles')
+              .update({ 
+                user_context: mergedMemory,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', userId);
+            
+            if (updateError) {
+              console.error('❌ [MessageService] Error updating memory:', updateError);
+            } else {
+              console.log('✅ [MessageService] Memory updated successfully:', JSON.stringify(mergedMemory));
+            }
+          }
+        }
+      } catch (memoryError) {
+        console.warn('⚠️ [MessageService] Memory extraction failed:', memoryError);
+      }
+    }
+
     // Get user memory for personalized responses
     let personalizedContent = text;
     if (userId) {
@@ -182,10 +303,13 @@ export async function processMessage(userId, text, conversationId = null) {
       }
     }
 
+    // Add memory instructions to the user message instead of system prompt
+    const enhancedContent = personalizedContent + `\n\nIMPORTANT: You are Atlas, an emotionally intelligent AI assistant. You DO have access to user memory through Supabase profiles. Always acknowledge when you remember user information and personalize your responses. Never say "I don't have memory" - instead explain what you remember or ask for more details.`;
+
     const completion = await getAnthropic().messages.create({
       model,
       max_tokens: 512,
-      messages: [{ role: "user", content: personalizedContent }],
+      messages: [{ role: "user", content: enhancedContent }],
     });
 
     const reply = completion.content[0]?.text || "(no response)";

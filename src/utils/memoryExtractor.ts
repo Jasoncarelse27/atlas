@@ -15,9 +15,10 @@ export interface ExtractedMemory {
  */
 export function extractNameFromMessage(message: string): string | null {
   const patterns = [
-    /(?:my name is|i'm|call me|i am)\s+([a-zA-Z\s]{2,30})/i,
-    /(?:name|called)\s+([a-zA-Z\s]{2,30})/i,
-    /^([a-zA-Z\s]{2,30})(?:\s+here|$)/i
+    // More specific patterns to avoid capturing too much
+    /(?:my name is|i'm|call me|i am)\s+([a-zA-Z]{2,20})(?:\s|$|,|\.|and)/i,
+    /(?:name|called)\s+([a-zA-Z]{2,20})(?:\s|$|,|\.|and)/i,
+    /^([a-zA-Z]{2,20})(?:\s+here|$)/i
   ];
 
   for (const pattern of patterns) {
@@ -25,7 +26,7 @@ export function extractNameFromMessage(message: string): string | null {
     if (match && match[1]) {
       const name = match[1].trim();
       // Basic validation - reasonable name length and characters
-      if (name.length >= 2 && name.length <= 30 && /^[a-zA-Z\s]+$/.test(name)) {
+      if (name.length >= 2 && name.length <= 20 && /^[a-zA-Z]+$/.test(name)) {
         return name;
       }
     }
@@ -40,17 +41,20 @@ export function extractNameFromMessage(message: string): string | null {
  */
 export function extractContextFromMessage(message: string): string | null {
   const contextPatterns = [
-    /(?:i like|i love|i enjoy|i'm into|i'm interested in)\s+(.{10,100})/i,
-    /(?:i work|i'm a|i do)\s+(.{10,100})/i,
-    /(?:i live|i'm from|i'm based)\s+(.{5,50})/i,
-    /(?:my favorite|i prefer|i usually)\s+(.{10,100})/i
+    // Better patterns to capture interests and preferences
+    /(?:i like|i love|i enjoy|i'm into|i'm interested in)\s+([^.!?]{5,100})/i,
+    /(?:i work|i'm a|i do)\s+([^.!?]{5,100})/i,
+    /(?:i live|i'm from|i'm based)\s+([^.!?]{3,50})/i,
+    /(?:my favorite|i prefer|i usually)\s+([^.!?]{5,100})/i,
+    // Additional pattern for "and I love X" constructions
+    /(?:and i love|and i like|and i enjoy)\s+([^.!?]{5,100})/i
   ];
 
   for (const pattern of contextPatterns) {
     const match = message.match(pattern);
     if (match && match[1]) {
       const context = match[1].trim();
-      if (context.length >= 5 && context.length <= 200) {
+      if (context.length >= 3 && context.length <= 200) {
         return context;
       }
     }

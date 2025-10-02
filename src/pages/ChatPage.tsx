@@ -83,8 +83,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     setIsTyping(true);
     
     try {
-      // Process message for memory extraction
+      // Process message for memory extraction FIRST and wait for completion
+      console.log('🧠 [ChatPage] Processing memory extraction for:', text);
       await processUserMessage(text);
+      console.log('🧠 [ChatPage] Memory extraction completed');
+      
+      // Small delay to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('🧠 [ChatPage] Database consistency delay completed');
       
       // Create message for persistent store
       const message: Message = {

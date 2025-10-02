@@ -78,7 +78,7 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${getEnvVar('VITE_CLAUDE_API_KEY')}`,
           },
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-3-5-sonnet-20240620',
           maxTokens: 4096,
           temperature: 0.7
         };

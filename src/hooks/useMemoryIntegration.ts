@@ -19,8 +19,10 @@ export function useMemoryIntegration({ userId }: UseMemoryIntegrationProps) {
     if (!message.trim()) return;
     
     try {
-      // Extract memory from the message
+      console.log('🧠 [useMemoryIntegration] Starting memory extraction for:', message);
+      // Extract memory from the message and wait for completion
       await updateMemory(message);
+      console.log('🧠 [useMemoryIntegration] Memory extraction completed successfully');
     } catch (error) {
       console.warn('Memory extraction failed:', error);
       // Don't throw - memory extraction is optional

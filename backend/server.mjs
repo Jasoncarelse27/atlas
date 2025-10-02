@@ -78,10 +78,10 @@ if (!ANTHROPIC_API_KEY) {
   console.log('⚠️  No AI API key found - will use mock responses');
 }
 
-// Model mapping by tier
+// Model mapping by tier (updated to latest non-deprecated models)
 const _mapTierToAnthropicModel = (tier) => {
-  if (tier === 'studio') return 'claude-3-5-opus';
-  return 'claude-3-5-sonnet';
+  if (tier === 'studio') return 'claude-3-5-sonnet-20240620';
+  return 'claude-3-5-sonnet-20240620';
 };
 
 // Stream helper: write SSE data chunk
@@ -385,22 +385,96 @@ app.get('/api/auth/status', (req, res) => {
   });
 });
 
-// ✅ Clean message endpoint with secure Supabase tier routing + conversation history
+// ✅ Clean message endpoint with secure Supabase tier routing + conversation history + image analysis
 app.post('/message', async (req, res) => {
   console.log('🔥 [/message] Handler ACTIVE – secure Supabase tier routing');
   
   try {
-    // Handle both frontend formats: {message, tier} and {text, userId, conversationId}
-    const { message, text, tier, userId, conversationId } = req.body;
+    // Handle both frontend formats: {message, tier} and {text, userId, conversationId, attachments}
+    const { message, text, tier, userId, conversationId, attachments } = req.body;
     const messageText = text || message;
     const userTier = tier;
     
-    if (!messageText) {
-      return res.status(400).json({ error: 'Missing message text' });
+    if (!messageText && !attachments) {
+      return res.status(400).json({ error: 'Missing message text or attachments' });
     }
 
-    console.log('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId });
+    console.log('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId, attachments: attachments?.length });
 
+    // Handle image attachments
+    if (attachments && attachments.length > 0) {
+      const imageAttachments = attachments.filter(att => att.type === 'image' && att.url);
+      if (imageAttachments.length > 0) {
+        console.log('🖼️ [Image Analysis] Processing', imageAttachments.length, 'images');
+        
+        // Use the first image for analysis (can be extended for multiple images)
+        const imageUrl = imageAttachments[0].url;
+        const analysisPrompt = messageText || "Analyze this image and provide detailed insights about what you see.";
+        
+        try {
+          // Call Claude Vision API for image analysis
+          const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+              model: 'claude-3-5-sonnet-20240620',
+              max_tokens: 2000,
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: analysisPrompt
+                    },
+                    {
+                      type: 'image',
+                      source: {
+                        type: 'url',
+                        url: imageUrl
+                      }
+                    }
+                  ]
+                }
+              ]
+            })
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Claude Vision API error');
+            console.error('❌ Claude Vision API Error:', errorText);
+            throw new Error(`Image analysis failed: ${errorText}`);
+          }
+
+          const result = await response.json();
+          const analysis = result.content[0].text;
+
+          console.log('✅ [Image Analysis] Analysis complete');
+
+          res.json({
+            success: true,
+            model: 'claude-3-5-sonnet-20240620',
+            tier: userTier || 'free',
+            reply: analysis,
+            conversationId: conversationId,
+            imageUrl: imageUrl
+          });
+          return;
+        } catch (imageError) {
+          console.error('❌ Image analysis error:', imageError);
+          return res.status(500).json({ 
+            error: 'Image analysis failed',
+            details: imageError.message
+          });
+        }
+      }
+    }
+
+    // Handle regular text messages
     const { reply, model, tier: detectedTier, conversationId: returnedConvId } = await processMessage(userId || null, messageText, conversationId);
 
     res.json({
@@ -727,7 +801,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-3-5-sonnet-20240620',
         max_tokens: 2000,
         messages: [
           {

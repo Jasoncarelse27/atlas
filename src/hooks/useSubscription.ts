@@ -239,7 +239,8 @@ export function useSubscription(userId?: string) {
       } else {
         console.log('✅ Memory updated successfully:', mergedMemory);
         // Refresh profile to get updated data
-        fetchProfile();
+        await fetchProfile();
+        console.log('✅ Profile refreshed with updated memory');
       }
     } catch (error) {
       console.error('❌ Error in updateMemory:', error);
