@@ -156,7 +156,7 @@ class AudioService {
    * Get audio tier restriction message
    */
   getAudioRestrictionMessage(tier: string): string {
-    if (tier === 'free') {
+    if (tier === 'free') { // TODO: Replace with centralized tier check
       return 'Voice recording is available for Core/Studio users. Upgrade to unlock audio features!';
     }
     return '';

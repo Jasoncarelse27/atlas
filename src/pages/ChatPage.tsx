@@ -8,6 +8,7 @@ import SyncStatus from '../components/SyncStatus';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
+import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 import { usePersistentMessages } from '../hooks/usePersistentMessages';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
@@ -34,6 +35,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null); // ✅ Dynamic from Supabase auth
   const { initConversation, hydrateFromOffline } = useMessageStore();
+
+  // Memory integration
+  const { processUserMessage } = useMemoryIntegration({ userId: userId || undefined });
 
   // Use persistent messages with offline sync
   const {
@@ -79,6 +83,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     setIsTyping(true);
     
     try {
+      // Process message for memory extraction
+      await processUserMessage(text);
+      
       // Create message for persistent store
       const message: Message = {
         id: crypto.randomUUID(),
@@ -390,7 +397,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               </div>
               <div className="flex items-center space-x-4">
                 {conversationId && (
-                  <SyncStatus conversationId={conversationId} userId={userId} className="hidden md:flex" />
+                  <SyncStatus conversationId={conversationId} userId={userId ?? ''} className="hidden md:flex" />
                 )}
                 <button
                   onClick={handleLogout}
@@ -437,7 +444,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   
                   {/* Sidebar Content */}
                   <QuickActions />
-                  <UsageCounter />
+                  <UsageCounter userId={userId ?? ''} />
                   <InsightsWidget />
                   <PrivacyToggle />
                 </div>

@@ -56,7 +56,7 @@ export async function sendAttachmentMessage(
 }
 
 export const chatService = {
-  sendMessage: async (text: string, onComplete?: () => void, conversationId?: string) => {
+  sendMessage: async (text: string, onComplete?: () => void, conversationId?: string, userId?: string) => {
     console.log("[FLOW] sendMessage called with text:", text, "conversationId:", conversationId);
 
     try {
@@ -67,6 +67,9 @@ export const chatService = {
       // Get user's tier for the request
       const currentTier = await getUserTier();
       
+      // Memory extraction is handled by the component layer
+      // This keeps the service layer clean and avoids circular dependencies
+
       // Get response from backend (JSON response, not streaming)
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       console.log(`[FLOW] Sending to backend: ${backendUrl}/message`);
@@ -79,7 +82,7 @@ export const chatService = {
         },
         body: JSON.stringify({ 
           text: text,
-          userId: session?.user?.id || '', // Use actual user ID from session
+          userId: session?.user?.id || userId || '', // Use passed userId or session userId
           conversationId: conversationId || null // ✅ Pass conversationId if available
         }),
       });

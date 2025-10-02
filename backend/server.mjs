@@ -91,12 +91,57 @@ const writeSSE = (res, payload) => {
   if (res.flush) res.flush();
 };
 
+// Get user memory for personalized responses
+async function getUserMemory(userId) {
+  try {
+    if (supabaseUrl === 'https://your-project.supabase.co') {
+      return {}; // Skip in development
+    }
+    
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('user_context')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !profile) {
+      return {};
+    }
+    
+    return profile.user_context || {};
+  } catch (error) {
+    console.warn('Failed to fetch user memory:', error);
+    return {};
+  }
+}
+
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res }) {
+async function streamAnthropicResponse({ content, model, res, userId }) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error('Missing Anthropic API key');
   }
   
+  // Get user memory and personalize the prompt
+  const userMemory = await getUserMemory(userId);
+  console.log('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
+  let personalizedContent = content;
+  
+  // Add memory context if available
+  if (userMemory.name || userMemory.context) {
+    let contextInfo = 'Context about the user:';
+    if (userMemory.name) {
+      contextInfo += ` The user's name is ${userMemory.name}.`;
+    }
+    if (userMemory.context) {
+      contextInfo += ` Additional context: ${userMemory.context}`;
+    }
+    contextInfo += ' Use this information to provide personalized responses and acknowledge that you remember the user.';
+    personalizedContent = `${contextInfo}\n\nUser message: ${content}`;
+    console.log('🧠 [Memory] Personalized content:', personalizedContent.substring(0, 200) + '...');
+  } else {
+    console.log('🧠 [Memory] No user memory found for userId:', userId);
+  }
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -109,7 +154,7 @@ async function streamAnthropicResponse({ content, model, res }) {
       model,
       max_tokens: 2000,
       stream: true,
-      messages: [{ role: 'user', content }]
+      messages: [{ role: 'user', content: personalizedContent }]
     })
   });
 
@@ -257,6 +302,8 @@ app.use(cors({
     : [
         'http://localhost:5174', 
         'http://localhost:5175',
+        'http://localhost:5176',
+        'http://localhost:5177',
         'http://localhost:5173', 
         'http://localhost:3000', 
         'http://localhost:8081', 
@@ -504,12 +551,12 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         // 🎯 Real AI Model Logic - Use Claude based on tier
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           console.log('🚀 Streaming Claude response...');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId });
           console.log('✅ Claude streaming completed, final text length:', finalText.length);
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           console.log('🔄 Falling back to Claude...');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId });
           console.log('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
           console.log('⚠️ No AI API keys available, using mock streaming...');

@@ -1,15 +1,16 @@
-import { useSimpleTier } from '../../hooks/useSimpleTier';
-import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
+import { useTierAccess } from '../../hooks/useSubscription';
 import { UpgradeButton } from '../UpgradeButton';
 
-export default function UsageCounter() {
-  const { user } = useSupabaseAuth();
-  const { tier, loading, error } = useSimpleTier(user?.id);
+interface UsageCounterProps {
+  userId?: string;
+}
+
+export default function UsageCounter({ userId }: UsageCounterProps) {
+  const { tier, remainingMessages } = useTierAccess(userId);
   
-  // Simple usage calculation for now
-  const messageCount = 0; // TODO: Implement message counting
-  const maxMessages = tier === 'free' ? 15 : tier === 'core' ? 1000 : 10000;
-  const remainingMessages = maxMessages - messageCount;
+  // Use consolidated subscription hook for real usage data
+  const messageCount = tier === 'free' ? 15 - (remainingMessages || 15) : 0;
+  const maxMessages = tier === 'free' ? 15 : -1; // -1 means unlimited
 
   const getTierDisplayName = (tier: string) => {
     switch (tier) {
@@ -45,10 +46,10 @@ export default function UsageCounter() {
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-gray-300 text-sm font-medium">Current Tier</h3>
         <span 
-          className={`text-xs font-semibold ${getTierColor(tier)} cursor-help`}
-          title={getTierTooltip(tier)}
+          className={`text-xs font-semibold ${getTierColor(tier || 'free')} cursor-help`}
+          title={getTierTooltip(tier || 'free')}
         >
-          {getTierDisplayName(tier)}
+          {getTierDisplayName(tier || 'free')}
         </span>
       </div>
       

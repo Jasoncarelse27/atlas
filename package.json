@@ -85,7 +85,7 @@
     "crypto-js": "^4.2.0",
     "dexie": "^4.2.0",
     "dexie-react-hooks": "^4.2.0",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.2.3",
     "dotenv-safe": "^9.1.0",
     "expo": "^54.0.9",
     "expo-av": "^16.0.7",

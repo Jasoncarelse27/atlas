@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { extractMemoryFromMessage, mergeMemory } from '../utils/memoryExtractor';
 
 export type UserTier = 'free' | 'core' | 'studio';
 
@@ -8,14 +7,6 @@ interface UsageStats {
   messages_today: number;
   messages_this_month: number;
   last_reset_date: string;
-}
-
-interface UserMemory {
-  name?: string;
-  preferences?: string[];
-  interests?: string[];
-  context?: string;
-  last_updated?: string;
 }
 
 interface SubscriptionProfile {
@@ -28,8 +19,6 @@ interface SubscriptionProfile {
   first_payment: string | null;
   last_reset_date: string | null;
   usage_stats: UsageStats;
-  user_context?: UserMemory; // New memory field
-  personal_details?: UserMemory; // New personal details field
   created_at: string;
   updated_at: string;
 }
@@ -50,17 +39,8 @@ export function useSubscription(userId?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Get tier from profile with proper fallback and logging
+  // Get tier from profile
   const tier: UserTier = profile?.subscription_tier || 'free';
-  
-  // Log tier resolution for debugging
-  useEffect(() => {
-    if (userId && profile) {
-      console.log(`🔍 [useSubscription] User ${userId} tier resolved: ${tier} (from profile: ${profile.subscription_tier})`);
-    } else if (userId && !profile) {
-      console.warn(`⚠️ [useSubscription] User ${userId} has no profile, defaulting to 'free'`);
-    }
-  }, [userId, tier, profile]);
   
   // Calculate tier limits
   const tierLimits: TierLimits = {
@@ -201,74 +181,6 @@ export function useSubscription(userId?: string) {
     await fetchProfile();
   }, [fetchProfile]);
 
-  // Memory functions
-  const updateMemory = useCallback(async (message: string) => {
-    console.log('🧠 [updateMemory] Called with message:', message);
-    console.log('🧠 [updateMemory] userId:', userId, 'profile:', !!profile);
-    
-    if (!userId || !profile) {
-      console.log('🧠 [updateMemory] Skipping - missing userId or profile');
-      return;
-    }
-    
-    try {
-      const extractedMemory = extractMemoryFromMessage(message);
-      console.log('🧠 [updateMemory] Extracted memory:', extractedMemory);
-      
-      if (!extractedMemory.name && !extractedMemory.context) {
-        console.log('🧠 [updateMemory] No memory to extract');
-        return; // Nothing to update
-      }
-      
-      const currentMemory = profile.user_context || {};
-      console.log('🧠 [updateMemory] Current memory:', currentMemory);
-      
-      const mergedMemory = mergeMemory(currentMemory, extractedMemory);
-      console.log('🧠 [updateMemory] Merged memory:', mergedMemory);
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          user_context: mergedMemory,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-      
-      if (error) {
-        console.error('❌ Error updating memory:', error);
-      } else {
-        console.log('✅ Memory updated successfully:', mergedMemory);
-        // Refresh profile to get updated data
-        fetchProfile();
-      }
-    } catch (error) {
-      console.error('❌ Error in updateMemory:', error);
-    }
-  }, [userId, profile, fetchProfile]);
-
-  const getUserMemory = useCallback(() => {
-    return profile?.user_context || {};
-  }, [profile]);
-
-  const getPersonalizedPrompt = useCallback((basePrompt: string) => {
-    const memory = getUserMemory();
-    if (!memory.name && !memory.context) return basePrompt;
-    
-    let personalizedPrompt = basePrompt;
-    
-    if (memory.name) {
-      personalizedPrompt += `\n\nUser's name: ${memory.name}`;
-    }
-    
-    if (memory.context) {
-      personalizedPrompt += `\n\nUser context: ${memory.context}`;
-    }
-    
-    personalizedPrompt += '\n\nUse this information to provide more personalized and context-aware responses.';
-    
-    return personalizedPrompt;
-  }, [getUserMemory]);
-
   return {
     // Profile data
     profile,
@@ -282,11 +194,6 @@ export function useSubscription(userId?: string) {
     // Computed values
     canSendMessage: canSendMessage(),
     remainingMessages: remainingMessages(),
-    
-    // Memory functions
-    updateMemory,
-    getUserMemory,
-    getPersonalizedPrompt,
     
     // Actions
     refresh: fetchProfile,

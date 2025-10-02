@@ -147,10 +147,45 @@ export async function processMessage(userId, text, conversationId = null) {
   }
 
   try {
+    // Get user memory for personalized responses
+    let personalizedContent = text;
+    if (userId) {
+      try {
+        const { data: profile, error } = await getSupabase()
+          .from('profiles')
+          .select('user_context')
+          .eq('id', userId)
+          .single();
+        
+        if (!error && profile?.user_context) {
+          const userMemory = profile.user_context;
+          console.log('🧠 [MessageService] Retrieved user memory:', JSON.stringify(userMemory));
+          
+          // Add memory context if available
+          if (userMemory.name || userMemory.context) {
+            let contextInfo = 'Context about the user:';
+            if (userMemory.name) {
+              contextInfo += ` The user's name is ${userMemory.name}.`;
+            }
+            if (userMemory.context) {
+              contextInfo += ` Additional context: ${userMemory.context}`;
+            }
+            contextInfo += ' Use this information to provide personalized responses and acknowledge that you remember the user.';
+            personalizedContent = `${contextInfo}\n\nUser message: ${text}`;
+            console.log('🧠 [MessageService] Personalized content:', personalizedContent.substring(0, 200) + '...');
+          } else {
+            console.log('🧠 [MessageService] No user memory found for userId:', userId);
+          }
+        }
+      } catch (error) {
+        console.warn('🧠 [MessageService] Failed to fetch user memory:', error);
+      }
+    }
+
     const completion = await getAnthropic().messages.create({
       model,
       max_tokens: 512,
-      messages: [{ role: "user", content: text }],
+      messages: [{ role: "user", content: personalizedContent }],
     });
 
     const reply = completion.content[0]?.text || "(no response)";

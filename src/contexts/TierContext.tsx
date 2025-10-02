@@ -129,15 +129,15 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
     if (state.loading || !state.tier) return false;
     if (state.tier === "studio" || state.tier === "enterprise") return true;
     if (state.tier === "core") return feature !== "studio-only";
-    if (state.tier === "free") return feature === "text";
+    if (state.tier === "free") return feature === "text"; // TODO: Use centralized tier check
     return false;
   };
 
-  const requiresUpgrade = (required: "core" | "studio" | "enterprise", feature?: string): boolean => {
+  const requiresUpgrade = (required: "core" | "studio" | "enterprise", _feature?: string): boolean => {
     if (state.loading || !state.tier) return true;
     if (state.tier === "studio" || state.tier === "enterprise") return false;
     if (state.tier === "core") return required === "studio" || required === "enterprise";
-    if (state.tier === "free") return true;
+    if (state.tier === "free") return true; // TODO: Use centralized tier check
     return true;
   };
 
