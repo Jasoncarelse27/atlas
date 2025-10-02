@@ -80,8 +80,8 @@ if (!ANTHROPIC_API_KEY) {
 
 // Model mapping by tier (updated to latest non-deprecated models)
 const _mapTierToAnthropicModel = (tier) => {
-  if (tier === 'studio') return 'claude-3-5-sonnet-20240620';
-  return 'claude-3-5-sonnet-20240620';
+  if (tier === 'studio') return 'claude-3-5-sonnet-20241022';
+  return 'claude-3-5-sonnet-20241022';
 };
 
 // Stream helper: write SSE data chunk
@@ -221,9 +221,9 @@ const verifyJWT = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     
-    // Development mode: allow mock token or bypass for local testing
-    if (token === 'mock-token-for-development' || process.env.NODE_ENV === 'development') {
-      console.log('🔐 JWT: Using development mode bypass');
+    // Development mode: only allow specific mock token for local testing
+    if (process.env.NODE_ENV === 'development' && token === 'mock-token-for-development') {
+      console.log('🔐 JWT: Using development mode mock token');
       req.user = { id: '550e8400-e29b-41d4-a716-446655440000' };
       return next();
     }
@@ -300,18 +300,22 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.ALLOWED_ORIGINS?.split(',') || ['*']
     : [
+        // Vite dev server ports
+        'http://localhost:5173',
         'http://localhost:5174', 
         'http://localhost:5175',
         'http://localhost:5176',
         'http://localhost:5177',
-        'http://localhost:5173', 
-        'http://localhost:3000', 
-        'http://localhost:8081', 
-        'http://127.0.0.1:8081', 
-        'exp://127.0.0.1:19000', 
+        // Backend port
+        'http://localhost:8000',
+        // Expo/React Native ports
+        'http://localhost:8081',
         'http://localhost:19006',
+        'exp://127.0.0.1:19000',
         'exp://10.46.30.39:8081',
         'exp://10.46.30.39:8083',
+        // Legacy ports
+        'http://127.0.0.1:8081',
         'http://localhost:8083'
       ],
   credentials: true,
@@ -421,7 +425,7 @@ app.post('/message', async (req, res) => {
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: 'claude-3-5-sonnet-20240620',
+              model: 'claude-3-5-sonnet-20241022',
               max_tokens: 2000,
               messages: [
                 {
@@ -457,7 +461,7 @@ app.post('/message', async (req, res) => {
 
           res.json({
             success: true,
-            model: 'claude-3-5-sonnet-20240620',
+            model: 'claude-3-5-sonnet-20241022',
             tier: userTier || 'free',
             reply: analysis,
             conversationId: conversationId,
@@ -801,7 +805,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20240620',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2000,
         messages: [
           {

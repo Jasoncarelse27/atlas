@@ -109,8 +109,8 @@ function getSupabase() {
 // ✅ Tier → Model map (updated to latest non-deprecated models)
 const MODEL_MAP = {
   free: "claude-3-5-haiku-20241022",
-  core: "claude-3-5-sonnet-20240620", 
-  studio: "claude-3-5-sonnet-20240620",
+  core: "claude-3-5-sonnet-20241022", 
+  studio: "claude-3-5-sonnet-20241022",
 };
 
 /**

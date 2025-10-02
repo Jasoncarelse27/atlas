@@ -3,7 +3,7 @@ module.exports = {
   // Production environment variables
   production: {
     NODE_ENV: 'production',
-    PORT: 3001,
+    PORT: 8000,
     ALLOWED_ORIGINS: 'https://otiumcreations.com,https://www.otiumcreations.com',
     CORS_ORIGIN: 'https://otiumcreations.com',
     
@@ -23,8 +23,8 @@ module.exports = {
   // Development environment variables
   development: {
     NODE_ENV: 'development',
-    PORT: 3001,
-    ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000',
+    PORT: 8000,
+    ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:8000',
     CORS_ORIGIN: 'http://localhost:5173',
     
     // Supabase configuration

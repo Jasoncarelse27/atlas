@@ -20,7 +20,7 @@ export const imageService = {
       });
 
       const filePath = `${userId}/${Date.now()}-${file.name}`;
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from("images")
         .upload(filePath, file);
 
@@ -67,7 +67,7 @@ export const imageService = {
         user_id: userId,
         event_name: "image_scan_request",
         file_path: filePath,
-        metadata: { model: "claude-3-5-sonnet-20240620" },
+        metadata: { model: "claude-3-5-sonnet-20241022" },
       });
 
       // Get the public URL for the image

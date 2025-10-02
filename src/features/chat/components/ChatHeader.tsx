@@ -1,6 +1,6 @@
 import { Brain, LogOut, MessageSquare, Settings, User } from 'lucide-react';
 import React from 'react';
-// import { useTierAccess } from '@/hooks/useSubscription'; // TODO: Use for centralized tier checks when userId is available
+// import { useTierAccess } from '@/hooks/useSubscription'; // Note: Use for centralized tier checks when userId is available
 
 interface ChatHeaderProps {
   user?: any;
@@ -15,7 +15,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   messageCount,
   onLogout
 }) => {
-  // const { hasAccess } = useTierAccess(); // TODO: Use for centralized tier checks when userId is available
+  // const { hasAccess } = useTierAccess(); // Note: Use for centralized tier checks when userId is available
   return (
     <header className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

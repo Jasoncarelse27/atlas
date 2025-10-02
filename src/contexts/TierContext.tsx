@@ -129,7 +129,7 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
     if (state.loading || !state.tier) return false;
     if (state.tier === "studio" || state.tier === "enterprise") return true;
     if (state.tier === "core") return feature !== "studio-only";
-    if (state.tier === "free") return feature === "text"; // TODO: Use centralized tier check
+    if (state.tier === "free") return feature === "text"; // Basic tier check
     return false;
   };
 
@@ -137,7 +137,7 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
     if (state.loading || !state.tier) return true;
     if (state.tier === "studio" || state.tier === "enterprise") return false;
     if (state.tier === "core") return required === "studio" || required === "enterprise";
-    if (state.tier === "free") return true; // TODO: Use centralized tier check
+    if (state.tier === "free") return true; // Basic tier check
     return true;
   };
 

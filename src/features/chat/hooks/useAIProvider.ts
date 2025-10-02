@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import type { UserTier } from './useSubscriptionAccess';
+type UserTier = 'free' | 'core' | 'studio';
 
 export type SupportedModel = 'claude' | 'groq' | 'opus';
 
@@ -78,7 +78,7 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${getEnvVar('VITE_CLAUDE_API_KEY')}`,
           },
-          model: 'claude-3-5-sonnet-20240620',
+          model: 'claude-3-5-sonnet-20241022',
           maxTokens: 4096,
           temperature: 0.7
         };

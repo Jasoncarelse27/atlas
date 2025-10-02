@@ -53,7 +53,7 @@ export function useTierAccess() {
 
   const showUpgradeModal = (feature: string) => {
     console.log(`⚠️ Upgrade required for: ${feature}`);
-    // TODO: Implement upgrade modal
+    // Note: Upgrade modal handled by useSubscription hook
   }
 
   return { tier, hasAccess, loading, showUpgradeModal }

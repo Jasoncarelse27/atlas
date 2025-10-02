@@ -32,8 +32,8 @@ function createSupabaseClients() {
 
   console.log('✅ Supabase client initialized successfully');
   console.log(`✅ Supabase URL: ${SUPABASE_URL}`);
-  console.log(`✅ Service role key: ${SUPABASE_SERVICE_ROLE_KEY.substring(0, 10)}...`);
-  console.log(`✅ Anon key: ${SUPABASE_ANON_KEY.substring(0, 10)}...`);
+  console.log(`✅ Service role key: ${SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'}`);
+  console.log(`✅ Anon key: ${SUPABASE_ANON_KEY ? 'SET' : 'NOT SET'}`);
 
   return { supabase, supabasePublic };
 }
