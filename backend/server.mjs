@@ -759,38 +759,109 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     let finalText = `(${effectiveTier}) Reply via ${routedProvider}: I received your message: "${message}".`;
     try {
       if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
-        const r = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: selectedModel,
-            max_tokens: 2000,
-            messages: [{ role: 'user', content: message.trim() }]
-          })
-        });
-        const data = await r.json();
-        finalText = data?.content?.[0]?.text || finalText;
+        let response;
+        let lastError;
+        
+        // Retry logic for Claude API calls
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            console.log(`🔄 [Claude API] Attempt ${attempt}/3 for message processing`);
+            response = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+              },
+              body: JSON.stringify({
+                model: selectedModel,
+                max_tokens: 2000,
+                messages: [{ role: 'user', content: message.trim() }]
+              })
+            });
+            
+            if (response.ok) {
+              console.log(`✅ [Claude API] Success on attempt ${attempt}`);
+              break;
+            } else {
+              lastError = await response.text().catch(() => 'Claude API error');
+              console.error(`❌ [Claude API] Attempt ${attempt} failed:`, lastError);
+              
+              if (attempt < 3) {
+                console.log(`⏳ [Claude API] Waiting 2 seconds before retry...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              }
+            }
+          } catch (fetchError) {
+            lastError = fetchError.message;
+            console.error(`❌ [Claude API] Attempt ${attempt} error:`, fetchError.message);
+            
+            if (attempt < 3) {
+              console.log(`⏳ [Claude API] Waiting 2 seconds before retry...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        }
+        
+        if (!response || !response.ok) {
+          console.error('❌ [Claude API] All retry attempts failed');
+          finalText = '⚠️ Atlas had an error contacting Claude. Please try again.';
+        } else {
+          const data = await response.json();
+          finalText = data?.content?.[0]?.text || finalText;
+        }
       } else if (ANTHROPIC_API_KEY) {
-        // Fallback to Claude
-        const r = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: selectedModel,
-            max_tokens: 2000,
-            messages: [{ role: 'user', content: message.trim() }]
-          })
-        });
-        const data = await r.json();
-        finalText = data?.content?.[0]?.text || finalText;
+        // Fallback to Claude with retry logic
+        let response;
+        let lastError;
+        
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            console.log(`🔄 [Claude Fallback] Attempt ${attempt}/3 for message processing`);
+            response = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+              },
+              body: JSON.stringify({
+                model: selectedModel,
+                max_tokens: 2000,
+                messages: [{ role: 'user', content: message.trim() }]
+              })
+            });
+            
+            if (response.ok) {
+              console.log(`✅ [Claude Fallback] Success on attempt ${attempt}`);
+              break;
+            } else {
+              lastError = await response.text().catch(() => 'Claude API error');
+              console.error(`❌ [Claude Fallback] Attempt ${attempt} failed:`, lastError);
+              
+              if (attempt < 3) {
+                console.log(`⏳ [Claude Fallback] Waiting 2 seconds before retry...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              }
+            }
+          } catch (fetchError) {
+            lastError = fetchError.message;
+            console.error(`❌ [Claude Fallback] Attempt ${attempt} error:`, fetchError.message);
+            
+            if (attempt < 3) {
+              console.log(`⏳ [Claude Fallback] Waiting 2 seconds before retry...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        }
+        
+        if (!response || !response.ok) {
+          console.error('❌ [Claude Fallback] All retry attempts failed');
+          finalText = '⚠️ Atlas had an error contacting Claude. Please try again.';
+        } else {
+          const data = await response.json();
+          finalText = data?.content?.[0]?.text || finalText;
+        }
       }
     } catch (oneShotErr) {
       console.error('One-shot provider error:', oneShotErr);

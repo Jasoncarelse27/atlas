@@ -183,7 +183,9 @@ export function useSubscription(userId?: string) {
           // Start polling fallback
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
-              console.log('🔄 [useSubscription] Polling for profile updates...');
+              if (process.env.NODE_ENV === 'development') {
+                console.log('🔄 [useSubscription] Polling for profile updates...');
+              }
               fetchProfile();
             }, 60000); // Poll every 60 seconds
           }
