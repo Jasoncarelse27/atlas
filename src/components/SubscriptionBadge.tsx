@@ -1,5 +1,5 @@
+import { Crown, Star, Zap } from 'lucide-react';
 import React from 'react';
-import { Zap, Crown, Star } from 'lucide-react';
 import type { UserProfile } from '../types/subscription';
 import { TIER_CONFIGS } from '../types/subscription';
 import Tooltip from './Tooltip';
@@ -21,9 +21,9 @@ const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({
     switch (profile.tier) {
       case 'free':
         return <Star className="w-3 h-3" />;
-      case 'pro':
+      case 'core':
         return <Zap className="w-3 h-3" />;
-      case 'pro_max':
+      case 'studio':
         return <Crown className="w-3 h-3" />;
       default:
         return <Star className="w-3 h-3" />;
@@ -36,9 +36,9 @@ const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({
     switch (tier) {
       case 'free':
         return `${baseClasses} bg-gray-100 border-gray-300 text-gray-700`;
-      case 'pro':
+      case 'core':
         return `${baseClasses} bg-blue-100 border-blue-300 text-blue-700`;
-      case 'pro_max':
+      case 'studio':
         return `${baseClasses} bg-gradient-to-r from-purple-100 to-pink-100 border-purple-300 text-purple-700`;
       default:
         return `${baseClasses} bg-gray-100 border-gray-300 text-gray-700`;

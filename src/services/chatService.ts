@@ -111,6 +111,12 @@ export const chatService = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Backend error:', errorData);
+        
+        // ✅ Handle monthly limit reached
+        if (response.status === 429 && errorData.error === 'MONTHLY_LIMIT_REACHED') {
+          throw new Error('MONTHLY_LIMIT_REACHED');
+        }
+        
         throw new Error(`Backend error: ${errorData.error || response.statusText}`);
       }
 
@@ -142,6 +148,23 @@ export const chatService = {
 
       // Call completion callback to clear typing indicator
       onComplete?.();
+      
+      // Refresh profile to get updated usage stats
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          // Trigger a profile refresh by calling the profile endpoint
+          await fetch(`${import.meta.env.VITE_API_URL}/v1/user_profiles/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          console.log('🔄 [chatService] Profile refreshed after message sent');
+        }
+      } catch (refreshError) {
+        console.warn('⚠️ [chatService] Failed to refresh profile:', refreshError);
+      }
       
       // Reset streaming state
       useMessageStore.getState().setIsStreaming(false);

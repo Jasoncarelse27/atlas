@@ -6,6 +6,8 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
   const [shouldGlow, setShouldGlow] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
+  
+  // console.log('🔄 [useAutoScroll] Hook called with deps:', deps.length, 'items');
 
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -19,7 +21,7 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
         const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
         const atBottom = scrollTop + clientHeight >= scrollHeight - 50;
         
-        
+          // console.log('🔄 [useAutoScroll] Container scroll:', { scrollTop, scrollHeight, clientHeight, atBottom });
         setShowScrollButton(!atBottom);
         setIsAtBottom(atBottom);
       } else {
@@ -29,7 +31,7 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
         const documentHeight = document.body.offsetHeight;
         const atBottom = scrollTop + windowHeight >= documentHeight - 50;
         
-        
+          // console.log('🔄 [useAutoScroll] Window scroll:', { scrollTop, windowHeight, documentHeight, atBottom });
         setShowScrollButton(!atBottom);
         setIsAtBottom(atBottom);
       }
@@ -75,15 +77,18 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
   // Handle new messages after initial load
   useEffect(() => {
     if (hasInitiallyScrolled && deps.length > 0) {
-      if (isAtBottom) {
-        // User is at bottom → auto-scroll to new messages
-        scrollToBottom();
-      } else {
-        // User is scrolled up → trigger golden glow pulse
-        setShouldGlow(true);
-        const timeout = setTimeout(() => setShouldGlow(false), 1200);
-        return () => clearTimeout(timeout);
-      }
+        // console.log('🔄 [useAutoScroll] New message detected, isAtBottom:', isAtBottom);
+        if (isAtBottom) {
+          // User is at bottom → auto-scroll to new messages
+          // console.log('🔄 [useAutoScroll] Auto-scrolling to bottom');
+          scrollToBottom();
+        } else {
+          // User is scrolled up → trigger golden glow pulse
+          // console.log('🔄 [useAutoScroll] User scrolled up, showing glow');
+          setShouldGlow(true);
+          const timeout = setTimeout(() => setShouldGlow(false), 1200);
+          return () => clearTimeout(timeout);
+        }
     }
   }, deps);
 

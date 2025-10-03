@@ -217,13 +217,13 @@ describe('Revenue Protection System', () => {
 
     it('should enforce token limits per tier', async () => {
       const freeRequest = { ...mockRequest, tier: 'free' as Tier };
-      const basicRequest = { ...mockRequest, tier: 'basic' as Tier };
-      const premiumRequest = { ...mockRequest, tier: 'premium' as Tier };
+      const coreRequest = { ...mockRequest, tier: 'core' as Tier };
+      const studioRequest = { ...mockRequest, tier: 'studio' as Tier };
 
-      const [freeResponse, basicResponse, premiumResponse] = await Promise.all([
+      const [freeResponse, coreResponse, studioResponse] = await Promise.all([
         enhancedAIService.processRequest(freeRequest),
-        enhancedAIService.processRequest(basicRequest),
-        enhancedAIService.processRequest(premiumRequest)
+        enhancedAIService.processRequest(coreRequest),
+        enhancedAIService.processRequest(studioRequest)
       ]);
 
       // Token usage should respect tier limits

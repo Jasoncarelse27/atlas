@@ -1,24 +1,24 @@
 import {
-    AlertTriangle,
-    Check,
-    Clock,
-    Download,
-    Edit3,
-    MessageSquare,
-    MoreVertical,
-    Pin,
-    Plus,
-    Search,
-    Trash,
-    Trash2,
-    Upload,
-    X
+  AlertTriangle,
+  Check,
+  Clock,
+  Download,
+  Edit3,
+  MessageSquare,
+  MoreVertical,
+  Pin,
+  Plus,
+  Search,
+  Trash,
+  Trash2,
+  Upload,
+  X
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import LoadingSpinner from '../components/LoadingSpinner';
-import Tooltip from '../components/Tooltip';
-import type { SoundType } from '../hooks/useSoundEffects';
-import type { Conversation } from '../types/chat';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import Tooltip from '../../components/Tooltip';
+import type { SoundType } from '../../hooks/useSoundEffects';
+import type { Conversation } from '../../types/chat';
 
 interface ConversationHistoryPanelProps {
   isOpen: boolean;
@@ -260,24 +260,23 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-start justify-center sm:items-center p-0 sm:p-4">
       <div 
-        className="neumorphic-card bg-white rounded-none sm:rounded-2xl border border-gray-300 w-full sm:max-w-md h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col"
-        style={{ filter: 'none', backdropFilter: 'none' }}
+        className="bg-gray-800/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-gray-600/50 w-full sm:max-w-md h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 border-b border-gray-600">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 neumorphic-button bg-white rounded-lg">
-                <MessageSquare className="w-5 h-5 text-gray-700" />
+              <div className="p-2 bg-white/10 rounded-lg">
+                <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Conversations</h2>
-                <p className="text-xs text-gray-600">{conversations.length} conversations</p>
+                <h2 className="text-lg font-bold text-white">Conversation History</h2>
+                <p className="text-sm text-blue-100">{conversations.length} conversations</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="neumorphic-button p-2 text-gray-600 hover:text-gray-900 rounded-lg transition-colors"
+              className="p-2 text-white/70 hover:text-white rounded-lg transition-colors"
               aria-label="Close conversation history"
             >
               <X className="w-5 h-5" />
@@ -286,7 +285,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
           
           {/* Search and New Chat */}
           <div className="mt-4 flex gap-2">
-            <div className="neumorphic-input-wrapper flex-1 flex items-center rounded-lg overflow-hidden">
+            <div className="flex-1 flex items-center rounded-lg overflow-hidden bg-gray-700/50 border border-gray-600">
               <Search className="w-4 h-4 text-gray-400 ml-3" />
               <input
                 ref={searchInputRef}
@@ -294,12 +293,12 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search conversations"
-                className="w-full p-2 border-0 bg-transparent text-gray-900 focus:outline-none text-sm"
+                className="w-full p-2 border-0 bg-transparent text-white placeholder-gray-400 focus:outline-none text-sm"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="p-1 mr-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                  className="p-1 mr-2 text-gray-400 hover:text-gray-300 rounded-full hover:bg-gray-600"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -309,7 +308,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
             <Tooltip content="New conversation">
               <button
                 onClick={handleCreateNewConversation}
-                className="neumorphic-button-strong p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                 aria-label="New conversation"
               >
                 <Plus className="w-5 h-5" />
@@ -324,7 +323,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
             <div className="p-2">
               {Object.entries(groupedConversations).map(([dateGroup, convs]) => (
                 <div key={dateGroup} className="mb-4">
-                  <h3 className="text-xs font-medium text-gray-500 px-2 py-1">{dateGroup}</h3>
+                  <h3 className="text-xs font-medium text-gray-400 px-2 py-1">{dateGroup}</h3>
                   
                   <div className="space-y-1">
                     {convs.map(conversation => (
@@ -352,10 +351,10 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                         
                         {/* Conversation Item */}
                         <div 
-                          className={`group p-2 rounded-lg transition-colors flex items-center gap-2 ${
+                          className={`group flex items-center w-full px-6 py-4 text-left hover:bg-gray-700/50 transition-colors duration-200 ${
                             conversation.id === currentConversationId
-                              ? 'neumorphic-inner bg-blue-50 text-blue-700'
-                              : 'neumorphic-flat hover:bg-gray-100'
+                              ? 'bg-blue-600/20 border-l-4 border-blue-500'
+                              : ''
                           }`}
                           onContextMenu={(e) => {
                             e.preventDefault();
@@ -410,38 +409,41 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                           ) : (
                             <>
                               {/* Conversation Icon */}
-                              <div className={`p-1.5 rounded-lg ${
-                                conversation.id === currentConversationId
-                                  ? 'bg-blue-200 text-blue-700'
-                                  : 'bg-gray-200 text-gray-700'
-                              }`}>
-                                <MessageSquare className="w-3.5 h-3.5" />
+                              <div className="flex-shrink-0 mr-4 group-hover:scale-110 transition-transform duration-200">
+                                <MessageSquare className="w-8 h-8 text-blue-600" />
                               </div>
                               
                               {/* Title and Timestamp */}
                               <div 
-                                className="flex-1 min-w-0 cursor-pointer"
+                                className="flex-1 cursor-pointer"
                                 onClick={() => handleSelectConversation(conversation)}
                               >
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-2">
                                   {conversation.pinned && (
-                                    <Pin className="w-3 h-3 text-blue-500" />
+                                    <Pin className="w-4 h-4 text-blue-500" />
                                   )}
-                                  <h4 className="font-medium text-sm truncate">
+                                  <h4 className="text-base font-medium text-gray-100 group-hover:text-white truncate">
                                     {conversation.title}
                                   </h4>
                                 </div>
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                  <Clock className="w-3 h-3" />
+                                <div className="flex items-center gap-2 text-sm text-gray-400 group-hover:text-gray-300 mt-1">
+                                  <Clock className="w-4 h-4" />
                                   <span>
                                     {new Date(conversation.lastUpdated).toLocaleTimeString([], { 
                                       hour: '2-digit', 
                                       minute: '2-digit' 
                                     })}
                                   </span>
-                                  <span className="text-gray-400">•</span>
+                                  <span className="text-gray-500">•</span>
                                   <span>{conversation.messages.length} messages</span>
                                 </div>
+                              </div>
+                              
+                              {/* Right Arrow */}
+                              <div className="text-gray-500 group-hover:text-gray-300 transition-colors">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
                               </div>
                               
                               {/* Action Buttons - Smaller for mobile */}
@@ -493,10 +495,10 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
           ) : searchQuery ? (
             <div className="flex flex-col items-center justify-center h-40 p-4">
               <Search className="w-8 h-8 text-gray-400 mb-2" />
-              <p className="text-gray-600 text-center">No conversations found matching "{searchQuery}"</p>
+              <p className="text-gray-400 text-center">No conversations found matching "{searchQuery}"</p>
               <button
                 onClick={() => setSearchQuery('')}
-                className="neumorphic-button mt-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm transition-colors"
+                className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
               >
                 Clear search
               </button>
@@ -504,10 +506,10 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
           ) : (
             <div className="flex flex-col items-center justify-center h-40 p-4">
               <MessageSquare className="w-8 h-8 text-gray-400 mb-2" />
-              <p className="text-gray-600 text-center">No conversations yet</p>
+              <p className="text-gray-400 text-center">No conversations yet</p>
               <button
                 onClick={handleCreateNewConversation}
-                className="neumorphic-button mt-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm transition-colors"
+                className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
               >
                 Start a new conversation
               </button>
@@ -516,7 +518,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-gray-200 bg-gray-50">
+        <div className="px-6 py-3 bg-gray-700/30 border-t border-gray-600">
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
               <Tooltip content="Export conversations">

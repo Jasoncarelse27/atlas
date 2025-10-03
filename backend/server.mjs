@@ -411,7 +411,7 @@ app.post('/api/reset-memory', async (req, res) => {
       .update({ 
         user_context: {
           name: 'Jason',
-          context: 'software development',
+          context: null,
           last_updated: new Date().toISOString()
         }
       })
@@ -533,14 +533,27 @@ app.post('/message', async (req, res) => {
     }
 
     // Handle regular text messages
-    const { reply, model, tier: detectedTier, conversationId: returnedConvId } = await processMessage(userId || null, messageText, conversationId);
+    const result = await processMessage(userId || null, messageText, conversationId);
+    
+    // ✅ Check for limit reached
+    if (result.success === false && result.error === 'MONTHLY_LIMIT_REACHED') {
+      return res.status(429).json({
+        success: false,
+        error: 'MONTHLY_LIMIT_REACHED',
+        message: result.message,
+        upgradeRequired: true,
+        currentUsage: result.currentUsage,
+        limit: result.limit,
+        tier: userTier || 'free'
+      });
+    }
 
     res.json({
       success: true,
-      model,
-      tier: detectedTier,
-      reply,
-      conversationId: returnedConvId, // ✅ Return conversationId so frontend can track it
+      model: result.model,
+      tier: result.tier,
+      reply: result.reply,
+      conversationId: result.conversationId, // ✅ Return conversationId so frontend can track it
     });
   } catch (err) {
     console.error('❌ [/message] Error:', err);
@@ -575,31 +588,84 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       }
     }
 
-    // Enforce Free tier daily limit (2 messages/day) - skip in development
+    // Enforce Free tier monthly limit (15 messages/month) - skip in development
     if (effectiveTier === 'free' && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        const { count: dailyCount, error: countErr } = await supabase
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const { count: monthlyCount, error: countErr } = await supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('role', 'user')
-          .gte('created_at', startOfDay.toISOString());
+          .gte('created_at', startOfMonth.toISOString());
         if (countErr) {
           console.error('Count error:', countErr);
         }
-        if ((dailyCount ?? 0) >= 2) {
+        if ((monthlyCount ?? 0) >= 15) {
           return res.status(429).json({
-            error: 'Daily limit reached for Free tier',
+            error: 'Monthly limit reached for Free tier',
             upgrade_required: true,
             tier: effectiveTier,
-            limits: { daily_messages: 2 }
+            limits: { monthly_messages: 15 }
           });
         }
       } catch (error) {
-        console.error('Error checking daily limit:', error);
+        console.error('Error checking monthly limit:', error);
         // Continue without limit check in case of error
+      }
+    }
+
+    // Update usage stats for Free tier users
+    console.log(`🔍 [Debug] effectiveTier: ${effectiveTier}, userId: ${userId}`);
+    if (effectiveTier === 'free') {
+      console.log(`📊 [Usage] Starting usage tracking for user ${userId} (tier: ${effectiveTier})`);
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        
+        // Get current usage stats
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('usage_stats, last_reset_date')
+          .eq('id', userId)
+          .single();
+        
+        const currentStats = currentProfile?.usage_stats || {};
+        const lastReset = currentProfile?.last_reset_date?.slice(0, 10);
+        
+        // Reset daily count if it's a new day
+        if (lastReset !== today) {
+          currentStats.messages_today = 0;
+        }
+        
+        // Reset monthly count if it's a new month
+        const currentMonth = startOfMonth.toISOString().slice(0, 7);
+        const lastResetMonth = lastReset?.slice(0, 7);
+        if (lastResetMonth !== currentMonth) {
+          currentStats.messages_this_month = 0;
+        }
+        
+        // Increment counters
+        currentStats.messages_today = (currentStats.messages_today || 0) + 1;
+        currentStats.messages_this_month = (currentStats.messages_this_month || 0) + 1;
+        
+        // Update profile with new usage stats
+        await supabase
+          .from('profiles')
+          .update({
+            usage_stats: currentStats,
+            last_reset_date: today
+          })
+          .eq('id', userId);
+          
+        console.log(`📊 [Usage] Updated usage for user ${userId}: ${currentStats.messages_this_month}/15 this month`);
+      } catch (error) {
+        console.error('Error updating usage stats:', error);
+        // Continue without updating usage in case of error
       }
     }
 
@@ -1416,6 +1482,69 @@ app.put('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
   } catch (error) {
     console.error('Update profile endpoint error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// FastSpring checkout creation endpoint
+app.post('/api/fastspring/create-checkout', async (req, res) => {
+  try {
+    const { userId, tier, email, productId, successUrl, cancelUrl } = req.body;
+
+    if (!userId || !tier || !email || !productId) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    const FASTSPRING_API_KEY = process.env.FASTSPRING_API_KEY;
+    const FASTSPRING_STORE_ID = process.env.FASTSPRING_STORE_ID;
+    
+    if (!FASTSPRING_API_KEY || !FASTSPRING_STORE_ID) {
+      return res.status(500).json({ error: 'FastSpring API credentials not configured' });
+    }
+
+    // Create FastSpring checkout session
+    const fastspringResponse = await fetch(`https://api.fastspring.com/stores/${FASTSPRING_STORE_ID}/sessions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${FASTSPRING_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        products: [
+          {
+            product: productId,
+            quantity: 1
+          }
+        ],
+        customer: {
+          email: email,
+          firstName: 'Atlas',
+          lastName: 'User'
+        },
+        tags: {
+          user_id: userId,
+          tier: tier
+        },
+        successUrl: successUrl,
+        cancelUrl: cancelUrl
+      })
+    });
+
+    if (!fastspringResponse.ok) {
+      const error = await fastspringResponse.text();
+      console.error('FastSpring API error:', error);
+      return res.status(500).json({ error: 'Failed to create checkout session' });
+    }
+
+    const checkoutData = await fastspringResponse.json();
+    
+    return res.status(200).json({
+      checkoutUrl: checkoutData.url,
+      sessionId: checkoutData.id
+    });
+
+  } catch (error) {
+    console.error('Checkout creation error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

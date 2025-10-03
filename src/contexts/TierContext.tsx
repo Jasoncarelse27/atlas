@@ -127,16 +127,16 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
 
   const canUseFeature = (feature: string): boolean => {
     if (state.loading || !state.tier) return false;
-    if (state.tier === "studio" || state.tier === "enterprise") return true;
+    if (state.tier === "studio") return true;
     if (state.tier === "core") return feature !== "studio-only";
     if (state.tier === "free") return feature === "text"; // Basic tier check
     return false;
   };
 
-  const requiresUpgrade = (required: "core" | "studio" | "enterprise", _feature?: string): boolean => {
+  const requiresUpgrade = (required: "core" | "studio", _feature?: string): boolean => {
     if (state.loading || !state.tier) return true;
-    if (state.tier === "studio" || state.tier === "enterprise") return false;
-    if (state.tier === "core") return required === "studio" || required === "enterprise";
+    if (state.tier === "studio") return false;
+    if (state.tier === "core") return required === "studio";
     if (state.tier === "free") return true; // Basic tier check
     return true;
   };
@@ -165,7 +165,7 @@ export function useTier() {
 
 // Simple feature checking
 export function canUseFeature(tier: Tier, feature: string): boolean {
-  if (tier === "studio" || tier === "enterprise") return true;
+  if (tier === "studio") return true;
   if (tier === "core") return feature !== "studio-only";
   if (tier === "free") return feature === "text";
   return false;
@@ -173,7 +173,7 @@ export function canUseFeature(tier: Tier, feature: string): boolean {
 
 // Simple upgrade requirement check
 export function requiresUpgrade(tier: Tier, feature: string): boolean {
-  if (tier === "studio" || tier === "enterprise") return false;
+  if (tier === "studio") return false;
   if (tier === "core") return feature === "studio-only";
   if (tier === "free") return feature !== "text";
   return true;

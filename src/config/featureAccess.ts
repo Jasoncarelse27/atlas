@@ -15,7 +15,7 @@ export const tierFeatures = {
     camera: false,
     voiceEmotionAnalysis: false,
     // Usage Limits
-    maxConversationsPerDay: 15,  // Reset at midnight UTC
+    maxConversationsPerMonth: 15,  // 15 messages per month for Free tier
     maxTokensPerResponse: 100,
     maxContextWindow: 2000,  // tokens
     maxConversationLength: 20,  // messages before requiring fresh session
@@ -141,24 +141,19 @@ export const CACHE_CONFIG = {
   ]
 };
 
-// 💳 PADDLE CONFIGURATION (Live API Integration)
-export const PADDLE_CONFIG = {
-  environment: import.meta.env.VITE_PADDLE_ENVIRONMENT || 'live',
-  vendorId: import.meta.env.VITE_PADDLE_VENDOR_ID,
-  apiKey: import.meta.env.VITE_PADDLE_API_KEY,
-  publicKey: import.meta.env.VITE_PADDLE_PUBLIC_KEY,
-  webhookSecret: import.meta.env.VITE_PADDLE_WEBHOOK_SECRET,
+// 💳 FASTSPRING CONFIGURATION (Live API Integration)
+export const FASTSPRING_CONFIG = {
+  environment: import.meta.env.VITE_FASTSPRING_ENVIRONMENT || 'live',
+  storeId: import.meta.env.VITE_FASTSPRING_STORE_ID,
+  apiKey: import.meta.env.VITE_FASTSPRING_API_KEY,
+  webhookSecret: import.meta.env.VITE_FASTSPRING_WEBHOOK_SECRET,
   products: {
     core: {
-      productId: import.meta.env.VITE_PADDLE_CORE_PRODUCT_ID,
-      planId: import.meta.env.VITE_PADDLE_CORE_PLAN_ID,
-      priceId: import.meta.env.VITE_PADDLE_CORE_PRICE_ID || 'pri_core_plan',
+      productId: import.meta.env.VITE_FASTSPRING_CORE_PRODUCT_ID || 'atlas-core-monthly',
       price: 19.99
     },
     studio: {
-      productId: import.meta.env.VITE_PADDLE_STUDIO_PRODUCT_ID,
-      planId: import.meta.env.VITE_PADDLE_STUDIO_PLAN_ID,
-      priceId: import.meta.env.VITE_PADDLE_STUDIO_PRICE_ID || 'pri_studio_plan',
+      productId: import.meta.env.VITE_FASTSPRING_STUDIO_PRODUCT_ID || 'atlas-studio-monthly',
       price: 179.99
     }
   },
@@ -185,14 +180,14 @@ export function getTierPricing(tier: Tier): number {
 
 // Check if user is within daily conversation limit
 export function isWithinDailyLimit(tier: Tier, conversationsToday: number): boolean {
-  const limit = tierFeatures[tier].maxConversationsPerDay;
+  const limit = tier === 'free' ? tierFeatures[tier].maxConversationsPerMonth : tierFeatures[tier].maxConversationsPerDay;
   if (limit === -1) return true; // Unlimited
   return conversationsToday < limit;
 }
 
 // Get remaining conversations for the day
 export function getRemainingConversations(tier: Tier, conversationsToday: number): number | 'unlimited' {
-  const limit = tierFeatures[tier].maxConversationsPerDay;
+  const limit = tier === 'free' ? tierFeatures[tier].maxConversationsPerMonth : tierFeatures[tier].maxConversationsPerDay;
   if (limit === -1) return 'unlimited';
   return Math.max(0, limit - conversationsToday);
 }
@@ -205,7 +200,7 @@ export function containsCrisisKeywords(message: string): boolean {
 
 // Get usage warning level
 export function getUsageWarningLevel(tier: Tier, conversationsToday: number): 'normal' | 'warning' | 'critical' | 'exceeded' {
-  const limit = tierFeatures[tier].maxConversationsPerDay;
+  const limit = tier === 'free' ? tierFeatures[tier].maxConversationsPerMonth : tierFeatures[tier].maxConversationsPerDay;
   if (limit === -1) return 'normal'; // Unlimited
   
   const usage = conversationsToday / limit;

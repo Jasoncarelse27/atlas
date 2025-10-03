@@ -8,9 +8,11 @@ interface EnhancedUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   feature?: string;
+  currentUsage?: number;
+  limit?: number;
 }
 
-export default function EnhancedUpgradeModal({ isOpen, onClose, feature }: EnhancedUpgradeModalProps) {
+export default function EnhancedUpgradeModal({ isOpen, onClose, feature, currentUsage, limit }: EnhancedUpgradeModalProps) {
   const { user } = useSupabaseAuth();
   const { tier, loading, error } = useSimpleTier();
   
@@ -31,10 +33,25 @@ export default function EnhancedUpgradeModal({ isOpen, onClose, feature }: Enhan
     }
   }, [isOpen]);
 
-  const handleUpgrade = (tier: 'core' | 'studio') => {
-    // TODO: Integrate with Paddle checkout
-    console.log(`Upgrading to ${tier} tier`);
-    onClose();
+  const handleUpgrade = async (tier: 'core' | 'studio') => {
+    if (!user?.id || !user?.email) {
+      console.error('User not authenticated');
+      return;
+    }
+
+    try {
+      // Import FastSpring service dynamically to avoid circular dependencies
+      const { fastspringService } = await import('../services/fastspringService');
+      const checkoutUrl = await fastspringService.createCheckoutUrl(user.id, tier, user.email);
+      
+      // Redirect to FastSpring checkout
+      window.location.href = checkoutUrl;
+      
+    } catch (error) {
+      console.error('Failed to create checkout:', error);
+      // Fallback to showing upgrade modal
+      showUpgradeModal('subscription');
+    }
   };
 
   const features = {
@@ -101,6 +118,25 @@ export default function EnhancedUpgradeModal({ isOpen, onClose, feature }: Enhan
                 <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                   <p className="text-sm text-blue-300">
                     <strong>{feature}</strong> features are available with Core & Studio plans
+                  </p>
+                </div>
+              )}
+
+              {/* Usage Display */}
+              {currentUsage && limit && (
+                <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <div className="flex justify-between text-sm text-yellow-300 mb-2">
+                    <span>Messages This Month</span>
+                    <span>{currentUsage} / {limit}</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(currentUsage / limit) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-yellow-400 mt-2">
+                    You've reached your monthly limit. Upgrade to continue your journey with Atlas.
                   </p>
                 </div>
               )}

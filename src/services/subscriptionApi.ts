@@ -74,9 +74,9 @@ class SubscriptionApiService {
       ? 'http://localhost:8000' 
       : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
     
-    // Check if we're in mock mode (no real Paddle credentials)
-    this.isMockMode = !import.meta.env.VITE_PADDLE_CLIENT_TOKEN || 
-                     import.meta.env.VITE_PADDLE_CLIENT_TOKEN === 'mock-client-token';
+    // Check if we're in mock mode (no real FastSpring credentials)
+    this.isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY || 
+                     import.meta.env.VITE_FASTSPRING_API_KEY === 'mock-api-key';
     
     console.log('[Atlas] Subscription API initialized with backend+Dexie fallback 🚀', this.baseUrl);
   }
@@ -205,7 +205,7 @@ class SubscriptionApiService {
 
   /**
    * Update subscription tier (for development/testing)
-   * Note: In production, this would be handled by Paddle webhooks
+   * Note: In production, this would be handled by FastSpring webhooks
    */
   async updateSubscriptionTier(
     userId: string, 
@@ -247,10 +247,10 @@ class SubscriptionApiService {
    * Get subscription status (mock mode)
    * Uses backend API instead of direct Supabase calls
    */
-  async getSubscriptionStatus(userId: string, accessToken: string): Promise<PaddleSubscription | null> {
+  async getSubscriptionStatus(userId: string, accessToken: string): Promise<FastSpringSubscription | null> {
     if (!this.isMockMode) {
-      // TODO: Replace with real Paddle API calls after approval
-      throw new Error('Real Paddle integration not implemented yet');
+      // TODO: Replace with real FastSpring API calls after approval
+      throw new Error('Real FastSpring integration not implemented yet');
     }
 
     try {
@@ -277,7 +277,7 @@ class SubscriptionApiService {
       const profile = await response.json();
       console.log('[SubscriptionAPI] Using backend API ✅', profile);
       
-      // Convert profile to PaddleSubscription format
+      // Convert profile to FastSpringSubscription format
       return {
         id: profile.id,
         status: profile.subscription_tier === 'free' ? 'free' : 'active',
@@ -435,5 +435,5 @@ class SubscriptionApiService {
 
 // Export singleton instance
 export const subscriptionApi = new SubscriptionApiService();
-export type { PaddleSubscription, SubscriptionProfile, SubscriptionResponse };
+export type { FastSpringSubscription, SubscriptionProfile, SubscriptionResponse };
 

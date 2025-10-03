@@ -64,41 +64,43 @@ export function useSubscription(userId?: string) {
   
   // Calculate tier limits
   const tierLimits: TierLimits = {
-    dailyMessages: tier === 'free' ? 15 : -1, // -1 means unlimited
-    monthlyMessages: tier === 'free' ? 50 : -1,
+    dailyMessages: tier === 'free' ? 15 : -1, // -1 means unlimited (for daily tracking)
+    monthlyMessages: tier === 'free' ? 15 : -1, // 15 messages per month for Free tier
     audioMinutes: tier === 'core' || tier === 'studio' ? 60 : 0,
     imageUploads: tier === 'core' || tier === 'studio' ? 10 : 0,
   };
 
-  // Check if user can send messages
+  // Check if user can send messages (monthly limit for Free tier)
   const canSendMessage = (): boolean => {
     if (tier === 'core' || tier === 'studio') return true;
     
-    const today = new Date().toISOString().slice(0, 10);
-    const lastReset = profile?.usage_stats?.last_reset_date?.slice(0, 10);
+    // Get current month in YYYY-MM format
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7);
+    const lastResetMonth = profile?.last_reset_date?.slice(0, 7);
     
-    // Reset daily count if it's a new day
-    if (lastReset !== today) {
-      return true; // Fresh day, can send messages
+    // Reset monthly count if it's a new month
+    if (lastResetMonth !== currentMonth) {
+      return true; // Fresh month, can send messages
     }
     
-    const messagesToday = profile?.usage_stats?.messages_today || 0;
-    return messagesToday < tierLimits.dailyMessages;
+    const messagesThisMonth = profile?.usage_stats?.messages_this_month || 0;
+    return messagesThisMonth < tierLimits.monthlyMessages;
   };
 
-  // Get remaining messages for display
+  // Get remaining messages for display (monthly for Free tier)
   const remainingMessages = (): number => {
     if (tier === 'core' || tier === 'studio') return -1; // Unlimited
     
-    const today = new Date().toISOString().slice(0, 10);
-    const lastReset = profile?.usage_stats?.last_reset_date?.slice(0, 10);
+    // Get current month in YYYY-MM format
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7);
+    const lastResetMonth = profile?.last_reset_date?.slice(0, 7);
     
-    if (lastReset !== today) {
-      return tierLimits.dailyMessages; // Fresh day
-    }
-    
-    const messagesToday = profile?.usage_stats?.messages_today || 0;
-    return Math.max(0, tierLimits.dailyMessages - messagesToday);
+    // Calculate remaining messages for current month
+    const messagesThisMonth = profile?.usage_stats?.messages_this_month || 0;
+    const remaining = Math.max(0, tierLimits.monthlyMessages - messagesThisMonth);
+    return remaining;
   };
 
   const fetchProfile = useCallback(async () => {
@@ -126,7 +128,9 @@ export function useSubscription(userId?: string) {
       }
 
       if (data) {
-        console.log('✅ [useSubscription] Profile fetched:', data);
+        // console.log('✅ [useSubscription] Profile fetched:', data);
+        // console.log('🔍 [useSubscription] Profile usage_stats:', data?.usage_stats);
+        // console.log('🔍 [useSubscription] Profile last_reset_date:', data?.last_reset_date);
         setProfile(data);
       }
     } catch (err) {
@@ -297,7 +301,7 @@ export function useSubscription(userId?: string) {
     
     // Computed values
     canSendMessage: canSendMessage(),
-    remainingMessages: remainingMessages(),
+    remainingMessages: remainingMessages(), // Already called, returns number
     
     // Memory functions
     updateMemory,

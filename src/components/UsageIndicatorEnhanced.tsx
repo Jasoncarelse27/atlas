@@ -179,9 +179,9 @@ export function UsageIndicatorEnhanced({
         {/* Tier Badge */}
         <div className="mt-2">
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            tier === 'premium' 
+            tier === 'studio' 
               ? 'bg-purple-100 text-purple-800'
-              : tier === 'basic'
+              : tier === 'core'
               ? 'bg-green-100 text-green-800'
               : 'bg-gray-100 text-gray-800'
           }`}>

@@ -1,17 +1,29 @@
-import React, { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '../types/subscription';
-import { 
-  Settings
+import {
+  Crown,
+  Grid3X3,
+  HelpCircle,
+  History,
+  LogOut,
+  Menu,
+  MessageSquare, PlusSquare,
+  Settings,
+  Sliders as SlidersIcon,
+  TrendingUp,
+  User as UserIcon,
+  Volume2 as VolumeIcon, VolumeX,
+  Wifi, WifiOff,
+  X as XIcon
 } from 'lucide-react';
+import React, { useState } from 'react';
+import type { SoundType } from '../hooks/useSoundEffects';
+import type { UserProfile } from '../types/subscription';
+import AccountModal from './AccountModal';
 import Logo from './Logo';
-import Tooltip from './Tooltip';
 import StatusIndicator from './StatusIndicator';
 import SubscriptionBadge from './SubscriptionBadge';
+import Tooltip from './Tooltip';
 import UsageIndicator from './UsageIndicator';
-import AccountModal from './AccountModal';
-import { Volume2 as VolumeIcon, VolumeX, HelpCircle, LogOut, User as UserIcon, Menu, X as XIcon, Crown, TrendingUp, Grid3X3, Sliders as SlidersIcon, Wifi, WifiOff, History, MessageSquare, PlusSquare } from 'lucide-react';
-import type { SoundType } from '../hooks/useSoundEffects';
 
 interface HeaderProps {
   currentMode: 'text' | 'voice' | 'image';
@@ -436,7 +448,7 @@ const Header: React.FC<HeaderProps> = ({
               >
                 <Crown className={getIconSize()} />
                 <span className="font-medium">
-                  {profile.tier === 'basic' ? 'Upgrade' : 'Plans'}
+                  {profile.tier === 'free' ? 'Upgrade' : 'Plans'}
                 </span>
               </button>
             </Tooltip>

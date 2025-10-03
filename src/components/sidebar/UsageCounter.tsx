@@ -1,4 +1,4 @@
-import { useTierAccess } from '../../hooks/useSubscription';
+import { useSubscription } from '../../hooks/useSubscription';
 import { UpgradeButton } from '../UpgradeButton';
 
 interface UsageCounterProps {
@@ -6,11 +6,11 @@ interface UsageCounterProps {
 }
 
 export default function UsageCounter({ userId }: UsageCounterProps) {
-  const { tier, remainingMessages } = useTierAccess(userId);
+  const { tier, remainingMessages } = useSubscription(userId);
   
   // Use consolidated subscription hook for real usage data
-  const messageCount = tier === 'free' ? 15 - (remainingMessages || 15) : 0;
-  const maxMessages = tier === 'free' ? 15 : -1; // -1 means unlimited
+  const messageCount = tier === 'free' ? (15 - remainingMessages) : 0;
+  const maxMessages = tier === 'free' ? 15 : -1; // -1 means unlimited (15 messages per month for Free)
 
   const getTierDisplayName = (tier: string) => {
     switch (tier) {
@@ -61,7 +61,7 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
       ) : (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Conversations Today</span>
+            <span className="text-gray-400">Messages This Month</span>
             <span className="text-gray-200">{messageCount} / {maxMessages}</span>
           </div>
           
@@ -73,7 +73,7 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
           </div>
           
           <p className="text-gray-400 text-xs text-center">
-            {remainingMessages} conversations remaining
+            {remainingMessages} messages remaining this month
           </p>
           
           {remainingMessages <= 3 && (

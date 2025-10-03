@@ -16,6 +16,7 @@ interface EnhancedInputToolbarProps {
   disabled?: boolean;
   placeholder?: string;
   conversationId?: string;
+  inputRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 export default function EnhancedInputToolbar({
@@ -23,7 +24,8 @@ export default function EnhancedInputToolbar({
   isProcessing = false,
   disabled = false,
   placeholder = "Ask anything...",
-  conversationId
+  conversationId,
+  inputRef: externalInputRef
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
   const { tier, hasAccess, showUpgradeModal } = useTierAccess();
@@ -36,8 +38,18 @@ export default function EnhancedInputToolbar({
   const [isListening, setIsListening] = useState(false);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const internalInputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // Use external ref if provided, otherwise use internal ref
+  const inputRef = externalInputRef || internalInputRef;
+
+  // Auto-focus input on component mount
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
 
   // Keyboard event handlers
   useEffect(() => {

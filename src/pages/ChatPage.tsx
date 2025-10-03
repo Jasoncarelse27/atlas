@@ -10,6 +10,7 @@ import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 import { usePersistentMessages } from '../hooks/usePersistentMessages';
+import { useSubscription } from '../hooks/useSubscription';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
@@ -36,9 +37,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const { initConversation, hydrateFromOffline } = useMessageStore();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Memory integration
   const { processUserMessage } = useMemoryIntegration({ userId: userId || undefined });
+
+  // Subscription management
+  const { refresh: refreshProfile } = useSubscription(userId || undefined);
 
   // Use persistent messages with offline sync
   const {
@@ -57,6 +62,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   
   // Modern scroll system with golden sparkle
   const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages || []], messagesContainerRef);
+  
+  // Debug logging for auto-scroll
+  useEffect(() => {
+    // console.log('🔄 [ChatPage] Messages changed:', messages?.length, 'messages');
+    // console.log('🔄 [ChatPage] Messages array:', messages);
+    
+    // Simple fallback auto-scroll when messages change
+    if (messages && messages.length > 0) {
+      // console.log('🔄 [ChatPage] Triggering fallback auto-scroll');
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [messages]);
 
   // Ensure scroll to bottom on page refresh/initial load
   useEffect(() => {
@@ -79,13 +100,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
+  // Upgrade modal state
+  const [upgradeModalVisible, setUpgradeModalVisible] = React.useState(false);
+  const [upgradeReason, setUpgradeReason] = React.useState('monthly limit');
+  const [currentUsage, setCurrentUsage] = React.useState<number | undefined>();
+  const [limit, setLimit] = React.useState<number | undefined>();
+
   // Placeholder variables for components that need them
   const isProcessing = isTyping;
-  const upgradeModalVisible = false;
-  const setUpgradeModalVisible = (visible: boolean) => {
-    console.log('Upgrade modal visibility:', visible);
-  };
-  const upgradeReason = 'audio';
 
   // Handle text messages - delegate to chatService
   const handleTextMessage = async (text: string) => {
@@ -116,7 +138,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       const assistantResponse = await chatService.sendMessage(text, () => {
         // Update message status to sent
         updateMessage(message.id, { status: 'sent' });
-      }, conversationId || undefined);
+      }, conversationId || undefined, userId || undefined);
+      
+      // Refresh profile to get updated usage stats
+      try {
+        await refreshProfile();
+        console.log('🔄 [ChatPage] Profile refreshed after message sent');
+      } catch (refreshError) {
+        console.warn('⚠️ [ChatPage] Failed to refresh profile:', refreshError);
+      }
       
       // Once response starts coming in, mark as streaming and clear typing
       setHasStreamingResponse(true);
@@ -148,6 +178,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     } catch (error) {
       console.error('Text message handling error:', error);
       setIsTyping(false);
+      
+      // ✅ Handle monthly limit reached
+      if (error instanceof Error && error.message === 'MONTHLY_LIMIT_REACHED') {
+        // Show upgrade modal with usage info
+        setCurrentUsage(15); // User has reached the limit
+        setLimit(15);
+        setUpgradeReason('monthly message limit');
+        setUpgradeModalVisible(true);
+        return;
+      }
     }
   };
 
@@ -331,7 +371,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         </AnimatePresence>
 
         {/* Chat Container */}
-        <div className="flex flex-col h-[calc(100vh-80px)]">
+        <div 
+          className="flex flex-col h-[calc(100vh-80px)]"
+          onClick={() => {
+            // Focus input when clicking anywhere in chat area
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }}
+        >
 
           {/* Messages */}
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-6">
@@ -387,6 +435,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 isProcessing={isProcessing}
                 placeholder="Ask Atlas anything..."
                 conversationId={conversationId || undefined}
+                inputRef={inputRef}
               />
             </div>
           </div>
@@ -404,6 +453,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           isOpen={upgradeModalVisible}
           onClose={() => setUpgradeModalVisible(false)}
           feature={upgradeReason}
+          currentUsage={currentUsage}
+          limit={limit}
         />
       </div>
     </ErrorBoundary>

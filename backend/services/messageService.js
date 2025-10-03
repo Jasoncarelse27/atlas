@@ -183,6 +183,36 @@ export async function processMessage(userId, text, conversationId = null) {
   console.log("🧠 [MessageService] Processing:", { userId, text, conversationId });
 
   const tier = await getUserTier(userId);
+  
+  // ✅ ENFORCE MESSAGE LIMITS - Check before processing
+  if (tier === 'free') {
+    try {
+      const { data: profile } = await getSupabase()
+        .from('profiles')
+        .select('usage_stats')
+        .eq('id', userId)
+        .single();
+      
+      const messagesThisMonth = profile?.usage_stats?.messages_this_month || 0;
+      const monthlyLimit = 15;
+      
+      if (messagesThisMonth >= monthlyLimit) {
+        console.log(`🚫 [MessageService] User ${userId} has reached monthly limit: ${messagesThisMonth}/${monthlyLimit}`);
+        return {
+          success: false,
+          error: 'MONTHLY_LIMIT_REACHED',
+          message: 'You have reached your monthly message limit. Please upgrade to continue your journey with Atlas.',
+          upgradeRequired: true,
+          currentUsage: messagesThisMonth,
+          limit: monthlyLimit
+        };
+      }
+    } catch (error) {
+      console.error('❌ [MessageService] Error checking usage limits:', error);
+      // Continue processing if we can't check limits (fail open for reliability)
+    }
+  }
+  
   const model = MODEL_MAP[tier] || MODEL_MAP.free;
 
   // ✅ Ensure conversation exists
@@ -282,17 +312,9 @@ export async function processMessage(userId, text, conversationId = null) {
           const userMemory = profile.user_context;
           console.log('🧠 [MessageService] Retrieved user memory:', JSON.stringify(userMemory));
           
-          // Add memory context if available
-          if (userMemory.name || userMemory.context) {
-            let contextInfo = 'Context about the user:';
-            if (userMemory.name) {
-              contextInfo += ` The user's name is ${userMemory.name}.`;
-            }
-            if (userMemory.context) {
-              contextInfo += ` Additional context: ${userMemory.context}`;
-            }
-            contextInfo += ' Use this information to provide personalized responses and acknowledge that you remember the user.';
-            personalizedContent = `${contextInfo}\n\nUser message: ${text}`;
+          // Add memory context if available (simplified, less aggressive)
+          if (userMemory.name) {
+            personalizedContent = `User message: ${text}`;
             console.log('🧠 [MessageService] Personalized content:', personalizedContent.substring(0, 200) + '...');
           } else {
             console.log('🧠 [MessageService] No user memory found for userId:', userId);
@@ -389,6 +411,58 @@ Core principles:
         }
       } catch (err) {
         console.error("❌ [MessageService] Could not save messages:", err);
+      }
+    }
+
+    // Update usage stats for Free tier users
+    console.log(`🔍 [Debug] MessageService tier: ${tier}, userId: ${userId}`);
+    if (tier === 'free') {
+      console.log(`📊 [Usage] Starting usage tracking for user ${userId} (tier: ${tier})`);
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        
+        // Get current usage stats (SIMPLE APPROACH - no new columns needed)
+        const { data: currentProfile } = await getSupabase()
+          .from('profiles')
+          .select('usage_stats, last_reset_date')
+          .eq('id', userId)
+          .single();
+        
+        const currentStats = currentProfile?.usage_stats || {};
+        const lastReset = currentProfile?.last_reset_date?.slice(0, 7); // Use YYYY-MM format
+        const currentMonth = startOfMonth.toISOString().slice(0, 7);
+        
+        // Reset monthly count if it's a new month (SIMPLE)
+        if (lastReset !== currentMonth) {
+          currentStats.messages_this_month = 0;
+          console.log(`📊 [Usage] Monthly reset triggered: ${lastReset} -> ${currentMonth}`);
+        }
+        
+        // Increment monthly counter
+        currentStats.messages_this_month = (currentStats.messages_this_month || 0) + 1;
+        
+        // Update profile with new usage stats (SIMPLE)
+        const { data: updateData, error: updateError } = await getSupabase()
+          .from('profiles')
+          .update({
+            usage_stats: currentStats,
+            last_reset_date: currentMonth + '-01T00:00:00.000Z' // Set to first day of current month
+          })
+          .eq('id', userId)
+          .select();
+          
+        if (updateError) {
+          console.error('❌ [Usage] Database update error:', updateError);
+        } else {
+          console.log(`📊 [Usage] Updated usage for user ${userId}: ${currentStats.messages_this_month}/15 this month`);
+          console.log('📊 [Usage] Update result:', updateData);
+        }
+      } catch (error) {
+        console.error('Error updating usage stats:', error);
+        // Continue without updating usage in case of error
       }
     }
 

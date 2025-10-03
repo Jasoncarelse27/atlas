@@ -23,8 +23,8 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
 
   const getRemainingMessages = () => {
     if (tier !== "free") return null;
-    const remaining = 15 - messageCount;
-    return remaining > 0 ? `${remaining} left` : "0 left";
+    const remaining = 15 - messageCount; // 15 messages per month for Free tier
+    return remaining > 0 ? `${remaining} left this month` : "0 left this month";
   };
 
   return (

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useTierAccess } from '../hooks/useTierAccess';
+import { fastspringService } from '../services/fastspringService';
 
 interface UpgradeButtonProps {
   className?: string;
@@ -16,7 +17,8 @@ export function UpgradeButton({
   children = 'Upgrade Now'
 }: UpgradeButtonProps) {
   const { user } = useSupabaseAuth();
-  const { showUpgradeModal } = useTierAccess(user?.id);
+  const { showUpgradeModal } = useTierAccess();
+  const [isLoading, setIsLoading] = useState(false);
 
   const getSizeStyles = () => {
     switch (size) {
@@ -40,19 +42,46 @@ export function UpgradeButton({
     }
   };
 
+  const handleUpgrade = async () => {
+    if (!user?.id || !user?.email) {
+      console.error('User not authenticated');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Default to Core tier for upgrade
+      const tier = 'core';
+      const checkoutUrl = await fastspringService.createCheckoutUrl(user.id, tier, user.email);
+      
+      // Redirect to FastSpring checkout
+      window.location.href = checkoutUrl;
+      
+    } catch (error) {
+      console.error('Failed to create checkout:', error);
+      // Fallback to showing upgrade modal
+      showUpgradeModal('subscription');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <button
-      onClick={showUpgradeModal}
+      onClick={handleUpgrade}
+      disabled={isLoading}
       className={`
         ${getSizeStyles()}
         ${getVariantStyles()}
         rounded-lg shadow-md hover:shadow-lg 
         transition-all duration-200 
         font-medium
+        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
         ${className}
       `}
     >
-      {children}
+      {isLoading ? 'Loading...' : children}
     </button>
   );
 }

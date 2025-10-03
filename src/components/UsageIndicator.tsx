@@ -1,7 +1,7 @@
 import { AlertTriangle, TrendingUp, Zap } from 'lucide-react';
 import React from 'react';
+import { useSubscription } from '../hooks/useSubscription';
 import type { Tier } from '../types/tier';
-import { useTierAccess } from '../hooks/useTierAccess';
 
 interface UsageIndicatorProps {
   userTier: Tier;
@@ -18,13 +18,14 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
   currentUsage,
   onUpgrade
 }) => {
-  const { getLimit, isUnlimited, getRemainingUsage } = useTierAccess(userTier);
+  const { tier, tierLimits } = useSubscription();
 
   const getUsagePercentage = (current: number, limit: number) => {
     if (limit === -1) return 0; // Unlimited
     return Math.min((current / limit) * 100, 100);
   };
 
+  // Helper functions for usage display
   const getUsageColor = (percentage: number) => {
     if (percentage >= 90) return 'text-red-600 bg-red-50';
     if (percentage >= 75) return 'text-yellow-600 bg-yellow-50';
@@ -37,9 +38,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
     return Zap;
   };
 
-  const textLimit = getLimit('textMessages') || 15;
-  const audioLimit = getLimit('audioMinutes') || 0;
-  const imageLimit = getLimit('imageUploads') || 0;
+  const textLimit = tierLimits.monthlyMessages === -1 ? -1 : tierLimits.monthlyMessages;
+  const audioLimit = tierLimits.audioMinutes;
+  const imageLimit = tierLimits.imageUploads;
 
   const textPercentage = getUsagePercentage(currentUsage.text_messages_this_month, textLimit);
   const audioPercentage = getUsagePercentage(currentUsage.audio_minutes_this_month, audioLimit);
@@ -47,8 +48,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
 
   const showWarning = textPercentage >= 75 || audioPercentage >= 75 || imagePercentage >= 75;
   const showCritical = textPercentage >= 90 || audioPercentage >= 90 || imagePercentage >= 90;
+  const isUnlimited = tier === 'core' || tier === 'studio';
 
-  if (userTier === 'studio') {
+  if (tier === 'studio') {
     // Studio users have unlimited everything
     return (
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
@@ -106,13 +108,13 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
               textPercentage >= 75 ? 'text-yellow-600' : 
               'text-green-600'
             }`}>
-              {isUnlimited('textMessages') 
+              {isUnlimited 
                 ? 'Unlimited' 
                 : `${currentUsage.text_messages_this_month}/${textLimit}`
               }
             </span>
           </div>
-          {!isUnlimited('textMessages') && (
+          {!isUnlimited && (
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all ${
@@ -136,13 +138,13 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
                 audioPercentage >= 75 ? 'text-yellow-600' : 
                 'text-green-600'
               }`}>
-                {isUnlimited('audioMinutes') 
-                  ? 'Unlimited' 
-                  : `${currentUsage.audio_minutes_this_month}/${audioLimit}`
-                }
+              {isUnlimited 
+                ? 'Unlimited' 
+                : `${currentUsage.audio_minutes_this_month}/${audioLimit}`
+              }
               </span>
             </div>
-            {!isUnlimited('audioMinutes') && (
+            {!isUnlimited && (
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
@@ -167,13 +169,13 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
                 imagePercentage >= 75 ? 'text-yellow-600' : 
                 'text-green-600'
               }`}>
-                {isUnlimited('imageUploads') 
-                  ? 'Unlimited' 
-                  : `${currentUsage.image_uploads_this_month}/${imageLimit}`
-                }
+              {isUnlimited 
+                ? 'Unlimited' 
+                : `${currentUsage.image_uploads_this_month}/${imageLimit}`
+              }
               </span>
             </div>
-            {!isUnlimited('imageUploads') && (
+            {!isUnlimited && (
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${

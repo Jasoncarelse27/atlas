@@ -5,8 +5,8 @@ import { TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 const inMemoryUsage = new Map();
 
 /**
- * Middleware to enforce per-tier daily message limits.
- * - Free users: 15 messages per day
+ * Middleware to enforce per-tier monthly message limits.
+ * - Free users: 15 messages per month
  * - Core/Studio: unlimited (-1 in config = no limit)
  * 
  * Attaches `req.tier` and `req.dailyUsage` for downstream services.
@@ -37,23 +37,25 @@ export default async function dailyLimitMiddleware(req, res, next) {
       return next();
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const limit = tierConfig.dailyMessages;
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const limit = tierConfig.monthlyMessages;
 
     try {
       // Get usage count from Supabase
       const { supabase } = await import('../config/supabaseClient.mjs');
       const { data, error } = await supabase
-        .from('daily_usage')
+        .from('monthly_usage')
         .select('conversations_count')
         .eq('user_id', userId)
-        .eq('date', today)
+        .eq('month', startOfMonth.toISOString().slice(0, 7))
         .maybeSingle();
 
       if (error) {
         console.error('[dailyLimitMiddleware] Supabase error:', error.message);
         // Fall back to in-memory tracking for development
-        return handleInMemoryTracking(userId, tier, today, limit, req, res, next);
+        return handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, next);
       }
 
       const currentCount = data?.conversations_count || 0;
@@ -69,10 +71,10 @@ export default async function dailyLimitMiddleware(req, res, next) {
 
       // Increment usage
       const { error: upsertErr } = await supabase
-        .from('daily_usage')
+        .from('monthly_usage')
         .upsert({
           user_id: userId,
-          date: today,
+          month: startOfMonth.toISOString().slice(0, 7),
           conversations_count: currentCount + 1,
           tier: tier
         });
@@ -82,13 +84,13 @@ export default async function dailyLimitMiddleware(req, res, next) {
       }
 
       req.tier = tier;
-      req.dailyUsage = { count: currentCount + 1, limit };
+      req.monthlyUsage = { count: currentCount + 1, limit };
       return next();
 
     } catch (dbError) {
       console.error('[dailyLimitMiddleware] Database error:', dbError.message);
       // Fall back to in-memory tracking
-      return handleInMemoryTracking(userId, tier, today, limit, req, res, next);
+      return handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, next);
     }
 
   } catch (err) {
@@ -103,10 +105,10 @@ export default async function dailyLimitMiddleware(req, res, next) {
 /**
  * Handle usage tracking in memory when Supabase is not available
  */
-function handleInMemoryTracking(userId, tier, today, limit, req, res, next) {
-  console.log('[dailyLimitMiddleware] Supabase not available, using in-memory tracking');
+function handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, next) {
+  console.log('[monthlyLimitMiddleware] Supabase not available, using in-memory tracking');
   
-  const key = `${userId}-${today}`;
+  const key = `${userId}-${startOfMonth.toISOString().slice(0, 7)}`;
   const currentCount = inMemoryUsage.get(key) || 0;
   
   console.log(`[dailyLimitMiddleware] In-memory tracking: ${currentCount + 1} for user ${userId}`);
@@ -121,9 +123,9 @@ function handleInMemoryTracking(userId, tier, today, limit, req, res, next) {
   }
   
   inMemoryUsage.set(key, currentCount + 1);
-  console.log(`[dailyLimitMiddleware] User ${userId} (${tier}): ${currentCount + 1}/${limit} messages used`);
+  console.log(`[monthlyLimitMiddleware] User ${userId} (${tier}): ${currentCount + 1}/${limit} messages used this month`);
   
   req.tier = tier;
-  req.dailyUsage = { count: currentCount + 1, limit };
+  req.monthlyUsage = { count: currentCount + 1, limit };
   return next();
 }

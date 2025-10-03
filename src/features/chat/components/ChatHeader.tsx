@@ -48,7 +48,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </span>
               {tier === 'free' && (
                 <span className="text-xs text-gray-300">
-                  {15 - messageCount} left
+                  {15 - messageCount} left this month
                 </span>
               )}
             </div>
