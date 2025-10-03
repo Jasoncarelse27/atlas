@@ -12,7 +12,7 @@ export interface Attachment {
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  type?: 'text' | 'image' | 'audio' | 'file' | 'mixed' | 'system';
+  type?: 'text' | 'image' | 'audio' | 'file' | 'mixed' | 'system' | 'attachment';
   content?: string;                // legacy single text/image/audio
   attachments?: Attachment[];      // ✅ new: multiple files
   timestamp: string;

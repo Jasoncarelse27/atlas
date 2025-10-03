@@ -180,15 +180,12 @@ export function useSubscription(userId?: string) {
           if (process.env.NODE_ENV === 'development') {
             console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling');
           }
-          // Start polling fallback
-          if (!pollingInterval) {
-            pollingInterval = setInterval(() => {
-              if (process.env.NODE_ENV === 'development') {
-                console.log('🔄 [useSubscription] Polling for profile updates...');
-              }
-              fetchProfile();
-            }, 60000); // Poll every 60 seconds
-          }
+        // Start polling fallback
+        if (!pollingInterval) {
+          pollingInterval = setInterval(() => {
+            fetchProfile(); // Remove logging to reduce spam
+          }, 60000); // Poll every 60 seconds
+        }
         }
       });
 

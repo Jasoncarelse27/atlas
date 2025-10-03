@@ -15,6 +15,10 @@ interface MessageStoreState {
   isHydrated: boolean;
   conversationId: string | null;
   
+  // Streaming state
+  isStreaming: boolean;
+  setIsStreaming: (isStreaming: boolean) => void;
+  
   // Message actions
   addMessage: (message: Message) => Promise<void>;
   updateMessage: (id: string, patch: Partial<Message>) => Promise<void>;
@@ -38,6 +42,10 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   messages: [],
   isHydrated: false,
   conversationId: null,
+  
+  // Streaming state
+  isStreaming: false,
+  setIsStreaming: (isStreaming: boolean) => set({ isStreaming }),
   
   // Message actions
   addMessage: async (message: Message) => {

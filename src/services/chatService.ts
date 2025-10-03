@@ -1,7 +1,11 @@
 import { supabase } from "../lib/supabaseClient";
+import { useMessageStore } from "../stores/useMessageStore";
 import type { Message } from "../types/chat";
 import { audioService } from "./audioService";
 import { getUserTier } from "./subscriptionService";
+
+// Global abort controller for message streaming
+let abortController: AbortController | null = null;
 
 // Simple function for AttachmentMenu to send messages with attachments
 export async function sendAttachmentMessage(
@@ -62,6 +66,15 @@ export const chatService = {
       console.log("[FLOW] sendMessage called with text:", text, "conversationId:", conversationId);
     }
 
+    // Set up abort controller for cancellation (always create fresh)
+    abortController = new AbortController();
+    useMessageStore.getState().setIsStreaming(true);
+    
+    // Debug log to verify abortController is created
+    if (process.env.NODE_ENV === 'development') {
+      console.log("[FLOW] AbortController created:", !!abortController, "signal:", !!abortController?.signal);
+    }
+
     try {
       // Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
@@ -90,6 +103,7 @@ export const chatService = {
           userId: session?.user?.id || userId || '', // Use passed userId or session userId
           conversationId: conversationId || null // ✅ Pass conversationId if available
         }),
+        signal: abortController?.signal, // Add abort signal for cancellation (with null check)
       });
 
       console.log(`[FLOW] Backend response status: ${response.status}`);
@@ -129,12 +143,29 @@ export const chatService = {
       // Call completion callback to clear typing indicator
       onComplete?.();
       
+      // Reset streaming state
+      useMessageStore.getState().setIsStreaming(false);
+      abortController = null;
+      
       return responseText;
     } catch (error) {
       console.error('[FLOW] Error in sendMessage:', error);
+      
+      // Reset streaming state on error
+      useMessageStore.getState().setIsStreaming(false);
+      abortController = null;
       onComplete?.();
       throw error;
     }
+  },
+  
+  // Stop streaming function
+  stopMessageStream: () => {
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+    useMessageStore.getState().setIsStreaming(false);
   },
 
   handleFileMessage: async (message: Message, onComplete?: () => void) => {
@@ -247,6 +278,15 @@ export const chatService = {
       throw error;
     }
   }
+};
+
+// Export stopMessageStream function
+export const stopMessageStream = () => {
+  if (abortController) {
+    abortController.abort();
+    abortController = null;
+  }
+  useMessageStore.getState().setIsStreaming(false);
 };
 
 // Export the sendMessageWithAttachments function for resendService

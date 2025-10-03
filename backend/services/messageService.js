@@ -318,11 +318,37 @@ Core principles:
 5. Style — Be concise by default, expand with details/examples only if it benefits the user. No filler greetings like "Hi again!" unless the context genuinely calls for it.
 6. Role — You are a mentor and guide, not just a chatbot. Encourage reflection, learning, and action. If the user asks something unsafe, calmly explain your limits and provide safe guidance.`;
 
-    const completion = await getAnthropic().messages.create({
-      model,
-      max_tokens: 512,
-      messages: [{ role: "user", content: enhancedContent }],
-    });
+    // Retry logic for Claude API calls
+    let completion;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`🔄 [MessageService] Attempt ${attempt}/3 to call Claude API`);
+        completion = await getAnthropic().messages.create({
+          model,
+          max_tokens: 512,
+          messages: [{ role: "user", content: enhancedContent }],
+        });
+        
+        console.log(`✅ [MessageService] Claude API call successful on attempt ${attempt}`);
+        break; // Success, exit retry loop
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ [MessageService] Attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < 3) {
+          console.log(`⏳ [MessageService] Waiting 2 seconds before retry...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    if (!completion) {
+      console.error('❌ [MessageService] All retry attempts failed');
+      throw lastError || new Error('Claude API failed after 3 attempts');
+    }
 
     const reply = completion.content[0]?.text || "(no response)";
     console.log("🧠 [MessageService] Claude reply:", { tier, model, reply });

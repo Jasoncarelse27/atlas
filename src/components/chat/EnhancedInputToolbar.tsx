@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { Mic, Plus, Send, X } from 'lucide-react';
+import { Loader2, Mic, Plus, Send, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useTierAccess } from '../../hooks/useTierAccess';
 import { supabase } from '../../lib/supabaseClient';
-import { sendMessageWithAttachments } from '../../services/chatService';
+import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 import { useMessageStore } from '../../stores/useMessageStore';
 import AttachmentMenu from './AttachmentMenu';
@@ -28,6 +28,7 @@ export default function EnhancedInputToolbar({
   const { user } = useSupabaseAuth();
   const { tier, hasAccess, showUpgradeModal } = useTierAccess();
   const addMessage = useMessageStore((s) => s.addMessage);
+  const { isStreaming } = useMessageStore();
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -35,8 +36,21 @@ export default function EnhancedInputToolbar({
   const [isListening, setIsListening] = useState(false);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Keyboard event handlers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isStreaming) {
+        stopMessageStream();
+        toast.success("Message cancelled");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isStreaming]);
 
   const handleSend = async () => {
     if (isProcessing || disabled) return;
@@ -360,19 +374,19 @@ export default function EnhancedInputToolbar({
         </div>
 
             {/* Text Input - Dual purpose: text or caption */}
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder={attachmentPreviews.length > 0 ? "Add a caption..." : placeholder}
-              className="flex-1 mx-3 bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none text-base border-none rounded-xl px-3 py-2"
+              className="flex-1 mx-3 bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none text-base border-none rounded-xl px-3 py-2 resize-none min-h-[40px] max-h-[120px]"
               disabled={isProcessing || disabled}
               autoComplete="off"
               autoCapitalize="sentences"
               autoCorrect="on"
               spellCheck="true"
+              rows={1}
             />
 
         {/* Action Buttons */}
@@ -392,15 +406,29 @@ export default function EnhancedInputToolbar({
                 <Mic size={20} />
               </motion.button>
 
-              {/* Send Button */}
+              {/* Dynamic Send/Stop Button */}
               <motion.button
-                onClick={handleSend}
-                disabled={isProcessing || disabled || (!text.trim() && attachmentPreviews.length === 0)}
-                className="p-2 rounded-xl bg-blue-600/80 hover:bg-blue-700/90 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-600/50 shadow-sm"
-                whileTap={{ scale: 0.95 }}
-                title="Send message"
+                onClick={isStreaming ? stopMessageStream : handleSend}
+                disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
+                className={`ml-2 rounded-full flex items-center justify-center w-10 h-10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
+                  isStreaming 
+                    ? 'bg-[#B2BDA3] hover:bg-[#9BA88D]' 
+                    : 'bg-[#F4E5D9] hover:bg-[#E8D5C7]'
+                }`}
+                whileTap={{ scale: 0.9 }}
+                title={isStreaming ? "Stop message" : "Send message"}
               >
-                <Send size={20} />
+                {isStreaming ? (
+                  <motion.div
+                    className="w-3 h-3 bg-white rounded-sm"
+                    animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.2 }}
+                  />
+                ) : isProcessing ? (
+                  <Loader2 className="w-4 h-4 text-[#B2BDA3] animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 text-black" />
+                )}
               </motion.button>
         </div>
       </div>
