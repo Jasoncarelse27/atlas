@@ -64,7 +64,7 @@ export const promptCacheService = {
       return content;
     } catch (error) {
       console.warn('Prompt cache error:', error);
-      return baseContent || `You are Atlas, an emotionally intelligent AI assistant.`;
+      return baseContent || `You are Atlas, an emotionally intelligent AI guide focused on supporting growth in coding, creativity, and emotional intelligence while maintaining safe boundaries.`;
     }
   },
 

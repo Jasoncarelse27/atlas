@@ -176,7 +176,10 @@ export function useSubscription(userId?: string) {
             pollingInterval = null;
           }
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling');
+          // Realtime connection issue - only log in development
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling');
+          }
           // Start polling fallback
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
@@ -203,28 +206,41 @@ export function useSubscription(userId?: string) {
 
   // Memory functions
   const updateMemory = useCallback(async (message: string) => {
-    console.log('🧠 [updateMemory] Called with message:', message);
-    console.log('🧠 [updateMemory] userId:', userId, 'profile:', !!profile);
+    // Memory update - only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧠 [updateMemory] Called with message:', message);
+      console.log('🧠 [updateMemory] userId:', userId, 'profile:', !!profile);
+    }
     
     if (!userId || !profile) {
-      console.log('🧠 [updateMemory] Skipping - missing userId or profile');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧠 [updateMemory] Skipping - missing userId or profile');
+      }
       return;
     }
     
     try {
       const extractedMemory = extractMemoryFromMessage(message);
-      console.log('🧠 [updateMemory] Extracted memory:', extractedMemory);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧠 [updateMemory] Extracted memory:', extractedMemory);
+      }
       
       if (!extractedMemory.name && !extractedMemory.context) {
-        console.log('🧠 [updateMemory] No memory to extract');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🧠 [updateMemory] No memory to extract');
+        }
         return; // Nothing to update
       }
       
       const currentMemory = profile.user_context || {};
-      console.log('🧠 [updateMemory] Current memory:', currentMemory);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧠 [updateMemory] Current memory:', currentMemory);
+      }
       
       const mergedMemory = mergeMemory(currentMemory, extractedMemory);
-      console.log('🧠 [updateMemory] Merged memory:', mergedMemory);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧠 [updateMemory] Merged memory:', mergedMemory);
+      }
       
       const { error } = await supabase
         .from('profiles')

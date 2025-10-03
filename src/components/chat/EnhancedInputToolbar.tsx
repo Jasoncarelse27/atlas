@@ -8,34 +8,25 @@ import { supabase } from '../../lib/supabaseClient';
 import { sendMessageWithAttachments } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 import { useMessageStore } from '../../stores/useMessageStore';
-import type { Message } from '../../types/chat';
-import { AttachmentMenu } from './AttachmentMenu';
+import AttachmentMenu from './AttachmentMenu';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
-  onVoiceTranscription?: (text: string) => void;
-  onFileMessage?: (message: Message) => void;
-  onImageUpload?: (file: File) => void;
   isProcessing?: boolean;
   disabled?: boolean;
   placeholder?: string;
-  onShowUpgradeModal?: () => void;
   conversationId?: string;
 }
 
 export default function EnhancedInputToolbar({
   onSendMessage,
-  onVoiceTranscription,
-  onFileMessage,
-  onImageUpload,
   isProcessing = false,
   disabled = false,
   placeholder = "Ask anything...",
-  onShowUpgradeModal,
   conversationId
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
-  const { tier, hasAccess, loading: tierLoading, showUpgradeModal } = useTierAccess();
+  const { tier, hasAccess, showUpgradeModal } = useTierAccess();
   const addMessage = useMessageStore((s) => s.addMessage);
   
   // Upgrade modal handler (from useTierAccess hook)
@@ -50,35 +41,28 @@ export default function EnhancedInputToolbar({
   const handleSend = async () => {
     if (isProcessing || disabled) return;
     
-    console.log("🚀 handleSend called:", { 
-      attachmentPreviews: attachmentPreviews.length, 
-      text: text.trim(), 
-      conversationId 
-    });
-    
     // If we have attachments, send them with caption
     if (attachmentPreviews.length > 0 && conversationId) {
-      console.log("📎 Sending attachments with caption:", text.trim());
-      
       const attachments = attachmentPreviews.map(att => ({
         type: att.type,
         file: att.file,
         previewUrl: att.previewUrl,
+        url: att.url || att.publicUrl, // Use uploaded URL
         name: att.name
       }));
       
       try {
-        await sendMessageWithAttachments(conversationId, attachments, addMessage, text.trim() || undefined);
-        console.log("✅ Attachments sent successfully");
+        await sendMessageWithAttachments(conversationId, attachments, addMessage, text.trim() || undefined, user?.id);
+      } catch (error) {
+        console.error("Failed to send attachments:", error);
+        toast.error("Failed to send attachments. Please try again.");
+      } finally {
+        // Always clear input after attempting to send, regardless of success/failure
         setAttachmentPreviews([]);
         setText('');
-      } catch (error) {
-        console.error("❌ Failed to send attachments:", error);
-        toast.error("Failed to send attachments. Please try again.");
       }
     } else if (text.trim()) {
       // Regular text message
-      console.log("💬 Sending text message:", text.trim());
       onSendMessage(text.trim());
       setText('');
     }
@@ -89,6 +73,22 @@ export default function EnhancedInputToolbar({
     }
   };
 
+  // Handle adding attachments to input area
+  const handleAddAttachment = (attachment: any) => {
+    const attachmentWithId = {
+      ...attachment,
+      id: attachment.id || crypto.randomUUID() // Ensure it has an ID
+    };
+    setAttachmentPreviews(prev => [...prev, attachmentWithId]);
+    console.log("✅ Attachment added to input area:", attachment.name);
+  };
+
+  // Handle removing attachments from input area
+  const removeAttachment = (attachmentId: string) => {
+    setAttachmentPreviews(prev => prev.filter(att => att.id !== attachmentId));
+    console.log("🗑️ Attachment removed from input area");
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -96,39 +96,19 @@ export default function EnhancedInputToolbar({
     }
   };
 
-  const handleFileSelect = (files: FileList, type: string) => {
-    if (!files?.length) return;
 
-    const newAttachments = Array.from(files).map((file) => {
-      const tempUrl = URL.createObjectURL(file);
-      const id = crypto.randomUUID();
-      return { 
-        id,
-        type, 
-        file, 
-        previewUrl: tempUrl, 
-        name: file.name 
-      };
-    });
-
-    // ✅ Set loading state for images
-    const loadingStates: Record<string, boolean> = {};
-    newAttachments.forEach(att => {
-      if (att.type === 'image') {
-        loadingStates[att.id] = true;
-      }
-    });
-    setImageLoadingStates(prev => ({ ...prev, ...loadingStates }));
-
-    setAttachmentPreviews(prev => [...prev, ...newAttachments]);
-    setMenuOpen(false); // ✅ Close menu after file selection
-  };
-
-  // ✅ Handle clicking outside to close menu
+  // ✅ Handle clicking outside to close menu (but allow clicks inside AttachmentMenu)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuOpen && !buttonRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
+      if (menuOpen) {
+        const target = event.target as Node;
+        const isInsideButton = buttonRef.current?.contains(target);
+        const isInsideAttachmentMenu = document.querySelector('[data-attachment-menu]')?.contains(target);
+        
+        if (!isInsideButton && !isInsideAttachmentMenu) {
+          console.log('[EnhancedInputToolbar] Click outside detected, closing menu');
+          setMenuOpen(false);
+        }
       }
     };
 
@@ -140,10 +120,6 @@ export default function EnhancedInputToolbar({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [menuOpen]);
-
-  const removeAttachment = (id: string) => {
-    setAttachmentPreviews(prev => prev.filter(att => att.id !== id));
-  };
 
   const handleMicPress = async () => {
     if (!user) {
@@ -251,38 +227,6 @@ export default function EnhancedInputToolbar({
     }
   };
 
-  const handleFeatureClick = async (feature: 'image' | 'camera' | 'audio') => {
-    if (!user) {
-      toast.error('Please log in to use this feature');
-      return;
-    }
-
-    const canUse = hasAccess(feature as "image" | "camera" | "audio");
-    
-    // Log the attempt
-    await featureService.logAttempt(user.id, feature, tier);
-    
-    if (!canUse) {
-      toast.error(`${feature} features are available in Core & Studio plans. Upgrade to unlock!`);
-      showUpgradeModal(feature);
-      return;
-    }
-
-    // Feature-specific logic
-    switch (feature) {
-      case 'image':
-        toast.success('Image picker opened (feature coming soon)');
-        break;
-      case 'camera':
-        toast.success('Camera access requested (feature coming soon)');
-        break;
-      case 'audio':
-        handleMicPress();
-        break;
-    }
-
-    setMenuOpen(false);
-  };
 
   // Click outside detection is handled by AttachmentMenu component
 
@@ -312,16 +256,13 @@ export default function EnhancedInputToolbar({
                     {attachment.type === 'image' && (
                       <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-700">
                         <img
-                          src={attachment.previewUrl}
+                          src={attachment.url || attachment.publicUrl || attachment.previewUrl}
                           alt={attachment.name}
                           className="w-full h-full object-cover"
                           onLoad={() => {
-                            // ✅ Image loaded successfully - hide loader
-                            console.log(`[AttachmentPreview] Image loaded: ${attachment.name}`);
                             setImageLoadingStates(prev => ({ ...prev, [attachment.id]: false }));
                           }}
                           onError={(e) => {
-                            console.warn(`[AttachmentPreview] Failed to load image: ${attachment.name}`, e);
                             setImageLoadingStates(prev => ({ ...prev, [attachment.id]: false }));
                             (e.target as HTMLImageElement).style.display = "none";
                           }}
@@ -385,22 +326,35 @@ export default function EnhancedInputToolbar({
         <div className="relative">
               <motion.button
                 ref={buttonRef}
-                onClick={() => setMenuOpen(!menuOpen)}
+                onClick={() => {
+                  console.log('[EnhancedInputToolbar] Plus button clicked, current menuOpen:', menuOpen)
+                  setMenuOpen(!menuOpen)
+                  console.log('[EnhancedInputToolbar] New menuOpen state:', !menuOpen)
+                }}
                 disabled={disabled}
-                className="p-2 rounded-xl bg-gray-700/60 hover:bg-gray-600/80 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                className={`p-3 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl ${
+                  menuOpen 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gradient-to-br from-gray-700 to-gray-800 hover:from-blue-600 hover:to-blue-700 text-gray-300 hover:text-white'
+                }`}
                 whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.05 }}
                 title="Add attachment"
               >
-                <Plus size={20} className="text-gray-300" />
+                <Plus size={20} className={`transition-transform duration-300 ${menuOpen ? 'rotate-45' : 'rotate-0'}`} />
               </motion.button>
 
           {/* Attachment Menu */}
           {menuOpen && (
             <AttachmentMenu
               isOpen={menuOpen}
-              onClose={() => setMenuOpen(false)}
+              onClose={() => {
+                console.log('[EnhancedInputToolbar] AttachmentMenu onClose called')
+                setMenuOpen(false)
+              }}
               conversationId={conversationId || ""}
               userId={user?.id || ""}
+              onAddAttachment={handleAddAttachment}
             />
           )}
         </div>

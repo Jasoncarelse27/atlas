@@ -1,5 +1,7 @@
+import 'katex/dist/katex.min.css';
 import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
+import { BlockMath, InlineMath } from 'react-katex';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -241,6 +243,23 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
         components={{
+          // KaTeX Math rendering
+          math: ({ children, ...props }: any) => {
+            try {
+              return <BlockMath math={String(children)} {...props} />;
+            } catch (error) {
+              console.error('KaTeX rendering error:', error);
+              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
+            }
+          },
+          inlineMath: ({ children, ...props }: any) => {
+            try {
+              return <InlineMath math={String(children)} {...props} />;
+            } catch (error) {
+              console.error('KaTeX inline rendering error:', error);
+              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
+            }
+          },
           code({ node, inline, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
             const codeContent = String(children).replace(/\n$/, '');
@@ -372,6 +391,23 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
         components={{
+          // KaTeX Math rendering
+          math: ({ children, ...props }: any) => {
+            try {
+              return <BlockMath math={String(children)} {...props} />;
+            } catch (error) {
+              console.error('KaTeX rendering error:', error);
+              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
+            }
+          },
+          inlineMath: ({ children, ...props }: any) => {
+            try {
+              return <InlineMath math={String(children)} {...props} />;
+            } catch (error) {
+              console.error('KaTeX inline rendering error:', error);
+              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
+            }
+          },
           code({ node, inline, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
             const codeContent = String(children).replace(/\n$/, '');

@@ -91,12 +91,19 @@ export function mergeMemory(existing: any, newMemory: ExtractedMemory): any {
     merged.name = newMemory.name;
   }
   
-  // Add context if found (can accumulate)
+  // Add context if found (be selective to avoid over-accumulation)
   if (newMemory.context) {
     const existingContext = merged.context || '';
-    merged.context = existingContext 
-      ? `${existingContext}; ${newMemory.context}`
-      : newMemory.context;
+    
+    // Only add if it's not already mentioned (case-insensitive)
+    const contextLower = newMemory.context.toLowerCase();
+    const existingContextLower = existingContext.toLowerCase();
+    
+    if (!existingContextLower.includes(contextLower)) {
+      merged.context = existingContext 
+        ? `${existingContext}; ${newMemory.context}`
+        : newMemory.context;
+    }
   }
   
   // Update timestamp

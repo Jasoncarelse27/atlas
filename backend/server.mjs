@@ -123,7 +123,9 @@ async function streamAnthropicResponse({ content, model, res, userId }) {
   
   // Get user memory and personalize the prompt
   const userMemory = await getUserMemory(userId);
-  console.log('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
+    }
   let personalizedContent = content;
   
   // Add memory context if available
@@ -137,10 +139,31 @@ async function streamAnthropicResponse({ content, model, res, userId }) {
     }
     contextInfo += ' Use this information to provide personalized responses and acknowledge that you remember the user.';
     personalizedContent = `${contextInfo}\n\nUser message: ${content}`;
-    console.log('🧠 [Memory] Personalized content:', personalizedContent.substring(0, 200) + '...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧠 [Memory] Personalized content:', personalizedContent.substring(0, 200) + '...');
+    }
   } else {
-    console.log('🧠 [Memory] No user memory found for userId:', userId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧠 [Memory] No user memory found for userId:', userId);
+    }
   }
+
+  // Add comprehensive Atlas system prompt with enhanced emotional intelligence
+  const enhancedContent = personalizedContent + `\n\nIMPORTANT: You are Atlas, an emotionally intelligent AI guide. Your role is to support the user's growth in coding, creativity, and emotional intelligence by being adaptive, insightful, and safe.
+
+Core principles:
+1. Emotional Intelligence — Respond with genuine empathy, curiosity, and encouragement. Acknowledge the user's feelings or context naturally without repetitive greetings. Be conversational and warm, like talking to a knowledgeable friend.
+2. Guidance — Offer clear, practical help (coding, learning, or reflection) while keeping the tone supportive and engaging. Provide actionable insights that feel personally relevant.
+3. Personalization — You DO have access to user memory through Supabase profiles. Reference past conversations naturally when relevant, but don't force it. Show genuine interest in their journey and growth.
+4. Boundaries — Stay safe and avoid harmful, medical, or explicit sexual advice.
+   - If a user asks for NSFW content, respond with empathy but redirect safely:
+     * Acknowledge curiosity or emotion behind the request.
+     * Offer safe, constructive alternatives (emotional support, resources about healthy relationships, creativity, stress management).
+     * Do not generate or describe explicit sexual, violent, or harmful content.
+5. Style — Be naturally conversational. Avoid robotic greetings like "Hi Jason!" unless genuinely appropriate. Instead, respond contextually to what they're asking. Be concise when helpful, detailed when needed.
+6. Role — You are a mentor and guide who genuinely cares about their growth. Encourage reflection, learning, and action. If the user asks something unsafe, calmly explain your limits and provide safe guidance.
+
+Remember: You're not just an AI assistant - you're Atlas, an emotionally intelligent companion who understands context, remembers interactions, and responds with genuine care and insight.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -154,7 +177,7 @@ async function streamAnthropicResponse({ content, model, res, userId }) {
       model,
       max_tokens: 2000,
       stream: true,
-      messages: [{ role: 'user', content: personalizedContent }]
+      messages: [{ role: 'user', content: enhancedContent }]
     })
   });
 
@@ -375,6 +398,37 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// Memory reset endpoint (for debugging)
+app.post('/api/reset-memory', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        user_context: {
+          name: 'Jason',
+          context: 'software development',
+          last_updated: new Date().toISOString()
+        }
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Memory reset error:', error);
+      return res.status(500).json({ error: 'Failed to reset memory' });
+    }
+
+    res.json({ success: true, message: 'Memory reset successfully' });
+  } catch (error) {
+    console.error('Memory reset error:', error);
+    res.status(500).json({ error: 'Memory reset failed' });
+  }
+});
+
 // Authentication status endpoint for debugging
 app.get('/api/auth/status', (req, res) => {
   const authHeader = req.headers.authorization;
@@ -413,7 +467,7 @@ app.post('/message', async (req, res) => {
         
         // Use the first image for analysis (can be extended for multiple images)
         const imageUrl = imageAttachments[0].url;
-        const analysisPrompt = messageText || "Analyze this image and provide detailed insights about what you see.";
+        const analysisPrompt = messageText || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand.";
         
         try {
           // Call Claude Vision API for image analysis
@@ -788,7 +842,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
 // Image analysis endpoint using Claude Vision
 app.post('/api/image-analysis', verifyJWT, async (req, res) => {
   try {
-    const { imageUrl, userId, prompt = "Analyze this image and provide detailed insights about what you see." } = req.body;
+    const { imageUrl, userId, prompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand." } = req.body;
     
     if (!imageUrl) {
       return res.status(400).json({ error: 'Image URL is required' });
@@ -796,44 +850,106 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
 
     console.log('🖼️ [Image Analysis] Processing image:', imageUrl);
 
-    // Call Claude Vision API
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 2000,
-        messages: [
-          {
-            role: 'user',
-            content: [
+    // Download image and convert to base64 for Claude API
+    let imageBase64;
+    let claudeMediaType;
+    try {
+      console.log('📥 [Image Analysis] Downloading image from URL...');
+      const imageResponse = await fetch(imageUrl, {
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
+          'apikey': process.env.VITE_SUPABASE_ANON_KEY || ''
+        }
+      });
+      
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
+      }
+      
+      const imageBuffer = await imageResponse.arrayBuffer();
+      imageBase64 = Buffer.from(imageBuffer).toString('base64');
+      
+      // Determine MIME type from URL or response headers
+      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+      claudeMediaType = contentType.startsWith('image/') ? contentType : 'image/jpeg';
+      
+      console.log('✅ [Image Analysis] Image downloaded and converted to base64');
+    } catch (downloadError) {
+      console.error('❌ [Image Analysis] Failed to download image:', downloadError.message);
+      return res.status(400).json({ 
+        error: 'Failed to download image',
+        details: downloadError.message
+      });
+    }
+
+    // Call Claude Vision API with base64 image (with retry logic)
+    let response;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`🔄 [Image Analysis] Attempt ${attempt}/3 to call Claude Vision API`);
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 2000,
+            messages: [
               {
-                type: 'text',
-                text: prompt
-              },
-              {
-                type: 'image',
-                source: {
-                  type: 'url',
-                  url: imageUrl
-                }
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: prompt
+                  },
+                  {
+                    type: 'image',
+                    source: {
+                      type: 'base64',
+                      media_type: claudeMediaType,
+                      data: imageBase64
+                    }
+                  }
+                ]
               }
             ]
-          }
-        ]
-      })
-    });
+          })
+        });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Claude Vision API error');
-      console.error('❌ Claude Vision API Error:', errorText);
+        if (response.ok) {
+          console.log(`✅ [Image Analysis] Claude Vision API call successful on attempt ${attempt}`);
+          break; // Success, exit retry loop
+        } else {
+          lastError = await response.text().catch(() => 'Claude Vision API error');
+          console.error(`❌ [Image Analysis] Attempt ${attempt} failed:`, lastError);
+          
+          if (attempt < 3) {
+            console.log(`⏳ [Image Analysis] Waiting 2 seconds before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      } catch (fetchError) {
+        lastError = fetchError.message;
+        console.error(`❌ [Image Analysis] Attempt ${attempt} error:`, fetchError.message);
+        
+        if (attempt < 3) {
+          console.log(`⏳ [Image Analysis] Waiting 2 seconds before retry...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+
+    if (!response || !response.ok) {
+      console.error('❌ [Image Analysis] All retry attempts failed');
       return res.status(500).json({ 
-        error: 'Image analysis failed',
-        details: errorText
+        error: 'Image analysis failed after 3 attempts',
+        details: lastError,
+        suggestion: 'This appears to be a temporary network issue. Please try again in a few minutes.'
       });
     }
 

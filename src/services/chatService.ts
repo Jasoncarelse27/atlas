@@ -57,7 +57,10 @@ export async function sendAttachmentMessage(
 
 export const chatService = {
   sendMessage: async (text: string, onComplete?: () => void, conversationId?: string, userId?: string) => {
-    console.log("[FLOW] sendMessage called with text:", text, "conversationId:", conversationId);
+    // Chat flow - only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log("[FLOW] sendMessage called with text:", text, "conversationId:", conversationId);
+    }
 
     try {
       // Get JWT token for authentication
@@ -72,7 +75,9 @@ export const chatService = {
 
       // Get response from backend (JSON response, not streaming)
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      console.log(`[FLOW] Sending to backend: ${backendUrl}/message`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[FLOW] Sending to backend: ${backendUrl}/message`);
+      }
       
       const response = await fetch(`${backendUrl}/message`, {
         method: "POST",
@@ -249,7 +254,8 @@ export async function sendMessageWithAttachments(
   conversationId: string,
   attachments: any[],
   addMessage: (msg: any) => void,
-  caption?: string
+  caption?: string,
+  userId?: string
 ) {
   console.debug("[chatService] sendMessageWithAttachments", { conversationId, attachments, caption });
 
@@ -273,66 +279,41 @@ export async function sendMessageWithAttachments(
   addMessage(newMessage);
 
   try {
-    // Upload each file to Supabase Storage
-    const uploadedAttachments = await Promise.all(
-      attachments.map(async (att) => {
-        if (!att.file) return att;
-        const fileName = `${Date.now()}-${att.file.name}`;
-        const filePath = `${conversationId}/${fileName}`;
+    // Use already uploaded attachments (from imageService)
+    const uploadedAttachments = attachments.map(att => ({
+      ...att,
+      // Ensure we have the URL from the upload
+      url: att.url || att.publicUrl
+    }));
 
-        const { error } = await supabase.storage
-          .from("uploads")
-          .upload(filePath, att.file, { upsert: true });
-
-        if (error) {
-          console.error("[chatService] Upload failed:", error);
-          return att;
-        }
-
-        const { data } = supabase.storage.from("uploads").getPublicUrl(filePath);
-        return { ...att, url: data.publicUrl };
-      })
-    );
-
-    // Save single message in Supabase with all attachments
-    const { error: dbError } = await supabase.from("messages").insert({
-      id: tempId,
-      conversation_id: conversationId,
-      role: "user",
-      content: caption || "", // ✅ single caption
-      metadata: { attachments: uploadedAttachments }, // ✅ all attachments together
-      created_at: new Date().toISOString(),
-    });
-
-    if (dbError) throw dbError;
-
-    console.log("[chatService] ✅ Message stored with caption + attachments");
+    // ✅ Backend will handle saving to Supabase - no direct DB calls needed
 
     // ✅ NEW: Send to backend for AI analysis
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || 'mock-token-for-development';
       
-      // Get user's tier for the request
-      const currentTier = await getUserTier();
+      // Get user's tier for the request (not needed for image analysis endpoint)
+      // const currentTier = await getUserTier();
       
       console.log("[chatService] 🧠 Sending attachments to backend for AI analysis...");
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`, {
+      // Use the dedicated image analysis endpoint for better reliability
+      const imageAttachment = uploadedAttachments.find(att => att.type === 'image');
+      if (!imageAttachment) {
+        throw new Error('No image attachment found');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/image-analysis`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          message: caption || "Please analyze these images",
-          attachments: uploadedAttachments.map(att => ({
-            type: att.type,
-            url: att.url,
-            name: att.name
-          })),
-          conversationId: conversationId,
-          tier: currentTier
+          imageUrl: imageAttachment.url,
+          userId: userId,
+          prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
         }),
       });
 
@@ -355,44 +336,28 @@ export async function sendMessageWithAttachments(
           
           addMessage(upgradeMessage);
           
-          // Save upgrade message to Supabase
-          await supabase.from("messages").insert({
-            id: upgradeMessage.id,
-            conversation_id: conversationId,
-            role: "assistant",
-            content: errorData.message,
-            created_at: new Date().toISOString(),
-          });
+          // ✅ Backend will handle saving upgrade message if needed
         }
         return;
       }
 
       const data = await response.json();
       
-      if (data.success && data.response) {
-        console.log("[chatService] ✅ AI analysis complete:", data.response);
+      if (data.success && data.analysis) {
+        console.log("[chatService] ✅ AI analysis complete:", data.analysis);
         
         // ✅ Add AI response as assistant message
         const aiMessage = {
           id: crypto.randomUUID(),
           conversationId,
           role: "assistant",
-          content: data.response,
+          content: data.analysis,
           createdAt: new Date().toISOString(),
         };
         
         addMessage(aiMessage);
         
-        // Save AI response to Supabase
-        await supabase.from("messages").insert({
-          id: aiMessage.id,
-          conversation_id: conversationId,
-          role: "assistant",
-          content: data.response,
-          created_at: new Date().toISOString(),
-        });
-        
-        console.log("[chatService] ✅ AI response saved to database");
+        // ✅ Backend already saved the analysis to database
       }
     } catch (aiError) {
       console.error("[chatService] ❌ AI analysis failed:", aiError);

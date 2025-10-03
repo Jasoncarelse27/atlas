@@ -21,7 +21,7 @@ export const imageService = {
 
       const filePath = `${userId}/${Date.now()}-${file.name}`;
       const { error } = await supabase.storage
-        .from("images")
+        .from("attachments")
         .upload(filePath, file);
 
       if (error) {
@@ -54,7 +54,7 @@ export const imageService = {
   },
 
   getPublicUrl(path: string) {
-    const { data } = supabase.storage.from("images").getPublicUrl(path);
+    const { data } = supabase.storage.from("attachments").getPublicUrl(path);
     return data.publicUrl;
   },
 
@@ -90,14 +90,24 @@ export const imageService = {
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        logEvent("image_scan_fail", { error: errorData.details || "API call failed" });
+        const errorMessage = errorData.details || errorData.error || "Image analysis failed";
+        
+        logEvent("image_scan_fail", { error: errorMessage });
         await supabase.from("image_events").insert({
           user_id: userId,
           event_name: "image_scan_fail",
           file_path: filePath,
-          metadata: { error: errorData.details || "API call failed" },
+          metadata: { error: errorMessage },
         });
-        throw new Error(errorData.details || "Image scan failed");
+        
+        // Provide more specific error messages
+        if (errorMessage.includes('timeout')) {
+          throw new Error("Image analysis timed out. Please try again.");
+        } else if (errorMessage.includes('Failed to download image')) {
+          throw new Error("Failed to download image. Please try a different image.");
+        } else {
+          throw new Error(`Image analysis failed: ${errorMessage}`);
+        }
       }
 
       const result = await res.json();

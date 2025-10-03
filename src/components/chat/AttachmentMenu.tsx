@@ -1,201 +1,219 @@
-import { useTierAccess } from "@/hooks/useTierAccess"
-import { sendMessageWithAttachments } from "@/services/chatService"
-import { imageService } from "@/services/imageService"
-import { AnimatePresence, motion } from "framer-motion"
-import { Camera, File, Image, Lock, Mic } from "lucide-react"
-import { useState } from "react"
-import toast from "react-hot-toast"
+import { Camera, Image as ImageIcon, Mic, Paperclip } from "lucide-react";
+import React, { useRef } from "react";
+import { toast } from "sonner";
+
+import { sendMessageWithAttachments } from "../../services/chatService";
+import { imageService } from "../../services/imageService";
+import { useMessageStore } from "../../stores/useMessageStore";
 
 interface AttachmentMenuProps {
-  isOpen: boolean
-  onClose: () => void
-  conversationId: string
-  userId: string
+  isOpen: boolean;
+  onClose: () => void;
+  conversationId: string;
+  userId: string;
+  onAddAttachment?: (attachment: any) => void; // New callback for adding to input area
 }
 
-export function AttachmentMenu({
+const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   isOpen,
   onClose,
   conversationId,
   userId,
-}: AttachmentMenuProps) {
-  const { hasAccess, loading } = useTierAccess()
-  const [isProcessing, setIsProcessing] = useState(false)
-  
-  // Essential logging only
-  if (process.env.NODE_ENV === 'development') {
-    console.log("[AttachmentMenu] State:", { 
-      userId, 
-      hasImageAccess: hasAccess("image"), 
-      loading,
-      isOpen 
-    })
-  }
+  onAddAttachment,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const addMessage = useMessageStore((state) => state.addMessage);
 
-  // File validation helper
-  const validateFile = (file: File, maxSizeMB = 10) => {
-    const maxSize = maxSizeMB * 1024 * 1024 // Convert MB to bytes
-    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-    
-    if (file.size > maxSize) {
-      toast.error(`File size must be less than ${maxSizeMB}MB`)
-      return false
-    }
-    
-    if (file.type && !validImageTypes.includes(file.type)) {
-      toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)')
-      return false
-    }
-    
-    return true
-  }
 
-  // --- Handlers ---
+  if (!isOpen) return null;
 
-  const handleFileUpload = async () => {
-    if (!hasAccess("file")) {
-      toast.error("Upgrade required for file uploads.")
-      return
-    }
-    const input = document.createElement("input")
-    input.type = "file"
-    input.multiple = true
-    input.onchange = async (e: any) => {
-      const files = e.target.files
-      if (!files?.length) return
-      setIsProcessing(true)
-      try {
-        await sendMessageWithAttachments(conversationId, Array.from(files), () => {}, "Uploaded files")
-      } finally {
-        setIsProcessing(false)
-        onClose()
+  // 🔹 Upload handler - adds to input area for caption
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    console.log("📂 File selected:", file.name, "size:", file.size);
+
+    try {
+      toast.loading("📤 Uploading file...");
+      console.log("📤 Starting upload via imageService...");
+      
+      // Use the existing imageService for upload (now uses attachments bucket)
+      const result = await imageService.uploadImage(file, userId);
+      
+      console.log("✅ Uploaded file:", result);
+      console.log("🔗 Public URL:", result.publicUrl);
+
+      // Create attachment object for input area
+      const attachment = {
+        type: file.type.startsWith('image/') ? "image" as const : "file" as const,
+        url: result.publicUrl,
+        publicUrl: result.publicUrl, // Keep both for compatibility
+        name: file.name,
+        size: file.size,
+        file: file, // Keep original file for compatibility
+      };
+
+      // If we have the callback, add to input area instead of sending immediately
+      if (onAddAttachment) {
+        onAddAttachment(attachment);
+        console.log("✅ File added to input area for caption");
+        toast.dismiss();
+        toast.success("✅ File added to input! Add a caption and send.");
+      } else {
+        // Fallback to old behavior if no callback provided
+        await sendMessageWithAttachments(
+          conversationId, 
+          [attachment], 
+          addMessage, 
+          `Uploaded ${file.name}`,
+          userId
+        );
+        console.log("✅ Message added to chat with attachment");
+        toast.dismiss();
+        toast.success("✅ File uploaded and added to chat!");
       }
-    }
-    input.click()
-  }
 
-  const handleImageUpload = async () => {
-    if (!hasAccess("image")) {
-      toast.error("Upgrade required for image uploads.")
-      return
+    } catch (err) {
+      console.error("❌ Upload failed:", err);
+      toast.dismiss();
+      toast.error("Upload failed - check console for details");
+    } finally {
+      onClose();
     }
-    
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = "image/*"
-    input.onchange = async (e: any) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      
-      // Validate file before processing
-      if (!validateFile(file)) return
-      
-      setIsProcessing(true)
-      try {
-        toast.loading("Uploading image...", { id: 'image-upload' })
-        const result = await imageService.uploadImage(file, userId)
-        await imageService.scanImage(result.filePath, userId)
-        toast.success("Image uploaded and analyzed!", { id: 'image-upload' })
-      } catch (error) {
-        console.error("[AttachmentMenu] Image upload failed:", error)
-        toast.error("Image upload failed. Please try again.", { id: 'image-upload' })
-      } finally {
-        setIsProcessing(false)
-        onClose()
-      }
-    }
-    input.click()
-  }
-
-  const handleCameraCapture = async () => {
-    if (!hasAccess("camera")) {
-      toast.error("Upgrade required for camera.")
-      return
-    }
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = "image/*"
-    input.capture = "environment"
-    input.onchange = async (e: any) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      
-      // Validate file before processing
-      if (!validateFile(file)) return
-      
-      setIsProcessing(true)
-      try {
-        toast.loading("Processing camera capture...", { id: 'camera-upload' })
-        const result = await imageService.uploadImage(file, userId)
-        await imageService.scanImage(result.filePath, userId)
-        toast.success("Photo captured and analyzed!", { id: 'camera-upload' })
-      } catch (error) {
-        console.error("[AttachmentMenu] Camera capture failed:", error)
-        toast.error("Camera capture failed. Please try again.", { id: 'camera-upload' })
-      } finally {
-        setIsProcessing(false)
-        onClose()
-      }
-    }
-    input.click()
-  }
-
-  const handleAudioRecord = async () => {
-    if (!hasAccess("audio")) {
-      toast.error("Upgrade required for audio.")
-      return
-    }
-    toast.success("🎤 Audio recording coming soon!") // placeholder
-  }
-
-  // --- Menu Items ---
-
-  const menuItems = [
-    { icon: File, label: "Attach File", action: handleFileUpload, type: "file" },
-    { icon: Image, label: "Upload Image", action: handleImageUpload, type: "image" },
-    { icon: Camera, label: "Take Photo", action: handleCameraCapture, type: "camera" },
-    { icon: Mic, label: "Record Audio", action: handleAudioRecord, type: "audio" },
-  ]
+  };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="absolute bottom-16 left-4 w-56 bg-gray-900 border border-white/10 rounded-2xl shadow-lg p-2 z-50"
-              role="menu"
-              aria-label="Attachment options"
-            >
-          {menuItems.map((item, index) => {
-            const locked = !hasAccess(item.type as "file" | "image" | "camera" | "audio")
-            return (
-              <motion.button
-                key={`menu-${item.type}`} // ✅ FIXED duplicate key issue
-                onClick={item.action}
-                disabled={locked || isProcessing || loading}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className={`flex items-center space-x-3 w-full px-3 py-2 rounded-xl text-sm transition ${
-                  locked || loading
-                    ? "opacity-40 cursor-not-allowed"
-                    : "hover:bg-white/10 text-white"
-                }`}
-                role="menuitem"
-                aria-label={locked ? `${item.label} (Upgrade required)` : item.label}
-                aria-disabled={locked || isProcessing || loading}
-              >
-                <item.icon className="w-5 h-5 text-white" />
-                <span className="text-white">{item.label}</span>
-                {locked && <Lock className="w-4 h-4 text-gray-400 ml-auto" />}
-              </motion.button>
-            )
-          })}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
+    <div 
+      data-attachment-menu
+      className="absolute bottom-24 left-4 w-80 bg-gray-800/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-gray-600/50 z-[9999] overflow-hidden"
+    >
+      {/* Hidden input (triggered programmatically) */}
+      <input
+        type="file"
+        accept="image/*,application/pdf,audio/*"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        onChange={handleFileSelect}
+      />
+
+      {/* Header */}
+      <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 border-b border-gray-600">
+        <h3 className="text-base font-semibold text-white">Attach Media</h3>
+        <p className="text-sm text-blue-100 mt-1">Choose what you'd like to share</p>
+      </div>
+
+      {/* Menu Items */}
+      <div className="py-3">
+        <button
+          className="flex items-center w-full px-6 py-4 text-left hover:bg-gray-700/50 transition-colors duration-200 group"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
+        >
+          <div className="flex-shrink-0 mr-4 group-hover:scale-110 transition-transform duration-200">
+            <Paperclip className="w-8 h-8 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <div className="text-base font-medium text-gray-100 group-hover:text-white">
+              Attach File
+            </div>
+            <div className="text-sm text-gray-400 group-hover:text-gray-300 mt-1">
+              Upload documents, PDFs, and more
+            </div>
+          </div>
+          <div className="text-gray-500 group-hover:text-gray-300 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </button>
+
+        <button
+          className="flex items-center w-full px-6 py-4 text-left hover:bg-gray-700/50 transition-colors duration-200 group"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
+        >
+          <div className="flex-shrink-0 mr-4 group-hover:scale-110 transition-transform duration-200">
+            <ImageIcon className="w-8 h-8 text-green-600" />
+          </div>
+          <div className="flex-1">
+            <div className="text-base font-medium text-gray-100 group-hover:text-white">
+              Upload Image
+            </div>
+            <div className="text-sm text-gray-400 group-hover:text-gray-300 mt-1">
+              Share photos and images
+            </div>
+          </div>
+          <div className="text-gray-500 group-hover:text-gray-300 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </button>
+
+        <button
+          className="flex items-center w-full px-6 py-4 text-left hover:bg-gray-700/50 transition-colors duration-200 group"
+          onClick={() => {
+            console.log("📷 TODO: Camera capture");
+          }}
+        >
+          <div className="flex-shrink-0 mr-4 group-hover:scale-110 transition-transform duration-200">
+            <Camera className="w-8 h-8 text-purple-600" />
+          </div>
+          <div className="flex-1">
+            <div className="text-base font-medium text-gray-100 group-hover:text-white">
+              Take Photo
+            </div>
+            <div className="text-sm text-gray-400 group-hover:text-gray-300 mt-1">
+              Capture with your camera
+            </div>
+          </div>
+          <div className="text-gray-500 group-hover:text-gray-300 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </button>
+
+        <button
+          className="flex items-center w-full px-6 py-4 text-left hover:bg-gray-700/50 transition-colors duration-200 group"
+          onClick={() => {
+            console.log("🎤 TODO: Record audio");
+          }}
+        >
+          <div className="flex-shrink-0 mr-4 group-hover:scale-110 transition-transform duration-200">
+            <Mic className="w-8 h-8 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <div className="text-base font-medium text-gray-100 group-hover:text-white">
+              Record Audio
+            </div>
+            <div className="text-sm text-gray-400 group-hover:text-gray-300 mt-1">
+              Record voice messages
+            </div>
+          </div>
+          <div className="text-gray-500 group-hover:text-gray-300 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </button>
+      </div>
+
+      {/* Footer */}
+      <div className="px-6 py-3 bg-gray-700/30 border-t border-gray-600">
+        <p className="text-xs text-gray-400 text-center">
+          Supported formats: Images, PDFs, Audio, Documents
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default AttachmentMenu;

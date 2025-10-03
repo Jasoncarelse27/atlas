@@ -33,7 +33,10 @@ export async function checkSupabaseHealth() {
       console.error("⚠️ Supabase health check failed:", error.message);
       return { ok: false, message: error.message };
     }
-    console.log("✅ Supabase connection healthy.");
+    // Connection healthy - only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log("✅ Supabase connection healthy.");
+    }
     return { ok: true };
   } catch (err: any) {
     console.error("❌ Supabase health-check exception:", err.message);
