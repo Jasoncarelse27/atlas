@@ -103,11 +103,23 @@ export function useSubscription(userId?: string) {
     return remaining;
   };
 
+  // Add debounce mechanism to prevent excessive API calls
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const FETCH_DEBOUNCE_MS = 5000; // 5 seconds debounce
+
   const fetchProfile = useCallback(async () => {
     if (!userId) {
       setLoading(false);
       return;
     }
+
+    // Debounce: prevent calls within 5 seconds
+    const now = Date.now();
+    if (now - lastFetchTime < FETCH_DEBOUNCE_MS) {
+      console.log('⏳ [useSubscription] Debouncing fetch request');
+      return;
+    }
+    setLastFetchTime(now);
 
     try {
       setLoading(true);
@@ -140,7 +152,7 @@ export function useSubscription(userId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, lastFetchTime]);
 
   // Real-time updates and polling fallback
   useEffect(() => {
@@ -184,12 +196,12 @@ export function useSubscription(userId?: string) {
           if (process.env.NODE_ENV === 'development') {
             console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling');
           }
-        // Start polling fallback
-        if (!pollingInterval) {
-          pollingInterval = setInterval(() => {
-            fetchProfile(); // Remove logging to reduce spam
-          }, 60000); // Poll every 60 seconds
-        }
+          // Start polling fallback
+          if (!pollingInterval) {
+            pollingInterval = setInterval(() => {
+              fetchProfile(); // Remove logging to reduce spam
+            }, 60000); // Poll every 60 seconds
+          }
         }
       });
 
