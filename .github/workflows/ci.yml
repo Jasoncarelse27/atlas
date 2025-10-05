@@ -58,7 +58,7 @@ jobs:
       env:
         NODE_ENV: production
         CI: true
-        PORT: 3000
+        PORT: 8000
         # Mock environment variables for CI test
         SUPABASE_URL: https://mock.supabase.co
         SUPABASE_ANON_KEY: mock-anon-key
