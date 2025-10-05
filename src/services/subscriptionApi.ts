@@ -73,8 +73,7 @@ class SubscriptionApiService {
     this.baseUrl = '';
     
     // Check if we're in mock mode (no real FastSpring credentials)
-    this.isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY || 
-                     import.meta.env.VITE_FASTSPRING_API_KEY === 'mock-api-key';
+    this.isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY;
     
     console.log('[Atlas] Subscription API initialized with backend+Dexie fallback 🚀', this.baseUrl);
   }

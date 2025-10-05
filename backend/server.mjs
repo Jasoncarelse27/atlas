@@ -44,11 +44,11 @@ const PORT = process.env.PORT || process.env.NOVA_BACKEND_PORT || 8000;
 
 // Initialize Supabase client with fallback for development
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your-service-key';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 let supabase;
 try {
-  if (supabaseUrl === 'https://your-project.supabase.co' || !supabaseServiceKey || supabaseServiceKey === 'your-service-key') {
+  if (supabaseUrl === 'https://your-project.supabase.co' || !supabaseServiceKey) {
     // Only use mock if credentials are actually missing
     console.warn('⚠️ Supabase credentials missing, using mock client');
     supabase = {
