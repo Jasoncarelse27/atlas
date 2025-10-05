@@ -17,6 +17,7 @@ interface EnhancedInputToolbarProps {
   placeholder?: string;
   conversationId?: string;
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+  isVisible?: boolean;
 }
 
 export default function EnhancedInputToolbar({
@@ -25,7 +26,8 @@ export default function EnhancedInputToolbar({
   disabled = false,
   placeholder = "Ask anything...",
   conversationId,
-  inputRef: externalInputRef
+  inputRef: externalInputRef,
+  isVisible = true
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
   const { tier, hasAccess, showUpgradeModal } = useTierAccess();
@@ -44,12 +46,17 @@ export default function EnhancedInputToolbar({
   // Use external ref if provided, otherwise use internal ref
   const inputRef = externalInputRef || internalInputRef;
 
-  // Auto-focus input on component mount
+  // ✅ Automatically focus only when input is visible
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
+    if (isVisible) {
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 150);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isVisible]);
 
   // Keyboard event handlers
   useEffect(() => {
@@ -93,8 +100,8 @@ export default function EnhancedInputToolbar({
       setText('');
     }
     
-    // Focus input for next message
-    if (inputRef.current) {
+    // ✅ Refocus after sending if still visible
+    if (isVisible && inputRef.current) {
       inputRef.current.focus();
     }
   };
@@ -134,6 +141,12 @@ export default function EnhancedInputToolbar({
         if (!isInsideButton && !isInsideAttachmentMenu) {
           console.log('[EnhancedInputToolbar] Click outside detected, closing menu');
           setMenuOpen(false);
+          // Refocus input when closing the menu via click outside
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+            }
+          }, 200);
         }
       }
     };
@@ -146,6 +159,29 @@ export default function EnhancedInputToolbar({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [menuOpen]);
+
+  // 📱 Handle input blur to minimize when clicking outside (ChatGPT-like behavior)
+  const handleInputBlur = () => {
+    // Small delay to allow for menu interactions
+    setTimeout(() => {
+      if (inputRef.current && !menuOpen) {
+        console.log('[EnhancedInputToolbar] Input blurred, minimizing');
+        // Blur the input to dismiss keyboard
+        inputRef.current.blur();
+        // Reset to single row for minimized state
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto';
+          inputRef.current.rows = 1;
+        }
+      }
+    }, 100);
+  };
+
+  // 🎯 Handle input focus with bounce animation (ChatGPT-like behavior)
+  const handleInputFocus = () => {
+    console.log('[EnhancedInputToolbar] Input focused, bouncing up');
+    // The bounce animation will be handled by the motion.div
+  };
 
   const handleMicPress = async () => {
     if (!user) {
@@ -257,7 +293,7 @@ export default function EnhancedInputToolbar({
   // Click outside detection is handled by AttachmentMenu component
 
   return (
-    <div className="px-4 pb-4 bg-transparent">
+    <div className="px-2 sm:px-4 pb-0 bg-transparent">
       {/* Message Limit Warning - Temporarily disabled */}
       {/* {false && (
         <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded-lg max-w-4xl mx-auto">
@@ -345,8 +381,36 @@ export default function EnhancedInputToolbar({
         </div>
       )}
       
-          {/* Main Input Container - Professional Style */}
-          <div className="flex items-center w-full max-w-4xl mx-auto px-4 py-3 bg-gray-800/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-600/30">
+          {/* Main Input Container - Professional Style with Bounce Animation */}
+          <motion.div 
+            data-input-area
+            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 sm:px-4 sm:py-3 bg-gray-900/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-700/50"
+            initial={{ y: 0, scale: 1 }}
+            animate={{ y: 0, scale: 1 }}
+            whileFocus={{ 
+              y: -2, 
+              scale: 1.02,
+              transition: { 
+                type: "spring", 
+                stiffness: 300, 
+                damping: 20,
+                duration: 0.3 
+              }
+            }}
+            whileTap={{ 
+              scale: 0.98,
+              transition: { 
+                type: "spring", 
+                stiffness: 400, 
+                damping: 25 
+              }
+            }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 300, 
+              damping: 30 
+            }}
+          >
         
         {/* + Attachment Button */}
         <div className="relative">
@@ -354,20 +418,35 @@ export default function EnhancedInputToolbar({
                 ref={buttonRef}
                 onClick={() => {
                   console.log('[EnhancedInputToolbar] Plus button clicked, current menuOpen:', menuOpen)
+                  
+                  if (!menuOpen) {
+                    // 📱 Close the keyboard before opening menu (prevents overlap)
+                    if (inputRef.current) {
+                      inputRef.current.blur();
+                    }
+                  } else {
+                    // Optionally, refocus input when closing the menu
+                    setTimeout(() => {
+                      if (inputRef.current) {
+                        inputRef.current.focus();
+                      }
+                    }, 200);
+                  }
+                  
                   setMenuOpen(!menuOpen)
                   console.log('[EnhancedInputToolbar] New menuOpen state:', !menuOpen)
                 }}
                 disabled={disabled}
-                className={`p-3 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl ${
+                className={`p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md ${
                   menuOpen 
                     ? 'bg-blue-500 text-white' 
-                    : 'bg-gradient-to-br from-gray-700 to-gray-800 hover:from-blue-600 hover:to-blue-700 text-gray-300 hover:text-white'
+                    : 'bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white'
                 }`}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.05 }}
                 title="Add attachment"
               >
-                <Plus size={20} className={`transition-transform duration-300 ${menuOpen ? 'rotate-45' : 'rotate-0'}`} />
+                <Plus size={18} className={`transition-transform duration-300 ${menuOpen ? 'rotate-45' : 'rotate-0'}`} />
               </motion.button>
 
           {/* Attachment Menu */}
@@ -377,6 +456,12 @@ export default function EnhancedInputToolbar({
               onClose={() => {
                 console.log('[EnhancedInputToolbar] AttachmentMenu onClose called')
                 setMenuOpen(false)
+                // Refocus input when closing the menu
+                setTimeout(() => {
+                  if (inputRef.current) {
+                    inputRef.current.focus();
+                  }
+                }, 200);
               }}
               conversationId={conversationId || ""}
               userId={user?.id || ""}
@@ -391,8 +476,16 @@ export default function EnhancedInputToolbar({
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyPress}
+              onClick={() => {
+                // 📱 Focus the input to open keyboard ONLY
+                if (inputRef.current) {
+                  inputRef.current.focus();
+                }
+              }}
+              onBlur={handleInputBlur}
+              onFocus={handleInputFocus}
               placeholder={attachmentPreviews.length > 0 ? "Add a caption..." : placeholder}
-              className="flex-1 mx-3 bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none text-base border-none rounded-xl px-3 py-2 resize-none min-h-[40px] max-h-[120px]"
+              className="flex-1 mx-2 sm:mx-3 bg-transparent text-white placeholder-gray-400 focus:outline-none text-base border-none rounded-lg px-2 py-1 sm:px-3 sm:py-2 resize-none min-h-[36px] sm:min-h-[40px] max-h-[120px] transition-all duration-200 ease-in-out"
               disabled={isProcessing || disabled}
               autoComplete="off"
               autoCapitalize="sentences"
@@ -407,7 +500,7 @@ export default function EnhancedInputToolbar({
               <motion.button
                 onClick={handleMicPress}
                 disabled={isProcessing || disabled}
-                className={`p-2 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
+                className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
                   isListening
                     ? 'bg-red-500/80 hover:bg-red-600/90 text-white'
                     : 'bg-gray-700/60 hover:bg-gray-600/80 text-gray-300'
@@ -415,17 +508,17 @@ export default function EnhancedInputToolbar({
                 whileTap={{ scale: 0.95 }}
                 title="Voice recording"
               >
-                <Mic size={20} />
+                <Mic size={18} />
               </motion.button>
 
               {/* Dynamic Send/Stop Button */}
               <motion.button
                 onClick={isStreaming ? stopMessageStream : handleSend}
                 disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
-                className={`ml-2 rounded-full flex items-center justify-center w-10 h-10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
+                className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
                   isStreaming 
-                    ? 'bg-[#B2BDA3] hover:bg-[#9BA88D]' 
-                    : 'bg-[#F4E5D9] hover:bg-[#E8D5C7]'
+                    ? 'bg-red-500 hover:bg-red-600' 
+                    : 'bg-blue-500 hover:bg-blue-600'
                 }`}
                 whileTap={{ scale: 0.9 }}
                 title={isStreaming ? "Stop message" : "Send message"}
@@ -437,13 +530,13 @@ export default function EnhancedInputToolbar({
                     transition={{ repeat: Infinity, duration: 1.2 }}
                   />
                 ) : isProcessing ? (
-                  <Loader2 className="w-4 h-4 text-[#B2BDA3] animate-spin" />
+                  <Loader2 className="w-4 h-4 text-white animate-spin" />
                 ) : (
-                  <Send className="w-4 h-4 text-black" />
+                  <Send className="w-4 h-4 text-white" />
                 )}
               </motion.button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useMessageStore } from '../stores/useMessageStore';
-import { syncService } from '../services/syncService';
 import { resendService } from '../services/resendService';
+import { syncService } from '../services/syncService';
+import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
 
 export interface UsePersistentMessagesOptions {
@@ -106,6 +106,7 @@ export function usePersistentMessages({
 
   // Enhanced addMessage with user ID
   const addMessage = async (message: Message) => {
+    console.log('🔍 [usePersistentMessages] Adding message:', message);
     const messageWithUserId = {
       ...message,
       metadata: {
@@ -115,6 +116,7 @@ export function usePersistentMessages({
     };
     
     await storeAddMessage(messageWithUserId);
+    console.log('✅ [usePersistentMessages] Message added to store');
   };
 
   // Enhanced updateMessage

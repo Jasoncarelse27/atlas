@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { processMessage } from './services/messageService.js';
 
@@ -17,6 +18,19 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
+
+// ✅ Detect your machine's local IP for LAN (mobile) access
+const getLocalIPAddress = () => {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === "IPv4" && !iface.internal) return iface.address;
+    }
+  }
+  return "localhost";
+};
+
+const LOCAL_IP = getLocalIPAddress();
 const PORT = process.env.PORT || process.env.NOVA_BACKEND_PORT || 8000;
 
 // Initialize Supabase client with fallback for development
@@ -319,6 +333,7 @@ app.use(compression({
   }
 }));
 app.use(morgan('combined'));
+// ✅ Allow LAN devices to connect (same Wi-Fi)
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.ALLOWED_ORIGINS?.split(',') || ['*']
@@ -329,6 +344,8 @@ app.use(cors({
         'http://localhost:5175',
         'http://localhost:5176',
         'http://localhost:5177',
+        // Mobile + desktop dev site
+        `http://${LOCAL_IP}:5174`,
         // Backend port
         'http://localhost:8000',
         // Expo/React Native ports
@@ -353,7 +370,8 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({
     status: 'ok',
     uptime: process.uptime(),
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    ip: LOCAL_IP
   });
 });
 
@@ -1568,9 +1586,12 @@ const gracefulShutdown = (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Atlas Backend Server running on port ${PORT}`);
+// Start server - bind to all interfaces for mobile access
+// ✅ Final "listen" section (replaces old app.listen)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Atlas backend running on:`);
+  console.log(`   • Local:   http://localhost:${PORT}`);
+  console.log(`   • Network: http://${LOCAL_IP}:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/healthz`);
   console.log(`🏓 Ping test: http://localhost:${PORT}/ping`);

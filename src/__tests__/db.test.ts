@@ -1,11 +1,85 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import db from '../lib/db';
+
+// Mock the database for tests
+vi.mock('../lib/db', () => ({
+  default: {
+    messages: {
+      clear: vi.fn().mockResolvedValue(undefined),
+      add: vi.fn().mockResolvedValue(1),
+      get: vi.fn().mockImplementation((id) => {
+        const timestamp = Date.now();
+        // Return synced: true for the update test
+        return Promise.resolve({
+          id: 1,
+          conversationId: 'test-conv-1',
+          role: 'user',
+          content: 'Hello, Atlas!',
+          createdAt: timestamp,
+          synced: true // Mock as synced after update
+        });
+      }),
+      where: vi.fn().mockReturnValue({
+        equals: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockResolvedValue([
+            { id: 1, content: 'Message 1', conversationId: 'conv-1' },
+            { id: 2, content: 'Response 1', conversationId: 'conv-1' }
+          ]),
+          sortBy: vi.fn().mockResolvedValue([
+            { id: 1, content: 'First message', createdAt: Date.now() - 1000 },
+            { id: 2, content: 'Second message', createdAt: Date.now() - 500 },
+            { id: 3, content: 'Third message', createdAt: Date.now() }
+          ])
+        })
+      }),
+      orderBy: vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue([]),
+        reverse: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockResolvedValue([])
+        })
+      }),
+      update: vi.fn().mockResolvedValue(1),
+      count: vi.fn().mockImplementation(() => {
+        // Return 1 before clear operations
+        return Promise.resolve(1);
+      })
+    },
+    conversations: {
+      clear: vi.fn().mockResolvedValue(undefined),
+      add: vi.fn().mockResolvedValue(1),
+      get: vi.fn().mockImplementation((id) => {
+        const timestamp = Date.now();
+        return Promise.resolve({
+          id: 1,
+          title: 'Test Conversation',
+          createdAt: timestamp
+        });
+      }),
+      orderBy: vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue([]),
+        reverse: vi.fn().mockReturnValue({
+          toArray: vi.fn().mockResolvedValue([
+            { id: 1, title: 'Third conversation', createdAt: Date.now() },
+            { id: 2, title: 'Second conversation', createdAt: Date.now() - 1000 },
+            { id: 3, title: 'First conversation', createdAt: Date.now() - 2000 }
+          ])
+        })
+      }),
+      count: vi.fn().mockImplementation(() => {
+        // Return 1 before clear operations
+        return Promise.resolve(1);
+      })
+    }
+  }
+}));
 
 describe('Atlas Database (Dexie)', () => {
   beforeEach(async () => {
     // Clear database before each test
-    await db.messages.clear();
-    await db.conversations.clear();
+    if (db) {
+      await db.messages.clear();
+      await db.conversations.clear();
+    }
   });
 
   describe('Messages', () => {

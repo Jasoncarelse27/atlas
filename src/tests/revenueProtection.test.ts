@@ -44,7 +44,7 @@ describe('Revenue Protection System', () => {
   
   describe('Tier Features Configuration', () => {
     it('should have correct conversation limits per tier', () => {
-      expect(tierFeatures.free.maxConversationsPerDay).toBe(15);
+      expect(tierFeatures.free.maxConversationsPerMonth).toBe(15);
       expect(tierFeatures.core.maxConversationsPerDay).toBe(150);
       expect(tierFeatures.studio.maxConversationsPerDay).toBe(500);
     });
@@ -230,11 +230,11 @@ describe('Revenue Protection System', () => {
       if (freeResponse.tokensUsed) {
         expect(freeResponse.tokensUsed).toBeLessThanOrEqual(150);
       }
-      if (basicResponse.tokensUsed) {
-        expect(basicResponse.tokensUsed).toBeLessThanOrEqual(300);
+      if (coreResponse.tokensUsed) {
+        expect(coreResponse.tokensUsed).toBeLessThanOrEqual(300);
       }
-      if (premiumResponse.tokensUsed) {
-        expect(premiumResponse.tokensUsed).toBeLessThanOrEqual(500);
+      if (studioResponse.tokensUsed) {
+        expect(studioResponse.tokensUsed).toBeLessThanOrEqual(500);
       }
     });
 

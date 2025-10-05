@@ -132,7 +132,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       };
 
       // Add to persistent store
+      console.log('🔍 [ChatPage] Adding user message to store:', message);
       await addMessage(message);
+      console.log('✅ [ChatPage] User message added to store successfully');
 
       // Use chatService as the single source of truth
       const assistantResponse = await chatService.sendMessage(text, () => {
@@ -297,10 +299,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
         {/* Header with Menu Button */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
-          <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50 sticky top-0 z-30">
+          <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3 sm:space-x-4">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                   className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
@@ -308,17 +310,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <Menu className="w-5 h-5" />
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">Atlas AI</h1>
-                  <p className="text-gray-400">Your emotionally intelligent AI assistant</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white">Atlas AI</h1>
+                  <p className="text-gray-400 text-sm sm:text-base hidden sm:block">Your emotionally intelligent AI assistant</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 {conversationId && (
                   <SyncStatus conversationId={conversationId} userId={userId ?? ''} className="hidden md:flex" />
                 )}
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm sm:text-base"
                 >
                   Logout
                 </button>
@@ -372,22 +374,37 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         {/* Chat Container */}
         <div 
-          className="flex flex-col h-[calc(100vh-80px)]"
-          onClick={() => {
-            // Focus input when clicking anywhere in chat area
-            if (inputRef.current) {
+          className="flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-80px)]"
+          onClick={(e) => {
+            // 📱 ChatGPT-like behavior: dismiss keyboard when clicking outside input
+            const target = e.target as HTMLElement;
+            const isInputArea = target.closest('[data-input-area]');
+            
+            if (!isInputArea && inputRef.current) {
+              inputRef.current.blur();
+            } else if (inputRef.current) {
               inputRef.current.focus();
             }
           }}
         >
 
           {/* Messages */}
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-6">
+          <div 
+            ref={messagesContainerRef} 
+            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-4"
+            onScroll={() => {
+              // 📱 Dismiss keyboard when scrolling (ChatGPT-like behavior)
+              if (inputRef.current) {
+                inputRef.current.blur();
+              }
+            }}
+          >
             <div className="max-w-4xl mx-auto space-y-4">
               
               <MessageListWithPreviews>
                 {(() => {
                   const safeMessages = messages || [];
+                  console.log('🔍 [ChatPage] Rendering messages:', safeMessages.length, safeMessages);
                   if (safeMessages.length > 0) {
                     return safeMessages.map((message: Message, index: number) => (
                       <EnhancedMessageBubble
@@ -427,8 +444,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Input Toolbar */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border-t border-gray-700/50 p-4">
+          {/* Input Toolbar with Bounce Animation */}
+          <motion.div 
+            className="bg-gray-900/80 backdrop-blur-2xl border-t border-white/10 p-0 sm:p-4 sticky bottom-0 z-30 shadow-2xl"
+            initial={{ y: 0 }}
+            animate={{ y: 0 }}
+            whileHover={{ 
+              y: -1,
+              transition: { 
+                type: "spring", 
+                stiffness: 300, 
+                damping: 25 
+              }
+            }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 300, 
+              damping: 30 
+            }}
+          >
             <div className="max-w-4xl mx-auto">
               <EnhancedInputToolbar
                 onSendMessage={handleTextMessage}
@@ -438,7 +472,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 inputRef={inputRef}
               />
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Modern scroll-to-bottom button with golden sparkle */}

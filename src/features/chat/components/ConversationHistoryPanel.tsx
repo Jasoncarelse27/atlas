@@ -2,23 +2,18 @@ import {
   AlertTriangle,
   Check,
   Clock,
-  Download,
   Edit3,
   MessageSquare,
-  MoreVertical,
   Pin,
   Plus,
   Search,
-  Trash,
   Trash2,
-  Upload,
   X
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import Tooltip from '../../components/Tooltip';
-import type { SoundType } from '../../hooks/useSoundEffects';
-import type { Conversation } from '../../types/chat';
+import Tooltip from '../../../components/Tooltip';
+import type { SoundType } from '../../../hooks/useSoundEffects';
+import type { Conversation } from '../../../types/chat';
 
 interface ConversationHistoryPanelProps {
   isOpen: boolean;
@@ -52,11 +47,8 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Focus search input when panel opens
   useEffect(() => {
@@ -141,10 +133,6 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
     setShowDeleteConfirm(null);
   };
 
-  const handleConfirmClearAll = () => {
-    if (onSoundPlay) onSoundPlay('click');
-    setShowClearConfirm(true);
-  };
 
   const handleClearAllConversations = () => {
     if (onSoundPlay) onSoundPlay('error');
@@ -157,75 +145,6 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
     setShowClearConfirm(false);
   };
 
-  const handleExportConversations = () => {
-    setIsExporting(true);
-    if (onSoundPlay) onSoundPlay('click');
-    
-    try {
-      const dataStr = JSON.stringify(conversations, null, 2);
-      const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
-      
-      const exportFileName = `atlas-conversations-${new Date().toISOString().split('T')[0]}.json`;
-      
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileName);
-      linkElement.click();
-      
-      if (onSoundPlay) onSoundPlay('success');
-    } catch (error) {
-      console.error('Failed to export conversations:', error);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleImportClick = () => {
-    if (onSoundPlay) onSoundPlay('click');
-    fileInputRef.current?.click();
-  };
-
-  const handleImportConversations = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    setIsImporting(true);
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const importedConversations = JSON.parse(content) as Conversation[];
-        
-        // Validate the imported data
-        if (!Array.isArray(importedConversations)) {
-          throw new Error('Invalid format: Expected an array of conversations');
-        }
-        
-        // TODO: Add more validation and actually import the conversations
-        console.log('Would import conversations:', importedConversations);
-        
-        if (onSoundPlay) onSoundPlay('success');
-      } catch (error) {
-        console.error('Failed to import conversations:', error);
-        if (onSoundPlay) onSoundPlay('error');
-      } finally {
-        setIsImporting(false);
-        // Reset the file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    };
-    
-    reader.onerror = () => {
-      console.error('Failed to read file');
-      setIsImporting(false);
-      if (onSoundPlay) onSoundPlay('error');
-    };
-    
-    reader.readAsText(file);
-  };
 
   if (!isOpen) return null;
 
@@ -258,25 +177,25 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-start justify-center sm:items-center p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center sm:items-center p-0 sm:p-4">
       <div 
-        className="bg-gray-800/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-gray-600/50 w-full sm:max-w-md h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-gray-900/80 backdrop-blur-2xl shadow-2xl rounded-3xl border border-white/10 w-full max-w-sm mx-auto sm:max-w-md h-[80vh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col"
       >
-        {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 border-b border-gray-600">
+        {/* Header - Enhanced glass effect */}
+        <div className="px-4 py-3 sm:px-6 sm:py-5 bg-gradient-to-r from-white/15 to-white/5 backdrop-blur-xl rounded-t-3xl border-b border-white/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/10 rounded-lg">
+              <div className="p-2.5 bg-white/25 rounded-xl shadow-lg">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-white">Conversation History</h2>
-                <p className="text-sm text-blue-100">{conversations.length} conversations</p>
+                <p className="text-sm text-white/80">Choose a conversation to continue</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-white/70 hover:text-white rounded-lg transition-colors"
+              className="p-2.5 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200"
               aria-label="Close conversation history"
             >
               <X className="w-5 h-5" />
@@ -285,20 +204,20 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
           
           {/* Search and New Chat */}
           <div className="mt-4 flex gap-2">
-            <div className="flex-1 flex items-center rounded-lg overflow-hidden bg-gray-700/50 border border-gray-600">
-              <Search className="w-4 h-4 text-gray-400 ml-3" />
+            <div className="flex-1 flex items-center rounded-xl overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20">
+              <Search className="w-4 h-4 text-white/60 ml-3" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search conversations"
-                className="w-full p-2 border-0 bg-transparent text-white placeholder-gray-400 focus:outline-none text-sm"
+                className="w-full p-2 border-0 bg-transparent text-white placeholder-white/60 focus:outline-none text-sm"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="p-1 mr-2 text-gray-400 hover:text-gray-300 rounded-full hover:bg-gray-600"
+                  className="p-1 mr-2 text-white/60 hover:text-white rounded-full hover:bg-white/10"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -308,7 +227,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
             <Tooltip content="New conversation">
               <button
                 onClick={handleCreateNewConversation}
-                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                className="p-2.5 bg-blue-600/90 hover:bg-blue-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                 aria-label="New conversation"
               >
                 <Plus className="w-5 h-5" />
@@ -328,20 +247,24 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                   <div className="space-y-1">
                     {convs.map(conversation => (
                       <div key={conversation.id} className="relative">
-                        {/* Delete Confirmation - Smaller buttons */}
+                        {/* Delete Confirmation - Prominent and visible */}
                         {showDeleteConfirm === conversation.id && (
-                          <div className="absolute inset-0 bg-white rounded-lg border border-red-200 z-10 p-2 flex flex-col">
-                            <p className="text-xs text-gray-700 mb-2">Delete this conversation?</p>
-                            <div className="flex gap-1 mt-auto">
+                          <div className="absolute inset-0 bg-red-500/95 backdrop-blur-sm rounded-xl border-2 border-red-400 z-10 p-3 flex flex-col shadow-2xl">
+                            <div className="flex items-center gap-2 mb-3">
+                              <AlertTriangle className="w-5 h-5 text-white" />
+                              <p className="text-sm font-medium text-white">Delete this conversation?</p>
+                            </div>
+                            <p className="text-xs text-red-100 mb-3">This action cannot be undone.</p>
+                            <div className="flex gap-2 mt-auto">
                               <button
                                 onClick={handleCancelDelete}
-                                className="neumorphic-button flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs transition-colors"
+                                className="flex-1 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-all duration-200 border border-white/30"
                               >
                                 Cancel
                               </button>
                               <button
                                 onClick={() => handleDeleteConversation(conversation.id)}
-                                className="neumorphic-button flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
+                                className="flex-1 px-3 py-2 bg-white hover:bg-red-50 text-red-600 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg"
                               >
                                 Delete
                               </button>
@@ -349,16 +272,17 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                           </div>
                         )}
                         
-                        {/* Conversation Item */}
+                        {/* Conversation Item - Modern design matching Attach Media popup */}
                         <div 
-                          className={`group flex items-center w-full px-6 py-4 text-left hover:bg-gray-700/50 transition-colors duration-200 ${
+                          className={`group flex items-center w-full px-3 py-2 sm:px-4 sm:py-3 mx-2 rounded-xl text-left backdrop-blur-sm transition-all duration-200 ${
                             conversation.id === currentConversationId
-                              ? 'bg-blue-600/20 border-l-4 border-blue-500'
-                              : ''
+                              ? 'bg-blue-500/20 border border-blue-400/40 shadow-lg'
+                              : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20'
                           }`}
                           onContextMenu={(e) => {
                             e.preventDefault();
-                            // Simple right-click to delete for now
+                            e.stopPropagation();
+                            // Desktop: Right-click to delete
                             handleConfirmDelete(conversation.id);
                           }}
                           onTouchStart={(e) => {
@@ -408,9 +332,11 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                             </div>
                           ) : (
                             <>
-                              {/* Conversation Icon */}
-                              <div className="flex-shrink-0 mr-4 group-hover:scale-110 transition-transform duration-200">
-                                <MessageSquare className="w-8 h-8 text-blue-600" />
+                              {/* Conversation Icon - Enhanced glass design */}
+                              <div className="flex-shrink-0 mr-3">
+                                <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20">
+                                  <MessageSquare className="w-4 h-4 text-white/80" />
+                                </div>
                               </div>
                               
                               {/* Title and Timestamp */}
@@ -418,68 +344,77 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                                 className="flex-1 cursor-pointer"
                                 onClick={() => handleSelectConversation(conversation)}
                               >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 mb-1">
                                   {conversation.pinned && (
-                                    <Pin className="w-4 h-4 text-blue-500" />
+                                    <Pin className="w-3 h-3 text-blue-400" />
                                   )}
-                                  <h4 className="text-base font-medium text-gray-100 group-hover:text-white truncate">
+                                  <h4 className="text-sm font-medium text-white truncate">
                                     {conversation.title}
                                   </h4>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-gray-400 group-hover:text-gray-300 mt-1">
-                                  <Clock className="w-4 h-4" />
+                                <div className="flex items-center gap-2 text-xs text-white/60">
+                                  <Clock className="w-3 h-3" />
                                   <span>
                                     {new Date(conversation.lastUpdated).toLocaleTimeString([], { 
                                       hour: '2-digit', 
                                       minute: '2-digit' 
                                     })}
                                   </span>
-                                  <span className="text-gray-500">•</span>
+                                  <span className="text-white/40">•</span>
                                   <span>{conversation.messages.length} messages</span>
                                 </div>
                               </div>
                               
-                              {/* Right Arrow */}
-                              <div className="text-gray-500 group-hover:text-gray-300 transition-colors">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {/* Right Arrow - Enhanced glass design */}
+                              <div className="text-white/60 group-hover:text-white/80 transition-colors">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                               </div>
                               
-                              {/* Action Buttons - Smaller for mobile */}
-                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {/* Mobile hint */}
-                                <div className="sm:hidden">
-                                  <Tooltip content="Long press for more options">
-                                    <div className="p-1 text-gray-400">
-                                      <MoreVertical className="w-3 h-3" />
-                                    </div>
-                                  </Tooltip>
-                                </div>
+                              {/* Desktop Hint - Right-click for options */}
+                              <div className="hidden sm:block text-xs text-white/40 ml-2">
+                                Right-click for options
+                              </div>
+                              
+                              {/* Quick Delete Button - Mobile Only */}
+                              <button
+                                onClick={() => handleConfirmDelete(conversation.id)}
+                                className="sm:hidden ml-3 p-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 rounded-xl transition-all duration-200 border-2 border-red-400/50 hover:border-red-300/70 shadow-lg hover:shadow-xl"
+                                title="Delete conversation"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                              
+                              {/* Action Buttons - Mobile Only */}
+                              <div className="sm:hidden flex items-center gap-2 ml-2">
+                                {/* Pin Button */}
                                 <Tooltip content={conversation.pinned ? "Unpin" : "Pin"}>
                                   <button
                                     onClick={() => handleTogglePin(conversation.id, !!conversation.pinned)}
-                                    className="neumorphic-button p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                    className="p-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-400/40"
                                   >
-                                    <Pin className="w-3 h-3" />
+                                    <Pin className="w-4 h-4" />
                                   </button>
                                 </Tooltip>
                                 
+                                {/* Edit Button */}
                                 <Tooltip content="Edit title">
                                   <button
                                     onClick={() => handleStartEditing(conversation)}
-                                    className="neumorphic-button p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                                    className="p-2.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 hover:text-yellow-200 rounded-lg transition-all duration-200 border border-yellow-400/40"
                                   >
-                                    <Edit3 className="w-3 h-3" />
+                                    <Edit3 className="w-4 h-4" />
                                   </button>
                                 </Tooltip>
                                 
-                                <Tooltip content="Delete">
+                                {/* Delete Button - Most prominent */}
+                                <Tooltip content="Delete conversation">
                                   <button
                                     onClick={() => handleConfirmDelete(conversation.id)}
-                                    className="neumorphic-button p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                    className="p-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 rounded-lg transition-all duration-200 border-2 border-red-400/50 hover:border-red-300/70 shadow-lg"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-4 h-4" />
                                   </button>
                                 </Tooltip>
                               </div>
@@ -517,56 +452,15 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-3 bg-gray-700/30 border-t border-gray-600">
-          <div className="flex justify-between items-center">
-            <div className="flex gap-2">
-              <Tooltip content="Export conversations">
-                <button
-                  onClick={handleExportConversations}
-                  disabled={isExporting || conversations.length === 0}
-                  className="neumorphic-button p-2 text-gray-600 hover:text-gray-800 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isExporting ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                </button>
-              </Tooltip>
-              
-              <Tooltip content="Import conversations">
-                <button
-                  onClick={handleImportClick}
-                  disabled={isImporting}
-                  className="neumorphic-button p-2 text-gray-600 hover:text-gray-800 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isImporting ? (
-                    <LoadingSpinner size="sm" />
-                  ) : (
-                    <Upload className="w-4 h-4" />
-                  )}
-                </button>
-              </Tooltip>
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleImportConversations}
-                className="hidden"
-              />
-            </div>
-            
-            <Tooltip content="Clear all conversations">
-              <button
-                onClick={handleConfirmClearAll}
-                disabled={conversations.length === 0}
-                className="neumorphic-button p-2 text-red-600 hover:text-red-700 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Trash className="w-4 h-4" />
-              </button>
-            </Tooltip>
+        {/* Footer - Enhanced glass effect */}
+        <div className="px-4 py-3 sm:px-6 sm:py-5 bg-gradient-to-r from-white/5 to-white/2 backdrop-blur-xl border-t border-white/10">
+          <div className="flex justify-center">
+            <button
+              onClick={onClose}
+              className="px-8 py-3 bg-blue-600/90 hover:bg-blue-600 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              Close
+            </button>
           </div>
           
           {/* Clear All Confirmation */}

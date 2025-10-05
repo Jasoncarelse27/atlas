@@ -23,11 +23,12 @@ export async function sendAttachmentMessage(
     // Get user's tier for the request
     const currentTier = await getUserTier();
     
-    // Send to backend
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    console.log(`[chatService] Sending attachments to backend: ${backendUrl}/message`);
+    // Send to backend - use relative URL for mobile compatibility
+    const backendUrl = import.meta.env.VITE_API_URL || '';
+    const messageEndpoint = backendUrl ? `${backendUrl}/message` : '/message';
+    console.log(`[chatService] Sending attachments to backend: ${messageEndpoint}`);
     
-    const response = await fetch(`${backendUrl}/message`, {
+    const response = await fetch(messageEndpoint, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
@@ -87,12 +88,14 @@ export const chatService = {
       // This keeps the service layer clean and avoids circular dependencies
 
       // Get response from backend (JSON response, not streaming)
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      // Use relative URL to leverage Vite proxy for mobile compatibility
+      const backendUrl = import.meta.env.VITE_API_URL || '';
+      const messageEndpoint = backendUrl ? `${backendUrl}/message` : '/message';
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[FLOW] Sending to backend: ${backendUrl}/message`);
+        console.log(`[FLOW] Sending to backend: ${messageEndpoint}`);
       }
       
-      const response = await fetch(`${backendUrl}/message`, {
+      const response = await fetch(messageEndpoint, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
