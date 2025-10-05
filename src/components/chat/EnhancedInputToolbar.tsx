@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 import { useMessageStore } from '../../stores/useMessageStore';
+import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
 
 interface EnhancedInputToolbarProps {
@@ -18,6 +19,7 @@ interface EnhancedInputToolbarProps {
   conversationId?: string;
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
   isVisible?: boolean;
+  onSoundPlay?: (soundType: string) => void;
 }
 
 export default function EnhancedInputToolbar({
@@ -27,7 +29,8 @@ export default function EnhancedInputToolbar({
   placeholder = "Ask anything...",
   conversationId,
   inputRef: externalInputRef,
-  isVisible = true
+  isVisible = true,
+  onSoundPlay
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
   const { tier, hasAccess, showUpgradeModal } = useTierAccess();
@@ -74,9 +77,22 @@ export default function EnhancedInputToolbar({
   const handleSend = async () => {
     if (isProcessing || disabled) return;
     
+    // ✅ IMMEDIATE UI CLEAR - Clear attachments and text instantly for better UX
+    const currentText = text.trim();
+    const currentAttachments = [...attachmentPreviews];
+    
+    // Clear UI immediately for instant feedback
+    setAttachmentPreviews([]);
+    setText('');
+    
+    // Show immediate feedback
+    if (onSoundPlay) {
+      onSoundPlay('send_message');
+    }
+    
     // If we have attachments, send them with caption
-    if (attachmentPreviews.length > 0 && conversationId) {
-      const attachments = attachmentPreviews.map(att => ({
+    if (currentAttachments.length > 0 && conversationId) {
+      const attachments = currentAttachments.map(att => ({
         type: att.type,
         file: att.file,
         previewUrl: att.previewUrl,
@@ -85,19 +101,23 @@ export default function EnhancedInputToolbar({
       }));
       
       try {
-        await sendMessageWithAttachments(conversationId, attachments, addMessage, text.trim() || undefined, user?.id);
+        // Use Promise.race for timeout protection
+        await Promise.race([
+          sendMessageWithAttachments(conversationId, attachments, addMessage, currentText || undefined, user?.id),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Send timeout')), 10000)
+          )
+        ]);
       } catch (error) {
         console.error("Failed to send attachments:", error);
         toast.error("Failed to send attachments. Please try again.");
-      } finally {
-        // Always clear input after attempting to send, regardless of success/failure
-        setAttachmentPreviews([]);
-        setText('');
+        // Restore attachments on error
+        setAttachmentPreviews(currentAttachments);
+        setText(currentText);
       }
-    } else if (text.trim()) {
+    } else if (currentText) {
       // Regular text message
-      onSendMessage(text.trim());
-      setText('');
+      onSendMessage(currentText);
     }
     
     // ✅ Refocus after sending if still visible
@@ -110,7 +130,7 @@ export default function EnhancedInputToolbar({
   const handleAddAttachment = (attachment: any) => {
     const attachmentWithId = {
       ...attachment,
-      id: attachment.id || crypto.randomUUID() // Ensure it has an ID
+      id: attachment.id || generateUUID() // Ensure it has an ID
     };
     setAttachmentPreviews(prev => [...prev, attachmentWithId]);
     console.log("✅ Attachment added to input area:", attachment.name);

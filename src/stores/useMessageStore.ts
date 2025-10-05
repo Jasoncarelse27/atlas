@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";
+import { generateUUID } from "../utils/uuid";
 
 export interface PendingAttachment {
   id: string;
@@ -193,7 +194,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
       if (error) {
         console.error("[useMessageStore] Failed to fetch conversation", error);
         // Fallback: create a local conversation ID
-        const fallbackId = crypto.randomUUID();
+        const fallbackId = generateUUID();
         set({ conversationId: fallbackId });
         console.log("[useMessageStore] Using fallback conversation:", fallbackId);
         return fallbackId;
@@ -202,7 +203,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
       let conversationId = convs?.[0]?.id;
       if (!conversationId) {
         // Create a new conversation if none exists
-        const newId = crypto.randomUUID();
+        const newId = generateUUID();
         const { error: insertError } = await supabase
           .from("conversations")
           .insert({ id: newId, title: "New conversation" });
@@ -224,7 +225,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
     } catch (err) {
       console.error("[useMessageStore] Conversation init failed:", err);
       // Ultimate fallback
-      const fallbackId = crypto.randomUUID();
+      const fallbackId = generateUUID();
       set({ conversationId: fallbackId });
       console.log("[useMessageStore] Using emergency fallback conversation:", fallbackId);
       return fallbackId;

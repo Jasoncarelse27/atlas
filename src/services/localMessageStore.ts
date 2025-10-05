@@ -1,4 +1,5 @@
 import Dexie, { type Table as DexieTable } from 'dexie';
+import { generateUUID } from "../utils/uuid";
 import type { Conversation, Message } from '../types/chat';
 
 // Define the database schema
@@ -34,7 +35,7 @@ export class LocalMessageStore {
   // Conversation methods
   static async createConversation(title: string, isSafeMode: boolean = true): Promise<string> {
     const conversation: LocalConversation = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title,
       messages: [],
       lastUpdated: new Date().toISOString(),

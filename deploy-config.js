@@ -24,7 +24,7 @@ module.exports = {
   development: {
     NODE_ENV: 'development',
     PORT: 8000,
-    ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:8000',
+    ALLOWED_ORIGINS: 'http://localhost:5173,http://192.168.0.10:8000',
     CORS_ORIGIN: 'http://localhost:5173',
     
     // Supabase configuration

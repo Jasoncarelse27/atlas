@@ -1,4 +1,5 @@
 import { createChatError } from '../features/chat/lib/errorHandler';
+import { generateUUID } from "../utils/uuid";
 import { supabase } from '../lib/supabase';
 
 export interface UploadResult {
@@ -41,7 +42,7 @@ class FileUploadService {
       // Generate file path
       const timestamp = Date.now();
       const extension = file.name.split('.').pop() || 'bin';
-      const filename = `${type}_${timestamp}_${crypto.randomUUID()}.${extension}`;
+      const filename = `${type}_${timestamp}_${generateUUID()}.${extension}`;
       const filePath = options?.folder ? `${options.folder}/${filename}` : filename;
 
       // Upload to Supabase Storage

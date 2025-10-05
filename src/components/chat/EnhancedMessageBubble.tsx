@@ -1,10 +1,13 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import { Bot, Loader2, User } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Bot, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
+import { ImageGallery } from './ImageGallery';
 import { LegacyMessageRenderer } from './MessageRenderer';
+import { StopButton } from './StopButton';
 import SystemMessage from './SystemMessage';
+import { TypingDots } from './TypingDots';
 
 interface EnhancedMessageBubbleProps {
   message: Message;
@@ -12,9 +15,8 @@ interface EnhancedMessageBubbleProps {
   isTyping?: boolean;
 }
 
-export default function EnhancedMessageBubble({ message, isLatest = false }: EnhancedMessageBubbleProps) {
+export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false }: EnhancedMessageBubbleProps) {
   
-  const [isExpanded, setIsExpanded] = useState(false);
 
   // ✅ Collect all attachments (check both locations for compatibility)
   const attachments = message.attachments || [];
@@ -77,99 +79,12 @@ export default function EnhancedMessageBubble({ message, isLatest = false }: Enh
               ? 'bg-blue-600 text-white rounded-br-md'
               : 'bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 text-gray-100 rounded-bl-md'
           }`}>
-            {/* ✅ WhatsApp-style: All attachments in one bubble */}
+            {/* 🖼️ Enhanced Image Gallery */}
             {attachments.length > 0 && (
-              <div className="attachments mt-3">
-                {/* ✅ Grid layout for multiple images */}
-                <div className={`grid gap-2 ${
-                  attachments.length === 1 ? 'grid-cols-1' : 
-                  attachments.length === 2 ? 'grid-cols-2' : 
-                  'grid-cols-2'
-                }`}>
-                  {attachments.map((att: any, idx: number) => (
-                    <div key={idx} className="attachment-item">
-                {/* Image */}
-                {att.type === "image" && (
-                  <div
-                    className="relative cursor-pointer bg-transparent"
-                    onClick={() => setIsExpanded(!isExpanded)}
-                  >
-                    <motion.img
-                      src={att.previewUrl || att.url}
-                      alt={att.name || "uploaded image"}
-                      className={`chat-image rounded-lg max-w-full h-auto transition-all duration-200 ${
-                  isExpanded ? "max-w-none" : "max-w-xs cursor-pointer hover:opacity-90"
-                      }`}
-                      style={{ backgroundColor: 'transparent' }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                      onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                    
-                    {/* Upload overlay */}
-                    <AnimatePresence>
-                      {message.status === "uploading" && (
-                  <motion.div
-                    className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white text-sm rounded-lg"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Loader2 className="w-5 h-5 animate-spin mb-1" />
-                    Uploading...
-                  </motion.div>
-                      )}
-                    </AnimatePresence>
-                    
-                    {!isExpanded && (
-                      <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 rounded-lg transition-all duration-200 flex items-center justify-center">
-                  <span className="text-white text-xs opacity-0 hover:opacity-100 transition-opacity">
-                    Click to expand
-                  </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Audio */}
-                {att.type === "audio" && (
-                  <div className="audio-attachment">
-                    <audio
-                      controls
-                      src={att.previewUrl || att.url}
-                      className="w-full rounded"
-                    />
-                  </div>
-                )}
-
-                {/* File */}
-                {att.type === "file" && (
-                  <div className="file-attachment">
-                    <a
-                      href={att.url || att.previewUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 underline hover:text-blue-600"
-                    >
-                      📎 {att.name || "Download file"}
-                    </a>
-                  </div>
-                )}
-                    </div>
-                  ))}
-                </div>
-                
-                {/* ✅ Single caption below all attachments (WhatsApp-style) */}
-                {message.content && message.content.trim() !== "" && (
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                    {message.content}
-                  </p>
-                )}
-              </div>
+              <ImageGallery 
+                attachments={attachments} 
+                isUser={isUser}
+              />
             )}
 
             {/* Timestamp */}
@@ -301,134 +216,41 @@ export default function EnhancedMessageBubble({ message, isLatest = false }: Enh
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
           {/* Debug logging removed - functionality working correctly */}
-          {message.status === 'sending' && !displayedText ? (
+          {(message.status === 'sending' && !displayedText) || (isTyping && !isUser) ? (
               <div className="flex items-center space-x-3 text-gray-300">
-                <div className="flex space-x-1">
-                  <motion.div
-                    className="w-2 h-2 bg-atlas-primary rounded-full"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                  />
-                  <motion.div
-                    className="w-2 h-2 bg-atlas-primary rounded-full"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
-                  />
-                  <motion.div
-                    className="w-2 h-2 bg-atlas-primary rounded-full"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.5, repeat: Infinity, delay: 0.6 }}
-                  />
-                </div>
-                <span className="text-xs font-medium">Atlas is thinking...</span>
+                <TypingDots />
               </div>
             ) : (
-              <>
-                <LegacyMessageRenderer content={displayedText} />
-                {showTypingIndicator && (
-                  <motion.span
-                    animate={{ opacity: [0, 1, 0] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="inline-block w-2 h-4 bg-current ml-1"
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <LegacyMessageRenderer content={displayedText} />
+                  {showTypingIndicator && (
+                    <motion.span
+                      animate={{ opacity: [0, 1, 0] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="inline-block w-2 h-4 bg-current ml-1"
+                    />
+                  )}
+                </div>
+                {message.status === 'sending' && displayedText && !isUser && (
+                  <StopButton 
+                    onPress={() => {
+                      // TODO: Implement stop generation logic
+                      console.log('Stop generation requested');
+                    }}
+                    isVisible={true}
                   />
                 )}
-              </>
+              </div>
             )}
 
-          {/* ✅ WhatsApp-style: All attachments in one bubble */}
+          {/* 🖼️ Enhanced Image Gallery */}
           {attachments.length > 0 && (
-            <div className="attachments mt-3">
-              {/* ✅ Grid layout for multiple images */}
-              <div className={`grid gap-2 ${
-                attachments.length === 1 ? 'grid-cols-1' : 
-                attachments.length === 2 ? 'grid-cols-2' : 
-                'grid-cols-2'
-              }`}>
-                {attachments.map((att: any, idx: number) => (
-                  <div key={idx} className="attachment-item">
-                    {/* Image */}
-                    {att.type === "image" && (
-                      <div
-                  className="relative cursor-pointer bg-transparent"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                      >
-                  <motion.img
-                    src={att.previewUrl || att.url}
-                    alt={att.name || "uploaded image"}
-                    className={`chat-image rounded-lg max-w-full h-auto transition-all duration-200 ${
-                      isExpanded ? "max-w-none" : "max-w-xs cursor-pointer hover:opacity-90"
-                    }`}
-                    style={{ backgroundColor: 'transparent' }}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                  
-                  {/* Upload overlay */}
-                  <AnimatePresence>
-                    {message.status === "uploading" && (
-                      <motion.div
-                        className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white text-sm rounded-lg"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <Loader2 className="w-5 h-5 animate-spin mb-1" />
-                        Uploading...
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  
-                  {!isExpanded && (
-                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 rounded-lg transition-all duration-200 flex items-center justify-center">
-                      <span className="text-white text-xs opacity-0 hover:opacity-100 transition-opacity">
-                        Click to expand
-                      </span>
-                    </div>
-                  )}
-                      </div>
-                    )}
-
-                    {/* Audio */}
-                    {att.type === "audio" && (
-                      <div className="audio-attachment">
-                  <audio
-                    controls
-                    src={att.previewUrl || att.url}
-                    className="w-full rounded"
-                  />
-                      </div>
-                    )}
-
-                    {/* File */}
-                    {att.type === "file" && (
-                      <div className="file-attachment">
-                  <a
-                    href={att.url || att.previewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline hover:text-blue-600"
-                  >
-                    📎 {att.name || "Download file"}
-                  </a>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                    </div>
-                    
-                    {/* ✅ Single caption below all attachments (WhatsApp-style) */}
-                    {message.content && message.content.trim() !== "" && (
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                  {message.content}
-                </p>
-                    )}
-                  </div>
-                )}
+            <ImageGallery 
+              attachments={attachments} 
+              isUser={isUser}
+            />
+          )}
 
           {/* ✅ Show uploading status */}
           {message.status === "uploading" && (

@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { useMessageStore } from "../stores/useMessageStore";
 import type { Message } from "../types/chat";
+import { generateUUID } from "../utils/uuid";
 import { audioService } from "./audioService";
 import { getUserTier } from "./subscriptionService";
 
@@ -24,8 +25,8 @@ export async function sendAttachmentMessage(
     const currentTier = await getUserTier();
     
     // Send to backend - use relative URL for mobile compatibility
-    const backendUrl = import.meta.env.VITE_API_URL || '';
-    const messageEndpoint = backendUrl ? `${backendUrl}/message` : '/message';
+    // This ensures mobile devices use the Vite proxy instead of direct localhost calls
+    const messageEndpoint = '/message';
     console.log(`[chatService] Sending attachments to backend: ${messageEndpoint}`);
     
     const response = await fetch(messageEndpoint, {
@@ -62,38 +63,41 @@ export async function sendAttachmentMessage(
 
 export const chatService = {
   sendMessage: async (text: string, onComplete?: () => void, conversationId?: string, userId?: string) => {
-    // Chat flow - only log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log("[FLOW] sendMessage called with text:", text, "conversationId:", conversationId);
-    }
+    // 📱 Mobile Debug Logging
+    console.log("📱 [MOBILE-DEBUG] sendMessage called");
+    console.log("📱 [MOBILE-DEBUG] text:", text);
+    console.log("📱 [MOBILE-DEBUG] conversationId:", conversationId);
+    console.log("📱 [MOBILE-DEBUG] userId:", userId);
 
     // Set up abort controller for cancellation (always create fresh)
     abortController = new AbortController();
     useMessageStore.getState().setIsStreaming(true);
     
-    // Debug log to verify abortController is created
-    if (process.env.NODE_ENV === 'development') {
-      console.log("[FLOW] AbortController created:", !!abortController, "signal:", !!abortController?.signal);
-    }
+    console.log("📱 [MOBILE-DEBUG] AbortController created:", !!abortController);
 
     try {
       // Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || 'mock-token-for-development';
+      console.log("📱 [MOBILE-DEBUG] Got session token:", !!token);
 
       // Get user's tier for the request
       const currentTier = await getUserTier();
+      console.log("📱 [MOBILE-DEBUG] User tier:", currentTier);
       
       // Memory extraction is handled by the component layer
       // This keeps the service layer clean and avoids circular dependencies
 
       // Get response from backend (JSON response, not streaming)
       // Use relative URL to leverage Vite proxy for mobile compatibility
-      const backendUrl = import.meta.env.VITE_API_URL || '';
-      const messageEndpoint = backendUrl ? `${backendUrl}/message` : '/message';
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[FLOW] Sending to backend: ${messageEndpoint}`);
-      }
+      // This ensures mobile devices use the proxy instead of direct localhost calls
+      const messageEndpoint = '/message';
+      console.log(`📱 [MOBILE-DEBUG] Sending to backend: ${messageEndpoint}`);
+      console.log(`📱 [MOBILE-DEBUG] Request body:`, { 
+        text: text,
+        userId: session?.user?.id || userId || '',
+        conversationId: conversationId || null
+      });
       
       const response = await fetch(messageEndpoint, {
         method: "POST",
@@ -109,11 +113,12 @@ export const chatService = {
         signal: abortController?.signal, // Add abort signal for cancellation (with null check)
       });
 
-      console.log(`[FLOW] Backend response status: ${response.status}`);
+      console.log(`📱 [MOBILE-DEBUG] Backend response status: ${response.status}`);
+      console.log(`📱 [MOBILE-DEBUG] Backend response ok: ${response.ok}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Backend error:', errorData);
+        console.error('📱 [MOBILE-DEBUG] Backend error:', errorData);
         
         // ✅ Handle monthly limit reached
         if (response.status === 429 && errorData.error === 'MONTHLY_LIMIT_REACHED') {
@@ -123,8 +128,9 @@ export const chatService = {
         throw new Error(`Backend error: ${errorData.error || response.statusText}`);
       }
 
+      console.log(`📱 [MOBILE-DEBUG] About to parse JSON response...`);
       const data = await response.json();
-      console.log('Backend response data:', data);
+      console.log('📱 [MOBILE-DEBUG] Backend response data:', data);
       
       // Handle different response formats
       let responseText;
@@ -213,7 +219,7 @@ export const chatService = {
         const imageTier = await getUserTier();
         
         // Send multi-attachment analysis request to backend
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`, {
+        const response = await fetch('/message', {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
@@ -260,7 +266,7 @@ export const chatService = {
           };
           
           console.log("[DEBUG] Frontend sending request to backend:", {
-            url: `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`,
+            url: '/message',
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -269,7 +275,7 @@ export const chatService = {
             body: requestBody
           });
           
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/message`, {
+          const response = await fetch('/message', {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -325,7 +331,7 @@ export async function sendMessageWithAttachments(
 ) {
   console.debug("[chatService] sendMessageWithAttachments", { conversationId, attachments, caption });
 
-  const tempId = crypto.randomUUID();
+  const tempId = generateUUID();
 
   // ✅ Single message with all attachments and one caption
   const newMessage = {
@@ -370,7 +376,7 @@ export async function sendMessageWithAttachments(
         throw new Error('No image attachment found');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/image-analysis`, {
+      const response = await fetch('/api/image-analysis', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -393,7 +399,7 @@ export async function sendMessageWithAttachments(
           
           // Add upgrade message to chat
           const upgradeMessage = {
-            id: crypto.randomUUID(),
+            id: generateUUID(),
             conversationId,
             role: "assistant",
             content: errorData.message,
@@ -414,7 +420,7 @@ export async function sendMessageWithAttachments(
         
         // ✅ Add AI response as assistant message
         const aiMessage = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           conversationId,
           role: "assistant",
           content: data.analysis,

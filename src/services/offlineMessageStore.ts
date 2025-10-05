@@ -1,4 +1,5 @@
 import { createChatError } from '../features/chat/lib/errorHandler';
+import { generateUUID } from "../utils/uuid";
 import db from '../lib/db';
 import type { Message } from '../types/chat';
 
@@ -107,7 +108,7 @@ export const offlineMessageStore = {
    */
   async saveMessage(message: Partial<OfflineMessage>): Promise<string> {
     try {
-      const messageId = message.id || crypto.randomUUID();
+      const messageId = message.id || generateUUID();
       const now = new Date().toISOString();
       
       const messageToSave: OfflineMessage = {

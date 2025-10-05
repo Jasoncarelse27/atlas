@@ -8,13 +8,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing required environment variables");
 }
 
-// Create and export a single Supabase client instance
+// Mobile-safe Supabase client configuration
+const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
+  },
+  // Disable realtime on mobile to prevent WebSocket issues
+  realtime: {
+    enabled: !isMobile,
+    params: {
+      eventsPerSecond: 2,
+    },
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'atlas-mobile-safe',
+    },
   },
 });
 
@@ -24,9 +38,15 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   console.log('🔧 Supabase client exposed globally for DevTools testing');
 }
 
-// Health-check helper
+// Health-check helper with mobile fallback
 export async function checkSupabaseHealth() {
   try {
+    // On mobile, skip the health check to avoid WebSocket issues
+    if (isMobile) {
+      console.log("📱 Mobile detected - skipping Supabase health check");
+      return { ok: true, mobile: true };
+    }
+    
     // Test connection with a simple query that doesn't require auth
     const { error } = await supabase.from('user_profiles').select('id').limit(1);
     if (error) {

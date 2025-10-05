@@ -15,6 +15,10 @@ on:
         - production
         - staging
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   health-check:
     name: 🏥 Backend Health Check
@@ -27,7 +31,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'npm'
 
     - name: Install dependencies

@@ -1,4 +1,5 @@
 import { createChatError } from '../features/chat/lib/errorHandler';
+import { generateUUID } from "../utils/uuid";
 import db from '../lib/db';
 import { offlineMessageStore } from '../services/offlineMessageStore';
 
@@ -36,7 +37,7 @@ export class PendingQueueManager {
   async addToQueue(type: PendingOperation['type'], data: any, priority: number = 1): Promise<string> {
     try {
       const operation: PendingOperation = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         type,
         data,
         priority,

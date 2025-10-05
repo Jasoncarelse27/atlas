@@ -42,8 +42,8 @@ export function useFeatureService() {
 
   const logFeatureAttempt = async (userId: string, feature: string, tier: string) => {
     try {
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${backendUrl}/api/feature-attempts`, {
+      // Use relative URL to leverage Vite proxy for mobile compatibility
+      const response = await fetch('/api/feature-attempts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -79,8 +79,8 @@ export class FeatureService {
     tier: string
   ): Promise<void> {
     try {
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${backendUrl}/api/feature-attempts`, {
+      // Use relative URL to leverage Vite proxy for mobile compatibility
+      const response = await fetch('/api/feature-attempts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

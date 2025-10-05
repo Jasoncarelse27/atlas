@@ -17,6 +17,7 @@ import { chatService } from '../services/chatService';
 import { runDbMigrations } from '../services/dbMigrations';
 import { useMessageStore } from '../stores/useMessageStore';
 import type { Message } from '../types/chat';
+import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
 import InsightsWidget from '../components/sidebar/InsightsWidget';
@@ -32,7 +33,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [hasStreamingResponse, setHasStreamingResponse] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [assistantHasStarted, setAssistantHasStarted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -111,19 +113,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // Handle text messages - delegate to chatService
   const handleTextMessage = async (text: string) => {
-      setIsTyping(true);
-      setHasStreamingResponse(false);
+      console.log('📱 [MOBILE-DEBUG] handleTextMessage called with text:', text);
     
     try {
       // Process message for memory extraction FIRST and wait for completion
+      console.log('📱 [MOBILE-DEBUG] Processing user message for memory extraction...');
       await processUserMessage(text);
-      
-      // Minimum delay to show loading dots (800ms for optimal UX)
-      await new Promise(resolve => setTimeout(resolve, 800));
+      console.log('📱 [MOBILE-DEBUG] Memory extraction complete');
       
       // Create message for persistent store
       const message: Message = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         role: 'user',
         type: 'text',
         content: text,
@@ -132,9 +132,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       };
 
       // Add to persistent store
-      console.log('🔍 [ChatPage] Adding user message to store:', message);
+      console.log('📱 [MOBILE-DEBUG] Adding user message to store:', message);
       await addMessage(message);
-      console.log('✅ [ChatPage] User message added to store successfully');
+      console.log('📱 [MOBILE-DEBUG] User message added to store successfully');
+
+      // NOW show typing indicator after user message is visible
+      setIsTyping(true);
+      setIsStreaming(true);
+      setAssistantHasStarted(false);
 
       // Use chatService as the single source of truth
       const assistantResponse = await chatService.sendMessage(text, () => {
@@ -151,11 +156,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
       
       // Once response starts coming in, mark as streaming and clear typing
-      setHasStreamingResponse(true);
       setIsTyping(false);
+      setAssistantHasStarted(true);
 
       // ✅ Create assistant message immediately with loading state
-      const assistantMessageId = crypto.randomUUID();
+      const assistantMessageId = generateUUID();
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
@@ -177,9 +182,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           status: 'sent'
         });
       }
+      
+      // Reset streaming states when complete
+      setIsStreaming(false);
+      setAssistantHasStarted(false);
     } catch (error) {
       console.error('Text message handling error:', error);
       setIsTyping(false);
+      setIsStreaming(false);
+      setAssistantHasStarted(false);
       
       // ✅ Handle monthly limit reached
       if (error instanceof Error && error.message === 'MONTHLY_LIMIT_REACHED') {
@@ -411,7 +422,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         key={message.id}
                         message={message}
                         isLatest={index === safeMessages.length - 1}
-                        isTyping={index === safeMessages.length - 1 && isTyping && hasStreamingResponse}
+                        isTyping={index === safeMessages.length - 1 && isStreaming && !assistantHasStarted}
                       />
                     ));
                   } else {
@@ -444,9 +455,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Input Toolbar with Bounce Animation */}
+          {/* Input Toolbar with Bounce Animation - Floating Design */}
           <motion.div 
-            className="bg-gray-900/80 backdrop-blur-2xl border-t border-white/10 p-0 sm:p-4 sticky bottom-0 z-30 shadow-2xl"
+            className="bg-transparent backdrop-blur-2xl p-0 sm:p-4 sticky bottom-0 z-30"
             initial={{ y: 0 }}
             animate={{ y: 0 }}
             whileHover={{ 

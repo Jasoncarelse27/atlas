@@ -272,8 +272,8 @@ export const syncService = new SyncService();
 export const syncPendingUploads = () => syncService.syncPendingMessages();
 export const testBackendConnection = async () => {
   try {
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${backendUrl}/healthz`);
+    // Use relative URL to leverage Vite proxy for mobile compatibility
+    const response = await fetch('/healthz');
     return response.ok;
   } catch {
     return false;

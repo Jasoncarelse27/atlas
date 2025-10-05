@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import { generateUUID } from "../utils/uuid";
 import React, { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { sendMessageWithAttachments } from "../../services/chatService";
@@ -25,7 +26,7 @@ export default function ChatInput({ conversationId, userId, onImageUpload }: Cha
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       const attachments: PendingAttachment[] = acceptedFiles.map((file) => ({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         file,
         previewUrl: URL.createObjectURL(file),
         caption: "",

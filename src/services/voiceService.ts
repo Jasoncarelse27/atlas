@@ -1,4 +1,5 @@
 import { createChatError } from '../features/chat/lib/errorHandler';
+import { generateUUID } from "../utils/uuid";
 import { supabase } from '../lib/supabase';
 
 export interface TranscriptionResult {
@@ -52,7 +53,7 @@ class VoiceService {
   async uploadAudio(audioBlob: Blob): Promise<AudioMetadata> {
     try {
       // Generate unique filename
-      const filename = `recording_${Date.now()}_${crypto.randomUUID()}.webm`;
+      const filename = `recording_${Date.now()}_${generateUUID()}.webm`;
       
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage

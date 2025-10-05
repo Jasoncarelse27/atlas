@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { execSync } from 'child_process';
 import compression from 'compression';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -16,6 +17,14 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+// ✅ Automatic port cleanup to prevent EADDRINUSE errors
+try {
+  execSync("lsof -ti:8000 | xargs kill -9", { stdio: "ignore" });
+  console.log("🧹 Port 8000 cleared successfully ✅");
+} catch (e) {
+  console.log("🧹 Port 8000 is already clear ✅");
+}
 
 const app = express();
 

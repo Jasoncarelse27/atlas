@@ -68,11 +68,9 @@ class SubscriptionApiService {
   }
 
   constructor() {
-    // Use backend URL from environment or default to localhost:8000
-    // In development, prioritize localhost for direct backend connection
-    this.baseUrl = import.meta.env.DEV 
-      ? 'http://localhost:8000' 
-      : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
+    // Use relative URL to leverage Vite proxy for mobile compatibility
+    // This ensures mobile devices use the proxy instead of direct localhost calls
+    this.baseUrl = '';
     
     // Check if we're in mock mode (no real FastSpring credentials)
     this.isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY || 

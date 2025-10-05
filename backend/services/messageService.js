@@ -312,9 +312,9 @@ export async function processMessage(userId, text, conversationId = null) {
           const userMemory = profile.user_context;
           console.log('🧠 [MessageService] Retrieved user memory:', JSON.stringify(userMemory));
           
-          // Add memory context if available (simplified, less aggressive)
+          // Add memory context if available
           if (userMemory.name) {
-            personalizedContent = `User message: ${text}`;
+            personalizedContent = `[User Context: Name is ${userMemory.name}${userMemory.context ? `, Context: ${userMemory.context}` : ''}]\n\nUser message: ${text}`;
             console.log('🧠 [MessageService] Personalized content:', personalizedContent.substring(0, 200) + '...');
           } else {
             console.log('🧠 [MessageService] No user memory found for userId:', userId);
