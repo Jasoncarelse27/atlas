@@ -2,21 +2,32 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import db from '../lib/db';
 
 // Mock the database for tests
+let mockDataCount = 1; // Start with data present
+let mockSynced = false; // Track sync status
+
 vi.mock('../lib/db', () => ({
   default: {
     messages: {
-      clear: vi.fn().mockResolvedValue(undefined),
+      clear: vi.fn().mockImplementation(() => {
+        mockDataCount = 0;
+        return Promise.resolve(undefined);
+      }),
       add: vi.fn().mockResolvedValue(1),
+      update: vi.fn().mockImplementation((id, data) => {
+        if (data.synced !== undefined) {
+          mockSynced = data.synced;
+        }
+        return Promise.resolve(1);
+      }),
       get: vi.fn().mockImplementation((id) => {
         const timestamp = Date.now();
-        // Return synced: true for the update test
         return Promise.resolve({
           id: 1,
           conversationId: 'test-conv-1',
           role: 'user',
           content: 'Hello, Atlas!',
           createdAt: timestamp,
-          synced: true // Mock as synced after update
+          synced: mockSynced // Use the tracked sync status
         });
       }),
       where: vi.fn().mockReturnValue({
@@ -38,17 +49,19 @@ vi.mock('../lib/db', () => ({
           toArray: vi.fn().mockResolvedValue([])
         })
       }),
-      update: vi.fn().mockResolvedValue(1),
       count: vi.fn().mockImplementation(() => {
-        // Return 1 before clear operations
-        return Promise.resolve(1);
+        return Promise.resolve(mockDataCount);
       })
     },
     conversations: {
-      clear: vi.fn().mockResolvedValue(undefined),
+      clear: vi.fn().mockImplementation(() => {
+        mockDataCount = 0;
+        return Promise.resolve(undefined);
+      }),
       add: vi.fn().mockResolvedValue(1),
       get: vi.fn().mockImplementation((id) => {
-        const timestamp = Date.now();
+        // Use a fixed timestamp to avoid timing issues
+        const timestamp = 1759695026725;
         return Promise.resolve({
           id: 1,
           title: 'Test Conversation',
@@ -66,8 +79,7 @@ vi.mock('../lib/db', () => ({
         })
       }),
       count: vi.fn().mockImplementation(() => {
-        // Return 1 before clear operations
-        return Promise.resolve(1);
+        return Promise.resolve(mockDataCount);
       })
     }
   }
@@ -75,8 +87,11 @@ vi.mock('../lib/db', () => ({
 
 describe('Atlas Database (Dexie)', () => {
   beforeEach(async () => {
-    // Clear database before each test
-    if (db) {
+    // Reset mock data count and sync status for each test
+    mockDataCount = 1;
+    mockSynced = false;
+    // Clear database before each test (except for clear test)
+    if (db && !expect.getState().currentTestName?.includes('should clear all data')) {
       await db.messages.clear();
       await db.conversations.clear();
     }
@@ -204,7 +219,7 @@ describe('Atlas Database (Dexie)', () => {
     it('should add and retrieve conversations', async () => {
       const conversation: Omit<Conversation, 'id'> = {
         title: 'Test Conversation',
-        createdAt: Date.now()
+        createdAt: 1759695026725 // Use fixed timestamp to match mock
       };
 
       // Add conversation

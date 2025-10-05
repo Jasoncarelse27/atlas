@@ -1,5 +1,24 @@
 import { describe, it, expect, vi } from 'vitest';
 
+// Mock environment variables
+vi.mock('../lib/supabaseClient', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      insert: vi.fn(() => ({
+        error: null
+      })),
+      select: vi.fn(() => ({
+        order: vi.fn(() => ({
+          limit: vi.fn(() => ({
+            data: [],
+            error: null
+          }))
+        }))
+      }))
+    }))
+  }
+}));
+
 // Mock Supabase client
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({

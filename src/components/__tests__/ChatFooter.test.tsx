@@ -2,6 +2,22 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ChatFooter from "../ChatFooter";
 
+// Mock environment variables
+vi.mock("../../lib/supabaseClient", () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(() => ({
+            data: null,
+            error: null
+          }))
+        }))
+      }))
+    }))
+  }
+}));
+
 // Mock the useUsageIndicator hook
 vi.mock("../../hooks/useUsageIndicator");
 
