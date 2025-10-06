@@ -105,6 +105,8 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   
   setConversationId: (id: string) => {
     set({ conversationId: id });
+    // ✅ Auto-save conversation ID for restore
+    localStorage.setItem('atlas:lastConversationId', id);
     console.log("[useMessageStore] Set conversation ID:", id);
   },
   

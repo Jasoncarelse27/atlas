@@ -1,6 +1,6 @@
+import { Cloud, CloudOff, RefreshCw } from "lucide-react"
 import { useEffect, useState } from "react"
 import { isSyncingNow, lastSyncedAt } from "../services/syncService"
-import { Cloud, CloudOff, RefreshCw } from "lucide-react"
 
 export default function SyncStatus({ isOnline }: { isOnline: boolean }) {
   const [timeAgo, setTimeAgo] = useState("")
