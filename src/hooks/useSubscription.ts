@@ -54,13 +54,12 @@ export function useSubscription(userId?: string) {
   // Get tier from profile with proper fallback and logging
   const tier: UserTier = profile?.subscription_tier || 'core'; // Default to core instead of free
   
-  // Log tier resolution for debugging
+  // Log tier resolution for debugging - only log when profile is loaded
   useEffect(() => {
     if (userId && profile) {
       console.log(`✅ [useSubscription] User ${userId} tier resolved: ${tier} (from profile: ${profile.subscription_tier})`);
-    } else if (userId && !profile) {
-      console.warn(`⚠️ [useSubscription] User ${userId} has no profile, defaulting to 'core'`);
     }
+    // Removed misleading "no profile" warning - it triggers before async fetch completes
   }, [userId, tier, profile]);
   
   // Calculate tier limits
