@@ -300,23 +300,32 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           startBackgroundSync(user.id, tier);
         }
         
-        // ✅ Check if conversation ID is in URL
+        // ✅ Check if conversation ID is in URL or localStorage (auto-restore)
         const urlParams = new URLSearchParams(window.location.search);
         const urlConversationId = urlParams.get('conversation');
+        const lastConversationId = localStorage.getItem('atlas:lastConversationId');
         
         let id: string;
         if (urlConversationId) {
           // Load existing conversation from URL
           id = urlConversationId;
-          
-          // ✅ Hydrate messages from Supabase
-          await refreshMessages();
+          console.log('🔄 [ChatPage] Loading conversation from URL:', id);
+        } else if (lastConversationId) {
+          // Auto-restore last conversation
+          id = lastConversationId;
+          console.log('🔄 [ChatPage] Auto-restoring last conversation:', id);
         } else {
-          // Create new conversation (handled by usePersistentMessages)
+          // Create new conversation
           id = generateUUID();
+          console.log('🆕 [ChatPage] Creating new conversation:', id);
         }
         
+        // Save conversation ID for auto-restore
+        localStorage.setItem('atlas:lastConversationId', id);
         setConversationId(id);
+        
+        // ✅ Hydrate messages from Dexie (offline-first)
+        await refreshMessages();
       } catch (error) {
         console.error("[ChatPage] ❌ Failed to initialize app:", error);
       }

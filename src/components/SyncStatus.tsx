@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { isSyncingNow, lastSyncedAt } from "../services/syncService"
+import { Cloud, CloudOff, RefreshCw } from "lucide-react"
 
 export default function SyncStatus({ isOnline }: { isOnline: boolean }) {
   const [timeAgo, setTimeAgo] = useState("")
@@ -20,11 +21,22 @@ export default function SyncStatus({ isOnline }: { isOnline: boolean }) {
 
   let text = "Offline"
   let color = "text-red-400"
-  if (isSyncingNow) { text = "Syncing…"; color = "text-blue-400" }
-  else if (isOnline) { text = `Synced ${timeAgo}`; color = "text-emerald-400" }
+  let icon = <CloudOff size={14} />
+  
+  if (isSyncingNow) { 
+    text = "Syncing…"; 
+    color = "text-blue-400"
+    icon = <RefreshCw size={14} className="animate-spin" />
+  }
+  else if (isOnline) { 
+    text = `Synced ${timeAgo}`; 
+    color = "text-emerald-400"
+    icon = <Cloud size={14} />
+  }
 
   return (
-    <div className="text-xs text-center mt-1 transition-all duration-200">
+    <div className="flex items-center justify-center gap-1 text-xs mt-1 transition-all duration-200">
+      {icon}
       <span className={color}>{text}</span>
     </div>
   )
