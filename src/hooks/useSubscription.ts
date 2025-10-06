@@ -94,7 +94,7 @@ export function useSubscription(userId?: string) {
     if (tier === 'core' || tier === 'studio') return -1; // Unlimited
     
     // Get current month in YYYY-MM format
-    const now = new Date();
+    // const now = new Date();
     // const currentMonth = now.toISOString().slice(0, 7);
     // const lastResetMonth = profile?.last_reset_date?.slice(0, 7);
     
@@ -158,7 +158,7 @@ export function useSubscription(userId?: string) {
       
       if (profile) {
         console.log(`✅ [useSubscription] Profile fetched via backend API: ${profile.subscription_tier}`);
-        setProfile(profile);
+        setProfile(profile as any);
       } else {
         console.warn('⚠️ [useSubscription] No profile returned from backend API');
         setError('No profile found');
@@ -229,11 +229,11 @@ export function useSubscription(userId?: string) {
           if (process.env.NODE_ENV === 'development') {
             console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling', err);
           }
-          // Start polling fallback
+          // Start polling fallback with faster interval for better tier sync
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
               fetchProfile(); // Remove logging to reduce spam
-            }, 60000); // Poll every 60 seconds
+            }, 10000); // 🎯 FUTURE-PROOF FIX: Poll every 10 seconds for faster tier updates
           }
           // Retry realtime connection after 30 seconds
           if (!retryTimeout) {
@@ -244,11 +244,11 @@ export function useSubscription(userId?: string) {
           }
         } else if (status === 'TIMED_OUT') {
           console.warn('⚠️ [useSubscription] Realtime subscription timed out, falling back to polling');
-          // Start polling fallback
+          // Start polling fallback with faster interval
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
               fetchProfile();
-            }, 60000);
+            }, 10000); // 🎯 FUTURE-PROOF FIX: Poll every 10 seconds for faster tier updates
           }
           // Retry realtime connection after 30 seconds
           if (!retryTimeout) {
@@ -317,13 +317,10 @@ export function useSubscription(userId?: string) {
         console.log('🧠 [updateMemory] Merged memory:', mergedMemory);
       }
       
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          user_context: mergedMemory,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
+      const { error } = await (supabase.from('profiles') as any).update({
+        user_context: mergedMemory,
+        updated_at: new Date().toISOString()
+      }).eq('id', userId);
       
       if (error) {
         console.error('❌ Error updating memory:', error);
