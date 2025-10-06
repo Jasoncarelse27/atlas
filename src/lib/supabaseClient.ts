@@ -11,7 +11,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Mobile-safe Supabase client configuration
 const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Singleton pattern to prevent multiple client instances
+let supabaseInstance: ReturnType<typeof createClient> | null = null;
+
+export const supabase = (() => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -20,7 +25,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   // Disable realtime on mobile to prevent WebSocket issues
   realtime: {
-    enabled: !isMobile,
+    // enabled: !isMobile, // This option doesn't exist in the current Supabase client
     params: {
       eventsPerSecond: 2,
     },
@@ -30,12 +35,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'X-Client-Info': 'atlas-mobile-safe',
     },
   },
-});
+    });
+  }
+  return supabaseInstance;
+})();
 
-// Dev-only: expose for console debugging
+// Dev-only: expose for console debugging (only if not already exposed)
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as any).supabase = supabase;
-  console.log('🔧 Supabase client exposed globally for DevTools testing');
+  if (!(window as any).supabase) {
+    (window as any).supabase = supabase;
+    console.log('🔧 Supabase client exposed globally for DevTools testing');
+  }
 }
 
 // Health-check helper with mobile fallback
@@ -48,7 +58,7 @@ export async function checkSupabaseHealth() {
     }
     
     // Test connection with a simple query that doesn't require auth
-    const { error } = await supabase.from('user_profiles').select('id').limit(1);
+    const { error } = await supabase.from('profiles').select('id').limit(1);
     if (error) {
       console.error("⚠️ Supabase health check failed:", error.message);
       return { ok: false, message: error.message };

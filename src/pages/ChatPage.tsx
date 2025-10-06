@@ -275,14 +275,23 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     getAuthUser();
   }, []);
 
-  // Initialize conversation and run migrations
+  // Initialize conversation and run migrations (only once per session)
   useEffect(() => {
     if (!userId) return;
     
+    // Check if we've already run migrations this session
+    const migrationKey = `migration-run-${userId}`;
+    if (sessionStorage.getItem(migrationKey)) {
+      return; // Already ran migrations this session
+    }
+    
     const initializeApp = async () => {
       try {
-        // ✅ Run database migrations (single source of truth)
+        // ✅ Run database migrations (single source of truth) - only once per session
         await runDbMigrations(userId);
+        
+        // Mark migrations as run for this session
+        sessionStorage.setItem(migrationKey, 'true');
         
         // ✅ Load messages from Dexie (offline-first)
         await refreshMessages();
@@ -290,14 +299,38 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         // ✅ Start background sync for Core/Studio tiers
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('subscription_tier')
-            .eq('id', user.id)
-            .single();
-          
-          const tier = profile?.subscription_tier || 'free';
-          startBackgroundSync(user.id, tier);
+          // Use backend API for consistent tier detection (same as other hooks)
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+            
+            if (accessToken) {
+              const response = await fetch(`/v1/user_profiles/${user.id}`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                  'Content-Type': 'application/json',
+                },
+              });
+              
+              if (response.ok) {
+                const profile = await response.json();
+                const tier = profile?.subscription_tier || 'core'; // Default to core instead of free
+                console.log(`✅ [ChatPage] Starting background sync for tier: ${tier}`);
+                startBackgroundSync(user.id, tier);
+              } else {
+                console.warn('⚠️ [ChatPage] Failed to fetch profile, defaulting to core tier');
+                startBackgroundSync(user.id, 'core');
+              }
+            } else {
+              console.warn('⚠️ [ChatPage] No access token, defaulting to core tier');
+              startBackgroundSync(user.id, 'core');
+            }
+          } catch (error) {
+            console.error('❌ [ChatPage] Error fetching tier for sync:', error);
+            startBackgroundSync(user.id, 'core'); // Default to core instead of free
+          }
         }
         
         // ✅ Check if conversation ID is in URL or localStorage (auto-restore)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { subscriptionApi } from '../services/subscriptionApi';
 import { extractMemoryFromMessage, mergeMemory } from '../utils/memoryExtractor';
 
 export type UserTier = 'free' | 'core' | 'studio';
@@ -51,14 +52,14 @@ export function useSubscription(userId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   // Get tier from profile with proper fallback and logging
-  const tier: UserTier = profile?.subscription_tier || 'free';
+  const tier: UserTier = profile?.subscription_tier || 'core'; // Default to core instead of free
   
   // Log tier resolution for debugging
   useEffect(() => {
     if (userId && profile) {
-      console.log(`🔍 [useSubscription] User ${userId} tier resolved: ${tier} (from profile: ${profile.subscription_tier})`);
+      console.log(`✅ [useSubscription] User ${userId} tier resolved: ${tier} (from profile: ${profile.subscription_tier})`);
     } else if (userId && !profile) {
-      console.warn(`⚠️ [useSubscription] User ${userId} has no profile, defaulting to 'free'`);
+      console.warn(`⚠️ [useSubscription] User ${userId} has no profile, defaulting to 'core'`);
     }
   }, [userId, tier, profile]);
   
@@ -94,8 +95,8 @@ export function useSubscription(userId?: string) {
     
     // Get current month in YYYY-MM format
     const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7);
-    const lastResetMonth = profile?.last_reset_date?.slice(0, 7);
+    // const currentMonth = now.toISOString().slice(0, 7);
+    // const lastResetMonth = profile?.last_reset_date?.slice(0, 7);
     
     // Calculate remaining messages for current month
     const messagesThisMonth = profile?.usage_stats?.messages_this_month || 0;
@@ -127,23 +128,40 @@ export function useSubscription(userId?: string) {
       
       console.log(`📊 [useSubscription] Fetching profile for userId: ${userId}`);
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      // Get access token for backend API calls
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      
+      if (!accessToken) {
+        console.warn('⚠️ [useSubscription] No access token, falling back to direct Supabase call');
+        // Fallback to direct Supabase call
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-      if (error) {
-        console.error('❌ [useSubscription] Profile fetch error:', error);
-        setError(error.message);
+        if (error) {
+          console.error('❌ [useSubscription] Profile fetch error:', error);
+          setError(error.message);
+          return;
+        }
+
+        if (data) {
+          setProfile(data);
+        }
         return;
       }
 
-      if (data) {
-        // console.log('✅ [useSubscription] Profile fetched:', data);
-        // console.log('🔍 [useSubscription] Profile usage_stats:', data?.usage_stats);
-        // console.log('🔍 [useSubscription] Profile last_reset_date:', data?.last_reset_date);
-        setProfile(data);
+      // Use backend API (same as useSupabaseAuth)
+      const profile = await subscriptionApi.getUserProfile(userId, accessToken);
+      
+      if (profile) {
+        console.log(`✅ [useSubscription] Profile fetched via backend API: ${profile.subscription_tier}`);
+        setProfile(profile);
+      } else {
+        console.warn('⚠️ [useSubscription] No profile returned from backend API');
+        setError('No profile found');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -161,13 +179,26 @@ export function useSubscription(userId?: string) {
       return;
     }
 
+    // Check if we already have a subscription for this user
+    const subscriptionKey = `realtime-sub-${userId}`;
+    if (sessionStorage.getItem(subscriptionKey)) {
+      console.log('🔄 [useSubscription] Reusing existing subscription for user:', userId);
+      return;
+    }
+
     // Initial fetch
     fetchProfile();
 
     let pollingInterval: ReturnType<typeof setInterval> | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const channel = supabase
-      .channel(`profiles-changes-${userId}`)
+      .channel(`profiles-changes-${userId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: userId }
+        }
+      })
       .on(
         'postgres_changes',
         { 
@@ -183,9 +214,11 @@ export function useSubscription(userId?: string) {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           console.log('✅ [useSubscription] Subscribed to profile realtime updates');
+          // Mark subscription as active
+          sessionStorage.setItem(subscriptionKey, 'active');
           // Clear any existing polling when real-time is working
           if (pollingInterval) {
             clearInterval(pollingInterval);
@@ -194,13 +227,35 @@ export function useSubscription(userId?: string) {
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           // Realtime connection issue - only log in development
           if (process.env.NODE_ENV === 'development') {
-            console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling');
+            console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling', err);
           }
           // Start polling fallback
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
               fetchProfile(); // Remove logging to reduce spam
             }, 60000); // Poll every 60 seconds
+          }
+          // Retry realtime connection after 30 seconds
+          if (!retryTimeout) {
+            retryTimeout = setTimeout(() => {
+              console.log('🔄 [useSubscription] Retrying realtime connection...');
+              // The effect will re-run and create a new subscription
+            }, 30000);
+          }
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⚠️ [useSubscription] Realtime subscription timed out, falling back to polling');
+          // Start polling fallback
+          if (!pollingInterval) {
+            pollingInterval = setInterval(() => {
+              fetchProfile();
+            }, 60000);
+          }
+          // Retry realtime connection after 30 seconds
+          if (!retryTimeout) {
+            retryTimeout = setTimeout(() => {
+              console.log('🔄 [useSubscription] Retrying realtime connection...');
+              // The effect will re-run and create a new subscription
+            }, 30000);
           }
         }
       });
@@ -210,6 +265,11 @@ export function useSubscription(userId?: string) {
       if (pollingInterval) {
         clearInterval(pollingInterval);
       }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      // Clear subscription flag on cleanup
+      sessionStorage.removeItem(subscriptionKey);
     };
   }, [userId, fetchProfile]);
 

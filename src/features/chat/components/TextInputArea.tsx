@@ -138,7 +138,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
       )}
       
       <form onSubmit={handleSubmit} className="relative">
-        <div className={`relative transition-all duration-300 rounded-3xl px-4 ${
+        <div className={`relative transition-all duration-300 rounded-[2rem] px-4 ${
           isFocused 
             ? 'ring-1 ring-blue-500/30 dark:ring-blue-500/50' 
             : ''
@@ -150,7 +150,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className={`w-full px-4 py-3 pr-12 dark:bg-gradient-to-br dark:from-gray-800/90 dark:to-gray-900/90 bg-gradient-to-br from-gray-100/90 to-white/90 dark:border-gray-700 border-gray-300 rounded-xl dark:text-white text-gray-900 dark:placeholder-gray-500 placeholder-gray-400 focus:outline-none min-h-[56px] resize-none transition-all duration-300 text-base leading-relaxed font-medium ${
+            className={`w-full px-4 py-3 pr-12 dark:bg-gradient-to-br dark:from-gray-800/90 dark:to-gray-900/90 bg-gradient-to-br from-gray-100/90 to-white/90 dark:border-gray-700 border-gray-300 rounded-[2rem] dark:text-white text-gray-900 dark:placeholder-gray-500 placeholder-gray-400 focus:outline-none min-h-[56px] resize-none transition-all duration-300 text-base leading-relaxed font-medium ${
               isFocused 
                 ? 'dark:border-blue-500/60 border-blue-500/40 shadow-lg dark:shadow-blue-900/10 shadow-blue-500/10' 
                 : 'dark:hover:border-gray-600 hover:border-gray-400'

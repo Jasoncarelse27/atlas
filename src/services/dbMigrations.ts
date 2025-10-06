@@ -7,6 +7,7 @@ const DEFAULT_CONVERSATION_KEY = "atlas-default-conversation";
 
 // ✅ Migration guard to prevent multiple calls
 let isMigrating = false;
+let migrationTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export async function runDbMigrations(userId?: string) {
   if (isMigrating) {
@@ -16,6 +17,12 @@ export async function runDbMigrations(userId?: string) {
   
   isMigrating = true;
   console.log("[DB MIGRATION] Starting database migration...");
+  
+  // Set a timeout to prevent stuck migrations
+  migrationTimeout = setTimeout(() => {
+    console.warn("[DB MIGRATION] Migration timeout - resetting flag");
+    isMigrating = false;
+  }, 30000); // 30 second timeout
 
   try {
     // ✅ Use new Golden Standard Dexie schema
@@ -25,7 +32,14 @@ export async function runDbMigrations(userId?: string) {
     console.log("[DB MIGRATION] Database schema is healthy ✅");
   } catch (err) {
     console.error("[DB MIGRATION] Error:", err);
-    // ✅ Don't crash app
+    // ✅ Don't crash app - but reset the flag
+    isMigrating = false;
+    
+    // Clear the timeout
+    if (migrationTimeout) {
+      clearTimeout(migrationTimeout);
+      migrationTimeout = null;
+    }
     return [];
   }
 
@@ -110,4 +124,10 @@ export async function runDbMigrations(userId?: string) {
 
   console.log("[DB MIGRATION] Completed successfully ✅");
   isMigrating = false;
+  
+  // Clear the timeout
+  if (migrationTimeout) {
+    clearTimeout(migrationTimeout);
+    migrationTimeout = null;
+  }
 }

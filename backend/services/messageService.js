@@ -340,6 +340,44 @@ Core principles:
 5. Style — Be concise by default, expand with details/examples only if it benefits the user. No filler greetings like "Hi again!" unless the context genuinely calls for it.
 6. Role — You are a mentor and guide, not just a chatbot. Encourage reflection, learning, and action. If the user asks something unsafe, calmly explain your limits and provide safe guidance.`;
 
+    // 🧠 MEMORY 100%: Get conversation history for context (Core/Studio only)
+    let conversationHistory = [];
+    if (tier === 'core' || tier === 'studio') {
+      try {
+        console.log(`🧠 [Memory] Fetching conversation history for context...`);
+        const { data: historyMessages, error: historyError } = await getSupabase()
+          .from('messages')
+          .select('role, content, created_at')
+          .eq('conversation_id', convId)
+          .order('created_at', { ascending: true })
+          .limit(10); // Last 10 messages for context
+        
+        if (historyError) {
+          console.warn('⚠️ [Memory] Could not fetch conversation history:', historyError);
+        } else if (historyMessages && historyMessages.length > 0) {
+          conversationHistory = historyMessages.map(msg => ({
+            role: msg.role,
+            content: typeof msg.content === 'object' ? msg.content.text : msg.content
+          }));
+          console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
+        }
+      } catch (error) {
+        console.warn('⚠️ [Memory] Error fetching conversation history:', error);
+      }
+    }
+
+    // 🧠 MEMORY 100%: Build messages array with conversation history
+    const messages = [];
+    
+    // Add conversation history (last 10 messages for context)
+    if (conversationHistory && conversationHistory.length > 0) {
+      messages.push(...conversationHistory);
+      console.log(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
+    }
+    
+    // Add current user message
+    messages.push({ role: 'user', content: enhancedContent });
+
     // Retry logic for Claude API calls
     let completion;
     let lastError;
@@ -350,7 +388,7 @@ Core principles:
         completion = await getAnthropic().messages.create({
           model,
           max_tokens: 512,
-          messages: [{ role: "user", content: enhancedContent }],
+          messages: messages,
         });
         
         console.log(`✅ [MessageService] Claude API call successful on attempt ${attempt}`);

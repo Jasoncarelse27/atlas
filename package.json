@@ -26,6 +26,7 @@
     "frontend": "NODE_ENV=development USE_MOCK_MAILER=true vite",
     "dev:all": "concurrently \"npm run backend\" \"npm run frontend\"",
     "start:full": "pkill -f 'node.*server.mjs' || true && cd backend && node server.mjs & sleep 3 && cd .. && npm run frontend",
+    "start:gold": "bash atlas-start.sh",
     "dev:web": "NODE_ENV=development USE_MOCK_MAILER=true vite --port 5174",
     "dev:native": "expo start",
     "atlas": "./dev.sh",

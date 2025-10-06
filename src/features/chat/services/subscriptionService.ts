@@ -1,7 +1,8 @@
 import { supabase } from '../../../lib/supabase';
 import { subscriptionApi } from '../../../services/subscriptionApi';
-import type { UserTier } from '../hooks/useSubscriptionAccess';
 import { createChatError } from '../lib/errorHandler';
+// import type { UserTier } from '../hooks/useSubscriptionAccess';
+type UserTier = 'free' | 'core' | 'studio';
 
 export interface UsageStats {
   messages_today: number;
@@ -151,8 +152,8 @@ class SubscriptionService {
       const currentStats = await this.getUsageStats(userId);
       const newStats = { ...currentStats, ...updates };
 
-      const { data, error } = await supabase
-        .from('user_profiles')
+      const { error } = await supabase
+        .from('profiles')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', userId)
         .select('updated_at')
@@ -323,7 +324,7 @@ class SubscriptionService {
 
       // Update local profile
       const { error: updateError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ 
           subscription_status: 'cancelled',
           updated_at: new Date().toISOString(),
@@ -361,7 +362,7 @@ class SubscriptionService {
 
       // Update local profile
       const { error: updateError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ 
           subscription_status: 'active',
           updated_at: new Date().toISOString(),

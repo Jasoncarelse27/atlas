@@ -139,7 +139,7 @@ async function getUserMemory(userId) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [] }) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error('Missing Anthropic API key');
   }
@@ -188,6 +188,18 @@ Core principles:
 
 Remember: You're not just an AI assistant - you're Atlas, an emotionally intelligent companion who understands context, remembers interactions, and responds with genuine care and insight.`;
 
+  // 🧠 MEMORY 100%: Build messages array with conversation history
+  const messages = [];
+  
+  // Add conversation history (last 10 messages for context)
+  if (conversationHistory && conversationHistory.length > 0) {
+    messages.push(...conversationHistory);
+    console.log(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
+  }
+  
+  // Add current user message
+  messages.push({ role: 'user', content: enhancedContent });
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -200,7 +212,7 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
       model,
       max_tokens: 2000,
       stream: true,
-      messages: [{ role: 'user', content: enhancedContent }]
+      messages: messages
     })
   });
 
@@ -825,6 +837,32 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     
     console.log(`🎯 User tier: ${effectiveTier}, Selected model: ${selectedModel}, Provider: ${routedProvider}`);
 
+    // 🧠 MEMORY 100%: Get conversation history for context (Core/Studio only)
+    let conversationHistory = [];
+    if (effectiveTier === 'core' || effectiveTier === 'studio') {
+      try {
+        console.log(`🧠 [Memory] Fetching conversation history for context...`);
+        const { data: historyMessages, error: historyError } = await supabase
+          .from('messages')
+          .select('role, content, created_at')
+          .eq('conversation_id', finalConversationId)
+          .order('created_at', { ascending: true })
+          .limit(10); // Last 10 messages for context
+        
+        if (historyError) {
+          console.warn('⚠️ [Memory] Could not fetch conversation history:', historyError);
+        } else if (historyMessages && historyMessages.length > 0) {
+          conversationHistory = historyMessages.map(msg => ({
+            role: msg.role,
+            content: typeof msg.content === 'object' ? msg.content.text : msg.content
+          }));
+          console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
+        }
+      } catch (error) {
+        console.warn('⚠️ [Memory] Error fetching conversation history:', error);
+      }
+    }
+
     // Handle optional mock streaming via SSE
     const wantsStream = req.query.stream === '1' || (req.headers.accept || '').includes('text/event-stream');
 
@@ -850,12 +888,12 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         // 🎯 Real AI Model Logic - Use Claude based on tier
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           console.log('🚀 Streaming Claude response...');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
           console.log('✅ Claude streaming completed, final text length:', finalText.length);
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           console.log('🔄 Falling back to Claude...');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
           console.log('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
           console.log('⚠️ No AI API keys available, using mock streaming...');

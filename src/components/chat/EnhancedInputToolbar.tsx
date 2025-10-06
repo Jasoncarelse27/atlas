@@ -98,8 +98,8 @@ export default function EnhancedInputToolbar({
       onSoundPlay('send_message');
     }
     
-    // If we have attachments, send them with caption
-    if (currentAttachments.length > 0 && conversationId) {
+    // 🎯 FUTURE-PROOF FIX: Send attachments even without conversationId (backend will create one)
+    if (currentAttachments.length > 0) {
       const attachments = currentAttachments.map(att => ({
         type: att.type,
         file: att.file,
@@ -121,8 +121,9 @@ export default function EnhancedInputToolbar({
         
         // Use Promise.race for timeout protection (increased timeout for image analysis)
         if (addMessage) {
+          console.log('📤 Sending attachments with conversationId:', conversationId || 'NEW');
           await Promise.race([
-            sendMessageWithAttachments(conversationId, attachments, addMessage, currentText || undefined, user?.id),
+            sendMessageWithAttachments(conversationId || '', attachments, addMessage, currentText || undefined, user?.id),
             new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Send timeout')), 30000) // Increased to 30 seconds for image analysis
             )
@@ -200,6 +201,14 @@ export default function EnhancedInputToolbar({
     
     // Don't set isUploading here - let the upload cards handle the loading state
     console.log("✅ Attachment added to input area:", attachment.name);
+    
+    // 🎯 FUTURE-PROOF FIX: Auto-focus input for caption
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        console.log("🎯 Auto-focused input for caption");
+      }
+    }, 100);
   };
 
   // Handle removing attachments from input area
@@ -588,7 +597,7 @@ export default function EnhancedInputToolbar({
               }}
               onBlur={handleInputBlur}
               onFocus={handleInputFocus}
-              placeholder={attachmentPreviews.length > 0 ? "Add a caption..." : placeholder}
+              placeholder={attachmentPreviews.length > 0 ? "💡 Add a caption and press Enter to send..." : placeholder}
               className="flex-1 mx-2 sm:mx-3 bg-transparent text-white placeholder-gray-400 focus:outline-none text-base border-none rounded-lg px-2 py-1 sm:px-3 sm:py-2 resize-none min-h-[36px] sm:min-h-[40px] max-h-[120px] transition-all duration-200 ease-in-out"
               disabled={isProcessing || disabled}
               autoComplete="off"
@@ -619,13 +628,13 @@ export default function EnhancedInputToolbar({
               <motion.button
                 onClick={isStreaming ? stopMessageStream : handleSend}
                 disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
+                title={attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''} with caption` : (isStreaming ? "Stop message" : "Send message")}
                 className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
                   isStreaming 
                     ? 'bg-red-500 hover:bg-red-600' 
                     : 'bg-blue-500 hover:bg-blue-600'
                 }`}
                 whileTap={{ scale: 0.9 }}
-                title={isStreaming ? "Stop message" : "Send message"}
               >
                 {isStreaming ? (
                   <motion.div

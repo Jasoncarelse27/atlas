@@ -382,12 +382,12 @@ class SubscriptionApiService {
         return null;
       }
 
-      // Return default free tier profile if no cache available
-      console.warn('[SubscriptionAPI] No cached profile available, returning default free tier');
+      // Return default core tier profile if no cache available (better UX)
+      console.warn('[SubscriptionAPI] No cached profile available, returning default core tier');
       return {
         id: userId,
         email: 'unknown@example.com',
-        subscription_tier: 'free',
+        subscription_tier: 'core',
         subscription_status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

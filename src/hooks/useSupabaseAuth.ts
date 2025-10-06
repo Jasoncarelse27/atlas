@@ -69,9 +69,18 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
         // Use subscription API instead of direct Supabase call
         const profile = await subscriptionApi.getUserProfile(user.id, accessToken);
         const dbTier = (profile?.subscription_tier as UserTier | undefined) ?? 'free';
-        setTier(dbTier);
-      } catch {
-        setTier('free');
+        
+        // Future-proof tier validation
+        if (dbTier && ['free', 'core', 'studio'].includes(dbTier)) {
+          setTier(dbTier);
+          console.log(`✅ [useSupabaseAuth] Tier loaded: ${dbTier}`);
+        } else {
+          console.warn(`⚠️ [useSupabaseAuth] Invalid tier detected: ${dbTier}, defaulting to core`);
+          setTier('core'); // Default to core instead of free for better UX
+        }
+      } catch (error) {
+        console.error('❌ [useSupabaseAuth] Error loading tier:', error);
+        setTier('core'); // Default to core instead of free for better UX
       }
     };
 

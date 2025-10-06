@@ -87,7 +87,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       
       // Test 1: Basic connection
       const { error: healthError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('count')
         .limit(0);
 
@@ -105,7 +105,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
       // Test 2: Table access
       const { data: tableTest, error: tableError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('id, tier, subscription_status')
         .limit(1);
 

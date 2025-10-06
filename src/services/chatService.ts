@@ -319,16 +319,23 @@ export async function sendMessageWithAttachments(
 
   const tempId = generateUUID();
 
-  // ✅ Single message with all attachments and one caption
+  // ✅ FUTURE-PROOF FIX: Format message to match what EnhancedMessageBubble expects
+  const imageUrl = attachments[0]?.url || attachments[0]?.publicUrl;
+  
   const newMessage = {
     id: tempId,
     conversationId,
     role: "user",
-    type: "image", // ✅ mark as image type for proper rendering
     content: caption || "", // ✅ user caption as content
-    url: attachments[0]?.url || attachments[0]?.publicUrl, // ✅ image URL for display
-    attachments, // ✅ all attachments grouped together
+    url: imageUrl, // ✅ image URL for display
+    imageUrl: imageUrl, // ✅ also set imageUrl for compatibility
+    attachments: attachments.map(att => ({
+      type: att.type || 'image',
+      url: att.url || att.publicUrl,
+      caption: caption || ''
+    })), // ✅ properly formatted attachments array
     status: "pending",
+    timestamp: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   };
 
@@ -418,12 +425,17 @@ export async function sendMessageWithAttachments(
         
         // ✅ Backend already saved the analysis to database
       }
+      
+      // 🎯 FUTURE-PROOF FIX: Return success to prevent false error toast
+      return { success: true };
+      
     } catch (aiError) {
       console.error("[chatService] ❌ AI analysis failed:", aiError);
-      // Don't throw - user message is still saved
+      // Don't throw - user message is still saved, just no AI response
+      return { success: true }; // Still return success - user message was saved
     }
   } catch (err) {
     console.error("[chatService] ❌ Failed to send message:", err);
-    // Optionally mark message as failed in store
+    throw err; // Only throw if the entire send operation failed
   }
 }// Force Vercel rebuild Sat Sep 27 16:47:24 SAST 2025
