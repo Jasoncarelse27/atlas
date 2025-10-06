@@ -28,7 +28,7 @@ export class AtlasDB extends Dexie {
     super("AtlasDB")
 
     // ✅ Register tables once and forever
-    this.version(1).stores({
+    this.version(2).stores({
       conversations: "id, userId, title, createdAt, updatedAt",
       messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt"
     })

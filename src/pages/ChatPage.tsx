@@ -11,7 +11,6 @@ import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 // Removed usePersistentMessages import - using direct message management instead
 import { atlasDB } from '../database/atlasDB';
-import { runMigrations } from '../database/dbMigrations';
 import { useSubscription } from '../hooks/useSubscription';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
@@ -95,7 +94,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Enhanced refreshMessages function with Dexie persistence
   const refreshMessages = async () => {
     try {
-      await runMigrations();
       
       // Get current conversation ID from URL or localStorage
       const urlParams = new URLSearchParams(window.location.search);
@@ -283,11 +281,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     
     const initializeApp = async () => {
       try {
-        // Run database migrations first
+        // ✅ Run database migrations (single source of truth)
         await runDbMigrations(userId);
-        
-        // ✅ Initialize Dexie database and run migrations
-        await runMigrations();
         
         // ✅ Load messages from Dexie (offline-first)
         await refreshMessages();
