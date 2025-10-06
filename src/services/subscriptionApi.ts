@@ -52,7 +52,7 @@ class SubscriptionApiService {
   private baseUrl: string;
   private isMockMode: boolean;
   private profileCache: Map<string, { data: SubscriptionProfile; timestamp: number }> = new Map();
-  private readonly CACHE_TTL = 30000; // 30 seconds
+  private readonly CACHE_TTL = 5000; // 🎯 FUTURE-PROOF FIX: 5 seconds for faster tier updates
   private pendingRequests: Map<string, Promise<SubscriptionProfile | null>> = new Map();
 
   private setMode(mode: "dexie" | "backend") {
