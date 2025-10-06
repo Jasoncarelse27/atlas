@@ -123,8 +123,35 @@ class SubscriptionApiService {
       });
 
       if (profile === null) {
-        // Backend failed, fall back to Dexie
+        // Backend failed, try direct Supabase before falling back to Dexie
+        console.warn('[SubscriptionAPI] Backend returned null, trying direct Supabase...');
         this.setMode("dexie");
+        
+        // 🎯 FUTURE-PROOF FIX: Try direct Supabase query before using stale Dexie cache
+        try {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            import.meta.env.VITE_SUPABASE_URL,
+            import.meta.env.VITE_SUPABASE_ANON_KEY
+          );
+          
+          const { data: directProfile, error: directError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+          
+          if (directProfile && !directError) {
+            console.log('[SubscriptionAPI] ✅ Got fresh profile from direct Supabase:', (directProfile as any).subscription_tier);
+            // Cache the fresh data
+            this.profileCache.set(userId, { data: directProfile as any, timestamp: Date.now() });
+            return directProfile as any;
+          }
+        } catch (directErr) {
+          console.warn('[SubscriptionAPI] Direct Supabase also failed:', directErr);
+        }
+        
+        // If direct Supabase also failed, use Dexie cache as last resort
         return await this.getProfileFromDexie(userId);
       }
 
@@ -136,8 +163,32 @@ class SubscriptionApiService {
       return profile;
     } catch (error) {
       console.error('[SubscriptionAPI] Error fetching user profile:', error);
-      // Fall back to Dexie on any error
+      // Try direct Supabase before falling back to Dexie
       this.setMode("dexie");
+      
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_ANON_KEY
+        );
+        
+        const { data: directProfile, error: directError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        if (directProfile && !directError) {
+          console.log('[SubscriptionAPI] ✅ Got fresh profile from direct Supabase fallback:', (directProfile as any).subscription_tier);
+          // Cache the fresh data
+          this.profileCache.set(userId, { data: directProfile as any, timestamp: Date.now() });
+          return directProfile as any;
+        }
+      } catch (directErr) {
+        console.warn('[SubscriptionAPI] Direct Supabase fallback also failed:', directErr);
+      }
+      
       return await this.getProfileFromDexie(userId);
     }
   }
