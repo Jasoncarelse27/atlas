@@ -1,5 +1,5 @@
-import { atlasDB } from "@/database/atlasDB"
-import { supabase } from "@/lib/supabaseClient"
+import { atlasDB } from "@/database/atlasDB";
+import { supabase } from "@/lib/supabaseClient";
 
 // 🎯 FUTURE-PROOF FIX: Define types for Supabase message schema
 type SupabaseMessage = {
