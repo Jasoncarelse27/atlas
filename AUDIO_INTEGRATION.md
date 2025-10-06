@@ -4,11 +4,12 @@
 
 ### Backend (`backend/server.mjs`)
 - ✅ OpenAI Whisper integration for speech-to-text (STT)
-- ✅ ElevenLabs integration for text-to-speech (TTS)
+- ✅ OpenAI TTS integration for text-to-speech (TTS)
 - ✅ `/api/transcribe` endpoint with tier enforcement
 - ✅ `/api/synthesize` endpoint with tier enforcement
 - ✅ Audio usage tracking (minutes per month)
 - ✅ Automatic tier restriction (Free users blocked, Core/Studio allowed)
+- ✅ Tier-based voice quality: Core (tts-1/alloy) vs Studio (tts-1-hd/nova)
 
 ### Frontend (`src/services/voiceService.ts`)
 - ✅ `recordAndTranscribe()` with tier checking
@@ -26,24 +27,18 @@
 
 ## 📋 Setup Instructions
 
-### 1. Get API Keys
+### 1. Get API Key
 
-#### OpenAI (for Whisper STT)
+#### OpenAI (for both Whisper STT and TTS)
 1. Go to https://platform.openai.com/api-keys
 2. Create a new API key
 3. Copy the key (starts with `sk-proj-...` or `sk-...`)
 
-#### ElevenLabs (for TTS)
-1. Go to https://elevenlabs.io/app/settings/api-keys
-2. Create a new API key
-3. Copy the key
-
-### 2. Add Keys to `.env`
+### 2. Add Key to `.env`
 
 ```bash
-# Add these lines to your .env file:
+# Add this line to your .env file (just ONE key needed!):
 OPENAI_API_KEY=sk-...
-ELEVENLABS_API_KEY=...
 ```
 
 ### 3. Restart Backend
@@ -56,8 +51,7 @@ You should see:
 ```
 🔑 API Keys Status:
   Claude/Anthropic: ✅ Available
-  OpenAI (Whisper): ✅ Available
-  ElevenLabs (TTS): ✅ Available
+  OpenAI (Whisper + TTS): ✅ Available
 ```
 
 ---
@@ -92,8 +86,8 @@ import { voiceService } from '@/services/voiceService';
 // Convert AI response to speech and play it
 const handleAIResponse = async (aiText: string) => {
   try {
-    // Synthesize speech
-    const audioUrl = await voiceService.synthesizeSpeech(aiText, 'Rachel');
+    // Synthesize speech (voice auto-selected by tier: alloy for Core, nova for Studio)
+    const audioUrl = await voiceService.synthesizeSpeech(aiText);
     
     // Play audio
     await voiceService.playAudio(audioUrl);
@@ -172,25 +166,26 @@ WHERE id = 'your-user-id';
 
 ---
 
-## 🎤 Available Voices (ElevenLabs)
+## 🎤 Available Voices (OpenAI TTS)
 
-You can customize the voice by passing a different `voiceId`:
+Voices are automatically selected by tier:
 
-- **Rachel**: Calm, professional female voice (default)
-- **Domi**: Friendly female voice
-- **Bella**: Soft, empathetic female voice
-- **Antoni**: Clear male voice
-- **Josh**: Deep male voice
-- **Arnold**: Masculine, crisp male voice
+**Core Tier** (`tts-1`):
+- **alloy**: Neutral, balanced voice (default)
 
-```typescript
-// Use a different voice
-await voiceService.synthesizeSpeech(text, 'Bella');
+**Studio Tier** (`tts-1-hd`):
+- **nova**: Warm, expressive female voice (default)
+
+Other available OpenAI voices you can configure:
+- **echo**: Male voice
+- **fable**: British accent
+- **onyx**: Deep male voice
+- **shimmer**: Soft female voice
+
+To customize voices, edit the backend `server.mjs` line 1448:
+```javascript
+const voice = tier === 'studio' ? 'nova' : 'alloy';
 ```
-
-To see all available voices:
-- Go to https://elevenlabs.io/voice-library
-- Or get voice IDs via API
 
 ---
 
@@ -217,13 +212,10 @@ The backend automatically increments usage on each transcription.
 
 ## 🔧 Troubleshooting
 
-### "Audio transcription service unavailable"
+### "Audio transcription service unavailable" or "Speech synthesis failed"
 - Check if `OPENAI_API_KEY` is set in `.env`
 - Restart backend: `npm run backend`
-
-### "Speech synthesis failed"
-- Check if `ELEVENLABS_API_KEY` is set in `.env`
-- Verify ElevenLabs account has credits
+- Verify OpenAI account has credits/billing enabled
 
 ### "Audio transcription requires Core or Studio tier"
 - This is expected for Free users
@@ -263,15 +255,20 @@ The backend automatically increments usage on each transcription.
 - $0.006 per minute of audio
 - Example: 10 hours of audio = ~$3.60
 
-### ElevenLabs (TTS)
-- Free tier: 10,000 characters/month
-- Paid: $5/month for 30,000 characters
+### OpenAI TTS
+- **tts-1**: $0.015 per 1,000 characters
+- **tts-1-hd**: $0.030 per 1,000 characters  
 - Example: 1 minute of speech ≈ 150 characters
 
 ### Total Cost per User (Core Tier, 60 min/month)
 - STT: 60 min × $0.006 = $0.36
-- TTS: ~9,000 chars × $0.000167 = $1.50
-- **Total: ~$2/user/month** (well within $19.99 Core tier pricing)
+- TTS: ~9,000 chars × $0.000015 = $0.14
+- **Total: ~$0.50/user/month** (97.5% margin on $19.99 Core tier!)
+
+### Total Cost per User (Studio Tier, 120 min/month)
+- STT: 120 min × $0.006 = $0.72
+- TTS (HD): ~18,000 chars × $0.00003 = $0.54
+- **Total: ~$1.26/user/month** (99.3% margin on $179.99 Studio tier!)
 
 ---
 
