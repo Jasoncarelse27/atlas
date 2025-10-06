@@ -273,11 +273,15 @@ export function useSubscription(userId?: string) {
     };
   }, [userId, fetchProfile]);
 
-  // Force refresh function
+  // Force refresh function - clears cache for immediate update
   const forceRefresh = useCallback(async () => {
     console.log('🔄 [useSubscription] Force refreshing profile...');
+    // 🎯 FUTURE-PROOF FIX: Clear cache before fetching to ensure fresh data
+    if (userId) {
+      subscriptionApi.clearUserCache(userId);
+    }
     await fetchProfile();
-  }, [fetchProfile]);
+  }, [fetchProfile, userId]);
 
   // Memory functions
   const updateMemory = useCallback(async (message: string) => {
