@@ -162,8 +162,22 @@ export function useSubscription(userId?: string) {
         console.log(`✅ [useSubscription] Profile fetched via backend API: ${profile.subscription_tier}`);
         setProfile(profile as any);
       } else {
-        console.warn('⚠️ [useSubscription] No profile returned from backend API');
-        setError('No profile found');
+        console.warn('⚠️ [useSubscription] No profile returned from backend API - trying direct Supabase fallback');
+        
+        // 🎯 FUTURE-PROOF FIX: Fallback to direct Supabase call if backend API fails
+        const { data, error: directError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        if (data) {
+          console.log(`✅ [useSubscription] Profile fetched via direct Supabase: ${(data as any).subscription_tier}`);
+          setProfile(data as any);
+        } else {
+          console.error('❌ [useSubscription] Failed to fetch profile from both backend and Supabase:', directError);
+          setError('No profile found');
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
