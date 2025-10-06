@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react'
+import fs from 'fs'
 import path from 'path'
 import { defineConfig, loadEnv } from 'vite'
 
@@ -67,6 +68,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0', // Allow external connections
       port: 5174,
+      // 🔒 HTTPS for iOS microphone access
+      https: fs.existsSync('.cert/localhost+1.pem') ? {
+        key: fs.readFileSync('.cert/localhost+1-key.pem'),
+        cert: fs.readFileSync('.cert/localhost+1.pem'),
+      } : undefined,
       proxy: {
         '/v1': {
           target: 'http://localhost:8000',
