@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { processMessage } from './services/messageService.js';
+import OpenAI from 'openai';
+import { ElevenLabsClient } from 'elevenlabs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -93,10 +95,18 @@ try {
 
 // External AI API keys
 const ANTHROPIC_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+
+// Initialize AI clients
+const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
+const elevenlabs = ELEVENLABS_API_KEY ? new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY }) : null;
 
 // Log API key availability
 console.log('🔑 API Keys Status:');
 console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
+console.log(`  OpenAI (Whisper): ${OPENAI_API_KEY ? '✅ Available' : '❌ Missing'}`);
+console.log(`  ElevenLabs (TTS): ${ELEVENLABS_API_KEY ? '✅ Available' : '❌ Missing'}`);
 if (!ANTHROPIC_API_KEY) {
   console.log('⚠️  No AI API key found - will use mock responses');
 }
@@ -1261,6 +1271,221 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
 
   } catch (error) {
     console.error('Image analysis error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// 🎙️ Audio transcription endpoint using OpenAI Whisper
+app.post('/api/transcribe', verifyJWT, async (req, res) => {
+  try {
+    const { audioUrl, language = 'en' } = req.body;
+    const userId = req.user.id;
+    
+    if (!audioUrl) {
+      return res.status(400).json({ error: 'Audio URL is required' });
+    }
+
+    // 🎯 TIER ENFORCEMENT: Check if user has audio access (Core/Studio only)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('subscription_tier, usage_stats')
+      .eq('id', userId)
+      .single();
+    
+    const tier = profile?.subscription_tier || 'free';
+    
+    if (tier === 'free') {
+      console.log(`🚫 [Transcribe] Free user ${userId} attempted to use audio - blocked`);
+      return res.status(403).json({ 
+        error: 'Audio transcription requires Core or Studio tier',
+        upgradeRequired: true,
+        feature: 'audio_transcription',
+        tier: 'free'
+      });
+    }
+
+    if (!openai) {
+      console.error('❌ [Transcribe] OpenAI API key not configured');
+      return res.status(503).json({ error: 'Audio transcription service unavailable' });
+    }
+
+    console.log(`🎙️ [Transcribe] Processing audio for user ${userId} (tier: ${tier})`);
+
+    // Download audio file from Supabase Storage
+    let audioBuffer;
+    try {
+      console.log('📥 [Transcribe] Downloading audio from:', audioUrl);
+      const audioResponse = await fetch(audioUrl, {
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
+        }
+      });
+      
+      if (!audioResponse.ok) {
+        throw new Error(`Failed to download audio: ${audioResponse.status}`);
+      }
+      
+      audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
+      console.log(`✅ [Transcribe] Audio downloaded: ${audioBuffer.length} bytes`);
+    } catch (downloadError) {
+      console.error('❌ [Transcribe] Failed to download audio:', downloadError);
+      return res.status(400).json({ 
+        error: 'Failed to download audio file',
+        details: downloadError.message
+      });
+    }
+
+    // Create a temporary file for Whisper API (it requires a file, not buffer)
+    const { writeFile, unlink } = await import('fs/promises');
+    const tmpFile = path.join('/tmp', `audio_${Date.now()}.webm`);
+    
+    try {
+      await writeFile(tmpFile, audioBuffer);
+      
+      // Transcribe with OpenAI Whisper
+      console.log('🔄 [Transcribe] Calling OpenAI Whisper API...');
+      const transcription = await openai.audio.transcriptions.create({
+        file: await import('fs').then(fs => fs.createReadStream(tmpFile)),
+        model: 'whisper-1',
+        language: language,
+        response_format: 'verbose_json'
+      });
+      
+      console.log(`✅ [Transcribe] Transcription complete: "${transcription.text.slice(0, 50)}..."`);
+      
+      // Clean up temp file
+      await unlink(tmpFile).catch(() => {});
+      
+      // Store transcription in database for usage tracking
+      if (supabaseUrl !== 'https://your-project.supabase.co') {
+        try {
+          const duration = transcription.duration || 0;
+          
+          // Track audio usage (in minutes)
+          const currentUsage = profile?.usage_stats?.audio_minutes_used || 0;
+          const newUsage = currentUsage + (duration / 60);
+          
+          await supabase.from('profiles').update({
+            usage_stats: {
+              ...profile?.usage_stats,
+              audio_minutes_used: Math.ceil(newUsage)
+            }
+          }).eq('id', userId);
+          
+          console.log(`📊 [Transcribe] Audio usage updated: ${Math.ceil(newUsage)} minutes`);
+        } catch (dbError) {
+          console.error('Error updating audio usage:', dbError);
+        }
+      }
+      
+      res.json({
+        transcript: transcription.text,
+        confidence: 1.0, // Whisper doesn't provide confidence scores
+        language: transcription.language || language,
+        duration: transcription.duration || 0
+      });
+      
+    } catch (whisperError) {
+      console.error('❌ [Transcribe] Whisper API error:', whisperError);
+      await unlink(tmpFile).catch(() => {});
+      
+      return res.status(500).json({ 
+        error: 'Transcription failed',
+        details: whisperError.message
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [Transcribe] Error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// 🔊 Text-to-speech endpoint using ElevenLabs
+app.post('/api/synthesize', verifyJWT, async (req, res) => {
+  try {
+    const { text, voiceId = 'Rachel' } = req.body;
+    const userId = req.user.id;
+    
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    // 🎯 TIER ENFORCEMENT: Check if user has audio access (Core/Studio only)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single();
+    
+    const tier = profile?.subscription_tier || 'free';
+    
+    if (tier === 'free') {
+      console.log(`🚫 [Synthesize] Free user ${userId} attempted to use TTS - blocked`);
+      return res.status(403).json({ 
+        error: 'Text-to-speech requires Core or Studio tier',
+        upgradeRequired: true,
+        feature: 'text_to_speech',
+        tier: 'free'
+      });
+    }
+
+    if (!elevenlabs) {
+      console.error('❌ [Synthesize] ElevenLabs API key not configured');
+      return res.status(503).json({ error: 'Text-to-speech service unavailable' });
+    }
+
+    console.log(`🔊 [Synthesize] Generating speech for user ${userId} (tier: ${tier})`);
+    console.log(`📝 [Synthesize] Text: "${text.slice(0, 50)}..."`);
+
+    try {
+      // Generate speech with ElevenLabs
+      const audioStream = await elevenlabs.textToSpeech.convert(voiceId, {
+        text: text.trim(),
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.0,
+          use_speaker_boost: true
+        }
+      });
+
+      // Convert stream to buffer
+      const chunks = [];
+      for await (const chunk of audioStream) {
+        chunks.push(chunk);
+      }
+      const audioBuffer = Buffer.concat(chunks);
+      
+      console.log(`✅ [Synthesize] Audio generated: ${audioBuffer.length} bytes`);
+      
+      // Return audio as base64 (for easy frontend handling)
+      const audioBase64 = audioBuffer.toString('base64');
+      
+      res.json({
+        success: true,
+        audio: audioBase64,
+        format: 'mp3',
+        size: audioBuffer.length
+      });
+      
+    } catch (elevenLabsError) {
+      console.error('❌ [Synthesize] ElevenLabs API error:', elevenLabsError);
+      return res.status(500).json({ 
+        error: 'Speech synthesis failed',
+        details: elevenLabsError.message
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [Synthesize] Error:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message

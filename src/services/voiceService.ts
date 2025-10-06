@@ -26,8 +26,13 @@ class VoiceService {
   /**
    * Record audio and transcribe it
    */
-  async recordAndTranscribe(audioBlob: Blob): Promise<string> {
+  async recordAndTranscribe(audioBlob: Blob, userTier?: 'free' | 'core' | 'studio'): Promise<string> {
     try {
+      // 🎯 TIER ENFORCEMENT: Block free users from using audio
+      if (userTier === 'free') {
+        throw new Error('Audio transcription requires Core or Studio tier. Please upgrade to continue.');
+      }
+
       // Validate audio file
       this.validateAudioFile(audioBlob);
 
@@ -96,10 +101,19 @@ class VoiceService {
    */
   async transcribeAudio(audioUrl: string): Promise<TranscriptionResult> {
     try {
+      // Get JWT token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
       const response = await fetch('/api/transcribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           audioUrl,
@@ -109,6 +123,12 @@ class VoiceService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Handle tier restriction errors
+        if (response.status === 403 && errorData.upgradeRequired) {
+          throw new Error('Audio transcription requires Core or Studio tier. Please upgrade to continue.');
+        }
+        
         throw new Error(errorData.error || `Transcription failed: ${response.statusText}`);
       }
 
@@ -118,6 +138,83 @@ class VoiceService {
       const chatError = createChatError(error, {
         operation: 'transcribeAudio',
         audioUrl,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
+   * Synthesize speech from text using ElevenLabs
+   */
+  async synthesizeSpeech(text: string, voiceId: string = 'Rachel'): Promise<string> {
+    try {
+      // Get JWT token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      console.log(`🔊 [VoiceService] Synthesizing speech for: "${text.slice(0, 50)}..."`);
+
+      const response = await fetch('/api/synthesize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          text,
+          voiceId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Handle tier restriction errors
+        if (response.status === 403 && errorData.upgradeRequired) {
+          throw new Error('Text-to-speech requires Core or Studio tier. Please upgrade to continue.');
+        }
+        
+        throw new Error(errorData.error || `Speech synthesis failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Convert base64 audio to data URL for playback
+      const audioDataUrl = `data:audio/mp3;base64,${result.audio}`;
+      
+      console.log(`✅ [VoiceService] Speech synthesized: ${result.size} bytes`);
+      
+      return audioDataUrl;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'synthesizeSpeech',
+        text: text.slice(0, 100),
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
+   * Play audio from data URL
+   */
+  async playAudio(audioDataUrl: string): Promise<void> {
+    try {
+      const audio = new Audio(audioDataUrl);
+      await audio.play();
+      
+      return new Promise((resolve, reject) => {
+        audio.onended = () => resolve();
+        audio.onerror = (err) => reject(new Error('Audio playback failed'));
+      });
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'playAudio',
         timestamp: new Date().toISOString(),
       });
       throw chatError;
