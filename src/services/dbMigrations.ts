@@ -5,7 +5,16 @@ import { supabase } from "../lib/supabaseClient";
 const UUID_REGEX = /^[0-9a-fA-F-]{36}$/;
 const DEFAULT_CONVERSATION_KEY = "atlas-default-conversation";
 
+// ✅ Migration guard to prevent multiple calls
+let isMigrating = false;
+
 export async function runDbMigrations(userId?: string) {
+  if (isMigrating) {
+    console.log("[DB MIGRATION] Migration already in progress, skipping...");
+    return;
+  }
+  
+  isMigrating = true;
   console.log("[DB MIGRATION] Starting database migration...");
 
   try {
@@ -60,30 +69,45 @@ export async function runDbMigrations(userId?: string) {
     localStorage.removeItem("atlas-default-conversation");
   }
 
-  // 4. Ensure a valid default conversation exists
+  // 4. Ensure a valid default conversation exists (only if none exists)
   if (userId) {
     let conversationId = localStorage.getItem(DEFAULT_CONVERSATION_KEY);
 
-    if (!conversationId || !UUID_REGEX.test(conversationId)) {
-      conversationId = uuidv4();
-      localStorage.setItem(DEFAULT_CONVERSATION_KEY, conversationId);
-
-      console.log(
-        `[DB MIGRATION] Creating fresh default conversation for user ${userId}`
-      );
-
-      const { error } = await supabase.from("conversations").insert({
-        id: conversationId,
-        title: "Default Conversation",
-      });
-
-      if (error) {
-        console.error("[DB MIGRATION] Failed to create conversation:", error);
-      } else {
-        console.log("[DB MIGRATION] Default conversation created ✅", conversationId);
+    // ✅ Check if conversation already exists in database
+    if (conversationId && UUID_REGEX.test(conversationId)) {
+      const { data: existingConv } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .single();
+      
+      if (existingConv) {
+        console.log("[DB MIGRATION] Using existing conversation:", conversationId);
+        return;
       }
+    }
+
+    // ✅ Only create if no valid conversation exists
+    conversationId = uuidv4();
+    localStorage.setItem(DEFAULT_CONVERSATION_KEY, conversationId);
+
+    console.log(
+      `[DB MIGRATION] Creating fresh default conversation for user ${userId}`
+    );
+
+    const { error } = await supabase.from("conversations").insert({
+      id: conversationId,
+      user_id: userId,
+      title: "Default Conversation",
+    });
+
+    if (error) {
+      console.error("[DB MIGRATION] Failed to create conversation:", error);
+    } else {
+      console.log("[DB MIGRATION] Default conversation created ✅", conversationId);
     }
   }
 
   console.log("[DB MIGRATION] Completed successfully ✅");
+  isMigrating = false;
 }
