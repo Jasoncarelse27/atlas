@@ -10,6 +10,7 @@ import { featureService } from '../../services/featureService';
 // Removed useMessageStore import - using props from parent component
 import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
+import { voiceService } from '../../services/voiceService';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -312,48 +313,25 @@ export default function EnhancedInputToolbar({
           try {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
-            // Upload audio to Supabase Storage
-            const formData = new FormData();
-            formData.append('audio', audioBlob, 'recording.webm');
-            
-            const uploadResponse = await fetch('/api/upload', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || 'mock-token-for-development'}`
-              },
-              body: formData
-            });
-            
-            if (!uploadResponse.ok) {
-              throw new Error('Upload failed');
-            }
-            
-            const { url } = await uploadResponse.json();
-            
-            // Transcribe the audio
-            const transcribeResponse = await fetch('/api/transcribe', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || 'mock-token-for-development'}`
-              },
-              body: JSON.stringify({ audioUrl: url })
-            });
-            
-            if (!transcribeResponse.ok) {
-              throw new Error('Transcription failed');
-            }
-            
-            const { transcript } = await transcribeResponse.json();
+            // 🎯 FUTURE-PROOF FIX: Use voiceService for transcription
+            console.log('🎙️ [Voice] Transcribing audio...');
+            const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
             
             // Set the transcribed text in the input for user to review and send
             setText(transcript);
             
-            toast.success('Voice message transcribed successfully!');
+            toast.success('✅ Voice transcribed! Review and send.');
             
           } catch (error) {
             console.error('Voice processing error:', error);
-            toast.error('Failed to process voice message. Please try again.');
+            const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
+            
+            // Show upgrade prompt if tier restriction error
+            if (errorMessage.includes('requires Core or Studio')) {
+              showUpgradeModal('audio');
+            } else {
+              toast.error(errorMessage);
+            }
           } finally {
             setIsListening(false);
             // Stop all tracks
@@ -363,11 +341,11 @@ export default function EnhancedInputToolbar({
         
         mediaRecorder.start();
         setIsListening(true);
-        toast.success('Recording started... Speak now!');
+        toast.success('🎙️ Recording... Speak now!');
         
         // Auto-stop after 30 seconds
         setTimeout(() => {
-          if (isListening) {
+          if (isListening && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
           }
         }, 30000);
@@ -380,7 +358,7 @@ export default function EnhancedInputToolbar({
     } else {
       // Stop recording
       setIsListening(false);
-      toast.success('Recording stopped. Processing...');
+      toast.success('🛑 Recording stopped. Processing...');
     }
   };
 

@@ -3,16 +3,16 @@ import { execSync } from 'child_process';
 import compression from 'compression';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { ElevenLabsClient } from 'elevenlabs';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import OpenAI from 'openai';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { processMessage } from './services/messageService.js';
-import OpenAI from 'openai';
-import { ElevenLabsClient } from 'elevenlabs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

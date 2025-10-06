@@ -1,6 +1,6 @@
 import { createChatError } from '../features/chat/lib/errorHandler';
-import { generateUUID } from "../utils/uuid";
 import { supabase } from '../lib/supabase';
+import { generateUUID } from "../utils/uuid";
 
 export interface TranscriptionResult {
   transcript: string;
