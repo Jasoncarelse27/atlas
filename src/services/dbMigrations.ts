@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import db from "../lib/db";
+import { atlasDB } from "../database/atlasDB";
 import { supabase } from "../lib/supabaseClient";
 
 const UUID_REGEX = /^[0-9a-fA-F-]{36}$/;
@@ -9,21 +9,9 @@ export async function runDbMigrations(userId?: string) {
   console.log("[DB MIGRATION] Starting database migration...");
 
   try {
-    // ✅ Auto-create schema if missing
-    if (!db.tables.find((t) => t.name === "messages")) {
-      console.warn("⚠️ Messages table missing, creating...");
-      db.version(1).stores({
-        messages: "++id, conversationId, role, content, sync_status",
-      });
-    }
-
-    // ✅ Safe-check before querying
-    if (db.tables.find((t) => t.name === "messages")) {
-      const msgs = await db.table("messages").toArray();
-      console.log(`[DB MIGRATION] Messages loaded: ${msgs.length}`);
-    } else {
-      console.warn("⚠️ Skipping migration: no messages table");
-    }
+    // ✅ Use new Golden Standard Dexie schema
+    await atlasDB.open();
+    console.log("[DB MIGRATION] Using new Golden Standard Dexie schema ✅");
 
     console.log("[DB MIGRATION] Database schema is healthy ✅");
   } catch (err) {
@@ -33,25 +21,25 @@ export async function runDbMigrations(userId?: string) {
   }
 
   // 1. Clear invalid messages (only if table exists)
-  if (db.messages) {
-    const allMessages = await db.messages.toArray();
+  if (atlasDB.messages) {
+    const allMessages = await atlasDB.messages.toArray();
     const invalidMessages = allMessages.filter(
-      (m) => !m.conversation_id || !UUID_REGEX.test(m.conversation_id)
+      (m) => !m.conversationId || !UUID_REGEX.test(m.conversationId)
     );
 
     if (invalidMessages.length > 0) {
       console.warn(
         `[DB MIGRATION] Found ${invalidMessages.length} invalid messages → clearing`
       );
-      await db.messages.bulkDelete(invalidMessages.map((m) => m.id));
+      await atlasDB.messages.bulkDelete(invalidMessages.map((m) => m.id));
     }
   } else {
     console.log("[DB MIGRATION] messages table not found, skipping");
   }
 
   // 2. Clear invalid conversations (only if table exists)
-  if (db.conversations) {
-    const allConversations = await db.conversations.toArray();
+  if (atlasDB.conversations) {
+    const allConversations = await atlasDB.conversations.toArray();
     const invalidConversations = allConversations.filter(
       (c) => !c.id || !UUID_REGEX.test(c.id)
     );
@@ -60,7 +48,7 @@ export async function runDbMigrations(userId?: string) {
       console.warn(
         `[DB MIGRATION] Found ${invalidConversations.length} invalid conversations → clearing`
       );
-      await db.conversations.bulkDelete(invalidConversations.map((c) => c.id));
+      await atlasDB.conversations.bulkDelete(invalidConversations.map((c) => c.id));
     }
   } else {
     console.log("[DB MIGRATION] conversations table not found, skipping");

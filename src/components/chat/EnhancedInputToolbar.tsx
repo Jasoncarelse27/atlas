@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Loader2, Mic, Plus, Send, X } from 'lucide-react';
+import { CheckCircle2, Image, Loader2, Mic, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
@@ -7,7 +7,7 @@ import { useTierAccess } from '../../hooks/useTierAccess';
 import { supabase } from '../../lib/supabaseClient';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
-import { useMessageStore } from '../../stores/useMessageStore';
+// Removed useMessageStore import - using props from parent component
 import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
 
@@ -20,6 +20,9 @@ interface EnhancedInputToolbarProps {
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
   isVisible?: boolean;
   onSoundPlay?: (soundType: string) => void;
+  // Added missing props
+  addMessage?: (message: any) => void;
+  isStreaming?: boolean;
 }
 
 export default function EnhancedInputToolbar({
@@ -30,12 +33,14 @@ export default function EnhancedInputToolbar({
   conversationId,
   inputRef: externalInputRef,
   isVisible = true,
-  onSoundPlay
+  onSoundPlay,
+  // Added missing props
+  addMessage,
+  isStreaming = false
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
   const { tier, hasAccess, showUpgradeModal } = useTierAccess();
-  const addMessage = useMessageStore((s) => s.addMessage);
-  const { isStreaming } = useMessageStore();
+  // Removed useMessageStore - using usePersistentMessages through ChatPage instead
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -43,6 +48,8 @@ export default function EnhancedInputToolbar({
   const [isListening, setIsListening] = useState(false);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
+  const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
+  const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   
@@ -75,6 +82,7 @@ export default function EnhancedInputToolbar({
   }, [isStreaming]);
 
   const handleSend = async () => {
+    console.log('🔍 [EnhancedInputToolbar] handleSend called');
     if (isProcessing || disabled) return;
     
     // ✅ IMMEDIATE UI CLEAR - Clear attachments and text instantly for better UX
@@ -101,19 +109,69 @@ export default function EnhancedInputToolbar({
       }));
       
       try {
-        // Use Promise.race for timeout protection
-        await Promise.race([
-          sendMessageWithAttachments(conversationId, attachments, addMessage, currentText || undefined, user?.id),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Send timeout')), 10000)
-          )
-        ]);
+        // Update status to processing
+        attachments.forEach((att: any) => {
+          if (att.id) {
+            setUploadStatus(prev => ({ ...prev, [att.id]: 'processing' }));
+          }
+        });
+        
+        // Set processing state for floating indicator
+        setIsUploading(true);
+        
+        // Use Promise.race for timeout protection (increased timeout for image analysis)
+        if (addMessage) {
+          await Promise.race([
+            sendMessageWithAttachments(conversationId, attachments, addMessage, currentText || undefined, user?.id),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Send timeout')), 30000) // Increased to 30 seconds for image analysis
+            )
+          ]);
+        } else {
+          console.warn("⚠️ addMessage not provided - attachments cannot be sent");
+        }
+        
+        // Update status to success
+        attachments.forEach((att: any) => {
+          if (att.id) {
+            setUploadStatus(prev => ({ ...prev, [att.id]: 'success' }));
+          }
+        });
+        
+        // Show success toast
+        toast.success("✅ Image analyzed successfully!");
+        
+        // Clear upload status after success
+        setTimeout(() => {
+          setIsUploading(false);
+          setUploadStatus({});
+        }, 1500);
       } catch (error) {
         console.error("Failed to send attachments:", error);
-        toast.error("Failed to send attachments. Please try again.");
+        
+        // Update status to error
+        attachments.forEach((att: any) => {
+          if (att.id) {
+            setUploadStatus(prev => ({ ...prev, [att.id]: 'error' }));
+          }
+        });
+        
+        // More specific error messages
+        if (error instanceof Error && error.message === 'Send timeout') {
+          toast.error("Image analysis is taking longer than expected. Please try again.");
+        } else {
+          toast.error("Failed to send attachments. Please try again.");
+        }
+        
         // Restore attachments on error
         setAttachmentPreviews(currentAttachments);
         setText(currentText);
+        
+        // Clear error status after 3 seconds
+        setTimeout(() => {
+          setIsUploading(false);
+          setUploadStatus({});
+        }, 3000);
       }
     } else if (currentText) {
       // Regular text message
@@ -133,6 +191,14 @@ export default function EnhancedInputToolbar({
       id: attachment.id || generateUUID() // Ensure it has an ID
     };
     setAttachmentPreviews(prev => [...prev, attachmentWithId]);
+    
+    // Show uploading briefly, then success
+    setUploadStatus(prev => ({ ...prev, [attachmentWithId.id]: 'uploading' }));
+    setTimeout(() => {
+      setUploadStatus(prev => ({ ...prev, [attachmentWithId.id]: 'success' }));
+    }, 500);
+    
+    // Don't set isUploading here - let the upload cards handle the loading state
     console.log("✅ Attachment added to input area:", attachment.name);
   };
 
@@ -329,14 +395,23 @@ export default function EnhancedInputToolbar({
         </div>
       )} */}
       
-      {/* ✅ WhatsApp-style Attachment Previews */}
+      {/* ✅ Modernized Attachment Previews */}
       {attachmentPreviews.length > 0 && (
         <div className="mb-3 max-w-4xl mx-auto">
           <div className="flex flex-wrap gap-2">
-            {attachmentPreviews.map((attachment) => (
-              <div key={attachment.id} className="relative">
+            {attachmentPreviews.map((attachment) => {
+              const status = uploadStatus[attachment.id] || 'uploading';
+              return (
+                <motion.div 
+                  key={attachment.id} 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center justify-between rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-2 mt-2 transition-all max-w-[90vw]"
+                >
+                  <div className="flex items-center space-x-3">
                     {attachment.type === 'image' && (
-                      <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-700">
+                      <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-gray-700">
                         <img
                           src={attachment.url || attachment.publicUrl || attachment.previewUrl}
                           alt={attachment.name}
@@ -349,54 +424,63 @@ export default function EnhancedInputToolbar({
                             (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />
-                        
-                        {/* ✅ Loading overlay while image is rendering */}
                         {imageLoadingStates[attachment.id] && (
-                          <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
-                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
+                            <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
                           </div>
                         )}
-                        
-                        <button
-                          onClick={() => removeAttachment(attachment.id)}
-                          className="absolute top-1 right-1 w-6 h-6 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 shadow-lg"
-                        >
-                          <X size={14} />
-                        </button>
                       </div>
                     )}
-                {attachment.type === 'file' && (
-                  <div className="relative w-20 h-20 rounded-lg bg-gray-700 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-2xl mb-1">📎</div>
-                      <div className="text-xs text-gray-300 truncate max-w-16">
-                        {attachment.name}
-                      </div>
-                    </div>
+                    <Image className="w-4 h-4 text-neutral-400" />
+                    <span className="text-sm text-neutral-200 truncate">{attachment.name}</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {status === 'uploading' && (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
+                        <span className="text-xs text-neutral-400">Uploading...</span>
+                      </>
+                    )}
+                    {status === 'processing' && (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                        <span className="text-xs text-blue-400">Processing...</span>
+                      </>
+                    )}
+                    {status === 'success' && (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        <span className="text-xs text-green-400">Ready</span>
+                      </>
+                    )}
+                    {status === 'error' && (
+                      <>
+                        <XCircle className="w-4 h-4 text-red-400" />
+                        <span className="text-xs text-red-400">Failed</span>
+                      </>
+                    )}
+                    
                     <button
                       onClick={() => removeAttachment(attachment.id)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 shadow-lg"
+                      className="p-1 rounded-full hover:bg-white/10 transition-colors"
                     >
-                      <X size={14} />
+                      <X className="w-4 h-4 text-neutral-400" />
                     </button>
                   </div>
-                )}
-                {attachment.type === 'audio' && (
-                  <div className="relative w-20 h-20 rounded-lg bg-gray-700 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-2xl mb-1">🎤</div>
-                      <div className="text-xs text-gray-300">Audio</div>
-                    </div>
-                    <button
-                      onClick={() => removeAttachment(attachment.id)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-black rounded-full flex items-center justify-center text-white hover:bg-gray-800 shadow-lg"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      {/* ✅ Single Loading Indicator - Only show during AI analysis, not during upload */}
+      {isUploading && attachmentPreviews.length === 0 && (
+        <div className="absolute bottom-14 left-0 right-0 flex justify-center">
+          <div className="flex items-center space-x-2 bg-neutral-900/70 rounded-full px-4 py-2 shadow-lg border border-white/10">
+            <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+            <span className="text-sm text-white/70">Analyzing image...</span>
           </div>
         </div>
       )}

@@ -1,16 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { useMessageStore } from '../../stores/useMessageStore';
 
 export default function QuickActions() {
-  const { clearMessages } = useMessageStore();
   const [showHistory, setShowHistory] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
 
   const handleNewChat = async () => {
-    // ✅ Clear current conversation state
-    clearMessages();
-    
     // ✅ Navigate to clean URL (removes conversation ID param)
     // Backend will auto-create new conversation with title from first message
     window.history.pushState({}, '', '/chat');

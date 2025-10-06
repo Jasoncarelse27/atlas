@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
-import { DB_NAME } from '../db/index';
+// ✅ FIXED: Use new Golden Standard database name
+const DB_NAME = 'AtlasDB';
 
 let resetAttempts = 0;
 

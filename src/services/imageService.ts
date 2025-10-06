@@ -156,15 +156,42 @@ export const imageService = {
 
   // File validation helpers
   isFormatSupported(mimeType: string): boolean {
-    const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
     return supportedFormats.includes(mimeType);
   },
 
   getSupportedFormats(): string[] {
-    return ['JPEG', 'PNG', 'GIF', 'WebP'];
+    return ['JPEG', 'PNG', 'GIF', 'WebP', 'HEIC', 'HEIF'];
   },
 
   getMaxFileSize(): number {
     return 10 * 1024 * 1024; // 10MB
+  },
+
+  // Future-proofing: Easy to add new AI providers
+  async analyzeWithProvider(imageUrl: string, userId: string, provider: 'claude' | 'openai' | 'google' = 'claude', prompt?: string) {
+    const analysisPrompts = {
+      claude: prompt || "Analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand.",
+      openai: prompt || "Describe this image in detail, focusing on the main subjects, setting, colors, and any text or important visual elements.",
+      google: prompt || "Analyze this image and describe what you see, including objects, people, text, colors, and the overall scene."
+    };
+
+    // For now, all providers use the same endpoint
+    // Future: Add provider-specific routing
+    return this.scanImage(imageUrl, userId, analysisPrompts[provider]);
+  },
+
+  // Future-proofing: Batch image processing
+  async processBatchImages(files: File[], userId: string) {
+    const results = await Promise.allSettled(
+      files.map(file => this.processImage(file, userId))
+    );
+    
+    return results.map((result, index) => ({
+      file: files[index].name,
+      success: result.status === 'fulfilled',
+      data: result.status === 'fulfilled' ? result.value : null,
+      error: result.status === 'rejected' ? result.reason : null
+    }));
   },
 };

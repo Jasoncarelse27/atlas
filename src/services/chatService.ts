@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
-import { useMessageStore } from "../stores/useMessageStore";
+// Removed useMessageStore import - using callback pattern instead
 import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
 import { audioService } from "./audioService";
@@ -7,6 +7,9 @@ import { getUserTier } from "./subscriptionService";
 
 // Global abort controller for message streaming
 let abortController: AbortController | null = null;
+
+// 🧠 ATLAS GOLDEN STANDARD - Prevent duplicate message calls
+const pendingMessages = new Set<string>();
 
 // Simple function for AttachmentMenu to send messages with attachments
 export async function sendAttachmentMessage(
@@ -63,27 +66,24 @@ export async function sendAttachmentMessage(
 
 export const chatService = {
   sendMessage: async (text: string, onComplete?: () => void, conversationId?: string, userId?: string) => {
-    // 📱 Mobile Debug Logging
-    console.log("📱 [MOBILE-DEBUG] sendMessage called");
-    console.log("📱 [MOBILE-DEBUG] text:", text);
-    console.log("📱 [MOBILE-DEBUG] conversationId:", conversationId);
-    console.log("📱 [MOBILE-DEBUG] userId:", userId);
+    // 🧠 ATLAS GOLDEN STANDARD - Prevent duplicate message calls
+    const messageId = `${userId}-${conversationId}-${text.slice(0, 20)}-${Date.now()}`;
+    
+    if (pendingMessages.has(messageId)) {
+      return;
+    }
+    pendingMessages.add(messageId);
 
     // Set up abort controller for cancellation (always create fresh)
     abortController = new AbortController();
-    useMessageStore.getState().setIsStreaming(true);
-    
-    console.log("📱 [MOBILE-DEBUG] AbortController created:", !!abortController);
 
     try {
       // Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || 'mock-token-for-development';
-      console.log("📱 [MOBILE-DEBUG] Got session token:", !!token);
 
       // Get user's tier for the request
       const currentTier = await getUserTier();
-      console.log("📱 [MOBILE-DEBUG] User tier:", currentTier);
       
       // Memory extraction is handled by the component layer
       // This keeps the service layer clean and avoids circular dependencies
@@ -92,12 +92,6 @@ export const chatService = {
       // Use relative URL to leverage Vite proxy for mobile compatibility
       // This ensures mobile devices use the proxy instead of direct localhost calls
       const messageEndpoint = '/message';
-      console.log(`📱 [MOBILE-DEBUG] Sending to backend: ${messageEndpoint}`);
-      console.log(`📱 [MOBILE-DEBUG] Request body:`, { 
-        text: text,
-        userId: session?.user?.id || userId || '',
-        conversationId: conversationId || null
-      });
       
       const response = await fetch(messageEndpoint, {
         method: "POST",
@@ -113,12 +107,9 @@ export const chatService = {
         signal: abortController?.signal, // Add abort signal for cancellation (with null check)
       });
 
-      console.log(`📱 [MOBILE-DEBUG] Backend response status: ${response.status}`);
-      console.log(`📱 [MOBILE-DEBUG] Backend response ok: ${response.ok}`);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('📱 [MOBILE-DEBUG] Backend error:', errorData);
+        console.error('Backend error:', errorData);
         
         // ✅ Handle monthly limit reached
         if (response.status === 429 && errorData.error === 'MONTHLY_LIMIT_REACHED') {
@@ -128,27 +119,20 @@ export const chatService = {
         throw new Error(`Backend error: ${errorData.error || response.statusText}`);
       }
 
-      console.log(`📱 [MOBILE-DEBUG] About to parse JSON response...`);
       const data = await response.json();
-      console.log('📱 [MOBILE-DEBUG] Backend response data:', data);
       
       // Handle different response formats
       let responseText;
       if (data.reply) {
         responseText = data.reply;
-        console.log('✅ Using data.reply:', responseText);
       } else if (data.response) {
         responseText = data.response;
-        console.log('✅ Using data.response:', responseText);
       } else if (typeof data === 'string') {
         responseText = data;
-        console.log('✅ Using data as string:', responseText);
       } else {
         console.error('❌ Unexpected response format:', data);
         responseText = "Sorry, I couldn't process that request.";
       }
-
-      console.log('✅ Final response text:', responseText);
 
       // 🔊 Play TTS if tier allows
       if (currentTier !== "free" && typeof audioService.play === "function") {
@@ -169,14 +153,13 @@ export const chatService = {
               'Content-Type': 'application/json'
             }
           });
-          console.log('🔄 [chatService] Profile refreshed after message sent');
         }
       } catch (refreshError) {
         console.warn('⚠️ [chatService] Failed to refresh profile:', refreshError);
       }
       
       // Reset streaming state
-      useMessageStore.getState().setIsStreaming(false);
+      // Removed useMessageStore.setIsStreaming - using callback pattern instead
       abortController = null;
       
       return responseText;
@@ -184,10 +167,13 @@ export const chatService = {
       console.error('[FLOW] Error in sendMessage:', error);
       
       // Reset streaming state on error
-      useMessageStore.getState().setIsStreaming(false);
+      // Removed useMessageStore.setIsStreaming - using callback pattern instead
       abortController = null;
       onComplete?.();
       throw error;
+    } finally {
+      // 🧠 ATLAS GOLDEN STANDARD - Clean up duplicate prevention
+      pendingMessages.delete(messageId);
     }
   },
   
@@ -197,7 +183,7 @@ export const chatService = {
       abortController.abort();
       abortController = null;
     }
-    useMessageStore.getState().setIsStreaming(false);
+    // Removed useMessageStore.setIsStreaming - using callback pattern instead
   },
 
   handleFileMessage: async (message: Message, onComplete?: () => void) => {
@@ -318,7 +304,7 @@ export const stopMessageStream = () => {
     abortController.abort();
     abortController = null;
   }
-  useMessageStore.getState().setIsStreaming(false);
+  // Removed useMessageStore.setIsStreaming - using callback pattern instead
 };
 
 // Export the sendMessageWithAttachments function for resendService
@@ -338,8 +324,9 @@ export async function sendMessageWithAttachments(
     id: tempId,
     conversationId,
     role: "user",
-    type: "attachment", // ✅ mark as attachment type
-    content: caption || "", // ✅ single caption as content
+    type: "image", // ✅ mark as image type for proper rendering
+    content: caption || "", // ✅ user caption as content
+    url: attachments[0]?.url || attachments[0]?.publicUrl, // ✅ image URL for display
     attachments, // ✅ all attachments grouped together
     status: "pending",
     createdAt: new Date().toISOString(),

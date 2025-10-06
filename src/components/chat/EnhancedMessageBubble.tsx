@@ -87,6 +87,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               />
             )}
 
+            {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
+            {isUser && messageContent && messageContent.trim() && (
+              <div className="mt-3 text-sm italic text-gray-300">
+                {messageContent.replace(/^"|"$/g, '')}
+              </div>
+            )}
+
             {/* Timestamp */}
             {message.timestamp && (
               <div className={`text-xs mt-2 opacity-70 ${
@@ -250,6 +257,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               attachments={attachments} 
               isUser={isUser}
             />
+          )}
+
+          {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
+          {isUser && messageContent && messageContent.trim() && attachments.length > 0 && (
+            <div className="mt-3 text-sm italic text-gray-300">
+              {messageContent.replace(/^"|"$/g, '')}
+            </div>
           )}
 
           {/* ✅ Show uploading status */}

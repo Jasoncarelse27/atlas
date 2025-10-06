@@ -9,13 +9,16 @@ import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
-import { usePersistentMessages } from '../hooks/usePersistentMessages';
+// Removed usePersistentMessages import - using direct message management instead
+import { atlasDB } from '../database/atlasDB';
+import { runMigrations } from '../database/dbMigrations';
 import { useSubscription } from '../hooks/useSubscription';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
 import { runDbMigrations } from '../services/dbMigrations';
-import { useMessageStore } from '../stores/useMessageStore';
+import { startBackgroundSync, stopBackgroundSync } from '../services/syncService';
+// Removed useMessageStore import - using usePersistentMessages as single source of truth
 import type { Message } from '../types/chat';
 import { generateUUID } from '../utils/uuid';
 
@@ -38,7 +41,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const { initConversation, hydrateFromOffline } = useMessageStore();
+  // Removed duplicate useMessageStore - using usePersistentMessages as single source of truth
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Memory integration
@@ -47,17 +50,78 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Subscription management
   const { refresh: refreshProfile } = useSubscription(userId || undefined);
 
-  // Use persistent messages with offline sync
-  const {
-    messages,
-    addMessage,
-    updateMessage,
-  } = usePersistentMessages({
-    conversationId: conversationId || '',
-    userId: userId || '',
-    autoSync: true,
-    autoResend: true,
-  });
+  // Direct message management - single source of truth
+  const [messages, setMessages] = useState<Message[]>([]);
+  
+  // Enhanced addMessage function with Dexie persistence
+  const addMessage = async (message: Message) => {
+    setMessages(prev => [...prev, message]);
+    
+    // Save to Dexie for offline persistence
+    try {
+      await atlasDB.messages.put({
+        id: message.id,
+        conversationId: conversationId || 'default',
+        userId: userId || 'anonymous',
+        role: message.role,
+        type: (message.type === 'text' || message.type === 'image' || message.type === 'audio') ? message.type : 'text',
+        content: message.content || '',
+        timestamp: message.timestamp,
+        synced: false,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ [ChatPage] Failed to save message to Dexie:', error);
+    }
+  };
+  
+  // Enhanced updateMessage function with Dexie sync
+  const updateMessage = async (id: string, patch: Partial<Message>) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === id ? { ...msg, ...patch } : msg
+    ));
+    
+    // Update in Dexie as well
+    try {
+      await atlasDB.messages.update(id, {
+        content: patch.content || '',
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ [ChatPage] Failed to update message in Dexie:', error);
+    }
+  };
+  
+  // Enhanced refreshMessages function with Dexie persistence
+  const refreshMessages = async () => {
+    try {
+      await runMigrations();
+      
+      // Get current conversation ID from URL or localStorage
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentConvId = urlParams.get('conversation') || localStorage.getItem('atlas:lastConversationId');
+      
+      if (currentConvId) {
+        const storedMessages = await atlasDB.messages
+          .where("conversationId")
+          .equals(currentConvId)
+          .sortBy("timestamp");
+        
+        if (storedMessages.length > 0) {
+          setMessages(storedMessages.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            type: msg.type || 'text',
+            attachments: [] // Will be populated from other sources if needed
+          })));
+        }
+      }
+    } catch (error) {
+      console.error('[ChatPage] Error refreshing messages:', error);
+    }
+  };
 
   // Messages container ref for scroll detection
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -65,14 +129,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Modern scroll system with golden sparkle
   const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages || []], messagesContainerRef);
   
-  // Debug logging for auto-scroll
+  // Auto-scroll when messages change
   useEffect(() => {
-    // console.log('🔄 [ChatPage] Messages changed:', messages?.length, 'messages');
-    // console.log('🔄 [ChatPage] Messages array:', messages);
-    
-    // Simple fallback auto-scroll when messages change
     if (messages && messages.length > 0) {
-      // console.log('🔄 [ChatPage] Triggering fallback auto-scroll');
       setTimeout(() => {
         if (messagesContainerRef.current) {
           messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -111,15 +170,21 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Placeholder variables for components that need them
   const isProcessing = isTyping;
 
+  // Guard to prevent duplicate calls using ref (immediate, no state update delay)
+  const isProcessingRef = useRef(false);
+  
   // Handle text messages - delegate to chatService
   const handleTextMessage = async (text: string) => {
-      console.log('📱 [MOBILE-DEBUG] handleTextMessage called with text:', text);
+    // Guard against duplicate calls
+    if (isProcessingRef.current) {
+      return;
+    }
+    
+    isProcessingRef.current = true;
     
     try {
       // Process message for memory extraction FIRST and wait for completion
-      console.log('📱 [MOBILE-DEBUG] Processing user message for memory extraction...');
       await processUserMessage(text);
-      console.log('📱 [MOBILE-DEBUG] Memory extraction complete');
       
       // Create message for persistent store
       const message: Message = {
@@ -132,9 +197,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       };
 
       // Add to persistent store
-      console.log('📱 [MOBILE-DEBUG] Adding user message to store:', message);
       await addMessage(message);
-      console.log('📱 [MOBILE-DEBUG] User message added to store successfully');
 
       // NOW show typing indicator after user message is visible
       setIsTyping(true);
@@ -150,7 +213,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Refresh profile to get updated usage stats
       try {
         await refreshProfile();
-        console.log('🔄 [ChatPage] Profile refreshed after message sent');
       } catch (refreshError) {
         console.warn('⚠️ [ChatPage] Failed to refresh profile:', refreshError);
       }
@@ -170,13 +232,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         status: 'sending', // Show as loading
       };
 
-      console.log("🔍 [ChatPage] Creating loading message:", assistantMessage);
       // Add loading message immediately
       await addMessage(assistantMessage);
 
       // Update with actual response when ready
       if (assistantResponse) {
-        console.log("🔍 [ChatPage] Updating message with response:", assistantResponse);
         updateMessage(assistantMessageId, { 
           content: assistantResponse,
           status: 'sent'
@@ -201,6 +261,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         setUpgradeModalVisible(true);
         return;
       }
+    } finally {
+      isProcessingRef.current = false;
     }
   };
 
@@ -224,6 +286,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         // Run database migrations first
         await runDbMigrations(userId);
         
+        // ✅ Initialize Dexie database and run migrations
+        await runMigrations();
+        
+        // ✅ Load messages from Dexie (offline-first)
+        await refreshMessages();
+        
+        // ✅ Start background sync for Core/Studio tiers
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_tier')
+            .eq('id', user.id)
+            .single();
+          
+          const tier = profile?.subscription_tier || 'free';
+          startBackgroundSync(user.id, tier);
+        }
+        
         // ✅ Check if conversation ID is in URL
         const urlParams = new URLSearchParams(window.location.search);
         const urlConversationId = urlParams.get('conversation');
@@ -234,10 +315,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           id = urlConversationId;
           
           // ✅ Hydrate messages from Supabase
-          await hydrateFromOffline(id);
+          await refreshMessages();
         } else {
-          // Create new conversation
-          id = await initConversation(userId);
+          // Create new conversation (handled by usePersistentMessages)
+          id = generateUUID();
         }
         
         setConversationId(id);
@@ -247,7 +328,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     };
 
     initializeApp();
-  }, [userId, initConversation, hydrateFromOffline]);
+  }, [userId, refreshMessages]);
+
+  // Cleanup background sync on unmount
+  useEffect(() => {
+    return () => {
+      stopBackgroundSync();
+    };
+  }, []);
 
   // Health check with auto-retry every 30 seconds
   useEffect(() => {
@@ -326,9 +414,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
-                {conversationId && (
-                  <SyncStatus conversationId={conversationId} userId={userId ?? ''} className="hidden md:flex" />
-                )}
+                <SyncStatus isOnline={true} />
                 <button
                   onClick={handleLogout}
                   className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm sm:text-base"
@@ -415,7 +501,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               <MessageListWithPreviews>
                 {(() => {
                   const safeMessages = messages || [];
-                  console.log('🔍 [ChatPage] Rendering messages:', safeMessages.length, safeMessages);
                   if (safeMessages.length > 0) {
                     return safeMessages.map((message: Message, index: number) => (
                       <EnhancedMessageBubble
@@ -481,6 +566,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 placeholder="Ask Atlas anything..."
                 conversationId={conversationId || undefined}
                 inputRef={inputRef}
+                addMessage={addMessage}
+                isStreaming={isStreaming}
               />
             </div>
           </motion.div>

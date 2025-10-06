@@ -20,13 +20,18 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onRetry }) =
     if (message.type === 'image' && message.url) {
       return (
         <div className="space-y-2">
-          <div className="text-sm text-gray-300">{message.content}</div>
           <img
             src={message.url}
             alt="Uploaded image"
             className="max-w-xs rounded-lg border border-gray-600 shadow-lg"
             style={{ maxHeight: '300px', objectFit: 'cover' }}
           />
+          {/* ✅ User Caption - Shows user's caption under the image */}
+          {message.content && message.content.trim() && (
+            <div className="text-sm text-gray-300 mt-2 italic">
+              "{message.content}"
+            </div>
+          )}
           {message.metadata?.dimensions && (
             <div className="text-xs text-gray-400">
               {message.metadata.dimensions.width} × {message.metadata.dimensions.height}

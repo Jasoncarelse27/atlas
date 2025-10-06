@@ -486,6 +486,44 @@ app.post('/message', async (req, res) => {
 
     console.log('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId, attachments: attachments?.length });
 
+    // ✅ Ensure conversation exists before saving messages
+    if (conversationId && supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        // Check if conversation exists
+        const { data: existingConv, error: checkError } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('id', conversationId)
+          .single();
+
+        if (checkError && checkError.code === 'PGRST116') {
+          // Conversation doesn't exist, create it
+          console.log('🆕 [Backend] Creating conversation:', conversationId);
+          const { error: createError } = await supabase
+            .from('conversations')
+            .insert([{
+              id: conversationId,
+              user_id: userId,
+              title: 'New Conversation',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
+
+          if (createError) {
+            console.error('❌ [Backend] Failed to create conversation:', createError);
+          } else {
+            console.log('✅ [Backend] Conversation created successfully');
+          }
+        } else if (checkError) {
+          console.error('❌ [Backend] Error checking conversation:', checkError);
+        } else {
+          console.log('✅ [Backend] Conversation exists:', conversationId);
+        }
+      } catch (error) {
+        console.error('❌ [Backend] Error ensuring conversation exists:', error);
+      }
+    }
+
     // Handle image attachments
     if (attachments && attachments.length > 0) {
       const imageAttachments = attachments.filter(att => att.type === 'image' && att.url);
@@ -696,10 +734,45 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       }
     }
 
+    // ✅ Ensure conversation exists before storing messages
+    const finalConversationId = conversationId || uuidv4();
+    
+    if (supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        // Check if conversation exists, create if not
+        const { data: existingConv } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('id', finalConversationId)
+          .single();
+
+        if (!existingConv) {
+          console.log(`🆕 [Backend] Creating conversation: ${finalConversationId}`);
+          const { error: convError } = await supabase
+            .from('conversations')
+            .insert([{
+              id: finalConversationId,
+              user_id: userId,
+              title: 'New Conversation',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
+
+          if (convError) {
+            console.error('❌ [Backend] Failed to create conversation:', convError);
+          } else {
+            console.log('✅ [Backend] Conversation created successfully');
+          }
+        }
+      } catch (error) {
+        console.error('❌ [Backend] Error checking/creating conversation:', error);
+      }
+    }
+
     // Store message in Supabase - skip in development mode
     const messageData = {
       id: uuidv4(),
-      conversation_id: conversationId || uuidv4(),
+      conversation_id: finalConversationId,
       user_id: userId,
       role: 'user',
       message_type: 'user',
@@ -722,13 +795,14 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .single();
 
         if (insertError) {
-          console.error('Error storing message:', insertError);
+          console.error('❌ [Backend] Failed to save user message:', insertError);
           // Continue without storing in case of error
         } else {
+          console.log('✅ [Backend] Saved user message');
           storedMessage = stored;
         }
       } catch (error) {
-        console.error('Error storing message:', error);
+        console.error('❌ [Backend] Error storing message:', error);
         // Continue without storing in case of error
       }
     }
@@ -814,7 +888,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       // Persist assistant message after stream completes - skip in development mode
       const aiResponse = {
         id: uuidv4(),
-        conversation_id: messageData.conversation_id,
+        conversation_id: finalConversationId,
         user_id: userId,
         role: 'assistant',
         message_type: 'assistant',
@@ -833,8 +907,9 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             .select()
             .single();
           if (responseError) {
-            console.error('Error storing AI response:', responseError);
+            console.error('❌ [Backend] Failed to save assistant message:', responseError);
           } else {
+            console.log('✅ [Backend] Saved assistant message');
             storedResponse = stored;
           }
         } catch (error) {
@@ -962,7 +1037,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
 
     const aiResponse = {
       id: uuidv4(),
-      conversation_id: messageData.conversation_id,
+      conversation_id: finalConversationId,
       user_id: userId,
       role: 'assistant',
       message_type: 'assistant',
@@ -981,8 +1056,9 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .select()
           .single();
         if (responseError) {
-          console.error('Error storing AI response:', responseError);
+          console.error('❌ [Backend] Failed to save assistant message:', responseError);
         } else {
+          console.log('✅ [Backend] Saved assistant message');
           storedResponse = stored;
         }
       } catch (error) {
