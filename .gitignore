@@ -35,5 +35,44 @@ dist-ssr
 .env
 .env.*
 .cert/
+
+# Private keys and certificates
 *.pem
 *.key
+*.p12
+*.pfx
+*.p7b
+*.crt
+*.der
+*.cer
+
+# SSH keys
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.ppk
+
+# Security and credentials
+secrets.yaml
+secrets.yml
+credentials.json
+.credentials
+.secrets
+secret.txt
+apikey.txt
+token.txt
+
+# Cloud provider credentials
+.aws/
+.gcp/
+.azure/
+
+# Database dumps (may contain sensitive data)
+dump.sql
+backup.sql
+*_dump.sql
+*_backup.sql
+*.sqlite
+*.db
+*.dump
