@@ -114,13 +114,15 @@ export function useSubscription(userId?: string) {
       return;
     }
 
-    // Debounce: prevent calls within 5 seconds
+    // 🎯 FUTURE-PROOF FIX: Skip debounce for force refresh
     const now = Date.now();
-    if (now - lastFetchTime < FETCH_DEBOUNCE_MS) {
+    const skipDebounce = (window as any).__skipDebounce || false;
+    if (!skipDebounce && now - lastFetchTime < FETCH_DEBOUNCE_MS) {
       console.log('⏳ [useSubscription] Debouncing fetch request');
       return;
     }
     setLastFetchTime(now);
+    (window as any).__skipDebounce = false;
 
     try {
       setLoading(true);
@@ -279,6 +281,7 @@ export function useSubscription(userId?: string) {
     // 🎯 FUTURE-PROOF FIX: Clear cache before fetching to ensure fresh data
     if (userId) {
       subscriptionApi.clearUserCache(userId);
+      (window as any).__skipDebounce = true; // Skip debounce for immediate refresh
     }
     await fetchProfile();
   }, [fetchProfile, userId]);
