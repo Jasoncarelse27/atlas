@@ -3,7 +3,6 @@ import { execSync } from 'child_process';
 import compression from 'compression';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { ElevenLabsClient } from 'elevenlabs';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -96,17 +95,14 @@ try {
 // External AI API keys
 const ANTHROPIC_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
 // Initialize AI clients
 const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
-const elevenlabs = ELEVENLABS_API_KEY ? new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY }) : null;
 
 // Log API key availability
 console.log('🔑 API Keys Status:');
 console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
-console.log(`  OpenAI (Whisper): ${OPENAI_API_KEY ? '✅ Available' : '❌ Missing'}`);
-console.log(`  ElevenLabs (TTS): ${ELEVENLABS_API_KEY ? '✅ Available' : '❌ Missing'}`);
+console.log(`  OpenAI (Whisper + TTS): ${OPENAI_API_KEY ? '✅ Available' : '❌ Missing'}`);
 if (!ANTHROPIC_API_KEY) {
   console.log('⚠️  No AI API key found - will use mock responses');
 }
@@ -1407,10 +1403,10 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
   }
 });
 
-// 🔊 Text-to-speech endpoint using ElevenLabs
+// 🔊 Text-to-speech endpoint using OpenAI TTS
 app.post('/api/synthesize', verifyJWT, async (req, res) => {
   try {
-    const { text, voiceId = 'Rachel' } = req.body;
+    const { text } = req.body;
     const userId = req.user.id;
     
     if (!text || !text.trim()) {
@@ -1436,33 +1432,31 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
       });
     }
 
-    if (!elevenlabs) {
-      console.error('❌ [Synthesize] ElevenLabs API key not configured');
+    if (!openai) {
+      console.error('❌ [Synthesize] OpenAI API key not configured');
       return res.status(503).json({ error: 'Text-to-speech service unavailable' });
     }
 
-    console.log(`🔊 [Synthesize] Generating speech for user ${userId} (tier: ${tier})`);
+    // 🎯 Tier-based model selection
+    // Core: tts-1 (faster, cheaper)
+    // Studio: tts-1-hd (higher quality)
+    const model = tier === 'studio' ? 'tts-1-hd' : 'tts-1';
+    const voice = tier === 'studio' ? 'nova' : 'alloy'; // Nova is more expressive for Studio
+
+    console.log(`🔊 [Synthesize] Generating speech for user ${userId} (tier: ${tier}, model: ${model}, voice: ${voice})`);
     console.log(`📝 [Synthesize] Text: "${text.slice(0, 50)}..."`);
 
     try {
-      // Generate speech with ElevenLabs
-      const audioStream = await elevenlabs.textToSpeech.convert(voiceId, {
-        text: text.trim(),
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.0,
-          use_speaker_boost: true
-        }
+      // Generate speech with OpenAI TTS
+      const mp3 = await openai.audio.speech.create({
+        model: model,
+        voice: voice,
+        input: text.trim(),
+        speed: 1.0
       });
 
       // Convert stream to buffer
-      const chunks = [];
-      for await (const chunk of audioStream) {
-        chunks.push(chunk);
-      }
-      const audioBuffer = Buffer.concat(chunks);
+      const audioBuffer = Buffer.from(await mp3.arrayBuffer());
       
       console.log(`✅ [Synthesize] Audio generated: ${audioBuffer.length} bytes`);
       
@@ -1473,14 +1467,16 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
         success: true,
         audio: audioBase64,
         format: 'mp3',
-        size: audioBuffer.length
+        size: audioBuffer.length,
+        model: model,
+        voice: voice
       });
       
-    } catch (elevenLabsError) {
-      console.error('❌ [Synthesize] ElevenLabs API error:', elevenLabsError);
+    } catch (openaiError) {
+      console.error('❌ [Synthesize] OpenAI TTS error:', openaiError);
       return res.status(500).json({ 
         error: 'Speech synthesis failed',
-        details: elevenLabsError.message
+        details: openaiError.message
       });
     }
     

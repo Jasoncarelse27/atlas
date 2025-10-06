@@ -145,9 +145,9 @@ class VoiceService {
   }
 
   /**
-   * Synthesize speech from text using ElevenLabs
+   * Synthesize speech from text using OpenAI TTS
    */
-  async synthesizeSpeech(text: string, voiceId: string = 'Rachel'): Promise<string> {
+  async synthesizeSpeech(text: string, voiceId: string = 'alloy'): Promise<string> {
     try {
       // Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
@@ -167,7 +167,6 @@ class VoiceService {
         },
         body: JSON.stringify({
           text,
-          voiceId,
         }),
       });
 

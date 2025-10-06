@@ -89,7 +89,6 @@
     "dexie-react-hooks": "^4.2.0",
     "dotenv": "^17.2.3",
     "dotenv-safe": "^9.1.0",
-    "elevenlabs": "^1.59.0",
     "expo": "^54.0.9",
     "expo-av": "^16.0.7",
     "expo-file-system": "^19.0.14",

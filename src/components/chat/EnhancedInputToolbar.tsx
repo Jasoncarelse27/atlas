@@ -4,13 +4,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useTierAccess } from '../../hooks/useTierAccess';
-import { supabase } from '../../lib/supabaseClient';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 // Removed useMessageStore import - using props from parent component
+import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
-import { voiceService } from '../../services/voiceService';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
