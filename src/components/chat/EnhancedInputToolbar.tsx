@@ -284,16 +284,23 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    const canUse = hasAccess('audio');
+    // 🎯 FUTURE-PROOF FIX: Check tier directly instead of waiting for hasAccess
+    console.log(`🎙️ [Mic] User tier: ${tier}, checking audio access...`);
     
     // Log the attempt
-    await featureService.logAttempt(user.id, 'mic', tier);
+    await featureService.logAttempt(user.id, 'audio', tier);
+    
+    // Core and Studio tiers have audio access
+    const canUse = tier === 'core' || tier === 'studio';
     
     if (!canUse) {
+      console.log(`🚫 [Mic] Tier ${tier} does not have audio access`);
       toast.error('Voice features are available in Core & Studio plans. Upgrade to unlock!');
       showUpgradeModal('audio');
       return;
     }
+    
+    console.log(`✅ [Mic] Access granted for tier: ${tier}`);
 
     if (!isListening) {
       // Start recording
