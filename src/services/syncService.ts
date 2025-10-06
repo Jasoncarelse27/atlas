@@ -1,6 +1,16 @@
 import { atlasDB } from "@/database/atlasDB"
 import { supabase } from "@/lib/supabaseClient"
 
+// 🎯 FUTURE-PROOF FIX: Define types for Supabase message schema
+type SupabaseMessage = {
+  id: string;
+  conversation_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: string;
+  updated_at?: string;
+};
+
 export let lastSyncedAt = 0
 export let isSyncingNow = false
 
@@ -24,10 +34,12 @@ export const syncService = {
       const { data: remote, error: pullErr } = await supabase
         .from("messages")
         .select("*")
-        .eq("user_id", userId)
-        .order("created_at")
+        .order("created_at") as { data: SupabaseMessage[] | null; error: any }
 
-      if (pullErr) throw pullErr
+      if (pullErr) {
+        console.error('[SYNC] Failed to fetch remote messages:', pullErr);
+        throw pullErr;
+      }
 
       const local = await atlasDB.messages.toArray()
 
@@ -38,13 +50,13 @@ export const syncService = {
           await atlasDB.messages.put({
             id: msg.id,
             conversationId: msg.conversation_id,
-            userId: msg.user_id,
+            userId: userId, // Use userId from function parameter
             role: msg.role,
             type: "text", // Default type
             content: msg.content,
             timestamp: msg.created_at,
             synced: true,
-            updatedAt: msg.updated_at
+            updatedAt: msg.created_at
           })
         }
       }
@@ -52,16 +64,34 @@ export const syncService = {
       // ✅ Push unsynced local messages to Supabase
       const unsynced = local.filter((m) => !m.synced)
       for (const msg of unsynced) {
-        const { error: pushErr } = await supabase.from("messages").upsert({
+        // 🎯 FUTURE-PROOF FIX: Validate and format message data for Supabase schema
+        // Skip messages with invalid data
+        if (!msg.conversationId || !msg.role || !msg.content) {
+          console.warn('[SYNC] Skipping invalid message:', msg.id);
+          continue;
+        }
+
+        // Ensure content is a string (Supabase expects TEXT)
+        let contentText = msg.content as string;
+        if (typeof msg.content === 'object' && msg.content !== null) {
+          contentText = (msg.content as any).text || JSON.stringify(msg.content);
+        }
+
+        const messageData: SupabaseMessage = {
           id: msg.id,
           conversation_id: msg.conversationId,
-          user_id: msg.userId,
-          role: msg.role,
-          content: msg.content,
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: contentText,
           created_at: msg.timestamp,
-          updated_at: msg.updatedAt || msg.timestamp
-        })
-        if (!pushErr) await atlasDB.messages.update(msg.id, { synced: true })
+        };
+
+        const { error: pushErr } = await supabase.from("messages").upsert(messageData as any)
+        
+        if (pushErr) {
+          console.error('[SYNC] Failed to sync message:', msg.id, pushErr);
+        } else {
+          await atlasDB.messages.update(msg.id, { synced: true })
+        }
       }
 
       console.log("[SYNC] Dexie ↔ Supabase merge complete ✅")
