@@ -1910,6 +1910,46 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
   }
 });
 
+// 📊 Feature attempts tracking endpoint
+app.post('/api/feature-attempts', async (req, res) => {
+  try {
+    const { userId, feature, tier } = req.body;
+
+    // Validate required fields
+    if (!userId || !feature || !tier) {
+      return res.status(400).json({ 
+        error: "Missing required fields: userId, feature, tier" 
+      });
+    }
+
+    // Skip logging in development if table doesn't exist
+    if (supabaseUrl === 'https://your-project.supabase.co') {
+      return res.json({ status: "ok", dev: true });
+    }
+
+    const { error } = await supabase
+      .from("feature_attempts")
+      .insert({
+        user_id: userId,
+        feature,
+        tier,
+        created_at: new Date().toISOString()
+      });
+
+    if (error) {
+      // If table doesn't exist, just log and continue (non-critical)
+      console.warn("⚠️ Feature attempt logging failed (table may not exist):", error.message);
+      return res.json({ status: "ok", warning: "Table not found" });
+    }
+
+    res.json({ status: "ok" });
+  } catch (err) {
+    console.error("Feature attempt logging error:", err);
+    // Return success anyway - this is non-critical telemetry
+    res.json({ status: "ok", error: err.message });
+  }
+});
+
 // Serve built Vite frontend
 app.use(express.static(path.join(__dirname, '..', 'dist')));
 
