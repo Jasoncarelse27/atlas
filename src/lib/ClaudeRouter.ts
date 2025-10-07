@@ -1,3 +1,4 @@
+import { getClaudeModelName, tierFeatures } from '@/config/featureAccess';
 import { subscriptionApi } from '../services/subscriptionApi';
 import { supabase } from './supabaseClient';
 
@@ -22,17 +23,14 @@ export interface ClaudeResponse {
   cached: boolean;
 }
 
-export type UserTier = 'core' | 'studio';
-
-// Supabase client
-// Supabase client imported from centralized location
+export type UserTier = 'free' | 'core' | 'studio';
 
 // Claude API configuration
 const CLAUDE_API_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
 const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1/messages';
 
 /**
- * Get user tier from Supabase
+ * ✅ Get user tier from Supabase using centralized API
  */
 export async function getUserTier(userId: string): Promise<UserTier> {
   try {
@@ -41,19 +39,18 @@ export async function getUserTier(userId: string): Promise<UserTier> {
     const accessToken = session.data.session?.access_token;
     
     if (!accessToken) {
-      console.warn('No access token available, defaulting to core tier');
-      return 'core';
+      console.warn('No access token available, defaulting to free tier');
+      return 'free';
     }
 
-    // Use subscription API service
+    // ✅ Use centralized subscription API service
     const tier = await subscriptionApi.getUserTier(userId, accessToken);
     console.log('[ClaudeRouter] Loaded tier via backend API:', tier);
     
-    // Convert to UserTier type
-    return tier === 'studio' ? 'studio' : 'core';
+    return tier;
   } catch (error) {
     console.warn('Error in getUserTier:', error);
-    return 'core'; // Default to core tier
+    return 'free'; // Default to free tier
   }
 }
 
@@ -120,10 +117,10 @@ export async function cachePrompt(
 }
 
 /**
- * Route prompt to appropriate Claude model based on user tier
+ * ✅ Route prompt to appropriate Claude model based on user tier using centralized config
  */
-export function routePrompt(userTier: UserTier): 'claude-3-5-sonnet' | 'claude-3-5-opus' {
-  return userTier === 'studio' ? 'claude-3-5-opus' : 'claude-3-5-sonnet';
+export function routePrompt(userTier: UserTier): string {
+  return getClaudeModelName(userTier);
 }
 
 /**
@@ -158,7 +155,8 @@ export async function handlePrompt(
       return cachedResponse;
     }
     
-    // Make API call to Claude
+    // ✅ Make API call to Claude using tier config
+    const tierConfig = tierFeatures[userTier];
     const response = await fetch(CLAUDE_BASE_URL, {
       method: 'POST',
       headers: {
@@ -168,7 +166,7 @@ export async function handlePrompt(
       },
       body: JSON.stringify({
         model,
-        max_tokens: userTier === 'studio' ? 4000 : 2000,
+        max_tokens: tierConfig.maxTokensPerResponse,
         messages: [
           {
             role: 'user',

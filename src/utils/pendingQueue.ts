@@ -1,7 +1,7 @@
 import { createChatError } from '../features/chat/lib/errorHandler';
-import { generateUUID } from "../utils/uuid";
 import db from '../lib/db';
 import { offlineMessageStore } from '../services/offlineMessageStore';
+import { generateUUID } from "../utils/uuid";
 
 export interface PendingOperation {
   id: string;
@@ -211,8 +211,8 @@ export class PendingQueueManager {
   private async processUpdateSubscription(operation: PendingOperation): Promise<void> {
     const { subscriptionData } = operation.data;
     
-    // Import subscriptionService dynamically to avoid circular dependencies
-    const { subscriptionService } = await import('../features/chat/services/subscriptionService');
+    // Import subscriptionApi dynamically to avoid circular dependencies
+    const { subscriptionApi } = await import('../services/subscriptionApi');
     
     // This would depend on the specific subscription update method
     console.log('Subscription update:', subscriptionData);

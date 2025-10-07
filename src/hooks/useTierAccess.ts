@@ -1,106 +1,154 @@
-import { getClaudeModelName, tierFeatures } from "@/config/featureAccess"
+// 🎯 ATLAS GOLDEN STANDARD - Centralized Tier Access Hook
+// This is the SINGLE SOURCE OF TRUTH for all tier checks
+// ✅ ALWAYS import and use this hook - NEVER hardcode tier checks
+
+import { getClaudeModelName, isValidTier, tierFeatures } from "@/config/featureAccess"
 import { supabase } from "@/lib/supabaseClient"
-import { useEffect, useState } from "react"
+import { subscriptionApi } from "@/services/subscriptionApi"
+import { useCallback, useEffect, useState } from "react"
 
 type Tier = "free" | "core" | "studio"
 
-export function useTierAccess() {
-  const [tier, setTier] = useState<Tier>("free")
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchTier = async () => {
-      setLoading(true)
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          console.log("[useTierAccess] No user found, defaulting to free")
-          setLoading(false)
-          return
-        }
-
-        console.log("[useTierAccess] Fetching tier for user:", user.id)
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("subscription_tier")
-          .eq("id", user.id)
-          .single()
-
-        if (!error && data?.subscription_tier) {
-          setTier(data.subscription_tier as Tier)
-          console.log("[useTierAccess] Fetched tier:", data.subscription_tier)
-        } else {
-          console.log("[useTierAccess] No profile found or error:", error)
-        }
-      } catch (err) {
-        console.error("[useTierAccess] Error:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTier()
-  }, [])
-
-  const hasAccess = (feature: "file" | "image" | "camera" | "audio") => {
-    // Don't allow access while still loading tier information
-    if (loading) return false
-    
-    if (tier === "studio") return true
-    if (tier === "core") return feature === "image" || feature === "audio"
-    return false
-  }
-
-  const showUpgradeModal = (feature: string) => {
-    console.log(`⚠️ Upgrade required for: ${feature}`);
-    // Note: Upgrade modal handled by useSubscription hook
-  }
-
-  return { tier, hasAccess, loading, showUpgradeModal }
+interface TierAccessState {
+  tier: Tier
+  loading: boolean
+  userId: string | null
 }
 
-// Feature access hook for specific features
+// ✅ CENTRALIZED TIER ACCESS HOOK
+export function useTierAccess() {
+  const [state, setState] = useState<TierAccessState>({
+    tier: "free",
+    loading: true,
+    userId: null
+  })
+
+  const fetchTier = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true }))
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        setState({ tier: "free", loading: false, userId: null })
+        return
+      }
+
+      const session = await supabase.auth.getSession()
+      const accessToken = session.data.session?.access_token
+
+      if (!accessToken) {
+        setState({ tier: "free", loading: false, userId: user.id })
+        return
+      }
+
+      // ✅ Use centralized subscription API
+      const tier = await subscriptionApi.getUserTier(user.id, accessToken)
+      
+      // Validate tier
+      const validTier = isValidTier(tier) ? tier : "free"
+      
+      setState({ tier: validTier, loading: false, userId: user.id })
+    } catch (err) {
+      console.error("[useTierAccess] Error:", err)
+      setState(prev => ({ ...prev, loading: false }))
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTier()
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      fetchTier()
+    })
+
+    return () => subscription.unsubscribe()
+  }, [fetchTier])
+
+  // ✅ Feature access based on tier config (NO hardcoded checks!)
+  const hasAccess = useCallback((feature: "file" | "image" | "camera" | "audio") => {
+    if (state.loading) return false
+    
+    const config = tierFeatures[state.tier]
+    
+    // Map feature names to config keys
+    const featureMap = {
+      file: 'text',
+      image: 'image',
+      camera: 'camera',
+      audio: 'audio'
+    } as const
+    
+    return config[featureMap[feature]] || false
+  }, [state.tier, state.loading])
+
+  // ✅ Show upgrade modal (to be implemented by consuming component)
+  const showUpgradeModal = useCallback((feature: string) => {
+    console.log(`⚠️ Upgrade required for: ${feature}`)
+    // Note: Modal display handled by UpgradeModal component
+  }, [])
+
+  // ✅ Claude model name from config
+  const claudeModelName = getClaudeModelName(state.tier)
+
+  return { 
+    tier: state.tier,
+    userId: state.userId,
+    hasAccess, 
+    loading: state.loading, 
+    showUpgradeModal,
+    claudeModelName,
+    refresh: fetchTier
+  }
+}
+
+// ✅ FEATURE ACCESS HOOK - For specific feature checks
 export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice") {
-  const { tier, loading } = useTierAccess()
+  const { tier, loading, userId } = useTierAccess()
   
-  const canUse = () => {
+  // ✅ Use tier config instead of hardcoded checks
+  const canUse = useCallback(() => {
     if (loading) return false
     
+    const config = tierFeatures[tier]
+    
+    // Map feature names
     switch (feature) {
       case "audio":
-        return tier === "core" || tier === "studio"
-      case "image":
-        return tier === "core" || tier === "studio"
-      case "camera":
-        return tier === "studio"
       case "voice":
-        return tier === "core" || tier === "studio"
+        return config.audio
+      case "image":
+        return config.image
+      case "camera":
+        return config.camera
       default:
         return false
     }
-  }
+  }, [tier, loading, feature])
 
-  const attemptFeature = async () => {
-    if (canUse()) {
-      return true
+  // ✅ Log feature attempt for analytics
+  const attemptFeature = useCallback(async () => {
+    const allowed = canUse()
+    
+    if (!allowed && userId) {
+      try {
+        await supabase
+          .from('feature_attempts')
+          .insert({
+            user_id: userId,
+            feature,
+            tier,
+            attempted_at: new Date().toISOString()
+          })
+      } catch (error) {
+        // Silent fail - analytics shouldn't block user
+        console.error('Failed to log feature attempt:', error)
+      }
     }
     
-    // Log feature attempt for analytics
-    try {
-      await supabase
-        .from('feature_attempts')
-        .insert({
-          feature,
-          tier,
-          attempted_at: new Date().toISOString()
-        })
-    } catch (error) {
-      console.error('Failed to log feature attempt:', error)
-    }
-    
-    return false
-  }
+    return allowed
+  }, [canUse, userId, feature, tier])
 
   return {
     canUse: canUse(),
@@ -110,37 +158,33 @@ export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice"
   }
 }
 
-// Message limit hook
+// ✅ MESSAGE LIMIT HOOK - For message/usage limits
 export function useMessageLimit() {
   const { tier, loading } = useTierAccess()
   
-  const getLimit = (feature: "textMessages" | "audioMinutes" | "imageUploads") => {
+  // ✅ Get limits from tier config (NO hardcoded checks!)
+  const getLimit = useCallback((feature: "textMessages" | "audioMinutes" | "imageUploads") => {
     if (loading) return 0
     
-    const tierConfig = tierFeatures[tier]
+    const config = tierFeatures[tier]
     
     switch (feature) {
       case "textMessages":
-        // Free tier has maxConversationsPerMonth, others have maxConversationsPerDay
-        if (tier === 'free') {
-          return (tierConfig as any).maxConversationsPerMonth || 15
-        }
-        return (tierConfig as any).maxConversationsPerDay || 150
+        // Use config values directly
+        return (config as any).maxConversationsPerMonth || (config as any).maxConversationsPerDay || 0
       case "audioMinutes":
-        return tierConfig.audio ? 60 : 0
+        return config.audio ? 60 : 0
       case "imageUploads":
-        return tierConfig.image ? 10 : 0
+        return config.image ? 10 : 0
       default:
         return 0
     }
-  }
+  }, [tier, loading])
 
-  const isUnlimited = (feature: "textMessages" | "audioMinutes" | "imageUploads") => {
-    if (loading) return false
-    
+  const isUnlimited = useCallback((feature: "textMessages" | "audioMinutes" | "imageUploads") => {
     const limit = getLimit(feature)
     return limit === -1
-  }
+  }, [getLimit])
 
   const claudeModelName = getClaudeModelName(tier)
 

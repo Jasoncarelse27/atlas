@@ -1,3 +1,4 @@
+import { isPaidTier } from "@/config/featureAccess";
 import { atlasDB } from "@/database/atlasDB";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -20,8 +21,9 @@ export async function markSyncing(state: boolean) {
 }
 
 export const syncService = {
-  async syncAll(userId: string, tier: string) {
-    if (tier === "free") {
+  async syncAll(userId: string, tier: 'free' | 'core' | 'studio') {
+    // ✅ Use centralized tier config
+    if (!isPaidTier(tier)) {
       console.log("[SYNC] Offline mode active (Free Tier)")
       return
     }
@@ -106,8 +108,9 @@ export const syncService = {
 // Background sync functionality
 let syncInterval: ReturnType<typeof setInterval> | null = null
 
-export function startBackgroundSync(userId: string, tier: string) {
-  if (tier === "free") {
+export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'studio') {
+  // ✅ Use centralized tier config
+  if (!isPaidTier(tier)) {
     console.log("[SYNC] Background sync disabled for Free tier")
     return
   }

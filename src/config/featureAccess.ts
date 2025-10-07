@@ -180,15 +180,17 @@ export function getTierPricing(tier: Tier): number {
 
 // Check if user is within daily conversation limit
 export function isWithinDailyLimit(tier: Tier, conversationsToday: number): boolean {
-  const limit = tier === 'free' ? tierFeatures[tier].maxConversationsPerMonth : tierFeatures[tier].maxConversationsPerDay;
-  if (limit === -1) return true; // Unlimited
+  const config = tierFeatures[tier];
+  const limit = tier === 'free' ? (config as any).maxConversationsPerMonth : (config as any).maxConversationsPerDay;
+  if (limit === -1 || typeof limit === 'undefined') return true; // Unlimited
   return conversationsToday < limit;
 }
 
 // Get remaining conversations for the day
 export function getRemainingConversations(tier: Tier, conversationsToday: number): number | 'unlimited' {
-  const limit = tier === 'free' ? tierFeatures[tier].maxConversationsPerMonth : tierFeatures[tier].maxConversationsPerDay;
-  if (limit === -1) return 'unlimited';
+  const config = tierFeatures[tier];
+  const limit = tier === 'free' ? (config as any).maxConversationsPerMonth : (config as any).maxConversationsPerDay;
+  if (limit === -1 || typeof limit === 'undefined') return 'unlimited';
   return Math.max(0, limit - conversationsToday);
 }
 
@@ -200,8 +202,9 @@ export function containsCrisisKeywords(message: string): boolean {
 
 // Get usage warning level
 export function getUsageWarningLevel(tier: Tier, conversationsToday: number): 'normal' | 'warning' | 'critical' | 'exceeded' {
-  const limit = tier === 'free' ? tierFeatures[tier].maxConversationsPerMonth : tierFeatures[tier].maxConversationsPerDay;
-  if (limit === -1) return 'normal'; // Unlimited
+  const config = tierFeatures[tier];
+  const limit = tier === 'free' ? (config as any).maxConversationsPerMonth : (config as any).maxConversationsPerDay;
+  if (limit === -1 || typeof limit === 'undefined') return 'normal'; // Unlimited
   
   const usage = conversationsToday / limit;
   
@@ -219,4 +222,36 @@ export function getSubscriptionDisplayName(tier: Tier): string {
     case 'studio': return 'Atlas Studio';
     default: return 'Atlas Free';
   }
+}
+
+// ✅ Utility functions to replace hardcoded tier checks
+export function hasUnlimitedMessages(tier: Tier): boolean {
+  const config = tierFeatures[tier];
+  return (config as any).maxConversationsPerDay === -1 || (config as any).maxConversationsPerMonth === -1;
+}
+
+export function canUseAudio(tier: Tier): boolean {
+  return tierFeatures[tier].audio;
+}
+
+export function canUseImage(tier: Tier): boolean {
+  return tierFeatures[tier].image;
+}
+
+export function canUseCamera(tier: Tier): boolean {
+  return tierFeatures[tier].camera;
+}
+
+export function canUseVoiceEmotion(tier: Tier): boolean {
+  return tierFeatures[tier].voiceEmotionAnalysis;
+}
+
+export function getSuggestedUpgradeTier(tier: Tier): Tier {
+  if (tier === 'free') return 'core';
+  if (tier === 'core') return 'studio';
+  return 'studio'; // Already at max
+}
+
+export function isPaidTier(tier: Tier): boolean {
+  return tier === 'core' || tier === 'studio';
 }

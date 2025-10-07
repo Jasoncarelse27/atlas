@@ -1,3 +1,4 @@
+import { canUseAudio } from '@/config/featureAccess';
 import { createChatError } from '../features/chat/lib/errorHandler';
 import { supabase } from '../lib/supabase';
 import { generateUUID } from "../utils/uuid";
@@ -28,8 +29,8 @@ class VoiceService {
    */
   async recordAndTranscribe(audioBlob: Blob, userTier?: 'free' | 'core' | 'studio'): Promise<string> {
     try {
-      // 🎯 TIER ENFORCEMENT: Block free users from using audio
-      if (userTier === 'free') {
+      // ✅ TIER ENFORCEMENT: Use centralized tier config
+      if (userTier && !canUseAudio(userTier)) {
         throw new Error('Audio transcription requires Core or Studio tier. Please upgrade to continue.');
       }
 

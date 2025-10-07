@@ -1,3 +1,4 @@
+import { getSubscriptionDisplayName, hasUnlimitedMessages } from '@/config/featureAccess';
 import { AlertTriangle, TrendingUp, Zap } from 'lucide-react';
 import React from 'react';
 import { useSubscription } from '../hooks/useSubscription';
@@ -48,9 +49,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
 
   const showWarning = textPercentage >= 75 || audioPercentage >= 75 || imagePercentage >= 75;
   const showCritical = textPercentage >= 90 || audioPercentage >= 90 || imagePercentage >= 90;
-  const isUnlimited = tier === 'core' || tier === 'studio';
+  const isUnlimited = hasUnlimitedMessages(tier);
 
-  if (tier === 'studio') {
+  if (isUnlimited && tier === 'studio') {
     // Studio users have unlimited everything
     return (
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
@@ -85,7 +86,7 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
             <Zap className="w-5 h-5 text-green-600" />
           )}
           <h3 className="font-semibold text-gray-900">
-            {userTier === 'free' ? 'Atlas Free' : 'Atlas Core'} Usage
+            {getSubscriptionDisplayName(userTier)} Usage
           </h3>
         </div>
         {showWarning && (
@@ -204,7 +205,7 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
             onClick={onUpgrade}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
-            Upgrade to {userTier === 'free' ? 'Core' : 'Studio'}
+            Upgrade to {getSubscriptionDisplayName(userTier === 'free' ? 'core' : 'studio')}
           </button>
         </div>
       )}

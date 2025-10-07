@@ -1,4 +1,6 @@
+import { getClaudeModelName, tierFeatures } from '@/config/featureAccess';
 import { useCallback, useMemo } from 'react';
+
 type UserTier = 'free' | 'core' | 'studio';
 
 export type SupportedModel = 'claude' | 'groq' | 'opus';
@@ -31,7 +33,7 @@ const getEnvVar = (key: string): string => {
 
 export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) {
   
-  // Get the appropriate AI provider configuration based on tier and selection
+  // ✅ Get the appropriate AI provider configuration based on tier config
   const getProviderConfig = useCallback((
     tier: UserTier, 
     model?: SupportedModel
@@ -41,20 +43,21 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
       return getModelConfig(model);
     }
 
-    // Otherwise, route based on tier
-    switch (tier) {
-      case 'free':
-        return getModelConfig('groq'); // Free tier uses Groq with llama3.3-70b
-      case 'core':
-        return getModelConfig('claude'); // Core tier uses Claude Sonnet
-      case 'studio':
-        return getModelConfig('opus'); // Studio tier uses Claude Opus
-      default:
-        return getModelConfig('groq'); // Fallback to Groq
+    // ✅ Use tier config to determine model
+    const tierConfig = tierFeatures[tier];
+    const modelName = tierConfig.model;
+    
+    // Map config model to provider
+    if (modelName.includes('opus')) {
+      return getModelConfig('opus');
+    } else if (modelName.includes('sonnet')) {
+      return getModelConfig('claude');
+    } else {
+      return getModelConfig('groq'); // Haiku/free tier
     }
   }, []);
 
-  // Get specific model configuration
+  // ✅ Get specific model configuration using centralized tier config
   const getModelConfig = useCallback((model: SupportedModel): AIProviderConfig => {
     switch (model) {
       case 'groq':
@@ -78,7 +81,7 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${getEnvVar('VITE_CLAUDE_API_KEY')}`,
           },
-          model: 'claude-3-5-sonnet-20241022',
+          model: getClaudeModelName('core'), // ✅ Use centralized config
           maxTokens: 4096,
           temperature: 0.7
         };
@@ -91,7 +94,7 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${getEnvVar('VITE_CLAUDE_API_KEY')}`,
           },
-          model: 'claude-3-5-opus-20241022',
+          model: getClaudeModelName('studio'), // ✅ Use centralized config
           maxTokens: 4096,
           temperature: 0.7
         };
@@ -186,9 +189,7 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
     // Cost information
     getProviderCost,
     
-    // Utility functions
-    isFreeTier: userTier === 'free',
-    isCoreTier: userTier === 'core',
-    isStudioTier: userTier === 'studio'
+    // ✅ Tier info (removed hardcoded checks)
+    userTier
   };
 }

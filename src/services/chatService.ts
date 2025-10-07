@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
 import { audioService } from "./audioService";
-import { getUserTier } from "./subscriptionService";
+import { subscriptionApi } from "./subscriptionApi";
 
 // Global abort controller for message streaming
 let abortController: AbortController | null = null;
@@ -25,7 +25,7 @@ export async function sendAttachmentMessage(
     const token = session?.access_token || 'mock-token-for-development';
 
     // Get user's tier for the request
-    const currentTier = await getUserTier();
+    const currentTier = await subscriptionApi.getUserTier(userId, token);
     
     // Send to backend - use relative URL for mobile compatibility
     // This ensures mobile devices use the Vite proxy instead of direct localhost calls
@@ -81,9 +81,12 @@ export const chatService = {
       // Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || 'mock-token-for-development';
+      
+      // Get user ID from session if not provided
+      const actualUserId = userId || session?.user?.id || 'anonymous';
 
       // Get user's tier for the request
-      const currentTier = await getUserTier();
+      const currentTier = await subscriptionApi.getUserTier(actualUserId, token);
       
       // Memory extraction is handled by the component layer
       // This keeps the service layer clean and avoids circular dependencies
@@ -201,8 +204,11 @@ export const chatService = {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || 'mock-token-for-development';
         
+        // Get user ID from session
+        const actualUserId = session?.user?.id || 'anonymous';
+        
         // Get user's tier for the request
-        const imageTier = await getUserTier();
+        const imageTier = await subscriptionApi.getUserTier(actualUserId, token);
         
         // Send multi-attachment analysis request to backend
         const response = await fetch('/message', {
@@ -241,8 +247,11 @@ export const chatService = {
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token || 'mock-token-for-development';
           
+          // Get user ID from session
+          const actualUserId = session?.user?.id || 'anonymous';
+          
           // Get user's tier for the request
-          const imageTier = await getUserTier();
+          const imageTier = await subscriptionApi.getUserTier(actualUserId, token);
           
           // Send image analysis request to backend
           const requestBody = { 
