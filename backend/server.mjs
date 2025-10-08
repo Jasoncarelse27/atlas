@@ -51,7 +51,6 @@ let supabase;
 try {
   if (supabaseUrl === 'https://your-project.supabase.co' || !supabaseServiceKey) {
     // Only use mock if credentials are actually missing
-    console.warn('⚠️ Supabase credentials missing, using mock client');
     supabase = {
       auth: {
         getUser: async (token) => {
@@ -82,13 +81,11 @@ try {
   } else {
     // Production mode - use real Supabase client
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('❌ Missing Supabase environment variables');
       process.exit(1);
     }
     supabase = createClient(supabaseUrl, supabaseServiceKey);
   }
 } catch (error) {
-  console.error('❌ Failed to initialize Supabase client:', error);
   process.exit(1);
 }
 
@@ -100,11 +97,9 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
 // Log API key availability
-console.log('🔑 API Keys Status:');
 console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
 console.log(`  OpenAI (Whisper + TTS): ${OPENAI_API_KEY ? '✅ Available' : '❌ Missing'}`);
 if (!ANTHROPIC_API_KEY) {
-  console.log('⚠️  No AI API key found - will use mock responses');
 }
 
 // Model mapping by tier (updated to latest non-deprecated models)
@@ -139,7 +134,6 @@ async function getUserMemory(userId) {
     
     return profile.user_context || {};
   } catch (error) {
-    console.warn('Failed to fetch user memory:', error);
     return {};
   }
 }
@@ -224,7 +218,6 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
 
   if (!response.ok) {
     const errText = await response.text().catch(() => 'Anthropic request failed');
-    console.error('❌ Anthropic API Error:', errText);
     throw new Error(`Anthropic API Error: ${errText}`);
   }
   
@@ -276,7 +269,6 @@ const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('🔐 JWT: Missing or invalid authorization header');
       return res.status(401).json({ 
         error: 'Missing or invalid authorization header',
         details: 'Please ensure you are logged in and try again'
@@ -287,17 +279,14 @@ const verifyJWT = async (req, res, next) => {
     
     // Development mode: only allow specific mock token for local testing
     if (process.env.NODE_ENV === 'development' && token === 'mock-token-for-development') {
-      console.log('🔐 JWT: Using development mode mock token');
       req.user = { id: '550e8400-e29b-41d4-a716-446655440000' };
       return next();
     }
     
     // Enhanced Supabase JWT verification with better error handling
-    console.log('🔐 JWT: Verifying token with Supabase...');
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error) {
-      console.error('🔐 JWT: Supabase verification error:', error.message);
       return res.status(401).json({ 
         error: 'Invalid or expired token',
         details: error.message,
@@ -306,7 +295,6 @@ const verifyJWT = async (req, res, next) => {
     }
     
     if (!user) {
-      console.error('🔐 JWT: No user found in token');
       return res.status(401).json({ 
         error: 'No user found in token',
         details: 'Token may be expired or invalid',
@@ -314,11 +302,9 @@ const verifyJWT = async (req, res, next) => {
       });
     }
 
-    console.log('🔐 JWT: Token verified successfully for user:', user.id);
     req.user = user;
     next();
   } catch (error) {
-    console.error('🔐 JWT: Unexpected error during verification:', error);
     res.status(401).json({ 
       error: 'Token verification failed',
       details: error.message,
@@ -463,13 +449,11 @@ app.post('/api/reset-memory', async (req, res) => {
       .eq('id', userId);
 
     if (error) {
-      console.error('Memory reset error:', error);
       return res.status(500).json({ error: 'Failed to reset memory' });
     }
 
     res.json({ success: true, message: 'Memory reset successfully' });
   } catch (error) {
-    console.error('Memory reset error:', error);
     res.status(500).json({ error: 'Memory reset failed' });
   }
 });
@@ -490,7 +474,6 @@ app.get('/api/auth/status', (req, res) => {
 
 // ✅ Clean message endpoint with secure Supabase tier routing + conversation history + image analysis
 app.post('/message', async (req, res) => {
-  console.log('🔥 [/message] Handler ACTIVE – secure Supabase tier routing');
   
   try {
     // Handle both frontend formats: {message, tier} and {text, userId, conversationId, attachments}
@@ -516,7 +499,6 @@ app.post('/message', async (req, res) => {
 
         if (checkError && checkError.code === 'PGRST116') {
           // Conversation doesn't exist, create it
-          console.log('🆕 [Backend] Creating conversation:', conversationId);
           const { error: createError } = await supabase
             .from('conversations')
             .insert([{
@@ -528,17 +510,14 @@ app.post('/message', async (req, res) => {
             }]);
 
           if (createError) {
-            console.error('❌ [Backend] Failed to create conversation:', createError);
           } else {
             console.log('✅ [Backend] Conversation created successfully');
           }
         } else if (checkError) {
-          console.error('❌ [Backend] Error checking conversation:', checkError);
         } else {
           console.log('✅ [Backend] Conversation exists:', conversationId);
         }
       } catch (error) {
-        console.error('❌ [Backend] Error ensuring conversation exists:', error);
       }
     }
 
@@ -546,7 +525,6 @@ app.post('/message', async (req, res) => {
     if (attachments && attachments.length > 0) {
       const imageAttachments = attachments.filter(att => att.type === 'image' && att.url);
       if (imageAttachments.length > 0) {
-        console.log('🖼️ [Image Analysis] Processing', imageAttachments.length, 'images');
         
         // Use the first image for analysis (can be extended for multiple images)
         const imageUrl = imageAttachments[0].url;
@@ -587,7 +565,6 @@ app.post('/message', async (req, res) => {
 
           if (!response.ok) {
             const errorText = await response.text().catch(() => 'Claude Vision API error');
-            console.error('❌ Claude Vision API Error:', errorText);
             throw new Error(`Image analysis failed: ${errorText}`);
           }
 
@@ -606,7 +583,6 @@ app.post('/message', async (req, res) => {
           });
           return;
         } catch (imageError) {
-          console.error('❌ Image analysis error:', imageError);
           return res.status(500).json({ 
             error: 'Image analysis failed',
             details: imageError.message
@@ -639,7 +615,6 @@ app.post('/message', async (req, res) => {
       conversationId: result.conversationId, // ✅ Return conversationId so frontend can track it
     });
   } catch (err) {
-    console.error('❌ [/message] Error:', err);
     res.status(500).json({ error: 'Message processing failed' });
   }
 });
@@ -666,7 +641,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .maybeSingle();
         effectiveTier = subRow?.tier || 'free';
       } catch (error) {
-        console.error('Error fetching subscription:', error);
         effectiveTier = 'free'; // Default to free tier
       }
     }
@@ -684,7 +658,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .eq('role', 'user')
           .gte('created_at', startOfMonth.toISOString());
         if (countErr) {
-          console.error('Count error:', countErr);
         }
         if ((monthlyCount ?? 0) >= 15) {
           return res.status(429).json({
@@ -695,15 +668,12 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           });
         }
       } catch (error) {
-        console.error('Error checking monthly limit:', error);
         // Continue without limit check in case of error
       }
     }
 
     // Update usage stats for Free tier users
-    console.log(`🔍 [Debug] effectiveTier: ${effectiveTier}, userId: ${userId}`);
     if (effectiveTier === 'free') {
-      console.log(`📊 [Usage] Starting usage tracking for user ${userId} (tier: ${effectiveTier})`);
       try {
         const today = new Date().toISOString().slice(0, 10);
         const startOfMonth = new Date();
@@ -745,9 +715,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           })
           .eq('id', userId);
           
-        console.log(`📊 [Usage] Updated usage for user ${userId}: ${currentStats.messages_this_month}/15 this month`);
       } catch (error) {
-        console.error('Error updating usage stats:', error);
         // Continue without updating usage in case of error
       }
     }
@@ -765,7 +733,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .single();
 
         if (!existingConv) {
-          console.log(`🆕 [Backend] Creating conversation: ${finalConversationId}`);
           const { error: convError } = await supabase
             .from('conversations')
             .insert([{
@@ -777,13 +744,11 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             }]);
 
           if (convError) {
-            console.error('❌ [Backend] Failed to create conversation:', convError);
           } else {
             console.log('✅ [Backend] Conversation created successfully');
           }
         }
       } catch (error) {
-        console.error('❌ [Backend] Error checking/creating conversation:', error);
       }
     }
 
@@ -813,14 +778,12 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .single();
 
         if (insertError) {
-          console.error('❌ [Backend] Failed to save user message:', insertError);
           // Continue without storing in case of error
         } else {
           console.log('✅ [Backend] Saved user message');
           storedMessage = stored;
         }
       } catch (error) {
-        console.error('❌ [Backend] Error storing message:', error);
         // Continue without storing in case of error
       }
     }
@@ -841,7 +804,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       routedProvider = 'claude';
     }
     
-    console.log(`🎯 User tier: ${effectiveTier}, Selected model: ${selectedModel}, Provider: ${routedProvider}`);
 
     // 🧠 MEMORY 100%: Get conversation history for context (Core/Studio only)
     let conversationHistory = [];
@@ -856,7 +818,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .limit(10); // Last 10 messages for context
         
         if (historyError) {
-          console.warn('⚠️ [Memory] Could not fetch conversation history:', historyError);
         } else if (historyMessages && historyMessages.length > 0) {
           conversationHistory = historyMessages.map(msg => ({
             role: msg.role,
@@ -865,7 +826,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
         }
       } catch (error) {
-        console.warn('⚠️ [Memory] Error fetching conversation history:', error);
       }
     }
 
@@ -893,17 +853,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         
         // 🎯 Real AI Model Logic - Use Claude based on tier
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
-          console.log('🚀 Streaming Claude response...');
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
           console.log('✅ Claude streaming completed, final text length:', finalText.length);
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
-          console.log('🔄 Falling back to Claude...');
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
           console.log('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
-          console.log('⚠️ No AI API keys available, using mock streaming...');
-          console.log(`   Claude API Key: ${ANTHROPIC_API_KEY ? 'Present' : 'Missing'}`);
           // Fallback mock streaming for mobile
           const mockChunks = [
             'Hello! I received your message: ',
@@ -913,17 +869,14 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           ];
           
           for (const chunk of mockChunks) {
-            console.log('Sending chunk:', chunk);
             writeSSE(res, { chunk });
             // Force flush for Safari/iOS
             if (res.flush) res.flush();
             await new Promise(r => setTimeout(r, 200));
           }
           finalText = mockChunks.join('');
-          console.log('Mock streaming completed, final text length:', finalText.length);
         }
       } catch (streamErr) {
-        console.error('Streaming error:', streamErr);
         // Send error as SSE chunk
         writeSSE(res, { chunk: 'Sorry, I hit an error generating the response.' });
         finalText = 'Sorry, I hit an error generating the response.';
@@ -951,13 +904,11 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             .select()
             .single();
           if (responseError) {
-            console.error('❌ [Backend] Failed to save assistant message:', responseError);
           } else {
             console.log('✅ [Backend] Saved assistant message');
             storedResponse = stored;
           }
         } catch (error) {
-          console.error('Error storing AI response:', error);
         }
       }
       
@@ -977,7 +928,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         // Retry logic for Claude API calls
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            console.log(`🔄 [Claude API] Attempt ${attempt}/3 for message processing`);
             response = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: {
@@ -997,26 +947,21 @@ app.post('/api/message', verifyJWT, async (req, res) => {
               break;
             } else {
               lastError = await response.text().catch(() => 'Claude API error');
-              console.error(`❌ [Claude API] Attempt ${attempt} failed:`, lastError);
               
               if (attempt < 3) {
-                console.log(`⏳ [Claude API] Waiting 2 seconds before retry...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
             }
           } catch (fetchError) {
             lastError = fetchError.message;
-            console.error(`❌ [Claude API] Attempt ${attempt} error:`, fetchError.message);
             
             if (attempt < 3) {
-              console.log(`⏳ [Claude API] Waiting 2 seconds before retry...`);
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
           }
         }
         
         if (!response || !response.ok) {
-          console.error('❌ [Claude API] All retry attempts failed');
           finalText = '⚠️ Atlas had an error contacting Claude. Please try again.';
         } else {
           const data = await response.json();
@@ -1029,7 +974,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            console.log(`🔄 [Claude Fallback] Attempt ${attempt}/3 for message processing`);
             response = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: {
@@ -1049,26 +993,21 @@ app.post('/api/message', verifyJWT, async (req, res) => {
               break;
             } else {
               lastError = await response.text().catch(() => 'Claude API error');
-              console.error(`❌ [Claude Fallback] Attempt ${attempt} failed:`, lastError);
               
               if (attempt < 3) {
-                console.log(`⏳ [Claude Fallback] Waiting 2 seconds before retry...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
             }
           } catch (fetchError) {
             lastError = fetchError.message;
-            console.error(`❌ [Claude Fallback] Attempt ${attempt} error:`, fetchError.message);
             
             if (attempt < 3) {
-              console.log(`⏳ [Claude Fallback] Waiting 2 seconds before retry...`);
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
           }
         }
         
         if (!response || !response.ok) {
-          console.error('❌ [Claude Fallback] All retry attempts failed');
           finalText = '⚠️ Atlas had an error contacting Claude. Please try again.';
         } else {
           const data = await response.json();
@@ -1076,7 +1015,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         }
       }
     } catch (oneShotErr) {
-      console.error('One-shot provider error:', oneShotErr);
     }
 
     const aiResponse = {
@@ -1100,13 +1038,11 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .select()
           .single();
         if (responseError) {
-          console.error('❌ [Backend] Failed to save assistant message:', responseError);
         } else {
           console.log('✅ [Backend] Saved assistant message');
           storedResponse = stored;
         }
       } catch (error) {
-        console.error('Error storing AI response:', error);
       }
     }
 
@@ -1118,7 +1054,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Message processing error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1132,13 +1067,11 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    console.log('🖼️ [Image Analysis] Processing image:', imageUrl);
 
     // Download image and convert to base64 for Claude API
     let imageBase64;
     let claudeMediaType;
     try {
-      console.log('📥 [Image Analysis] Downloading image from URL...');
       const imageResponse = await fetch(imageUrl, {
         headers: {
           'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
@@ -1159,7 +1092,6 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
       
       console.log('✅ [Image Analysis] Image downloaded and converted to base64');
     } catch (downloadError) {
-      console.error('❌ [Image Analysis] Failed to download image:', downloadError.message);
       return res.status(400).json({ 
         error: 'Failed to download image',
         details: downloadError.message
@@ -1172,7 +1104,6 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        console.log(`🔄 [Image Analysis] Attempt ${attempt}/3 to call Claude Vision API`);
         response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -1210,26 +1141,21 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
           break; // Success, exit retry loop
         } else {
           lastError = await response.text().catch(() => 'Claude Vision API error');
-          console.error(`❌ [Image Analysis] Attempt ${attempt} failed:`, lastError);
           
           if (attempt < 3) {
-            console.log(`⏳ [Image Analysis] Waiting 2 seconds before retry...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }
       } catch (fetchError) {
         lastError = fetchError.message;
-        console.error(`❌ [Image Analysis] Attempt ${attempt} error:`, fetchError.message);
         
         if (attempt < 3) {
-          console.log(`⏳ [Image Analysis] Waiting 2 seconds before retry...`);
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     }
 
     if (!response || !response.ok) {
-      console.error('❌ [Image Analysis] All retry attempts failed');
       return res.status(500).json({ 
         error: 'Image analysis failed after 3 attempts',
         details: lastError,
@@ -1253,7 +1179,6 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
           created_at: new Date().toISOString()
         });
       } catch (dbError) {
-        console.error('Error storing image analysis:', dbError);
         // Continue without failing the request
       }
     }
@@ -1266,7 +1191,6 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Image analysis error:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message
@@ -1294,7 +1218,6 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
     const tier = profile?.subscription_tier || 'free';
     
     if (tier === 'free') {
-      console.log(`🚫 [Transcribe] Free user ${userId} attempted to use audio - blocked`);
       return res.status(403).json({ 
         error: 'Audio transcription requires Core or Studio tier',
         upgradeRequired: true,
@@ -1304,16 +1227,13 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
     }
 
     if (!openai) {
-      console.error('❌ [Transcribe] OpenAI API key not configured');
       return res.status(503).json({ error: 'Audio transcription service unavailable' });
     }
 
-    console.log(`🎙️ [Transcribe] Processing audio for user ${userId} (tier: ${tier})`);
 
     // Download audio file from Supabase Storage
     let audioBuffer;
     try {
-      console.log('📥 [Transcribe] Downloading audio from:', audioUrl);
       const audioResponse = await fetch(audioUrl, {
         headers: {
           'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
@@ -1327,7 +1247,6 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
       audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
       console.log(`✅ [Transcribe] Audio downloaded: ${audioBuffer.length} bytes`);
     } catch (downloadError) {
-      console.error('❌ [Transcribe] Failed to download audio:', downloadError);
       return res.status(400).json({ 
         error: 'Failed to download audio file',
         details: downloadError.message
@@ -1342,7 +1261,6 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
       await writeFile(tmpFile, audioBuffer);
       
       // Transcribe with OpenAI Whisper
-      console.log('🔄 [Transcribe] Calling OpenAI Whisper API...');
       const transcription = await openai.audio.transcriptions.create({
         file: await import('fs').then(fs => fs.createReadStream(tmpFile)),
         model: 'whisper-1',
@@ -1371,9 +1289,7 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
             }
           }).eq('id', userId);
           
-          console.log(`📊 [Transcribe] Audio usage updated: ${Math.ceil(newUsage)} minutes`);
         } catch (dbError) {
-          console.error('Error updating audio usage:', dbError);
         }
       }
       
@@ -1385,7 +1301,6 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
       });
       
     } catch (whisperError) {
-      console.error('❌ [Transcribe] Whisper API error:', whisperError);
       await unlink(tmpFile).catch(() => {});
       
       return res.status(500).json({ 
@@ -1395,7 +1310,6 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
     }
     
   } catch (error) {
-    console.error('❌ [Transcribe] Error:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message
@@ -1423,7 +1337,6 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
     const tier = profile?.subscription_tier || 'free';
     
     if (tier === 'free') {
-      console.log(`🚫 [Synthesize] Free user ${userId} attempted to use TTS - blocked`);
       return res.status(403).json({ 
         error: 'Text-to-speech requires Core or Studio tier',
         upgradeRequired: true,
@@ -1433,7 +1346,6 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
     }
 
     if (!openai) {
-      console.error('❌ [Synthesize] OpenAI API key not configured');
       return res.status(503).json({ error: 'Text-to-speech service unavailable' });
     }
 
@@ -1443,8 +1355,6 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
     const model = tier === 'studio' ? 'tts-1-hd' : 'tts-1';
     const voice = tier === 'studio' ? 'nova' : 'alloy'; // Nova is more expressive for Studio
 
-    console.log(`🔊 [Synthesize] Generating speech for user ${userId} (tier: ${tier}, model: ${model}, voice: ${voice})`);
-    console.log(`📝 [Synthesize] Text: "${text.slice(0, 50)}..."`);
 
     try {
       // Generate speech with OpenAI TTS
@@ -1473,7 +1383,6 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
       });
       
     } catch (openaiError) {
-      console.error('❌ [Synthesize] OpenAI TTS error:', openaiError);
       return res.status(500).json({ 
         error: 'Speech synthesis failed',
         details: openaiError.message
@@ -1481,7 +1390,6 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
     }
     
   } catch (error) {
-    console.error('❌ [Synthesize] Error:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: error.message
@@ -1522,14 +1430,12 @@ app.get('/api/conversations/:conversationId/messages', verifyJWT, async (req, re
     const { data: messages, error } = await query.order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching messages:', error);
       return res.status(500).json({ error: 'Failed to fetch messages' });
     }
 
     res.json({ messages });
 
   } catch (error) {
-    console.error('Error fetching conversation:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1545,13 +1451,11 @@ app.post('/api/mailerlite/event', async (req, res) => {
       });
     }
 
-    console.log(`📧 MailerLite event triggered: ${event} for ${email}`);
 
     // Get MailerLite API key from environment
     const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
     
     if (!MAILERLITE_API_KEY) {
-      console.warn('MailerLite API key not configured');
       return res.status(500).json({ 
         error: 'MailerLite service not configured' 
       });
@@ -1589,7 +1493,6 @@ app.post('/api/mailerlite/event', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ MailerLite webhook error:', error);
     
     res.status(500).json({ 
       error: 'Failed to trigger MailerLite event',
@@ -1609,12 +1512,10 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
       });
     }
 
-    console.log(`📧 Syncing subscriber: ${email} (${tier})`);
 
     const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
     
     if (!MAILERLITE_API_KEY) {
-      console.warn('MailerLite API key not configured');
       return res.status(500).json({ 
         error: 'MailerLite service not configured' 
       });
@@ -1676,7 +1577,6 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
         });
         console.log(`✅ Subscriber ${email} added to group ${targetGroup}`);
       } catch (groupError) {
-        console.warn(`⚠️ Failed to add subscriber to group ${targetGroup}:`, groupError);
       }
     }
 
@@ -1687,7 +1587,6 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ MailerLite subscriber sync error:', error);
     
     res.status(500).json({ 
       error: 'Failed to sync subscriber',
@@ -1700,7 +1599,6 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
 app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
   try {
     const userId = req.params.id;
-    console.log('🔍 User profile endpoint called for user:', userId);
 
     if (!userId) {
       return res.status(400).json({ error: "Missing user ID" });
@@ -1710,30 +1608,25 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
     const authUser = req.user;
     
     if (!authUser?.id) {
-      console.error('No authenticated user found in request');
       return res.status(401).json({ error: 'Missing or invalid authenticated user.' });
     }
 
     // Then fetch or create user_profile safely
-    console.log('🔍 Checking if profile exists for user:', userId);
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    console.log('🔍 Profile fetch result:', { profile, error });
 
     if (error && error.code === 'PGRST116') {
       // Create fallback profile if missing
-      console.log(`Creating fallback profile for user: ${userId}`);
       const profileData = {
         id: userId,
         email: `user-${userId}@atlas.dev`,
         preferences: {},
         subscription_tier: 'free'
       };
-      console.log('🔍 Creating profile with data:', profileData);
       
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
@@ -1741,10 +1634,8 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
         .select()
         .single();
 
-      console.log('🔍 Profile creation result:', { newProfile, createError });
 
       if (createError) {
-        console.error('Error creating user profile:', createError);
         return res.status(500).json({ error: "Failed to create user profile", details: createError });
       }
 
@@ -1753,13 +1644,11 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
     }
 
     if (error) {
-      console.error('Error fetching user profile:', error);
       return res.status(500).json({ error: "Database error", details: error });
     }
 
     return res.status(200).json(profile);
   } catch (error) {
-    console.error('User profile endpoint error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1768,7 +1657,6 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
 app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
   try {
     const { user_id } = req.body;
-    console.log('🔍 Create user profile endpoint called for user:', user_id);
 
     if (!user_id) {
       return res.status(400).json({ error: "Missing user_id" });
@@ -1786,7 +1674,6 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
     
     // Handle Supabase errors or missing user
     if (authError || !authUser?.user?.id) {
-      console.error('Supabase getUser error:', authError);
       return res.status(401).json({ error: 'Missing or invalid authenticated user.' });
     }
 
@@ -1796,7 +1683,6 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
       preferences: {},
       subscription_tier: 'free'
     };
-    console.log('🔍 Creating profile with data:', profileData);
 
     const { data: newProfile, error: createError } = await supabase
       .from("profiles")
@@ -1804,17 +1690,14 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
       .select()
       .single();
 
-    console.log('🔍 Profile creation result:', { newProfile, createError });
 
     if (createError) {
-      console.error('Error creating user profile:', createError);
       return res.status(500).json({ error: "Failed to create user profile", details: createError });
     }
 
     console.log(`✅ Created user profile for user: ${user_id}`);
     return res.status(201).json(newProfile);
   } catch (error) {
-    console.error('Create user profile endpoint error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1825,7 +1708,6 @@ app.put('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
     const userId = req.params.id;
     const { subscription_tier } = req.body;
     
-    console.log(`🔧 Updating tier for user ${userId} to ${subscription_tier}`);
     
     const { data, error } = await supabase
       .from('profiles')
@@ -1835,14 +1717,12 @@ app.put('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
       .single();
     
     if (error) {
-      console.error('Error updating profile:', error);
       return res.status(500).json({ error: 'Failed to update profile' });
     }
     
     console.log(`✅ Updated tier for user ${userId} to ${subscription_tier}`);
     return res.status(200).json(data);
   } catch (error) {
-    console.error('Update profile endpoint error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1893,7 +1773,6 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
 
     if (!fastspringResponse.ok) {
       const error = await fastspringResponse.text();
-      console.error('FastSpring API error:', error);
       return res.status(500).json({ error: 'Failed to create checkout session' });
     }
 
@@ -1905,7 +1784,6 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Checkout creation error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1938,13 +1816,11 @@ app.post('/api/feature-attempts', async (req, res) => {
 
     if (error) {
       // If table doesn't exist, just log and continue (non-critical)
-      console.warn("⚠️ Feature attempt logging failed (table may not exist):", error.message);
       return res.json({ status: "ok", warning: "Table not found" });
     }
 
     res.json({ status: "ok" });
   } catch (err) {
-    console.error("Feature attempt logging error:", err);
     // Return success anyway - this is non-critical telemetry
     res.json({ status: "ok", error: err.message });
   }
@@ -1963,7 +1839,6 @@ app.get('*', (req, res) => {
 
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
-  console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);
   process.exit(0);
 };
 
@@ -1974,10 +1849,4 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // ✅ Final "listen" section (replaces old app.listen)
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Atlas backend running on:`);
-  console.log(`   • Local:   http://localhost:${PORT}`);
-  console.log(`   • Network: http://${LOCAL_IP}:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/healthz`);
-  console.log(`🏓 Ping test: http://localhost:${PORT}/ping`);
-  console.log(`🌐 API status: http://localhost:${PORT}/api/status`);
 });

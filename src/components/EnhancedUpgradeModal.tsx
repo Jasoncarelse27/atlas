@@ -18,7 +18,6 @@ export default function EnhancedUpgradeModal({ isOpen, onClose, feature, current
   
   // Simple upgrade modal handler
   const showUpgradeModal = (feature: string) => {
-    console.log(`⚠️ Upgrade required for: ${feature}`);
   };
   const [isVisible, setIsVisible] = useState(false);
 
@@ -35,7 +34,6 @@ export default function EnhancedUpgradeModal({ isOpen, onClose, feature, current
 
   const handleUpgrade = async (tier: 'core' | 'studio') => {
     if (!user?.id || !user?.email) {
-      console.error('User not authenticated');
       return;
     }
 
@@ -48,7 +46,6 @@ export default function EnhancedUpgradeModal({ isOpen, onClose, feature, current
       window.location.href = checkoutUrl;
       
     } catch (error) {
-      console.error('Failed to create checkout:', error);
       // Fallback to showing upgrade modal
       showUpgradeModal('subscription');
     }

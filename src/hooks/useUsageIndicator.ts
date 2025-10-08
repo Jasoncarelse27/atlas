@@ -65,7 +65,6 @@ export function useUsageIndicator() {
 
       // Debug logging in development
       if (import.meta.env.DEV) {
-        console.log('[useUsageIndicator] Usage updated:', {
           tier,
           dailyUsed,
           dailyLimit,
@@ -74,7 +73,6 @@ export function useUsageIndicator() {
         });
       }
     } catch (error: any) {
-      console.error('[useUsageIndicator] Error fetching usage:', error);
       
       // Set fallback state for free tier if API fails
       setState({

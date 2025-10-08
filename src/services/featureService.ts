@@ -10,7 +10,6 @@ const tierFeatures: Record<string, string[]> = {
 }
 
 export function canUseFeature(tier: string, feature: string): boolean {
-  console.log("[FeatureService] Checking feature:", feature, "for tier:", tier)
 
   // Default to false if tier unknown
   if (!tier) return false
@@ -23,7 +22,6 @@ export function useFeatureService() {
   const navigate = useNavigate()
 
   const checkFeature = (feature: "image" | "mic" | "file", tier: "free" | "core" | "studio") => {
-    console.log(`🔍 checkFeature: feature=${feature}, tier=${tier}`)
 
     // Use the new canUseFeature logic
     const hasAccess = canUseFeature(tier, feature)
@@ -56,12 +54,9 @@ export function useFeatureService() {
       });
 
       if (!response.ok) {
-        console.error('Failed to log feature attempt:', response.statusText);
       } else {
-        console.log(`Feature attempt logged: ${feature}, tier: ${tier}`);
       }
     } catch (err) {
-      console.error('Error logging feature attempt:', err);
     }
   }
 
@@ -93,10 +88,8 @@ export class FeatureService {
       });
 
       if (!response.ok) {
-        console.error('Failed to log feature attempt:', response.statusText);
       }
     } catch (err) {
-      console.error('Error logging feature attempt:', err);
     }
   }
 }

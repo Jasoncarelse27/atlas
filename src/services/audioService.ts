@@ -20,7 +20,6 @@ class AudioService {
    */
   async transcribeAudio(audioBlob: Blob, userId: string, sessionId?: string, tier: string = 'free'): Promise<AudioTranscriptionResult> {
     try {
-      console.log('[AudioService] Starting transcription for user:', userId);
 
       // Log recording start event
       await this.logAudioEvent({
@@ -38,8 +37,6 @@ class AudioService {
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-      console.log('[AudioService] Audio blob size:', audioBlob.size, 'bytes');
-      console.log('[AudioService] Base64 length:', base64Audio.length);
 
       // Call STT Edge Function
       const { data, error } = await supabase.functions.invoke('stt', {
@@ -50,7 +47,6 @@ class AudioService {
       });
 
       if (error) {
-        console.error('[AudioService] STT error:', error);
         
         // Log transcription failure
         await this.logAudioEvent({
@@ -65,7 +61,6 @@ class AudioService {
       }
 
       if (!data?.text) {
-        console.error('[AudioService] No transcription text received');
         
         await this.logAudioEvent({
           event_type: 'transcription_fail',
@@ -78,7 +73,6 @@ class AudioService {
         throw new Error('No transcription text received');
       }
 
-      console.log('[AudioService] Transcription successful:', data.text);
 
       // Log transcription success
       await this.logAudioEvent({
@@ -100,7 +94,6 @@ class AudioService {
       };
 
     } catch (error) {
-      console.error('[AudioService] Transcription failed:', error);
       
       // Log transcription failure
       await this.logAudioEvent({
@@ -120,7 +113,6 @@ class AudioService {
    */
   async logAudioEvent(event: AudioEvent): Promise<void> {
     try {
-      console.log('[AudioService] Logging audio event:', event.event_type);
 
       const { error } = await supabase
         .from('audio_events')
@@ -134,13 +126,10 @@ class AudioService {
         });
 
       if (error) {
-        console.error('[AudioService] Failed to log audio event:', error);
         // Don't throw - logging failures shouldn't break the user flow
       } else {
-        console.log('[AudioService] Audio event logged successfully');
       }
     } catch (error) {
-      console.error('[AudioService] Error logging audio event:', error);
       // Don't throw - logging failures shouldn't break the user flow
     }
   }
@@ -166,7 +155,6 @@ class AudioService {
    * Play TTS audio (placeholder for future implementation)
    */
   play(text: string): void {
-    console.log('[AudioService] TTS playback requested:', text.substring(0, 50) + '...');
     // TODO: Implement TTS playback
   }
 }

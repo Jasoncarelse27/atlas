@@ -36,7 +36,6 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
   const uploadProgress = message.metadata?.uploadProgress ?? 0;
   const caption = message.metadata?.caption; // Get caption from metadata
   
-  console.log("[ImageMessageBubble] Final render URL:", imageUrl);
 
   const openViewer = () => {
     setIndex(currentIndex);
@@ -212,7 +211,6 @@ export function ImageMessageBubble({ message, onRetry, allMessages = [] }: Image
                   alt="uploaded"
                   className="h-40 w-full cursor-pointer object-cover transition-opacity hover:opacity-90"
                   onError={(e) => {
-                    console.error("[ImageMessageBubble] Failed to load:", imageUrl);
                     handleImageError(e);
                   }}
                   onClick={openViewer}

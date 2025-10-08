@@ -23,7 +23,6 @@ export function useMessageLimit(conversationId: string, userId?: string) {
           .eq('user_id', userId);
 
         if (error) {
-          console.error('Error fetching message count:', error);
           const localCount = parseInt(localStorage.getItem(`msg_count_${conversationId}`) || '0');
           setCount(localCount);
         } else {
@@ -34,7 +33,6 @@ export function useMessageLimit(conversationId: string, userId?: string) {
           setBlocked(true);
         }
       } catch (error) {
-        console.error('Error in fetchMessageCount:', error);
         const localCount = parseInt(localStorage.getItem(`msg_count_${conversationId}`) || '0');
         setCount(localCount);
         

@@ -13,7 +13,6 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
   const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
   
   if (process.env.NODE_ENV !== 'production' || isCI) {
-    console.warn('[Atlas] Missing backend Supabase env vars. Using mock client in DEV/CI.');
     // Mock client avoids backend crash in dev/ci
     supabase = { 
       from: () => ({ 
@@ -34,7 +33,6 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
     throw new Error('[Atlas] Missing Supabase backend env vars in PROD!');
   }
 } else {
-  console.log('[Atlas] Backend Supabase client created with:', supabaseUrl);
   supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: { autoRefreshToken: true, persistSession: false }
   });

@@ -52,28 +52,23 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       ...result,
       timestamp: new Date().toISOString()
     };
-    console.log('🧪 Adding test result:', resultWithTimestamp);
     setTestResults(prev => {
       const newResults = [...prev, resultWithTimestamp];
-      console.log('🧪 New results array length:', newResults.length);
       return newResults;
     });
   }, []);
 
   const updateTestResult = useCallback((testName: string, updates: Partial<TestResult>) => {
-    console.log('🧪 Updating test result for:', testName, 'with updates:', updates);
     setTestResults(prev => {
       const newResults = prev.map(result => 
         result.test === testName ? { ...result, ...updates, timestamp: new Date().toISOString() } : result
       );
-      console.log('🧪 Updated results array length:', newResults.length);
       return newResults;
     });
   }, []);
 
   const testDatabaseConnection = async () => {
     const testName = 'database-connection';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -83,7 +78,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     });
 
     try {
-      console.log('🧪 Testing basic Supabase connection...');
       
       // Test 1: Basic connection
       const { error: healthError } = await supabase
@@ -92,7 +86,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         .limit(0);
 
       if (healthError && !healthError.message.includes('PGRST116')) {
-        console.error('🧪 Health check failed:', healthError);
         updateTestResult(testName, {
           status: 'fail',
           message: `Database connection failed: ${healthError.message}`,
@@ -101,7 +94,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         return;
       }
 
-      console.log('🧪 Basic connection OK, testing table access...');
 
       // Test 2: Table access
       const { data: tableTest, error: tableError } = await supabase
@@ -110,7 +102,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         .limit(1);
 
       if (tableError) {
-        console.error('🧪 Table access failed:', tableError);
         updateTestResult(testName, {
           status: 'fail',
           message: `user_profiles table not accessible: ${tableError.message}`,
@@ -119,7 +110,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         return;
       }
 
-      console.log('🧪 Table access OK, testing RPC functions...');
 
       // Test 3: RPC functions
       let rpcWorking = false;
@@ -129,12 +119,9 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         
         if (!rpcError) {
           rpcWorking = true;
-          console.log('🧪 RPC functions working');
         } else {
-          console.warn('🧪 RPC functions not working:', rpcError);
         }
       } catch (rpcErr) {
-        console.warn('🧪 RPC test failed:', rpcErr);
       }
 
       updateTestResult(testName, {
@@ -149,7 +136,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       });
 
     } catch (error) {
-      console.error('🧪 Database connection test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Database test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -160,7 +146,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testProfileCreation = async () => {
     const testName = 'profile-creation';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -178,7 +163,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         return;
       }
 
-      console.log('🧪 User found:', user.id);
 
       if (!profile) {
         updateTestResult(testName, {
@@ -189,7 +173,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         return;
       }
 
-      console.log('🧪 Profile found:', profile);
 
       // Check profile structure
       const requiredFields = ['id', 'tier', 'subscription_status', 'usage_stats', 'created_at'];
@@ -232,7 +215,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       });
 
     } catch (error) {
-      console.error('🧪 Profile creation test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Profile test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -243,7 +225,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testUsageLimits = async () => {
     const testName = 'usage-limits';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -253,17 +234,13 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     });
 
     try {
-      console.log('🧪 Testing usage limit checks...');
       
       // Test different action types
       const requestCheck = await checkUsageLimit('request');
-      console.log('🧪 Request check result:', requestCheck);
       
       const audioCheck = await checkUsageLimit('audio');
-      console.log('🧪 Audio check result:', audioCheck);
       
       const storageCheck = await checkUsageLimit('storage');
-      console.log('🧪 Storage check result:', storageCheck);
 
       const allChecks = { requestCheck, audioCheck, storageCheck };
       
@@ -288,7 +265,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         storage: getUsagePercentage('storage')
       };
 
-      console.log('🧪 Usage percentages:', percentages);
 
       const allAllowed = Object.values(allChecks).every(check => check.allowed);
 
@@ -304,7 +280,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       });
 
     } catch (error) {
-      console.error('🧪 Usage limits test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Usage limits test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -315,7 +290,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testFeatureAccess = async () => {
     const testName = 'feature-access';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -334,7 +308,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
           feature === 'image' ? 
           (tier === 'core' || tier === 'studio') :
           true; // text is always available
-        console.log(`🧪 Feature ${feature} access:`, canAccess);
         return { feature, canAccess };
       });
 
@@ -345,14 +318,12 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         { voice: true, text: true, image: true } :
         { voice: true, text: true, image: true }; // studio
 
-      console.log('🧪 Expected access for tier', profile?.tier, ':', expectedAccess);
 
       const isCorrect = accessResults.every(result => 
         expectedAccess[result.feature as keyof typeof expectedAccess] === result.canAccess
       );
 
       const trialExpired = false; // TODO: Implement trial expiry check
-      console.log('🧪 Trial expired:', trialExpired);
 
       updateTestResult(testName, {
         status: isCorrect ? 'pass' : 'warning',
@@ -369,7 +340,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       });
 
     } catch (error) {
-      console.error('🧪 Feature access test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Feature access test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -380,7 +350,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testTrialExpiry = async () => {
     const testName = 'trial-expiry';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -394,7 +363,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       const expired = isTrialExpired();
       const trialEndDate = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
       
-      console.log('🧪 Trial data:', {
         daysRemaining,
         expired,
         trialEndDate,
@@ -435,7 +403,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       });
 
     } catch (error) {
-      console.error('🧪 Trial expiry test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Trial expiry test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -446,7 +413,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testUsageUpdates = async () => {
     const testName = 'usage-updates';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -457,7 +423,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
     try {
       const initialUsage = profile?.usage_stats;
-      console.log('🧪 Initial usage stats:', initialUsage);
       
       updateTestResult(testName, {
         status: 'running',
@@ -468,7 +433,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Test 1: Update request usage
-      console.log('🧪 Testing request usage update...');
       updateTestResult(testName, {
         status: 'running',
         message: 'Updating request usage (+1)...',
@@ -479,7 +443,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Test 2: Update audio usage
-      console.log('🧪 Testing audio usage update...');
       updateTestResult(testName, {
         status: 'running',
         message: 'Updating audio usage (+2 minutes)...',
@@ -490,7 +453,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Test 3: Update storage usage
-      console.log('🧪 Testing storage usage update...');
       updateTestResult(testName, {
         status: 'running',
         message: 'Updating storage usage (+5 MB)...',
@@ -501,7 +463,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Refresh profile to get updated stats
-      console.log('🧪 Refreshing profile to get updated stats...');
       updateTestResult(testName, {
         status: 'running',
         message: 'Refreshing profile to verify updates...',
@@ -518,7 +479,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         storage: getUsagePercentage('storage')
       };
 
-      console.log('🧪 Final usage percentages:', finalPercentages);
 
       updateTestResult(testName, {
         status: 'pass',
@@ -537,7 +497,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       });
 
     } catch (error) {
-      console.error('🧪 Usage updates test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Usage updates test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -548,7 +507,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testRailwayBackend = async () => {
     const testName = 'railway-backend';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -558,7 +516,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     });
 
     try {
-      console.log('🧪 Testing Railway backend connection...');
       
       const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const railwayUrl = backendUrl;
@@ -571,8 +528,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         
         for (let attempt = 1; attempt <= retries; attempt++) {
           try {
-            console.log(`🧪 Testing ${endpoint.name} - Attempt ${attempt}/${retries}`);
-            console.log(`📍 URL: ${testUrl}`);
             
             const response = await fetch(testUrl, {
               method: 'GET',
@@ -584,8 +539,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
               signal: AbortSignal.timeout(timeout)
             });
 
-            console.log(`📡 Response Status: ${response.status} ${response.statusText}`);
-            console.log(`📋 Response Headers:`, Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -616,17 +569,13 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             lastError = errorMessage;
             
-            console.error(`❌ Attempt ${attempt} failed:`, error);
             
             if (error instanceof Error && error.name === 'AbortError') {
-              console.error(`⏰ Timeout after ${timeout}ms`);
             } else if (error instanceof TypeError && error.message.includes('fetch')) {
-              console.error(`🌐 Network error`);
             }
 
             if (attempt < retries) {
               const delay = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
-              console.log(`⏳ Waiting ${delay}ms before retry...`);
               await new Promise(resolve => setTimeout(resolve, delay));
             }
           }
@@ -693,7 +642,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       }
 
     } catch (error) {
-      console.error('🧪 Railway backend test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Railway backend test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -704,7 +652,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
   const testBackendHealthSuite = async () => {
     const testName = 'backend-health-suite';
-    console.log('🧪 Running test:', testName);
     setCurrentTest(testName);
     
     addTestResult({
@@ -728,8 +675,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-          console.log(`🧪 Testing ${endpoint.name} (${baseUrl}) - Attempt ${attempt}/${retries}`);
-          console.log(`📍 URL: ${testUrl}`);
           
           const response = await fetch(testUrl, {
             method: 'GET',
@@ -741,8 +686,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
             signal: AbortSignal.timeout(timeout)
           });
 
-          console.log(`📡 ${endpoint.name} Response Status: ${response.status} ${response.statusText}`);
-          console.log(`📋 ${endpoint.name} Response Headers:`, Object.fromEntries(response.headers.entries()));
 
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -760,7 +703,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
           // Check for expected status field
           const hasExpectedStatus = data.status === endpoint.expectedStatus || data.backend === 'ok';
           if (!hasExpectedStatus) {
-            console.warn(`⚠️ ${endpoint.name} returned unexpected status: ${data.status || data.backend}`);
           }
 
           return {
@@ -774,17 +716,13 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           lastError = errorMessage;
           
-          console.error(`❌ ${endpoint.name} attempt ${attempt} failed:`, error);
           
           if (error instanceof Error && error.name === 'AbortError') {
-            console.error(`⏰ ${endpoint.name} timeout after ${timeout}ms`);
           } else if (error instanceof TypeError && error.message.includes('fetch')) {
-            console.error(`🌐 ${endpoint.name} network error`);
           }
 
           if (attempt < retries) {
             const delay = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
-            console.log(`⏳ Waiting ${delay}ms before retry...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
@@ -810,7 +748,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       };
 
       // Test Railway endpoints
-      console.log('🧪 --- Testing Railway Backend ---');
       updateTestResult(testName, {
         status: 'running',
         message: 'Testing Railway backend endpoints...',
@@ -830,7 +767,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       }
 
       // Test Local endpoints
-      console.log('🧪 --- Testing Local Backend ---');
       updateTestResult(testName, {
         status: 'running',
         message: 'Testing local backend endpoints...',
@@ -853,10 +789,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       const successRate = (results.summary.successfulTests / results.summary.totalEndpoints) * 100;
       const avgResponseTime = results.summary.totalResponseTime / results.summary.successfulTests;
 
-      console.log('🧪 --- Backend Health Suite Results ---');
-      console.log('📊 Summary:', results.summary);
-      console.log('🚀 Railway Results:', results.railway);
-      console.log('🏠 Local Results:', results.local);
 
       let status: 'pass' | 'fail' | 'warning' = 'pass';
       let message = '';
@@ -886,7 +818,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       });
 
     } catch (error) {
-      console.error('🧪 Backend health suite test failed:', error);
       updateTestResult(testName, {
         status: 'fail',
         message: `Backend health suite failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -896,10 +827,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
   };
 
   const runAllTests = async () => {
-    console.log('🧪 --- Starting all tests ---');
-    console.log('🧪 Selected tests:', selectedTests);
-    console.log('🧪 User:', user?.id);
-    console.log('🧪 Profile:', profile);
     
     setIsRunning(true);
     setTestResults([]);
@@ -919,14 +846,11 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     try {
       for (const testName of selectedTests) {
         if (testFunctions[testName as keyof typeof testFunctions]) {
-          console.log(`🧪 Running ${testName} test...`);
           setCurrentTest(testName);
           
           try {
             await testFunctions[testName as keyof typeof testFunctions]();
-            console.log(`🧪 Completed ${testName} test`);
           } catch (testError) {
-            console.error(`🧪 Error in ${testName} test:`, testError);
             updateTestResult(testName, {
               status: 'fail',
               message: `Test execution failed: ${testError instanceof Error ? testError.message : 'Unknown error'}`,
@@ -939,7 +863,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         }
       }
     } catch (error) {
-      console.error('🧪 Error during test execution:', error);
       addTestResult({
         test: 'test-runner',
         status: 'fail',
@@ -949,8 +872,6 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     } finally {
       setIsRunning(false);
       setCurrentTest(null);
-      console.log('🧪 --- All tests finished ---');
-      console.log('🧪 Final test results count:', testResults.length);
     }
   };
 

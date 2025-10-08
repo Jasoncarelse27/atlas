@@ -36,14 +36,12 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
         setCopiedStates(prev => ({ ...prev, [codeId]: false }));
       }, 2000);
     } catch (err) {
-      console.error('Copy failed', err);
     }
   };
 
   const retryAttachmentUpload = async (messageId: string, attachment: Attachment, idx: number) => {
     try {
       if (!attachment.file) {
-        console.error('No file available for retry');
         return;
       }
 
@@ -75,7 +73,6 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
       finalUpdated[idx] = { ...attachment, url: publicUrl, failed: false, progress: 100 };
       updateMessage(messageId, { attachments: finalUpdated, status: 'sent' });
     } catch (err) {
-      console.error("[MessageRenderer] Retry failed:", err);
       // Mark as failed
       const state = useMessageStore.getState();
       const msg = state.messages.find((m) => m.id === messageId);
@@ -248,7 +245,6 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
             try {
               return <BlockMath math={String(children)} {...props} />;
             } catch (error) {
-              console.error('KaTeX rendering error:', error);
               return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
             }
           },
@@ -256,7 +252,6 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
             try {
               return <InlineMath math={String(children)} {...props} />;
             } catch (error) {
-              console.error('KaTeX inline rendering error:', error);
               return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
             }
           },
@@ -381,7 +376,6 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
         setCopiedStates(prev => ({ ...prev, [codeId]: false }));
       }, 2000);
     } catch (err) {
-      console.error('Copy failed', err);
     }
   };
 
@@ -396,7 +390,6 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             try {
               return <BlockMath math={String(children)} {...props} />;
             } catch (error) {
-              console.error('KaTeX rendering error:', error);
               return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
             }
           },
@@ -404,7 +397,6 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             try {
               return <InlineMath math={String(children)} {...props} />;
             } catch (error) {
-              console.error('KaTeX inline rendering error:', error);
               return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
             }
           },

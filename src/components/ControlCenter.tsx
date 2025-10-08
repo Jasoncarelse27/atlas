@@ -102,7 +102,6 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
       await saveCustomization();
       playSound('success');
     } catch (error) {
-      console.error('Failed to save customization:', error);
       playSound('error');
     } finally {
       setIsLoading(false);
@@ -948,7 +947,6 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
                     
                     playSound('success');
                   } catch (error) {
-                    console.error('Failed to parse settings file:', error);
                     playSound('error');
                   }
                 };

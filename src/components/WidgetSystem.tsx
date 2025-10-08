@@ -141,7 +141,6 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
       try {
         setWidgets(JSON.parse(savedWidgets));
       } catch (error) {
-        console.error('Failed to load widgets:', error);
       }
     }
   }, [user.id]);
@@ -544,7 +543,6 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
                   } ${btn === '0' ? 'col-span-2' : ''}`}
                   onClick={() => {
                     // Calculator logic would go here
-                    console.log('Calculator button clicked:', btn);
                   }}
                 >
                   {btn}

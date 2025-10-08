@@ -1,6 +1,5 @@
 // Fallback email failure logger for when Supabase is not available
 const logEmailFailure = async (recipient: string, template: string, error: string) => {
-  console.log(`[MockService] Email failure logged: ${recipient} (${template}) - ${error}`);
 };
 
 // Mock MailerLite service for tests
@@ -9,14 +8,12 @@ export const mailerService = {
     // Simulate validation errors for empty email
     if (!to || to.trim() === '') {
       const errorMessage = 'Email address is required';
-      console.log(`[MOCK][FAILED] Empty email address for template ${templateId}`);
       return { success: false, error: errorMessage };
     }
 
     // Simulate failure if SIMULATE_FAILURE=true
     if (process.env.SIMULATE_FAILURE === "true") {
       const errorMessage = `Mock failure: ${templateId} to ${to}`;
-      console.log(`[MOCK][FAILED] Would have sent ${templateId} to ${to}`, data);
       
       // Log mock failure to Supabase for testing
       await logEmailFailure(to, templateId, errorMessage);
@@ -47,7 +44,6 @@ export const mailerService = {
       }
     }
     
-    console.log(`[MOCK] Email sent to ${to} with template ${templateId}`, data);
     return { 
       success: true, 
       mock: true, 
@@ -59,7 +55,6 @@ export const mailerService = {
   // Optional: Simulate failure for testing error handling
   sendEmailWithFailure: async (to: string, templateId: string, data: any) => {
     const errorMessage = `Mock failure: ${templateId} to ${to}`;
-    console.log(`[MOCK][FAILED] Would have sent ${templateId} to ${to}`, data);
     
     // Log mock failure to Supabase for testing
     await logEmailFailure(to, templateId, errorMessage);

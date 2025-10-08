@@ -1,6 +1,5 @@
 // Manual database reset utility - call this from browser console if needed
 export const manualResetDB = async () => {
-  console.log('🔄 Starting manual database reset...');
   
   try {
     // Clear all storage
@@ -10,11 +9,9 @@ export const manualResetDB = async () => {
     // Delete all IndexedDB databases
     if ('indexedDB' in window) {
       const databases = await indexedDB.databases();
-      console.log('Found databases:', databases);
       
       for (const db of databases) {
         if (db.name) {
-          console.log(`Deleting database: ${db.name}`);
           const deleteReq = indexedDB.deleteDatabase(db.name);
           await new Promise((resolve, reject) => {
             deleteReq.onsuccess = () => {
@@ -22,11 +19,9 @@ export const manualResetDB = async () => {
               resolve(true);
             };
             deleteReq.onerror = () => {
-              console.error(`❌ Failed to delete ${db.name}:`, deleteReq.error);
               reject(deleteReq.error);
             };
             deleteReq.onblocked = () => {
-              console.warn(`⚠️ ${db.name} deletion blocked`);
               resolve(true);
             };
           });
@@ -39,7 +34,6 @@ export const manualResetDB = async () => {
       const cacheNames = await caches.keys();
       for (const cacheName of cacheNames) {
         await caches.delete(cacheName);
-        console.log(`🗑️ Deleted cache: ${cacheName}`);
       }
     }
     
@@ -47,7 +41,6 @@ export const manualResetDB = async () => {
     setTimeout(() => window.location.reload(), 1000);
     
   } catch (error) {
-    console.error('❌ Database reset failed:', error);
   }
 };
 

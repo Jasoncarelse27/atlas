@@ -76,7 +76,6 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       if (recordingRef.current && isRecording) {
         // Guard against double-tap
         if (isProcessing) {
-          console.log("Already processing, ignoring stop request");
           return;
         }
         
@@ -144,7 +143,6 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       
       return transcription;
     } catch (error) {
-      console.error("Fallback transcription error:", error);
       return "Voice transcription completed - please check the message for the full response";
     }
   };

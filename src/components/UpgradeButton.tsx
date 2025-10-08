@@ -44,7 +44,6 @@ export function UpgradeButton({
 
   const handleUpgrade = async () => {
     if (!user?.id || !user?.email) {
-      console.error('User not authenticated');
       return;
     }
 
@@ -59,7 +58,6 @@ export function UpgradeButton({
       window.location.href = checkoutUrl;
       
     } catch (error) {
-      console.error('Failed to create checkout:', error);
       // Fallback to showing upgrade modal
       showUpgradeModal('subscription');
     } finally {

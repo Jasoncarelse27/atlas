@@ -23,7 +23,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   
   // Early return if message is invalid
   if (!message) {
-    console.warn('Invalid message object:', message);
     return null;
   }
 
@@ -243,7 +242,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                   <StopButton 
                     onPress={() => {
                       // TODO: Implement stop generation logic
-                      console.log('Stop generation requested');
                     }}
                     isVisible={true}
                   />

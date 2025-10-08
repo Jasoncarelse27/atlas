@@ -57,7 +57,6 @@ async function generateReportCSV(startDate, endDate) {
 
     return csvRows.join('\n');
   } catch (error) {
-    console.error('Error generating report CSV:', error);
     throw error;
   }
 }
@@ -77,7 +76,6 @@ async function storeReportCSV(csv, filename) {
     if (error) throw error;
     return data.path;
   } catch (error) {
-    console.error('Error storing report CSV:', error);
     throw error;
   }
 }
@@ -88,7 +86,6 @@ async function storeReportCSV(csv, filename) {
 async function sendReportEmail(csv, filename, startDate, endDate) {
   try {
     if (!process.env.SMTP_HOST) {
-      console.warn('No SMTP configuration found, skipping email');
       return { status: 'skipped', reason: 'No SMTP config' };
     }
 
@@ -130,7 +127,6 @@ Atlas Reporting System
     const info = await transporter.sendMail(mailOptions);
     return { status: 'sent', messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending report email:', error);
     return { status: 'failed', error: error.message };
   }
 }
@@ -152,7 +148,6 @@ async function logReportRun(startDate, endDate, storagePath, emailStatus) {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error logging report run:', error);
   }
 }
 
@@ -166,7 +161,6 @@ export async function generateWeeklyReport(customStartDate = null, customEndDate
     const endDate = customEndDate || new Date(now.getTime() - now.getDay() * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const startDate = customStartDate || new Date(new Date(endDate).getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    console.log(`📊 Generating weekly report for ${startDate} to ${endDate}`);
 
     // Generate CSV
     const csv = await generateReportCSV(startDate, endDate);
@@ -174,11 +168,9 @@ export async function generateWeeklyReport(customStartDate = null, customEndDate
 
     // Store in Supabase Storage
     const storagePath = await storeReportCSV(csv, filename);
-    console.log(`📁 Report stored at: ${storagePath}`);
 
     // Send email
     const emailStatus = await sendReportEmail(csv, filename, startDate, endDate);
-    console.log(`📧 Email status: ${emailStatus.status}`);
 
     // Log the run
     await logReportRun(startDate, endDate, storagePath, emailStatus);
@@ -193,7 +185,6 @@ export async function generateWeeklyReport(customStartDate = null, customEndDate
       recordCount: csv.split('\n').length - 1 // Subtract header row
     };
   } catch (error) {
-    console.error('Error generating weekly report:', error);
     
     // Still try to log the failed run
     try {
@@ -204,7 +195,6 @@ export async function generateWeeklyReport(customStartDate = null, customEndDate
         { status: 'failed', error: error.message }
       );
     } catch (logError) {
-      console.error('Error logging failed report run:', logError);
     }
 
     return {

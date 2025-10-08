@@ -70,7 +70,6 @@ class TierEnforcementService {
 
       return data.tierInfo;
     } catch (error) {
-      console.error('Error getting tier info:', error);
       // Fallback to default free tier info
       return {
         tier: 'free',
@@ -168,7 +167,6 @@ class TierEnforcementService {
 
       return transformedResponse;
     } catch (error) {
-      console.error('Error sending message:', error);
       throw error;
     }
   }
@@ -201,7 +199,6 @@ class TierEnforcementService {
 
       return data.allowed;
     } catch (error) {
-      console.error('Error checking feature access:', error);
       // Fallback to client-side check
       return this.getClientSideFeatureAccess(feature);
     }
@@ -242,7 +239,6 @@ class TierEnforcementService {
 
       return data.analytics;
     } catch (error) {
-      console.error('Error getting analytics:', error);
       return null;
     }
   }

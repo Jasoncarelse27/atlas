@@ -21,7 +21,6 @@ export function useUserTier(userId: string | undefined) {
           .single();
 
         if (error) {
-          console.error('Error fetching tier:', error.message);
           setTier('free');
         } else {
           const dbTier = data?.subscription_tier;
@@ -32,7 +31,6 @@ export function useUserTier(userId: string | undefined) {
           }
         }
       } catch (error) {
-        console.error('Error in fetchTier:', error);
         setTier('free');
       } finally {
         setLoading(false);

@@ -11,7 +11,6 @@ const Icon: FC<IconProps> = ({ name, size = 20, className }) => {
   const LucideIcon = LucideIcons[name];
   
   if (!LucideIcon) {
-    console.warn(`Icon "${name}" not found in Lucide React`);
     return null;
   }
   

@@ -43,13 +43,11 @@ async function fetchTierGlobal(): Promise<Tier> {
 
   // Return cached result if recent
   if (globalTierState.tier && (now - globalTierState.lastFetch) < CACHE_DURATION) {
-    console.debug("💾 TierContext - Using cached tier:", globalTierState.tier);
     return globalTierState.tier;
   }
 
   // Prevent duplicate fetches
   if (globalTierState.inFlight) {
-    console.debug("⏳ TierContext - Reusing in-flight request");
     return new Promise((resolve) => {
       const checkInterval = setInterval(() => {
         if (!globalTierState.inFlight) {
@@ -65,7 +63,6 @@ async function fetchTierGlobal(): Promise<Tier> {
   notifyListeners();
 
   try {
-    console.debug("🔍 TierContext - Fetching tier globally");
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -85,7 +82,6 @@ async function fetchTierGlobal(): Promise<Tier> {
     globalTierState.error = null;
     console.debug("✅ TierContext - Tier loaded:", globalTierState.tier);
   } catch (err: any) {
-    console.error("❌ TierContext - Failed to fetch tier:", err);
     globalTierState.tier = "free";
     globalTierState.error = err;
   } finally {
@@ -110,7 +106,6 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      console.debug("🔄 TierContext - Auth state changed, refreshing tier");
       fetchTierGlobal();
     });
 

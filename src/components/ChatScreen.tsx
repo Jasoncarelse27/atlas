@@ -33,15 +33,12 @@ export default function ChatScreen() {
         },
         onComplete: (full: string) => {
           // Message is already updated via onMessage
-          console.log('Streaming complete:', full);
         },
         onError: (error: string) => {
-          console.error('Streaming error:', error);
           updateAssistantMessage('[Error generating response]');
         },
       });
     } catch (err: any) {
-      console.error('Streaming error:', err.message);
       updateAssistantMessage('[Error generating response]');
     }
   };

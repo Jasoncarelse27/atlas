@@ -20,30 +20,25 @@ class ResendService {
    */
   async resendFailedMessages(): Promise<ResendResult[]> {
     if (this.isResending) {
-      console.log('[RESEND] Resend already in progress, skipping...');
       return [];
     }
 
     this.isResending = true;
-    console.log('[RESEND] Starting resend of failed messages...');
 
     try {
       const failedMessages = await offlineMessageStore.getFailedMessages();
       const results: ResendResult[] = [];
 
       if (failedMessages.length === 0) {
-        console.log('[RESEND] No failed messages to resend');
         return [];
       }
 
-      console.log(`[RESEND] Found ${failedMessages.length} failed messages to resend`);
 
       for (const message of failedMessages) {
         try {
           const result = await this.resendSingleMessage(message);
           results.push(result);
         } catch (error) {
-          console.error(`[RESEND] Failed to resend message ${message.id}:`, error);
           results.push({
             success: false,
             messageId: message.id,
@@ -56,7 +51,6 @@ class ResendService {
       return results;
 
     } catch (error) {
-      console.error('[RESEND] Resend failed:', error);
       return [];
     } finally {
       this.isResending = false;
@@ -70,7 +64,6 @@ class ResendService {
     const messageId = message.id;
     const currentRetries = this.retryAttempts.get(messageId) || 0;
     
-    console.log(`[RESEND] Resending message ${messageId} (attempt ${currentRetries + 1}/${this.MAX_RETRIES})...`);
 
     try {
       // Mark as retried in offline store
@@ -109,7 +102,6 @@ class ResendService {
       };
 
     } catch (error) {
-      console.error(`[RESEND] Failed to resend message ${messageId}:`, error);
       
       const newRetryCount = currentRetries + 1;
       this.retryAttempts.set(messageId, newRetryCount);
@@ -117,14 +109,12 @@ class ResendService {
       // Check if we should retry again
       if (newRetryCount < this.MAX_RETRIES) {
         const delay = this.RETRY_DELAYS[newRetryCount - 1];
-        console.log(`[RESEND] Will retry message ${messageId} in ${delay}ms (attempt ${newRetryCount + 1}/${this.MAX_RETRIES})`);
         
         // Schedule retry with exponential backoff
         setTimeout(async () => {
           try {
             await this.resendSingleMessage(message);
           } catch (retryError) {
-            console.error(`[RESEND] Retry failed for message ${messageId}:`, retryError);
           }
         }, delay);
 
@@ -169,7 +159,6 @@ class ResendService {
    * Resend a message with attachments using retry logic
    */
   private async resendMessageWithAttachments(message: any): Promise<void> {
-    console.log(`[RESEND] Resending message with attachments ${message.id}`);
     
     // Use the existing sendMessageWithAttachments function with retry logic
     const messageStore = useMessageStore.getState();
@@ -186,7 +175,6 @@ class ResendService {
   private async resendTextMessage(message: any): Promise<void> {
     // This would need to be implemented based on your text message sending logic
     // For now, we'll just mark it as sent since the sync service will handle the actual sending
-    console.log(`[RESEND] Resending text message ${message.id}`);
     
     // The sync service will handle the actual sending to Supabase
     // We just need to mark it as pending for sync
@@ -200,7 +188,6 @@ class ResendService {
    * Retry a specific message by ID
    */
   async retryMessage(messageId: string): Promise<ResendResult> {
-    console.log(`[RESEND] Retrying message ${messageId}...`);
 
     try {
       const message = await offlineMessageStore.getMessage(messageId);
@@ -211,7 +198,6 @@ class ResendService {
       return await this.resendSingleMessage(message);
 
     } catch (error) {
-      console.error(`[RESEND] Failed to retry message ${messageId}:`, error);
       return {
         success: false,
         messageId,
@@ -241,7 +227,6 @@ class ResendService {
    * Clear all failed messages (use with caution)
    */
   async clearFailedMessages(): Promise<void> {
-    console.log('[RESEND] Clearing all failed messages...');
     
     const failedMessages = await offlineMessageStore.getFailedMessages();
     
@@ -263,11 +248,9 @@ class ResendService {
   async autoRetryOnConnection(): Promise<void> {
     if (!navigator.onLine) return;
 
-    console.log('[RESEND] Connection restored, checking for failed messages...');
     
     const failedMessages = await offlineMessageStore.getFailedMessages();
     if (failedMessages.length > 0) {
-      console.log(`[RESEND] Found ${failedMessages.length} failed messages, starting auto-retry...`);
       await this.resendFailedMessages();
     }
   }

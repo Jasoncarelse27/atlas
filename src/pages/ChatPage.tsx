@@ -70,7 +70,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('❌ [ChatPage] Failed to save message to Dexie:', error);
     }
   };
   
@@ -87,7 +86,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('❌ [ChatPage] Failed to update message in Dexie:', error);
     }
   };
   
@@ -117,7 +115,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
       }
     } catch (error) {
-      console.error('[ChatPage] Error refreshing messages:', error);
     }
   };
 
@@ -155,7 +152,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       await supabase.auth.signOut();
       window.location.href = '/login';
     } catch (error) {
-      console.error('Logout error:', error);
     }
   };
 
@@ -212,7 +208,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       try {
         await refreshProfile();
       } catch (refreshError) {
-        console.warn('⚠️ [ChatPage] Failed to refresh profile:', refreshError);
       }
       
       // Once response starts coming in, mark as streaming and clear typing
@@ -245,7 +240,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       setIsStreaming(false);
       setAssistantHasStarted(false);
     } catch (error) {
-      console.error('Text message handling error:', error);
       setIsTyping(false);
       setIsStreaming(false);
       setAssistantHasStarted(false);
@@ -320,15 +314,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 console.log(`✅ [ChatPage] Starting background sync for tier: ${tier}`);
                 startBackgroundSync(user.id, tier);
               } else {
-                console.warn('⚠️ [ChatPage] Failed to fetch profile, defaulting to core tier');
                 startBackgroundSync(user.id, 'core');
               }
             } else {
-              console.warn('⚠️ [ChatPage] No access token, defaulting to core tier');
               startBackgroundSync(user.id, 'core');
             }
           } catch (error) {
-            console.error('❌ [ChatPage] Error fetching tier for sync:', error);
             startBackgroundSync(user.id, 'core'); // Default to core instead of free
           }
         }
@@ -342,15 +333,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (urlConversationId) {
           // Load existing conversation from URL
           id = urlConversationId;
-          console.log('🔄 [ChatPage] Loading conversation from URL:', id);
         } else if (lastConversationId) {
           // Auto-restore last conversation
           id = lastConversationId;
-          console.log('🔄 [ChatPage] Auto-restoring last conversation:', id);
         } else {
           // Create new conversation
           id = generateUUID();
-          console.log('🆕 [ChatPage] Creating new conversation:', id);
         }
         
         // Save conversation ID for auto-restore
@@ -360,7 +348,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         // ✅ Hydrate messages from Dexie (offline-first)
         await refreshMessages();
       } catch (error) {
-        console.error("[ChatPage] ❌ Failed to initialize app:", error);
       }
     };
 

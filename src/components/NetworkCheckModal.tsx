@@ -121,9 +121,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Network tests aborted');
       } else {
-        console.error('Error running network tests:', error);
         setOverallStatus('error');
         setOverallMessage('An error occurred while running network tests. Please try again.');
         
@@ -194,7 +192,6 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('DNS lookup test error:', error);
       updateTestResult(0, { 
         status: 'error', 
         message: 'DNS lookup failed',
@@ -233,7 +230,6 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
           pings.push(endTime - startTime);
         } catch (error) {
           // Skip failed pings
-          console.warn(`Ping to ${domain} failed:`, error);
         }
       }
       
@@ -274,7 +270,6 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Latency test error:', error);
       updateTestResult(1, { 
         status: 'error', 
         message: 'Latency test failed',
@@ -359,7 +354,6 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Download speed test error:', error);
       updateTestResult(2, { 
         status: 'error', 
         message: 'Download test failed',
@@ -426,7 +420,6 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Upload speed test error:', error);
       updateTestResult(3, { 
         status: 'error', 
         message: 'Upload test failed',
@@ -513,7 +506,6 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         return;
       }
       
-      console.error('Connection stability test error:', error);
       updateTestResult(4, { 
         status: 'error', 
         message: 'Stability test failed',

@@ -39,17 +39,14 @@ export async function getUserTier(userId: string): Promise<UserTier> {
     const accessToken = session.data.session?.access_token;
     
     if (!accessToken) {
-      console.warn('No access token available, defaulting to free tier');
       return 'free';
     }
 
     // ✅ Use centralized subscription API service
     const tier = await subscriptionApi.getUserTier(userId, accessToken);
-    console.log('[ClaudeRouter] Loaded tier via backend API:', tier);
     
     return tier;
   } catch (error) {
-    console.warn('Error in getUserTier:', error);
     return 'free'; // Default to free tier
   }
 }
@@ -84,7 +81,6 @@ export async function getCachedPrompt(
       cached: true,
     };
   } catch (error) {
-    console.warn('Error fetching cached prompt:', error);
     return null;
   }
 }
@@ -109,10 +105,8 @@ export async function cachePrompt(
     });
 
     if (error) {
-      console.warn('Error caching prompt:', error);
     }
   } catch (error) {
-    console.warn('Error in cachePrompt:', error);
   }
 }
 
@@ -151,7 +145,6 @@ export async function handlePrompt(
     // Check cache first
     const cachedResponse = await getCachedPrompt(promptHash, userId);
     if (cachedResponse) {
-      console.log('Using cached response for prompt');
       return cachedResponse;
     }
     
@@ -195,7 +188,6 @@ export async function handlePrompt(
     
     return claudeResponse;
   } catch (error) {
-    console.error('Error in handlePrompt:', error);
     throw error;
   }
 }

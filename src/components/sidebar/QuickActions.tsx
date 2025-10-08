@@ -29,15 +29,12 @@ export default function QuickActions() {
       setConversations(data || []);
       setShowHistory(true);
     } catch (err) {
-      console.error('Failed to load history:', err);
     }
   };
 
   const actions = [
     { icon: '➕', label: 'Start New Chat', action: handleNewChat },
     { icon: '📜', label: 'View History', action: handleViewHistory },
-    { icon: '📊', label: 'Emotional Insights', action: () => console.log('Coming soon') },
-    { icon: '⚙️', label: 'Settings', action: () => console.log('Coming soon') },
   ];
 
   return (

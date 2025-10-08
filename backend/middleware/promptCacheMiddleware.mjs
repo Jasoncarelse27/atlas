@@ -28,23 +28,19 @@ export default async function promptCacheMiddleware(req, res, next) {
         // Return cached response
         req.cachedPrompt = cachedResponse;
         req.cacheHit = true;
-        console.log(`[promptCacheMiddleware] Cache hit for key: ${cacheKey}`);
         return next();
       }
 
       // No cache hit, proceed with normal processing
       req.cacheHit = false;
-      console.log(`[promptCacheMiddleware] Cache miss for key: ${cacheKey}`);
       return next();
 
     } catch (dbError) {
-      console.warn('[promptCacheMiddleware] Database error, proceeding without cache:', dbError.message);
       req.cacheHit = false;
       return next();
     }
 
   } catch (error) {
-    console.error('[promptCacheMiddleware] Error:', error);
     req.cacheHit = false;
     return next(); // Continue processing even if caching fails
   }
@@ -71,12 +67,9 @@ export async function cachePromptResponse(prompt, response, tier, tokenCount, co
       });
 
     if (error) {
-      console.warn('[promptCacheMiddleware] Failed to cache response:', error.message);
     } else {
-      console.log(`[promptCacheMiddleware] Cached response for key: ${cacheKey}`);
     }
   } catch (error) {
-    console.warn('[promptCacheMiddleware] Error caching response:', error.message);
   }
 }
 

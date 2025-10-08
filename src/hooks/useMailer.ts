@@ -60,7 +60,6 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
     lastErrorRef.current = chatError;
     onError?.(chatError);
     
-    console.error(`MailerLite ${operation} failed:`, chatError);
   }, [email, onError]);
 
   // Success handler
@@ -315,7 +314,6 @@ export function useMailerEvents(email: string) {
         },
       });
     } catch (error) {
-      console.error(`Failed to trigger MailerLite event ${event}:`, error);
     }
   }, [isConfigured, email]);
 

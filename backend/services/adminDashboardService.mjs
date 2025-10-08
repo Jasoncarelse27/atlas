@@ -63,7 +63,6 @@ export const adminDashboardService = {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Admin metrics error:', error);
       return {
         dailySpend: { total: 0, byTier: {}, budgetUtilization: 0 },
         modelUsage: { haiku: 0, sonnet: 0, opus: 0 },

@@ -28,7 +28,6 @@ export const SafeModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         localStorage.setItem('atlas-safemode', JSON.stringify(newValue));
       } catch (error) {
-        console.warn('Failed to save SafeMode preference to localStorage:', error);
       }
       return newValue;
     });

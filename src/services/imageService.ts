@@ -3,7 +3,6 @@ import { supabase } from "../lib/supabaseClient";
 // Debug logging helper
 const logEvent = (eventName: string, props: any) => {
   if (process.env.NODE_ENV !== "production") {
-    console.log(`[ImageEvent] ${eventName}`, props);
   }
 };
 
@@ -48,7 +47,6 @@ export const imageService = {
       const publicUrl = this.getPublicUrl(filePath);
       return { filePath, publicUrl, url: publicUrl };
     } catch (err) {
-      console.error("Image upload error:", err);
       throw err;
     }
   },
@@ -123,7 +121,6 @@ export const imageService = {
 
       return result;
     } catch (err) {
-      console.error("Image scan error:", err);
       throw err;
     }
   },
@@ -134,7 +131,6 @@ export const imageService = {
       const analysis = await this.scanImage(uploadResult.filePath, userId);
       return { ...uploadResult, analysis };
     } catch (err) {
-      console.error("Image processing error:", err);
       throw err;
     }
   },
@@ -150,7 +146,6 @@ export const imageService = {
         metadata: { feature, tier },
       });
     } catch (err) {
-      console.error("Failed to log upgrade prompt:", err);
     }
   },
 

@@ -15,7 +15,6 @@ async function safeFetch(url: string, options?: RequestInit) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    console.warn("[SubscriptionAPI] Backend fetch failed, falling back to Dexie:", err);
     safeToast("⚠️ Backend unreachable, using offline mode", "error");
     return null;
   }
@@ -59,7 +58,6 @@ class SubscriptionApiService {
     if (activeMode !== mode) {
       activeMode = mode;
       if (mode === "dexie") {
-        console.warn("[SubscriptionAPI] ⚠️ Running in Dexie fallback mode (offline)");
         safeToast("⚡ Using offline subscription mode", "error");
       } else {
         console.log("[SubscriptionAPI] ✅ Using backend API for subscriptions");
@@ -75,7 +73,6 @@ class SubscriptionApiService {
     // Check if we're in mock mode (no real FastSpring credentials)
     this.isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY;
     
-    console.log('[Atlas] Subscription API initialized with backend+Dexie fallback 🚀', this.baseUrl);
   }
 
   /**
@@ -92,7 +89,6 @@ class SubscriptionApiService {
     // Check if there's already a pending request for this user
     const pendingRequest = this.pendingRequests.get(userId);
     if (pendingRequest) {
-      console.log('[SubscriptionAPI] Reusing pending request for', userId);
       return pendingRequest;
     }
 
@@ -111,7 +107,6 @@ class SubscriptionApiService {
 
   private async fetchUserProfile(userId: string, accessToken: string): Promise<SubscriptionProfile | null> {
     try {
-      console.log('[SubscriptionAPI] Fetching subscription status for', userId);
       
       const profile = await safeFetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
         method: 'GET',
@@ -124,7 +119,6 @@ class SubscriptionApiService {
 
       if (profile === null) {
         // Backend failed, try direct Supabase before falling back to Dexie
-        console.warn('[SubscriptionAPI] Backend returned null, trying direct Supabase...');
         this.setMode("dexie");
         
         // 🎯 FUTURE-PROOF FIX: Try direct Supabase query before using stale Dexie cache
@@ -148,7 +142,6 @@ class SubscriptionApiService {
             return directProfile as any;
           }
         } catch (directErr) {
-          console.warn('[SubscriptionAPI] Direct Supabase also failed:', directErr);
         }
         
         // If direct Supabase also failed, use Dexie cache as last resort
@@ -162,7 +155,6 @@ class SubscriptionApiService {
       
       return profile;
     } catch (error) {
-      console.error('[SubscriptionAPI] Error fetching user profile:', error);
       // Try direct Supabase before falling back to Dexie
       this.setMode("dexie");
       
@@ -186,7 +178,6 @@ class SubscriptionApiService {
           return directProfile as any;
         }
       } catch (directErr) {
-        console.warn('[SubscriptionAPI] Direct Supabase fallback also failed:', directErr);
       }
       
       return await this.getProfileFromDexie(userId);
@@ -199,10 +190,8 @@ class SubscriptionApiService {
   clearProfileCache(userId?: string): void {
     if (userId) {
       this.profileCache.delete(userId);
-      console.log('[SubscriptionAPI] Cleared cache for user:', userId);
     } else {
       this.profileCache.clear();
-      console.log('[SubscriptionAPI] Cleared all profile cache');
     }
   }
 
@@ -226,14 +215,12 @@ class SubscriptionApiService {
       }
 
       const profile: SubscriptionProfile = await response.json();
-      console.log('[SubscriptionAPI] Profile created:', profile.subscription_tier);
       
       // Cache the newly created profile
       this.profileCache.set(userId, { data: profile, timestamp: Date.now() });
       
       return profile;
     } catch (error) {
-      console.error('[SubscriptionAPI] Error creating user profile:', error);
       throw error;
     }
   }
@@ -246,7 +233,6 @@ class SubscriptionApiService {
       const profile = await this.getUserProfile(userId, accessToken);
       return profile?.subscription_tier || 'free';
     } catch (error) {
-      console.error('[SubscriptionAPI] Error getting user tier:', error);
       return 'free'; // Default to free tier on error
     }
   }
@@ -261,7 +247,6 @@ class SubscriptionApiService {
     accessToken: string
   ): Promise<SubscriptionProfile> {
     try {
-      console.log(`[SubscriptionAPI] Updating tier for user ${userId} to ${newTier}`);
       
       const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}/tier`, {
         method: 'PATCH',
@@ -279,14 +264,12 @@ class SubscriptionApiService {
       }
 
       const updatedProfile = await response.json();
-      console.log('[SubscriptionAPI] Tier updated successfully:', updatedProfile);
       
       // Clear cache since tier was updated
       this.clearProfileCache(userId);
       
       return updatedProfile;
     } catch (error) {
-      console.error('[SubscriptionAPI] Error updating subscription tier:', error);
       throw error;
     }
   }
@@ -302,7 +285,6 @@ class SubscriptionApiService {
     }
 
     try {
-      console.log('[SubscriptionAPI] Fetching subscription status for', userId);
       
       // Use backend API instead of direct Supabase calls
       const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
@@ -316,7 +298,6 @@ class SubscriptionApiService {
 
       if (!response.ok) {
         if (response.status === 404) {
-          console.log('[SubscriptionAPI] No subscription found for user');
           return null;
         }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -334,7 +315,6 @@ class SubscriptionApiService {
         updated_at: profile.updated_at,
       };
     } catch (error) {
-      console.error('[SubscriptionAPI] Error fetching subscription status:', error);
       throw error;
     }
   }
@@ -350,7 +330,6 @@ class SubscriptionApiService {
     accessToken: string
   ): Promise<void> {
     try {
-      console.log('[SubscriptionAPI] Updating subscription status for', userId);
       
       // Use backend API to update subscription tier
       const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
@@ -375,7 +354,6 @@ class SubscriptionApiService {
       // Clear cache since subscription was updated
       this.clearProfileCache(userId);
     } catch (error) {
-      console.error('[SubscriptionAPI] Error updating subscription status:', error);
       throw error;
     }
   }
@@ -386,7 +364,6 @@ class SubscriptionApiService {
    */
   async getUserStats(userId: string): Promise<any> {
     try {
-      console.log('[SubscriptionAPI] Fetching subscription stats for', userId);
       
       const response = await fetch(`${this.baseUrl}/api/subscriptions/stats/${userId}`, {
         method: 'GET',
@@ -403,15 +380,12 @@ class SubscriptionApiService {
 
       // ✅ Save to Dexie cache (using new Golden Standard)
       // Note: subscription_stats table not implemented in new schema yet
-      console.log('[SubscriptionAPI] Backend data received, caching not implemented yet');
 
       console.log('[SubscriptionAPI] Using backend API ✅', data);
       return data;
     } catch (err) {
-      console.error('[SubscriptionAPI] getUserStats failed, falling back to cache:', err);
 
       // ⚠️ Fallback to cached stats (not implemented in new schema)
-      console.log('[SubscriptionAPI] Cache fallback not implemented yet');
       return { usage: [], attempts: [] };
     }
   }
@@ -428,13 +402,11 @@ class SubscriptionApiService {
         .first();
 
       if (profile) {
-        console.log('[SubscriptionAPI] Using Dexie cache (offline) 🗄️');
         // Note: Conversation type doesn't match SubscriptionProfile, returning null for now
         return null;
       }
 
       // Return default core tier profile if no cache available (better UX)
-      console.warn('[SubscriptionAPI] No cached profile available, returning default core tier');
       return {
         id: userId,
         email: 'unknown@example.com',
@@ -444,7 +416,6 @@ class SubscriptionApiService {
         updated_at: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('[SubscriptionAPI] Error getting profile from Dexie:', error);
       return null;
     }
   }
@@ -455,7 +426,6 @@ class SubscriptionApiService {
   clearCache(): void {
     this.profileCache.clear();
     this.pendingRequests.clear();
-    console.log('[SubscriptionAPI] All caches cleared');
   }
 
   /**
@@ -464,7 +434,6 @@ class SubscriptionApiService {
   clearUserCache(userId: string): void {
     this.profileCache.delete(userId);
     this.pendingRequests.delete(userId);
-    console.log('[SubscriptionAPI] Cache cleared for user:', userId);
   }
 }
 

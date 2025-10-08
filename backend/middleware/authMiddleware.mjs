@@ -11,7 +11,6 @@ export default async function authMiddleware(req, res, next) {
     const { data: { user }, error: authError } = await supabasePublic.auth.getUser(token);
     
     if (authError || !user) {
-      console.warn('[authMiddleware] Token verification failed:', authError?.message);
       return res.status(401).json({ error: "UNAUTHORIZED", message: "Invalid token" });
     }
 
@@ -30,7 +29,6 @@ export default async function authMiddleware(req, res, next) {
         .single();
       
       if (error) {
-        console.warn('[authMiddleware] Could not fetch user profile:', error.message);
         // Try to create profile if it doesn't exist
         const { error: insertError } = await supabase
           .from('profiles')
@@ -41,13 +39,11 @@ export default async function authMiddleware(req, res, next) {
           });
         
         if (insertError) {
-          console.warn('[authMiddleware] Could not create user profile:', insertError.message);
         }
       } else {
         tier = profile?.subscription_tier || 'free';
       }
     } catch (profileError) {
-      console.warn('[authMiddleware] Error fetching user profile:', profileError.message);
     }
 
     req.user = { 

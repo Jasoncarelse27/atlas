@@ -33,10 +33,8 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
     
     try {
       // Temporarily disable complex conversation loading to prevent schema errors
-      console.log('[CONVERSATIONS] Skipping complex conversation loading - using simple memory system');
       setConversations([]);
     } catch (err) {
-      console.error('Error fetching conversations:', err);
       setError('Failed to load conversations');
     } finally {
       setIsLoading(false);
@@ -77,13 +75,10 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         .select()
         .then(({ error }) => {
           if (error) {
-            console.error('Error saving conversation to database:', error);
           } else {
-            console.log('Created new conversation in database:', newConversation.id);
           }
         });
       
-      console.log('Created new conversation:', newConversation.id);
       
       // Update local state
       setConversations(prev => [newConversation, ...prev]);
@@ -91,7 +86,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       
       return newConversation;
     } catch (err) {
-      console.error('Error creating conversation:', err);
       setError('Failed to create new conversation');
       
       // Fallback to local-only conversation if Supabase fails
@@ -114,7 +108,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       // Find the conversation
       const conversation = conversations.find(c => c.id === conversationId);
       if (!conversation) {
-        console.error('Conversation not found:', conversationId);
         return;
       }
       
@@ -162,7 +155,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         }]);
       
       if (messageError) {
-        console.error('Error saving message:', messageError);
       }
       
       // Update conversation title and lastUpdated in Supabase
@@ -177,11 +169,9 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
           .eq('id', conversationId);
         
         if (updateError) {
-          console.error('Error updating conversation:', updateError);
         }
       }
     } catch (err) {
-      console.error('Error adding message to conversation:', err);
       setError('Failed to save message');
     }
   }, [conversations, currentConversation, user]);
@@ -216,7 +206,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         }
       }
     } catch (err) {
-      console.error('Error deleting conversation:', err);
       setError('Failed to delete conversation');
     }
   }, [conversations, currentConversation, user, createConversation]);
@@ -260,7 +249,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         });
       }
     } catch (err) {
-      console.error('Error updating conversation title:', err);
       setError('Failed to update conversation title');
     }
   }, [user, currentConversation]);
@@ -304,7 +292,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
         });
       }
     } catch (err) {
-      console.error('Error pinning conversation:', err);
       setError('Failed to pin/unpin conversation');
     }
   }, [user, currentConversation]);
@@ -331,7 +318,6 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
       setConversations([newConversation]);
       setCurrentConversation(newConversation);
     } catch (err) {
-      console.error('Error clearing conversations:', err);
       setError('Failed to clear conversations');
       
       // Fallback: create a new conversation locally

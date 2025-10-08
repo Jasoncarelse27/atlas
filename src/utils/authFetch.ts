@@ -33,7 +33,6 @@ export async function fetchWithAuth(
   
   if (!token) {
     const error = new Error('No authentication token available');
-    console.error('[authFetch] No token:', error.message);
     if (showErrorToast) {
       showToast('⚠️ Please log in to continue', 'error');
     }
@@ -49,7 +48,6 @@ export async function fetchWithAuth(
 
   // Debug logging in development
   if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_AUTH) {
-    console.log('[authFetch] Making request:', {
       url,
       hasToken: !!token,
       tokenPrefix: token.substring(0, 20) + '...',
@@ -65,7 +63,6 @@ export async function fetchWithAuth(
     // Handle 401 Unauthorized
     if (response.status === 401) {
       if (retryOn401) {
-        console.warn('[authFetch] 401 response, retrying once...');
         // Refresh token and retry once
         const newToken = await getAuthToken(true);
         if (newToken && newToken !== token) {
@@ -105,13 +102,11 @@ export async function fetchWithAuth(
         const errorData: ApiError = await response.json();
         await handleTierLimitError(errorData);
       } catch (parseError) {
-        console.error('[authFetch] Could not parse 429 error:', parseError);
       }
     }
 
     return response;
   } catch (error) {
-    console.error('[authFetch] Request failed:', error);
     
     if (showErrorToast && error instanceof Error && !error.message.includes('Session expired')) {
       showToast('⚠️ Network error. Please try again.', 'error');
@@ -136,7 +131,6 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
     const { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
-      console.error('[authFetch] Error getting session:', error.message);
       return null;
     }
 
@@ -147,7 +141,6 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
           await supabase.auth.refreshSession();
         
         if (refreshError) {
-          console.error('[authFetch] Error refreshing session:', refreshError.message);
           return null;
         }
         
@@ -159,7 +152,6 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
 
     return session.access_token;
   } catch (error) {
-    console.error('[authFetch] Error in getAuthToken:', error);
     return null;
   }
 }
@@ -168,7 +160,6 @@ async function getAuthToken(forceRefresh = false): Promise<string | null> {
  * Handle tier limit errors (429 responses)
  */
 async function handleTierLimitError(errorData: ApiError): Promise<void> {
-  console.log('[authFetch] Handling tier limit error:', errorData);
 
   if (errorData.code === 'DAILY_LIMIT_EXCEEDED') {
     showToast('⚠️ Daily limit reached. Upgrade to continue.', 'warning');

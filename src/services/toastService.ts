@@ -8,6 +8,5 @@ export function safeToast(message: string, type: "success" | "error" = "success"
       toast.error(message);
     }
   } catch (err) {
-    console.warn("[ToastService] Failed to show toast:", err, "Message:", message);
   }
 }

@@ -1,7 +1,6 @@
 // Force reset the entire Dexie database
 export const forceResetDB = async () => {
   try {
-    console.log('[FORCE RESET] Starting complete database reset...');
     
     // Clear all localStorage
     localStorage.clear();
@@ -14,13 +13,11 @@ export const forceResetDB = async () => {
       const databases = await indexedDB.databases();
       for (const db of databases) {
         if (db.name && (db.name.includes('Atlas') || db.name.includes('dexie'))) {
-          console.log(`[FORCE RESET] Deleting database: ${db.name}`);
           const deleteReq = indexedDB.deleteDatabase(db.name);
           await new Promise((resolve, reject) => {
             deleteReq.onsuccess = () => resolve(true);
             deleteReq.onerror = () => reject(deleteReq.error);
             deleteReq.onblocked = () => {
-              console.warn(`[FORCE RESET] Database ${db.name} deletion blocked`);
               resolve(true);
             };
           });
@@ -38,10 +35,8 @@ export const forceResetDB = async () => {
       }
     }
     
-    console.log('[FORCE RESET] Database reset complete');
     return true;
   } catch (error) {
-    console.error('[FORCE RESET] Failed to reset database:', error);
     return false;
   }
 };

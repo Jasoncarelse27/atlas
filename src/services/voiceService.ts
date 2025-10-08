@@ -158,7 +158,6 @@ class VoiceService {
         throw new Error('Authentication required');
       }
 
-      console.log(`🔊 [VoiceService] Synthesizing speech for: "${text.slice(0, 50)}..."`);
 
       const response = await fetch('/api/synthesize', {
         method: 'POST',

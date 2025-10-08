@@ -9,7 +9,6 @@ describe('Atlas MailerLite Integration Tests', () => {
     
     // Check if API key is available for integration tests
     if (!process.env.MAILERLITE_API_KEY) {
-      console.warn('[Integration Tests] Skipping - MAILERLITE_API_KEY not provided');
     }
   });
 
@@ -38,7 +37,6 @@ describe('Atlas MailerLite Integration Tests', () => {
 
   it('should skip integration tests when API key is missing', () => {
     if (!process.env.MAILERLITE_API_KEY) {
-      console.log('[Integration Tests] All tests skipped - no API key provided');
       expect(true).toBe(true); // Pass the test
     }
   });

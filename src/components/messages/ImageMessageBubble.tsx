@@ -22,7 +22,6 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
 
   const imageUrl = getImageUrl();
   
-  console.log('[ImageMessageBubble] Image URL resolved:', {
     messageId: message.id,
     imageUrl,
     messageUrl: message.url,
@@ -38,7 +37,6 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
   };
 
   const handleImageError = () => {
-    console.error('[ImageMessageBubble] Image failed to load:', imageUrl);
     setImageError(true);
   };
 
@@ -120,7 +118,6 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
   const renderContent = () => {
     // 🎯 FUTURE-PROOF FIX: Add debugging for image URL resolution
     if (!imageUrl) {
-      console.warn('[ImageMessageBubble] No image URL found for message:', {
         messageId: message.id,
         messageUrl: message.url,
         messageContent: message.content,

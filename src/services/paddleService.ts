@@ -71,7 +71,6 @@ class PaddleService {
       const accessToken = session.data.session?.access_token;
       
       if (!accessToken) {
-        console.warn('No access token available for subscription status check');
         return { tier: 'free', isActive: false };
       }
 
@@ -99,7 +98,6 @@ class PaddleService {
       return { tier, isActive };
 
     } catch (error) {
-      console.error('Failed to get user subscription:', error);
       
       // Return cached if available, otherwise free tier
       if (cached) {
@@ -181,12 +179,10 @@ class PaddleService {
           return await this.handlePaymentFailed(event);
         
         default:
-          console.log(`Unhandled webhook event: ${event.alert_name}`);
           return { success: true, message: 'Event acknowledged but not processed' };
       }
 
     } catch (error) {
-      console.error('Webhook processing error:', error);
       return { success: false, message: 'Webhook processing failed' };
     }
   }
@@ -229,7 +225,6 @@ class PaddleService {
       return checkoutUrl;
 
     } catch (error) {
-      console.error('Checkout creation error:', error);
       throw new Error('Failed to create checkout session');
     }
   }
@@ -267,7 +262,6 @@ class PaddleService {
       return { success: true, message: 'Subscription will be cancelled at the end of the current period' };
 
     } catch (error) {
-      console.error('Subscription cancellation error:', error);
       return { success: false, message: 'Failed to cancel subscription' };
     }
   }
@@ -296,7 +290,6 @@ class PaddleService {
       return { success: true, message: 'Subscription reactivated successfully' };
 
     } catch (error) {
-      console.error('Subscription reactivation error:', error);
       return { success: false, message: 'Failed to reactivate subscription' };
     }
   }
@@ -356,7 +349,6 @@ class PaddleService {
       return analytics;
 
     } catch (error) {
-      console.error('Analytics calculation error:', error);
       return {
         totalSubscriptions: 0,
         activeSubscriptions: 0,
@@ -410,7 +402,6 @@ class PaddleService {
       .insert(subscription);
 
     if (error) {
-      console.error('Failed to create subscription:', error);
       return { success: false, message: 'Failed to create subscription record' };
     }
 
@@ -443,7 +434,6 @@ class PaddleService {
       .eq('paddle_subscription_id', event.subscription_id);
 
     if (error) {
-      console.error('Failed to update subscription:', error);
       return { success: false, message: 'Failed to update subscription' };
     }
 
@@ -465,7 +455,6 @@ class PaddleService {
       .eq('paddle_subscription_id', event.subscription_id);
 
     if (error) {
-      console.error('Failed to cancel subscription:', error);
       return { success: false, message: 'Failed to cancel subscription' };
     }
 
@@ -490,7 +479,6 @@ class PaddleService {
       .eq('paddle_subscription_id', event.subscription_id);
 
     if (error) {
-      console.error('Failed to update subscription after payment:', error);
       return { success: false, message: 'Failed to update subscription' };
     }
 
@@ -515,7 +503,6 @@ class PaddleService {
       .eq('paddle_subscription_id', event.subscription_id);
 
     if (error) {
-      console.error('Failed to update subscription after payment failure:', error);
       return { success: false, message: 'Failed to update subscription' };
     }
 

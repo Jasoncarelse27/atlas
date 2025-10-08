@@ -49,7 +49,6 @@ export function ImageButton({ onImageUpload }: ImageButtonProps) {
       onImageUpload(file);
       toast.success('Image uploaded successfully');
     } catch (error) {
-      console.error('Error uploading image:', error);
       toast.error('Failed to upload image');
     }
 

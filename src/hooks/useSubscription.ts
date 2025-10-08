@@ -117,7 +117,6 @@ export function useSubscription(userId?: string) {
     const now = Date.now();
     const skipDebounce = (window as any).__skipDebounce || false;
     if (!skipDebounce && now - lastFetchTime < FETCH_DEBOUNCE_MS) {
-      console.log('⏳ [useSubscription] Debouncing fetch request');
       return;
     }
     setLastFetchTime(now);
@@ -127,14 +126,12 @@ export function useSubscription(userId?: string) {
       setLoading(true);
       setError(null);
       
-      console.log(`📊 [useSubscription] Fetching profile for userId: ${userId}`);
       
       // Get access token for backend API calls
       const { data: session } = await supabase.auth.getSession();
       const accessToken = session?.session?.access_token;
       
       if (!accessToken) {
-        console.warn('⚠️ [useSubscription] No access token, falling back to direct Supabase call');
         // Fallback to direct Supabase call
         const { data, error } = await supabase
           .from('profiles')
@@ -143,7 +140,6 @@ export function useSubscription(userId?: string) {
           .single();
 
         if (error) {
-          console.error('❌ [useSubscription] Profile fetch error:', error);
           setError(error.message);
           return;
         }
@@ -161,7 +157,6 @@ export function useSubscription(userId?: string) {
         console.log(`✅ [useSubscription] Profile fetched via backend API: ${profile.subscription_tier}`);
         setProfile(profile as any);
       } else {
-        console.warn('⚠️ [useSubscription] No profile returned from backend API - trying direct Supabase fallback');
         
         // 🎯 FUTURE-PROOF FIX: Fallback to direct Supabase call if backend API fails
         const { data, error: directError } = await supabase
@@ -174,13 +169,11 @@ export function useSubscription(userId?: string) {
           console.log(`✅ [useSubscription] Profile fetched via direct Supabase: ${(data as any).subscription_tier}`);
           setProfile(data as any);
         } else {
-          console.error('❌ [useSubscription] Failed to fetch profile from both backend and Supabase:', directError);
           setError('No profile found');
         }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error('❌ [useSubscription] Unexpected error:', errorMessage);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -197,7 +190,6 @@ export function useSubscription(userId?: string) {
     // Check if we already have a subscription for this user
     const subscriptionKey = `realtime-sub-${userId}`;
     if (sessionStorage.getItem(subscriptionKey)) {
-      console.log('🔄 [useSubscription] Reusing existing subscription for user:', userId);
       return;
     }
 
@@ -223,7 +215,6 @@ export function useSubscription(userId?: string) {
           filter: `id=eq.${userId}` 
         },
         (payload) => {
-          console.log('🔄 [useSubscription] Realtime profile update:', payload.new);
           if (payload.new) {
             setProfile(payload.new as SubscriptionProfile);
           }
@@ -242,7 +233,6 @@ export function useSubscription(userId?: string) {
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           // Realtime connection issue - only log in development
           if (process.env.NODE_ENV === 'development') {
-            console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling', err);
           }
           // Start polling fallback with faster interval for better tier sync
           if (!pollingInterval) {
@@ -253,12 +243,10 @@ export function useSubscription(userId?: string) {
           // Retry realtime connection after 30 seconds
           if (!retryTimeout) {
             retryTimeout = setTimeout(() => {
-              console.log('🔄 [useSubscription] Retrying realtime connection...');
               // The effect will re-run and create a new subscription
             }, 30000);
           }
         } else if (status === 'TIMED_OUT') {
-          console.warn('⚠️ [useSubscription] Realtime subscription timed out, falling back to polling');
           // Start polling fallback with faster interval
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
@@ -268,7 +256,6 @@ export function useSubscription(userId?: string) {
           // Retry realtime connection after 30 seconds
           if (!retryTimeout) {
             retryTimeout = setTimeout(() => {
-              console.log('🔄 [useSubscription] Retrying realtime connection...');
               // The effect will re-run and create a new subscription
             }, 30000);
           }
@@ -290,7 +277,6 @@ export function useSubscription(userId?: string) {
 
   // Force refresh function - clears cache for immediate update
   const forceRefresh = useCallback(async () => {
-    console.log('🔄 [useSubscription] Force refreshing profile...');
     // 🎯 FUTURE-PROOF FIX: Clear cache before fetching to ensure fresh data
     if (userId) {
       subscriptionApi.clearUserCache(userId);
@@ -343,7 +329,6 @@ export function useSubscription(userId?: string) {
       }).eq('id', userId);
       
       if (error) {
-        console.error('❌ Error updating memory:', error);
       } else {
         console.log('✅ Memory updated successfully:', mergedMemory);
         // Refresh profile to get updated data
@@ -351,7 +336,6 @@ export function useSubscription(userId?: string) {
         console.log('✅ Profile refreshed with updated memory');
       }
     } catch (error) {
-      console.error('❌ Error in updateMemory:', error);
     }
   }, [userId, profile, fetchProfile]);
 

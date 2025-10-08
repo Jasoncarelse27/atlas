@@ -55,7 +55,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         sourceRef.current.connect(analyserRef.current);
         analyserRef.current.connect(audioContextRef.current.destination);
       } catch (err) {
-        console.warn('Web Audio API not supported:', err);
       }
     }
   }, [showWaveform]);
@@ -176,7 +175,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const playPromise = audioRef.current.play();
       if (playPromise) {
         playPromise.catch(err => {
-          console.warn('Auto-play failed:', err);
         });
       }
     }
@@ -189,7 +187,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audioRef.current.pause();
     } else {
       audioRef.current.play().catch(err => {
-        console.error('Play failed:', err);
         setError('Playback failed');
       });
     }

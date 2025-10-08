@@ -11,16 +11,13 @@ let migrationTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export async function runDbMigrations(userId?: string) {
   if (isMigrating) {
-    console.log("[DB MIGRATION] Migration already in progress, skipping...");
     return;
   }
   
   isMigrating = true;
-  console.log("[DB MIGRATION] Starting database migration...");
   
   // Set a timeout to prevent stuck migrations
   migrationTimeout = setTimeout(() => {
-    console.warn("[DB MIGRATION] Migration timeout - resetting flag");
     isMigrating = false;
   }, 30000); // 30 second timeout
 
@@ -31,7 +28,6 @@ export async function runDbMigrations(userId?: string) {
 
     console.log("[DB MIGRATION] Database schema is healthy ✅");
   } catch (err) {
-    console.error("[DB MIGRATION] Error:", err);
     // ✅ Don't crash app - but reset the flag
     isMigrating = false;
     
@@ -51,13 +47,10 @@ export async function runDbMigrations(userId?: string) {
     );
 
     if (invalidMessages.length > 0) {
-      console.warn(
-        `[DB MIGRATION] Found ${invalidMessages.length} invalid messages → clearing`
-      );
+      console.log(`[DB MIGRATION] Found ${invalidMessages.length} invalid messages → clearing`);
       await atlasDB.messages.bulkDelete(invalidMessages.map((m) => m.id));
     }
   } else {
-    console.log("[DB MIGRATION] messages table not found, skipping");
   }
 
   // 2. Clear invalid conversations (only if table exists)
@@ -68,18 +61,14 @@ export async function runDbMigrations(userId?: string) {
     );
 
     if (invalidConversations.length > 0) {
-      console.warn(
-        `[DB MIGRATION] Found ${invalidConversations.length} invalid conversations → clearing`
-      );
+      console.log(`[DB MIGRATION] Found ${invalidConversations.length} invalid conversations → clearing`);
       await atlasDB.conversations.bulkDelete(invalidConversations.map((c) => c.id));
     }
   } else {
-    console.log("[DB MIGRATION] conversations table not found, skipping");
   }
 
   // 3. Remove old localStorage key
   if (localStorage.getItem("atlas-default-conversation")) {
-    console.warn("[DB MIGRATION] Removing legacy default-conversation key");
     localStorage.removeItem("atlas-default-conversation");
   }
 
@@ -96,7 +85,6 @@ export async function runDbMigrations(userId?: string) {
         .single();
       
       if (existingConv) {
-        console.log("[DB MIGRATION] Using existing conversation:", conversationId);
         return;
       }
     }
@@ -105,9 +93,7 @@ export async function runDbMigrations(userId?: string) {
     conversationId = uuidv4();
     localStorage.setItem(DEFAULT_CONVERSATION_KEY, conversationId);
 
-    console.log(
-      `[DB MIGRATION] Creating fresh default conversation for user ${userId}`
-    );
+    console.log(`[DB MIGRATION] Creating fresh default conversation for user ${userId}`);
 
     const { error } = await supabase.from("conversations").insert({
       id: conversationId,
@@ -116,7 +102,6 @@ export async function runDbMigrations(userId?: string) {
     });
 
     if (error) {
-      console.error("[DB MIGRATION] Failed to create conversation:", error);
     } else {
       console.log("[DB MIGRATION] Default conversation created ✅", conversationId);
     }

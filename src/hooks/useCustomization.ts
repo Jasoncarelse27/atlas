@@ -88,7 +88,6 @@ const hexToRgb = (hex: string) => {
 
 // Function to apply customization to the DOM
 const applyCustomization = (custom: UserCustomization) => {
-  console.log('🎨 Applying customization:', custom);
   
   const root = document.documentElement;
   
@@ -170,7 +169,6 @@ const safeDbOperation = async <T>(operation: () => Promise<T>, fallback: T): Pro
       if (error.message.includes('Failed to fetch') || 
           error.message.includes('NetworkError') ||
           error.message.includes('TypeError: Failed to fetch')) {
-        console.warn('🔗 Database operation failed due to network error, using fallback:', error.message);
         return fallback;
       }
     }
@@ -188,19 +186,14 @@ const isEqual = (obj1: unknown, obj2: unknown): boolean => {
   const keys2 = Object.keys(obj2 as AnyObject);
   
   if (keys1.length !== keys2.length) {
-    console.log('🔍 Objects have different number of keys:', keys1.length, keys2.length);
     return false;
   }
   
   for (const key of keys1) {
     if (!keys2.includes(key)) {
-      console.log('🔍 Key missing in second object:', key);
       return false;
     }
     if (!isEqual((obj1 as AnyObject)[key], (obj2 as AnyObject)[key])) {
-      console.log('🔍 Values different for key:', key);
-      console.log('🔍 Value in obj1:', JSON.stringify((obj1 as AnyObject)[key]));
-      console.log('🔍 Value in obj2:', JSON.stringify((obj2 as AnyObject)[key]));
       return false;
     }
   }
@@ -275,7 +268,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
     setError(null);
 
     try {
-      console.log('🎨 Loading customization for user:', user.id);
       
       // Try to load from database first with network error handling
       const dbResult = await safeDbOperation(
@@ -312,7 +304,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
           setError('Running in offline mode - customization changes will be saved locally only');
         }
       } else {
-        console.log('🎨 Creating default customization (database unavailable)');
         loadedCustomization = createDefaultCustomization(user.id);
         
         // Set a non-blocking error message for database unavailability
@@ -321,11 +312,9 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
         }
       }
 
-      console.log('🔍 Initial customization:', loadedCustomization);
       setCustomization(loadedCustomization);
       
       const clonedOriginal = deepClone(loadedCustomization) as UserCustomization;
-      console.log('🔍 Original customization (cloned):', clonedOriginal);
       setOriginalCustomization(clonedOriginal);
       
       // Apply customization immediately
@@ -335,7 +324,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       
       setHasUnsavedChanges(false);
     } catch (err) {
-      console.error('Failed to load customization:', err);
       
       // Check if it's a network error
       if (err instanceof Error && (
@@ -353,7 +341,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
           console.log('✅ Using localStorage fallback due to network error');
           fallbackCustomization = JSON.parse(localData);
         } else {
-          console.log('🎨 Using default customization due to network error');
           fallbackCustomization = createDefaultCustomization(user.id);
         }
         
@@ -387,7 +374,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
         updated_at: new Date().toISOString()
       };
 
-      console.log('💾 Saving customization:', updatedCustomization);
 
       // Save to localStorage first (always works)
       localStorage.setItem(`atlas-customization-${user.id}`, JSON.stringify(updatedCustomization));
@@ -411,23 +397,19 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
         if (dbErr.message.includes('Failed to fetch') || 
             dbErr.message.includes('NetworkError') ||
             dbErr.message.includes('TypeError: Failed to fetch')) {
-          console.warn('Database not available, using localStorage only:', dbErr);
           setError('Running in offline mode - customization saved locally only');
         } else {
-          console.warn('Database save failed:', dbErr);
           setError('Failed to sync customization to cloud, but saved locally');
         }
       });
 
       setCustomization(updatedCustomization);
       const clonedUpdated = deepClone(updatedCustomization) as UserCustomization;
-      console.log('🔍 Setting new original customization after save:', clonedUpdated);
       setOriginalCustomization(clonedUpdated);
       applyCustomization(updatedCustomization);
       setHasUnsavedChanges(false);
       
     } catch (err) {
-      console.error('Failed to save customization:', err);
       if (err instanceof Error && (
         err.message.includes('Failed to fetch') || 
         err.message.includes('NetworkError') ||
@@ -446,7 +428,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
   const updateCustomization = useCallback((path: string, value: any, preview: boolean = true) => {
     if (!customization) return;
 
-    console.log('🔄 Updating customization:', path, '=', value);
 
     // Deep clone the entire customization object
     const updated = deepClone(customization) as UserCustomization;
@@ -462,14 +443,11 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
     // Set the final value
     current[keys[keys.length - 1]] = value;
 
-    console.log('🔍 Updated customization:', updated);
-    console.log('🔍 Original customization for comparison:', originalCustomization);
     
     setCustomization(updated);
     setHasUnsavedChanges(true);
     
     if (preview) {
-      console.log('👁️ Preview enabled, applying changes immediately');
       applyCustomization(updated);
     }
   }, [customization, originalCustomization]);
@@ -478,20 +456,16 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
   const updateThemeColors = useCallback((primaryColor: string, accentColor: string, preview: boolean = true) => {
     if (!customization) return;
 
-    console.log('🎨 Updating theme colors:', { primaryColor, accentColor });
 
     const updated = deepClone(customization) as UserCustomization;
     updated.theme.primaryColor = primaryColor;
     updated.theme.accentColor = accentColor;
 
-    console.log('🔍 Updated customization with new colors:', updated);
-    console.log('🔍 Original customization for color comparison:', originalCustomization);
     
     setCustomization(updated);
     setHasUnsavedChanges(true);
     
     if (preview) {
-      console.log('👁️ Preview enabled, applying color changes immediately');
       applyCustomization(updated);
     }
   }, [customization, originalCustomization]);
@@ -500,7 +474,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
   const resetToDefaults = useCallback(() => {
     if (!user) return;
 
-    console.log('🔄 Resetting to defaults');
     const defaultCustomization = createDefaultCustomization(user.id);
     setCustomization(defaultCustomization);
     applyCustomization(defaultCustomization);
@@ -509,7 +482,6 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
 
   // Refresh customization from database
   const refreshCustomization = useCallback(async () => {
-    console.log('🔄 Refreshing customization...');
     await loadCustomization();
   }, [loadCustomization]);
 
@@ -521,13 +493,9 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
   // Check for unsaved changes
   useEffect(() => {
     if (customization && originalCustomization) {
-      console.log('🔍 Checking for unsaved changes...');
-      console.log('🔍 Current customization:', JSON.stringify(customization));
-      console.log('🔍 Original customization:', JSON.stringify(originalCustomization));
       
       // Use deep comparison to check for changes
       const hasChanges = !isEqual(customization, originalCustomization);
-      console.log('🔍 Has unsaved changes:', hasChanges);
       setHasUnsavedChanges(hasChanges);
     }
   }, [customization, originalCustomization]);

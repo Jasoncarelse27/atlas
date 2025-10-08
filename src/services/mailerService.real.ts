@@ -39,7 +39,6 @@ export const mailerService = {
       return await response.json();
     } catch (error) {
       // Structured error logging for production debugging
-      console.error(`[MailerLite][FAILED] Template: ${templateId}, Recipient: ${to}, Error:`, error);
       
       // Log failure to Supabase for permanent tracking
       await logEmailFailure(to, templateId, error instanceof Error ? error.message : String(error));

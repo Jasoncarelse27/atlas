@@ -29,7 +29,6 @@ export function useMemoryIntegration({ userId }: UseMemoryIntegrationProps) {
         console.log('🧠 [useMemoryIntegration] Memory extraction completed successfully');
       }
     } catch (error) {
-      console.warn('Memory extraction failed:', error);
       // Don't throw - memory extraction is optional
     }
   }, [updateMemory]);

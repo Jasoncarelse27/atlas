@@ -135,7 +135,6 @@ const Header: React.FC<HeaderProps> = ({
     if (onSoundPlay) {
       onSoundPlay('modal_open');
     }
-    console.log('🔄 Upgrade button clicked');
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
     onShowUpgrade?.();
@@ -216,7 +215,6 @@ const Header: React.FC<HeaderProps> = ({
 
   // Test sound button for debugging
   const handleTestSound = () => {
-    console.log('🔊 Testing sound...');
     if (onSoundPlay) {
       onSoundPlay('success');
       setTimeout(() => onSoundPlay('notification'), 500);

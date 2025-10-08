@@ -87,7 +87,6 @@ class ConversationServiceImpl implements ConversationService {
       };
 
     } catch (error) {
-      console.error('Error in conversationService.sendMessage:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -124,7 +123,6 @@ class ConversationServiceImpl implements ConversationService {
         });
 
       if (error) {
-        console.error('Error creating conversation:', error);
         return {
           success: false,
           error: 'Failed to create conversation in database'
@@ -137,7 +135,6 @@ class ConversationServiceImpl implements ConversationService {
       };
 
     } catch (error) {
-      console.error('Error in conversationService.createConversation:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -173,7 +170,6 @@ class ConversationServiceImpl implements ConversationService {
         });
 
       if (error) {
-        console.error('Error adding message to conversation:', error);
         return {
           success: false,
           error: 'Failed to save message to database'
@@ -191,7 +187,6 @@ class ConversationServiceImpl implements ConversationService {
       };
 
     } catch (error) {
-      console.error('Error in conversationService.addMessageToConversation:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'

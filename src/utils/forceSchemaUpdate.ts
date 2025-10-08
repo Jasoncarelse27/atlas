@@ -1,6 +1,5 @@
 // Force schema update by deleting the old database
 export const forceSchemaUpdate = async () => {
-  console.log('🔄 Forcing schema update...');
   
   try {
     // Delete the old database to force schema recreation
@@ -12,11 +11,9 @@ export const forceSchemaUpdate = async () => {
         resolve(true);
       };
       deleteReq.onerror = () => {
-        console.error('❌ Failed to delete database:', deleteReq.error);
         reject(deleteReq.error);
       };
       deleteReq.onblocked = () => {
-        console.warn('⚠️ Database deletion blocked, but continuing...');
         resolve(true);
       };
     });
@@ -29,7 +26,6 @@ export const forceSchemaUpdate = async () => {
     setTimeout(() => window.location.reload(), 1000);
     
   } catch (error) {
-    console.error('❌ Schema update failed:', error);
     // Force reload anyway
     window.location.reload();
   }
@@ -38,5 +34,4 @@ export const forceSchemaUpdate = async () => {
 // Make it available globally
 if (typeof window !== 'undefined') {
   (window as any).forceSchemaUpdate = forceSchemaUpdate;
-  console.log('🔄 Schema update available: Run forceSchemaUpdate() in console');
 }

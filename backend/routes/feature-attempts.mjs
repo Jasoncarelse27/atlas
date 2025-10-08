@@ -24,7 +24,6 @@ router.post("/", async (req, res) => {
       });
 
     if (error) {
-      console.error("Feature attempt logging failed:", error);
       return res.status(500).json({ 
         error: "Failed to log feature attempt",
         details: error.message 
@@ -33,7 +32,6 @@ router.post("/", async (req, res) => {
 
     res.json({ status: "ok" });
   } catch (err) {
-    console.error("Feature attempt logging error:", err);
     res.status(500).json({ 
       error: "Failed to log feature attempt",
       details: err.message 
@@ -53,7 +51,6 @@ router.get("/stats/:userId", async (req, res) => {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Failed to fetch feature attempt stats:", error);
       return res.status(500).json({ 
         error: "Failed to fetch stats",
         details: error.message 
@@ -72,7 +69,6 @@ router.get("/stats/:userId", async (req, res) => {
       attempts: data
     });
   } catch (err) {
-    console.error("Feature attempt stats error:", err);
     res.status(500).json({ 
       error: "Failed to fetch stats",
       details: err.message 

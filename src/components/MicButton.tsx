@@ -48,13 +48,11 @@ export function MicButton({ onTranscribe }: MicButtonProps) {
 
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
-        console.log('Speech recognized:', transcript);
         onTranscribe(transcript);
         setListening(false);
       };
 
       recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
         toast.error(`Speech recognition error: ${event.error}`);
         setListening(false);
       };
@@ -63,7 +61,6 @@ export function MicButton({ onTranscribe }: MicButtonProps) {
         setListening(false);
       };
     } catch (error) {
-      console.error('Error starting speech recognition:', error);
       toast.error('Failed to start speech recognition');
       setListening(false);
     }

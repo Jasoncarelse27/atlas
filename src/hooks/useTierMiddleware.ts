@@ -166,7 +166,6 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
 
       // Check for cache hits and show savings
       if (data.metadata?.cache?.hit && data.metadata?.cache?.savings) {
-        console.log(`💰 Cache hit! Saved $${data.metadata.cache.savings.toFixed(4)} on this request`);
       }
 
       return {
@@ -179,7 +178,6 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
       };
 
     } catch (error) {
-      console.error('Network error sending message:', error);
       return {
         success: false,
         error: {

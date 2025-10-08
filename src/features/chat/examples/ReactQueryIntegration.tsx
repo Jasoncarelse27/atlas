@@ -44,7 +44,6 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         userId,
         timestamp: new Date().toISOString(),
       });
-      console.error('Failed to create conversation:', chatError);
       alert(getUserFriendlyMessage(chatError));
     }
   };
@@ -73,7 +72,6 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         conversationId,
         timestamp: new Date().toISOString(),
       });
-      console.error('Failed to update title:', chatError);
       alert(getUserFriendlyMessage(chatError));
     }
   };
@@ -96,7 +94,6 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         conversationId,
         timestamp: new Date().toISOString(),
       });
-      console.error('Failed to delete conversation:', chatError);
       alert(getUserFriendlyMessage(chatError));
     }
   };

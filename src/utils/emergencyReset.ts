@@ -10,11 +10,9 @@ export const emergencyReset = async () => {
     // Delete all IndexedDB databases
     if ('indexedDB' in window) {
       const databases = await indexedDB.databases();
-      console.log('🗑️ Found databases to delete:', databases);
       
       for (const db of databases) {
         if (db.name) {
-          console.log(`🗑️ Deleting database: ${db.name}`);
           const deleteReq = indexedDB.deleteDatabase(db.name);
           await new Promise((resolve) => {
             deleteReq.onsuccess = () => {
@@ -22,11 +20,9 @@ export const emergencyReset = async () => {
               resolve(true);
             };
             deleteReq.onerror = () => {
-              console.error(`❌ Failed to delete ${db.name}:`, deleteReq.error);
               resolve(true); // Continue anyway
             };
             deleteReq.onblocked = () => {
-              console.warn(`⚠️ ${db.name} deletion blocked`);
               resolve(true); // Continue anyway
             };
           });
@@ -39,7 +35,6 @@ export const emergencyReset = async () => {
       const cacheNames = await caches.keys();
       for (const cacheName of cacheNames) {
         await caches.delete(cacheName);
-        console.log(`🗑️ Deleted cache: ${cacheName}`);
       }
     }
     
@@ -48,7 +43,6 @@ export const emergencyReset = async () => {
     window.location.reload();
     
   } catch (error) {
-    console.error('❌ EMERGENCY RESET FAILED:', error);
     // Force reload anyway
     window.location.reload();
   }

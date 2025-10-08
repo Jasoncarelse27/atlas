@@ -14,11 +14,9 @@ export const immediateReset = async () => {
         resolve(true);
       };
       deleteReq.onerror = () => {
-        console.error('❌ Failed to delete AtlasDB:', deleteReq.error);
         resolve(true); // Continue anyway
       };
       deleteReq.onblocked = () => {
-        console.warn('⚠️ AtlasDB deletion blocked, but continuing...');
         resolve(true);
       };
     });
@@ -46,7 +44,6 @@ export const immediateReset = async () => {
     window.location.reload();
     
   } catch (error) {
-    console.error('❌ IMMEDIATE RESET FAILED:', error);
     window.location.reload();
   }
 };

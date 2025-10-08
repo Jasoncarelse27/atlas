@@ -16,7 +16,6 @@ export const budgetCeilingService = {
     try {
       const client = getSupabaseClient();
       if (!client) {
-        console.warn('Supabase not available - allowing request');
         return { allowed: true };
       }
 
@@ -48,7 +47,6 @@ export const budgetCeilingService = {
       
       return { allowed: true };
     } catch (error) {
-      console.error('Budget check failed:', error);
       return { allowed: true }; // GRACEFUL FALLBACK
     }
   },
@@ -64,9 +62,7 @@ export const budgetCeilingService = {
         p_spend_delta: cost,
         p_req_delta: reqInc
       });
-      if (error) console.warn('recordSpend rpc error', error);
     } catch (error) {
-      console.warn('recordSpend failed:', error);
     }
   },
 
@@ -106,7 +102,6 @@ export const budgetCeilingService = {
         data: { ...payload, ts: new Date().toISOString(), svc: 'budgetCeiling' }
       });
     } catch (error) {
-      console.warn('budget log err', error.message);
     }
   }
 };

@@ -28,11 +28,9 @@ export default async function tierGateMiddleware(req, res, next) {
     req.selectedModel = tierConfig.model;
     req.tierConfig = tierConfig;
     
-    console.log(`[tierGateMiddleware] ${tier} tier: ${req.selectedModel} selected, budget: $${tierConfig.monthlyBudget || 0}/$${tierConfig.maxBudget || 0}`);
     
     next();
   } catch (error) {
-    console.error('[tierGateMiddleware] Error:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 

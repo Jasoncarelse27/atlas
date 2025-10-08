@@ -170,7 +170,6 @@ class UsageTrackingService {
         warningLevel
       };
     } catch (error) {
-      console.error('Usage check failed:', error);
       
       // Graceful degradation - allow but log
       await this.logError('usage_check_failed', { userId, tier, error: error.message });
@@ -249,7 +248,6 @@ class UsageTrackingService {
         });
 
     } catch (error) {
-      console.error('Failed to record conversation:', error);
       await this.logError('record_conversation_failed', { userId, tier, tokensUsed, crisisBypass, error: error.message });
     }
   }
@@ -337,7 +335,6 @@ class UsageTrackingService {
   async resetDailyUsage(): Promise<void> {
     // This is handled automatically by date-based records
     // Old records remain for billing analysis
-    console.log('Daily usage reset handled by date-based records');
   }
 
   /**
@@ -353,7 +350,6 @@ class UsageTrackingService {
           timestamp: new Date().toISOString()
         });
     } catch (error) {
-      console.error('Failed to log usage event:', error);
     }
   }
 
@@ -383,7 +379,6 @@ class UsageTrackingService {
         
       console.log(`🚨 Crisis bypass activated for user ${userId}`);
     } catch (error) {
-      console.error('Failed to log crisis bypass:', error);
     }
   }
 
@@ -410,7 +405,6 @@ class UsageTrackingService {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Failed to log blocked attempt:', error);
     }
   }
 
@@ -427,7 +421,6 @@ class UsageTrackingService {
           timestamp: new Date().toISOString()
         });
     } catch (error) {
-      console.error('Failed to log error:', error);
     }
   }
 }

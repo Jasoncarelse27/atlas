@@ -49,7 +49,6 @@ export function useStorageSync(options: UseStorageSyncOptions) {
             await markConversationSynced(conv.id, data.id);
           }
         } catch (error) {
-          console.error('Error syncing conversation:', error);
         }
       }
 
@@ -73,13 +72,11 @@ export function useStorageSync(options: UseStorageSyncOptions) {
             await markMessageSynced(msg.id, data.id);
           }
         } catch (error) {
-          console.error('Error syncing message:', error);
         }
       }
 
       setLastSyncTime(new Date());
     } catch (error) {
-      console.error('Error during sync:', error);
     } finally {
       setIsSyncing(false);
     }

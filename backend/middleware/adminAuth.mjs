@@ -13,7 +13,6 @@ export function requireAdmin(req, res, next) {
     
     // Check if user exists and has email
     if (!user?.email) {
-      console.warn('🚫 Admin access denied: No user or email found');
       return res.status(401).json({ 
         success: false,
         error: "UNAUTHORIZED", 
@@ -25,7 +24,6 @@ export function requireAdmin(req, res, next) {
     
     // Check if user email is in allowlist
     if (!ADMIN_EMAIL_ALLOWLIST.includes(userEmail)) {
-      console.warn(`🚫 Admin access denied for email: ${userEmail}`);
       return res.status(403).json({ 
         success: false,
         error: "FORBIDDEN", 
@@ -38,7 +36,6 @@ export function requireAdmin(req, res, next) {
     next();
     
   } catch (error) {
-    console.error('❌ Admin auth middleware error:', error);
     return res.status(500).json({ 
       success: false,
       error: "INTERNAL_ERROR", 
@@ -57,7 +54,6 @@ export function requireAdminDev(req, res, next) {
   
   // For development or CI, we can bypass full auth if needed
   if (process.env.NODE_ENV === 'development' || isCI) {
-    console.log('🔧 Development/CI mode: Admin access granted');
     req.isAdmin = true;
     return next();
   }

@@ -50,7 +50,6 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   
   // Message actions
   addMessage: async (message: Message) => {
-    console.log('🔍 [useMessageStore] Adding message to store:', message);
     set((state) => {
       const newMessages = [...state.messages, message];
       console.log('✅ [useMessageStore] Store updated, total messages:', newMessages.length);
@@ -60,7 +59,6 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
     });
     // Reduced logging for performance
     if (import.meta.env.DEV) {
-      console.log("[useMessageStore] Added message:", message.id);
     }
   },
   
@@ -83,7 +81,6 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
         return msg;
       }),
     }));
-    console.log("[useMessageStore] Updated message:", id, patch);
   },
   
   clearMessages: () => {
@@ -100,19 +97,16 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
     });
     
     set({ messages: [], isHydrated: false });
-    console.log("[useMessageStore] Cleared all messages");
   },
   
   setConversationId: (id: string) => {
     set({ conversationId: id });
     // ✅ Auto-save conversation ID for restore
     localStorage.setItem('atlas:lastConversationId', id);
-    console.log("[useMessageStore] Set conversation ID:", id);
   },
   
   hydrateFromOffline: async (conversationId: string) => {
     try {
-      console.log("[useMessageStore] Hydrating messages for conversation:", conversationId);
       
       // Fetch messages from Supabase
       const { data: messages, error } = await supabase
@@ -122,7 +116,6 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
         .order("created_at", { ascending: true });
 
       if (error) {
-        console.error("[useMessageStore] Failed to fetch messages:", error);
         set({ isHydrated: true });
         return;
       }
@@ -152,10 +145,8 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
           messages: [], 
           isHydrated: true 
         });
-        console.log("[useMessageStore] No messages found in Supabase");
       }
     } catch (error) {
-      console.error("[useMessageStore] Error hydrating messages:", error);
       set({ isHydrated: true });
     }
   },
@@ -183,7 +174,6 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   clearPendingAttachments: () => set({ pendingAttachments: [] }),
   
   initConversation: async (userId: string) => {
-    console.log("[useMessageStore] Initializing conversation for user:", userId);
     
     try {
       // Try to fetch an existing conversation
@@ -194,11 +184,9 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
         .limit(1);
 
       if (error) {
-        console.error("[useMessageStore] Failed to fetch conversation", error);
         // Fallback: create a local conversation ID
         const fallbackId = generateUUID();
         set({ conversationId: fallbackId });
-        console.log("[useMessageStore] Using fallback conversation:", fallbackId);
         return fallbackId;
       }
 
@@ -211,10 +199,8 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
           .insert({ id: newId, title: "New conversation" });
 
         if (insertError) {
-          console.error("[useMessageStore] Failed to create conversation", insertError);
           // Fallback: use local conversation ID
           set({ conversationId: newId });
-          console.log("[useMessageStore] Using local conversation:", newId);
           return newId;
         }
 
@@ -222,14 +208,11 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
       }
 
       set({ conversationId });
-      console.log("[useMessageStore] Initialized conversation:", conversationId);
       return conversationId;
     } catch (err) {
-      console.error("[useMessageStore] Conversation init failed:", err);
       // Ultimate fallback
       const fallbackId = generateUUID();
       set({ conversationId: fallbackId });
-      console.log("[useMessageStore] Using emergency fallback conversation:", fallbackId);
       return fallbackId;
     }
   },

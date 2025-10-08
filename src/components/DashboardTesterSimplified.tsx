@@ -74,7 +74,6 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
           metrics.memoryUsage = memoryInfo.usedJSHeapSize;
         }
       } catch (e) {
-        console.warn('Memory API not available');
       }
 
       // Safe CSS rules count
@@ -87,7 +86,6 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
           }
         }, 0);
       } catch (e) {
-        console.warn('CSS rules counting failed');
       }
 
       // Measure render time
@@ -96,7 +94,6 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
         setPerformanceMetrics(metrics);
       });
     } catch (error) {
-      console.error('Performance test failed:', error);
     }
   };
 
@@ -139,7 +136,6 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
   };
 
   const handleShowDetails = (id: string) => {
-    console.log('Show details for:', id);
   };
 
   const filteredResults = selectedCategory === 'all' 

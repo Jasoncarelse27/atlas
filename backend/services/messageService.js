@@ -136,11 +136,9 @@ async function generateConversationTitle(text, tier) {
     });
     
     const aiTitle = completion.content[0]?.text?.trim() || text.slice(0, 40).trim();
-    console.log(`🎯 [TitleGen] AI title for ${tier}: "${aiTitle}"`);
     return aiTitle;
   } catch (err) {
     // Fallback to simple title if AI fails
-    console.warn("⚠️ [TitleGen] AI title generation failed, using fallback:", err.message);
     return text.slice(0, 40).trim() || "New Conversation";
   }
 }
@@ -150,7 +148,6 @@ async function generateConversationTitle(text, tier) {
  */
 async function getUserTier(userId) {
   if (!userId) {
-    console.log("⚠️ [MessageService] No userId provided, defaulting to 'free'");
     return "free";
   }
 
@@ -162,7 +159,6 @@ async function getUserTier(userId) {
       .single();
 
     if (error) {
-      console.warn("⚠️ [MessageService] Could not fetch profile:", error.message);
       return "free"; // Always default to free on error
     }
 
@@ -170,7 +166,6 @@ async function getUserTier(userId) {
     console.log(`✅ [MessageService] User ${userId} tier: ${tier}`);
     return tier;
   } catch (err) {
-    console.error("❌ [MessageService] Error fetching tier:", err);
     return "free"; // Always default to free on exception
   }
 }
@@ -197,7 +192,6 @@ export async function processMessage(userId, text, conversationId = null) {
       const monthlyLimit = 15;
       
       if (messagesThisMonth >= monthlyLimit) {
-        console.log(`🚫 [MessageService] User ${userId} has reached monthly limit: ${messagesThisMonth}/${monthlyLimit}`);
         return {
           success: false,
           error: 'MONTHLY_LIMIT_REACHED',
@@ -208,7 +202,6 @@ export async function processMessage(userId, text, conversationId = null) {
         };
       }
     } catch (error) {
-      console.error('❌ [MessageService] Error checking usage limits:', error);
       // Continue processing if we can't check limits (fail open for reliability)
     }
   }
@@ -232,7 +225,6 @@ export async function processMessage(userId, text, conversationId = null) {
         console.log("✅ [MessageService] Created conversation:", convId);
       }
     } catch (err) {
-      console.warn("⚠️ [MessageService] Could not create conversation:", err);
     }
   } else if (convId && userId) {
     // ✅ Update generic titles with tier-based logic
@@ -253,7 +245,6 @@ export async function processMessage(userId, text, conversationId = null) {
         console.log(`✅ [MessageService] Updated conversation title: "${newTitle}"`);
       }
     } catch (err) {
-      console.warn("⚠️ [MessageService] Could not update conversation title:", err);
     }
   }
 
@@ -287,14 +278,12 @@ export async function processMessage(userId, text, conversationId = null) {
               .eq('id', userId);
             
             if (updateError) {
-              console.error('❌ [MessageService] Error updating memory:', updateError);
             } else {
               console.log('✅ [MessageService] Memory updated successfully:', JSON.stringify(mergedMemory));
             }
           }
         }
       } catch (memoryError) {
-        console.warn('⚠️ [MessageService] Memory extraction failed:', memoryError);
       }
     }
 
@@ -353,7 +342,6 @@ Core principles:
           .limit(10); // Last 10 messages for context
         
         if (historyError) {
-          console.warn('⚠️ [Memory] Could not fetch conversation history:', historyError);
         } else if (historyMessages && historyMessages.length > 0) {
           conversationHistory = historyMessages.map(msg => ({
             role: msg.role,
@@ -362,7 +350,6 @@ Core principles:
           console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
         }
       } catch (error) {
-        console.warn('⚠️ [Memory] Error fetching conversation history:', error);
       }
     }
 
@@ -384,7 +371,6 @@ Core principles:
     
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        console.log(`🔄 [MessageService] Attempt ${attempt}/3 to call Claude API`);
         completion = await getAnthropic().messages.create({
           model,
           max_tokens: 512,
@@ -396,17 +382,14 @@ Core principles:
         
       } catch (error) {
         lastError = error;
-        console.error(`❌ [MessageService] Attempt ${attempt} failed:`, error.message);
         
         if (attempt < 3) {
-          console.log(`⏳ [MessageService] Waiting 2 seconds before retry...`);
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     }
     
     if (!completion) {
-      console.error('❌ [MessageService] All retry attempts failed');
       throw lastError || new Error('Claude API failed after 3 attempts');
     }
 
@@ -425,7 +408,6 @@ Core principles:
         });
         
         if (userError) {
-          console.error("❌ [MessageService] Failed to save user message:", userError);
         } else {
           console.log("✅ [MessageService] Saved user message");
         }
@@ -439,7 +421,6 @@ Core principles:
         });
         
         if (assistantError) {
-          console.error("❌ [MessageService] Failed to save assistant message:", assistantError);
         } else {
           console.log("✅ [MessageService] Saved assistant message");
         }
@@ -448,14 +429,11 @@ Core principles:
           console.log("✅ [MessageService] Saved both messages to conversation:", convId);
         }
       } catch (err) {
-        console.error("❌ [MessageService] Could not save messages:", err);
       }
     }
 
     // Update usage stats for Free tier users
-    console.log(`🔍 [Debug] MessageService tier: ${tier}, userId: ${userId}`);
     if (tier === 'free') {
-      console.log(`📊 [Usage] Starting usage tracking for user ${userId} (tier: ${tier})`);
       try {
         const today = new Date().toISOString().slice(0, 10);
         const startOfMonth = new Date();
@@ -476,7 +454,6 @@ Core principles:
         // Reset monthly count if it's a new month (SIMPLE)
         if (lastReset !== currentMonth) {
           currentStats.messages_this_month = 0;
-          console.log(`📊 [Usage] Monthly reset triggered: ${lastReset} -> ${currentMonth}`);
         }
         
         // Increment monthly counter
@@ -493,13 +470,9 @@ Core principles:
           .select();
           
         if (updateError) {
-          console.error('❌ [Usage] Database update error:', updateError);
         } else {
-          console.log(`📊 [Usage] Updated usage for user ${userId}: ${currentStats.messages_this_month}/15 this month`);
-          console.log('📊 [Usage] Update result:', updateData);
         }
       } catch (error) {
-        console.error('Error updating usage stats:', error);
         // Continue without updating usage in case of error
       }
     }
@@ -507,7 +480,6 @@ Core principles:
     return { reply, model, tier, conversationId: convId };
 
   } catch (err) {
-    console.error("❌ [MessageService] Anthropic error:", err);
     return {
       reply: "⚠️ Atlas had an error contacting Claude. Please try again.",
       model,

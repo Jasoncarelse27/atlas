@@ -201,7 +201,7 @@ export function formatErrorForUser(error: ChatError): string {
  * Log error with context for debugging
  */
 export function logError(error: ChatError, context: ErrorContext): void {
-  console.error('Chat Error:', {
+  console.log({
     code: error.code,
     message: error.message,
     context,

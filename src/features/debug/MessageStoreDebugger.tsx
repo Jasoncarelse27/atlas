@@ -19,7 +19,6 @@ export default function MessageStoreDebugger() {
       setMessageCount(messages);
       setConversationCount(conversations);
     } catch (error) {
-      console.error('Failed to refresh stats:', error);
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +51,6 @@ export default function MessageStoreDebugger() {
       
       console.log('✅ Dexie data exported successfully');
     } catch (error) {
-      console.error('❌ Failed to export data:', error);
     }
   };
 
@@ -64,7 +62,6 @@ export default function MessageStoreDebugger() {
         await refreshStats();
         console.log('✅ Database cleared successfully');
       } catch (error) {
-        console.error('❌ Failed to clear database:', error);
       }
     }
   };

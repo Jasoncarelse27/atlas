@@ -87,7 +87,6 @@ export class PendingQueueManager {
         try {
           await this.processOperation(operation);
         } catch (error) {
-          console.error(`Failed to process operation ${operation.id}:`, error);
           await this.updateOperationStatus(operation.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
         }
       }
@@ -202,7 +201,6 @@ export class PendingQueueManager {
     
     // Update offline store with response
     // This would require conversation offline store implementation
-    console.log('Conversation created:', response);
   }
 
   /**
@@ -215,7 +213,6 @@ export class PendingQueueManager {
     const { subscriptionApi } = await import('../services/subscriptionApi');
     
     // This would depend on the specific subscription update method
-    console.log('Subscription update:', subscriptionData);
   }
 
   /**
@@ -231,7 +228,6 @@ export class PendingQueueManager {
     
     // Update the message with transcript
     // This would require finding the associated message and updating it
-    console.log('Voice transcribed:', transcript);
   }
 
   /**
@@ -247,7 +243,6 @@ export class PendingQueueManager {
     
     // Update the message with image metadata
     // This would require finding the associated message and updating it
-    console.log('Image uploaded:', result);
   }
 
   /**
@@ -261,7 +256,6 @@ export class PendingQueueManager {
         ...updates,
       });
     } catch (error) {
-      console.error('Failed to update operation status:', error);
     }
   }
 

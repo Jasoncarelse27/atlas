@@ -21,7 +21,6 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
   useEffect(() => {
     if (profile?.tier) {
       setCurrentTier(profile.tier);
-      console.log(`[DevTierSwitcher] Current tier from profile: ${profile.tier}`);
     }
   }, [profile?.tier]);
 
@@ -29,7 +28,6 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
     if (!user || isUpdating) return;
 
     setIsUpdating(true);
-    console.log(`[DevTierSwitcher] Updating tier to ${newTier}...`);
 
     try {
       // 1. Update backend via Supabase
@@ -42,7 +40,6 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         .eq('id', user.id);
 
       if (error) {
-        console.error('❌ Backend update failed:', error);
         throw error;
       }
 
@@ -56,7 +53,6 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
           console.log('✅ Dexie cache cleared');
         }
       } catch (dexieError) {
-        console.warn('⚠️ Dexie cache clear failed (non-critical):', dexieError);
       }
 
       // 3. Refresh React state (re-fetch profile from backend)
@@ -67,10 +63,8 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
       setCurrentTier(newTier);
       onTierChange?.(newTier);
 
-      console.log(`🎉 Tier sync complete: ${newTier}`);
 
     } catch (error) {
-      console.error('❌ Tier update failed:', error);
     } finally {
       setIsUpdating(false);
     }

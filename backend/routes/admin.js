@@ -17,13 +17,11 @@ router.post('/resetAttempts', async (req, res) => {
       .neq('id', '00000000-0000-0000-0000-000000000000');
     
     if (error) {
-      console.error('Error resetting attempts:', error);
       return res.json({ success: false, message: error.message });
     }
     
     res.json({ success: true, message: 'Feature attempts table reset' });
   } catch (error) {
-    console.error('Error in resetAttempts:', error);
     res.json({ success: false, message: error.message });
   }
 });
@@ -37,13 +35,11 @@ router.get('/featureFlags', async (req, res) => {
       .order('tier', { ascending: true });
     
     if (error) {
-      console.error('Error fetching feature flags:', error);
       return res.json({ success: false, message: error.message });
     }
     
     res.json({ success: true, data });
   } catch (error) {
-    console.error('Error in featureFlags:', error);
     res.json({ success: false, message: error.message });
   }
 });
@@ -63,7 +59,6 @@ router.get('/metrics', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching admin metrics:', error);
     res.json({ 
       success: false, 
       status: 'unavailable',
@@ -116,7 +111,6 @@ router.get("/usage", async (req, res) => {
       .single();
 
     if (profileError) {
-      console.warn('[admin/usage] Could not fetch user profile:', profileError.message);
     }
 
     const tier = profile?.subscription_tier || 'free';
@@ -131,7 +125,6 @@ router.get("/usage", async (req, res) => {
       .maybeSingle();
 
     if (usageError) {
-      console.warn('[admin/usage] Could not fetch daily usage:', usageError.message);
     }
 
     const dailyMessagesUsed = usageData?.count || 0;
@@ -156,7 +149,6 @@ router.get("/usage", async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[admin/usage] Error fetching usage:', error);
     res.status(500).json({ 
       success: false, 
       message: "Failed to fetch usage data" 
@@ -200,7 +192,6 @@ router.get('/snapshots', async (req, res) => {
     const { data, error, count } = await query;
     
     if (error) {
-      console.error('Error fetching snapshots:', error);
       return res.status(500).json({ 
         success: false, 
         message: error.message 
@@ -221,7 +212,6 @@ router.get('/snapshots', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in snapshots endpoint:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch snapshots',
@@ -243,7 +233,6 @@ router.get('/trends/:email', async (req, res) => {
       });
     
     if (error) {
-      console.error('Error fetching user trends:', error);
       return res.status(500).json({ 
         success: false, 
         message: error.message 
@@ -259,7 +248,6 @@ router.get('/trends/:email', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in trends endpoint:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch user trends',
@@ -277,7 +265,6 @@ router.get('/summary', async (req, res) => {
       .rpc('get_tier_summary', { p_date: date });
     
     if (error) {
-      console.error('Error fetching tier summary:', error);
       return res.status(500).json({ 
         success: false, 
         message: error.message 
@@ -292,7 +279,6 @@ router.get('/summary', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in summary endpoint:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch tier summary',
@@ -308,7 +294,6 @@ router.post('/snapshots/take', async (req, res) => {
       .rpc('take_tier_usage_snapshot');
     
     if (error) {
-      console.error('Error taking snapshot:', error);
       return res.status(500).json({ 
         success: false, 
         message: error.message 
@@ -323,7 +308,6 @@ router.post('/snapshots/take', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in take snapshot endpoint:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to take snapshot',
@@ -382,7 +366,6 @@ router.get('/snapshots/export.csv', async (req, res) => {
     const { data, error } = await query;
     
     if (error) {
-      console.error('Error fetching snapshots for CSV:', error);
       return res.status(500).json({ 
         success: false, 
         message: error.message 
@@ -436,12 +419,10 @@ router.get('/snapshots/export.csv', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'no-cache');
     
-    console.log(`📊 CSV export generated: ${filename} (${data?.length || 0} rows)`);
     
     res.send(csv);
     
   } catch (error) {
-    console.error('Error in CSV export endpoint:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to export CSV',
@@ -475,7 +456,6 @@ router.post('/reports/weekly/run', async (req, res) => {
     }
     
   } catch (error) {
-    console.error('Error in manual weekly report endpoint:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to trigger weekly report',
@@ -495,7 +475,6 @@ router.get('/subscriptions/overview', async (req, res) => {
       .order('updated_at', { ascending: false });
     
     if (error) {
-      console.error('[AdminSubs] DB error:', error);
       return res.status(500).json({ 
         success: false, 
         error: 'DB query failed',
@@ -522,7 +501,6 @@ router.get('/subscriptions/overview', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in subscription overview endpoint:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch subscription overview',
@@ -602,7 +580,6 @@ router.get('/analytics/summary', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error fetching analytics summary:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch analytics data',

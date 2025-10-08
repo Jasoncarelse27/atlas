@@ -50,7 +50,6 @@ export function useTierAccess() {
       
       setState({ tier: validTier, loading: false, userId: user.id })
     } catch (err) {
-      console.error("[useTierAccess] Error:", err)
       setState(prev => ({ ...prev, loading: false }))
     }
   }, [])
@@ -85,7 +84,6 @@ export function useTierAccess() {
 
   // ✅ Show upgrade modal (to be implemented by consuming component)
   const showUpgradeModal = useCallback((feature: string) => {
-    console.log(`⚠️ Upgrade required for: ${feature}`)
     // Note: Modal display handled by UpgradeModal component
   }, [])
 
@@ -143,7 +141,6 @@ export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice"
           })
       } catch (error) {
         // Silent fail - analytics shouldn't block user
-        console.error('Failed to log feature attempt:', error)
       }
     }
     

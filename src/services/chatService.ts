@@ -17,7 +17,6 @@ export async function sendAttachmentMessage(
   userId: string,
   attachments: Array<{ type: string; url?: string; text?: string }>
 ) {
-  console.log("[chatService] sendAttachmentMessage called:", { conversationId, userId, attachments });
   
   try {
     // Get JWT token for authentication
@@ -30,7 +29,6 @@ export async function sendAttachmentMessage(
     // Send to backend - use relative URL for mobile compatibility
     // This ensures mobile devices use the Vite proxy instead of direct localhost calls
     const messageEndpoint = '/message';
-    console.log(`[chatService] Sending attachments to backend: ${messageEndpoint}`);
     
     const response = await fetch(messageEndpoint, {
       method: "POST",
@@ -46,20 +44,16 @@ export async function sendAttachmentMessage(
       }),
     });
 
-    console.log(`[chatService] Backend response status: ${response.status}`);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('Backend error:', errorData);
       throw new Error(`Backend error: ${errorData.error || response.statusText}`);
     }
 
     const data = await response.json();
-    console.log('Backend response data:', data);
     
     return data;
   } catch (error) {
-    console.error('[chatService] Error in sendAttachmentMessage:', error);
     throw error;
   }
 }
@@ -112,7 +106,6 @@ export const chatService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Backend error:', errorData);
         
         // ✅ Handle monthly limit reached
         if (response.status === 429 && errorData.error === 'MONTHLY_LIMIT_REACHED') {
@@ -133,7 +126,6 @@ export const chatService = {
       } else if (typeof data === 'string') {
         responseText = data;
       } else {
-        console.error('❌ Unexpected response format:', data);
         responseText = "Sorry, I couldn't process that request.";
       }
 
@@ -158,7 +150,6 @@ export const chatService = {
           });
         }
       } catch (refreshError) {
-        console.warn('⚠️ [chatService] Failed to refresh profile:', refreshError);
       }
       
       // Reset streaming state
@@ -167,7 +158,6 @@ export const chatService = {
       
       return responseText;
     } catch (error) {
-      console.error('[FLOW] Error in sendMessage:', error);
       
       // Reset streaming state on error
       // Removed useMessageStore.setIsStreaming - using callback pattern instead
@@ -191,14 +181,12 @@ export const chatService = {
 
   handleFileMessage: async (message: Message, onComplete?: () => void) => {
     try {
-      console.log("[FLOW] handleFileMessage called:", { type: message.type, content: message.content });
       // Message management is handled by the calling component
 
       // Message management is handled by the calling component
       
       // Handle messages with attachments (new multi-attachment support)
       if (message.attachments && message.attachments.length > 0) {
-        console.log("[FLOW] Sending multi-attachment message for analysis:", message.attachments);
         
         // Get user info for the request
         const { data: { session } } = await supabase.auth.getSession();
@@ -228,10 +216,8 @@ export const chatService = {
           const data = await response.json();
           if (data.success) {
             // Log response - message management handled by calling component
-            console.log('Multi-attachment response:', data.response);
           }
         } else {
-          console.error("Failed to analyze attachments:", response.status);
         }
       }
       // Legacy: Handle single image messages
@@ -241,7 +227,6 @@ export const chatService = {
                         (typeof message.content === 'string' && message.content.startsWith('http') ? message.content : null);
         
         if (imageUrl) {
-          console.log("[FLOW] Sending image for analysis:", imageUrl);
           
           // Get user info for the request
           const { data: { session } } = await supabase.auth.getSession();
@@ -260,17 +245,7 @@ export const chatService = {
             imageUrl: imageUrl // Send image URL for analysis
           };
           
-          console.log("[DEBUG] Frontend sending request to backend:", {
-            url: '/message',
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-            body: requestBody
-          });
-          
-          const response = await fetch('/message', {
+          const response = await fetch(`${API_URL}/message`, {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
@@ -279,21 +254,15 @@ export const chatService = {
             body: JSON.stringify(requestBody),
           });
 
-          console.log("[DEBUG] Backend response status:", response.status);
-          console.log("[DEBUG] Backend response headers:", Object.fromEntries(response.headers.entries()));
           
           if (response.ok) {
             const data = await response.json();
-            console.log("[DEBUG] Backend response data:", data);
             if (data.success) {
               // Log response - message management handled by calling component
-              console.log('Image analysis response:', data.response);
             }
           } else {
             const errorText = await response.text();
-            console.error("Failed to analyze image:", response.status, errorText);
             // Log error - message management handled by calling component
-            console.error("Image analysis failed");
           }
         }
       }
@@ -301,7 +270,6 @@ export const chatService = {
       // Call completion callback
       onComplete?.();
     } catch (error) {
-      console.error("[FLOW] Error in handleFileMessage:", error);
       throw error;
     }
   }
@@ -324,7 +292,6 @@ export async function sendMessageWithAttachments(
   caption?: string,
   userId?: string
 ) {
-  console.debug("[chatService] sendMessageWithAttachments", { conversationId, attachments, caption });
 
   const tempId = generateUUID();
 
@@ -348,7 +315,6 @@ export async function sendMessageWithAttachments(
     createdAt: new Date().toISOString(),
   };
 
-  console.log("[chatService] Sending message with caption + attachments:", newMessage);
 
   // Show optimistically in UI
   addMessage(newMessage);
@@ -394,11 +360,9 @@ export async function sendMessageWithAttachments(
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('[chatService] Backend analysis error:', errorData);
         
         // ✅ Handle tier gating response
         if (response.status === 403 && errorData.upgrade) {
-          console.log("[chatService] ⚠️ Tier upgrade required for image analysis");
           
           // Add upgrade message to chat
           const upgradeMessage = {
@@ -439,12 +403,10 @@ export async function sendMessageWithAttachments(
       return { success: true };
       
     } catch (aiError) {
-      console.error("[chatService] ❌ AI analysis failed:", aiError);
       // Don't throw - user message is still saved, just no AI response
       return { success: true }; // Still return success - user message was saved
     }
   } catch (err) {
-    console.error("[chatService] ❌ Failed to send message:", err);
     throw err; // Only throw if the entire send operation failed
   }
 }// Force Vercel rebuild Sat Sep 27 16:47:24 SAST 2025

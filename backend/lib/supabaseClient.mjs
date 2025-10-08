@@ -11,7 +11,6 @@ if (supabaseUrl && supabaseServiceKey) {
   supabase = createClient(supabaseUrl, supabaseServiceKey);
   console.log('✅ Supabase client initialized for logging');
 } else {
-  console.warn('⚠️ Supabase credentials not found - logging will be local only');
   // Create mock client for development
   supabase = {
     from: () => ({

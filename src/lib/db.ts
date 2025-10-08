@@ -8,7 +8,6 @@ try {
     messages: "++id, content, created_at, sync_status",
   });
 } catch (err) {
-  console.error("[Dexie] Failed to init DB:", err);
   db = null;
 }
 

@@ -62,7 +62,6 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         if (error) {
           setError(error.message);
         } else {
-          console.log('Login successful');
           // Redirect to dashboard after successful login
           navigate('/chat');
         }

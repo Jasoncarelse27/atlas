@@ -76,3 +76,14 @@ backup.sql
 *.sqlite
 *.db
 *.dump
+
+# === SECURITY ===
+.env
+.env.*
+.cert/
+*.pem
+*.key
+# === DEV NOISE ===
+node_modules/
+dist/
+.DS_Store

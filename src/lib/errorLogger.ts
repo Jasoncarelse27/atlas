@@ -69,7 +69,6 @@ class ErrorLogger {
 
     // Console logging with emoji based on severity
     const emoji = this.getSeverityEmoji(severity);
-    console.error(`${emoji} Error [${errorId}]:`, {
       message,
       context,
       severity,
@@ -78,7 +77,6 @@ class ErrorLogger {
 
     // Log stack trace if available
     if (stack) {
-      console.error('Stack trace:', stack);
     }
 
     // Send to external services if configured
@@ -212,14 +210,12 @@ class ErrorLogger {
           extra: error.context,
         });
       } catch (sentryError) {
-        console.error('Failed to send error to Sentry:', sentryError);
       }
     }
 
     // Send to custom analytics endpoint if configured
     if (import.meta.env.VITE_ERROR_ANALYTICS_ENDPOINT) {
       this.sendToAnalytics(error).catch(analyticsError => {
-        console.error('Failed to send error to analytics:', analyticsError);
       });
     }
   }
@@ -239,7 +235,6 @@ class ErrorLogger {
       });
     } catch (fetchError) {
       // Don't log analytics errors to avoid infinite loops
-      console.warn('Analytics endpoint unavailable');
     }
   }
 }

@@ -5,12 +5,10 @@ let migrationLock = false
 
 export async function runMigrations() {
   if (migrationLock) {
-    console.log("[DB MIGRATION] Skipped – already running")
     return
   }
 
   migrationLock = true
-  console.log("[DB MIGRATION] Starting database migration...")
 
   try {
     await atlasDB.open()
@@ -36,12 +34,10 @@ export async function runMigrations() {
       })
       console.log(`[DB MIGRATION] Default conversation created ✅ – "${id}"`)
     } else {
-      console.log("[DB MIGRATION] Conversation exists, skipping creation.")
     }
 
     console.log("[DB MIGRATION] Completed successfully ✅")
   } catch (err) {
-    console.error("[DB MIGRATION] Error during migration:", err)
   } finally {
     migrationLock = false
   }

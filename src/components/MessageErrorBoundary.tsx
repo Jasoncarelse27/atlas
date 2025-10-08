@@ -21,7 +21,6 @@ export class MessageErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('MessageRenderer error:', error, errorInfo);
   }
 
   render() {

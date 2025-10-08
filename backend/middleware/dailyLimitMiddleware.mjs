@@ -53,7 +53,6 @@ export default async function dailyLimitMiddleware(req, res, next) {
         .maybeSingle();
 
       if (error) {
-        console.error('[dailyLimitMiddleware] Supabase error:', error.message);
         // Fall back to in-memory tracking for development
         return handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, next);
       }
@@ -80,7 +79,6 @@ export default async function dailyLimitMiddleware(req, res, next) {
         });
 
       if (upsertErr) {
-        console.warn('[dailyLimitMiddleware] Failed to increment usage:', upsertErr.message);
       }
 
       req.tier = tier;
@@ -88,13 +86,11 @@ export default async function dailyLimitMiddleware(req, res, next) {
       return next();
 
     } catch (dbError) {
-      console.error('[dailyLimitMiddleware] Database error:', dbError.message);
       // Fall back to in-memory tracking
       return handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, next);
     }
 
   } catch (err) {
-    console.error('[dailyLimitMiddleware] Unexpected error:', err);
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error' 
@@ -106,12 +102,10 @@ export default async function dailyLimitMiddleware(req, res, next) {
  * Handle usage tracking in memory when Supabase is not available
  */
 function handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, next) {
-  console.log('[monthlyLimitMiddleware] Supabase not available, using in-memory tracking');
   
   const key = `${userId}-${startOfMonth.toISOString().slice(0, 7)}`;
   const currentCount = inMemoryUsage.get(key) || 0;
   
-  console.log(`[dailyLimitMiddleware] In-memory tracking: ${currentCount + 1} for user ${userId}`);
   
   if (currentCount >= limit) {
     return res.status(429).json({
@@ -123,7 +117,6 @@ function handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, nex
   }
   
   inMemoryUsage.set(key, currentCount + 1);
-  console.log(`[monthlyLimitMiddleware] User ${userId} (${tier}): ${currentCount + 1}/${limit} messages used this month`);
   
   req.tier = tier;
   req.monthlyUsage = { count: currentCount + 1, limit };

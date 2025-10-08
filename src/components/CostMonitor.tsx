@@ -61,7 +61,6 @@ const CostMonitor: React.FC = () => {
       });
 
     } catch (err) {
-      console.error('Error fetching cost metrics:', err);
       setError('Failed to load cost metrics');
     } finally {
       setIsLoading(false);

@@ -14,12 +14,10 @@ export async function resetLocalData() {
     const dbs = await (indexedDB as any).databases()
     for (const db of dbs) {
       if (db.name) {
-        console.log(`🗑 Deleting DB: ${db.name}`)
         indexedDB.deleteDatabase(db.name)
       }
     }
   } else {
-    console.warn("⚠️ indexedDB.databases() not supported, skipping full wipe")
   }
 
   // Clear localStorage + sessionStorage

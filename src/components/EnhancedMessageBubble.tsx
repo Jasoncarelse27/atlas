@@ -150,7 +150,6 @@ export function EnhancedMessageBubble({
         );
 
       case 'image':
-        console.log('[DEBUG] Rendering image message:', {
           id: message.id,
           type: message.type,
           content: message.content,

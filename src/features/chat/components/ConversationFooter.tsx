@@ -43,7 +43,6 @@ const ConversationFooter: React.FC<ConversationFooterProps> = ({
       
       if (onSoundPlay) onSoundPlay('success');
     } catch (error) {
-      console.error('Failed to export conversations:', error);
     } finally {
       setIsExporting(false);
     }
@@ -72,11 +71,9 @@ const ConversationFooter: React.FC<ConversationFooterProps> = ({
         }
         
         // TODO: Add more validation and actually import the conversations
-        console.log('Would import conversations:', importedConversations);
         
         if (onSoundPlay) onSoundPlay('success');
       } catch (error) {
-        console.error('Failed to import conversations:', error);
         if (onSoundPlay) onSoundPlay('error');
       } finally {
         setIsImporting(false);
@@ -88,7 +85,6 @@ const ConversationFooter: React.FC<ConversationFooterProps> = ({
     };
     
     reader.onerror = () => {
-      console.error('Failed to read file');
       setIsImporting(false);
       if (onSoundPlay) onSoundPlay('error');
     };

@@ -28,16 +28,13 @@ export const clearDexieDB = async () => {
         deleteReq.onsuccess = () => resolve(true);
         deleteReq.onerror = () => reject(deleteReq.error);
         deleteReq.onblocked = () => {
-          console.warn('[CLEAR] IndexedDB deletion blocked');
           resolve(true);
         };
       });
     }
 
-    console.log('[CLEAR] Dexie database cleared successfully');
     return true;
   } catch (error) {
-    console.error('[CLEAR] Failed to clear Dexie database:', error);
     return false;
   }
 };

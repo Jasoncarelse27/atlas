@@ -81,7 +81,6 @@ export default function ChatInput({ conversationId, userId, onImageUpload }: Cha
       setText("");
       clearPendingAttachments();
     } catch (error) {
-      console.error("Failed to send message:", error);
     }
   };
 

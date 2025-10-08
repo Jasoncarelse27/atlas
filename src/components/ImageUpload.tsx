@@ -46,7 +46,6 @@ export function ImageUpload({ onImageProcessed, userId, className = '' }: ImageU
       onImageProcessed(result);
       
     } catch (error) {
-      console.error('Image processing error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to process image');
     } finally {
       setIsProcessing(false);

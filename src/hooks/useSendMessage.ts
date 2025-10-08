@@ -45,7 +45,6 @@ export const useSendMessage = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMessage);
-      console.error('Error in useSendMessage:', err);
     } finally {
       setIsSending(false);
     }
@@ -71,7 +70,6 @@ export const useSendMessage = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to stream message';
       setError(errorMessage);
-      console.error('Error in useSendMessage stream:', err);
     } finally {
       setIsStreaming(false);
     }

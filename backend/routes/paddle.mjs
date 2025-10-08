@@ -106,7 +106,6 @@ router.post("/create-checkout", async (req, res) => {
 
     if (!paddleResponse.ok) {
       const error = await paddleResponse.text();
-      console.error('Paddle API error:', error);
       return res.status(500).json({ error: 'Failed to create checkout session' });
     }
 
@@ -118,7 +117,6 @@ router.post("/create-checkout", async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Checkout creation error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

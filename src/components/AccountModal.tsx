@@ -171,7 +171,6 @@ const AccountModal: React.FC<AccountModalProps> = ({
     try {
       // TODO: Log feedback to proper feedback table
       // For now, just simulate success without database logging
-      console.log('Feedback submitted:', {
         type: feedbackType,
         subject: feedbackSubject,
         message: feedbackMessage,
@@ -213,7 +212,6 @@ const AccountModal: React.FC<AccountModalProps> = ({
       // This would typically be handled by an admin function or support request
       
       // TODO: Log deletion request to proper audit table
-      console.log('Account deletion requested for user:', {
         id: user.id,
         email: user.email,
         tier: profile.tier,

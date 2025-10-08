@@ -59,7 +59,6 @@ export function useAtlasUsageManagement(): UsageManagementState {
       
       return true;
     } catch (err) {
-      console.error('Failed to check conversation eligibility:', err);
       setError('Unable to verify usage limits. Please try again.');
       return false;
     }
@@ -125,7 +124,6 @@ export function useAtlasUsageManagement(): UsageManagementState {
       return response;
 
     } catch (err) {
-      console.error('Message sending failed:', err);
       const errorMessage = 'Failed to send message. Please try again.';
       setError(errorMessage);
       
@@ -164,7 +162,6 @@ export function useAtlasUsageManagement(): UsageManagementState {
     try {
       return await usageTrackingService.getUsageStats(user.id);
     } catch (error) {
-      console.error('Failed to get usage stats:', error);
       return null;
     }
   }, [user?.id]);
@@ -211,7 +208,6 @@ export function useAtlasServiceHealth() {
         const healthStatus = await enhancedAIService.getServiceHealth();
         setHealth(healthStatus);
       } catch (error) {
-        console.error('Health check failed:', error);
         setHealth({
           status: 'degraded',
           cacheHitRate: 0,

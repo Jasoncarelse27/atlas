@@ -29,17 +29,14 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    console.log("📂 File selected:", file.name, "size:", file.size);
 
     try {
       toast.loading("📤 Uploading file...");
-      console.log("📤 Starting upload via imageService...");
       
       // Use the existing imageService for upload (now uses attachments bucket)
       const result = await imageService.uploadImage(file, userId);
       
       console.log("✅ Uploaded file:", result);
-      console.log("🔗 Public URL:", result.publicUrl);
 
       // Create attachment object for input area
       const attachment = {
@@ -59,13 +56,11 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         toast.success("✅ File added to input! Add a caption and send.");
           } else {
             // Fallback to old behavior if no callback provided
-            console.log("⚠️ No onAddAttachment callback provided - file uploaded but not added to chat");
             toast.dismiss();
             toast.success("✅ File uploaded! Please add a caption and send.");
           }
 
     } catch (err) {
-      console.error("❌ Upload failed:", err);
       toast.dismiss();
       toast.error("Upload failed - check console for details");
     } finally {

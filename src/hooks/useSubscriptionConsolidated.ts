@@ -91,7 +91,6 @@ export function useSubscription(userId?: string) {
       setLoading(true);
       setError(null);
       
-      console.log(`📊 [useSubscription] Fetching profile for userId: ${userId}`);
       
       const { data, error } = await supabase
         .from('profiles')
@@ -100,7 +99,6 @@ export function useSubscription(userId?: string) {
         .single();
 
       if (error) {
-        console.error('❌ [useSubscription] Profile fetch error:', error);
         setError(error.message);
         return;
       }
@@ -111,7 +109,6 @@ export function useSubscription(userId?: string) {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error('❌ [useSubscription] Unexpected error:', errorMessage);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -141,7 +138,6 @@ export function useSubscription(userId?: string) {
           filter: `id=eq.${userId}` 
         },
         (payload) => {
-          console.log('🔄 [useSubscription] Realtime profile update:', payload.new);
           if (payload.new) {
             setProfile(payload.new as SubscriptionProfile);
           }
@@ -156,11 +152,9 @@ export function useSubscription(userId?: string) {
             pollingInterval = null;
           }
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.warn('⚠️ [useSubscription] Realtime subscription closed, falling back to polling');
           // Start polling fallback
           if (!pollingInterval) {
             pollingInterval = setInterval(() => {
-              console.log('🔄 [useSubscription] Polling for profile updates...');
               fetchProfile();
             }, 60000); // Poll every 60 seconds
           }
@@ -177,7 +171,6 @@ export function useSubscription(userId?: string) {
 
   // Force refresh function
   const forceRefresh = useCallback(async () => {
-    console.log('🔄 [useSubscription] Force refreshing profile...');
     await fetchProfile();
   }, [fetchProfile]);
 

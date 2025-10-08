@@ -109,7 +109,6 @@ class EnhancedAIService {
       return aiResponse;
 
     } catch (error) {
-      console.error('AI service error:', error);
       
       // Graceful degradation
       const fallbackResponse = this.getFallbackResponse(request.message);
@@ -196,7 +195,6 @@ class EnhancedAIService {
       };
       
     } catch (error) {
-      console.error('AI API call failed:', error);
       return {
         success: false,
         error: 'AI service temporarily unavailable',
@@ -301,7 +299,6 @@ class EnhancedAIService {
       };
 
     } catch (error) {
-      console.error('Health check failed:', error);
       return {
         status: 'degraded',
         cacheHitRate: 0,

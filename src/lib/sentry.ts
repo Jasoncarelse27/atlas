@@ -33,7 +33,6 @@ class SentryService {
     if (this.config.dsn) {
       this.initializeSentry();
     } else {
-      console.log('🛡️ Sentry DSN not provided, using mock implementation');
       this.isInitialized = true;
     }
   }
@@ -43,7 +42,6 @@ class SentryService {
    */
   captureException(error: unknown, context?: Record<string, any>): string {
     if (!this.isInitialized) {
-      console.log('🛡️ Sentry not initialized, logging locally:', error);
       return this.mockCaptureException(error, context);
     }
 
@@ -52,7 +50,6 @@ class SentryService {
         return (window as any).Sentry.captureException(error, context);
       }
     } catch (sentryError) {
-      console.error('Failed to capture exception in Sentry:', sentryError);
     }
 
     return this.mockCaptureException(error, context);
@@ -63,7 +60,6 @@ class SentryService {
    */
   captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info', context?: Record<string, any>): string {
     if (!this.isInitialized) {
-      console.log(`🛡️ Sentry message [${level}]:`, message, context);
       return this.mockCaptureMessage(message, level, context);
     }
 
@@ -72,7 +68,6 @@ class SentryService {
         return (window as any).Sentry.captureMessage(message, level, context);
       }
     } catch (sentryError) {
-      console.error('Failed to capture message in Sentry:', sentryError);
     }
 
     return this.mockCaptureMessage(message, level, context);
@@ -83,7 +78,6 @@ class SentryService {
    */
   setUser(user: { id?: string; email?: string; username?: string; [key: string]: any }): void {
     if (!this.isInitialized) {
-      console.log('🛡️ Sentry set user:', user);
       return;
     }
 
@@ -92,7 +86,6 @@ class SentryService {
         (window as any).Sentry.setUser(user);
       }
     } catch (sentryError) {
-      console.error('Failed to set user in Sentry:', sentryError);
     }
   }
 
@@ -101,7 +94,6 @@ class SentryService {
    */
   setContext(key: string, context: Record<string, any>): void {
     if (!this.isInitialized) {
-      console.log(`🛡️ Sentry set context [${key}]:`, context);
       return;
     }
 
@@ -110,7 +102,6 @@ class SentryService {
         (window as any).Sentry.setContext(key, context);
       }
     } catch (sentryError) {
-      console.error('Failed to set context in Sentry:', sentryError);
     }
   }
 
@@ -124,7 +115,6 @@ class SentryService {
     data?: Record<string, any>;
   }): void {
     if (!this.isInitialized) {
-      console.log('🛡️ Sentry breadcrumb:', breadcrumb);
       return;
     }
 
@@ -133,7 +123,6 @@ class SentryService {
         (window as any).Sentry.addBreadcrumb(breadcrumb);
       }
     } catch (sentryError) {
-      console.error('Failed to add breadcrumb in Sentry:', sentryError);
     }
   }
 
@@ -142,7 +131,6 @@ class SentryService {
    */
   startTransaction(name: string, op: string = 'navigation'): any {
     if (!this.isInitialized) {
-      console.log(`🛡️ Sentry transaction started: ${name} (${op})`);
       return this.mockTransaction(name, op);
     }
 
@@ -151,7 +139,6 @@ class SentryService {
         return (window as any).Sentry.startTransaction({ name, op });
       }
     } catch (sentryError) {
-      console.error('Failed to start transaction in Sentry:', sentryError);
     }
 
     return this.mockTransaction(name, op);
@@ -193,20 +180,16 @@ class SentryService {
         }
 
         this.isInitialized = true;
-        console.log('🛡️ Sentry initialized successfully');
       }).catch((error) => {
-        console.error('Failed to load Sentry:', error);
         this.isInitialized = true; // Mark as initialized to use mock
       });
     } catch (error) {
-      console.error('Failed to initialize Sentry:', error);
       this.isInitialized = true; // Mark as initialized to use mock
     }
   }
 
   private mockCaptureException(error: unknown, context?: Record<string, any>): string {
     const errorId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.error('🛡️ Mock Sentry captured exception:', {
       errorId,
       error,
       context,
@@ -217,7 +200,6 @@ class SentryService {
 
   private mockCaptureMessage(message: string, level: string, context?: Record<string, any>): string {
     const messageId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log(`🛡️ Mock Sentry captured message [${level}]:`, {
       messageId,
       message,
       context,
@@ -230,9 +212,6 @@ class SentryService {
     return {
       name,
       op,
-      finish: () => console.log(`🛡️ Mock Sentry transaction finished: ${name}`),
-      setTag: (key: string, value: string) => console.log(`🛡️ Mock Sentry tag: ${key}=${value}`),
-      setData: (key: string, value: any) => console.log(`🛡️ Mock Sentry data: ${key}=`, value),
     };
   }
 }

@@ -123,11 +123,9 @@ class ResponseCacheService {
         .update({ hit_count: data.hit_count + 1 })
         .eq('id', data.id);
 
-      console.log(`🎯 Cache HIT for query: ${query.substring(0, 50)}...`);
       return data.response_text;
 
     } catch (error) {
-      console.error('Cache lookup failed:', error);
       return null;
     }
   }
@@ -159,13 +157,10 @@ class ResponseCacheService {
         });
 
       if (error) {
-        console.error('Failed to cache response:', error);
       } else {
-        console.log(`💾 Cached response for: ${query.substring(0, 50)}...`);
       }
 
     } catch (error) {
-      console.error('Cache storage failed:', error);
     }
   }
 
@@ -201,7 +196,6 @@ class ResponseCacheService {
       return { totalEntries, totalHits, hitRate, topQueries };
 
     } catch (error) {
-      console.error('Failed to get cache stats:', error);
       return { totalEntries: 0, totalHits: 0, hitRate: 0, topQueries: [] };
     }
   }
@@ -217,15 +211,12 @@ class ResponseCacheService {
         .lt('expires_at', new Date().toISOString());
 
       if (error) {
-        console.error('Cache cleanup failed:', error);
         return 0;
       }
 
-      console.log(`🧹 Cleaned up ${count} expired cache entries`);
       return count || 0;
 
     } catch (error) {
-      console.error('Cache cleanup error:', error);
       return 0;
     }
   }
@@ -241,13 +232,10 @@ class ResponseCacheService {
         .eq('tier', tier);
 
       if (error) {
-        console.error('Failed to clear cache for tier:', error);
       } else {
-        console.log(`🗑️ Cleared cache for tier: ${tier}`);
       }
 
     } catch (error) {
-      console.error('Cache clear error:', error);
     }
   }
 

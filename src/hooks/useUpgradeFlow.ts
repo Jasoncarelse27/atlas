@@ -30,7 +30,6 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
     closeUpgradeModal();
     
     // Track upgrade event
-    console.log(`User upgrading to ${tier}`, { triggerReason });
     
     // Here you would integrate with your payment system
     // For now, we'll just show an alert
@@ -53,7 +52,6 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
 export class ConversionAnalytics {
   static trackUpgradeTrigger(trigger: UpgradeTrigger, currentTier: Tier) {
     // Track when users hit upgrade triggers
-    console.log('Upgrade trigger:', { trigger, currentTier, timestamp: new Date().toISOString() });
     
     // TODO: Send to analytics service (Mixpanel, Amplitude, etc.)
     // analytics.track('upgrade_trigger', {
@@ -65,7 +63,6 @@ export class ConversionAnalytics {
 
   static trackUpgradeAttempt(targetTier: 'core' | 'studio', trigger: UpgradeTrigger) {
     // Track when users attempt to upgrade
-    console.log('Upgrade attempt:', { targetTier, trigger, timestamp: new Date().toISOString() });
     
     // TODO: Send to analytics service
     // analytics.track('upgrade_attempt', {
@@ -77,7 +74,6 @@ export class ConversionAnalytics {
 
   static trackUpgradeSuccess(targetTier: 'core' | 'studio', trigger: UpgradeTrigger) {
     // Track successful upgrades
-    console.log('Upgrade success:', { targetTier, trigger, timestamp: new Date().toISOString() });
     
     // TODO: Send to analytics service
     // analytics.track('upgrade_success', {

@@ -75,11 +75,9 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
           setTier(dbTier);
           console.log(`✅ [useSupabaseAuth] Tier loaded: ${dbTier}`);
         } else {
-          console.warn(`⚠️ [useSupabaseAuth] Invalid tier detected: ${dbTier}, defaulting to core`);
           setTier('core'); // Default to core instead of free for better UX
         }
       } catch (error) {
-        console.error('❌ [useSupabaseAuth] Error loading tier:', error);
         setTier('core'); // Default to core instead of free for better UX
       }
     };

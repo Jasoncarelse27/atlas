@@ -28,12 +28,10 @@ export default function PaddleTestPage() {
     s.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
     s.async = true;
     s.onload = () => {
-      console.log('Paddle script loaded');
       if (PADDLE_TOKEN) {
         window.Paddle?.Environment?.set(PADDLE_ENV);
         window.Paddle?.Setup?.({ token: PADDLE_TOKEN });
         paddleReady.current = true;
-        console.log(`Paddle initialized in ${PADDLE_ENV} mode`);
       }
     };
     document.head.appendChild(s);
@@ -59,7 +57,6 @@ export default function PaddleTestPage() {
         throw new Error(`Missing price ID for ${plan} tier. Check your .env file.`);
       }
 
-      console.log(`Opening Paddle checkout for ${plan}:`, { priceId, email: user.email });
 
       window.Paddle?.Checkout?.open({
         items: [{ priceId, quantity: 1 }],
@@ -73,22 +70,18 @@ export default function PaddleTestPage() {
           source: 'paddle_test_page'
         },
         successCallback: (data: any) => {
-          console.log('Paddle success callback:', data);
           toast.success(`✅ Payment successful for ${plan} tier!`);
           setLoading(false);
         },
         closeCallback: () => {
-          console.log('Paddle checkout closed');
           setLoading(false);
         },
         errorCallback: (error: any) => {
-          console.error('Paddle error callback:', error);
           toast.error('Payment failed. Please try again.');
           setLoading(false);
         }
       });
     } catch (error) {
-      console.error('Failed to open checkout:', error);
       toast.error(`Failed to open checkout: ${error.message}`);
       setLoading(false);
     }

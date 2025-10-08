@@ -44,7 +44,6 @@ export const supabase = (() => {
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   if (!(window as any).supabase) {
     (window as any).supabase = supabase;
-    console.log('🔧 Supabase client exposed globally for DevTools testing');
   }
 }
 
@@ -53,14 +52,12 @@ export async function checkSupabaseHealth() {
   try {
     // On mobile, skip the health check to avoid WebSocket issues
     if (isMobile) {
-      console.log("📱 Mobile detected - skipping Supabase health check");
       return { ok: true, mobile: true };
     }
     
     // Test connection with a simple query that doesn't require auth
     const { error } = await supabase.from('profiles').select('id').limit(1);
     if (error) {
-      console.error("⚠️ Supabase health check failed:", error.message);
       return { ok: false, message: error.message };
     }
     // Connection healthy - only log occasionally in development
@@ -69,7 +66,6 @@ export async function checkSupabaseHealth() {
     }
     return { ok: true };
   } catch (err: any) {
-    console.error("❌ Supabase health-check exception:", err.message);
     return { ok: false, message: err.message };
   }
 }

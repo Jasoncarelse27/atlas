@@ -57,7 +57,6 @@ class SubscriptionService {
         const profile = await subscriptionApi.getUserProfile(userId, accessToken);
         return profile as SubscriptionProfile | null;
       } catch (apiError) {
-        console.warn('Backend API failed, falling back to direct Supabase:', apiError);
         
         // Fallback to direct Supabase call
         const { data, error } = await supabase
@@ -95,14 +94,11 @@ class SubscriptionService {
       // Use backend API to get tier
       try {
         const tier = await subscriptionApi.getUserTier(userId, accessToken);
-        console.log('[Subscription] Loaded tier via backend API:', tier);
         return tier;
       } catch (apiError) {
-        console.warn('Backend API failed, falling back to direct Supabase:', apiError);
         
         // Fallback to direct Supabase call
         const profile = await this.getUserProfile(userId);
-        console.log('[Subscription] Loaded tier via fallback:', profile?.subscription_tier);
         return profile?.subscription_tier || 'free';
       }
     } catch (error) {
@@ -273,7 +269,6 @@ class SubscriptionService {
           checkoutUrl: undefined, // For development, no checkout URL needed
         };
       } catch (apiError) {
-        console.warn('Backend API upgrade failed, falling back to direct Supabase:', apiError);
         
         // Fallback to direct Supabase update
         const { error: updateError } = await supabase

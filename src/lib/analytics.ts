@@ -38,7 +38,6 @@ class Analytics {
     };
 
     if (!this.isEnabled) {
-      console.log('Analytics event:', eventWithTimestamp);
       return;
     }
 
@@ -88,7 +87,6 @@ class Analytics {
   private sendEvent(event: AnalyticsEvent) {
     // Send to your analytics service
     // Example: PostHog.capture(event.name, event.properties);
-    console.log('Sending analytics event:', event);
   }
 
   private processQueue() {

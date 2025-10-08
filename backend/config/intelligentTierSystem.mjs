@@ -48,7 +48,6 @@ export function selectOptimalModel(userTier, messageContent = '', requestType = 
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;
   
-  console.log('🔍 DEBUG: Model selection:', {
     tier: userTier,
     selectedModel,
     messageLength: messageContent.length,

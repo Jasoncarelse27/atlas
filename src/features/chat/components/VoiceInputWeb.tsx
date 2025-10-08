@@ -96,7 +96,6 @@ const VoiceInputWeb: React.FC<VoiceInputWebProps> = ({
       if (mediaRecorderRef.current && isRecording) {
         // Guard against double-tap
         if (isProcessing) {
-          console.log("Already processing, ignoring stop request");
           return;
         }
         
@@ -140,7 +139,6 @@ const VoiceInputWeb: React.FC<VoiceInputWebProps> = ({
       }
       
     } catch (err) {
-      console.error('[VoiceInputWeb] Audio processing error:', err);
       setError('Failed to process audio. Please try again.');
       if (onSoundPlay) onSoundPlay('error');
     } finally {

@@ -15,8 +15,6 @@ function createSupabaseClients() {
   if (!SUPABASE_SERVICE_ROLE_KEY) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
 
   if (missingVars.length > 0) {
-    console.error(`[ERROR] Missing Supabase environment variables: ${missingVars.join(', ')}`);
-    console.error('[ERROR] Please check your .env file or Railway configuration');
     throw new Error(`Supabase not configured - missing: ${missingVars.join(', ')}`);
   }
 

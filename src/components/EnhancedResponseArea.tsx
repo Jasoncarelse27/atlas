@@ -88,7 +88,6 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
       }
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy text:', err);
     }
   };
 
@@ -110,7 +109,6 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
   };
 
   const handleSubmitFeedback = () => {
-    console.log('Feedback submitted:', feedbackGiven, feedbackText);
     setShowFeedbackForm(false);
     if (onSoundPlay) {
       onSoundPlay('success');
@@ -129,7 +127,6 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
           onSoundPlay('success');
         }
       } catch (err) {
-        console.error('Share failed:', err);
       }
     } else {
       copyToClipboard(response);
@@ -455,7 +452,6 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
               <ContextualSuggestions
                 message={response}
                 context={extractContext()}
-                onSuggestionClick={(suggestion) => console.log('Suggestion clicked:', suggestion)}
                 onSoundPlay={onSoundPlay}
               />
             </div>

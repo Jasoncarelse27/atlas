@@ -11,11 +11,9 @@ export async function fetchWithAuth(
 
   const token = session?.access_token;
   if (!token) {
-    console.warn("No auth token found, user may need to log in");
     throw new Error("No valid auth token found. Please log in again.");
   }
 
-  console.log(`[fetchWithAuth] Making authenticated request to: ${url}`);
   
   const res = await fetch(url, {
     ...options,
@@ -28,14 +26,12 @@ export async function fetchWithAuth(
 
   // Global 401 handler
   if (res.status === 401) {
-    console.error("Authentication failed, token may be expired");
     await supabase.auth.signOut();
     window.location.href = "/login";
     throw new Error("Session expired, redirecting to login.");
   }
 
   if (!res.ok) {
-    console.error(`API request failed: ${res.status} ${res.statusText}`);
   }
 
   return res;

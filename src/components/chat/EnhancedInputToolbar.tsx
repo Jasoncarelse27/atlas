@@ -82,7 +82,6 @@ export default function EnhancedInputToolbar({
   }, [isStreaming]);
 
   const handleSend = async () => {
-    console.log('🔍 [EnhancedInputToolbar] handleSend called');
     if (isProcessing || disabled) return;
     
     // ✅ IMMEDIATE UI CLEAR - Clear attachments and text instantly for better UX
@@ -121,7 +120,6 @@ export default function EnhancedInputToolbar({
         
         // Use Promise.race for timeout protection (increased timeout for image analysis)
         if (addMessage) {
-          console.log('📤 Sending attachments with conversationId:', conversationId || 'NEW');
           await Promise.race([
             sendMessageWithAttachments(conversationId || '', attachments, addMessage, currentText || undefined, user?.id),
             new Promise((_, reject) => 
@@ -129,7 +127,6 @@ export default function EnhancedInputToolbar({
             )
           ]);
         } else {
-          console.warn("⚠️ addMessage not provided - attachments cannot be sent");
         }
         
         // Update status to success
@@ -148,7 +145,6 @@ export default function EnhancedInputToolbar({
           setUploadStatus({});
         }, 1500);
       } catch (error) {
-        console.error("Failed to send attachments:", error);
         
         // Update status to error
         attachments.forEach((att: any) => {
@@ -206,7 +202,6 @@ export default function EnhancedInputToolbar({
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
-        console.log("🎯 Auto-focused input for caption");
       }
     }, 100);
   };
@@ -214,7 +209,6 @@ export default function EnhancedInputToolbar({
   // Handle removing attachments from input area
   const removeAttachment = (attachmentId: string) => {
     setAttachmentPreviews(prev => prev.filter(att => att.id !== attachmentId));
-    console.log("🗑️ Attachment removed from input area");
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -234,7 +228,6 @@ export default function EnhancedInputToolbar({
         const isInsideAttachmentMenu = document.querySelector('[data-attachment-menu]')?.contains(target);
         
         if (!isInsideButton && !isInsideAttachmentMenu) {
-          console.log('[EnhancedInputToolbar] Click outside detected, closing menu');
           setMenuOpen(false);
           // Refocus input when closing the menu via click outside
           setTimeout(() => {
@@ -260,7 +253,6 @@ export default function EnhancedInputToolbar({
     // Small delay to allow for menu interactions
     setTimeout(() => {
       if (inputRef.current && !menuOpen) {
-        console.log('[EnhancedInputToolbar] Input blurred, minimizing');
         // Blur the input to dismiss keyboard
         inputRef.current.blur();
         // Reset to single row for minimized state
@@ -274,7 +266,6 @@ export default function EnhancedInputToolbar({
 
   // 🎯 Handle input focus with bounce animation (ChatGPT-like behavior)
   const handleInputFocus = () => {
-    console.log('[EnhancedInputToolbar] Input focused, bouncing up');
     // The bounce animation will be handled by the motion.div
   };
 
@@ -285,7 +276,6 @@ export default function EnhancedInputToolbar({
     }
 
     // 🎯 FUTURE-PROOF FIX: Check tier directly instead of waiting for hasAccess
-    console.log(`🎙️ [Mic] User tier: ${tier}, checking audio access...`);
     
     // Log the attempt
     await featureService.logAttempt(user.id, 'audio', tier);
@@ -294,7 +284,6 @@ export default function EnhancedInputToolbar({
     const canUse = tier === 'core' || tier === 'studio';
     
     if (!canUse) {
-      console.log(`🚫 [Mic] Tier ${tier} does not have audio access`);
       toast.error('Voice features are available in Core & Studio plans. Upgrade to unlock!');
       showUpgradeModal('audio');
       return;
@@ -320,7 +309,6 @@ export default function EnhancedInputToolbar({
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
             // 🎯 FUTURE-PROOF FIX: Use voiceService for transcription
-            console.log('🎙️ [Voice] Transcribing audio...');
             const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
             
             // Set the transcribed text in the input for user to review and send
@@ -329,7 +317,6 @@ export default function EnhancedInputToolbar({
             toast.success('✅ Voice transcribed! Review and send.');
             
           } catch (error) {
-            console.error('Voice processing error:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
             
             // Show upgrade prompt if tier restriction error
@@ -357,7 +344,6 @@ export default function EnhancedInputToolbar({
         }, 30000);
         
       } catch (error) {
-        console.error('Microphone access error:', error);
         toast.error('Microphone access denied. Please allow microphone permissions.');
         setIsListening(false);
       }
@@ -514,7 +500,6 @@ export default function EnhancedInputToolbar({
               <motion.button
                 ref={buttonRef}
                 onClick={() => {
-                  console.log('[EnhancedInputToolbar] Plus button clicked, current menuOpen:', menuOpen)
                   
                   if (!menuOpen) {
                     // 📱 Close the keyboard before opening menu (prevents overlap)
@@ -531,7 +516,6 @@ export default function EnhancedInputToolbar({
                   }
                   
                   setMenuOpen(!menuOpen)
-                  console.log('[EnhancedInputToolbar] New menuOpen state:', !menuOpen)
                 }}
                 disabled={disabled}
                 className={`p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md ${
@@ -551,7 +535,6 @@ export default function EnhancedInputToolbar({
             <AttachmentMenu
               isOpen={menuOpen}
               onClose={() => {
-                console.log('[EnhancedInputToolbar] AttachmentMenu onClose called')
                 setMenuOpen(false)
                 // Refocus input when closing the menu
                 setTimeout(() => {

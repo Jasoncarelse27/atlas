@@ -41,20 +41,17 @@ export async function handleDexieError(error: any) {
     }
 
     deleteReq.onerror = (e) => {
-      console.error("❌ Failed to delete DB:", e)
       toast.error("Atlas reset failed", {
         description: "Could not delete database. Try indexedDB.deleteDatabase('AtlasDB').",
       })
     }
 
     deleteReq.onblocked = () => {
-      console.warn("⚠️ DB deletion blocked, waiting… (close other tabs?)")
       toast("Reset blocked", {
         description: "Please close other Atlas tabs and retry.",
       })
     }
   } else {
-    console.error("[DexieErrorHandler] Unhandled error:", error)
   }
 }
 

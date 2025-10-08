@@ -20,11 +20,9 @@ router.post('/webhook', async (req, res) => {
   try {
     const { event_type, data } = req.body;
     
-    console.log(`[Paddle Webhook] Received event: ${event_type}`);
     
     const supabaseClient = getSupabaseClient();
     if (!supabaseClient) {
-      console.error('[Paddle Webhook] No Supabase client available');
       return res.status(500).json({ error: 'Database not available' });
     }
 
@@ -43,12 +41,10 @@ router.post('/webhook', async (req, res) => {
         break;
       
       default:
-        console.log(`[Paddle Webhook] Unhandled event type: ${event_type}`);
     }
 
     res.status(200).json({ success: true });
   } catch (error) {
-    console.error('[Paddle Webhook] Error processing webhook:', error);
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
@@ -82,11 +78,9 @@ async function handleSubscriptionUpdate(data, supabaseClient) {
     .eq('email', customer_id); // Assuming customer_id is email
 
   if (error) {
-    console.error('[Paddle Webhook] Error updating user profile:', error);
     throw error;
   }
 
-  console.log(`[Paddle Webhook] Updated user ${customer_id} to tier: ${tier}, status: ${status}`);
 }
 
 async function handleSubscriptionCancel(data, supabaseClient) {
@@ -103,11 +97,9 @@ async function handleSubscriptionCancel(data, supabaseClient) {
     .eq('email', customer_id);
 
   if (error) {
-    console.error('[Paddle Webhook] Error cancelling subscription:', error);
     throw error;
   }
 
-  console.log(`[Paddle Webhook] Cancelled subscription for user ${customer_id}`);
 }
 
 async function handleSubscriptionPastDue(data, supabaseClient) {
@@ -122,11 +114,9 @@ async function handleSubscriptionPastDue(data, supabaseClient) {
     .eq('email', customer_id);
 
   if (error) {
-    console.error('[Paddle Webhook] Error updating past due subscription:', error);
     throw error;
   }
 
-  console.log(`[Paddle Webhook] Marked subscription as past due for user ${customer_id}`);
 }
 
 export default router;

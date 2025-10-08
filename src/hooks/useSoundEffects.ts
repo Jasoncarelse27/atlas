@@ -33,7 +33,6 @@ const getAudioContext = () => {
     try {
       sharedAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     } catch (error) {
-      console.warn('Web Audio API not supported:', error);
     }
   }
   return sharedAudioContext;
@@ -547,7 +546,6 @@ export const useSoundEffects = (): UseSoundEffectsReturn => {
     try {
       const audioContext = getAudioContext();
       if (!audioContext) {
-        console.warn('Web Audio API not available');
         return;
       }
       
@@ -570,7 +568,6 @@ export const useSoundEffects = (): UseSoundEffectsReturn => {
               break;
           }
         }).catch(err => {
-          console.warn('Failed to resume audio context:', err);
         });
       } else {
         // Play sound based on selected theme
@@ -591,7 +588,6 @@ export const useSoundEffects = (): UseSoundEffectsReturn => {
       }
       
     } catch (error) {
-      console.error('Error playing sound effect:', error);
     }
   }, [isEnabled, soundTheme]);
 

@@ -52,7 +52,6 @@ class MessageService {
       const { data: { session } } = await supabase.auth.getSession();
       return session?.access_token || null;
     } catch (error) {
-      console.warn('Failed to get auth token:', error);
       return null;
     }
   }
@@ -308,7 +307,6 @@ class MessageService {
     try {
       // This would integrate with the offline store
       // For now, we'll just log it
-      console.log('Storing message locally:', message);
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'storeMessageLocally',
@@ -335,7 +333,6 @@ class MessageService {
     try {
       // This would integrate with the offline store
       // For now, we'll just log it
-      console.log('Clearing stored messages');
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'clearStoredMessages',

@@ -24,11 +24,16 @@ export const syncService = {
   async syncAll(userId: string, tier: 'free' | 'core' | 'studio') {
     // ✅ Use centralized tier config
     if (!isPaidTier(tier)) {
-      console.log("[SYNC] Offline mode active (Free Tier)")
       return
     }
 
-    console.log("[SYNC] Starting Dexie ↔ Supabase merge…")
+    // ✅ Check if user is authenticated before syncing
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session || !session.user) {
+      console.log("[SYNC] No authenticated session - skipping sync")
+      return
+    }
+
     await markSyncing(true)
 
     try {
@@ -39,7 +44,11 @@ export const syncService = {
         .order("created_at") as { data: SupabaseMessage[] | null; error: any }
 
       if (pullErr) {
-        console.error('[SYNC] Failed to fetch remote messages:', pullErr);
+        // ✅ Handle 403 errors gracefully (user not authenticated)
+        if (pullErr.status === 403) {
+          console.log("[SYNC] 403 Forbidden - user not authenticated, stopping sync")
+          return
+        }
         throw pullErr;
       }
 
@@ -69,7 +78,6 @@ export const syncService = {
         // 🎯 FUTURE-PROOF FIX: Validate and format message data for Supabase schema
         // Skip messages with invalid data
         if (!msg.conversationId || !msg.role || !msg.content) {
-          console.warn('[SYNC] Skipping invalid message:', msg.id);
           continue;
         }
 
@@ -90,7 +98,12 @@ export const syncService = {
         const { error: pushErr } = await supabase.from("messages").upsert(messageData as any)
         
         if (pushErr) {
-          console.error('[SYNC] Failed to sync message:', msg.id, pushErr);
+          // ✅ Handle 403 errors gracefully (user not authenticated)
+          if (pushErr.status === 403) {
+            console.log("[SYNC] 403 Forbidden on push - user not authenticated, stopping sync")
+            return
+          }
+          console.error("[SYNC] Push error:", pushErr)
         } else {
           await atlasDB.messages.update(msg.id, { synced: true })
         }
@@ -98,7 +111,7 @@ export const syncService = {
 
       console.log("[SYNC] Dexie ↔ Supabase merge complete ✅")
     } catch (err) {
-      console.error("[SYNC] Error:", err)
+      console.error("[SYNC] Sync error:", err)
     } finally {
       await markSyncing(false)
     }
@@ -111,7 +124,6 @@ let syncInterval: ReturnType<typeof setInterval> | null = null
 export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'studio') {
   // ✅ Use centralized tier config
   if (!isPaidTier(tier)) {
-    console.log("[SYNC] Background sync disabled for Free tier")
     return
   }
 
@@ -121,7 +133,6 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
   // Re-sync every 30 seconds
   if (!syncInterval) {
     syncInterval = setInterval(() => {
-      console.log("[SYNC] Running scheduled background sync...")
       syncService.syncAll(userId, tier)
     }, 30000)
   }
@@ -129,7 +140,6 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
   // Also sync when app regains focus (Web + React Native)
   if (typeof window !== "undefined") {
     window.addEventListener("focus", () => {
-      console.log("[SYNC] Window focused – running instant sync")
       syncService.syncAll(userId, tier)
     })
   }
@@ -141,6 +151,5 @@ export function stopBackgroundSync() {
   if (syncInterval) {
     clearInterval(syncInterval)
     syncInterval = null
-    console.log("[SYNC] Background sync stopped ⏹️")
   }
 }

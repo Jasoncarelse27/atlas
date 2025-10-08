@@ -17,7 +17,6 @@ export async function getOrCreateDefaultConversation(userId: string) {
     });
 
     if (error) {
-      console.error("[useConversations] Failed to create conversation:", error);
     }
   }
 
