@@ -97,24 +97,38 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const currentConvId = urlParams.get('conversation') || localStorage.getItem('atlas:lastConversationId');
       
+      console.log('[ChatPage] refreshMessages - currentConvId:', currentConvId);
+      
       if (currentConvId) {
         const storedMessages = await atlasDB.messages
           .where("conversationId")
           .equals(currentConvId)
           .sortBy("timestamp");
         
+        console.log('[ChatPage] Found stored messages:', storedMessages.length);
+        
         if (storedMessages.length > 0) {
-          setMessages(storedMessages.map(msg => ({
+          const formattedMessages = storedMessages.map(msg => ({
             id: msg.id,
             role: msg.role,
             content: msg.content,
             timestamp: msg.timestamp,
             type: msg.type || 'text',
             attachments: [] // Will be populated from other sources if needed
-          })));
+          }));
+          
+          console.log('[ChatPage] Setting messages:', formattedMessages);
+          setMessages(formattedMessages);
+        } else {
+          console.log('[ChatPage] No messages found for conversation:', currentConvId);
+          setMessages([]);
         }
+      } else {
+        console.log('[ChatPage] No conversation ID found');
+        setMessages([]);
       }
     } catch (error) {
+      console.error('[ChatPage] refreshMessages error:', error);
     }
   };
 
@@ -210,29 +224,54 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       } catch (refreshError) {
       }
       
-      // Once response starts coming in, mark as streaming and clear typing
-      setIsTyping(false);
-      setAssistantHasStarted(true);
-
-      // ✅ Create assistant message immediately with loading state
+      // ✅ Create assistant message immediately with typing dots
       const assistantMessageId = generateUUID();
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: 'assistant',
         type: 'text',
-        content: '', // Start empty
+        content: '...', // Start with typing dots
         timestamp: new Date().toISOString(),
         status: 'sending', // Show as loading
       };
 
-      // Add loading message immediately
-      await addMessage(assistantMessage);
+      // ✅ Check if backend returned a different conversation ID and update BEFORE saving messages
+      let finalConversationId = conversationId;
+      if (assistantResponse && typeof assistantResponse === 'object' && assistantResponse.conversationId) {
+        finalConversationId = assistantResponse.conversationId;
+        setConversationId(finalConversationId);
+        localStorage.setItem('atlas:lastConversationId', finalConversationId);
+        
+        // Update URL to include conversation ID
+        const newUrl = `/chat?conversation=${finalConversationId}`;
+        window.history.pushState({}, '', newUrl);
+        console.log('[ChatPage] Updated conversation ID from backend:', finalConversationId);
+      }
+
+      // Add loading message immediately with typing dots (using final conversation ID)
+      const finalAssistantMessage = {
+        ...assistantMessage,
+        conversationId: finalConversationId
+      };
+      await addMessage(finalAssistantMessage);
+
+      // Update user message with final conversation ID too
+      await updateMessage(message.id, { conversationId: finalConversationId });
+
+      // Once response starts coming in, mark as streaming and clear typing
+      setIsTyping(false);
+      setAssistantHasStarted(true);
 
       // Update with actual response when ready
       if (assistantResponse) {
+        const responseText = typeof assistantResponse === 'string' 
+          ? assistantResponse 
+          : assistantResponse.response;
+        
         updateMessage(assistantMessageId, { 
-          content: assistantResponse,
-          status: 'sent'
+          content: responseText,
+          status: 'sent',
+          conversationId: finalConversationId
         });
       }
       
@@ -345,14 +384,68 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         localStorage.setItem('atlas:lastConversationId', id);
         setConversationId(id);
         
+        // ✅ Update URL if it's missing the conversation ID
+        if (!urlConversationId && id) {
+          const newUrl = `/chat?conversation=${id}`;
+          window.history.replaceState({}, '', newUrl);
+          console.log('[ChatPage] Updated URL with conversation ID:', id);
+        }
+        
         // ✅ Hydrate messages from Dexie (offline-first)
+        console.log('[ChatPage] About to refresh messages for conversation:', id);
         await refreshMessages();
+        console.log('[ChatPage] Messages refresh completed');
       } catch (error) {
       }
     };
 
     initializeApp();
   }, [userId, refreshMessages]);
+  
+  // ✅ Additional useEffect to ensure messages load when conversationId changes
+  useEffect(() => {
+    if (conversationId) {
+      console.log('[ChatPage] conversationId changed, refreshing messages:', conversationId);
+      refreshMessages();
+    }
+  }, [conversationId]);
+  
+  // ✅ Instant restore on hard refresh - runs immediately on mount
+  useEffect(() => {
+    const instantRestore = async () => {
+      try {
+        const savedId = localStorage.getItem('atlas:lastConversationId');
+        if (!savedId) return;
+        
+        console.log('[ChatPage] 💾 Instant restore from hard refresh:', savedId);
+        
+        // Load messages immediately from Dexie
+        const cached = await atlasDB.messages
+          .where("conversationId")
+          .equals(savedId)
+          .sortBy("timestamp");
+        
+        if (cached?.length) {
+          console.log(`[ChatPage] 💾 Restored ${cached.length} messages instantly`);
+          const formattedMessages = cached.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            type: msg.type || 'text',
+            attachments: []
+          }));
+          setMessages(formattedMessages);
+          setConversationId(savedId);
+        }
+      } catch (err) {
+        console.error('[ChatPage] Instant restore failed:', err);
+      }
+    };
+    
+    // Run immediately on mount
+    instantRestore();
+  }, []); // Empty dependency array = run once on mount
 
   // Cleanup background sync on unmount
   useEffect(() => {
@@ -360,6 +453,21 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       stopBackgroundSync();
     };
   }, []);
+  
+  // ✅ Debug function - expose to window for console debugging
+  useEffect(() => {
+    (window as any).atlasDebug = {
+      getConversationId: () => conversationId,
+      getMessages: () => messages,
+      refreshMessages: () => refreshMessages(),
+      getLocalStorage: () => localStorage.getItem('atlas:lastConversationId'),
+      checkDexie: async () => {
+        const allMessages = await atlasDB.messages.toArray();
+        console.log('All Dexie messages:', allMessages);
+        return allMessages;
+      }
+    };
+  }, [conversationId, messages]);
 
   // Health check with auto-retry every 30 seconds
   useEffect(() => {
@@ -526,14 +634,36 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 {(() => {
                   const safeMessages = messages || [];
                   if (safeMessages.length > 0) {
-                    return safeMessages.map((message: Message, index: number) => (
-                      <EnhancedMessageBubble
-                        key={message.id}
-                        message={message}
-                        isLatest={index === safeMessages.length - 1}
-                        isTyping={index === safeMessages.length - 1 && isStreaming && !assistantHasStarted}
-                      />
-                    ));
+                    return (
+                      <>
+                        {safeMessages.map((message: Message, index: number) => (
+                          <EnhancedMessageBubble
+                            key={message.id}
+                            message={message}
+                            isLatest={index === safeMessages.length - 1}
+                            isTyping={index === safeMessages.length - 1 && isStreaming && !assistantHasStarted}
+                          />
+                        ))}
+                        
+                        {/* ✅ Show typing indicator when Atlas is thinking but no assistant message exists yet */}
+                        {isStreaming && safeMessages.length > 0 && !safeMessages.some(msg => msg.role === 'assistant' && msg.status === 'sending') && (
+                          <EnhancedMessageBubble
+                            key="typing-indicator"
+                            message={{
+                              id: 'typing-temp',
+                              role: 'assistant',
+                              content: '...',
+                              timestamp: new Date().toISOString(),
+                              status: 'sending',
+                              type: 'text'
+                            }}
+                            isLatest={true}
+                            isTyping={true}
+                          />
+                        )}
+                        
+                      </>
+                    );
                   } else {
                     return (
                       <div className="space-y-4">
@@ -612,6 +742,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           currentUsage={currentUsage}
           limit={limit}
         />
+        
       </div>
     </ErrorBoundary>
   );

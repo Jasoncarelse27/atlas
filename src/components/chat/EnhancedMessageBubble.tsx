@@ -222,7 +222,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
           {/* Debug logging removed - functionality working correctly */}
-          {(message.status === 'sending' && !displayedText) || (isTyping && !isUser) ? (
+          {(message.status === 'sending' && (!displayedText || displayedText === '...')) || (isTyping && !isUser) ? (
               <div className="flex items-center space-x-3 text-gray-300">
                 <TypingDots />
               </div>

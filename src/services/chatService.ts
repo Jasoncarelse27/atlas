@@ -156,7 +156,11 @@ export const chatService = {
       // Removed useMessageStore.setIsStreaming - using callback pattern instead
       abortController = null;
       
-      return responseText;
+      // Return both response text and conversation ID
+      return {
+        response: responseText,
+        conversationId: data.conversationId
+      };
     } catch (error) {
       
       // Reset streaming state on error
