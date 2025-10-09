@@ -67,7 +67,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         content: message.content || '',
         timestamp: message.timestamp,
         synced: false,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        // ✅ Preserve all attachment and media data
+        attachments: message.attachments || [],
+        metadata: message.metadata || {},
+        url: message.url || null,
+        imageUrl: message.imageUrl || null,
+        audioUrl: message.audioUrl || null
       });
     } catch (error) {
     }
@@ -114,7 +120,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             content: msg.content,
             timestamp: msg.timestamp,
             type: msg.type || 'text',
-            attachments: [] // Will be populated from other sources if needed
+            attachments: msg.attachments || [],
+            metadata: msg.metadata || {},
+            url: msg.url || null,
+            imageUrl: msg.imageUrl || null,
+            audioUrl: msg.audioUrl || null
           }));
           
           console.log('[ChatPage] Setting messages:', formattedMessages);
@@ -246,6 +256,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         const newUrl = `/chat?conversation=${finalConversationId}`;
         window.history.pushState({}, '', newUrl);
         console.log('[ChatPage] Updated conversation ID from backend:', finalConversationId);
+      } else if (!conversationId) {
+        // ✅ If no conversation ID exists, create one and update URL
+        finalConversationId = crypto.randomUUID();
+        setConversationId(finalConversationId);
+        localStorage.setItem('atlas:lastConversationId', finalConversationId);
+        
+        const newUrl = `/chat?conversation=${finalConversationId}`;
+        window.history.pushState({}, '', newUrl);
+        console.log('[ChatPage] Created new conversation ID:', finalConversationId);
       }
 
       // Add loading message immediately with typing dots (using final conversation ID)
@@ -372,12 +391,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (urlConversationId) {
           // Load existing conversation from URL
           id = urlConversationId;
+          console.log('[ChatPage] Using conversation ID from URL:', id);
         } else if (lastConversationId) {
           // Auto-restore last conversation
           id = lastConversationId;
+          console.log('[ChatPage] Using conversation ID from localStorage:', id);
         } else {
           // Create new conversation
           id = generateUUID();
+          console.log('[ChatPage] Creating new conversation ID:', id);
         }
         
         // Save conversation ID for auto-restore
@@ -433,7 +455,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             content: msg.content,
             timestamp: msg.timestamp,
             type: msg.type || 'text',
-            attachments: []
+            attachments: msg.attachments || [],
+            metadata: msg.metadata || {},
+            url: msg.url || null,
+            imageUrl: msg.imageUrl || null,
+            audioUrl: msg.audioUrl || null
           }));
           setMessages(formattedMessages);
           setConversationId(savedId);

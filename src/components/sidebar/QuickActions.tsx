@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { atlasDB } from '../../database/atlasDB';
+import { startBackgroundSync } from '../../services/syncService';
+import { ConversationHistoryDrawer } from '../ConversationHistoryDrawer';
 
 export default function QuickActions() {
   const [showHistory, setShowHistory] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleNewChat = async () => {
     // ✅ Navigate to clean URL (removes conversation ID param)
@@ -17,18 +21,82 @@ export default function QuickActions() {
   const handleViewHistory = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('[QuickActions] No authenticated user - cannot load history');
+        return;
+      }
 
-      const { data } = await supabase
+      console.log('[QuickActions] Loading conversations for user:', user.id);
+      
+      const { data, error } = await supabase
         .from('conversations')
         .select('id, title, created_at, updated_at')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
         .limit(10);
 
+      if (error) {
+        console.error('[QuickActions] Error loading conversations:', error);
+        return;
+      }
+
+      console.log('[QuickActions] Loaded conversations:', data?.length || 0);
       setConversations(data || []);
       setShowHistory(true);
+      
+      // Trigger a quick sync to pick up changes from other devices
+      try {
+        console.log('[QuickActions] Triggering sync to pick up changes from other devices');
+        startBackgroundSync(user.id, 'core');
+      } catch (syncError) {
+        console.log('[QuickActions] Sync trigger failed (non-critical):', syncError);
+      }
     } catch (err) {
+      console.error('[QuickActions] Failed to load history:', err);
+    }
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!confirm('🗑 Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingId(conversationId);
+    
+    try {
+      // Delete from Dexie (local)
+      await atlasDB.messages.where('conversationId').equals(conversationId).delete();
+      await atlasDB.conversations.delete(conversationId);
+      
+      // Delete from Supabase (cloud)
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) {
+        console.error('[QuickActions] Supabase delete error:', error);
+      }
+
+      // Update local state
+      setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      
+      // Trigger sync to update other devices
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          console.log('[QuickActions] Triggering sync after deletion');
+          startBackgroundSync(user.id, 'core'); // Default to core for sync
+        }
+      } catch (syncError) {
+        console.log('[QuickActions] Sync trigger failed (non-critical):', syncError);
+      }
+      
+      console.log('[QuickActions] Conversation deleted successfully:', conversationId);
+    } catch (err) {
+      console.error('[QuickActions] Failed to delete conversation:', err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -56,64 +124,14 @@ export default function QuickActions() {
         </ul>
       </div>
 
-      {/* Professional History Modal */}
-      {showHistory && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowHistory(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Conversation History</h3>
-              <button 
-                onClick={() => setShowHistory(false)} 
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-              {conversations.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-400 dark:text-gray-500 text-sm">No conversations yet</p>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">Start chatting to see your history!</p>
-                </div>
-              ) : (
-                conversations.map((conv, index) => (
-                  <div 
-                    key={conv.id} 
-                    className="group p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-700 dark:to-gray-750 rounded-xl hover:shadow-md hover:scale-[1.02] cursor-pointer transition-all duration-200 border border-gray-100 dark:border-gray-600"
-                    onClick={() => {
-                      setShowHistory(false);
-                      window.location.href = `/chat?conversation=${conv.id}`;
-                    }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                          {conv.title || `Conversation ${index + 1}`}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
-                          <span>📅</span>
-                          <span>{new Date(conv.updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-                        </div>
-                      </div>
-                      <div className="text-gray-300 dark:text-gray-600 group-hover:text-blue-500 transition-colors">
-                        →
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <button 
-              onClick={() => setShowHistory(false)} 
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Conversation History Drawer */}
+      <ConversationHistoryDrawer
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+        conversations={conversations}
+        onDeleteConversation={handleDeleteConversation}
+        deletingId={deletingId}
+      />
     </>
   );
 }

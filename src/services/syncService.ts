@@ -1,4 +1,4 @@
-import { isPaidTier } from "@/config/featureAccess";
+import { canSyncCloud } from "@/config/featureAccess";
 import { atlasDB } from "@/database/atlasDB";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -22,8 +22,9 @@ export async function markSyncing(state: boolean) {
 
 export const syncService = {
   async syncAll(userId: string, tier: 'free' | 'core' | 'studio') {
-    // ✅ Use centralized tier config
-    if (!isPaidTier(tier)) {
+    // ✅ Use centralized tier config for cloud sync
+    if (!canSyncCloud(tier)) {
+      console.log("[SYNC] Cloud sync disabled for tier:", tier);
       return
     }
 
@@ -37,10 +38,11 @@ export const syncService = {
     await markSyncing(true)
 
     try {
-      // ✅ Pull remote messages from Supabase
+      // ✅ Pull remote messages from Supabase (filtered by user)
       const { data: remote, error: pullErr } = await supabase
         .from("messages")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at") as { data: SupabaseMessage[] | null; error: any }
 
       if (pullErr) {

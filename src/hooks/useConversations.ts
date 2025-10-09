@@ -32,14 +32,29 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
     setError(null);
     
     try {
-      // Temporarily disable complex conversation loading to prevent schema errors
-      setConversations([]);
+      console.log('[useConversations] Loading conversations for user:', user.id);
+      
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.error('[useConversations] Error loading conversations:', error);
+        setError('Failed to load conversations');
+        return;
+      }
+
+      console.log('[useConversations] Loaded conversations:', data?.length || 0);
+      setConversations(data || []);
     } catch (err) {
+      console.error('[useConversations] Failed to load conversations:', err);
       setError('Failed to load conversations');
     } finally {
       setIsLoading(false);
     }
-  }, [user, currentConversation]);
+  }, [user]);
 
   // Initialize with a new conversation if none exists
   useEffect(() => {

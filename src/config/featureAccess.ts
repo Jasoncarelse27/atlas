@@ -30,7 +30,8 @@ export const tierFeatures = {
     priorityProcessing: false,
     supportLevel: 'community',
     supportResponseTime: null,
-    weeklyInsights: false
+    weeklyInsights: false,
+    cloudSync: false  // Free tier: local only
   },
   core: { 
     text: true, 
@@ -54,7 +55,8 @@ export const tierFeatures = {
     priorityProcessing: false,
     supportLevel: 'email',
     supportResponseTime: '48 hours',
-    weeklyInsights: false
+    weeklyInsights: false,
+    cloudSync: true  // Core tier: cross-device sync
   },
   studio: { 
     text: true, 
@@ -78,7 +80,8 @@ export const tierFeatures = {
     priorityProcessing: true,  // Priority AI processing (faster responses)
     supportLevel: 'priority',
     supportResponseTime: '4 hours',
-    weeklyInsights: true  // Weekly coaching insights
+    weeklyInsights: true,  // Weekly coaching insights
+    cloudSync: true  // Studio tier: full cross-device sync
   },
 } as const;
 
@@ -254,4 +257,9 @@ export function getSuggestedUpgradeTier(tier: Tier): Tier {
 
 export function isPaidTier(tier: Tier): boolean {
   return tier === 'core' || tier === 'studio';
+}
+
+// Cloud sync capability check
+export function canSyncCloud(tier: Tier): boolean {
+  return tierFeatures[tier].cloudSync;
 }
