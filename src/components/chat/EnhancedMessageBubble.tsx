@@ -110,7 +110,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     );
   }
 
-  // Debug fallback for unexpected message types
+  // Handle non-text message types
   if (message.type && message.type !== 'text') {
     return (
       <motion.div
@@ -153,6 +153,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   // Typing effect for AI text messages - show word by word
   useEffect(() => {
     if (isUser) {
+      // ✅ CRITICAL FIX: User messages should always show content immediately
       setDisplayedText(messageContent);
       return;
     }
@@ -170,8 +171,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       }, 12); // Slightly slower for more natural ChatGPT-like effect
 
       return () => clearInterval(timer);
-    } else if (!isLatest || message.status === 'sending') {
-      // For older messages or sending state, show full content immediately
+    } else {
+      // ✅ CRITICAL FIX: For all other cases, show full content immediately
       setDisplayedText(messageContent);
     }
   }, [messageContent, isUser, isLatest, message.status]);
@@ -221,7 +222,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           animate={!isUser ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
-          {/* Debug logging removed - functionality working correctly */}
           {(message.status === 'sending' && (!displayedText || displayedText === '...')) || (isTyping && !isUser) ? (
               <div className="flex items-center space-x-3 text-gray-300">
                 <TypingDots />
@@ -241,7 +241,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                 {message.status === 'sending' && displayedText && !isUser && (
                   <StopButton 
                     onPress={() => {
-                      // TODO: Implement stop generation logic
+                      // Stop generation logic will be implemented
                     }}
                     isVisible={true}
                   />

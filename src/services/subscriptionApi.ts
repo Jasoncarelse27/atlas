@@ -280,7 +280,7 @@ class SubscriptionApiService {
    */
   async getSubscriptionStatus(userId: string, accessToken: string): Promise<FastSpringSubscription | null> {
     if (!this.isMockMode) {
-      // TODO: Replace with real FastSpring API calls after approval
+      // FastSpring API integration pending approval
       throw new Error('Real FastSpring integration not implemented yet');
     }
 

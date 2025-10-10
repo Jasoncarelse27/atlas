@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useTierAccess } from './useTierAccess';
-import { useUserTier } from './useUserTier';
+import { useMessageLimit as useTierMessageLimit } from './useTierAccess';
 
 export function useMessageLimit(conversationId: string, userId?: string) {
-  const { tier } = useUserTier(userId);
-  const { getLimit, isUnlimited } = useTierAccess(tier);
+  const { tier, getLimit, isUnlimited } = useTierMessageLimit();
   const [count, setCount] = useState(0);
   const [blocked, setBlocked] = useState(false);
 

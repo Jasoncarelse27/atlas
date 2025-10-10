@@ -26,7 +26,7 @@ export const mailerService = {
       // Skip network simulation in tests
     } else {
       // Simulate network errors when MSW is configured to return errors
-      // This is a hack to make the mock service respond to MSW configuration
+      // Mock service responds to MSW configuration
       try {
         // Try to make a real fetch call that will be intercepted by MSW
         const response = await fetch('https://connect.mailerlite.com/api/campaigns', {

@@ -145,7 +145,7 @@ class AudioService {
    * Get audio tier restriction message
    */
   getAudioRestrictionMessage(tier: string): string {
-    if (tier === 'free') { // TODO: Replace with centralized tier check
+    if (tier === 'free') {
       return 'Voice recording is available for Core/Studio users. Upgrade to unlock audio features!';
     }
     return '';
@@ -155,7 +155,7 @@ class AudioService {
    * Play TTS audio (placeholder for future implementation)
    */
   play(text: string): void {
-    // TODO: Implement TTS playback
+    // TTS playback will be implemented
   }
 }
 

@@ -9,16 +9,17 @@ import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
+import type { Message } from '../types/chat';
 // Removed usePersistentMessages import - using direct message management instead
 import { atlasDB } from '../database/atlasDB';
 import { useSubscription } from '../hooks/useSubscription';
 import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
-import { runDbMigrations } from '../services/dbMigrations';
+import { databaseMigration } from '../services/databaseMigration';
 import { startBackgroundSync, stopBackgroundSync } from '../services/syncService';
+import { autoGenerateTitle } from '../services/titleGenerationService';
 // Removed useMessageStore import - using usePersistentMessages as single source of truth
-import type { Message } from '../types/chat';
 import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
@@ -47,98 +48,112 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const { processUserMessage } = useMemoryIntegration({ userId: userId || undefined });
 
   // Subscription management
-  const { refresh: refreshProfile } = useSubscription(userId || undefined);
+  const { refresh: refreshProfile, tier: userTier } = useSubscription(userId || undefined);
 
   // Direct message management - single source of truth
   const [messages, setMessages] = useState<Message[]>([]);
   
-  // Enhanced addMessage function with Dexie persistence
+  // Message persistence utility - converts Message to Dexie format (schema-compliant)
+  const messageToDexie = (message: Message, targetConversationId?: string) => ({
+    id: message.id,
+    conversationId: targetConversationId || conversationId || 'default',
+    userId: userId || 'anonymous',
+    role: message.role,
+    type: message.type === 'text' || message.type === 'image' || message.type === 'audio' ? message.type : 'text',
+    content: message.content || '',
+    timestamp: message.timestamp,
+    synced: false,
+    updatedAt: new Date().toISOString()
+    // ✅ REMOVED: attachments, metadata, url, imageUrl, audioUrl (not in Dexie schema)
+  });
+
+  // Reliable addMessage function with immediate Dexie persistence
   const addMessage = async (message: Message) => {
-    setMessages(prev => [...prev, message]);
+    // ✅ CRITICAL: Check for duplicate messages before adding
+    setMessages(prev => {
+      const exists = prev.some(msg => msg.id === message.id);
+      if (exists) {
+        console.warn('[ChatPage] ⚠️ Duplicate message prevented:', message.id);
+        return prev; // Don't add duplicate
+      }
+      return [...prev, message];
+    });
     
-    // Save to Dexie for offline persistence
+    // ✅ CRITICAL: Ensure we have a valid conversationId (should always be set now)
+    if (!conversationId) {
+      console.error('[ChatPage] ❌ CRITICAL: addMessage called without conversationId!');
+      // Create emergency conversationId if somehow missing
+      const emergencyId = generateUUID();
+      setConversationId(emergencyId);
+      localStorage.setItem('atlas:lastConversationId', emergencyId);
+      
+      // Save with emergency ID
+      try {
+        await atlasDB.messages.put(messageToDexie(message, emergencyId));
+        console.log('[ChatPage] ✅ Message saved with emergency conversationId:', emergencyId);
+      } catch (error) {
+        console.error('[ChatPage] ❌ Failed to save message to Dexie:', error);
+      }
+      return;
+    }
+    
+    // Save to Dexie immediately with the proper conversationId
     try {
-      await atlasDB.messages.put({
+      const dexieMessage = messageToDexie(message, conversationId);
+      await atlasDB.messages.put(dexieMessage);
+      console.log('[ChatPage] ✅ Message saved to Dexie:', {
         id: message.id,
-        conversationId: conversationId || 'default',
-        userId: userId || 'anonymous',
+        conversationId: conversationId,
         role: message.role,
-        type: (message.type === 'text' || message.type === 'image' || message.type === 'audio') ? message.type : 'text',
-        content: message.content || '',
-        timestamp: message.timestamp,
-        synced: false,
-        updatedAt: new Date().toISOString(),
-        // ✅ Preserve all attachment and media data
-        attachments: message.attachments || [],
-        metadata: message.metadata || {},
-        url: message.url || null,
-        imageUrl: message.imageUrl || null,
-        audioUrl: message.audioUrl || null
+        contentLength: message.content?.length
       });
     } catch (error) {
+      console.error('[ChatPage] ❌ Failed to save message to Dexie:', error);
     }
   };
   
-  // Enhanced updateMessage function with Dexie sync
+  // Reliable updateMessage function with immediate Dexie sync
   const updateMessage = async (id: string, patch: Partial<Message>) => {
+    // Update UI immediately
     setMessages(prev => prev.map(msg => 
       msg.id === id ? { ...msg, ...patch } : msg
     ));
     
-    // Update in Dexie as well
+    // Update Dexie immediately (reliable persistence)
     try {
       await atlasDB.messages.update(id, {
         content: patch.content || '',
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
+      // Silent fail - UI already updated
     }
   };
   
-  // Enhanced refreshMessages function with Dexie persistence
-  const refreshMessages = async () => {
+  // Optimized message loader - simple and efficient
+  const loadMessages = async (conversationId: string) => {
     try {
+      console.log('[ChatPage] Loading messages for conversation:', conversationId);
+      const storedMessages = await atlasDB.messages
+        .where("conversationId")
+        .equals(conversationId)
+        .sortBy("timestamp");
       
-      // Get current conversation ID from URL or localStorage
-      const urlParams = new URLSearchParams(window.location.search);
-      const currentConvId = urlParams.get('conversation') || localStorage.getItem('atlas:lastConversationId');
+      console.log('[ChatPage] Found messages in Dexie:', storedMessages.length);
       
-      console.log('[ChatPage] refreshMessages - currentConvId:', currentConvId);
+      const formattedMessages = storedMessages.map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        type: msg.type || 'text'
+      } as Message));
       
-      if (currentConvId) {
-        const storedMessages = await atlasDB.messages
-          .where("conversationId")
-          .equals(currentConvId)
-          .sortBy("timestamp");
-        
-        console.log('[ChatPage] Found stored messages:', storedMessages.length);
-        
-        if (storedMessages.length > 0) {
-          const formattedMessages = storedMessages.map(msg => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            type: msg.type || 'text',
-            attachments: msg.attachments || [],
-            metadata: msg.metadata || {},
-            url: msg.url || null,
-            imageUrl: msg.imageUrl || null,
-            audioUrl: msg.audioUrl || null
-          }));
-          
-          console.log('[ChatPage] Setting messages:', formattedMessages);
-          setMessages(formattedMessages);
-        } else {
-          console.log('[ChatPage] No messages found for conversation:', currentConvId);
-          setMessages([]);
-        }
-      } else {
-        console.log('[ChatPage] No conversation ID found');
-        setMessages([]);
-      }
+      console.log('[ChatPage] Setting messages in UI:', formattedMessages.length);
+      setMessages(formattedMessages);
     } catch (error) {
-      console.error('[ChatPage] refreshMessages error:', error);
+      console.error('[ChatPage] Failed to load messages:', error);
+      setMessages([]);
     }
   };
 
@@ -176,6 +191,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       await supabase.auth.signOut();
       window.location.href = '/login';
     } catch (error) {
+      // Silent fail - logout will redirect regardless
     }
   };
 
@@ -190,109 +206,169 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // Guard to prevent duplicate calls using ref (immediate, no state update delay)
   const isProcessingRef = useRef(false);
+  const lastMessageRef = useRef<string>('');
   
-  // Handle text messages - delegate to chatService
+  // Optimized handleTextMessage function
   const handleTextMessage = async (text: string) => {
-    // Guard against duplicate calls
+    // ✅ CRITICAL: Prevent duplicate calls and duplicate content
     if (isProcessingRef.current) {
+      console.warn('[ChatPage] ⚠️ Message already processing, ignoring duplicate call');
       return;
     }
     
+    // ✅ CRITICAL: Prevent duplicate content
+    if (lastMessageRef.current === text.trim()) {
+      console.warn('[ChatPage] ⚠️ Duplicate content detected, ignoring:', text.substring(0, 20));
+      return;
+    }
+    
+    lastMessageRef.current = text.trim();
     isProcessingRef.current = true;
     
     try {
-      // Process message for memory extraction FIRST and wait for completion
-      await processUserMessage(text);
-      
-      // Create message for persistent store
-      const message: Message = {
+      // ✅ CRITICAL FIX: Create user message with content validation
+      const userMessage: Message = {
         id: generateUUID(),
         role: 'user',
         type: 'text',
-        content: text,
+        content: text.trim(), // ✅ Ensure content is not empty
         timestamp: new Date().toISOString(),
         status: 'sending',
       };
 
-      // Add to persistent store
-      await addMessage(message);
+      // ✅ VALIDATE: Don't create empty messages
+      if (!userMessage.content) {
+        console.error('[ChatPage] ❌ CRITICAL: Attempted to create empty user message');
+        return;
+      }
 
-      // NOW show typing indicator after user message is visible
+      // Add user message to UI immediately
+      console.log('[ChatPage] ✅ Saving user message:', { 
+        id: userMessage.id, 
+        content: userMessage.content, 
+        conversationId,
+        contentLength: userMessage.content.length 
+      });
+      await addMessage(userMessage);
+
+      // Show typing indicator
       setIsTyping(true);
       setIsStreaming(true);
       setAssistantHasStarted(false);
 
-      // Use chatService as the single source of truth
+      // Process memory extraction in background (non-blocking)
+      processUserMessage(text).catch(() => {
+        // Silent fail - memory processing is not critical
+      });
+
+      // Send message and get response
       const assistantResponse = await chatService.sendMessage(text, () => {
-        // Update message status to sent
-        updateMessage(message.id, { status: 'sent' });
+        updateMessage(userMessage.id, { status: 'sent' });
       }, conversationId || undefined, userId || undefined);
       
-      // Refresh profile to get updated usage stats
-      try {
-        await refreshProfile();
-      } catch (refreshError) {
-      }
+      // Refresh profile in background (non-blocking)
+      refreshProfile().catch(() => {
+        // Silent fail - profile refresh is not critical
+      });
       
-      // ✅ Create assistant message immediately with typing dots
-      const assistantMessageId = generateUUID();
-      const assistantMessage: Message = {
-        id: assistantMessageId,
-        role: 'assistant',
-        type: 'text',
-        content: '...', // Start with typing dots
-        timestamp: new Date().toISOString(),
-        status: 'sending', // Show as loading
-      };
-
+      // ✅ CRITICAL FIX: Don't create duplicate assistant messages
+      // The backend already handles message creation, we just need to update the UI
+      
       // ✅ Check if backend returned a different conversation ID and update BEFORE saving messages
       let finalConversationId = conversationId;
       if (assistantResponse && typeof assistantResponse === 'object' && assistantResponse.conversationId) {
         finalConversationId = assistantResponse.conversationId;
         setConversationId(finalConversationId);
-        localStorage.setItem('atlas:lastConversationId', finalConversationId);
+        localStorage.setItem('atlas:lastConversationId', finalConversationId!);
+        
+        // ✅ CRITICAL: Save conversation to local Dexie
+        try {
+          await atlasDB.conversations.put({
+            id: finalConversationId || '',
+            userId: userId || 'anonymous',
+            title: 'New Conversation',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          console.log('[ChatPage] ✅ Saved conversation to local Dexie:', finalConversationId);
+        } catch (error) {
+          console.error('[ChatPage] Failed to save conversation to Dexie:', error);
+        }
         
         // Update URL to include conversation ID
         const newUrl = `/chat?conversation=${finalConversationId}`;
         window.history.pushState({}, '', newUrl);
-        console.log('[ChatPage] Updated conversation ID from backend:', finalConversationId);
       } else if (!conversationId) {
         // ✅ If no conversation ID exists, create one and update URL
         finalConversationId = crypto.randomUUID();
         setConversationId(finalConversationId);
         localStorage.setItem('atlas:lastConversationId', finalConversationId);
         
+        // ✅ CRITICAL: Save conversation to local Dexie
+        try {
+          await atlasDB.conversations.put({
+            id: finalConversationId,
+            userId: userId || 'anonymous',
+            title: 'New Conversation',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          console.log('[ChatPage] ✅ Saved new conversation to local Dexie:', finalConversationId);
+        } catch (error) {
+          console.error('[ChatPage] Failed to save new conversation to Dexie:', error);
+        }
+        
         const newUrl = `/chat?conversation=${finalConversationId}`;
         window.history.pushState({}, '', newUrl);
-        console.log('[ChatPage] Created new conversation ID:', finalConversationId);
       }
 
-      // Add loading message immediately with typing dots (using final conversation ID)
-      const finalAssistantMessage = {
-        ...assistantMessage,
-        conversationId: finalConversationId
-      };
-      await addMessage(finalAssistantMessage);
-
-      // Update user message with final conversation ID too
-      await updateMessage(message.id, { conversationId: finalConversationId });
+      // ✅ CRITICAL FIX: Backend already handles assistant message creation
+      // The backend saves both user and assistant messages to Supabase
+      // We only need to wait for the sync to pick up the assistant message
+      console.log('[ChatPage] ✅ Backend handled assistant message creation');
+      
+      // ✅ TRIGGER SYNC: Force a sync to get the assistant message from backend
+      setTimeout(async () => {
+        try {
+          console.log('[ChatPage] 🔄 Triggering sync to get assistant message...');
+          // Import and trigger delta sync to get assistant message from Supabase
+          const { conversationSyncService } = await import('../services/conversationSyncService');
+          if (userId) {
+            await conversationSyncService.deltaSync(userId);
+            console.log('[ChatPage] ✅ Sync completed - assistant message should appear');
+          }
+        } catch (error) {
+          console.error('[ChatPage] ❌ Sync trigger failed:', error);
+        }
+      }, 1000);
+      
+      // ✅ AUTO-GENERATE TITLE: Only for first message in conversation
+      if (messages.length === 0 && finalConversationId && userId) {
+        console.log('[ChatPage] 🎯 Auto-generating conversation title...');
+        try {
+          const generatedTitle = await autoGenerateTitle({
+            message: text,
+            tier: (userTier as 'free' | 'core' | 'studio') || 'free',
+            conversationId: finalConversationId,
+            userId: userId
+          });
+          
+          // Update local Dexie with generated title
+          await atlasDB.conversations.update(finalConversationId, {
+            title: generatedTitle,
+            updatedAt: new Date().toISOString()
+          });
+          
+          console.log('[ChatPage] ✅ Conversation title generated:', generatedTitle);
+        } catch (error) {
+          console.error('[ChatPage] ❌ Title generation failed:', error);
+          // Non-critical error, continue anyway
+        }
+      }
 
       // Once response starts coming in, mark as streaming and clear typing
       setIsTyping(false);
       setAssistantHasStarted(true);
-
-      // Update with actual response when ready
-      if (assistantResponse) {
-        const responseText = typeof assistantResponse === 'string' 
-          ? assistantResponse 
-          : assistantResponse.response;
-        
-        updateMessage(assistantMessageId, { 
-          content: responseText,
-          status: 'sent',
-          conversationId: finalConversationId
-        });
-      }
       
       // Reset streaming states when complete
       setIsStreaming(false);
@@ -313,6 +389,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
     } finally {
       isProcessingRef.current = false;
+      
+      // ✅ CRITICAL: Reset last message after processing
+      setTimeout(() => {
+        lastMessageRef.current = '';
+      }, 1000);
     }
   };
 
@@ -327,62 +408,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     getAuthUser();
   }, []);
 
-  // Initialize conversation and run migrations (only once per session)
+  // Initialize conversation IMMEDIATELY - before anything else
   useEffect(() => {
     if (!userId) return;
     
-    // Check if we've already run migrations this session
-    const migrationKey = `migration-run-${userId}`;
-    if (sessionStorage.getItem(migrationKey)) {
-      return; // Already ran migrations this session
-    }
-    
-    const initializeApp = async () => {
+    const initializeConversation = async () => {
       try {
-        // ✅ Run database migrations (single source of truth) - only once per session
-        await runDbMigrations(userId);
-        
-        // Mark migrations as run for this session
-        sessionStorage.setItem(migrationKey, 'true');
-        
-        // ✅ Load messages from Dexie (offline-first)
-        await refreshMessages();
-        
-        // ✅ Start background sync for Core/Studio tiers
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Use backend API for consistent tier detection (same as other hooks)
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const accessToken = session?.access_token;
-            
-            if (accessToken) {
-              const response = await fetch(`/v1/user_profiles/${user.id}`, {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                  'Content-Type': 'application/json',
-                },
-              });
-              
-              if (response.ok) {
-                const profile = await response.json();
-                const tier = profile?.subscription_tier || 'core'; // Default to core instead of free
-                console.log(`✅ [ChatPage] Starting background sync for tier: ${tier}`);
-                startBackgroundSync(user.id, tier);
-              } else {
-                startBackgroundSync(user.id, 'core');
-              }
-            } else {
-              startBackgroundSync(user.id, 'core');
-            }
-          } catch (error) {
-            startBackgroundSync(user.id, 'core'); // Default to core instead of free
-          }
-        }
-        
-        // ✅ Check if conversation ID is in URL or localStorage (auto-restore)
+        // ✅ PRIORITY 1: Set conversation ID FIRST (before any other operations)
         const urlParams = new URLSearchParams(window.location.search);
         const urlConversationId = urlParams.get('conversation');
         const lastConversationId = localStorage.getItem('atlas:lastConversationId');
@@ -402,7 +434,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           console.log('[ChatPage] Creating new conversation ID:', id);
         }
         
-        // Save conversation ID for auto-restore
+        // ✅ CRITICAL: Set conversation ID IMMEDIATELY before any messages can be sent
         localStorage.setItem('atlas:lastConversationId', id);
         setConversationId(id);
         
@@ -410,68 +442,94 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (!urlConversationId && id) {
           const newUrl = `/chat?conversation=${id}`;
           window.history.replaceState({}, '', newUrl);
-          console.log('[ChatPage] Updated URL with conversation ID:', id);
         }
         
-        // ✅ Hydrate messages from Dexie (offline-first)
-        console.log('[ChatPage] About to refresh messages for conversation:', id);
-        await refreshMessages();
-        console.log('[ChatPage] Messages refresh completed');
+        console.log('[ChatPage] ✅ Conversation initialized:', id);
+        
+        // ✅ PRIORITY 2: Load existing messages immediately
+        await loadMessages(id);
+        
       } catch (error) {
+        console.error('[ChatPage] Failed to initialize conversation:', error);
       }
     };
 
-    initializeApp();
-  }, [userId, refreshMessages]);
-  
-  // ✅ Additional useEffect to ensure messages load when conversationId changes
+    initializeConversation();
+  }, [userId]);
+
+  // Run migrations separately (only once per session)
   useEffect(() => {
-    if (conversationId) {
-      console.log('[ChatPage] conversationId changed, refreshing messages:', conversationId);
-      refreshMessages();
+    if (!userId) return;
+    
+    const migrationKey = `migration-run-${userId}`;
+    if (sessionStorage.getItem(migrationKey)) {
+      return; // Already ran migrations this session
     }
-  }, [conversationId]);
-  
-  // ✅ Instant restore on hard refresh - runs immediately on mount
-  useEffect(() => {
-    const instantRestore = async () => {
+    
+    const runMigrations = async () => {
       try {
-        const savedId = localStorage.getItem('atlas:lastConversationId');
-        if (!savedId) return;
-        
-        console.log('[ChatPage] 💾 Instant restore from hard refresh:', savedId);
-        
-        // Load messages immediately from Dexie
-        const cached = await atlasDB.messages
-          .where("conversationId")
-          .equals(savedId)
-          .sortBy("timestamp");
-        
-        if (cached?.length) {
-          console.log(`[ChatPage] 💾 Restored ${cached.length} messages instantly`);
-          const formattedMessages = cached.map(msg => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            timestamp: msg.timestamp,
-            type: msg.type || 'text',
-            attachments: msg.attachments || [],
-            metadata: msg.metadata || {},
-            url: msg.url || null,
-            imageUrl: msg.imageUrl || null,
-            audioUrl: msg.audioUrl || null
-          }));
-          setMessages(formattedMessages);
-          setConversationId(savedId);
+        await databaseMigration.migrateDatabase();
+        sessionStorage.setItem(migrationKey, 'true');
+        console.log('[ChatPage] ✅ Database migration completed');
+      } catch (error) {
+        console.error('[ChatPage] Migration error:', error);
+        // If migration fails, clear data and start fresh
+        try {
+          await databaseMigration.clearAllData();
+          console.log('[ChatPage] ✅ Cleared data after migration failure');
+        } catch (clearError) {
+          console.error('[ChatPage] ❌ Failed to clear data:', clearError);
         }
-      } catch (err) {
-        console.error('[ChatPage] Instant restore failed:', err);
       }
     };
+
+    runMigrations();
+  }, [userId]);
+
+  // Start background sync (separate from critical initialization)
+  useEffect(() => {
+    if (!userId) return;
     
-    // Run immediately on mount
-    instantRestore();
-  }, []); // Empty dependency array = run once on mount
+    const initializeBackgroundSync = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+            
+            if (accessToken) {
+              const response = await fetch(`/v1/user_profiles/${user.id}`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                  'Content-Type': 'application/json',
+                },
+              });
+              
+              if (response.ok) {
+                const profile = await response.json();
+                const tier = profile?.subscription_tier || 'core';
+                console.log(`✅ [ChatPage] Starting background sync for tier: ${tier}`);
+                startBackgroundSync(user.id, tier);
+              } else {
+                startBackgroundSync(user.id, 'core');
+              }
+            } else {
+              startBackgroundSync(user.id, 'core');
+            }
+          } catch (error) {
+            startBackgroundSync(user.id, 'core');
+          }
+        }
+      } catch (error) {
+        console.error('[ChatPage] Background sync initialization error:', error);
+      }
+    };
+
+    initializeBackgroundSync();
+  }, [userId]);
 
   // Cleanup background sync on unmount
   useEffect(() => {
@@ -480,20 +538,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     };
   }, []);
   
-  // ✅ Debug function - expose to window for console debugging
-  useEffect(() => {
-    (window as any).atlasDebug = {
-      getConversationId: () => conversationId,
-      getMessages: () => messages,
-      refreshMessages: () => refreshMessages(),
-      getLocalStorage: () => localStorage.getItem('atlas:lastConversationId'),
-      checkDexie: async () => {
-        const allMessages = await atlasDB.messages.toArray();
-        console.log('All Dexie messages:', allMessages);
-        return allMessages;
-      }
-    };
-  }, [conversationId, messages]);
 
   // Health check with auto-retry every 30 seconds
   useEffect(() => {

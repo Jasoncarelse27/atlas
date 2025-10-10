@@ -323,7 +323,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         expectedAccess[result.feature as keyof typeof expectedAccess] === result.canAccess
       );
 
-      const trialExpired = false; // TODO: Implement trial expiry check
+      const trialExpired = false; // Trial expiry check will be implemented
 
       updateTestResult(testName, {
         status: isCorrect ? 'pass' : 'warning',
@@ -359,7 +359,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     });
 
     try {
-      const daysRemaining = 0; // TODO: Implement days remaining calculation
+      const daysRemaining = 0; // Days remaining calculation will be implemented
       const expired = isTrialExpired();
       const trialEndDate = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
       

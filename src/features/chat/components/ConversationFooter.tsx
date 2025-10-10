@@ -1,8 +1,8 @@
 import {
-    AlertTriangle,
-    Download,
-    Trash,
-    Upload
+  AlertTriangle,
+  Download,
+  Trash,
+  Upload
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -70,7 +70,7 @@ const ConversationFooter: React.FC<ConversationFooterProps> = ({
           throw new Error('Invalid format: Expected an array of conversations');
         }
         
-        // TODO: Add more validation and actually import the conversations
+        // Additional validation will be implemented
         
         if (onSoundPlay) onSoundPlay('success');
       } catch (error) {

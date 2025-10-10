@@ -20,17 +20,25 @@ export interface Message {
   updatedAt?: string
 }
 
+export interface SyncMetadata {
+  userId: string
+  lastSyncedAt: string
+  syncVersion: number
+}
+
 export class AtlasDB extends Dexie {
   conversations!: Table<Conversation, string>
   messages!: Table<Message, string>
+  syncMetadata!: Table<SyncMetadata, string>
 
   constructor() {
-    super("AtlasDB")
+    super("AtlasDB_v4") // ✅ NEW DATABASE NAME for delta sync
 
-    // ✅ Register tables once and forever
-    this.version(2).stores({
+    // ✅ DELTA SYNC SCHEMA - Version 4 with sync tracking
+    this.version(4).stores({
       conversations: "id, userId, title, createdAt, updatedAt",
-      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt"
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt",
+      syncMetadata: "userId, lastSyncedAt, syncVersion"
     })
   }
 }

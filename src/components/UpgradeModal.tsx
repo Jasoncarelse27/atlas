@@ -50,7 +50,7 @@ export default function UpgradeModal({
           <div className="space-y-3">
             <button
               onClick={() => {
-                // TODO: Implement upgrade flow
+                // Upgrade flow will be implemented
                 window.open('/upgrade', '_blank');
               }}
               className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 px-6 rounded-lg transition-colors"

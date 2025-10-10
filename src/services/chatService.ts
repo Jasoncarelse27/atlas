@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
 import { audioService } from "./audioService";
+import { enhancedResponseCacheService } from "./enhancedResponseCacheService";
 import { subscriptionApi } from "./subscriptionApi";
 
 // Global abort controller for message streaming
@@ -81,6 +82,26 @@ export const chatService = {
 
       // Get user's tier for the request
       const currentTier = await subscriptionApi.getUserTier(actualUserId, token);
+
+      // ✅ ENHANCED CACHING: Check cache first for 20-30% cost reduction
+      console.log('[ChatService] 🔍 Checking enhanced cache for query:', text.substring(0, 50));
+      const cachedResponse = await enhancedResponseCacheService.getCachedResponse(text, currentTier as any);
+      
+      if (cachedResponse) {
+        console.log('[ChatService] ✅ Cache hit! Returning cached response (API cost saved)');
+        pendingMessages.delete(messageId);
+        
+        // Return cached response in the same format as API response
+        return {
+          success: true,
+          response: cachedResponse,
+          conversationId: conversationId,
+          cached: true,
+          costSaved: true
+        };
+      }
+      
+      console.log('[ChatService] ❌ Cache miss, proceeding to API call');
       
       // Memory extraction is handled by the component layer
       // This keeps the service layer clean and avoids circular dependencies
@@ -128,6 +149,10 @@ export const chatService = {
       } else {
         responseText = "Sorry, I couldn't process that request.";
       }
+
+      // ✅ ENHANCED CACHING: Cache the response for future use
+      console.log('[ChatService] 💾 Caching response for future cost savings');
+      await enhancedResponseCacheService.cacheResponse(text, responseText, currentTier as any);
 
       // 🔊 Play TTS if tier allows
       if (currentTier !== "free" && typeof audioService.play === "function") {

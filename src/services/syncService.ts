@@ -1,6 +1,7 @@
-import { canSyncCloud } from "@/config/featureAccess";
+import { canSyncCloud, isPaidTier } from "@/config/featureAccess";
 import { atlasDB } from "@/database/atlasDB";
 import { supabase } from "@/lib/supabaseClient";
+import { conversationSyncService } from "./conversationSyncService";
 
 // 🎯 FUTURE-PROOF FIX: Define types for Supabase message schema
 type SupabaseMessage = {
@@ -124,25 +125,72 @@ export const syncService = {
 let syncInterval: ReturnType<typeof setInterval> | null = null
 
 export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'studio') {
+  // ✅ DELTA SYNC: Enable efficient background sync with delta updates
+  console.log("[SYNC] 🚀 Starting delta sync background service");
+  
   // ✅ Use centralized tier config
   if (!isPaidTier(tier)) {
-    return
+    console.log("[SYNC] Free tier - no background sync");
+    return;
   }
 
-  // Run immediately on load
-  syncService.syncAll(userId, tier)
+  // Run delta sync immediately on load
+  conversationSyncService.deltaSync(userId).catch(error => {
+    console.error("[SYNC] Initial delta sync failed:", error);
+  });
 
-  // Re-sync every 30 seconds
+  // Re-sync every 30 seconds with delta sync
   if (!syncInterval) {
     syncInterval = setInterval(() => {
-      syncService.syncAll(userId, tier)
+      conversationSyncService.deltaSync(userId).catch(error => {
+        console.error("[SYNC] Background delta sync failed:", error);
+      });
     }, 30000)
   }
 
   // Also sync when app regains focus (Web + React Native)
   if (typeof window !== "undefined") {
     window.addEventListener("focus", () => {
-      syncService.syncAll(userId, tier)
+      conversationSyncService.deltaSync(userId).catch(error => {
+        console.error("[SYNC] Focus delta sync failed:", error);
+      });
+    })
+  }
+
+  console.log("[SYNC] ✅ Delta sync background service active");
+  
+  // OLD CODE (DISABLED):
+  // ✅ Use centralized tier config
+  if (!isPaidTier(tier)) {
+    return
+  }
+
+  // Run immediately on load with new conversation sync
+  conversationSyncService.fullSync(userId).catch(error => {
+    console.error("[SYNC] Initial conversation sync failed:", error);
+    // Fallback to old sync method
+    syncService.syncAll(userId, tier);
+  });
+
+  // Re-sync every 30 seconds
+  if (!syncInterval) {
+    syncInterval = setInterval(() => {
+      conversationSyncService.fullSync(userId).catch(error => {
+        console.error("[SYNC] Background conversation sync failed:", error);
+        // Fallback to old sync method
+        syncService.syncAll(userId, tier);
+      });
+    }, 30000)
+  }
+
+  // Also sync when app regains focus (Web + React Native)
+  if (typeof window !== "undefined") {
+    window.addEventListener("focus", () => {
+      conversationSyncService.fullSync(userId).catch(error => {
+        console.error("[SYNC] Focus conversation sync failed:", error);
+        // Fallback to old sync method
+        syncService.syncAll(userId, tier);
+      });
     })
   }
 

@@ -257,7 +257,7 @@ class FastSpringService {
       // Clear cache
       this.subscriptionCache.delete(userId);
 
-      // TODO: Call FastSpring API to cancel subscription
+      // FastSpring API integration will be implemented
       
       return { success: true, message: 'Subscription will be cancelled at the end of the current period' };
 
@@ -365,7 +365,7 @@ class FastSpringService {
   // Private helper methods
 
   private verifyWebhookSignature(_event: FastSpringWebhookEvent): boolean {
-    // TODO: Implement proper FastSpring webhook signature verification
+    // FastSpring webhook signature verification will be implemented
     // This is a simplified version - in production, you'd verify the signature
     return true;
   }

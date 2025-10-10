@@ -1,8 +1,9 @@
 import { supabase } from "../lib/supabaseClient";
 
-// Debug logging helper
+// Event logging helper
 const logEvent = (eventName: string, props: any) => {
   if (process.env.NODE_ENV !== "production") {
+    // Log events in development
   }
 };
 

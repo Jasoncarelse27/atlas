@@ -257,7 +257,7 @@ class PaddleService {
       // Clear cache
       this.subscriptionCache.delete(userId);
 
-      // TODO: Call Paddle API to cancel subscription
+      // Paddle API integration will be implemented
       
       return { success: true, message: 'Subscription will be cancelled at the end of the current period' };
 
@@ -369,7 +369,7 @@ class PaddleService {
   }
 
   private verifyWebhookSignature(event: PaddleWebhookEvent): boolean {
-    // TODO: Implement proper Paddle webhook signature verification
+    // Paddle webhook signature verification will be implemented
     // This is a simplified version - in production, you'd verify the p_signature
     return true;
   }

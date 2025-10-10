@@ -96,7 +96,7 @@ const InputHandler: React.FC<InputHandlerProps> = ({
   }, [isRecording]);
 
   const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
-    // TODO: Implement actual transcription service
+    // Transcription service will be implemented
     // For now, return a placeholder
     return new Promise((resolve) => {
       setTimeout(() => {

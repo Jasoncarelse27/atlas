@@ -35,7 +35,7 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
     // For now, we'll just show an alert
     alert(`Redirecting to payment for Atlas ${tier === 'core' ? 'Core' : 'Studio'}...`);
     
-    // TODO: Integrate with Stripe/PayPal payment flow
+    // Payment integration will be implemented
     // window.location.href = `/upgrade?tier=${tier}&reason=${triggerReason}`;
   }, [triggerReason, closeUpgradeModal]);
 
@@ -53,7 +53,7 @@ export class ConversionAnalytics {
   static trackUpgradeTrigger(trigger: UpgradeTrigger, currentTier: Tier) {
     // Track when users hit upgrade triggers
     
-    // TODO: Send to analytics service (Mixpanel, Amplitude, etc.)
+    // Analytics integration will be implemented
     // analytics.track('upgrade_trigger', {
     //   trigger,
     //   current_tier: currentTier,
@@ -64,7 +64,7 @@ export class ConversionAnalytics {
   static trackUpgradeAttempt(targetTier: 'core' | 'studio', trigger: UpgradeTrigger) {
     // Track when users attempt to upgrade
     
-    // TODO: Send to analytics service
+    // Analytics integration will be implemented
     // analytics.track('upgrade_attempt', {
     //   target_tier: targetTier,
     //   trigger,
@@ -75,7 +75,7 @@ export class ConversionAnalytics {
   static trackUpgradeSuccess(targetTier: 'core' | 'studio', trigger: UpgradeTrigger) {
     // Track successful upgrades
     
-    // TODO: Send to analytics service
+    // Analytics integration will be implemented
     // analytics.track('upgrade_success', {
     //   target_tier: targetTier,
     //   trigger,

@@ -24,7 +24,7 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch conversations from Supabase
+  // ✅ BULLETPROOF: Load ONLY from local Dexie - no Supabase override
   const fetchConversations = useCallback(async () => {
     if (!user) return;
     
@@ -32,22 +32,16 @@ export const useConversations = (user: User | null): UseConversationsReturn => {
     setError(null);
     
     try {
-      console.log('[useConversations] Loading conversations for user:', user.id);
+      console.log('[useConversations] Loading conversations from local Dexie for user:', user.id);
       
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
+      // ✅ CRITICAL FIX: Load from local Dexie only - no Supabase override
+      const localConversations = await atlasDB.conversations
+        .orderBy('updatedAt')
+        .reverse()
+        .toArray();
 
-      if (error) {
-        console.error('[useConversations] Error loading conversations:', error);
-        setError('Failed to load conversations');
-        return;
-      }
-
-      console.log('[useConversations] Loaded conversations:', data?.length || 0);
-      setConversations(data || []);
+      console.log('[useConversations] ✅ Loaded local conversations:', localConversations.length);
+      setConversations(localConversations || []);
     } catch (err) {
       console.error('[useConversations] Failed to load conversations:', err);
       setError('Failed to load conversations');

@@ -20,7 +20,6 @@ interface EnhancedInputToolbarProps {
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
   isVisible?: boolean;
   onSoundPlay?: (soundType: string) => void;
-  // Added missing props
   addMessage?: (message: any) => void;
   isStreaming?: boolean;
 }
@@ -34,13 +33,11 @@ export default function EnhancedInputToolbar({
   inputRef: externalInputRef,
   isVisible = true,
   onSoundPlay,
-  // Added missing props
   addMessage,
   isStreaming = false
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
-  const { tier, hasAccess, showUpgradeModal } = useTierAccess();
-  // Removed useMessageStore - using usePersistentMessages through ChatPage instead
+  const { tier, showUpgradeModal } = useTierAccess();
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -56,15 +53,22 @@ export default function EnhancedInputToolbar({
   // Use external ref if provided, otherwise use internal ref
   const inputRef = externalInputRef || internalInputRef;
 
-  // ✅ Automatically focus only when input is visible
+  // ✅ Auto-focus immediately when component mounts
   useEffect(() => {
-    if (isVisible) {
-      const timer = setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 150);
-      return () => clearTimeout(timer);
+    const timer = setTimeout(() => {
+      if (inputRef.current && isVisible) {
+        inputRef.current.focus();
+        console.log('[EnhancedInputToolbar] ✅ Input focused on mount');
+      }
+    }, 100); // Shorter delay for immediate focus
+    return () => clearTimeout(timer);
+  }, []); // Run once on mount
+
+  // ✅ Re-focus when visibility changes
+  useEffect(() => {
+    if (isVisible && inputRef.current) {
+      inputRef.current.focus();
+      console.log('[EnhancedInputToolbar] ✅ Input focused on visibility change');
     }
   }, [isVisible]);
 
@@ -126,7 +130,6 @@ export default function EnhancedInputToolbar({
               setTimeout(() => reject(new Error('Send timeout')), 30000) // Increased to 30 seconds for image analysis
             )
           ]);
-        } else {
         }
         
         // Update status to success
@@ -196,7 +199,6 @@ export default function EnhancedInputToolbar({
     }, 500);
     
     // Don't set isUploading here - let the upload cards handle the loading state
-    console.log("✅ Attachment added to input area:", attachment.name);
     
     // 🎯 FUTURE-PROOF FIX: Auto-focus input for caption
     setTimeout(() => {
@@ -289,7 +291,6 @@ export default function EnhancedInputToolbar({
       return;
     }
     
-    console.log(`✅ [Mic] Access granted for tier: ${tier}`);
 
     if (!isListening) {
       // Start recording

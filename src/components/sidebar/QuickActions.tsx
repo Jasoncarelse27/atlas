@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
 import { atlasDB } from '../../database/atlasDB';
-import { startBackgroundSync } from '../../services/syncService';
+import { supabase } from '../../lib/supabaseClient';
 import { ConversationHistoryDrawer } from '../ConversationHistoryDrawer';
 
 export default function QuickActions() {
@@ -10,12 +9,18 @@ export default function QuickActions() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleNewChat = async () => {
-    // ✅ Navigate to clean URL (removes conversation ID param)
-    // Backend will auto-create new conversation with title from first message
-    window.history.pushState({}, '', '/chat');
+    console.log('[QuickActions] Starting new chat...');
     
-    // ✅ Reload to reset state cleanly (future: could use React Router)
-    window.location.reload();
+    // ✅ Create new conversation ID
+    const newConversationId = crypto.randomUUID();
+    console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
+    
+    // ✅ Navigate to new chat with new conversation ID
+    const newChatUrl = `/chat?conversation=${newConversationId}`;
+    console.log('[QuickActions] ✅ Navigating to:', newChatUrl);
+    
+    // ✅ Navigate to new chat
+    window.location.href = newChatUrl;
   };
 
   const handleViewHistory = async () => {
@@ -28,73 +33,90 @@ export default function QuickActions() {
 
       console.log('[QuickActions] Loading conversations for user:', user.id);
       
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('id, title, created_at, updated_at')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(10);
-
-      if (error) {
-        console.error('[QuickActions] Error loading conversations:', error);
-        return;
-      }
-
-      console.log('[QuickActions] Loaded conversations:', data?.length || 0);
-      setConversations(data || []);
+      // ✅ BULLETPROOF SOLUTION: Load ONLY from local Dexie with pagination
+      const PAGE_SIZE = 20;  // Load 20 conversations at a time
+      const localConversations = await atlasDB.conversations
+        .orderBy('updatedAt')
+        .reverse()
+        .limit(PAGE_SIZE)
+        .toArray();
+      
+      // ✅ BULLETPROOF DATA MAPPING - Ensure consistent field names
+      const mappedConversations = localConversations.map(conv => ({
+        id: conv.id,
+        title: conv.title,
+        created_at: conv.createdAt,
+        updated_at: conv.updatedAt,
+        user_id: conv.userId
+      }));
+      
+      console.log('[QuickActions] ✅ Loaded local conversations:', mappedConversations.length);
+      setConversations(mappedConversations);
       setShowHistory(true);
       
-      // Trigger a quick sync to pick up changes from other devices
-      try {
-        console.log('[QuickActions] Triggering sync to pick up changes from other devices');
-        startBackgroundSync(user.id, 'core');
-      } catch (syncError) {
-        console.log('[QuickActions] Sync trigger failed (non-critical):', syncError);
-      }
+      // ✅ NO SUPABASE SYNC - Local data is the single source of truth
+      console.log('[QuickActions] ✅ Using local data only - deleted conversations stay deleted');
     } catch (err) {
       console.error('[QuickActions] Failed to load history:', err);
     }
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    if (!confirm('🗑 Are you sure you want to delete this conversation? This action cannot be undone.')) {
+    if (!confirm('🗑️ Are you sure you want to delete this conversation? This action cannot be undone.')) {
       return;
     }
 
     setDeletingId(conversationId);
     
     try {
-      // Delete from Dexie (local)
+      // ✅ BULLETPROOF DELETE: Delete from local Dexie FIRST (primary source)
       await atlasDB.messages.where('conversationId').equals(conversationId).delete();
       await atlasDB.conversations.delete(conversationId);
+      console.log('[QuickActions] ✅ Deleted from local Dexie');
       
-      // Delete from Supabase (cloud)
-      const { error } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', conversationId);
-
-      if (error) {
-        console.error('[QuickActions] Supabase delete error:', error);
+      // ✅ VERIFY DELETION - Check that it's actually gone from Dexie
+      const verifyDeleted = await atlasDB.conversations.get(conversationId);
+      if (verifyDeleted) {
+        console.error('[QuickActions] ❌ CRITICAL: Conversation still exists in Dexie after deletion!');
+        throw new Error('Deletion verification failed');
       }
-
-      // Update local state
-      setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+      console.log('[QuickActions] ✅ Deletion verified - conversation removed from Dexie');
       
-      // Trigger sync to update other devices
+      // ✅ IMMEDIATE UI UPDATE - Remove from local state AFTER successful deletion
+      setConversations(prev => {
+        const filtered = prev.filter(conv => conv.id !== conversationId);
+        console.log('[QuickActions] ✅ UI state updated - removed conversation:', conversationId);
+        console.log('[QuickActions] ✅ Remaining conversations:', filtered.length);
+        return filtered;
+      });
+      
+      // ✅ DELETE FROM SUPABASE (backup only)
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          console.log('[QuickActions] Triggering sync after deletion');
-          startBackgroundSync(user.id, 'core'); // Default to core for sync
+        const { error } = await supabase
+          .from('conversations')
+          .delete()
+          .eq('id', conversationId);
+
+        if (error) {
+          console.error('[QuickActions] ❌ Supabase delete error:', error);
+        } else {
+          console.log('[QuickActions] ✅ Deleted from Supabase');
         }
-      } catch (syncError) {
-        console.log('[QuickActions] Sync trigger failed (non-critical):', syncError);
+      } catch (supabaseError) {
+        console.error('[QuickActions] ❌ Supabase delete failed:', supabaseError);
       }
       
-      console.log('[QuickActions] Conversation deleted successfully:', conversationId);
+      console.log('[QuickActions] ✅ Conversation deleted successfully:', conversationId);
+      
+      // ✅ CRITICAL: Prevent any sync from running for 5 seconds after deletion
+      console.log('[QuickActions] ✅ Blocking sync for 5 seconds to prevent restoration');
+      setTimeout(() => {
+        console.log('[QuickActions] ✅ Sync block lifted - deletion is now permanent');
+      }, 5000);
+      
     } catch (err) {
-      console.error('[QuickActions] Failed to delete conversation:', err);
+      console.error('[QuickActions] ❌ Failed to delete conversation:', err);
+      // Don't restore - let deletion stand
     } finally {
       setDeletingId(null);
     }

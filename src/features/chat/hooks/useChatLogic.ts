@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useUserTier } from '../../../hooks/useUserTier';
+import { useTierAccess } from '../../../hooks/useTierAccess';
 import { loadConversation as cacheLoad } from '../../../lib/conversationStore';
 import { AIModelService } from '../../../services/aiModelService';
 import { useAIProvider } from './useAIProvider';
@@ -16,7 +16,7 @@ interface UseChatLogicParams {
 
 export function useChatLogic({ userId, userTier, initialModel = 'claude' }: UseChatLogicParams) {
   // Get user tier and determine appropriate model
-  const { tier } = useUserTier(userId);
+  const { tier } = useTierAccess();
   const tierModel = AIModelService.getModelForTier(tier as 'free' | 'core' | 'studio');
   
   // Core state
