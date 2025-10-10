@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Message Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #results { margin-top: 20px; }
+        .log-entry { padding: 5px; margin: 2px 0; font-family: monospace; font-size: 12px; }
+        .log-success { color: green; }
+        .log-warning { color: orange; }
+        .log-error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Duplicate Message Fix Test</h1>
+    
+    <div class="test-section">
+        <h3>📋 Test Instructions</h3>
+        <p>1. Open your Atlas app: <a href="http://localhost:5174/chat" target="_blank">http://localhost:5174/chat</a></p>
+        <p>2. Open browser console (F12)</p>
+        <p>3. Send multiple messages quickly</p>
+        <p>4. Look for these log patterns:</p>
+        <ul>
+            <li><strong>✅ Success:</strong> <code>[MessageRegistry] ✅ Message tracked for deduplication</code></li>
+            <li><strong>⚠️ Duplicate Prevention:</strong> <code>[MessageRegistry] ⚠️ Duplicate detected by ID</code></li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 Manual Test Scenarios</h3>
+        <div>
+            <h4>Test 1: Rapid Messaging</h4>
+            <p>Send 5 messages within 2 seconds each</p>
+            <button onclick="testRapidMessaging()">Start Test</button>
+        </div>
+        
+        <div>
+            <h4>Test 2: Page Refresh</h4>
+            <p>Refresh page during conversation</p>
+            <button onclick="testPageRefresh()">Start Test</button>
+        </div>
+        
+        <div>
+            <h4>Test 3: Message Registry Stats</h4>
+            <p>Check registry statistics</p>
+            <button onclick="checkRegistryStats()">Check Stats</button>
+        </div>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        function addLog(message, type = 'info') {
+            const results = document.getElementById('results');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(entry);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function testRapidMessaging() {
+            addLog('🧪 Testing rapid messaging...', 'warning');
+            addLog('1. Open Atlas app in new tab', 'info');
+            addLog('2. Send messages quickly: "test1", "test2", "test3"', 'info');
+            addLog('3. Check console for duplicate prevention logs', 'info');
+            addLog('Expected: No duplicate messages in UI', 'success');
+        }
+
+        function testPageRefresh() {
+            addLog('🔄 Testing page refresh...', 'warning');
+            addLog('1. Send a message in Atlas app', 'info');
+            addLog('2. Refresh the page (Cmd+R)', 'info');
+            addLog('3. Check that messages load once', 'info');
+            addLog('Expected: All messages appear exactly once', 'success');
+        }
+
+        function checkRegistryStats() {
+            addLog('📊 Checking MessageRegistry...', 'warning');
+            
+            // Try to access the registry from the Atlas app
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = 'http://localhost:5174/chat';
+            
+            iframe.onload = function() {
+                try {
+                    // This won't work due to CORS, but shows the concept
+                    addLog('MessageRegistry check attempted', 'info');
+                    addLog('Check browser console for registry logs', 'warning');
+                } catch (e) {
+                    addLog('CORS prevents direct access - check console manually', 'warning');
+                }
+            };
+            
+            document.body.appendChild(iframe);
+        }
+
+        // Auto-start instructions
+        window.onload = function() {
+            addLog('🚀 Duplicate Message Fix Test Ready', 'success');
+            addLog('Click buttons above to run tests', 'info');
+            addLog('Monitor browser console for MessageRegistry logs', 'warning');
+        };
+    </script>
+</body>
+</html>
