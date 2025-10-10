@@ -363,12 +363,14 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       const expired = isTrialExpired();
       const trialEndDate = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
       
+      const subscriptionData = {
         daysRemaining,
         expired,
         trialEndDate,
         tier: profile?.tier,
         status: profile?.subscription_status
-      });
+      };
+      console.log('Subscription data:', subscriptionData);
 
       let status: 'pass' | 'warning' | 'fail' = 'pass';
       let message = '';

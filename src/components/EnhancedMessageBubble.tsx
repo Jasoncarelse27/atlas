@@ -150,13 +150,6 @@ export function EnhancedMessageBubble({
         );
 
       case 'image':
-          id: message.id,
-          type: message.type,
-          content: message.content,
-          metadata: message.metadata,
-          imageUrl: message.metadata?.imageUrl,
-          status: message.status
-        });
         return (
           <ImageMessageBubble 
             message={message}

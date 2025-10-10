@@ -171,12 +171,14 @@ const AccountModal: React.FC<AccountModalProps> = ({
     try {
       // TODO: Log feedback to proper feedback table
       // For now, just simulate success without database logging
+      const feedbackData = {
         type: feedbackType,
         subject: feedbackSubject,
         message: feedbackMessage,
         rating: feedbackType === 'review' ? rating : null,
         userId: user.id
-      });
+      };
+      console.log('Feedback submitted:', feedbackData);
 
       if (onSoundPlay) {
         onSoundPlay('success');
