@@ -218,9 +218,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               : 'px-5 py-3 text-atlas-accent max-w-none text-[16px] leading-relaxed'
           }`} 
           style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
-          initial={!isUser ? { opacity: 0, y: 4 } : {}}
-          animate={!isUser ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.3, ease: "easeOut" }}
+          initial={{ opacity: 0, y: isUser ? 8 : 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: isUser ? 0.2 : 0.3, ease: "easeOut" }}
         >
           {(message.status === 'sending' && (!displayedText || displayedText === '...')) || (isTyping && !isUser) ? (
               <div className="flex items-center space-x-3 text-gray-300">

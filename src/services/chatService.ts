@@ -62,9 +62,10 @@ export async function sendAttachmentMessage(
 export const chatService = {
   sendMessage: async (text: string, onComplete?: () => void, conversationId?: string, userId?: string) => {
     // 🧠 ATLAS GOLDEN STANDARD - Prevent duplicate message calls
-    const messageId = `${userId}-${conversationId}-${text.slice(0, 20)}-${Date.now()}`;
+    const messageId = `${userId}-${conversationId}-${text.slice(0, 20)}`;
     
     if (pendingMessages.has(messageId)) {
+      console.warn('[ChatService] ⚠️ Duplicate message call prevented:', messageId);
       return;
     }
     pendingMessages.add(messageId);
@@ -274,7 +275,7 @@ export const chatService = {
             imageUrl: imageUrl // Send image URL for analysis
           };
           
-          const response = await fetch(`${API_URL}/message`, {
+          const response = await fetch(`/message`, {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",

@@ -8,10 +8,12 @@ import {
   TestTube,
   TrendingUp,
   User as UserIcon,
-  XCircle
+  XCircle,
+  Zap
 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { redisTestService } from '../services/redisTestService';
 import type { UserProfile } from '../types/subscription';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -41,7 +43,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     'trial-expiry',
     'usage-updates',
     'railway-backend',
-    'backend-health-suite'
+    'backend-health-suite',
+    'redis-caching'
   ]);
 
   // Note: These methods are not available in the current useSubscription hook
@@ -828,6 +831,71 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     }
   };
 
+  const testRedisCaching = async () => {
+    const testName = 'redis-caching';
+    setCurrentTest(testName);
+    
+    addTestResult({
+      test: testName,
+      status: 'running',
+      message: 'Testing Redis caching functionality...'
+    });
+
+    try {
+      // Test Redis basic operations
+      const basicTest = await redisTestService.testBasicOperations();
+      if (!basicTest) {
+        updateTestResult(testName, {
+          status: 'fail',
+          message: 'Redis basic operations failed',
+          details: { step: 'basic_operations' }
+        });
+        return;
+      }
+
+      // Test database caching integration
+      const dbTest = await redisTestService.testDatabaseCaching();
+      if (!dbTest) {
+        updateTestResult(testName, {
+          status: 'fail',
+          message: 'Database caching integration failed',
+          details: { step: 'database_caching' }
+        });
+        return;
+      }
+
+      // Run comprehensive tests
+      const allTests = await redisTestService.runAllTests();
+      if (!allTests.success) {
+        updateTestResult(testName, {
+          status: 'warning',
+          message: 'Some Redis tests failed',
+          details: { results: allTests.results }
+        });
+        return;
+      }
+
+      // Performance test
+      await redisTestService.performanceTest();
+
+      updateTestResult(testName, {
+        status: 'pass',
+        message: 'Redis caching is working correctly',
+        details: { 
+          results: allTests.results,
+          performance: 'Performance test completed'
+        }
+      });
+
+    } catch (error) {
+      updateTestResult(testName, {
+        status: 'fail',
+        message: `Redis test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: { error }
+      });
+    }
+  };
+
   const runAllTests = async () => {
     
     setIsRunning(true);
@@ -842,7 +910,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       'trial-expiry': testTrialExpiry,
       'usage-updates': testUsageUpdates,
       'railway-backend': testRailwayBackend,
-      'backend-health-suite': testBackendHealthSuite
+      'backend-health-suite': testBackendHealthSuite,
+      'redis-caching': testRedisCaching
     };
 
     try {
@@ -917,7 +986,8 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
     { id: 'usage-limits', label: 'Usage Limits', icon: Settings },
     { id: 'feature-access', label: 'Feature Access', icon: UserIcon },
     { id: 'trial-expiry', label: 'Trial Expiry', icon: Clock },
-    { id: 'usage-updates', label: 'Usage Updates', icon: TrendingUp }
+    { id: 'usage-updates', label: 'Usage Updates', icon: TrendingUp },
+    { id: 'redis-caching', label: 'Redis Caching', icon: Zap }
   ];
 
   // Compute detailsString before the return to ensure it's always a string

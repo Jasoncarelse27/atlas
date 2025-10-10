@@ -131,11 +131,25 @@ async function generateConversationTitle(text, tier) {
       max_tokens: 20, // Short title only
       messages: [{
         role: "user",
-        content: `Generate a concise 3-5 word title for this conversation starter: "${text.slice(0, 100)}"`
+        content: `Generate a single, concise 3-5 word title for this conversation. Return ONLY the title, no numbers or options: "${text.slice(0, 100)}"`
       }]
     });
     
-    const aiTitle = completion.content[0]?.text?.trim() || text.slice(0, 40).trim();
+    let aiTitle = completion.content[0]?.text?.trim() || text.slice(0, 40).trim();
+    
+    // ✅ Clean up AI response - remove numbers, options, etc.
+    aiTitle = aiTitle
+      .replace(/^\d+\.\s*/, '') // Remove "1. " prefix
+      .replace(/^Here are some possibilities?:?\s*/i, '') // Remove "Here are some possibilities:"
+      .replace(/^Options?:?\s*/i, '') // Remove "Options:" prefix
+      .split('\n')[0] // Take only first line
+      .trim();
+    
+    // ✅ Fallback if title is still too long or empty
+    if (!aiTitle || aiTitle.length > 50) {
+      aiTitle = text.slice(0, 40).trim() || "New Conversation";
+    }
+    
     return aiTitle;
   } catch (err) {
     // Fallback to simple title if AI fails

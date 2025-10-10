@@ -1840,9 +1840,14 @@ app.use(express.static(path.join(__dirname, '..', 'dist')));
 // Serve static files (if any)
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Fallback route - serve the frontend app
+// Fallback route - serve the frontend app (catch all routes)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  // Only serve index.html for non-API routes
+  if (!req.path.startsWith('/api/') && !req.path.startsWith('/message') && !req.path.startsWith('/healthz')) {
+    res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  } else {
+    res.status(404).json({ error: 'Route not found' });
+  }
 });
 
 // Graceful shutdown
