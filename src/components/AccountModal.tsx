@@ -1,22 +1,22 @@
 import type { User } from '@supabase/supabase-js';
 import {
-    AlertTriangle,
-    Bug,
-    CheckCircle,
-    Download,
-    ExternalLink,
-    Eye,
-    EyeOff,
-    FileText,
-    Lock,
-    MessageSquare,
-    Send,
-    // Mail, 
-    Shield,
-    Star,
-    Trash2,
-    User as UserIcon,
-    X
+  AlertTriangle,
+  Bug,
+  CheckCircle,
+  Download,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FileText,
+  Lock,
+  MessageSquare,
+  Send,
+  // Mail, 
+  Shield,
+  Star,
+  Trash2,
+  User as UserIcon,
+  X
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import type { SoundType } from '../hooks/useSoundEffects';
