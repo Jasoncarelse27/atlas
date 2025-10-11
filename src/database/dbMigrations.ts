@@ -15,7 +15,11 @@ export async function runMigrations() {
     console.log("[DB MIGRATION] Database schema is healthy ✅")
 
     const user = (await supabase.auth.getUser()).data.user
-    const userId = user?.id || "anonymous"
+    if (!user || !user.id) {
+      console.log("[DB MIGRATION] No authenticated user - skipping default conversation")
+      return
+    }
+    const userId = user.id // ✅ No fallback to "anonymous"
 
     // ✅ Check if a default conversation exists
     const existing = await atlasDB.conversations

@@ -23,11 +23,10 @@ export const supabase = (() => {
     detectSessionInUrl: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
   },
-  // Disable realtime on mobile to prevent WebSocket issues
+  // Optimize realtime for chat messages
   realtime: {
-    // enabled: !isMobile, // This option doesn't exist in the current Supabase client
     params: {
-      eventsPerSecond: 2,
+      eventsPerSecond: 10, // Increased from 2 to 10 for better chat performance
     },
   },
   global: {

@@ -57,10 +57,12 @@ export const syncService = {
 
       const local = await atlasDB.messages.toArray()
 
-      // Merge: add missing remote messages to Dexie
+      // ✅ PHASE 2: Only add missing remote messages (duplicate check)
+      // Real-time listener is primary writer; this is for offline catch-up only
       for (const msg of remote || []) {
         const exists = local.find((m) => m.id === msg.id)
         if (!exists) {
+          console.log("[SYNC] Adding missing message from remote:", msg.id);
           await atlasDB.messages.put({
             id: msg.id,
             conversationId: msg.conversation_id,
@@ -72,6 +74,8 @@ export const syncService = {
             synced: true,
             updatedAt: msg.created_at
           })
+        } else {
+          console.log("[SYNC] Message already exists, skipping:", msg.id);
         }
       }
 

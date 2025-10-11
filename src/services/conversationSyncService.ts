@@ -102,17 +102,9 @@ export class ConversationSyncService {
         }
       }
 
-      // Handle soft deletes - remove conversations that are deleted remotely
-      for (const localConv of localConversations) {
-        const remoteConv = remoteConversations?.find(r => r.id === localConv.id);
-        if (!remoteConv) {
-          // Conversation was deleted remotely, remove locally
-          await atlasDB.conversations.delete(localConv.id);
-          // Also delete all messages in this conversation
-          await atlasDB.messages.where('conversationId').equals(localConv.id).delete();
-          console.log('[ConversationSync] ✅ Removed deleted conversation:', localConv.id);
-        }
-      }
+      // ✅ CONSERVATIVE SYNC: Don't delete local conversations that don't exist remotely
+      // This prevents accidental deletion of conversations that haven't synced yet
+      console.log('[ConversationSync] ✅ Preserving local conversations - no remote deletion');
 
       console.log('[ConversationSync] ✅ Conversation sync completed');
     } catch (error) {
@@ -144,16 +136,23 @@ export class ConversationSyncService {
         .equals(conversationId)
         .toArray();
 
-      // Sync messages
+      // ✅ PHASE 2: Only add missing messages (duplicate check)
+      // Real-time listener is primary writer; this is for offline catch-up only
       for (const remoteMsg of remoteMessages || []) {
+        // ✅ CRITICAL: Skip messages with invalid userId
+        if (!remoteMsg.user_id || remoteMsg.user_id === 'anonymous') {
+          console.warn('[ConversationSync] ⚠️ Skipping message with invalid userId:', remoteMsg.id);
+          continue;
+        }
+        
         const localMsg = localMessages.find(l => l.id === remoteMsg.id);
         
         if (!localMsg) {
-          // Add new message
+          // Add new message only if it doesn't exist
           await atlasDB.messages.put({
             id: remoteMsg.id,
             conversationId: remoteMsg.conversation_id,
-            userId: remoteMsg.user_id,
+            userId: _userId, // ✅ Use function parameter, not remoteMsg.user_id
             role: remoteMsg.role,
             type: remoteMsg.message_type === 'user' ? 'text' : 'text',
             content: typeof remoteMsg.content === 'string' ? remoteMsg.content : remoteMsg.content?.text || '',
@@ -161,7 +160,9 @@ export class ConversationSyncService {
             synced: true,
             updatedAt: remoteMsg.created_at
           });
-          console.log('[ConversationSync] ✅ Added message:', remoteMsg.id);
+          console.log('[ConversationSync] ✅ Added missing message:', remoteMsg.id);
+        } else {
+          console.log('[ConversationSync] ⚠️ Message already exists, skipping:', remoteMsg.id);
         }
       }
 
@@ -322,19 +323,33 @@ export class ConversationSyncService {
         } else {
           console.log('[ConversationSync] ✅ Found', newMessages?.length || 0, 'new messages');
           
-          // Sync new messages to local
+          // ✅ PHASE 2: Only add missing messages (duplicate check)
+          // Real-time listener is primary writer; this is for offline catch-up only
           for (const msg of newMessages || []) {
-            await atlasDB.messages.put({
-              id: msg.id,
-              conversationId: msg.conversation_id,
-              userId: msg.user_id,
-              role: msg.role,
-              type: 'text',
-              content: typeof msg.content === 'string' ? msg.content : msg.content?.text || '',
-              timestamp: msg.created_at,
-              synced: true,
-              updatedAt: msg.created_at
-            });
+            // ✅ CRITICAL: Skip messages with invalid userId
+            if (!msg.user_id || msg.user_id === 'anonymous') {
+              console.warn('[ConversationSync] ⚠️ Skipping message with invalid userId from remote:', msg.id);
+              continue;
+            }
+            
+            // Check if message already exists
+            const existingMsg = await atlasDB.messages.get(msg.id);
+            if (!existingMsg) {
+              await atlasDB.messages.put({
+                id: msg.id,
+                conversationId: msg.conversation_id,
+                userId: userId, // ✅ Use authenticated userId from function parameter
+                role: msg.role,
+                type: 'text',
+                content: typeof msg.content === 'string' ? msg.content : msg.content?.text || '',
+                timestamp: msg.created_at,
+                synced: true,
+                updatedAt: msg.created_at
+              });
+              console.log('[ConversationSync] ✅ Added missing message:', msg.id);
+            } else {
+              console.log('[ConversationSync] ⚠️ Message already exists, skipping:', msg.id);
+            }
           }
         }
       }
@@ -350,13 +365,19 @@ export class ConversationSyncService {
       console.log('[ConversationSync] ✅ Found', unsyncedMessages.length, 'unsynced messages');
       
       for (const msg of unsyncedMessages) {
+        // ✅ CRITICAL: Skip messages with invalid userId
+        if (!msg.userId || msg.userId === 'anonymous') {
+          console.warn('[ConversationSync] ⚠️ Skipping message with invalid userId:', msg.id);
+          continue;
+        }
+        
         // ✅ CRITICAL FIX: Send content as string, not object
         const { error } = await supabase
           .from('messages')
           .upsert({
             id: msg.id,
             conversation_id: msg.conversationId,
-            user_id: msg.userId,
+            user_id: userId, // ✅ Use authenticated userId from function parameter
             role: msg.role,
             content: msg.content, // ✅ Send as string directly
             created_at: msg.timestamp

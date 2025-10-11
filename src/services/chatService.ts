@@ -79,7 +79,19 @@ export const chatService = {
       const token = session?.access_token || 'mock-token-for-development';
       
       // Get user ID from session if not provided
-      const actualUserId = userId || session?.user?.id || 'anonymous';
+      const actualUserId = userId || session?.user?.id;
+      console.log('[ChatService] User ID resolution:', {
+        providedUserId: userId,
+        sessionUserId: session?.user?.id,
+        actualUserId,
+        hasSession: !!session
+      });
+      
+      // ✅ FIX: Prevent 'anonymous' from reaching Supabase
+      if (!actualUserId) {
+        console.error('[ChatService] No user ID available - user not authenticated');
+        throw new Error('User not authenticated. Please sign in to send messages.');
+      }
 
       // Get user's tier for the request
       const currentTier = await subscriptionApi.getUserTier(actualUserId, token);

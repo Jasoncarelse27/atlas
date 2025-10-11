@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
@@ -18,9 +18,8 @@ import ErrorBoundary from '../lib/errorBoundary';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
 import { databaseMigration } from '../services/databaseMigration';
-import { messageRegistry } from '../services/messageRegistry';
 import { startBackgroundSync, stopBackgroundSync } from '../services/syncService';
-// Removed useMessageStore import - using usePersistentMessages as single source of truth
+// ✅ PHASE 2: Removed messageRegistry import - no longer needed with single write path
 import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
@@ -50,79 +49,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Subscription management
   useSubscription(userId || undefined);
 
-  // 🧭 ARCHITECTURE: Dexie remains single source of truth
+  // ✅ PHASE 2: Messages state - only updated by loadMessages (from Dexie)
   const [messages, setMessages] = useState<Message[]>([]);
   
-  // ✅ BULLETPROOF: Check for duplicates before adding to UI
-  const addMessageToUI = (newMessage: Message) => {
-    // Check for duplicates using lightweight middleware
-    const isNotDuplicate = messageRegistry.trackMessage(newMessage);
-    if (!isNotDuplicate) {
-      console.warn('[ChatPage] ⚠️ Duplicate message prevented:', newMessage.id);
-      return;
-    }
-    
-    // Add to React state (Dexie handles persistence)
-    setMessages(prev => [...prev, newMessage]);
-  };
-  
-  // Message persistence utility - converts Message to Dexie format (schema-compliant)
-  const messageToDexie = (message: Message, targetConversationId?: string) => ({
-    id: message.id,
-    conversationId: targetConversationId || conversationId || 'default',
-    userId: userId || 'anonymous',
-    role: message.role,
-    type: message.type === 'text' || message.type === 'image' || message.type === 'audio' ? message.type : 'text',
-    content: message.content || '',
-    timestamp: message.timestamp,
-    synced: false,
-    updatedAt: new Date().toISOString()
-    // ✅ REMOVED: attachments, metadata, url, imageUrl, audioUrl (not in Dexie schema)
-  });
-
-  // 🧭 ARCHITECTURE: Add message with Dexie persistence + deduplication check
-  const addMessage = async (message: Message) => {
-    // Check for duplicates using lightweight middleware
-    const isNotDuplicate = messageRegistry.trackMessage(message);
-    if (!isNotDuplicate) {
-      console.warn('[ChatPage] ⚠️ Duplicate message prevented:', message.id);
-      return;
-    }
-    
-    // Add to UI state
-    setMessages(prev => [...prev, message]);
-    
-    // ✅ CRITICAL: Ensure we have a valid conversationId (should always be set now)
-    if (!conversationId) {
-      console.error('[ChatPage] ❌ CRITICAL: addMessage called without conversationId!');
-      // Create emergency conversationId if somehow missing
-      const emergencyId = generateUUID();
-      setConversationId(emergencyId);
-      localStorage.setItem('atlas:lastConversationId', emergencyId);
-      
-      // Save with emergency ID
-      try {
-        await atlasDB.messages.put(messageToDexie(message, emergencyId));
-        console.log('[ChatPage] ✅ Message saved with emergency conversationId:', emergencyId);
-      } catch (error) {
-        console.error('[ChatPage] ❌ Failed to save message to Dexie:', error);
-      }
-      return;
-    }
-    
-    // Save to Dexie immediately with the proper conversationId
-    try {
-      const dexieMessage = messageToDexie(message, conversationId);
-      await atlasDB.messages.put(dexieMessage);
-    } catch (error) {
-      console.error('[ChatPage] Failed to save message:', error);
-    }
-  };
-  
-  // updateMessage function removed - backend handles all message creation and updates
-  
-  // 🧭 ARCHITECTURE: Load messages from Dexie (single source of truth)
-  const loadMessages = async (conversationId: string) => {
+  // ✅ PHASE 2: Load messages from Dexie (read-only, single source of truth)
+  const loadMessages = useCallback(async (conversationId: string) => {
     try {
       const storedMessages = await atlasDB.messages
         .where("conversationId")
@@ -137,17 +68,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         type: msg.type || 'text'
       } as Message));
       
-      // Track messages for deduplication (lightweight)
-      messageRegistry.trackMessages(formattedMessages);
-      
-      // Set React state (Dexie is authoritative)
+      // Set React state (Dexie is authoritative source)
       setMessages(formattedMessages);
       console.log('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
     } catch (error) {
-      console.error('[ChatPage] Failed to load messages:', error);
+      console.error('[ChatPage] ❌ Failed to load messages:', error);
       setMessages([]);
     }
-  };
+  }, []); // Empty deps - conversationId is a parameter, setMessages is stable
 
   // Messages container ref for scroll detection
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -199,16 +127,32 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Guard to prevent duplicate calls using ref (immediate, no state update delay)
   const isProcessingRef = useRef(false);
   const lastMessageRef = useRef<string>('');
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // ✅ BULLETPROOF: Clean message handling like ChatGPT
+  // ✅ OPTIMISTIC UPDATES: Show user message instantly for ChatGPT-like experience
   const handleTextMessage = async (text: string) => {
     // Prevent duplicate calls
     if (isProcessingRef.current) {
+      console.log('[ChatPage] ⚠️ Message already processing, skipping...');
       return;
     }
     
     // Prevent duplicate content
     if (lastMessageRef.current === text.trim()) {
+      console.log('[ChatPage] ⚠️ Duplicate content detected, skipping...');
+      return;
+    }
+    
+    if (!conversationId || !userId) {
+      console.error('[ChatPage] ❌ Cannot send message: missing conversationId or userId', {
+        conversationId,
+        userId,
+        hasConversationId: !!conversationId,
+        hasUserId: !!userId
+      });
+      
+      // Show user-friendly error
+      alert('Please wait for authentication to complete before sending messages.');
       return;
     }
     
@@ -216,51 +160,61 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     isProcessingRef.current = true;
     
     try {
-      // ✅ STEP 1: Show user message immediately (like ChatGPT)
-      const userMessage: Message = {
-        id: generateUUID(),
+      console.log('[ChatPage] 📤 Sending message to backend...', {
+        userId,
+        conversationId,
+        text: text.slice(0, 50)
+      });
+      
+      // ✅ OPTIMISTIC UPDATE: Show user message IMMEDIATELY
+      const optimisticUserMessage: Message = {
+        id: `temp-${Date.now()}`, // Temporary ID
         role: 'user',
         content: text,
         timestamp: new Date().toISOString(),
         type: 'text'
       };
       
-      // Add user message to UI instantly with bulletproof duplicate prevention
-      addMessageToUI(userMessage);
+      // Add to UI instantly for ChatGPT-like experience
+      setMessages(prev => [...prev, optimisticUserMessage]);
+      console.log('[ChatPage] ✅ Optimistic user message displayed:', optimisticUserMessage.id);
       
-      // ✅ STEP 2: Show Atlas typing indicator
+      // Show thinking indicator
       setIsTyping(true);
       setIsStreaming(true);
-      console.log('[ChatPage] 🎯 Starting Atlas typing indicator');
-
-      // ✅ STEP 3: Send to backend (backend creates its own user + assistant messages)
+      
+      // Send to backend - real-time listener will replace optimistic with real message
       await chatService.sendMessage(
         text, 
         () => {}, // No frontend status updates needed
-        conversationId || undefined, 
-        userId || undefined
+        conversationId, 
+        userId
       );
       
-      // ✅ SIMPLE: Just sync backend data without complex merging (real-time listener handles new messages)
-      setTimeout(async () => {
-        try {
-          const { conversationSyncService } = await import('../services/conversationSyncService');
-          if (userId) {
-            // Get fresh messages from backend
-            await conversationSyncService.deltaSync(userId);
-            
-            // ✅ SIMPLE: Only turn off typing indicator, don't mess with messages
-            // The real-time listener will handle new assistant messages
-            setIsStreaming(false);
-            console.log('[ChatPage] 🎯 Stopping Atlas typing indicator - sync complete');
-          }
-        } catch (error) {
-          console.error('[ChatPage] Sync failed:', error);
-          setIsStreaming(false);
-        }
-      }, 500); // Reduced timeout for faster response
+      console.log('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
+      
+      // ✅ FALLBACK: If real-time doesn't fire in 3 seconds, reload manually
+      fallbackTimerRef.current = setTimeout(async () => {
+        console.warn('[ChatPage] ⚠️ Real-time event not received, using fallback reload');
+        setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
+        await loadMessages(conversationId);
+      }, 3000);
+      
+      // Keep typing indicator active until real-time listener receives response
       
     } catch (error) {
+      console.error('[ChatPage] ❌ Failed to send message:', error);
+      
+      // ✅ Clear fallback timer on error
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      
+      // ✅ ROLLBACK: Remove optimistic message on error
+      setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
+      console.log('[ChatPage] ⚠️ Rolled back optimistic message due to error');
+      
       setIsTyping(false);
       setIsStreaming(false);
       
@@ -273,31 +227,45 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
     } finally {
       isProcessingRef.current = false;
-      setIsTyping(false);
-      // DON'T reset streaming here - let sync handle it
       
+      // Clear duplicate check after 1 second
       setTimeout(() => {
         lastMessageRef.current = '';
       }, 1000);
     }
   };
 
-  // Get authenticated user
+  // ✅ FIX: Get authenticated user with better logging
   useEffect(() => {
     const getAuthUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('[ChatPage] Auth check result:', {
+          hasUser: !!user,
+          userId: user?.id,
+          userEmail: user?.email
+        });
+        
+        if (user) {
+          setUserId(user.id);
+          console.log('[ChatPage] ✅ User authenticated:', user.id);
+        } else {
+          console.warn('[ChatPage] ⚠️ No authenticated user found');
+          setUserId(null);
+        }
+      } catch (error) {
+        console.error('[ChatPage] ❌ Auth check failed:', error);
+        setUserId(null);
       }
     };
     getAuthUser();
   }, []);
 
-  // 💎 PREMIUM: Real-time message listener through registry
+  // ✅ PHASE 2: Real-time listener as SINGLE SOURCE OF TRUTH
   useEffect(() => {
     if (!userId || !conversationId) return;
 
-    console.log('[ChatPage] 🔔 Setting up real-time listener for conversation:', conversationId);
+    console.log('[ChatPage] 🔔 Setting up real-time listener (single writer) for conversation:', conversationId);
 
     // Listen for new messages in real-time
     const subscription = supabase
@@ -307,7 +275,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         schema: 'public',
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`,
-      }, (payload) => {
+      }, async (payload) => {
+        // ✅ Clear fallback timer - real-time is working
+        if (fallbackTimerRef.current) {
+          clearTimeout(fallbackTimerRef.current);
+          fallbackTimerRef.current = null;
+          console.log('[ChatPage] ✅ Real-time working, fallback timer cleared');
+        }
+        
+        console.log('[ChatPage] 🔔 Real-time event RECEIVED:', payload.new?.id, payload.new?.role, payload.new?.content?.slice(0, 50)); // DEBUG LOG
         const newMsg = payload.new;
         
         console.log('[ChatPage] 🔔 Real-time message received:', {
@@ -316,34 +292,49 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           contentPreview: newMsg.content?.slice(0, 50)
         });
         
-        // If Atlas just started responding, immediately hide thinking dots
-        if (newMsg.role === 'assistant' && newMsg.content && newMsg.content !== '...') {
-          console.log('[ChatPage] 🎯 Atlas started responding - hiding thinking dots immediately');
-          setIsStreaming(false);
-          setIsTyping(false);
-        }
-        
-        // ✅ SMART: Only add assistant messages, ignore user messages (we add them optimistically)
-        if (newMsg.role === 'assistant') {
-          const message: Message = {
+        try {
+          // ✅ SINGLE WRITE PATH: Real-time listener writes to Dexie
+          await atlasDB.messages.put({
             id: newMsg.id,
+            conversationId: newMsg.conversation_id,
+            userId: userId, // ✅ ALWAYS use authenticated userId, never trust backend
             role: newMsg.role,
+            type: 'text',
             content: newMsg.content,
             timestamp: newMsg.created_at,
-            type: 'text'
-          };
+            synced: true,
+            updatedAt: newMsg.created_at
+          });
           
-          // Check for duplicates using lightweight middleware
-          const isNotDuplicate = messageRegistry.trackMessage(message);
-          if (isNotDuplicate) {
-            setMessages(prev => [...prev, message]);
-            console.log('[ChatPage] ✅ Real-time message added to UI');
-          } else {
-            console.log('[ChatPage] ⚠️ Real-time message was duplicate, skipped');
+          console.log('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
+          
+          // ✅ OPTIMISTIC UPDATE: Replace temporary message with real one
+          if (newMsg.role === 'user') {
+            setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
+            console.log('[ChatPage] ✅ Removed optimistic message, real message from Dexie will replace it');
           }
+          
+          // ✅ Reload messages from Dexie (single source of truth)
+          await loadMessages(conversationId);
+          
+          // Only reset indicators for assistant messages
+          if (newMsg.role === 'assistant') {
+            setIsStreaming(false);
+            setIsTyping(false);
+            console.log('[ChatPage] ✅ Reset typing indicators after assistant response');
+          }
+          
+        } catch (error) {
+          console.error('[ChatPage] ❌ Failed to write message to Dexie:', error);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[ChatPage] ✅ Real-time listener SUBSCRIBED for conversation:', conversationId);
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.error('[ChatPage] ❌ Real-time listener failed:', status);
+        }
+      });
 
     return () => {
       console.log('[ChatPage] 🔕 Cleaning up real-time listener');
@@ -374,9 +365,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           id = generateUUID();
         }
         
-        // ✅ CRITICAL: Clear deduplication tracking when switching conversations
+        // ✅ PHASE 2: Switching to conversation
         console.log('[ChatPage] 🔄 Switching to conversation:', id);
-        messageRegistry.clearTracking();
         
         // ✅ CRITICAL: Set conversation ID IMMEDIATELY before any messages can be sent
         localStorage.setItem('atlas:lastConversationId', id);
@@ -395,6 +385,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         try {
           const { conversationSyncService } = await import('../services/conversationSyncService');
           await conversationSyncService.deltaSync(userId);
+          
+          // ✅ ADD THIS LINE: Sync conversations from Supabase to local Dexie
+          await conversationSyncService.syncConversationsFromRemote(userId);
+          
           // DON'T call loadMessages again - real-time listener will handle new messages
           console.log('[ChatPage] ✅ Initial sync complete, real-time listener active');
         } catch (error) {
@@ -479,10 +473,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     initializeBackgroundSync();
   }, [userId]);
 
-  // Cleanup background sync on unmount
+  // Cleanup background sync and fallback timer on unmount
   useEffect(() => {
     return () => {
       stopBackgroundSync();
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+      }
     };
   }, []);
   
@@ -507,6 +504,40 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // ✅ FIX: Show authentication status
+  if (!userId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center p-6">
+        <div className="p-6 bg-blue-100 text-blue-800 rounded-xl text-center max-w-md border border-blue-200">
+          <div className="text-lg font-semibold mb-2">Authenticating...</div>
+          <div className="mb-4">Please wait while we verify your identity.</div>
+          <div className="flex justify-center">
+            <svg
+              className="animate-spin h-6 w-6 text-blue-700"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+              ></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show health error fallback if Supabase is unreachable
   if (healthError) {
@@ -663,10 +694,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                           />
                         ))}
                         
-        {/* ✅ PREMIUM: Clean typing dots with smooth animations */}
+        {/* ✅ Simple typing dots - back to working pattern */}
         {(() => {
-          if (isStreaming) {
-            console.log('[ChatPage] 🎯 Rendering typing indicator, isStreaming:', isStreaming);
+          const safeMessages = messages || [];
+          const hasUserMessage = safeMessages.some(m => m.role === 'user');
+          
+          if (isStreaming && hasUserMessage) {
             return true;
           }
           return false;
@@ -679,15 +712,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
-                <div className="w-4 h-4 bg-white rounded-full"></div>
-              </div>
-              {/* ✅ PREMIUM: Smooth, elegant thinking dots */}
+            <div className="flex items-center space-x-3 px-4 py-3 bg-gray-800/50 rounded-2xl">
               <div className="flex space-x-1.5">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '0ms', animationDuration: '1.4s'}}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '200ms', animationDuration: '1.4s'}}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '400ms', animationDuration: '1.4s'}}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
               </div>
             </div>
           </motion.div>
@@ -751,7 +780,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 placeholder="Ask Atlas anything..."
                 conversationId={conversationId || undefined}
                 inputRef={inputRef}
-                addMessage={addMessage}
                 isStreaming={isStreaming}
               />
             </div>

@@ -189,6 +189,16 @@ async function getUserTier(userId) {
  * Now with conversation history support
  */
 export async function processMessage(userId, text, conversationId = null) {
+  // ✅ CRITICAL: Validate userId before processing
+  if (!userId || userId === 'anonymous') {
+    console.error('[MessageService] Invalid userId:', userId);
+    return {
+      success: false,
+      error: 'AUTHENTICATION_REQUIRED',
+      message: 'Valid user authentication required'
+    };
+  }
+  
   console.log("🧠 [MessageService] Processing:", { userId, text, conversationId });
 
   const tier = await getUserTier(userId);
