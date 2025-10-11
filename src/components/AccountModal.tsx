@@ -214,6 +214,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
       // This would typically be handled by an admin function or support request
       
       // TODO: Log deletion request to proper audit table
+      console.log({
         id: user.id,
         email: user.email,
         tier: profile.tier,

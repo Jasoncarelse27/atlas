@@ -22,6 +22,7 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
 
   const imageUrl = getImageUrl();
   
+  console.log({
     messageId: message.id,
     imageUrl,
     messageUrl: message.url,

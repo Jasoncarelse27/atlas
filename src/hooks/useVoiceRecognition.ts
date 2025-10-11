@@ -75,6 +75,7 @@ const useVoiceRecognition = ({
     recognition.maxAlternatives = 1;
     recognition.lang = 'en-US';
 
+    console.log({
       continuous: recognition.continuous,
       interimResults: recognition.interimResults,
       maxAlternatives: recognition.maxAlternatives,

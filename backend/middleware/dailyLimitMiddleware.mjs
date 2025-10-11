@@ -79,6 +79,7 @@ export default async function dailyLimitMiddleware(req, res, next) {
         });
 
       if (upsertErr) {
+        console.log('Daily limit upsert error:', upsertErr.message);
       }
 
       req.tier = tier;

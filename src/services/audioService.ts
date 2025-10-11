@@ -47,6 +47,7 @@ class AudioService {
       });
 
       if (error) {
+        console.error('Transcription error:', error);
         
         // Log transcription failure
         await this.logAudioEvent({

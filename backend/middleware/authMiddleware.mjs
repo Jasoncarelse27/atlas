@@ -39,11 +39,13 @@ export default async function authMiddleware(req, res, next) {
           });
         
         if (insertError) {
+          console.log('Profile insert error:', insertError.message);
         }
       } else {
         tier = profile?.subscription_tier || 'free';
       }
     } catch (profileError) {
+      console.log('Profile error:', profileError.message);
     }
 
     req.user = { 

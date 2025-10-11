@@ -67,9 +67,12 @@ export async function cachePromptResponse(prompt, response, tier, tokenCount, co
       });
 
     if (error) {
+      console.log('Cache error:', error.message);
     } else {
+      console.log('Cache success');
     }
   } catch (error) {
+    console.log('Cache catch error:', error.message);
   }
 }
 

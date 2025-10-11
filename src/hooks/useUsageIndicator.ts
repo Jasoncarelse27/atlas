@@ -65,6 +65,7 @@ export function useUsageIndicator() {
 
       // Debug logging in development
       if (import.meta.env.DEV) {
+        console.log({
           tier,
           dailyUsed,
           dailyLimit,
