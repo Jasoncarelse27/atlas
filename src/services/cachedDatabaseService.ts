@@ -89,6 +89,7 @@ class CachedDatabaseService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
+        .is('deleted_at', null)  // ✅ Only fetch non-deleted conversations
         .order('updated_at', { ascending: false })
         .limit(limit);
 
@@ -245,29 +246,18 @@ class CachedDatabaseService {
   }
 
   /**
-   * Delete conversation with cache invalidation
+   * Delete conversation with cache invalidation (soft delete)
    */
   async deleteConversation(conversationId: string, userId: string): Promise<boolean> {
     try {
-      // Delete messages first
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('conversation_id', conversationId);
+      // Soft delete conversation and messages using RPC
+      const { error } = await supabase.rpc('delete_conversation_soft' as any, {
+        p_user: userId,
+        p_conversation: conversationId
+      } as any);
 
-      if (messagesError) {
-        console.error('[CachedDB] ❌ Error deleting messages:', messagesError);
-        return false;
-      }
-
-      // Delete conversation
-      const { error: conversationError } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', conversationId);
-
-      if (conversationError) {
-        console.error('[CachedDB] ❌ Error deleting conversation:', conversationError);
+      if (error) {
+        console.error('[CachedDB] ❌ Error soft deleting conversation:', error);
         return false;
       }
 
@@ -277,7 +267,7 @@ class CachedDatabaseService {
         redisCacheService.invalidateConversationCache(conversationId, 'core')
       ]);
 
-      console.log('[CachedDB] ✅ Conversation deleted and caches invalidated');
+      console.log('[CachedDB] ✅ Conversation soft deleted and caches invalidated');
       return true;
     } catch (error) {
       console.error('[CachedDB] ❌ Error in deleteConversation:', error);

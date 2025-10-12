@@ -119,6 +119,7 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
   const renderContent = () => {
     // 🎯 FUTURE-PROOF FIX: Add debugging for image URL resolution
     if (!imageUrl) {
+      console.log('[ImageMessageBubble] Debug info:', {
         messageId: message.id,
         messageUrl: message.url,
         messageContent: message.content,

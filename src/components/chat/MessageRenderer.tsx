@@ -9,8 +9,8 @@ import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import { useMessageStore } from '../../stores/useMessageStore';
 import type { Attachment, Message } from '../../types/chat';
+import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { AudioMessageBubble } from './AudioMessageBubble';
-import { ImageMessageBubble } from './ImageMessageBubble';
 
 interface MessageRendererProps {
   message: Message;

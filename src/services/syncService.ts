@@ -106,7 +106,7 @@ export const syncService = {
         
         if (pushErr) {
           // ✅ Handle 403 errors gracefully (user not authenticated)
-          if (pushErr.status === 403) {
+          if ((pushErr as any).status === 403) {
             console.log("[SYNC] 403 Forbidden on push - user not authenticated, stopping sync")
             return
           }
@@ -143,13 +143,13 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     console.error("[SYNC] Initial delta sync failed:", error);
   });
 
-  // Re-sync every 30 seconds with delta sync
+  // Re-sync every 2 minutes with delta sync (optimized for performance)
   if (!syncInterval) {
     syncInterval = setInterval(() => {
       conversationSyncService.deltaSync(userId).catch(error => {
         console.error("[SYNC] Background delta sync failed:", error);
       });
-    }, 30000)
+    }, 120000) // 2 minutes
   }
 
   // Also sync when app regains focus (Web + React Native)
@@ -161,44 +161,7 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     })
   }
 
-  console.log("[SYNC] ✅ Delta sync background service active");
-  
-  // OLD CODE (DISABLED):
-  // ✅ Use centralized tier config
-  if (!isPaidTier(tier)) {
-    return
-  }
-
-  // Run immediately on load with new conversation sync
-  conversationSyncService.fullSync(userId).catch(error => {
-    console.error("[SYNC] Initial conversation sync failed:", error);
-    // Fallback to old sync method
-    syncService.syncAll(userId, tier);
-  });
-
-  // Re-sync every 30 seconds
-  if (!syncInterval) {
-    syncInterval = setInterval(() => {
-      conversationSyncService.fullSync(userId).catch(error => {
-        console.error("[SYNC] Background conversation sync failed:", error);
-        // Fallback to old sync method
-        syncService.syncAll(userId, tier);
-      });
-    }, 30000)
-  }
-
-  // Also sync when app regains focus (Web + React Native)
-  if (typeof window !== "undefined") {
-    window.addEventListener("focus", () => {
-      conversationSyncService.fullSync(userId).catch(error => {
-        console.error("[SYNC] Focus conversation sync failed:", error);
-        // Fallback to old sync method
-        syncService.syncAll(userId, tier);
-      });
-    })
-  }
-
-  console.log("[SYNC] Background sync active ✅")
+  console.log("[SYNC] ✅ Delta sync background service active - unified architecture");
 }
 
 export function stopBackgroundSync() {

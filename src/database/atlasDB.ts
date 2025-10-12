@@ -6,6 +6,7 @@ export interface Conversation {
   title: string
   createdAt: string
   updatedAt: string
+  deletedAt?: string  // Soft delete timestamp
 }
 
 export interface Message {
@@ -18,6 +19,7 @@ export interface Message {
   timestamp: string
   synced?: boolean
   updatedAt?: string
+  deletedAt?: string  // Soft delete timestamp
 }
 
 export interface SyncMetadata {
@@ -32,13 +34,35 @@ export class AtlasDB extends Dexie {
   syncMetadata!: Table<SyncMetadata, string>
 
   constructor() {
-    super("AtlasDB_v4") // ✅ NEW DATABASE NAME for delta sync
+    super("AtlasDB_v5") // ✅ Version 5: Soft delete support
 
-    // ✅ DELTA SYNC SCHEMA - Version 4 with sync tracking
+    // Version 4: Delta sync schema (keep for migration)
     this.version(4).stores({
       conversations: "id, userId, title, createdAt, updatedAt",
       messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt",
       syncMetadata: "userId, lastSyncedAt, syncVersion"
+    })
+
+    // ✅ Version 5: Add soft delete support
+    this.version(5).stores({
+      conversations: "id, userId, title, createdAt, updatedAt, deletedAt",
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt, deletedAt",
+      syncMetadata: "userId, lastSyncedAt, syncVersion"
+    }).upgrade(tx => {
+      // Migration: Set deletedAt to null for all existing records
+      console.log('[AtlasDB] Migrating to v5: Adding soft delete support');
+      return Promise.all([
+        tx.table('conversations').toCollection().modify(conversation => {
+          if (!conversation.deletedAt) {
+            conversation.deletedAt = undefined;
+          }
+        }),
+        tx.table('messages').toCollection().modify(message => {
+          if (!message.deletedAt) {
+            message.deletedAt = undefined;
+          }
+        })
+      ]);
     })
   }
 }

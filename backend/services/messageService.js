@@ -259,7 +259,7 @@ export async function processMessage(userId, text, conversationId = null) {
         .eq("id", convId)
         .single();
       
-      const genericTitles = ["Default Conversation", "New Conversation", "Untitled", "New conversation"];
+      const genericTitles = ["Default Conversation", "New Conversation", "Untitled", "New conversation", "Untitled conversation"];
       if (existing && genericTitles.includes(existing.title)) {
         const newTitle = await generateConversationTitle(text, tier);
         await getSupabase()

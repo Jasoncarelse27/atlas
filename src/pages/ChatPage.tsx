@@ -23,6 +23,7 @@ import { startBackgroundSync, stopBackgroundSync } from '../services/syncService
 import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
+import { ConversationHistoryDrawer } from '../components/ConversationHistoryDrawer';
 import InsightsWidget from '../components/sidebar/InsightsWidget';
 import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
@@ -40,6 +41,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  
+  // History modal state
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyData, setHistoryData] = useState<{
+    conversations: any[];
+    onDeleteConversation: (id: string) => void;
+    deletingId: string | null;
+  } | null>(null);
   // Removed duplicate useMessageStore - using usePersistentMessages as single source of truth
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -49,8 +58,23 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Subscription management
   useSubscription(userId || undefined);
 
+  // Handle history modal from QuickActions
+  const handleViewHistory = (data: {
+    conversations: any[];
+    onDeleteConversation: (id: string) => void;
+    deletingId: string | null;
+  }) => {
+    setHistoryData(data);
+    setShowHistory(true);
+  };
+
   // ✅ PHASE 2: Messages state - only updated by loadMessages (from Dexie)
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  // ✅ Add message function for image uploads
+  const addMessage = useCallback((message: Message) => {
+    setMessages(prev => [...prev, message]);
+  }, []);
   
   // ✅ PHASE 2: Load messages from Dexie (read-only, single source of truth)
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -193,12 +217,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       console.log('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
       
-      // ✅ FALLBACK: If real-time doesn't fire in 3 seconds, reload manually
+      // ✅ OPTIMIZED FALLBACK: Reduced timer for faster response (500ms)
       fallbackTimerRef.current = setTimeout(async () => {
-        console.warn('[ChatPage] ⚠️ Real-time event not received, using fallback reload');
+        console.warn('[ChatPage] ⚠️ Real-time event not received, using fast fallback reload');
         setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
         await loadMessages(conversationId);
-      }, 3000);
+      }, 500); // ✅ Reduced from 1000ms to 500ms for faster response
       
       // Keep typing indicator active until real-time listener receives response
       
@@ -607,6 +631,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           </div>
         </div>
 
+
         {/* Sidebar Drawer */}
         <AnimatePresence>
           {sidebarOpen && (
@@ -640,7 +665,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   </div>
                   
                   {/* Sidebar Content */}
-                  <QuickActions />
+                  <QuickActions onViewHistory={handleViewHistory} />
                   <UsageCounter userId={userId ?? ''} />
                   <InsightsWidget />
                   <PrivacyToggle />
@@ -781,6 +806,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 conversationId={conversationId || undefined}
                 inputRef={inputRef}
                 isStreaming={isStreaming}
+                addMessage={addMessage}
               />
             </div>
           </motion.div>
@@ -804,6 +830,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         {/* Cache Monitoring Dashboard */}
         <CacheMonitoringDashboard />
+
+        {/* Conversation History Modal - Rendered at page level for proper mobile centering */}
+        {historyData && (
+          <ConversationHistoryDrawer
+            isOpen={showHistory}
+            onClose={() => setShowHistory(false)}
+            conversations={historyData.conversations}
+            onDeleteConversation={historyData.onDeleteConversation}
+            deletingId={historyData.deletingId}
+          />
+        )}
         
       </div>
     </ErrorBoundary>

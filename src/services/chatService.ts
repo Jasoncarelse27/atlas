@@ -74,7 +74,7 @@ export const chatService = {
     abortController = new AbortController();
 
     try {
-      // Get JWT token for authentication
+      // ✅ PERFORMANCE: Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || 'mock-token-for-development';
       
@@ -93,7 +93,7 @@ export const chatService = {
         throw new Error('User not authenticated. Please sign in to send messages.');
       }
 
-      // Get user's tier for the request
+      // ✅ PERFORMANCE: Get user's tier for the request
       const currentTier = await subscriptionApi.getUserTier(actualUserId, token);
 
       // ✅ ENHANCED CACHING: Check cache first for 20-30% cost reduction
