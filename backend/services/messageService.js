@@ -249,6 +249,7 @@ export async function processMessage(userId, text, conversationId = null) {
         console.log("✅ [MessageService] Created conversation:", convId);
       }
     } catch (err) {
+      console.error('[MessageService] Error creating conversation:', err.message || err);
     }
   } else if (convId && userId) {
     // ✅ Update generic titles with tier-based logic
@@ -269,6 +270,7 @@ export async function processMessage(userId, text, conversationId = null) {
         console.log(`✅ [MessageService] Updated conversation title: "${newTitle}"`);
       }
     } catch (err) {
+      console.error('[MessageService] Error updating conversation title:', err.message || err);
     }
   }
 
@@ -302,12 +304,14 @@ export async function processMessage(userId, text, conversationId = null) {
               .eq('id', userId);
             
             if (updateError) {
+              console.error('[MessageService] Error updating memory:', updateError.message || updateError);
             } else {
               console.log('✅ [MessageService] Memory updated successfully:', JSON.stringify(mergedMemory));
             }
           }
         }
       } catch (memoryError) {
+        console.error('[MessageService] Memory extraction failed:', memoryError.message || memoryError);
       }
     }
 
@@ -366,6 +370,7 @@ Core principles:
           .limit(10); // Last 10 messages for context
         
         if (historyError) {
+          console.error('[MessageService] Error fetching conversation history:', historyError.message || historyError);
         } else if (historyMessages && historyMessages.length > 0) {
           conversationHistory = historyMessages.map(msg => ({
             role: msg.role,
@@ -374,6 +379,7 @@ Core principles:
           console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
         }
       } catch (error) {
+        console.error('[MessageService] Error loading conversation history:', error.message || error);
       }
     }
 
@@ -432,6 +438,7 @@ Core principles:
         });
         
         if (userError) {
+          console.error('[MessageService] Error saving user message:', userError.message || userError);
         } else {
           console.log("✅ [MessageService] Saved user message");
         }
@@ -445,6 +452,7 @@ Core principles:
         });
         
         if (assistantError) {
+          console.error('[MessageService] Error saving assistant message:', assistantError.message || assistantError);
         } else {
           console.log("✅ [MessageService] Saved assistant message");
         }
@@ -453,6 +461,7 @@ Core principles:
           console.log("✅ [MessageService] Saved both messages to conversation:", convId);
         }
       } catch (err) {
+        console.error('[MessageService] Error saving messages to database:', err.message || err);
       }
     }
 
@@ -494,10 +503,12 @@ Core principles:
           .select();
           
         if (updateError) {
+          console.error('[MessageService] Error updating usage stats:', updateError.message || updateError);
         } else {
+          console.log('✅ [MessageService] Usage stats updated for Free tier user');
         }
       } catch (error) {
-        // Continue without updating usage in case of error
+        console.error('[MessageService] Error in usage stats update:', error.message || error);
       }
     }
 

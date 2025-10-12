@@ -9,6 +9,7 @@ export function generateUUID(): string {
     try {
       return crypto.randomUUID();
     } catch (error) {
+      console.warn('[UUID] crypto.randomUUID failed, using fallback:', error);
     }
   }
 

@@ -32,8 +32,10 @@ export function startWeeklyReportCron() {
       if (result.success) {
         console.log(`✅ Weekly report completed: ${result.filename}`);
       } else {
+        console.error('[Cron] Weekly report generation failed');
       }
     } catch (error) {
+      console.error('[Cron] Error in weekly report job:', error.message || error);
     }
   }, {
     scheduled: false,

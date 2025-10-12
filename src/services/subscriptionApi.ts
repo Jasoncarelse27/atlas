@@ -142,6 +142,7 @@ class SubscriptionApiService {
             return directProfile as any;
           }
         } catch (directErr) {
+          console.error('[SubscriptionAPI] Direct Supabase fallback failed:', directErr);
         }
         
         // If direct Supabase also failed, use Dexie cache as last resort
@@ -178,6 +179,7 @@ class SubscriptionApiService {
           return directProfile as any;
         }
       } catch (directErr) {
+        console.error('[SubscriptionAPI] Error in direct Supabase query:', directErr);
       }
       
       return await this.getProfileFromDexie(userId);

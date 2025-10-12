@@ -188,6 +188,7 @@ export const chatService = {
           });
         }
       } catch (refreshError) {
+        console.error('[ChatService] Error refreshing messages after streaming:', refreshError);
       }
       
       // Reset streaming state
@@ -260,6 +261,7 @@ export const chatService = {
             // Log response - message management handled by calling component
           }
         } else {
+          console.error('[ChatService] Image analysis request failed:', response.status);
         }
       }
       // Legacy: Handle single image messages

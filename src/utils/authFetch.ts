@@ -48,6 +48,7 @@ export async function fetchWithAuth(
 
   // Debug logging in development
   if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_AUTH) {
+    console.log('[AuthFetch]', {
       url,
       hasToken: !!token,
       tokenPrefix: token.substring(0, 20) + '...',

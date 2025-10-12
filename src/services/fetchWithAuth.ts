@@ -32,6 +32,7 @@ export async function fetchWithAuth(
   }
 
   if (!res.ok) {
+    console.error('[FetchWithAuth] Request failed:', res.status, res.statusText);
   }
 
   return res;

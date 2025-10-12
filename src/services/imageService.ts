@@ -147,6 +147,7 @@ export const imageService = {
         metadata: { feature, tier },
       });
     } catch (err) {
+      console.error('[ImageService] Error logging feature attempt:', err);
     }
   },
 

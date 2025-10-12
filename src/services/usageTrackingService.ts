@@ -350,6 +350,7 @@ class UsageTrackingService {
           timestamp: new Date().toISOString()
         });
     } catch (error) {
+      console.error('[UsageTracking] Error logging upgrade prompt:', error);
     }
   }
 
@@ -379,6 +380,7 @@ class UsageTrackingService {
         
       console.log(`🚨 Crisis bypass activated for user ${userId}`);
     } catch (error) {
+      console.error('[UsageTracking] Error logging crisis bypass:', error);
     }
   }
 
@@ -405,6 +407,7 @@ class UsageTrackingService {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
+      console.error('[UsageTracking] Error logging blocked attempt:', error);
     }
   }
 
@@ -421,6 +424,7 @@ class UsageTrackingService {
           timestamp: new Date().toISOString()
         });
     } catch (error) {
+      console.error('[UsageTracking] Error logging error:', error);
     }
   }
 }

@@ -1,5 +1,5 @@
-import { SYSTEM_LIMITS, TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 import { createClient } from '@supabase/supabase-js';
+import { SYSTEM_LIMITS, TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 
 // Lazy initialization like your existing logger
 let supabase = null;
@@ -63,6 +63,7 @@ export const budgetCeilingService = {
         p_req_delta: reqInc
       });
     } catch (error) {
+      console.error('[BudgetCeiling] Error incrementing usage:', error.message || error);
     }
   },
 
@@ -102,6 +103,7 @@ export const budgetCeilingService = {
         data: { ...payload, ts: new Date().toISOString(), svc: 'budgetCeiling' }
       });
     } catch (error) {
+      console.error('[BudgetCeiling] Error logging event:', error.message || error);
     }
   }
 };

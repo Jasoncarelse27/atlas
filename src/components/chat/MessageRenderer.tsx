@@ -36,6 +36,7 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
         setCopiedStates(prev => ({ ...prev, [codeId]: false }));
       }, 2000);
     } catch (err) {
+      console.error('[MessageRenderer] Error copying to clipboard:', err);
     }
   };
 
@@ -376,6 +377,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
         setCopiedStates(prev => ({ ...prev, [codeId]: false }));
       }, 2000);
     } catch (err) {
+      console.error('[MessageRenderer] Error copying code:', err);
     }
   };
 

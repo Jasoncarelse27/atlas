@@ -100,6 +100,7 @@ const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
 console.log(`  OpenAI (Whisper + TTS): ${OPENAI_API_KEY ? '✅ Available' : '❌ Missing'}`);
 if (!ANTHROPIC_API_KEY) {
+  console.error('⚠️ [Server] ANTHROPIC_API_KEY is missing - AI features will not work');
 }
 
 // Model mapping by tier (updated to latest non-deprecated models)
@@ -518,14 +519,17 @@ app.post('/message', async (req, res) => {
             }]);
 
           if (createError) {
+            console.error('[Server] Error creating conversation:', createError.message || createError);
           } else {
             console.log('✅ [Backend] Conversation created successfully');
           }
         } else if (checkError) {
+          console.error('[Server] Error checking conversation:', checkError.message || checkError);
         } else {
           console.log('✅ [Backend] Conversation exists:', conversationId);
         }
       } catch (error) {
+        console.error('[Server] Conversation handling failed:', error.message || error);
       }
     }
 
@@ -666,6 +670,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .eq('role', 'user')
           .gte('created_at', startOfMonth.toISOString());
         if (countErr) {
+          console.error('[Server] Error counting messages:', countErr.message || countErr);
         }
         if ((monthlyCount ?? 0) >= 15) {
           return res.status(429).json({
@@ -752,11 +757,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             }]);
 
           if (convError) {
+            console.error('[Server] Error creating conversation:', convError.message || convError);
           } else {
             console.log('✅ [Backend] Conversation created successfully');
           }
         }
       } catch (error) {
+        console.error('[Server] Conversation creation failed:', error.message || error);
       }
     }
 
@@ -826,6 +833,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .limit(10); // Last 10 messages for context
         
         if (historyError) {
+          console.error('[Server] Error fetching history:', historyError.message || historyError);
         } else if (historyMessages && historyMessages.length > 0) {
           conversationHistory = historyMessages.map(msg => ({
             role: msg.role,
@@ -834,6 +842,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
         }
       } catch (error) {
+        console.error('[Server] Error loading conversation history:', error.message || error);
       }
     }
 
@@ -912,11 +921,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             .select()
             .single();
           if (responseError) {
+            console.error('[Server] Error saving assistant message:', responseError.message || responseError);
           } else {
             console.log('✅ [Backend] Saved assistant message');
             storedResponse = stored;
           }
         } catch (error) {
+          console.error('[Server] Error storing assistant message:', error.message || error);
         }
       }
       
@@ -1046,11 +1057,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .select()
           .single();
         if (responseError) {
+          console.error('[Server] Error saving assistant response:', responseError.message || responseError);
         } else {
           console.log('✅ [Backend] Saved assistant message');
           storedResponse = stored;
         }
       } catch (error) {
+        console.error('[Server] Error storing assistant response:', error.message || error);
       }
     }
 
@@ -1298,6 +1311,7 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
           }).eq('id', userId);
           
         } catch (dbError) {
+          console.error('[Server] Error updating audio usage stats:', dbError.message || dbError);
         }
       }
       
@@ -1585,6 +1599,7 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
         });
         console.log(`✅ Subscriber ${email} added to group ${targetGroup}`);
       } catch (groupError) {
+        console.error('[Server] Error adding subscriber to group:', groupError.message || groupError);
       }
     }
 

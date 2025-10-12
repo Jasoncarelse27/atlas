@@ -79,6 +79,7 @@ export const promptCacheService = {
         p_cost_savings: costSavings 
       });
     } catch (error) {
+      console.error('[PromptCache] Error tracking cache hit:', error.message || error);
     }
   }
 };

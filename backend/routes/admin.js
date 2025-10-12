@@ -111,6 +111,7 @@ router.get("/usage", async (req, res) => {
       .single();
 
     if (profileError) {
+      console.error('[Admin] Error fetching profile:', profileError.message || profileError);
     }
 
     const tier = profile?.subscription_tier || 'free';
@@ -125,6 +126,7 @@ router.get("/usage", async (req, res) => {
       .maybeSingle();
 
     if (usageError) {
+      console.error('[Admin] Error fetching usage data:', usageError.message || usageError);
     }
 
     const dailyMessagesUsed = usageData?.count || 0;

@@ -190,6 +190,7 @@ class SentryService {
 
   private mockCaptureException(error: unknown, context?: Record<string, any>): string {
     const errorId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('[Sentry Mock]', {
       errorId,
       error,
       context,

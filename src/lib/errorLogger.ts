@@ -69,6 +69,7 @@ class ErrorLogger {
 
     // Console logging with emoji based on severity
     const emoji = this.getSeverityEmoji(severity);
+    console.log(`${emoji} [ErrorLogger]`, {
       message,
       context,
       severity,

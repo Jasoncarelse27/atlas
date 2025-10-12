@@ -157,10 +157,13 @@ class ResponseCacheService {
         });
 
       if (error) {
+        console.error('[ResponseCache] Error caching response:', error);
       } else {
+        console.log('[ResponseCache] ✅ Response cached successfully');
       }
 
     } catch (error) {
+      console.error('[ResponseCache] Error in cacheResponse:', error);
     }
   }
 
@@ -232,10 +235,13 @@ class ResponseCacheService {
         .eq('tier', tier);
 
       if (error) {
+        console.error('[ResponseCache] Error clearing tier cache:', error);
       } else {
+        console.log('[ResponseCache] ✅ Cleared cache for tier:', tier);
       }
 
     } catch (error) {
+      console.error('[ResponseCache] Error in clearTierCache:', error);
     }
   }
 
