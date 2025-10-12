@@ -201,6 +201,7 @@ class SentryService {
 
   private mockCaptureMessage(message: string, level: string, context?: Record<string, any>): string {
     const messageId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('[Sentry Mock Message]', {
       messageId,
       message,
       context,

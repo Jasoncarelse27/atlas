@@ -103,6 +103,7 @@ export async function fetchWithAuth(
         const errorData: ApiError = await response.json();
         await handleTierLimitError(errorData);
       } catch (parseError) {
+        console.error('[AuthFetch] Error parsing tier limit error:', parseError);
       }
     }
 

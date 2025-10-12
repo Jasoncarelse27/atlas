@@ -1034,6 +1034,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         }
       }
     } catch (oneShotErr) {
+      console.error('[Server] One-shot prompt error:', oneShotErr.message || oneShotErr);
     }
 
     const aiResponse = {

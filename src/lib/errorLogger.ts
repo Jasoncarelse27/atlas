@@ -78,6 +78,7 @@ class ErrorLogger {
 
     // Log stack trace if available
     if (stack) {
+      console.error('Stack trace:', stack);
     }
 
     // Send to external services if configured
@@ -211,6 +212,7 @@ class ErrorLogger {
           extra: error.context,
         });
       } catch (sentryError) {
+        console.error('[ErrorLogger] Sentry error:', sentryError);
       }
     }
 

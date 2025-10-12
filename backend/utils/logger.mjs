@@ -24,6 +24,7 @@ export async function logError(message, stack, context = {}) {
       { level: "error", message, stack, context }
     ]);
   } catch (error) {
+    console.error('[Logger] Error logging error:', error);
   }
 }
 
@@ -37,6 +38,7 @@ export async function logWarn(message, context = {}) {
       { level: "warn", message, context }
     ]);
   } catch (error) {
+    console.error('[Logger] Error logging warning:', error);
   }
 }
 
@@ -52,8 +54,11 @@ export async function logInfo(message, context = {}) {
     ]);
     
     if (result.error) {
+      console.error('[Logger] Error inserting info log:', result.error);
     } else {
+      // Log inserted successfully
     }
   } catch (error) {
+    console.error('[Logger] Error logging info:', error);
   }
 }
