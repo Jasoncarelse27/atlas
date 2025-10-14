@@ -26,10 +26,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       await refreshConversationList();
     };
 
-    window.addEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+    window.addEventListener('conversationDeleted', handleConversationDeleted as unknown as EventListener);
     
     return () => {
-      window.removeEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+      window.removeEventListener('conversationDeleted', handleConversationDeleted as unknown as EventListener);
     };
   }, []);
 
@@ -39,15 +39,15 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       if (!user) return;
 
       const PAGE_SIZE = 20;
+      // ✅ Load only what we need - no overfetch
       const localConversations = await atlasDB.conversations
         .orderBy('updatedAt')
         .reverse()
-        .limit(PAGE_SIZE * 2)
+        .limit(PAGE_SIZE)  // Changed from PAGE_SIZE * 2
         .toArray();
       
-      const activeConversations = localConversations.slice(0, PAGE_SIZE);
-      
-      const mappedConversations = activeConversations.map(conv => ({
+      // ✅ Map directly - no slicing needed
+      const mappedConversations = localConversations.map(conv => ({
         id: conv.id,
         title: conv.title,
         created_at: conv.createdAt,
@@ -66,7 +66,7 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         });
       }
       
-      logger.debug('[QuickActions] ✅ Conversation list refreshed after real-time deletion');
+      logger.debug('[QuickActions] ✅ Conversation list refreshed');
     } catch (error) {
       logger.error('[QuickActions] ❌ Failed to refresh conversation list:', error);
     }
@@ -121,47 +121,32 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         throw new Error('No authenticated user');
       }
 
-      // ✅ Delete from database (both Supabase and local Dexie)
-      const result = await deleteConversation(conversationId, user.id);
+      // ✅ Optimistic update - remove from UI immediately
+      let updatedConversations: any[] = [];
+      setConversations(prev => {
+        updatedConversations = prev.filter(c => c.id !== conversationId);
+        return updatedConversations;
+      });
       
-      logger.debug(`[QuickActions] ✅ ${result.message}`);
-      
-      // ✅ RELOAD CONVERSATION LIST FROM DATABASE (always accurate)
-      // This ensures UI shows exactly what's in the database
-      const PAGE_SIZE = 20;
-      const localConversations = await atlasDB.conversations
-        .orderBy('updatedAt')
-        .reverse()
-        .limit(PAGE_SIZE * 2)
-        .toArray();
-      
-      // Use all conversations (hard delete means deleted conversations are gone)
-      const activeConversations = localConversations.slice(0, PAGE_SIZE);
-      
-      // Map to consistent format
-      const mappedConversations = activeConversations.map(conv => ({
-        id: conv.id,
-        title: conv.title,
-        created_at: conv.createdAt,
-        updated_at: conv.updatedAt,
-        user_id: conv.userId
-      }));
-      
-      // Update state with fresh data from database
-      setConversations(mappedConversations);
-      
-      // Update modal with fresh conversation list
+      // Update modal immediately with the filtered list
       if (onViewHistory) {
         onViewHistory({
-          conversations: mappedConversations,
+          conversations: updatedConversations,
           onDeleteConversation: handleDeleteConversation,
           deletingId: null
         });
       }
+
+      // ✅ Delete from database (both Supabase and local Dexie)
+      await deleteConversation(conversationId, user.id);
+      
+      logger.debug('[QuickActions] ✅ Conversation deleted successfully');
       
     } catch (err) {
       logger.error('[QuickActions] ❌ Failed to delete conversation:', err);
       alert('Failed to delete conversation. Please try again.');
+      // ✅ Rollback on error - reload from database
+      await refreshConversationList();
     } finally {
       // ✅ Clear loading state
       setDeletingId(null);
