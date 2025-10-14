@@ -19,6 +19,7 @@ import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
 import { databaseMigration } from '../services/databaseMigration';
 import { startBackgroundSync, stopBackgroundSync } from '../services/syncService';
+import { autoGenerateTitle } from '../services/titleGenerationService';
 // ✅ PHASE 2: Removed messageRegistry import - no longer needed with single write path
 import { generateUUID } from '../utils/uuid';
 
@@ -57,7 +58,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useMemoryIntegration({ userId: userId || undefined });
 
   // Subscription management
-  useSubscription(userId || undefined);
+  const { tier } = useSubscription(userId || undefined);
 
   // ✅ ENTERPRISE: Real-time conversation deletion listener (clean, reliable)
   useRealtimeConversations(userId || undefined);
@@ -220,6 +221,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       );
       
       console.log('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
+      
+      // ✅ AUTO TITLE GENERATION: Generate title for first user message
+      if (messages.length === 0) {
+        // This is the first message in the conversation, generate title
+        autoGenerateTitle({
+          message: text,
+          tier: tier || 'free',
+          conversationId,
+          userId
+        }).catch(err => {
+          console.warn('[ChatPage] Title generation failed (non-blocking):', err);
+        });
+      }
       
       // ✅ OPTIMIZED FALLBACK: Reduced timer for faster response (500ms)
       fallbackTimerRef.current = setTimeout(async () => {
