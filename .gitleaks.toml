@@ -79,7 +79,7 @@ tags = ["github", "pat", "token"]
 
 # --- Allowlist (ignore safe files/placeholders) ---
 [allowlist]
-description = "Allow gitleaks config itself and safe placeholders"
+description = "Allow security scripts and safe files"
 files = [
   ".gitleaks.toml",
   ".env.example",
