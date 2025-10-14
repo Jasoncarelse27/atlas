@@ -153,9 +153,29 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     }
   };
 
+  const handleClearData = async () => {
+    // Confirmation dialog
+    if (!confirm('Clear All Data\n\nThis will clear all local conversations and cache. Your account data is safe on the server.\n\nContinue?')) {
+      return;
+    }
+
+    try {
+      logger.debug('[QuickActions] Clearing all local data...');
+      
+      // Import and call resetLocalData utility
+      const { resetLocalData } = await import('@/utils/resetLocalData');
+      await resetLocalData();
+      
+    } catch (err) {
+      logger.error('[QuickActions] Failed to clear data:', err);
+      alert('Failed to clear data. Please try again.');
+    }
+  };
+
   const actions = [
     { icon: '➕', label: 'Start New Chat', action: handleNewChat },
     { icon: '📜', label: 'View History', action: handleViewHistory },
+    { icon: '🗑️', label: 'Clear All Data', action: handleClearData }
   ];
 
   return (
