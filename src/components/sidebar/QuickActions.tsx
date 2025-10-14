@@ -180,17 +180,21 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
 
   return (
     <>
-      <div className="bg-[#2c2f36] p-4 rounded-lg shadow">
-        <h3 className="text-gray-300 text-sm font-medium mb-3">Quick Actions</h3>
+      <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 p-4 rounded-2xl border border-gray-700/50 shadow-xl backdrop-blur-sm">
+        <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 text-sm font-bold mb-4 tracking-wide">Quick Actions</h3>
         <ul className="space-y-2">
           {actions.map((action, index) => (
             <li key={index}>
               <button
                 onClick={action.action}
-                className="w-full text-left text-gray-200 hover:text-white hover:bg-gray-700/50 p-2 rounded-md transition-colors duration-200 flex items-center space-x-2"
+                className="group w-full text-left bg-gradient-to-br from-gray-800/80 to-gray-800/60 backdrop-blur-sm hover:from-gray-700/80 hover:to-gray-700/60 active:scale-[0.98] p-3 rounded-xl transition-all duration-300 border border-gray-700/50 hover:border-gray-600/50 shadow-md hover:shadow-lg flex items-center space-x-3"
               >
-                <span className="text-lg">{action.icon}</span>
-                <span className="text-sm">{action.label}</span>
+                <div className="flex-shrink-0 w-9 h-9 bg-blue-500/10 rounded-lg flex items-center justify-center border border-blue-500/20">
+                  <span className="text-lg">{action.icon}</span>
+                </div>
+                <span className="text-sm font-medium text-white group-hover:text-blue-100 transition-colors">
+                  {action.label}
+                </span>
               </button>
             </li>
           ))}
