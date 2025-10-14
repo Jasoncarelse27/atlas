@@ -44,6 +44,9 @@ export const mailerService = {
       }
     }
     
+    // Log mock email send for testing
+    console.log(`[MOCK] Email sent to ${to} with template ${templateId}`, data);
+    
     return { 
       success: true, 
       mock: true, 

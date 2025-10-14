@@ -20,7 +20,7 @@ vi.mock('../lib/db', () => ({
         return Promise.resolve(1);
       }),
       get: vi.fn().mockImplementation((id) => {
-        const timestamp = Date.now();
+        const timestamp = 1760422071487; // Use fixed timestamp to match test
         return Promise.resolve({
           id: 1,
           conversationId: 'test-conv-1',
@@ -99,11 +99,12 @@ describe('Atlas Database (Dexie)', () => {
 
   describe('Messages', () => {
     it('should add and retrieve messages', async () => {
+      const fixedTimestamp = 1760422071487; // Use fixed timestamp to match mock
       const message: Omit<Message, 'id'> = {
         conversationId: 'test-conv-1',
         role: 'user',
         content: 'Hello, Atlas!',
-        createdAt: Date.now(),
+        createdAt: fixedTimestamp,
         synced: false
       };
 

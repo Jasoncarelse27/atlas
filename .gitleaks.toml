@@ -87,7 +87,10 @@ files = [
   "README.md",
   "docs/*",
   ".cursorrules",
-  "supabase/functions/**/*"
+  "supabase/functions/**/*",
+  "scripts/setup-git-secrets.sh",
+  "scripts/pre-commit-security-scan.sh",
+  "scripts/*security*.sh"
 ]
 regexes = [
   "your_api_key_here",
@@ -98,5 +101,9 @@ regexes = [
   "your_webhook_secret_here",
   "your_supabase_url",
   "your_supabase_anon_key",
-  "your_cicd_alert_token_here"
+  "your_cicd_alert_token_here",
+  # Security script patterns (these are detection regex, not actual secrets)
+  "sk-ant-\\[a-zA-Z0-9\\\\\\-\\]\\{95,\\}",
+  "AKIA\\[0-9A-Z\\]\\{16\\}",
+  "eyJ\\[a-zA-Z0-9_-\\]\\{50,\\}\\.[a-zA-Z0-9_-\\]\\{50,\\}\\.[a-zA-Z0-9_-\\]\\{50,\\}"
 ]
