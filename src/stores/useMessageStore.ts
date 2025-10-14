@@ -59,6 +59,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
     });
     // Reduced logging for performance
     if (import.meta.env.DEV) {
+      // Development logging disabled for performance
     }
   },
   
@@ -147,6 +148,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
         });
       }
     } catch (error) {
+      // Intentionally empty - error handling not required
       set({ isHydrated: true });
     }
   },
@@ -210,6 +212,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
       set({ conversationId });
       return conversationId;
     } catch (err) {
+      // Intentionally empty - error handling not required
       // Ultimate fallback
       const fallbackId = generateUUID();
       set({ conversationId: fallbackId });

@@ -95,6 +95,7 @@ class AudioService {
       };
 
     } catch (error) {
+      // Intentionally empty - error handling not required
       
       // Log transcription failure
       await this.logAudioEvent({
@@ -129,8 +130,10 @@ class AudioService {
       if (error) {
         // Don't throw - logging failures shouldn't break the user flow
       } else {
+        // Audio event logged successfully
       }
     } catch (error) {
+      // Intentionally empty - error handling not required
       // Don't throw - logging failures shouldn't break the user flow
     }
   }

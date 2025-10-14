@@ -29,9 +29,12 @@ export async function logEmailFailure(recipient: string, template: string, error
     ]);
     
     if (dbError) {
+      // Email failure logging error is non-critical
     } else {
+      // Email failure logged successfully
     }
   } catch (err) {
+      // Intentionally empty - error handling not required
   }
 }
 
@@ -50,6 +53,7 @@ export async function getRecentFailures(limit = 20) {
     
     return data || [];
   } catch (err) {
+      // Intentionally empty - error handling not required
     return [];
   }
 }

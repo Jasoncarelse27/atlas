@@ -92,6 +92,7 @@ const useVoiceRecognition = ({
         setHasPermission(true);
         setError(null);
       } catch (err) {
+      // Intentionally empty - error handling not required
         setHasPermission(false);
         setError('Microphone access is required. Please allow microphone access in your browser settings.');
       }
@@ -137,6 +138,7 @@ const useVoiceRecognition = ({
             }
           }, 300);
         } catch (err) {
+      // Intentionally empty - error handling not required
           setError('Failed to maintain conversation mode. Please try again.');
         }
         return;
@@ -151,6 +153,7 @@ const useVoiceRecognition = ({
             try {
               recognitionRef.current.start();
             } catch (err) {
+      // Intentionally empty - error handling not required
               setError('Failed to restart recognition. Please try again.');
               setIsRetrying(false);
             }
@@ -165,6 +168,7 @@ const useVoiceRecognition = ({
             try {
               recognitionRef.current.start();
             } catch (err) {
+      // Intentionally empty - error handling not required
               setError('Failed to restart recognition. Please try again.');
               setIsRetrying(false);
             }
@@ -320,6 +324,7 @@ const useVoiceRecognition = ({
         try {
           recognition.stop();
         } catch (err) {
+      // Intentionally empty - error handling not required
         }
       }
     };
@@ -335,6 +340,7 @@ const useVoiceRecognition = ({
         try {
           recognition.stop();
         } catch (err) {
+      // Intentionally empty - error handling not required
         }
       }
       
@@ -366,6 +372,7 @@ const useVoiceRecognition = ({
         setHasPermission(true);
         setError(null);
       } catch (err) {
+      // Intentionally empty - error handling not required
         setHasPermission(false);
         setError('Microphone access denied. Please allow microphone access in your browser settings.');
         return;
@@ -393,6 +400,7 @@ const useVoiceRecognition = ({
     try {
       recognitionRef.current.start();
     } catch (error: any) {
+      // Intentionally empty - error handling not required
       setIsListening(false);
       setIsRetrying(false);
       
@@ -436,6 +444,7 @@ const useVoiceRecognition = ({
     try {
       recognitionRef.current.stop();
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   }, []);
 

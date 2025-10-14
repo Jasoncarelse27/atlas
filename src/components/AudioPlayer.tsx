@@ -55,6 +55,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         sourceRef.current.connect(analyserRef.current);
         analyserRef.current.connect(audioContextRef.current.destination);
       } catch (err) {
+        // Audio context setup failure is non-critical
       }
     }
   }, [showWaveform]);

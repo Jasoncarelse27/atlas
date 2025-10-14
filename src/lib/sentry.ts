@@ -50,6 +50,7 @@ class SentryService {
         return (window as any).Sentry.captureException(error, context);
       }
     } catch (sentryError) {
+      // Intentionally empty - error handling not required
     }
 
     return this.mockCaptureException(error, context);
@@ -68,6 +69,7 @@ class SentryService {
         return (window as any).Sentry.captureMessage(message, level, context);
       }
     } catch (sentryError) {
+      // Intentionally empty - error handling not required
     }
 
     return this.mockCaptureMessage(message, level, context);
@@ -86,6 +88,7 @@ class SentryService {
         (window as any).Sentry.setUser(user);
       }
     } catch (sentryError) {
+      // Intentionally empty - error handling not required
     }
   }
 
@@ -102,6 +105,7 @@ class SentryService {
         (window as any).Sentry.setContext(key, context);
       }
     } catch (sentryError) {
+      // Intentionally empty - error handling not required
     }
   }
 
@@ -123,6 +127,7 @@ class SentryService {
         (window as any).Sentry.addBreadcrumb(breadcrumb);
       }
     } catch (sentryError) {
+      // Intentionally empty - error handling not required
     }
   }
 
@@ -139,6 +144,7 @@ class SentryService {
         return (window as any).Sentry.startTransaction({ name, op });
       }
     } catch (sentryError) {
+      // Intentionally empty - error handling not required
     }
 
     return this.mockTransaction(name, op);
@@ -184,6 +190,7 @@ class SentryService {
         this.isInitialized = true; // Mark as initialized to use mock
       });
     } catch (error) {
+      // Intentionally empty - error handling not required
       this.isInitialized = true; // Mark as initialized to use mock
     }
   }

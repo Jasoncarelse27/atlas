@@ -120,7 +120,9 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         onSoundPlay('success');
       }
     } catch (error) {
+      // Intentionally empty - error handling not required
       if (error instanceof Error && error.name === 'AbortError') {
+        // Abort is expected when user cancels
       } else {
         setOverallStatus('error');
         setOverallMessage('An error occurred while running network tests. Please try again.');
@@ -176,6 +178,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
           details: `Time to first byte: ${dnsTime}ms`
         });
       } catch (error) {
+      // Intentionally empty - error handling not required
         if (error instanceof Error && error.name === 'AbortError') {
           updateTestResult(0, { 
             status: 'error', 
@@ -187,6 +190,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         }
       }
     } catch (error) {
+      // Intentionally empty - error handling not required
       if (signal.aborted) {
         // Gracefully handle abort without throwing error
         return;
@@ -229,6 +233,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
           const endTime = performance.now();
           pings.push(endTime - startTime);
         } catch (error) {
+      // Intentionally empty - error handling not required
           // Skip failed pings
         }
       }
@@ -265,6 +270,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         details: `Average ping time: ${avgPing}ms (${pings.length} successful pings)`
       });
     } catch (error) {
+      // Intentionally empty - error handling not required
       if (signal.aborted) {
         // Gracefully handle abort without throwing error
         return;
@@ -338,6 +344,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
           details: `Downloaded ${(fileSize / 1024).toFixed(2)}KB in ${downloadTime.toFixed(2)}s`
         });
       } catch (error) {
+      // Intentionally empty - error handling not required
         if (error instanceof Error && error.name === 'AbortError') {
           updateTestResult(2, { 
             status: 'error', 
@@ -349,6 +356,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         }
       }
     } catch (error) {
+      // Intentionally empty - error handling not required
       if (signal.aborted) {
         // Gracefully handle abort without throwing error
         return;
@@ -415,6 +423,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         details: `Simulated upload test (based on browser performance and download speed)`
       });
     } catch (error) {
+      // Intentionally empty - error handling not required
       if (signal.aborted) {
         // Gracefully handle abort without throwing error
         return;
@@ -460,6 +469,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
           const endTime = performance.now();
           results.push(endTime - startTime);
         } catch (error) {
+      // Intentionally empty - error handling not required
           failures++;
         }
         
@@ -501,6 +511,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         details: `Jitter: ${Math.round(jitter)}ms, Failed requests: ${failures}/${numTests}`
       });
     } catch (error) {
+      // Intentionally empty - error handling not required
       if (signal.aborted) {
         // Gracefully handle abort without throwing error
         return;

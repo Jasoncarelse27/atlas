@@ -7,5 +7,6 @@ export function preserveLocalStorage() {
       console.info("[LocalStorage] Preserved session successfully");
     }
   } catch (err) {
+      // Intentionally empty - error handling not required
   }
 }

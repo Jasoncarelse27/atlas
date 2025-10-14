@@ -53,6 +53,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
           console.log('✅ Dexie cache cleared');
         }
       } catch (dexieError) {
+      // Intentionally empty - error handling not required
       }
 
       // 3. Refresh React state (re-fetch profile from backend)
@@ -65,6 +66,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
 
 
     } catch (error) {
+      // Intentionally empty - error handling not required
     } finally {
       setIsUpdating(false);
     }

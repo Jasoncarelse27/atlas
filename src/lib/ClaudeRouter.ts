@@ -105,8 +105,10 @@ export async function cachePrompt(
     });
 
     if (error) {
+      // Silently fail cache writes - non-critical operation
     }
   } catch (error) {
+    // Silently fail cache writes - non-critical operation
   }
 }
 
@@ -132,64 +134,60 @@ export async function handlePrompt(
   content: string,
   userId: string
 ): Promise<ClaudeResponse> {
-  try {
-    // Get user tier
-    const userTier = await getUserTier(userId);
-    
-    // Route to appropriate model
-    const model = routePrompt(userTier);
-    
-    // Generate prompt hash for caching
-    const promptHash = generatePromptHash(content, userId);
-    
-    // Check cache first
-    const cachedResponse = await getCachedPrompt(promptHash, userId);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    // ✅ Make API call to Claude using tier config
-    const tierConfig = tierFeatures[userTier];
-    const response = await fetch(CLAUDE_BASE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: tierConfig.maxTokensPerResponse,
-        messages: [
-          {
-            role: 'user',
-            content,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Claude API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    const claudeResponse: ClaudeResponse = {
-      id: data.id,
-      content: data.content[0].text,
-      model: data.model,
-      usage: data.usage,
-      cached: false,
-    };
-
-    // Cache the response
-    await cachePrompt(promptHash, userId, claudeResponse);
-    
-    return claudeResponse;
-  } catch (error) {
-    throw error;
+  // Get user tier
+  const userTier = await getUserTier(userId);
+  
+  // Route to appropriate model
+  const model = routePrompt(userTier);
+  
+  // Generate prompt hash for caching
+  const promptHash = generatePromptHash(content, userId);
+  
+  // Check cache first
+  const cachedResponse = await getCachedPrompt(promptHash, userId);
+  if (cachedResponse) {
+    return cachedResponse;
   }
+  
+  // ✅ Make API call to Claude using tier config
+  const tierConfig = tierFeatures[userTier];
+  const response = await fetch(CLAUDE_BASE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: tierConfig.maxTokensPerResponse,
+      messages: [
+        {
+          role: 'user',
+          content,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Claude API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  
+  const claudeResponse: ClaudeResponse = {
+    id: data.id,
+    content: data.content[0].text,
+    model: data.model,
+    usage: data.usage,
+    cached: false,
+  };
+
+  // Cache the response
+  await cachePrompt(promptHash, userId, claudeResponse);
+  
+  return claudeResponse;
 }
 
 /**

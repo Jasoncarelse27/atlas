@@ -52,6 +52,7 @@ export async function handleDexieError(error: any) {
       })
     }
   } else {
+    // Not a blocking error
   }
 }
 

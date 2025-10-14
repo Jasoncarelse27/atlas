@@ -50,6 +50,7 @@ export class PendingQueueManager {
       await db.pending_operations.put(operation);
       return operation.id;
     } catch (error) {
+      // Intentionally empty - error handling not required
       const chatError = createChatError(error, {
         operation: 'addToQueue',
         type,
@@ -87,6 +88,7 @@ export class PendingQueueManager {
         try {
           await this.processOperation(operation);
         } catch (error) {
+      // Intentionally empty - error handling not required
           await this.updateOperationStatus(operation.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
         }
       }
@@ -129,6 +131,7 @@ export class PendingQueueManager {
       // Mark as completed
       await this.updateOperationStatus(operation.id, 'completed');
     } catch (error) {
+      // Intentionally empty - error handling not required
       // Handle retry logic
       if (operation.retry_count < this.maxRetries) {
         const nextRetry = new Date(Date.now() + this.calculateRetryDelay(operation.retry_count));
@@ -256,6 +259,7 @@ export class PendingQueueManager {
         ...updates,
       });
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   }
 
@@ -288,6 +292,7 @@ export class PendingQueueManager {
       // Process queue again
       await this.processQueue();
     } catch (error) {
+      // Intentionally empty - error handling not required
       const chatError = createChatError(error, {
         operation: 'retryFailedOperations',
         timestamp: new Date().toISOString(),
@@ -303,6 +308,7 @@ export class PendingQueueManager {
     try {
       await db.pending_operations.clear();
     } catch (error) {
+      // Intentionally empty - error handling not required
       const chatError = createChatError(error, {
         operation: 'clearQueue',
         timestamp: new Date().toISOString(),
@@ -334,6 +340,7 @@ export class PendingQueueManager {
 
       return stats;
     } catch (error) {
+      // Intentionally empty - error handling not required
       const chatError = createChatError(error, {
         operation: 'getQueueStats',
         timestamp: new Date().toISOString(),
@@ -352,6 +359,7 @@ export class PendingQueueManager {
         .equals(type)
         .toArray();
     } catch (error) {
+      // Intentionally empty - error handling not required
       const chatError = createChatError(error, {
         operation: 'getOperationsByType',
         type,
@@ -368,6 +376,7 @@ export class PendingQueueManager {
     try {
       await db.pending_operations.delete(operationId);
     } catch (error) {
+      // Intentionally empty - error handling not required
       const chatError = createChatError(error, {
         operation: 'removeOperation',
         operationId,

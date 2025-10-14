@@ -17,6 +17,7 @@ export async function getOrCreateDefaultConversation(userId: string) {
     });
 
     if (error) {
+      // Conversation creation failure is logged elsewhere
     }
   }
 

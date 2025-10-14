@@ -49,6 +49,7 @@ export function useStorageSync(options: UseStorageSyncOptions) {
             await markConversationSynced(conv.id, data.id);
           }
         } catch (error) {
+      // Intentionally empty - error handling not required
         }
       }
 
@@ -72,11 +73,13 @@ export function useStorageSync(options: UseStorageSyncOptions) {
             await markMessageSynced(msg.id, data.id);
           }
         } catch (error) {
+      // Intentionally empty - error handling not required
         }
       }
 
       setLastSyncTime(new Date());
     } catch (error) {
+      // Intentionally empty - error handling not required
     } finally {
       setIsSyncing(false);
     }

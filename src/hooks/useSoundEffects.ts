@@ -33,6 +33,7 @@ const getAudioContext = () => {
     try {
       sharedAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   }
   return sharedAudioContext;
@@ -588,6 +589,7 @@ export const useSoundEffects = (): UseSoundEffectsReturn => {
       }
       
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   }, [isEnabled, soundTheme]);
 

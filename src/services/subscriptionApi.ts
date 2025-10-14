@@ -201,30 +201,26 @@ class SubscriptionApiService {
    * Create user profile through backend API
    */
   async createUserProfile(userId: string, accessToken: string): Promise<SubscriptionProfile> {
-    try {
-      const response = await fetch(`${this.baseUrl}/v1/user_profiles`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userId }),
-      });
+    const response = await fetch(`${this.baseUrl}/v1/user_profiles`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const profile: SubscriptionProfile = await response.json();
-      
-      // Cache the newly created profile
-      this.profileCache.set(userId, { data: profile, timestamp: Date.now() });
-      
-      return profile;
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+
+    const profile: SubscriptionProfile = await response.json();
+    
+    // Cache the newly created profile
+    this.profileCache.set(userId, { data: profile, timestamp: Date.now() });
+    
+    return profile;
   }
 
   /**
@@ -248,32 +244,27 @@ class SubscriptionApiService {
     newTier: 'free' | 'core' | 'studio', 
     accessToken: string
   ): Promise<SubscriptionProfile> {
-    try {
-      
-      const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}/tier`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
-        },
-        body: JSON.stringify({ tier: newTier })
-      });
+    const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}/tier`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
+      },
+      body: JSON.stringify({ tier: newTier })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to update subscription tier: ${response.status} ${response.statusText} - ${errorData.message || 'Unknown error'}`);
-      }
-
-      const updatedProfile = await response.json();
-      
-      // Clear cache since tier was updated
-      this.clearProfileCache(userId);
-      
-      return updatedProfile;
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to update subscription tier: ${response.status} ${response.statusText} - ${errorData.message || 'Unknown error'}`);
     }
+
+    const updatedProfile = await response.json();
+    
+    // Clear cache since tier was updated
+    this.clearProfileCache(userId);
+    
+    return updatedProfile;
   }
 
   /**
@@ -286,39 +277,34 @@ class SubscriptionApiService {
       throw new Error('Real FastSpring integration not implemented yet');
     }
 
-    try {
-      
-      // Use backend API instead of direct Supabase calls
-      const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
-          'Content-Type': 'application/json',
-        },
-      });
+    // Use backend API instead of direct Supabase calls
+    const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
+        'Content-Type': 'application/json',
+      },
+    });
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null;
-        }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
       }
-
-      const profile = await response.json();
-      console.log('[SubscriptionAPI] Using backend API ✅', profile);
-      
-      // Convert profile to FastSpringSubscription format
-      return {
-        id: profile.id,
-        status: profile.subscription_tier === 'free' ? 'free' : 'active',
-        subscription_tier: profile.subscription_tier,
-        created_at: profile.created_at,
-        updated_at: profile.updated_at,
-      };
-    } catch (error) {
-      throw error;
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+
+    const profile = await response.json();
+    console.log('[SubscriptionAPI] Using backend API ✅', profile);
+    
+    // Convert profile to FastSpringSubscription format
+    return {
+      id: profile.id,
+      status: profile.subscription_tier === 'free' ? 'free' : 'active',
+      subscription_tier: profile.subscription_tier,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+    };
   }
 
   /**
@@ -331,33 +317,28 @@ class SubscriptionApiService {
     tier: 'free' | 'core' | 'studio',
     accessToken: string
   ): Promise<void> {
-    try {
-      
-      // Use backend API to update subscription tier
-      const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          subscription_tier: tier,
-          subscription_status: status === 'free' ? 'active' : 'active',
-        }),
-      });
+    // Use backend API to update subscription tier
+    const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        subscription_tier: tier,
+        subscription_status: status === 'free' ? 'active' : 'active',
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      console.log('[SubscriptionAPI] Using backend API ✅', { userId, status, tier });
-      
-      // Clear cache since subscription was updated
-      this.clearProfileCache(userId);
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+
+    console.log('[SubscriptionAPI] Using backend API ✅', { userId, status, tier });
+    
+    // Clear cache since subscription was updated
+    this.clearProfileCache(userId);
   }
 
   /**

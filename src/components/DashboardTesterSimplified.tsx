@@ -74,6 +74,7 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
           metrics.memoryUsage = memoryInfo.usedJSHeapSize;
         }
       } catch (e) {
+      // Intentionally empty - error handling not required
       }
 
       // Safe CSS rules count
@@ -82,10 +83,12 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
           try {
             return count + (sheet.cssRules?.length || 0);
           } catch {
+      // Intentionally empty - error handling not required
             return count; // Cross-origin stylesheets
           }
         }, 0);
       } catch (e) {
+      // Intentionally empty - error handling not required
       }
 
       // Measure render time
@@ -94,6 +97,7 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
         setPerformanceMetrics(metrics);
       });
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   };
 

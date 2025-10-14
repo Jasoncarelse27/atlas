@@ -39,6 +39,7 @@ class ResendService {
           const result = await this.resendSingleMessage(message);
           results.push(result);
         } catch (error) {
+      // Intentionally empty - error handling not required
           results.push({
             success: false,
             messageId: message.id,
@@ -51,6 +52,7 @@ class ResendService {
       return results;
 
     } catch (error) {
+      // Intentionally empty - error handling not required
       return [];
     } finally {
       this.isResending = false;
@@ -102,6 +104,7 @@ class ResendService {
       };
 
     } catch (error) {
+      // Intentionally empty - error handling not required
       
       const newRetryCount = currentRetries + 1;
       this.retryAttempts.set(messageId, newRetryCount);
@@ -115,6 +118,7 @@ class ResendService {
           try {
             await this.resendSingleMessage(message);
           } catch (retryError) {
+      // Intentionally empty - error handling not required
           }
         }, delay);
 
@@ -198,6 +202,7 @@ class ResendService {
       return await this.resendSingleMessage(message);
 
     } catch (error) {
+      // Intentionally empty - error handling not required
       return {
         success: false,
         messageId,

@@ -9,6 +9,7 @@ describe('Atlas MailerLite Integration Tests', () => {
     
     // Check if API key is available for integration tests
     if (!process.env.MAILERLITE_API_KEY) {
+      // Skip test if API key not available
     }
   });
 

@@ -166,6 +166,7 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
 
       // Check for cache hits and show savings
       if (data.metadata?.cache?.hit && data.metadata?.cache?.savings) {
+        // Cache savings tracked in metadata
       }
 
       return {
@@ -178,6 +179,7 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
       };
 
     } catch (error) {
+      // Intentionally empty - error handling not required
       return {
         success: false,
         error: {

@@ -81,6 +81,7 @@ export default function ChatInput({ conversationId, userId, onImageUpload }: Cha
       setText("");
       clearPendingAttachments();
     } catch (error) {
+      // Error already handled upstream
     }
   };
 

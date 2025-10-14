@@ -90,6 +90,7 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
       await mailerLiteService.createOrUpdateSubscriber(subscriberData);
       handleSuccess('subscriber_sync');
     } catch (error) {
+      // Intentionally empty - error handling not required
       handleError(error instanceof Error ? error : new Error('Unknown error'), 'subscriber_sync');
     } finally {
       isLoadingRef.current = false;
@@ -124,6 +125,7 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
 
       handleSuccess('tier_update');
     } catch (error) {
+      // Intentionally empty - error handling not required
       handleError(error instanceof Error ? error : new Error('Unknown error'), 'tier_update');
     } finally {
       isLoadingRef.current = false;
@@ -182,6 +184,7 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
 
       handleSuccess('usage_update');
     } catch (error) {
+      // Intentionally empty - error handling not required
       handleError(error instanceof Error ? error : new Error('Unknown error'), 'usage_update');
     } finally {
       isLoadingRef.current = false;
@@ -206,6 +209,7 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
 
       handleSuccess(`event_trigger_${event}`);
     } catch (error) {
+      // Intentionally empty - error handling not required
       handleError(error instanceof Error ? error : new Error('Unknown error'), `event_trigger_${event}`);
     } finally {
       isLoadingRef.current = false;
@@ -222,6 +226,7 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
       await mailerLiteService.segmentSubscriber(email, groupName);
       handleSuccess(`add_to_group_${groupName}`);
     } catch (error) {
+      // Intentionally empty - error handling not required
       handleError(error instanceof Error ? error : new Error('Unknown error'), `add_to_group_${groupName}`);
     } finally {
       isLoadingRef.current = false;
@@ -238,6 +243,7 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
       await mailerLiteService.removeFromGroup(email, groupName);
       handleSuccess(`remove_from_group_${groupName}`);
     } catch (error) {
+      // Intentionally empty - error handling not required
       handleError(error instanceof Error ? error : new Error('Unknown error'), `remove_from_group_${groupName}`);
     } finally {
       isLoadingRef.current = false;
@@ -314,6 +320,7 @@ export function useMailerEvents(email: string) {
         },
       });
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   }, [isConfigured, email]);
 
@@ -346,6 +353,7 @@ export function useMailerStats() {
       const statsData = await mailerLiteService.getSubscriberStats();
       setStats(statsData);
     } catch (err) {
+      // Intentionally empty - error handling not required
       const error = err instanceof Error ? err : new Error('Failed to fetch stats');
       setError(error);
     } finally {

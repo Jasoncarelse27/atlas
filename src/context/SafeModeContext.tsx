@@ -17,6 +17,7 @@ export const SafeModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const saved = localStorage.getItem('atlas-safemode');
       return saved ? JSON.parse(saved) : false;
     } catch {
+      // Intentionally empty - error handling not required
       return false;
     }
   });
@@ -28,6 +29,7 @@ export const SafeModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         localStorage.setItem('atlas-safemode', JSON.stringify(newValue));
       } catch (error) {
+      // Intentionally empty - error handling not required
       }
       return newValue;
     });

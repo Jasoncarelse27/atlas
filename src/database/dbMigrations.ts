@@ -38,10 +38,12 @@ export async function runMigrations() {
       })
       console.log(`[DB MIGRATION] Default conversation created ✅ – "${id}"`)
     } else {
+      // Conversation already exists
     }
 
     console.log("[DB MIGRATION] Completed successfully ✅")
   } catch (err) {
+      // Intentionally empty - error handling not required
   } finally {
     migrationLock = false
   }

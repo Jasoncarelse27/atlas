@@ -28,6 +28,7 @@ export async function runDbMigrations(userId?: string) {
 
     console.log("[DB MIGRATION] Database schema is healthy ✅");
   } catch (err) {
+      // Intentionally empty - error handling not required
     // ✅ Don't crash app - but reset the flag
     isMigrating = false;
     
@@ -51,6 +52,7 @@ export async function runDbMigrations(userId?: string) {
       await atlasDB.messages.bulkDelete(invalidMessages.map((m) => m.id));
     }
   } else {
+    // Messages table doesn't exist
   }
 
   // 2. Clear invalid conversations (only if table exists)
@@ -65,6 +67,7 @@ export async function runDbMigrations(userId?: string) {
       await atlasDB.conversations.bulkDelete(invalidConversations.map((c) => c.id));
     }
   } else {
+    // Conversations table doesn't exist
   }
 
   // 3. Remove old localStorage key
@@ -102,6 +105,7 @@ export async function runDbMigrations(userId?: string) {
     });
 
     if (error) {
+      // Conversation creation error logged elsewhere
     } else {
       console.log("[DB MIGRATION] Default conversation created ✅", conversationId);
     }

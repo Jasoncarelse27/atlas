@@ -141,6 +141,7 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
       try {
         setWidgets(JSON.parse(savedWidgets));
       } catch (error) {
+      // Intentionally empty - error handling not required
       }
     }
   }, [user.id]);

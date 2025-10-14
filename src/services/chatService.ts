@@ -19,43 +19,39 @@ export async function sendAttachmentMessage(
   userId: string,
   attachments: Array<{ type: string; url?: string; text?: string }>
 ) {
-  try {
-    // Get JWT token for authentication
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || 'mock-token-for-development';
+  // Get JWT token for authentication
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || 'mock-token-for-development';
 
-    // Get user's tier for the request
-    const currentTier = await subscriptionApi.getUserTier(userId, token);
-    
-    // Send to backend - use relative URL for mobile compatibility
-    // This ensures mobile devices use the Vite proxy instead of direct localhost calls
-    const messageEndpoint = '/message';
-    
-    const response = await fetch(messageEndpoint, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ 
-        message: "Please analyze these attachments",
-        userId: userId,
-        tier: currentTier,
-        attachments: attachments
-      }),
-    });
+  // Get user's tier for the request
+  const currentTier = await subscriptionApi.getUserTier(userId, token);
+  
+  // Send to backend - use relative URL for mobile compatibility
+  // This ensures mobile devices use the Vite proxy instead of direct localhost calls
+  const messageEndpoint = '/message';
+  
+  const response = await fetch(messageEndpoint, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({ 
+      message: "Please analyze these attachments",
+      userId: userId,
+      tier: currentTier,
+      attachments: attachments
+    }),
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(`Backend error: ${errorData.error || response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    return data;
-  } catch (error) {
-    throw error;
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(`Backend error: ${errorData.error || response.statusText}`);
   }
+
+  const data = await response.json();
+  
+  return data;
 }
 
 export const chatService = {
@@ -222,11 +218,51 @@ export const chatService = {
   },
 
   handleFileMessage: async (message: Message, onComplete?: () => void) => {
-    try {
-      // Message management is handled by the calling component
+    // Message management is handled by the calling component
+    
+    // Handle messages with attachments (new multi-attachment support)
+    if (message.attachments && message.attachments.length > 0) {
       
-      // Handle messages with attachments (new multi-attachment support)
-      if (message.attachments && message.attachments.length > 0) {
+      // Get user info for the request
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || 'mock-token-for-development';
+      
+      // Get user ID from session
+      const actualUserId = session?.user?.id || 'anonymous';
+      
+      // Get user's tier for the request
+      const imageTier = await subscriptionApi.getUserTier(actualUserId, token);
+      
+      // Send multi-attachment analysis request to backend
+      const response = await fetch('/message', {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          message: "Please analyze these attachments",
+          tier: imageTier,
+          attachments: message.attachments // Send attachments array
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Log response - message management handled by calling component
+        }
+      } else {
+        logger.error('[ChatService] Image analysis request failed:', response.status);
+      }
+    }
+    // Legacy: Handle single image messages
+    else if (message.type === 'image') {
+      // Get the image URL - check content (string) or metadata.url
+      const imageUrl = message.metadata?.url || 
+                      (typeof message.content === 'string' && message.content.startsWith('http') ? message.content : null);
+      
+      if (imageUrl) {
         
         // Get user info for the request
         const { data: { session } } = await supabase.auth.getSession();
@@ -238,81 +274,37 @@ export const chatService = {
         // Get user's tier for the request
         const imageTier = await subscriptionApi.getUserTier(actualUserId, token);
         
-        // Send multi-attachment analysis request to backend
-        const response = await fetch('/message', {
+        // Send image analysis request to backend
+        const requestBody = { 
+          message: "Please analyze this image",
+          tier: imageTier,
+          imageUrl: imageUrl // Send image URL for analysis
+        };
+        
+        const response = await fetch(`/message`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
           },
-          body: JSON.stringify({ 
-            message: "Please analyze these attachments",
-            tier: imageTier,
-            attachments: message.attachments // Send attachments array
-          }),
+          body: JSON.stringify(requestBody),
         });
 
+        
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
             // Log response - message management handled by calling component
           }
         } else {
-          logger.error('[ChatService] Image analysis request failed:', response.status);
+          const _errorText = await response.text();
+          // Log error - message management handled by calling component
         }
       }
-      // Legacy: Handle single image messages
-      else if (message.type === 'image') {
-        // Get the image URL - check content (string) or metadata.url
-        const imageUrl = message.metadata?.url || 
-                        (typeof message.content === 'string' && message.content.startsWith('http') ? message.content : null);
-        
-        if (imageUrl) {
-          
-          // Get user info for the request
-          const { data: { session } } = await supabase.auth.getSession();
-          const token = session?.access_token || 'mock-token-for-development';
-          
-          // Get user ID from session
-          const actualUserId = session?.user?.id || 'anonymous';
-          
-          // Get user's tier for the request
-          const imageTier = await subscriptionApi.getUserTier(actualUserId, token);
-          
-          // Send image analysis request to backend
-          const requestBody = { 
-            message: "Please analyze this image",
-            tier: imageTier,
-            imageUrl: imageUrl // Send image URL for analysis
-          };
-          
-          const response = await fetch(`/message`, {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify(requestBody),
-          });
-
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-              // Log response - message management handled by calling component
-            }
-          } else {
-            const _errorText = await response.text();
-            // Log error - message management handled by calling component
-          }
-        }
-      }
-
-      // Call completion callback
-      onComplete?.();
-    } catch (error) {
-      throw error;
     }
+
+    // Call completion callback
+    onComplete?.();
   }
 };
 

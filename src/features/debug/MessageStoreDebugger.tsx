@@ -19,6 +19,7 @@ export default function MessageStoreDebugger() {
       setMessageCount(messages);
       setConversationCount(conversations);
     } catch (error) {
+      // Intentionally empty - error handling not required
     } finally {
       setIsLoading(false);
     }
@@ -51,6 +52,7 @@ export default function MessageStoreDebugger() {
       
       console.log('✅ Dexie data exported successfully');
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   };
 
@@ -62,6 +64,7 @@ export default function MessageStoreDebugger() {
         await refreshStats();
         console.log('✅ Database cleared successfully');
       } catch (error) {
+      // Intentionally empty - error handling not required
       }
     }
   };

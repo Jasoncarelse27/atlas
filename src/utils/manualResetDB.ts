@@ -41,6 +41,7 @@ export const manualResetDB = async () => {
     setTimeout(() => window.location.reload(), 1000);
     
   } catch (error) {
+      // Intentionally empty - error handling not required
   }
 };
 

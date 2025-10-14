@@ -8,5 +8,6 @@ export function safeToast(message: string, type: "success" | "error" = "success"
       toast.error(message);
     }
   } catch (err) {
+      // Intentionally empty - error handling not required
   }
 }

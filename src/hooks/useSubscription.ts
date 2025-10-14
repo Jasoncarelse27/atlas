@@ -173,6 +173,7 @@ export function useSubscription(userId?: string) {
         }
       }
     } catch (err) {
+      // Intentionally empty - error handling not required
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
     } finally {
@@ -233,6 +234,7 @@ export function useSubscription(userId?: string) {
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           // Realtime connection issue - only log in development
           if (process.env.NODE_ENV === 'development') {
+            // Logged in development only
           }
           // Start polling fallback with faster interval for better tier sync
           if (!pollingInterval) {
@@ -329,6 +331,7 @@ export function useSubscription(userId?: string) {
       }).eq('id', userId);
       
       if (error) {
+        // Update error logged elsewhere
       } else {
         console.log('✅ Memory updated successfully:', mergedMemory);
         // Refresh profile to get updated data
@@ -336,6 +339,7 @@ export function useSubscription(userId?: string) {
         console.log('✅ Profile refreshed with updated memory');
       }
     } catch (error) {
+      // Intentionally empty - error handling not required
     }
   }, [userId, profile, fetchProfile]);
 

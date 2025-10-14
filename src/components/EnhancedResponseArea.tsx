@@ -88,6 +88,7 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
       }
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
+      // Clipboard operation failure is non-critical
     }
   };
 
@@ -127,6 +128,7 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
           onSoundPlay('success');
         }
       } catch (err) {
+        // Clipboard write failure is non-critical
       }
     } else {
       copyToClipboard(response);

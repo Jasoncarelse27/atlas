@@ -43,6 +43,7 @@ const ConversationFooter: React.FC<ConversationFooterProps> = ({
       
       if (onSoundPlay) onSoundPlay('success');
     } catch (error) {
+      // Intentionally empty - error handling not required
     } finally {
       setIsExporting(false);
     }
@@ -74,6 +75,7 @@ const ConversationFooter: React.FC<ConversationFooterProps> = ({
         
         if (onSoundPlay) onSoundPlay('success');
       } catch (error) {
+      // Intentionally empty - error handling not required
         if (onSoundPlay) onSoundPlay('error');
       } finally {
         setIsImporting(false);

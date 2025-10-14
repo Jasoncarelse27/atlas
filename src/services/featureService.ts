@@ -54,9 +54,12 @@ export function useFeatureService() {
       });
 
       if (!response.ok) {
+        // Feature flag log error is non-critical
       } else {
+        // Feature flag logged successfully
       }
     } catch (err) {
+      // Intentionally empty - error handling not required
     }
   }
 
@@ -88,8 +91,10 @@ export class FeatureService {
       });
 
       if (!response.ok) {
+        // Feature attempt log error is non-critical
       }
     } catch (err) {
+      // Intentionally empty - error handling not required
     }
   }
 }

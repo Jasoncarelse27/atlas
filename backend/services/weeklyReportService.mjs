@@ -8,76 +8,68 @@ import { supabase } from '../lib/supabase.js';
  * Generate CSV data for a date range
  */
 async function generateReportCSV(startDate, endDate) {
-  try {
-    const { data, error } = await supabase
-      .from('tier_usage_snapshots')
-      .select(`
-        snapshot_date,
-        email,
-        tier,
-        message_count,
-        cost_accumulated,
-        daily_limit,
-        budget_ceiling,
-        status,
-        created_at
-      `)
-      .gte('snapshot_date', startDate)
-      .lte('snapshot_date', endDate)
-      .order('snapshot_date', { ascending: false })
-      .order('email', { ascending: true });
+  const { data, error } = await supabase
+    .from('tier_usage_snapshots')
+    .select(`
+      snapshot_date,
+      email,
+      tier,
+      message_count,
+      cost_accumulated,
+      daily_limit,
+      budget_ceiling,
+      status,
+      created_at
+    `)
+    .gte('snapshot_date', startDate)
+    .lte('snapshot_date', endDate)
+    .order('snapshot_date', { ascending: false })
+    .order('email', { ascending: true });
 
-    if (error) throw error;
+  if (error) throw error;
 
-    // Convert to CSV
-    const headers = [
-      'snapshot_date',
-      'email',
-      'tier',
-      'message_count',
-      'cost_accumulated',
-      'daily_limit',
-      'budget_ceiling',
-      'status',
-      'created_at'
-    ];
+  // Convert to CSV
+  const headers = [
+    'snapshot_date',
+    'email',
+    'tier',
+    'message_count',
+    'cost_accumulated',
+    'daily_limit',
+    'budget_ceiling',
+    'status',
+    'created_at'
+  ];
 
-    const csvRows = [
-      headers.join(','),
-      ...(data || []).map(row => 
-        headers.map(header => {
-          const value = row[header];
-          const stringValue = value?.toString() || '';
-          return stringValue.includes(',') || stringValue.includes('"') 
-            ? `"${stringValue.replace(/"/g, '""')}"` 
-            : stringValue;
-        }).join(',')
-      )
-    ];
+  const csvRows = [
+    headers.join(','),
+    ...(data || []).map(row => 
+      headers.map(header => {
+        const value = row[header];
+        const stringValue = value?.toString() || '';
+        return stringValue.includes(',') || stringValue.includes('"') 
+          ? `"${stringValue.replace(/"/g, '""')}"` 
+          : stringValue;
+      }).join(',')
+    )
+  ];
 
-    return csvRows.join('\n');
-  } catch (error) {
-    throw error;
-  }
+  return csvRows.join('\n');
 }
 
 /**
  * Store CSV report in Supabase Storage
  */
 async function storeReportCSV(csv, filename) {
-  try {
-    const { data, error } = await supabase.storage
-      .from('reports')
-      .upload(`weekly/${filename}`, csv, {
-        contentType: 'text/csv',
-        upsert: true
-      });
+  const { data, error } = await supabase.storage
+    .from('reports')
+    .upload(`weekly/${filename}`, csv, {
+      contentType: 'text/csv',
+      upsert: true
+    });
 
-    if (error) throw error;
-    return data.path;
-  } catch (error) {
-    throw error;
-  }
+  if (error) throw error;
+  return data.path;
 }
 
 /**
