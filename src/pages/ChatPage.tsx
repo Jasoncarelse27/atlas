@@ -11,10 +11,10 @@ import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 import type { Message } from '../types/chat';
 // Removed usePersistentMessages import - using direct message management instead
-import CacheMonitoringDashboard from '../components/CacheMonitoringDashboard';
 import { atlasDB } from '../database/atlasDB';
 import { useSubscription } from '../hooks/useSubscription';
 import ErrorBoundary from '../lib/errorBoundary';
+import { logger } from '../lib/logger';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
 import { databaseMigration } from '../services/databaseMigration';
@@ -28,6 +28,7 @@ import InsightsWidget from '../components/sidebar/InsightsWidget';
 import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
+import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 
 interface ChatPageProps {
   user?: any;
@@ -57,6 +58,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // Subscription management
   useSubscription(userId || undefined);
+
+  // ✅ ENTERPRISE: Real-time conversation deletion listener (clean, reliable)
+  useRealtimeConversations(userId || undefined);
 
   // Handle history modal from QuickActions
   const handleViewHistory = (data: {
@@ -365,6 +369,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       supabase.removeChannel(subscription);
     };
   }, [userId, conversationId]);
+
+  // ✅ ENTERPRISE: Handle redirect when current conversation is deleted
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const handleConversationDeleted = (event: CustomEvent) => {
+      const deletedId = event.detail.conversationId;
+      if (conversationId === deletedId) {
+        logger.debug('[ChatPage] 🔄 Redirecting to new chat (current conversation deleted)');
+        window.location.href = '/chat';
+      }
+    };
+
+    window.addEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+    
+    return () => {
+      window.removeEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+    };
+  }, [conversationId]);
 
   // 💎 PREMIUM: Initialize conversation with registry cleanup
   useEffect(() => {
@@ -828,8 +851,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           limit={limit}
         />
 
-        {/* Cache Monitoring Dashboard */}
-        <CacheMonitoringDashboard />
 
         {/* Conversation History Modal - Rendered at page level for proper mobile centering */}
         {historyData && (

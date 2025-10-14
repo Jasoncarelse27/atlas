@@ -1,4 +1,5 @@
 import { atlasDB } from '../database/atlasDB';
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 
 // Define proper types for Supabase responses
@@ -26,7 +27,6 @@ export interface ConversationSyncData {
   title: string;
   createdAt: string;
   updatedAt: string;
-  deletedAt?: string; // For soft deletes
 }
 
 export interface MessageSyncData {
@@ -39,7 +39,6 @@ export interface MessageSyncData {
   timestamp: string;
   synced: boolean;
   updatedAt: string;
-  deletedAt?: string; // For soft deletes
 }
 
 /**
@@ -62,17 +61,16 @@ export class ConversationSyncService {
    */
   async syncConversationsFromRemote(userId: string): Promise<void> {
     try {
-      console.log('[ConversationSync] Syncing conversations from remote...');
+      logger.debug('[ConversationSync] Syncing conversations from remote...');
       
       const { data: remoteConversations, error } = await supabase
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
-        .is('deleted_at', null)  // ✅ Only fetch non-deleted conversations
         .order('updated_at', { ascending: false }) as { data: SupabaseConversation[] | null; error: any };
 
       if (error) {
-        console.error('[ConversationSync] Failed to fetch remote conversations:', error);
+        logger.error('[ConversationSync] Failed to fetch remote conversations:', error);
         return;
       }
 
@@ -90,34 +88,28 @@ export class ConversationSyncService {
             userId: remoteConv.user_id,
             title: remoteConv.title,
             createdAt: remoteConv.created_at,
-            updatedAt: remoteConv.updated_at,
-            deletedAt: undefined // New conversations are not deleted
+            updatedAt: remoteConv.updated_at
           });
-          console.log('[ConversationSync] ✅ Added conversation:', remoteConv.id, 'title:', remoteConv.title);
+          logger.debug('[ConversationSync] ✅ Added conversation:', remoteConv.id, 'title:', remoteConv.title);
         } else if (new Date(remoteConv.updated_at) > new Date(localConv.updatedAt)) {
-          // ✅ Check if it was soft-deleted locally
-          if (localConv.deletedAt) {
-            console.log('[ConversationSync] ⚠️ Conversation was deleted locally - skipping update:', remoteConv.id);
-            continue;
-          }
+          // ✅ Update conversation (no soft delete check needed since we use hard delete)
           
           // Update existing conversation
           await atlasDB.conversations.update(remoteConv.id, {
             title: remoteConv.title,
             updatedAt: remoteConv.updated_at,
-            deletedAt: undefined // Ensure it's not marked as deleted
           });
-          console.log('[ConversationSync] ✅ Updated conversation:', remoteConv.id);
+          logger.debug('[ConversationSync] ✅ Updated conversation:', remoteConv.id);
         }
       }
 
       // ✅ CONSERVATIVE SYNC: Don't delete local conversations that don't exist remotely
       // This prevents accidental deletion of conversations that haven't synced yet
-      console.log('[ConversationSync] ✅ Preserving local conversations - no remote deletion');
+      logger.debug('[ConversationSync] ✅ Preserving local conversations - no remote deletion');
 
-      console.log('[ConversationSync] ✅ Conversation sync completed');
+      logger.debug('[ConversationSync] ✅ Conversation sync completed');
     } catch (error) {
-      console.error('[ConversationSync] ❌ Conversation sync failed:', error);
+      logger.error('[ConversationSync] ❌ Conversation sync failed:', error);
     }
   }
 
@@ -126,7 +118,7 @@ export class ConversationSyncService {
    */
   async syncMessagesFromRemote(conversationId: string, _userId: string): Promise<void> {
     try {
-      console.log('[ConversationSync] Syncing messages for conversation:', conversationId);
+      logger.debug('[ConversationSync] Syncing messages for conversation:', conversationId);
       
       const { data: remoteMessages, error } = await supabase
         .from('messages')
@@ -135,7 +127,7 @@ export class ConversationSyncService {
         .order('created_at', { ascending: true }) as { data: SupabaseMessage[] | null; error: any };
 
       if (error) {
-        console.error('[ConversationSync] Failed to fetch remote messages:', error);
+        logger.error('[ConversationSync] Failed to fetch remote messages:', error);
         return;
       }
 
@@ -150,7 +142,7 @@ export class ConversationSyncService {
       for (const remoteMsg of remoteMessages || []) {
         // ✅ CRITICAL: Skip messages with invalid userId
         if (!remoteMsg.user_id || remoteMsg.user_id === 'anonymous') {
-          console.warn('[ConversationSync] ⚠️ Skipping message with invalid userId:', remoteMsg.id);
+          logger.warn('[ConversationSync] ⚠️ Skipping message with invalid userId:', remoteMsg.id);
           continue;
         }
         
@@ -169,15 +161,15 @@ export class ConversationSyncService {
             synced: true,
             updatedAt: remoteMsg.created_at
           });
-          console.log('[ConversationSync] ✅ Added missing message:', remoteMsg.id);
+          logger.debug('[ConversationSync] ✅ Added missing message:', remoteMsg.id);
         } else {
-          console.log('[ConversationSync] ⚠️ Message already exists, skipping:', remoteMsg.id);
+          logger.debug('[ConversationSync] ⚠️ Message already exists, skipping:', remoteMsg.id);
         }
       }
 
-      console.log('[ConversationSync] ✅ Message sync completed for conversation:', conversationId);
+      logger.debug('[ConversationSync] ✅ Message sync completed for conversation:', conversationId);
     } catch (error) {
-      console.error('[ConversationSync] ❌ Message sync failed:', error);
+      logger.error('[ConversationSync] ❌ Message sync failed:', error);
     }
   }
 
@@ -186,12 +178,12 @@ export class ConversationSyncService {
    */
   async pushLocalChangesToRemote(_userId: string): Promise<void> {
     if (this.syncInProgress) {
-      console.log('[ConversationSync] Sync already in progress, skipping...');
+      logger.debug('[ConversationSync] Sync already in progress, skipping...');
       return;
     }
 
     this.syncInProgress = true;
-    console.log('[ConversationSync] Pushing local changes to remote...');
+    logger.debug('[ConversationSync] Pushing local changes to remote...');
 
     try {
       // Push unsynced conversations
@@ -278,7 +270,6 @@ export class ConversationSyncService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
-        .is('deleted_at', null)  // ✅ Only fetch non-deleted conversations
         .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
         .order('updated_at', { ascending: false })
         .limit(100) as { data: any[] | null; error: any };  // ← PAGINATION
@@ -297,10 +288,7 @@ export class ConversationSyncService {
         
         if (localExists) {
           // ✅ Check if it was soft-deleted locally
-          if (localExists.deletedAt) {
-            console.log('[ConversationSync] ⚠️ Conversation was deleted locally - skipping:', conv.id);
-            continue;
-          }
+          // Update existing conversation (no soft delete check needed)
           
           // Update existing conversation
           await atlasDB.conversations.put({
@@ -309,7 +297,6 @@ export class ConversationSyncService {
             title: conv.title,
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
-            deletedAt: undefined // Ensure it's not marked as deleted
           });
           console.log('[ConversationSync] ✅ Updated existing conversation:', conv.id);
         } else {
@@ -320,7 +307,6 @@ export class ConversationSyncService {
             title: conv.title,
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
-            deletedAt: undefined // New conversations are not deleted
           });
           console.log('[ConversationSync] ✅ Added new conversation:', conv.id, 'title:', conv.title);
         }
@@ -495,34 +481,7 @@ export class ConversationSyncService {
     await this.deltaSync(userId);
   }
 
-  /**
-   * Delete conversation (soft delete)
-   */
-  async deleteConversation(conversationId: string, userId: string): Promise<void> {
-    try {
-      console.log('[ConversationSync] Soft deleting conversation:', conversationId);
-      
-      const deletedAt = new Date().toISOString();
-
-      // Soft delete from remote using RPC
-      const { error } = await supabase.rpc('delete_conversation_soft' as any, {
-        p_user: userId,
-        p_conversation: conversationId
-      } as any);
-
-      if (error) {
-        console.error('[ConversationSync] Failed to soft delete conversation from remote:', error);
-      }
-
-      // Soft delete from local (set deletedAt timestamp)
-      await atlasDB.conversations.update(conversationId, { deletedAt });
-      await atlasDB.messages.where('conversationId').equals(conversationId).modify({ deletedAt });
-      
-      console.log('[ConversationSync] ✅ Conversation soft deleted:', conversationId);
-    } catch (error) {
-      console.error('[ConversationSync] ❌ Failed to soft delete conversation:', error);
-    }
-  }
+  // Note: deleteConversation method removed - use conversationDeleteService.ts for all deletions
 }
 
 export const conversationSyncService = ConversationSyncService.getInstance();

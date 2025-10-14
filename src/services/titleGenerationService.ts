@@ -9,6 +9,7 @@
  * 100% reliable with fallbacks at every step
  */
 
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 
 export type UserTier = 'free' | 'core' | 'studio';
@@ -47,7 +48,7 @@ export async function generateConversationTitle(options: TitleGenerationOptions)
         return generateFreeTierTitle(message);
     }
   } catch (error) {
-    console.error('[TitleGen] ❌ Title generation failed:', error);
+    logger.error('[TitleGen] ❌ Title generation failed:', error);
     // ✅ Always fallback to basic title
     return generateFreeTierTitle(message);
   }
@@ -191,7 +192,7 @@ export async function updateConversationTitle(
     ];
     
     if (existing && !genericTitles.some(generic => existing.title?.startsWith(generic))) {
-      console.log('[TitleGen] ✅ Conversation already has title:', existing.title);
+      logger.debug('[TitleGen] ✅ Conversation already has title:', existing.title);
       return true;
     }
     
@@ -206,15 +207,15 @@ export async function updateConversationTitle(
       .eq('user_id', userId);
     
     if (error) {
-      console.error('[TitleGen] ❌ Failed to update title:', error);
+      logger.error('[TitleGen] ❌ Failed to update title:', error);
       return false;
     }
     
-    console.log('[TitleGen] ✅ Updated conversation title:', title);
+    logger.debug('[TitleGen] ✅ Updated conversation title:', title);
     return true;
     
   } catch (error) {
-    console.error('[TitleGen] ❌ Update title error:', error);
+    logger.error('[TitleGen] ❌ Update title error:', error);
     return false;
   }
 }

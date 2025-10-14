@@ -71,3 +71,5 @@ BEGIN
   RAISE NOTICE '📝 DELETE events will now broadcast via real-time';
   RAISE NOTICE '🔓 No deleted_at filtering - clean hard delete only';
 END$$;
+
+

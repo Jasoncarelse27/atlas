@@ -106,7 +106,10 @@ export function ConversationHistoryDrawer({
                 conversations.map((conv, index) => (
                   <div
                     key={conv.id}
-                    className="group relative bg-gradient-to-br from-gray-800/80 to-gray-800/60 backdrop-blur-sm p-3.5 md:p-4 rounded-xl hover:from-gray-700/80 hover:to-gray-700/60 active:scale-[0.98] transition-all duration-200 cursor-pointer border border-gray-700/50 hover:border-gray-600/50 shadow-md hover:shadow-lg"
+                    className={`
+                      group relative bg-gradient-to-br from-gray-800/80 to-gray-800/60 backdrop-blur-sm p-3.5 md:p-4 rounded-xl hover:from-gray-700/80 hover:to-gray-700/60 active:scale-[0.98] transition-all duration-300 cursor-pointer border border-gray-700/50 hover:border-gray-600/50 shadow-md hover:shadow-lg
+                      ${deletingId === conv.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}
+                    `}
                     onClick={() => {
                       onClose();
                       window.location.href = `/chat?conversation=${conv.id}`;
@@ -131,7 +134,7 @@ export function ConversationHistoryDrawer({
                           </svg>
                           <span className="truncate">{(() => {
                             // ✅ BULLETPROOF DATE HANDLING - Handle both Dexie and Supabase formats
-                            const dateField = conv.updated_at || conv.updatedAt || conv.created_at || conv.createdAt;
+                            const dateField = conv.updated_at || conv.created_at;
                             if (!dateField) return 'Invalid Date';
                             
                             try {

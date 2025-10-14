@@ -3,7 +3,7 @@
  * Integrates Redis caching with Supabase queries for 40% performance improvement
  */
 
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { redisCacheService } from './redisCacheService';
 
 interface UserProfile {
@@ -60,7 +60,7 @@ class CachedDatabaseService {
 
       // Cache the result
       if (profile) {
-        await redisCacheService.cacheUserProfile(userId, profile, profile.tier || 'free');
+        await redisCacheService.cacheUserProfile(userId, profile, (profile as any).tier || 'free');
         console.log('[CachedDB] ✅ User profile cached');
       }
 
@@ -89,7 +89,6 @@ class CachedDatabaseService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
-        .is('deleted_at', null)  // ✅ Only fetch non-deleted conversations
         .order('updated_at', { ascending: false })
         .limit(limit);
 
@@ -160,7 +159,7 @@ class CachedDatabaseService {
         .insert({
           user_id: userId,
           title: title
-        })
+        } as any)
         .select()
         .single();
 
@@ -197,7 +196,7 @@ class CachedDatabaseService {
           user_id: userId,
           role: role,
           content: content
-        })
+        } as any)
         .select()
         .single();
 
@@ -222,12 +221,12 @@ class CachedDatabaseService {
    */
   async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
     try {
-      const { data: profile, error } = await supabase
+      const { data: profile, error } = await (supabase
         .from('user_profiles')
-        .update(updates)
+        .update(updates as any)
         .eq('id', userId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) {
         console.error('[CachedDB] ❌ Error updating user profile:', error);
@@ -245,35 +244,7 @@ class CachedDatabaseService {
     }
   }
 
-  /**
-   * Delete conversation with cache invalidation (soft delete)
-   */
-  async deleteConversation(conversationId: string, userId: string): Promise<boolean> {
-    try {
-      // Soft delete conversation and messages using RPC
-      const { error } = await supabase.rpc('delete_conversation_soft' as any, {
-        p_user: userId,
-        p_conversation: conversationId
-      } as any);
-
-      if (error) {
-        console.error('[CachedDB] ❌ Error soft deleting conversation:', error);
-        return false;
-      }
-
-      // Invalidate all related caches
-      await Promise.all([
-        redisCacheService.invalidateUserCache(userId, 'core'),
-        redisCacheService.invalidateConversationCache(conversationId, 'core')
-      ]);
-
-      console.log('[CachedDB] ✅ Conversation soft deleted and caches invalidated');
-      return true;
-    } catch (error) {
-      console.error('[CachedDB] ❌ Error in deleteConversation:', error);
-      return false;
-    }
-  }
+  // Note: deleteConversation method removed - use conversationDeleteService.ts for all deletions
 
   /**
    * Get cache statistics

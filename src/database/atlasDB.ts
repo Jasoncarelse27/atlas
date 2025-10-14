@@ -6,7 +6,6 @@ export interface Conversation {
   title: string
   createdAt: string
   updatedAt: string
-  deletedAt?: string  // Soft delete timestamp
 }
 
 export interface Message {
@@ -19,7 +18,6 @@ export interface Message {
   timestamp: string
   synced?: boolean
   updatedAt?: string
-  deletedAt?: string  // Soft delete timestamp
 }
 
 export interface SyncMetadata {
@@ -34,7 +32,7 @@ export class AtlasDB extends Dexie {
   syncMetadata!: Table<SyncMetadata, string>
 
   constructor() {
-    super("AtlasDB_v5") // ✅ Version 5: Soft delete support
+    super("AtlasDB_v6") // ✅ Version 6: Simplified hard delete only
 
     // Version 4: Delta sync schema (keep for migration)
     this.version(4).stores({
@@ -43,14 +41,13 @@ export class AtlasDB extends Dexie {
       syncMetadata: "userId, lastSyncedAt, syncVersion"
     })
 
-    // ✅ Version 5: Add soft delete support
+    // Version 5: Add soft delete support (keep for migration)
     this.version(5).stores({
       conversations: "id, userId, title, createdAt, updatedAt, deletedAt",
       messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt, deletedAt",
       syncMetadata: "userId, lastSyncedAt, syncVersion"
     }).upgrade(tx => {
-      // Migration: Set deletedAt to null for all existing records
-      console.log('[AtlasDB] Migrating to v5: Adding soft delete support');
+      // Migration to v5: Adding soft delete support (kept for compatibility)
       return Promise.all([
         tx.table('conversations').toCollection().modify(conversation => {
           if (!conversation.deletedAt) {
@@ -63,6 +60,16 @@ export class AtlasDB extends Dexie {
           }
         })
       ]);
+    })
+
+    // ✅ Version 6: Simplified hard delete only - remove soft delete fields
+    this.version(6).stores({
+      conversations: "id, userId, title, createdAt, updatedAt",
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt",
+      syncMetadata: "userId, lastSyncedAt, syncVersion"
+    }).upgrade(() => {
+      // Migration to v6: Removing soft delete support - using hard delete only
+      // No migration needed - soft delete fields will be ignored
     })
   }
 }

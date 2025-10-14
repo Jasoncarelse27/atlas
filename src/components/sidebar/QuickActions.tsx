@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { atlasDB } from '../../database/atlasDB';
-import { useUpgradeFlow } from '../../hooks/useUpgradeFlow';
+import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { deleteConversation } from '../../services/conversationDeleteService';
 import { generateUUID } from '../../utils/uuid';
@@ -15,18 +15,73 @@ interface QuickActionsProps {
 
 export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const { openUpgradeModal } = useUpgradeFlow();
+  const [conversations, setConversations] = useState<any[]>([]); // State for UI updates
+
+  // ✅ ENTERPRISE: Listen for real-time deletion events
+  useEffect(() => {
+    const handleConversationDeleted = async (event: CustomEvent) => {
+      logger.debug('[QuickActions] 🔔 Real-time deletion event received:', event.detail.conversationId);
+      
+      // Refresh conversation list immediately
+      await refreshConversationList();
+    };
+
+    window.addEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+    
+    return () => {
+      window.removeEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+    };
+  }, []);
+
+  const refreshConversationList = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const PAGE_SIZE = 20;
+      const localConversations = await atlasDB.conversations
+        .orderBy('updatedAt')
+        .reverse()
+        .limit(PAGE_SIZE * 2)
+        .toArray();
+      
+      const activeConversations = localConversations.slice(0, PAGE_SIZE);
+      
+      const mappedConversations = activeConversations.map(conv => ({
+        id: conv.id,
+        title: conv.title,
+        created_at: conv.createdAt,
+        updated_at: conv.updatedAt,
+        user_id: conv.userId
+      }));
+      
+      setConversations(mappedConversations);
+      
+      // Update modal if it's open
+      if (onViewHistory) {
+        onViewHistory({
+          conversations: mappedConversations,
+          onDeleteConversation: handleDeleteConversation,
+          deletingId: null
+        });
+      }
+      
+      logger.debug('[QuickActions] ✅ Conversation list refreshed after real-time deletion');
+    } catch (error) {
+      logger.error('[QuickActions] ❌ Failed to refresh conversation list:', error);
+    }
+  };
 
   const handleNewChat = async () => {
-    console.log('[QuickActions] Starting new chat...');
+    logger.debug('[QuickActions] Starting new chat...');
     
     // ✅ Create new conversation ID (browser-compatible)
     const newConversationId = generateUUID();
-    console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
+    logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
     
     // ✅ Navigate to new chat with new conversation ID
     const newChatUrl = `/chat?conversation=${newConversationId}`;
-    console.log('[QuickActions] ✅ Navigating to:', newChatUrl);
+    logger.debug('[QuickActions] ✅ Navigating to:', newChatUrl);
     
     // ✅ Navigate to new chat
     window.location.href = newChatUrl;
@@ -36,29 +91,54 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('[QuickActions] No authenticated user - cannot load history');
+        logger.debug('[QuickActions] No authenticated user - cannot load history');
         return;
       }
 
-      console.log('[QuickActions] Loading conversations for user:', user.id);
+      logger.debug('[QuickActions] Loading conversations for user:', user.id);
       
-      // ✅ FAST HISTORY LOAD: Load directly from local Dexie (background sync keeps it updated)
-      console.log('[QuickActions] 🚀 Loading conversation history from local Dexie...');
+      await refreshConversationList();
       
-      // ✅ Load from local Dexie (background sync keeps it up-to-date)
-      const PAGE_SIZE = 20;  // Load 20 conversations at a time
+      logger.debug('[QuickActions] ✅ View History loaded instantly - background sync keeps data fresh');
+    } catch (err) {
+      logger.error('[QuickActions] Failed to load history:', err);
+    }
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    // Simple confirmation dialog
+    if (!confirm('Delete Conversation\n\nAre you sure you want to delete this conversation? This cannot be undone.')) {
+      return;
+    }
+
+    // ✅ Set loading state - show spinner on delete button
+    setDeletingId(conversationId);
+    
+    try {
+      // ✅ Get authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
+
+      // ✅ Delete from database (both Supabase and local Dexie)
+      const result = await deleteConversation(conversationId, user.id);
+      
+      logger.debug(`[QuickActions] ✅ ${result.message}`);
+      
+      // ✅ RELOAD CONVERSATION LIST FROM DATABASE (always accurate)
+      // This ensures UI shows exactly what's in the database
+      const PAGE_SIZE = 20;
       const localConversations = await atlasDB.conversations
         .orderBy('updatedAt')
         .reverse()
-        .limit(PAGE_SIZE * 2)  // Load extra to account for deleted ones
+        .limit(PAGE_SIZE * 2)
         .toArray();
       
-      // ✅ Filter out deleted conversations
-      const activeConversations = localConversations
-        .filter(conv => !conv.deletedAt)
-        .slice(0, PAGE_SIZE);
+      // Use all conversations (hard delete means deleted conversations are gone)
+      const activeConversations = localConversations.slice(0, PAGE_SIZE);
       
-      // ✅ BULLETPROOF DATA MAPPING - Ensure consistent field names
+      // Map to consistent format
       const mappedConversations = activeConversations.map(conv => ({
         id: conv.id,
         title: conv.title,
@@ -67,64 +147,23 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         user_id: conv.userId
       }));
       
-      console.log('[QuickActions] ✅ Loaded conversations instantly from local:', mappedConversations.length);
+      // Update state with fresh data from database
+      setConversations(mappedConversations);
       
-      // ✅ Call parent callback to show history modal with data
+      // Update modal with fresh conversation list
       if (onViewHistory) {
         onViewHistory({
           conversations: mappedConversations,
           onDeleteConversation: handleDeleteConversation,
-          deletingId
+          deletingId: null
         });
       }
       
-      console.log('[QuickActions] ✅ View History loaded instantly - background sync keeps data fresh');
     } catch (err) {
-      console.error('[QuickActions] Failed to load history:', err);
-    }
-  };
-
-  const handleDeleteConversation = async (conversationId: string) => {
-    if (!confirm('🗑️ Are you sure you want to delete this conversation?')) {
-      return;
-    }
-
-    setDeletingId(conversationId);
-    
-    try {
-      // Get authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('[QuickActions] No authenticated user found');
-        return;
-      }
-
-      // ✅ TIER-BASED DELETION: Use centralized service
-      const result = await deleteConversation(conversationId, user.id);
-      
-      console.log(`[QuickActions] ✅ ${result.message}`);
-      
-      // ✅ UPGRADE PROMPTS: Show tier-specific upgrade opportunities
-      if (result.tier === 'free') {
-        // Free users: Prompt to upgrade to Core for cloud sync
-        setTimeout(() => {
-          if (confirm('💡 Upgrade to Core ($19.99/mo) to sync deletions across all your devices?\n\nWith Core, deleted conversations stay deleted everywhere.')) {
-            openUpgradeModal('general');
-          }
-        }, 500);
-      } else if (result.tier === 'core') {
-        // Core users: Prompt to upgrade to Studio for restore capability
-        setTimeout(() => {
-          if (confirm('💡 Upgrade to Studio ($179.99/mo) to restore deleted conversations?\n\nWith Studio, you can recover accidentally deleted chats anytime.')) {
-            openUpgradeModal('general');
-          }
-        }, 500);
-      }
-      
-    } catch (err) {
-      console.error('[QuickActions] ❌ Failed to delete conversation:', err);
+      logger.error('[QuickActions] ❌ Failed to delete conversation:', err);
       alert('Failed to delete conversation. Please try again.');
     } finally {
+      // ✅ Clear loading state
       setDeletingId(null);
     }
   };

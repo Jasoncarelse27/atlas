@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 // Removed useMessageStore import - using callback pattern instead
+import { logger } from "../lib/logger";
 import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
 import { audioService } from "./audioService";
@@ -14,11 +15,10 @@ const pendingMessages = new Set<string>();
 
 // Simple function for AttachmentMenu to send messages with attachments
 export async function sendAttachmentMessage(
-  conversationId: string,
+  _conversationId: string,
   userId: string,
   attachments: Array<{ type: string; url?: string; text?: string }>
 ) {
-  
   try {
     // Get JWT token for authentication
     const { data: { session } } = await supabase.auth.getSession();
@@ -45,7 +45,6 @@ export async function sendAttachmentMessage(
       }),
     });
 
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(`Backend error: ${errorData.error || response.statusText}`);
@@ -65,7 +64,7 @@ export const chatService = {
     const messageId = `${userId}-${conversationId}-${text.slice(0, 20)}`;
     
     if (pendingMessages.has(messageId)) {
-      console.warn('[ChatService] ⚠️ Duplicate message call prevented:', messageId);
+      logger.warn('[ChatService] ⚠️ Duplicate message call prevented:', messageId);
       return;
     }
     pendingMessages.add(messageId);
@@ -80,7 +79,7 @@ export const chatService = {
       
       // Get user ID from session if not provided
       const actualUserId = userId || session?.user?.id;
-      console.log('[ChatService] User ID resolution:', {
+      logger.debug('[ChatService] User ID resolution:', {
         providedUserId: userId,
         sessionUserId: session?.user?.id,
         actualUserId,
@@ -89,7 +88,7 @@ export const chatService = {
       
       // ✅ FIX: Prevent 'anonymous' from reaching Supabase
       if (!actualUserId) {
-        console.error('[ChatService] No user ID available - user not authenticated');
+        logger.error('[ChatService] No user ID available - user not authenticated');
         throw new Error('User not authenticated. Please sign in to send messages.');
       }
 
@@ -97,11 +96,11 @@ export const chatService = {
       const currentTier = await subscriptionApi.getUserTier(actualUserId, token);
 
       // ✅ ENHANCED CACHING: Check cache first for 20-30% cost reduction
-      console.log('[ChatService] 🔍 Checking enhanced cache for query:', text.substring(0, 50));
+      logger.debug('[ChatService] 🔍 Checking enhanced cache for query:', text.substring(0, 50));
       const cachedResponse = await enhancedResponseCacheService.getCachedResponse(text, currentTier as any);
       
       if (cachedResponse) {
-        console.log('[ChatService] ✅ Cache hit! Returning cached response (API cost saved)');
+        logger.debug('[ChatService] ✅ Cache hit! Returning cached response (API cost saved)');
         pendingMessages.delete(messageId);
         
         // Return cached response in the same format as API response
@@ -114,7 +113,7 @@ export const chatService = {
         };
       }
       
-      console.log('[ChatService] ❌ Cache miss, proceeding to API call');
+      logger.debug('[ChatService] ❌ Cache miss, proceeding to API call');
       
       // Memory extraction is handled by the component layer
       // This keeps the service layer clean and avoids circular dependencies
@@ -164,7 +163,7 @@ export const chatService = {
       }
 
       // ✅ ENHANCED CACHING: Cache the response for future use
-      console.log('[ChatService] 💾 Caching response for future cost savings');
+      logger.debug('[ChatService] 💾 Caching response for future cost savings');
       await enhancedResponseCacheService.cacheResponse(text, responseText, currentTier as any);
 
       // 🔊 Play TTS if tier allows
@@ -188,7 +187,7 @@ export const chatService = {
           });
         }
       } catch (refreshError) {
-        console.error('[ChatService] Error refreshing messages after streaming:', refreshError);
+        logger.error('[ChatService] Error refreshing messages after streaming:', refreshError);
       }
       
       // Reset streaming state
@@ -225,8 +224,6 @@ export const chatService = {
   handleFileMessage: async (message: Message, onComplete?: () => void) => {
     try {
       // Message management is handled by the calling component
-
-      // Message management is handled by the calling component
       
       // Handle messages with attachments (new multi-attachment support)
       if (message.attachments && message.attachments.length > 0) {
@@ -261,7 +258,7 @@ export const chatService = {
             // Log response - message management handled by calling component
           }
         } else {
-          console.error('[ChatService] Image analysis request failed:', response.status);
+          logger.error('[ChatService] Image analysis request failed:', response.status);
         }
       }
       // Legacy: Handle single image messages
@@ -305,7 +302,7 @@ export const chatService = {
               // Log response - message management handled by calling component
             }
           } else {
-            const errorText = await response.text();
+            const _errorText = await response.text();
             // Log error - message management handled by calling component
           }
         }
@@ -363,25 +360,24 @@ export async function sendMessageWithAttachments(
   // Show optimistically in UI
   addMessage(newMessage);
 
+  // Use already uploaded attachments (from imageService)
+  const uploadedAttachments = attachments.map(att => ({
+    ...att,
+    // Ensure we have the URL from the upload
+    url: att.url || att.publicUrl
+  }));
+
+  // ✅ Backend will handle saving to Supabase - no direct DB calls needed
+
+  // ✅ NEW: Send to backend for AI analysis
   try {
-    // Use already uploaded attachments (from imageService)
-    const uploadedAttachments = attachments.map(att => ({
-      ...att,
-      // Ensure we have the URL from the upload
-      url: att.url || att.publicUrl
-    }));
-
-    // ✅ Backend will handle saving to Supabase - no direct DB calls needed
-
-    // ✅ NEW: Send to backend for AI analysis
-    try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || 'mock-token-for-development';
       
       // Get user's tier for the request (not needed for image analysis endpoint)
       // const currentTier = await getUserTier();
       
-      console.log("[chatService] 🧠 Sending attachments to backend for AI analysis...");
+      logger.debug("[chatService] 🧠 Sending attachments to backend for AI analysis...");
       
       // Use the dedicated image analysis endpoint for better reliability
       const imageAttachment = uploadedAttachments.find(att => att.type === 'image');
@@ -427,7 +423,7 @@ export async function sendMessageWithAttachments(
       const data = await response.json();
       
       if (data.success && data.analysis) {
-        console.log("[chatService] ✅ AI analysis complete:", data.analysis);
+        logger.debug("[chatService] ✅ AI analysis complete:", data.analysis);
         
         // ✅ Add AI response as assistant message
         const aiMessage = {
@@ -446,11 +442,8 @@ export async function sendMessageWithAttachments(
       // 🎯 FUTURE-PROOF FIX: Return success to prevent false error toast
       return { success: true };
       
-    } catch (aiError) {
-      // Don't throw - user message is still saved, just no AI response
-      return { success: true }; // Still return success - user message was saved
-    }
-  } catch (err) {
-    throw err; // Only throw if the entire send operation failed
+  } catch (aiError) {
+    // Don't throw - user message is still saved, just no AI response
+    return { success: true }; // Still return success - user message was saved
   }
 }// Force Vercel rebuild Sat Sep 27 16:47:24 SAST 2025
