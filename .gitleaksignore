@@ -1,0 +1,8 @@
+# Ignore security script patterns that contain detection regex
+scripts/setup-git-secrets.sh
+scripts/pre-commit-security-scan.sh
+
+# Ignore documentation with example patterns
+SECURITY_SETUP.md
+archive/docs/ENABLE_REAL_AI_GUIDE.md
+archive/docs/SUPABASE_SETUP.md
