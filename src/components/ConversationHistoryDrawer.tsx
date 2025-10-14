@@ -112,7 +112,19 @@ export function ConversationHistoryDrawer({
                     `}
                     onClick={() => {
                       onClose();
-                      window.location.href = `/chat?conversation=${conv.id}`;
+                      // ✅ MOBILE FIX: Use state management instead of page reload
+                      const newUrl = `/chat?conversation=${conv.id}`;
+                      window.history.pushState({}, '', newUrl);
+                      
+                      // ✅ SAFE FALLBACK: Direct event dispatch + custom event as backup
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                      
+                      // ✅ ADDITIONAL FALLBACK: Dispatch custom event for immediate handling
+                      window.dispatchEvent(new CustomEvent('conversationSelected', {
+                        detail: { conversationId: conv.id }
+                      }));
+                      
+                      console.log('[ConversationHistoryDrawer] ✅ Conversation selected:', conv.id);
                     }}
                   >
                     <div className="flex items-center gap-3">

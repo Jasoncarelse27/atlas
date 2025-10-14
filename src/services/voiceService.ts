@@ -138,7 +138,6 @@ class VoiceService {
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'transcribeAudio',
-        audioUrl,
         timestamp: new Date().toISOString(),
       });
       throw chatError;
@@ -148,7 +147,7 @@ class VoiceService {
   /**
    * Synthesize speech from text using OpenAI TTS
    */
-  async synthesizeSpeech(text: string, voiceId: string = 'alloy'): Promise<string> {
+  async synthesizeSpeech(text: string): Promise<string> {
     try {
       // Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
@@ -159,6 +158,8 @@ class VoiceService {
       }
 
 
+      console.log('[VoiceService] Making TTS API call to /api/synthesize with token:', token ? 'present' : 'missing');
+      
       const response = await fetch('/api/synthesize', {
         method: 'POST',
         headers: {
@@ -169,9 +170,17 @@ class VoiceService {
           text,
         }),
       });
+      
+      console.log('[VoiceService] TTS API response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        console.error('[VoiceService] TTS API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
         
         // Handle tier restriction errors
         if (response.status === 403 && errorData.upgradeRequired) {
@@ -192,7 +201,6 @@ class VoiceService {
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'synthesizeSpeech',
-        text: text.slice(0, 100),
         timestamp: new Date().toISOString(),
       });
       throw chatError;
@@ -200,21 +208,86 @@ class VoiceService {
   }
 
   /**
-   * Play audio from data URL
+   * Play audio from data URL (mobile-friendly with user gesture handling)
    */
   async playAudio(audioDataUrl: string): Promise<void> {
     try {
       const audio = new Audio(audioDataUrl);
-      await audio.play();
+      
+      // ✅ Mobile Fix: Preload audio to improve responsiveness
+      audio.preload = 'auto';
+      
+      // ✅ Mobile Fix: Handle autoplay restrictions
+      try {
+        await audio.play();
+      } catch (playError: any) {
+        // Handle autoplay blocking (common on mobile)
+        if (playError.name === 'NotAllowedError' || playError.name === 'NotSupportedError') {
+          console.warn('[VoiceService] Autoplay blocked, user interaction required');
+          
+          // Create a user-friendly error message
+          throw new Error('Audio playback requires user interaction. Please tap the Listen button again.');
+        }
+        throw playError;
+      }
       
       return new Promise((resolve, reject) => {
         audio.onended = () => resolve();
-        audio.onerror = (err) => reject(new Error('Audio playback failed'));
+        audio.onerror = (event) => {
+          console.error('[VoiceService] Audio playback error:', event);
+          reject(new Error('Audio playback failed'));
+        };
+        
+        // ✅ Mobile Fix: Add timeout to prevent hanging
+        setTimeout(() => {
+          if (!audio.ended) {
+            reject(new Error('Audio playback timeout'));
+          }
+        }, 60000); // 60 second timeout
       });
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'playAudio',
         timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
+   * Record and upload voice note (does NOT transcribe, saves as audio file)
+   */
+  async recordVoiceNote(
+    audioBlob: Blob, 
+    userId: string, 
+    conversationId: string
+  ): Promise<string> {
+    try {
+      // Upload to voice-notes bucket
+      const filename = `${userId}/${conversationId}_${Date.now()}.webm`;
+      
+      const { error } = await supabase.storage
+        .from('voice-notes')
+        .upload(filename, audioBlob, {
+          contentType: audioBlob.type,
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) throw error;
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('voice-notes')
+        .getPublicUrl(filename);
+      
+      console.log(`✅ [VoiceNote] Uploaded: ${urlData.publicUrl}`);
+      
+      return urlData.publicUrl;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'recordVoiceNote',
+        timestamp: new Date().toISOString()
       });
       throw chatError;
     }
@@ -267,7 +340,6 @@ class VoiceService {
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'deleteAudio',
-        audioId,
         timestamp: new Date().toISOString(),
       });
       throw chatError;

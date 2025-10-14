@@ -1,6 +1,10 @@
+import { useTierAccess } from '@/hooks/useTierAccess';
+import { audioUsageService } from '@/services/audioUsageService';
+import { voiceService } from '@/services/voiceService';
 import { motion } from 'framer-motion';
-import { Bot, User } from 'lucide-react';
+import { Bot, Loader2, User, Volume2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
 import { ImageGallery } from './ImageGallery';
@@ -30,6 +34,15 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   const isSystem = message.role === 'system';
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
+  
+  // TTS state
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const { tier, userId } = useTierAccess();
+
+  // Debug: Log userId availability
+  useEffect(() => {
+    console.log('[EnhancedMessageBubble] userId:', userId, 'tier:', tier);
+  }, [userId, tier]);
 
   // Get content as string for typing effect
   const messageContent = message.content 
@@ -186,6 +199,94 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   }, [message.id, isLatest, isUser]);
 
   const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length;
+  
+  // ✅ IMPROVED TTS handler with better error handling and debugging
+  const handlePlayTTS = async () => {
+    if (!userId) {
+      console.warn('[TTS] userId not available yet');
+      return;
+    }
+    if (!message.content) {
+      console.warn('[TTS] message content is empty');
+      return;
+    }
+    
+    console.log('[TTS] Starting TTS playback for tier:', tier);
+    
+    // Check tier access
+    if (tier === 'free') {
+      toast.error('Text-to-speech requires Core or Studio tier');
+      return;
+    }
+    
+    setIsPlayingTTS(true);
+    
+    try {
+      // ✅ SAFER: Check usage limits with better error handling
+      let usageCheck;
+      try {
+        usageCheck = await audioUsageService.checkAudioUsage(userId, tier);
+        if (!usageCheck.canUse) {
+          toast.error(usageCheck.warning || 'Audio limit reached');
+          return;
+        }
+      } catch (usageError) {
+        console.warn('[TTS] Usage check failed, allowing playback:', usageError);
+        // Continue anyway - don't block TTS for usage check failures
+      }
+      
+      const text = typeof message.content === 'string' 
+        ? message.content 
+        : (message.content as any).text || message.content;
+      
+      console.log('[TTS] Synthesizing speech for text length:', text.length);
+      
+      // ✅ SAFER: Direct synthesis without cache for debugging
+      let audioDataUrl;
+      try {
+        audioDataUrl = await voiceService.synthesizeSpeech(text);
+        console.log('[TTS] Audio synthesized successfully');
+      } catch (synthesisError) {
+        console.error('[TTS] Synthesis failed:', synthesisError);
+        throw synthesisError;
+      }
+      
+      console.log('[TTS] Audio synthesized, playing...');
+      
+      // ✅ MOBILE FIX: Handle autoplay restrictions better
+      try {
+        await voiceService.playAudio(audioDataUrl);
+        toast.success('Audio played');
+      } catch (playError: any) {
+        console.error('[TTS] Playback error:', playError);
+        
+        if (playError.message.includes('user interaction')) {
+          toast.error('Tap Listen again to play audio');
+        } else if (playError.message.includes('timeout')) {
+          toast.error('Audio playback timed out');
+        } else {
+          toast.error('Audio playback failed: ' + playError.message);
+        }
+      }
+      
+    } catch (error) {
+      console.error('[TTS] Full error:', error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('requires Core or Studio')) {
+          toast.error('Audio features require Core or Studio tier');
+        } else if (error.message.includes('503')) {
+          toast.error('Audio service temporarily unavailable');
+        } else {
+          toast.error('Audio generation failed: ' + error.message);
+        }
+      } else {
+        toast.error('Audio playback failed');
+      }
+    } finally {
+      setIsPlayingTTS(false);
+    }
+  };
 
   return (
     <motion.div
@@ -270,6 +371,28 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               <span className="animate-spin mr-2">⏳</span>
               Uploading...
             </div>
+          )}
+          
+          {/* TTS Button for AI messages */}
+          {!isUser && !showTypingIndicator && message.status !== 'sending' && (
+            <button
+              onClick={handlePlayTTS}
+              disabled={isPlayingTTS}
+              className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg 
+                       bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 
+                       border border-blue-500/20 transition-all duration-200
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Play audio"
+            >
+              {isPlayingTTS ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5" />
+              )}
+              <span className="font-medium">
+                {isPlayingTTS ? 'Playing...' : 'Listen'}
+              </span>
+            </button>
           )}
           
           {/* Timestamp */}

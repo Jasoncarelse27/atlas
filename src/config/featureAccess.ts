@@ -31,7 +31,14 @@ export const tierFeatures = {
     supportLevel: 'community',
     supportResponseTime: null,
     weeklyInsights: false,
-    cloudSync: false  // Free tier: local only
+    cloudSync: false,  // Free tier: local only
+    // Voice Features
+    audioMinutesPerMonth: 0,
+    ttsEnabled: false,
+    voiceNotesEnabled: false,
+    voiceCallsEnabled: false,
+    dailyAudioCap: 0,
+    intelligentMetering: false
   },
   core: { 
     text: true, 
@@ -56,7 +63,18 @@ export const tierFeatures = {
     supportLevel: 'email',
     supportResponseTime: '48 hours',
     weeklyInsights: false,
-    cloudSync: true  // Core tier: cross-device sync
+    cloudSync: true,  // Core tier: cross-device sync
+    // Voice Features
+    audioMinutesPerMonth: 5,          // 5 minutes total (STT + TTS)
+    ttsEnabled: true,
+    ttsModel: 'tts-1',                // Standard quality
+    ttsVoice: 'alloy',
+    ttsPricePerChar: 0.015 / 1000,   // $0.015 per 1K chars (correct pricing)
+    voiceNotesEnabled: true,
+    voiceNoteMaxDuration: 1,          // 1 minute max per note
+    voiceCallsEnabled: false,         // NOT available for Core
+    dailyAudioCap: 2,                 // Max 2 minutes/day
+    intelligentMetering: false
   },
   studio: { 
     text: true, 
@@ -81,7 +99,19 @@ export const tierFeatures = {
     supportLevel: 'priority',
     supportResponseTime: '4 hours',
     weeklyInsights: true,  // Weekly coaching insights
-    cloudSync: true  // Studio tier: full cross-device sync
+    cloudSync: true,  // Studio tier: full cross-device sync
+    // Voice Features
+    audioMinutesPerMonth: -1,         // Unlimited
+    ttsEnabled: true,
+    ttsModel: 'tts-1-hd',             // HD quality
+    ttsVoice: 'nova',
+    ttsPricePerChar: 0.030 / 1000,   // $0.030 per 1K chars
+    voiceNotesEnabled: true,
+    voiceNoteMaxDuration: 5,          // 5 minutes max per note
+    voiceCallsEnabled: true,          // Voice calls ONLY for Studio
+    voiceCallMaxDuration: 30,         // 30 minutes max per call
+    dailyAudioCap: -1,                // No daily cap
+    intelligentMetering: true         // Track costs in real-time
   },
 } as const;
 

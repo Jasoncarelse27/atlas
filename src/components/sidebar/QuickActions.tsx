@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { atlasDB } from '../../database/atlasDB';
+import { atlasDB, ensureDatabaseReady } from '../../database/atlasDB';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { deleteConversation } from '../../services/conversationDeleteService';
@@ -37,6 +37,9 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // ✅ MOBILE FIX: Ensure database is ready before use
+      await ensureDatabaseReady();
 
       const PAGE_SIZE = 20;
       // ✅ Load only what we need - no overfetch

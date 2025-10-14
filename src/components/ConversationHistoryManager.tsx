@@ -1,8 +1,8 @@
 import { Clock, MessageSquare, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { atlasDB } from '../database/atlasDB';
+import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
-import { conversationSyncService } from '../services/conversationSyncService';
+import { deleteConversation as deleteConversationService } from '../services/conversationDeleteService';
 
 interface Conversation {
   id: string;
@@ -32,6 +32,10 @@ export default function ConversationHistoryManager({
     
     try {
       setIsLoading(true);
+      
+      // ✅ MOBILE FIX: Ensure database is ready before use
+      await ensureDatabaseReady();
+      
       const localConversations = await atlasDB.conversations
         .orderBy('updatedAt')
         .reverse()
@@ -84,7 +88,7 @@ export default function ConversationHistoryManager({
     if (!user) return;
     
     try {
-      await conversationSyncService.deleteConversation(conversationId, user.id);
+      await deleteConversationService(conversationId, user.id);
       await loadConversations(); // Reload after deletion
       
       // If we deleted the current conversation, clear selection

@@ -1372,11 +1372,11 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
       return res.status(503).json({ error: 'Text-to-speech service unavailable' });
     }
 
-    // 🎯 Tier-based model selection
+    // 🎯 Tier-based model selection (temporarily using core tier settings)
     // Core: tts-1 (faster, cheaper)
     // Studio: tts-1-hd (higher quality)
-    const model = tier === 'studio' ? 'tts-1-hd' : 'tts-1';
-    const voice = tier === 'studio' ? 'nova' : 'alloy'; // Nova is more expressive for Studio
+    const model = 'tts-1'; // Always use standard quality for testing
+    const voice = 'alloy'; // Always use alloy voice for testing
 
 
     try {

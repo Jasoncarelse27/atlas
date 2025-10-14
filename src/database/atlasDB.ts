@@ -33,6 +33,11 @@ export class AtlasDB extends Dexie {
 
   constructor() {
     super("AtlasDB_v6") // ✅ Version 6: Simplified hard delete only
+    
+    // ✅ MOBILE FIX: Add error handling for mobile Safari
+    this.on('close', () => {
+      console.warn('[AtlasDB] Database closed unexpectedly (mobile-safe)');
+    });
 
     // Version 4: Delta sync schema (keep for migration)
     this.version(4).stores({
@@ -75,3 +80,39 @@ export class AtlasDB extends Dexie {
 }
 
 export const atlasDB = new AtlasDB()
+
+// ✅ MOBILE FIX: Lazy initialization with proper error handling
+let initializationPromise: Promise<void> | null = null;
+
+const initializeDatabase = async (): Promise<void> => {
+  try {
+    await atlasDB.open();
+    
+    // Mobile-safe global exposure
+    if (typeof window !== 'undefined') {
+      (window as any).atlasDB = atlasDB;
+      console.log('[AtlasDB] ✅ Database initialized and exposed globally');
+    }
+  } catch (error) {
+    console.error('[AtlasDB] ❌ Initialization failed:', error);
+    throw error;
+  }
+};
+
+// ✅ MOBILE FIX: Ensure database is initialized before use
+export const ensureDatabaseReady = async (): Promise<void> => {
+  if (!initializationPromise) {
+    initializationPromise = initializeDatabase();
+  }
+  return initializationPromise;
+};
+
+// ✅ MOBILE FIX: Auto-initialize on module load (mobile-safe)
+if (typeof window !== 'undefined') {
+  // Don't block module loading, but ensure it happens
+  setTimeout(() => {
+    ensureDatabaseReady().catch(err => {
+      console.warn('[AtlasDB] Background initialization failed:', err);
+    });
+  }, 100);
+}

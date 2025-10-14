@@ -11,7 +11,7 @@ import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 import type { Message } from '../types/chat';
 // Removed usePersistentMessages import - using direct message management instead
-import { atlasDB } from '../database/atlasDB';
+import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { useSubscription } from '../hooks/useSubscription';
 import ErrorBoundary from '../lib/errorBoundary';
 import { logger } from '../lib/logger';
@@ -84,10 +84,30 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ PHASE 2: Load messages from Dexie (read-only, single source of truth)
   const loadMessages = useCallback(async (conversationId: string) => {
     try {
-      const storedMessages = await atlasDB.messages
+      // ✅ MOBILE FIX: Ensure userId is available before loading messages
+      if (!userId) {
+        console.log('[ChatPage] ⚠️ userId not available yet, skipping message load');
+        return;
+      }
+      
+      // ✅ MOBILE FIX: Ensure database is ready before use
+      await ensureDatabaseReady();
+      
+      // ✅ MOBILE FIX: Try with userId filter first, fallback without filter if no results
+      let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
+        .and(msg => msg.userId === userId) // ✅ MOBILE FIX: Filter by userId to prevent cross-user data
         .sortBy("timestamp");
+      
+      // ✅ FALLBACK: If no messages found with userId filter, try without filter (for existing data)
+      if (storedMessages.length === 0) {
+        console.log('[ChatPage] ⚠️ No messages with userId filter, trying without filter for existing data');
+        storedMessages = await atlasDB.messages
+          .where("conversationId")
+          .equals(conversationId)
+          .sortBy("timestamp");
+      }
       
       const formattedMessages = storedMessages.map(msg => ({
         id: msg.id,
@@ -100,11 +120,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Set React state (Dexie is authoritative source)
       setMessages(formattedMessages);
       console.log('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
+      
+      // ✅ Force React re-render by creating new array reference
+      if (formattedMessages.length > 0) {
+        setTimeout(() => {
+          setMessages([...formattedMessages]);
+        }, 50);
+      }
     } catch (error) {
       console.error('[ChatPage] ❌ Failed to load messages:', error);
       setMessages([]);
     }
-  }, []); // Empty deps - conversationId is a parameter, setMessages is stable
+  }, [userId]); // ✅ MOBILE FIX: Add userId dependency to ensure proper filtering
 
   // Messages container ref for scroll detection
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -335,6 +362,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         });
         
         try {
+          // ✅ MOBILE FIX: Ensure database is ready before use
+          await ensureDatabaseReady();
+          
           // ✅ SINGLE WRITE PATH: Real-time listener writes to Dexie
           await atlasDB.messages.put({
             id: newMsg.id,
@@ -463,6 +493,88 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
     initializeConversation();
   }, [userId]);
+
+  // ✅ MOBILE FIX: Handle URL changes without page reload (for conversation selection)
+  // Set up listener immediately to avoid race conditions
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlConversationId = urlParams.get('conversation');
+      
+      // Only switch if URL has a different conversation ID
+      if (urlConversationId && urlConversationId !== conversationId) {
+        console.log('[ChatPage] 🔄 URL changed, switching conversation:', urlConversationId);
+        
+        // Update conversation ID and load messages
+        localStorage.setItem('atlas:lastConversationId', urlConversationId);
+        setConversationId(urlConversationId);
+        
+        // Only load messages if userId is available
+        if (userId) {
+          loadMessages(urlConversationId);
+        } else {
+          console.log('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
+        }
+      }
+    };
+    
+    // Listen for browser back/forward navigation
+    window.addEventListener('popstate', handleUrlChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+    };
+  }, [conversationId, loadMessages, userId]); // Keep userId in deps for loadMessages calls
+
+  // ✅ MOBILE FIX: Load messages when userId becomes available
+  useEffect(() => {
+    if (userId && conversationId) {
+      console.log('[ChatPage] 🔄 userId available, loading messages for conversation:', conversationId);
+      loadMessages(conversationId);
+    }
+  }, [userId, conversationId, loadMessages]);
+
+  // ✅ ROBUST FALLBACK: Ensure messages are loaded when both userId and conversationId are available
+  useEffect(() => {
+    const ensureMessagesLoaded = async () => {
+      if (userId && conversationId && messages.length === 0) {
+        console.log('[ChatPage] 🔄 Ensuring messages are loaded for conversation:', conversationId);
+        await loadMessages(conversationId);
+      }
+    };
+    
+    // Use a small delay to ensure all state updates are complete
+    const timeoutId = setTimeout(ensureMessagesLoaded, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [userId, conversationId, messages.length, loadMessages]);
+
+  // ✅ SAFE FALLBACK: Listen for custom conversation selection events
+  useEffect(() => {
+    const handleConversationSelected = (event: CustomEvent) => {
+      const { conversationId: selectedId } = event.detail;
+      console.log('[ChatPage] 🔄 Custom conversation selected event:', selectedId);
+      
+      if (selectedId && selectedId !== conversationId) {
+        // Update conversation ID and load messages
+        localStorage.setItem('atlas:lastConversationId', selectedId);
+        setConversationId(selectedId);
+        
+        // Load messages if userId is available
+        if (userId) {
+          loadMessages(selectedId);
+        } else {
+          console.log('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
+        }
+      }
+    };
+    
+    window.addEventListener('conversationSelected', handleConversationSelected as EventListener);
+    
+    return () => {
+      window.removeEventListener('conversationSelected', handleConversationSelected as EventListener);
+    };
+  }, [conversationId, loadMessages, userId]);
 
   // Run migrations separately (only once per session)
   useEffect(() => {
