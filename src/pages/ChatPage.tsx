@@ -109,13 +109,71 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           .sortBy("timestamp");
       }
       
+      // ✅ NEW: If Dexie is still empty, fetch from Supabase and sync to Dexie
+      if (storedMessages.length === 0) {
+        console.log('[ChatPage] 🔄 Dexie empty, fetching from Supabase...');
+        
+        const { data: supabaseMessages } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at');
+        
+        if (supabaseMessages && supabaseMessages.length > 0) {
+          console.log('[ChatPage] ✅ Found', supabaseMessages.length, 'messages in Supabase, syncing to Dexie...');
+          
+          // Store in Dexie for future use
+          await atlasDB.messages.bulkPut(
+            supabaseMessages.map((msg: any) => ({
+              id: msg.id,
+              conversationId: msg.conversation_id,
+              userId: msg.user_id,
+              role: msg.role,
+              type: msg.image_url ? 'image' : 'text', // ✅ Detect type from data
+              content: msg.content,
+              timestamp: msg.created_at,
+              synced: true,
+              updatedAt: msg.created_at,
+              imageUrl: msg.image_url || undefined, // ✅ Save image URL
+              image_url: msg.image_url || undefined, // ✅ Support both formats
+              attachments: msg.attachments || undefined // ✅ Save attachments
+            }))
+          );
+          
+          // Reload from Dexie
+          storedMessages = await atlasDB.messages
+            .where("conversationId")
+            .equals(conversationId)
+            .sortBy("timestamp");
+          
+          console.log('[ChatPage] ✅ Synced', supabaseMessages.length, 'messages from Supabase to Dexie');
+        } else {
+          console.log('[ChatPage] ℹ️ No messages found in Supabase for conversation:', conversationId);
+        }
+      }
+      
       const formattedMessages = storedMessages.map(msg => ({
         id: msg.id,
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp,
-        type: msg.type || 'text'
+        type: msg.type || 'text',
+        url: msg.imageUrl || msg.image_url, // ✅ ADD: url field for ImageMessageBubble
+        imageUrl: msg.imageUrl || msg.image_url, // ✅ Include image URL
+        attachments: msg.attachments // ✅ Include attachments
       } as Message));
+      
+      // ✅ DEBUG: Log image messages being loaded
+      const imageMessages = formattedMessages.filter(msg => msg.type === 'image');
+      if (imageMessages.length > 0) {
+        console.log('[ChatPage] 🔍 Loading image messages from Dexie:', imageMessages.map(msg => ({
+          id: msg.id,
+          type: msg.type,
+          url: msg.url,
+          imageUrl: msg.imageUrl,
+          hasAttachments: !!msg.attachments
+        })));
+      }
       
       // Set React state (Dexie is authoritative source)
       setMessages(formattedMessages);
@@ -358,7 +416,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         console.log('[ChatPage] 🔔 Real-time message received:', {
           id: newMsg.id,
           role: newMsg.role,
-          contentPreview: newMsg.content?.slice(0, 50)
+          contentPreview: newMsg.content?.slice(0, 50),
+          image_url: newMsg.image_url, // ✅ DEBUG: Check if image_url exists
+          attachments: newMsg.attachments, // ✅ DEBUG: Check if attachments exist
+          hasImageData: !!(newMsg.image_url || newMsg.attachments) // ✅ DEBUG: Quick check
         });
         
         try {
@@ -366,17 +427,30 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           await ensureDatabaseReady();
           
           // ✅ SINGLE WRITE PATH: Real-time listener writes to Dexie
-          await atlasDB.messages.put({
+          const messageToSave = {
             id: newMsg.id,
             conversationId: newMsg.conversation_id,
             userId: userId, // ✅ ALWAYS use authenticated userId, never trust backend
             role: newMsg.role,
-            type: 'text',
+            type: newMsg.image_url ? 'image' : 'text', // ✅ Detect type from message data
             content: newMsg.content,
             timestamp: newMsg.created_at,
             synced: true,
-            updatedAt: newMsg.created_at
+            updatedAt: newMsg.created_at,
+            imageUrl: newMsg.image_url || undefined, // ✅ Save image URL
+            image_url: newMsg.image_url || undefined, // ✅ Support both formats
+            attachments: newMsg.attachments || undefined // ✅ Save attachments array
+          };
+          
+          console.log('[ChatPage] 🔔 Saving to Dexie:', {
+            id: messageToSave.id,
+            type: messageToSave.type,
+            hasImageUrl: !!messageToSave.imageUrl,
+            hasImage_url: !!messageToSave.image_url,
+            hasAttachments: !!messageToSave.attachments
           });
+          
+          await atlasDB.messages.put(messageToSave as any);
           
           console.log('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
@@ -403,8 +477,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('[ChatPage] ✅ Real-time listener SUBSCRIBED for conversation:', conversationId);
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.error('[ChatPage] ❌ Real-time listener failed:', status);
+        } else if (status === 'CLOSED') {
+          console.log('[ChatPage] 🔕 Real-time listener closed (normal cleanup)');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.warn('[ChatPage] ⚠️ Real-time listener error, will retry on next message:', status);
         }
       });
 
@@ -534,47 +610,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   }, [userId, conversationId, loadMessages]);
 
-  // ✅ ROBUST FALLBACK: Ensure messages are loaded when both userId and conversationId are available
-  useEffect(() => {
-    const ensureMessagesLoaded = async () => {
-      if (userId && conversationId && messages.length === 0) {
-        console.log('[ChatPage] 🔄 Ensuring messages are loaded for conversation:', conversationId);
-        await loadMessages(conversationId);
-      }
-    };
-    
-    // Use a small delay to ensure all state updates are complete
-    const timeoutId = setTimeout(ensureMessagesLoaded, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [userId, conversationId, messages.length, loadMessages]);
+  // Removed - redundant with main message loading useEffect
 
-  // ✅ SAFE FALLBACK: Listen for custom conversation selection events
-  useEffect(() => {
-    const handleConversationSelected = (event: CustomEvent) => {
-      const { conversationId: selectedId } = event.detail;
-      console.log('[ChatPage] 🔄 Custom conversation selected event:', selectedId);
-      
-      if (selectedId && selectedId !== conversationId) {
-        // Update conversation ID and load messages
-        localStorage.setItem('atlas:lastConversationId', selectedId);
-        setConversationId(selectedId);
-        
-        // Load messages if userId is available
-        if (userId) {
-          loadMessages(selectedId);
-        } else {
-          console.log('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
-        }
-      }
-    };
-    
-    window.addEventListener('conversationSelected', handleConversationSelected as EventListener);
-    
-    return () => {
-      window.removeEventListener('conversationSelected', handleConversationSelected as EventListener);
-    };
-  }, [conversationId, loadMessages, userId]);
+  // Removed - no longer needed with direct navigation
 
   // Run migrations separately (only once per session)
   useEffect(() => {

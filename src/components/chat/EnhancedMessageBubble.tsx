@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
+import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { ImageGallery } from './ImageGallery';
 import { LegacyMessageRenderer } from './MessageRenderer';
 import { StopButton } from './StopButton';
@@ -37,12 +38,15 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   
   // TTS state
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
-  const { tier, userId } = useTierAccess();
+  const { tier, userId, loading } = useTierAccess();
 
-  // Debug: Log userId availability
+  // Debug: Log userId availability (only when there's an issue)
   useEffect(() => {
-    console.log('[EnhancedMessageBubble] userId:', userId, 'tier:', tier);
-  }, [userId, tier]);
+    // Only log if userId is null AND we're not still loading (indicates real timing issue)
+    if (!userId && tier && !loading) {
+      console.warn('[EnhancedMessageBubble] ⚠️ userId not yet available, tier:', tier);
+    }
+  }, [userId, tier, loading]);
 
   // Get content as string for typing effect
   const messageContent = message.content 
@@ -202,10 +206,18 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   
   // ✅ IMPROVED TTS handler with better error handling and debugging
   const handlePlayTTS = async () => {
-    if (!userId) {
-      console.warn('[TTS] userId not available yet');
+    // Wait for auth to complete
+    if (loading) {
+      console.warn('[TTS] Waiting for authentication...');
       return;
     }
+    
+    if (!userId) {
+      console.warn('[TTS] userId not available yet');
+      toast.error('Please wait for authentication to complete');
+      return;
+    }
+    
     if (!message.content) {
       console.warn('[TTS] message content is empty');
       return;
@@ -222,13 +234,16 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     setIsPlayingTTS(true);
     
     try {
-      // ✅ SAFER: Check usage limits with better error handling
+      // ✅ FUTURE-PROOF: Check usage limits and stop gracefully if exceeded
       let usageCheck;
       try {
         usageCheck = await audioUsageService.checkAudioUsage(userId, tier);
-        if (!usageCheck.canUse) {
-          toast.error(usageCheck.warning || 'Audio limit reached');
-          return;
+        if (usageCheck && !usageCheck.canUse) {
+          // Show user-friendly message and stop gracefully
+          console.warn('[TTS] Usage limit reached:', usageCheck.warning);
+          toast.warning(usageCheck.warning || 'Audio limit reached');
+          toast.info('💡 Upgrade to Core tier for unlimited audio!');
+          return; // Stop here - don't try to play empty audio
         }
       } catch (usageError) {
         console.warn('[TTS] Usage check failed, allowing playback:', usageError);
@@ -349,6 +364,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                 )}
               </div>
             )}
+
+          {/* 🖼️ Handle Image Messages Specifically */}
+          {(message.type as string) === 'image' && (
+            <ImageMessageBubble 
+              message={message}
+            />
+          )}
 
           {/* 🖼️ Enhanced Image Gallery */}
           {attachments.length > 0 && (

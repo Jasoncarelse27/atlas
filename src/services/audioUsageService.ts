@@ -41,6 +41,22 @@ export class AudioUsageService {
       };
     }
     
+    // CORE tier: check if unlimited
+    if (tier === 'core') {
+      const config = tierFeatures[tier] as any;
+      
+      // If audio is unlimited (-1), skip usage checks
+      if (config.audioMinutesPerMonth === -1) {
+        return {
+          canUse: true,
+          minutesUsed: 0,
+          minutesRemaining: -1,
+          dailyUsed: 0,
+          dailyRemaining: -1
+        };
+      }
+    }
+    
     // CORE tier: temporarily allow all usage (database tables not ready yet)
     try {
       const { data: profile } = await supabase

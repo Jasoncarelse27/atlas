@@ -18,6 +18,9 @@ export interface Message {
   timestamp: string
   synced?: boolean
   updatedAt?: string
+  imageUrl?: string           // Add image URL support
+  image_url?: string          // Support both snake_case and camelCase
+  attachments?: Array<{ type: string; url: string }>  // Support attachments array
 }
 
 export interface SyncMetadata {
@@ -32,7 +35,7 @@ export class AtlasDB extends Dexie {
   syncMetadata!: Table<SyncMetadata, string>
 
   constructor() {
-    super("AtlasDB_v6") // ✅ Version 6: Simplified hard delete only
+    super("AtlasDB_v7") // ✅ Version 7: Image support
     
     // ✅ MOBILE FIX: Add error handling for mobile Safari
     this.on('close', () => {
@@ -76,13 +79,25 @@ export class AtlasDB extends Dexie {
       // Migration to v6: Removing soft delete support - using hard delete only
       // No migration needed - soft delete fields will be ignored
     })
+
+    // Version 7: Add image support (image_url, attachments)
+    this.version(7).stores({
+      conversations: "id, userId, title, createdAt, updatedAt",
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt, image_url",
+      syncMetadata: "userId, lastSyncedAt, syncVersion"
+    }).upgrade(() => {
+      // No data migration needed - just schema extension
+      console.log('[AtlasDB] ✅ Upgraded to v7: Image support added');
+      return Promise.resolve();
+    })
   }
 }
 
 export const atlasDB = new AtlasDB()
 
-// ✅ MOBILE FIX: Lazy initialization with proper error handling
+// ✅ PERFORMANCE: Lazy initialization with caching
 let initializationPromise: Promise<void> | null = null;
+let isInitialized = false;
 
 const initializeDatabase = async (): Promise<void> => {
   try {
@@ -93,14 +108,21 @@ const initializeDatabase = async (): Promise<void> => {
       (window as any).atlasDB = atlasDB;
       console.log('[AtlasDB] ✅ Database initialized and exposed globally');
     }
+    
+    isInitialized = true;
   } catch (error) {
     console.error('[AtlasDB] ❌ Initialization failed:', error);
     throw error;
   }
 };
 
-// ✅ MOBILE FIX: Ensure database is initialized before use
+// ✅ PERFORMANCE: Ensure database is initialized with caching
 export const ensureDatabaseReady = async (): Promise<void> => {
+  // Skip if already initialized
+  if (isInitialized) {
+    return Promise.resolve();
+  }
+  
   if (!initializationPromise) {
     initializationPromise = initializeDatabase();
   }

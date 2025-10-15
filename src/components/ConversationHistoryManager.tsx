@@ -1,8 +1,7 @@
 import { Clock, MessageSquare, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
-import { deleteConversation as deleteConversationService } from '../services/conversationDeleteService';
+import { conversationService } from '../services/conversationService';
 
 interface Conversation {
   id: string;
@@ -26,38 +25,24 @@ export default function ConversationHistoryManager({
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Load conversations from local database
+  // Load conversations using unified service
   const loadConversations = async () => {
     if (!user) return;
     
     try {
       setIsLoading(true);
       
-      // ✅ MOBILE FIX: Ensure database is ready before use
-      await ensureDatabaseReady();
-      
-      const localConversations = await atlasDB.conversations
-        .orderBy('updatedAt')
-        .reverse()
-        .toArray();
+      // ✅ PERFORMANCE: Use unified conversation service with caching
+      const conversations = await conversationService.getConversations(user.id);
 
-      // Get message counts for each conversation
-      const conversationsWithCounts = await Promise.all(
-        localConversations.map(async (conv) => {
-          const messageCount = await atlasDB.messages
-            .where('conversationId')
-            .equals(conv.id)
-            .count();
-          
-          return {
-            id: conv.id,
-            title: conv.title,
-            createdAt: conv.createdAt,
-            updatedAt: conv.updatedAt,
-            messageCount
-          };
-        })
-      );
+      // Transform to expected format
+      const conversationsWithCounts = conversations.map(conv => ({
+        id: conv.id,
+        title: conv.title,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+        messageCount: 0 // Default value - no expensive query needed
+      }));
 
       setConversations(conversationsWithCounts);
     } catch (error) {
@@ -88,7 +73,7 @@ export default function ConversationHistoryManager({
     if (!user) return;
     
     try {
-      await deleteConversationService(conversationId, user.id);
+      await conversationService.deleteConversation(conversationId);
       await loadConversations(); // Reload after deletion
       
       // If we deleted the current conversation, clear selection

@@ -112,12 +112,15 @@ export default function EnhancedInputToolbar({
       }));
       
       try {
-        // Update status to processing
+        // Update status to analyzing (more specific feedback)
         attachments.forEach((att: any) => {
           if (att.id) {
-            setUploadStatus(prev => ({ ...prev, [att.id]: 'processing' }));
+            setUploadStatus(prev => ({ ...prev, [att.id]: 'analyzing' }));
           }
         });
+
+        // Show analyzing toast
+        toast.success('🧠 Analyzing image...');
         
         // Set processing state for floating indicator
         setIsUploading(true);
@@ -127,7 +130,7 @@ export default function EnhancedInputToolbar({
           await Promise.race([
             sendMessageWithAttachments(conversationId || '', attachments, addMessage, currentText || undefined, user?.id),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Send timeout')), 30000) // Increased to 30 seconds for image analysis
+              setTimeout(() => reject(new Error('Send timeout')), 15000) // Reduced from 30000ms for better mobile UX
             )
           ]);
         }

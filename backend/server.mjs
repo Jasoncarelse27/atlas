@@ -1093,13 +1093,21 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     // Download image and convert to base64 for Claude API
     let imageBase64;
     let claudeMediaType;
+    
+    // Add timeout protection for image download
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     try {
       const imageResponse = await fetch(imageUrl, {
+        signal: controller.signal,
         headers: {
           'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
           'apikey': process.env.VITE_SUPABASE_ANON_KEY || ''
         }
       });
+      
+      clearTimeout(timeoutId);
       
       if (!imageResponse.ok) {
         throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
@@ -1114,9 +1122,10 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
       
       console.log('✅ [Image Analysis] Image downloaded and converted to base64');
     } catch (downloadError) {
+      clearTimeout(timeoutId);
       return res.status(400).json({ 
         error: 'Failed to download image',
-        details: downloadError.message
+        details: downloadError.name === 'AbortError' ? 'Image download timed out' : downloadError.message
       });
     }
 
@@ -1165,14 +1174,14 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
           lastError = await response.text().catch(() => 'Claude Vision API error');
           
           if (attempt < 3) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
           }
         }
       } catch (fetchError) {
         lastError = fetchError.message;
         
         if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
         }
       }
     }
@@ -1189,6 +1198,53 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     const analysis = result.content[0].text;
 
     console.log('✅ [Image Analysis] Analysis complete');
+
+    // ✅ NEW: Save user image message to conversation history
+    const conversationId = req.body.conversationId || null;
+
+    // ✅ SAFETY: Check for empty string conversationId
+    if (conversationId && conversationId.trim() && userId && supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        // Save user's image message
+        const { error: userMsgError } = await supabase
+          .from('messages')
+          .insert({
+            user_id: userId,
+            conversation_id: conversationId,
+            role: 'user',
+            content: prompt,
+            image_url: imageUrl,
+            attachments: [{ type: 'image', url: imageUrl }],
+            created_at: new Date().toISOString()
+          });
+
+        if (userMsgError) {
+          console.error('[Image Analysis] Failed to save user message:', userMsgError.message);
+        } else {
+          console.log('✅ [Image Analysis] Saved user image message');
+        }
+
+        // Save AI analysis response
+        const { error: aiMsgError } = await supabase
+          .from('messages')
+          .insert({
+            user_id: userId,
+            conversation_id: conversationId,
+            role: 'assistant',
+            content: analysis,
+            created_at: new Date().toISOString()
+          });
+
+        if (aiMsgError) {
+          console.error('[Image Analysis] Failed to save AI response:', aiMsgError.message);
+        } else {
+          console.log('✅ [Image Analysis] Saved AI response');
+        }
+      } catch (saveError) {
+        console.error('[Image Analysis] Error saving messages:', saveError.message);
+        // Continue - don't fail the request if save fails
+      }
+    }
 
     // Store analysis in database (optional)
     if (supabaseUrl !== 'https://your-project.supabase.co') {

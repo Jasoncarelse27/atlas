@@ -335,9 +335,11 @@ export async function sendMessageWithAttachments(
     id: tempId,
     conversationId,
     role: "user",
+    type: 'image', // ✅ ADD: Explicitly set type to 'image'
     content: caption || "", // ✅ user caption as content
     url: imageUrl, // ✅ image URL for display
     imageUrl: imageUrl, // ✅ also set imageUrl for compatibility
+    image_url: imageUrl, // ✅ ADD: Support snake_case for Supabase compatibility
     attachments: attachments.map(att => ({
       type: att.type || 'image',
       url: att.url || att.publicUrl,
@@ -386,6 +388,7 @@ export async function sendMessageWithAttachments(
         body: JSON.stringify({
           imageUrl: imageAttachment.url,
           userId: userId,
+          conversationId: conversationId, // ✅ NEW: Pass conversationId
           prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
         }),
       });
@@ -422,7 +425,9 @@ export async function sendMessageWithAttachments(
           id: generateUUID(),
           conversationId,
           role: "assistant",
+          type: 'text', // ✅ ADD: Explicitly set type
           content: data.analysis,
+          timestamp: new Date().toISOString(), // ✅ ADD: Use timestamp for consistency
           createdAt: new Date().toISOString(),
         };
         

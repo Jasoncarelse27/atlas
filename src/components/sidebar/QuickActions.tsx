@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { atlasDB, ensureDatabaseReady } from '../../database/atlasDB';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
-import { deleteConversation } from '../../services/conversationDeleteService';
+import { conversationService } from '../../services/conversationService';
 import { generateUUID } from '../../utils/uuid';
 
 interface QuickActionsProps {
@@ -15,7 +14,7 @@ interface QuickActionsProps {
 
 export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<any[]>([]); // State for UI updates
+  const [, setConversations] = useState<any[]>([]); // State for UI updates
 
   // ✅ ENTERPRISE: Listen for real-time deletion events
   useEffect(() => {
@@ -38,19 +37,11 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // ✅ MOBILE FIX: Ensure database is ready before use
-      await ensureDatabaseReady();
-
-      const PAGE_SIZE = 20;
-      // ✅ Load only what we need - no overfetch
-      const localConversations = await atlasDB.conversations
-        .orderBy('updatedAt')
-        .reverse()
-        .limit(PAGE_SIZE)  // Changed from PAGE_SIZE * 2
-        .toArray();
+      // ✅ PERFORMANCE: Use unified conversation service
+      const conversations = await conversationService.getConversations(user.id);
       
-      // ✅ Map directly - no slicing needed
-      const mappedConversations = localConversations.map(conv => ({
+      // Transform for backward compatibility
+      const mappedConversations = conversations.map(conv => ({
         id: conv.id,
         title: conv.title,
         created_at: conv.createdAt,
@@ -140,8 +131,8 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         });
       }
 
-      // ✅ Delete from database (both Supabase and local Dexie)
-      await deleteConversation(conversationId, user.id);
+      // ✅ Use unified conversation service
+      await conversationService.deleteConversation(conversationId);
       
       logger.debug('[QuickActions] ✅ Conversation deleted successfully');
       

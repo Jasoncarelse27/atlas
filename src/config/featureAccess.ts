@@ -65,7 +65,7 @@ export const tierFeatures = {
     weeklyInsights: false,
     cloudSync: true,  // Core tier: cross-device sync
     // Voice Features
-    audioMinutesPerMonth: 5,          // 5 minutes total (STT + TTS)
+    audioMinutesPerMonth: -1,          // Unlimited for Core tier
     ttsEnabled: true,
     ttsModel: 'tts-1',                // Standard quality
     ttsVoice: 'alloy',
@@ -73,7 +73,7 @@ export const tierFeatures = {
     voiceNotesEnabled: true,
     voiceNoteMaxDuration: 1,          // 1 minute max per note
     voiceCallsEnabled: false,         // NOT available for Core
-    dailyAudioCap: 2,                 // Max 2 minutes/day
+    dailyAudioCap: -1,                 // No daily cap for Core
     intelligentMetering: false
   },
   studio: { 
