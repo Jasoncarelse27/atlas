@@ -1,6 +1,7 @@
 import { atlasDB } from '../database/atlasDB';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
+import { perfMonitor } from '../utils/performanceMonitor';
 
 // Define proper types for Supabase responses
 interface SupabaseConversation {
@@ -252,6 +253,7 @@ export class ConversationSyncService {
    * This fixes the deletion issue and scales to 100k+ users
    */
   async deltaSync(userId: string): Promise<void> {
+    perfMonitor.start('conversation-sync');
     const startTime = Date.now();
     console.log('[ConversationSync] Starting delta sync...');
     console.log('[ConversationSync] ⚡ Optimized for recent data only');
@@ -409,8 +411,13 @@ export class ConversationSyncService {
       
       const duration = Date.now() - startTime;
       const durationSeconds = (duration / 1000).toFixed(1);
+      const perfDuration = perfMonitor.end('conversation-sync');
       console.log('[ConversationSync] ✅ Delta sync completed successfully in', duration, 'ms');
       console.log('[ConversationSync] 🚀 Sync performance:', durationSeconds + 's', duration < 5000 ? '(Excellent!)' : duration < 10000 ? '(Good)' : '(Needs optimization)');
+      
+      if (perfDuration && perfDuration > 5000) {
+        console.warn(`⚠️ [Performance] Conversation sync took ${perfDuration.toFixed(0)}ms - consider optimizing`);
+      }
       
       // ✅ PERFORMANCE MONITORING: Log sync metrics (future-proof approach)
       try {

@@ -3,6 +3,7 @@
 // instead of direct Supabase calls, ensuring proper security and CORS handling
 
 import { atlasDB } from '../database/atlasDB'; // ✅ FIXED: Import from new Golden Standard Dexie
+import { perfMonitor } from '../utils/performanceMonitor';
 import { safeToast } from './toastService';
 
 // Track active mode clearly
@@ -107,6 +108,7 @@ class SubscriptionApiService {
 
   private async fetchUserProfile(userId: string, accessToken: string): Promise<SubscriptionProfile | null> {
     try {
+      perfMonitor.start('tier-fetch');
       
       const profile = await safeFetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
         method: 'GET',
@@ -116,6 +118,11 @@ class SubscriptionApiService {
           'Content-Type': 'application/json',
         },
       });
+      
+      const duration = perfMonitor.end('tier-fetch');
+      if (duration && profile) {
+        console.log(`✅ [Tier] Loaded "${profile.subscription_tier}" in ${duration.toFixed(0)}ms`);
+      }
 
       if (profile === null) {
         // Backend failed, try direct Supabase before falling back to Dexie

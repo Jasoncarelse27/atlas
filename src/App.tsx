@@ -1,13 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { Toaster } from "react-hot-toast";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { TierProvider } from "./contexts/TierContext";
-import AuthPage from "./pages/AuthPage";
-import ChatPage from "./pages/ChatPage";
-import UpgradePage from "./pages/UpgradePage";
 import { AuthProvider, useAuth } from "./providers/AuthProvider";
+
+// 🚀 Route-based code splitting for better performance
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const UpgradePage = lazy(() => import("./pages/UpgradePage"));
 
 const queryClient = new QueryClient();
 
@@ -40,13 +43,15 @@ function App() {
         <TierProvider>
           <Router>
             <Toaster position="top-center" />
-            <Routes>
-              <Route path="/login" element={<PublicAuthRoute />} />
-              <Route path="/chat" element={<ProtectedChatRoute />} />
-              <Route path="/upgrade" element={<UpgradePage />} />
-              <Route path="/" element={<Navigate to="/chat" replace />} />
-              <Route path="*" element={<Navigate to="/chat" replace />} />
-            </Routes>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/login" element={<PublicAuthRoute />} />
+                <Route path="/chat" element={<ProtectedChatRoute />} />
+                <Route path="/upgrade" element={<UpgradePage />} />
+                <Route path="/" element={<Navigate to="/chat" replace />} />
+                <Route path="*" element={<Navigate to="/chat" replace />} />
+              </Routes>
+            </Suspense>
           </Router>
         </TierProvider>
       </AuthProvider>
