@@ -1,5 +1,5 @@
 import { createChatError } from '../features/chat/lib/errorHandler';
-import db from '../lib/db';
+import { atlasDB } from '../database/atlasDB';
 import { offlineMessageStore } from '../services/offlineMessageStore';
 import { generateUUID } from "../utils/uuid";
 
@@ -47,7 +47,7 @@ export class PendingQueueManager {
         updated_at: new Date().toISOString(),
       };
 
-      await db.pending_operations.put(operation);
+      await atlasDB.pending_operations.put(operation);
       return operation.id;
     } catch (error) {
       // Intentionally empty - error handling not required
@@ -69,7 +69,7 @@ export class PendingQueueManager {
     this.isProcessing = true;
     try {
       // Get pending operations sorted by priority and creation time
-      const pendingOperations = await db.pending_operations
+      const pendingOperations = await atlasDB.pending_operations
         .where('status')
         .equals('pending')
         .and(op => op.retry_count < this.maxRetries)
@@ -253,7 +253,7 @@ export class PendingQueueManager {
    */
   private async updateOperationStatus(operationId: string, status: PendingOperation['status'], updates: Partial<PendingOperation> = {}): Promise<void> {
     try {
-      await db.pending_operations.update(operationId, {
+      await atlasDB.pending_operations.update(operationId, {
         status,
         updated_at: new Date().toISOString(),
         ...updates,
@@ -276,7 +276,7 @@ export class PendingQueueManager {
    */
   async retryFailedOperations(): Promise<void> {
     try {
-      const failedOperations = await db.pending_operations
+      const failedOperations = await atlasDB.pending_operations
         .where('status')
         .equals('failed')
         .toArray();
@@ -306,7 +306,7 @@ export class PendingQueueManager {
    */
   async clearQueue(): Promise<void> {
     try {
-      await db.pending_operations.clear();
+      await atlasDB.pending_operations.clear();
     } catch (error) {
       // Intentionally empty - error handling not required
       const chatError = createChatError(error, {
@@ -322,7 +322,7 @@ export class PendingQueueManager {
    */
   async getQueueStats(): Promise<QueueStats> {
     try {
-      const allOperations = await db.pending_operations.toArray();
+      const allOperations = await atlasDB.pending_operations.toArray();
       
       const stats: QueueStats = {
         total: allOperations.length,
@@ -354,7 +354,7 @@ export class PendingQueueManager {
    */
   async getOperationsByType(type: PendingOperation['type']): Promise<PendingOperation[]> {
     try {
-      return await db.pending_operations
+      return await atlasDB.pending_operations
         .where('type')
         .equals(type)
         .toArray();
@@ -374,7 +374,7 @@ export class PendingQueueManager {
    */
   async removeOperation(operationId: string): Promise<void> {
     try {
-      await db.pending_operations.delete(operationId);
+      await atlasDB.pending_operations.delete(operationId);
     } catch (error) {
       // Intentionally empty - error handling not required
       const chatError = createChatError(error, {

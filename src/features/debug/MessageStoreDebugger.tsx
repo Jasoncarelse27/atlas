@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import db from '../../lib/db';
+import { atlasDB } from '../../database/atlasDB';
 
 export default function MessageStoreDebugger() {
   const [messageCount, setMessageCount] = useState(0);
@@ -14,8 +14,8 @@ export default function MessageStoreDebugger() {
   const refreshStats = async () => {
     setIsLoading(true);
     try {
-      const messages = await db.messages.count();
-      const conversations = await db.conversations.count();
+      const messages = await atlasDB.messages.count();
+      const conversations = await atlasDB.conversations.count();
       setMessageCount(messages);
       setConversationCount(conversations);
     } catch (error) {
@@ -27,8 +27,8 @@ export default function MessageStoreDebugger() {
 
   const exportJSON = async () => {
     try {
-      const messages = await db.messages.toArray();
-      const conversations = await db.conversations.toArray();
+      const messages = await atlasDB.messages.toArray();
+      const conversations = await atlasDB.conversations.toArray();
       
       const data = {
         messages,
@@ -59,8 +59,8 @@ export default function MessageStoreDebugger() {
   const clearDB = async () => {
     if (window.confirm('⚠️ This will permanently delete all messages and conversations. Are you sure?')) {
       try {
-        await db.messages.clear();
-        await db.conversations.clear();
+        await atlasDB.messages.clear();
+        await atlasDB.conversations.clear();
         await refreshStats();
         console.log('✅ Database cleared successfully');
       } catch (error) {

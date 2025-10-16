@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import db from '../lib/db';
+import { atlasDB } from '../database/atlasDB';
 
 // Mock the database for tests
 let mockDataCount = 1; // Start with data present
 let mockSynced = false; // Track sync status
 
-vi.mock('../lib/db', () => ({
-  default: {
+vi.mock('../database/atlasDB', () => ({
+  atlasDB: {
     messages: {
       clear: vi.fn().mockImplementation(() => {
         mockDataCount = 0;
@@ -91,9 +91,9 @@ describe('Atlas Database (Dexie)', () => {
     mockDataCount = 1;
     mockSynced = false;
     // Clear database before each test (except for clear test)
-    if (db && !expect.getState().currentTestName?.includes('should clear all data')) {
-      await db.messages.clear();
-      await db.conversations.clear();
+    if (atlasDB && !expect.getState().currentTestName?.includes('should clear all data')) {
+      await atlasDB.messages.clear();
+      await atlasDB.conversations.clear();
     }
   });
 
@@ -109,11 +109,11 @@ describe('Atlas Database (Dexie)', () => {
       };
 
       // Add message
-      const id = await db.messages.add(message);
+      const id = await atlasDB.messages.add(message);
       expect(id).toBeDefined();
 
       // Retrieve message
-      const retrievedMessage = await db.messages.get(id);
+      const retrievedMessage = await atlasDB.messages.get(id);
       expect(retrievedMessage).toEqual({ ...message, id });
     });
 
@@ -143,10 +143,10 @@ describe('Atlas Database (Dexie)', () => {
       ];
 
       // Add messages
-      await Promise.all(messages.map(msg => db.messages.add(msg)));
+      await Promise.all(messages.map(msg => atlasDB.messages.add(msg)));
 
       // Query by conversationId
-      const conv1Messages = await db.messages
+      const conv1Messages = await atlasDB.messages
         .where('conversationId')
         .equals('conv-1')
         .toArray();
@@ -183,10 +183,10 @@ describe('Atlas Database (Dexie)', () => {
       ];
 
       // Add messages
-      await Promise.all(messages.map(msg => db.messages.add(msg)));
+      await Promise.all(messages.map(msg => atlasDB.messages.add(msg)));
 
       // Get sorted messages
-      const sortedMessages = await db.messages
+      const sortedMessages = await atlasDB.messages
         .where('conversationId')
         .equals('conv-1')
         .sortBy('createdAt');
@@ -206,12 +206,12 @@ describe('Atlas Database (Dexie)', () => {
         synced: false
       };
 
-      const id = await db.messages.add(message);
+      const id = await atlasDB.messages.add(message);
       
       // Update sync status
-      await db.messages.update(id, { synced: true });
+      await atlasDB.messages.update(id, { synced: true });
       
-      const updatedMessage = await db.messages.get(id);
+      const updatedMessage = await atlasDB.messages.get(id);
       expect(updatedMessage?.synced).toBe(true);
     });
   });
@@ -224,11 +224,11 @@ describe('Atlas Database (Dexie)', () => {
       };
 
       // Add conversation
-      const id = await db.conversations.add(conversation);
+      const id = await atlasDB.conversations.add(conversation);
       expect(id).toBeDefined();
 
       // Retrieve conversation
-      const retrievedConversation = await db.conversations.get(id);
+      const retrievedConversation = await atlasDB.conversations.get(id);
       expect(retrievedConversation).toEqual({ ...conversation, id });
     });
 
@@ -250,10 +250,10 @@ describe('Atlas Database (Dexie)', () => {
       ];
 
       // Add conversations
-      await Promise.all(conversations.map(conv => db.conversations.add(conv)));
+      await Promise.all(conversations.map(conv => atlasDB.conversations.add(conv)));
 
       // Get sorted conversations (newest first)
-      const sortedConversations = await db.conversations
+      const sortedConversations = await atlasDB.conversations
         .orderBy('createdAt')
         .reverse()
         .toArray();
@@ -268,7 +268,7 @@ describe('Atlas Database (Dexie)', () => {
   describe('Database Operations', () => {
     it('should clear all data', async () => {
       // Add some data
-      await db.messages.add({
+      await atlasDB.messages.add({
         conversationId: 'conv-1',
         role: 'user',
         content: 'Test',
@@ -276,22 +276,22 @@ describe('Atlas Database (Dexie)', () => {
         synced: false
       });
       
-      await db.conversations.add({
+      await atlasDB.conversations.add({
         title: 'Test',
         createdAt: Date.now()
       });
 
       // Verify data exists
-      expect(await db.messages.count()).toBe(1);
-      expect(await db.conversations.count()).toBe(1);
+      expect(await atlasDB.messages.count()).toBe(1);
+      expect(await atlasDB.conversations.count()).toBe(1);
 
       // Clear all data
-      await db.messages.clear();
-      await db.conversations.clear();
+      await atlasDB.messages.clear();
+      await atlasDB.conversations.clear();
 
       // Verify data is cleared
-      expect(await db.messages.count()).toBe(0);
-      expect(await db.conversations.count()).toBe(0);
+      expect(await atlasDB.messages.count()).toBe(0);
+      expect(await atlasDB.conversations.count()).toBe(0);
     });
   });
 });
