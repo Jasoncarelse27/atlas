@@ -34,8 +34,7 @@ export default defineConfig(({ mode }) => {
         compress: {
           drop_console: ['log', 'debug'],  // Remove console.log and console.debug from production
           drop_debugger: true
-        },
-        mangle: false // 🔧 FIX: Completely disable mangling to preserve all export names
+        }
       },
       rollupOptions: {
         output: {

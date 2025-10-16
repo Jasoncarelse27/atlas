@@ -175,26 +175,27 @@ class CacheInvalidationService {
    */
   private async clearDexieCache(userId: string): Promise<void> {
     try {
-      // Dynamically import Dexie DB instance
-      const dbModule = await import('../lib/db');
-      const db = dbModule.default;
+      // Dynamically import Dexie DB instance from the correct database file
+      const dbModule = await import('../database/atlasDB');
+      const { atlasDB } = dbModule;
       
-      if (!db) {
-        console.warn('[CacheInvalidation] Dexie DB not available');
+      if (!atlasDB) {
+        console.warn('[CacheInvalidation] AtlasDB not available');
         return;
       }
       
-      // Clear user-related data from Dexie
-      // Note: Current schema doesn't have profiles table, but we clear what we can
+      // Clear user-related data from AtlasDB
       try {
-        await db.table('messages')?.where('userId').equals(userId).delete();
+        await atlasDB.messages.where('userId').equals(userId).delete();
+        await atlasDB.conversations.where('userId').equals(userId).delete();
       } catch (err) {
-        // Table might not exist
+        // Tables might not exist or be accessible
+        console.warn('[CacheInvalidation] Could not clear specific tables:', err);
       }
       
-      console.log(`[CacheInvalidation] Cleared Dexie cache for user ${userId}`);
+      console.log(`[CacheInvalidation] Cleared AtlasDB cache for user ${userId}`);
     } catch (error) {
-      console.warn('[CacheInvalidation] Could not clear Dexie cache:', error);
+      console.warn('[CacheInvalidation] Could not clear AtlasDB cache:', error);
     }
   }
 
