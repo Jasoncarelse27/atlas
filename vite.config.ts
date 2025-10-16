@@ -39,39 +39,9 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          manualChunks: (id) => {
-            // React and core libraries
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-              return 'react';
-            }
-            // UI libraries
-            if (id.includes('node_modules/framer-motion') || id.includes('node_modules/lucide-react')) {
-              return 'ui';
-            }
-            // Supabase and auth
-            if (id.includes('node_modules/@supabase') || id.includes('node_modules/@auth')) {
-              return 'auth';
-            }
-            // Query and state management
-            if (id.includes('node_modules/@tanstack') || id.includes('node_modules/react-query')) {
-              return 'state';
-            }
-            // Other node_modules
-            if (id.includes('node_modules')) {
-              return 'vendor';
-            }
-            // Chat features
-            if (id.includes('src/features/chat')) {
-              return 'chat';
-            }
-            // Subscription features (including database dependencies)
-            if (id.includes('src/features/subscription') || 
-                id.includes('src/hooks/useSubscription') ||
-                id.includes('src/services/subscriptionApi') ||
-                id.includes('src/database/atlasDB')) {
-              return 'subscription';
-            }
-          }
+          // 🔧 SIMPLIFIED: Use Vite's proven default chunking strategy
+          // This fixes atlasDB export issues and follows industry best practices
+          // Vite automatically handles optimal chunking for production builds
         }
       }
     },
