@@ -30,7 +30,7 @@ if (userTier === 'free') {
 
 ### **Upgrade Flow Rules**
 - ✅ ALWAYS trigger upgrade modal via `showUpgradeModal()` from `useTierAccess`
-- ✅ ALWAYS use Paddle checkout for upgrades
+- ✅ ALWAYS use FastSpring checkout for upgrades
 - ✅ ALWAYS log feature attempts via `logFeatureAttempt()`
 
 ## 🏗️ **Architecture Rules**

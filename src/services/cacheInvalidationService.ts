@@ -3,7 +3,6 @@
 // This prevents stale cache exploits where users access paid features after downgrade
 
 import { fastspringService } from './fastspringService';
-import { paddleService } from './paddleService';
 import { subscriptionApi } from './subscriptionApi';
 
 type Tier = 'free' | 'core' | 'studio';
@@ -115,15 +114,7 @@ class CacheInvalidationService {
    * Clear Paddle service cache
    */
   private async clearPaddleCache(userId: string): Promise<void> {
-    try {
-      // @ts-ignore - accessing private cache property
-      if (paddleService?.subscriptionCache) {
-        // @ts-ignore
-        paddleService.subscriptionCache.delete(userId);
-      }
-    } catch (error) {
-      console.warn('[CacheInvalidation] Could not clear Paddle cache:', error);
-    }
+    // Paddle service removed - only FastSpring is used
   }
 
   /**

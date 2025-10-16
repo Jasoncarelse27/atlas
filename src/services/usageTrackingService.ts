@@ -12,7 +12,7 @@ import {
 } from '../config/featureAccess';
 import { supabase } from '../lib/supabase';
 import type { Tier } from '../types/tier';
-import { paddleService } from './paddleService';
+// Paddle service removed - using FastSpring only
 
 export interface DailyUsage {
   user_id: string;
@@ -110,22 +110,8 @@ class UsageTrackingService {
         };
       }
 
-      // Validate subscription status first
-      const subscriptionCheck = await paddleService.validateSubscriptionForRequest(userId);
-      
-      if (!subscriptionCheck.canProceed) {
-        return {
-          canProceed: false,
-          reason: subscriptionCheck.reason === 'cancelled' ? 'subscription_required' : 'payment_failed',
-          remainingConversations: 0,
-          upgradeRequired: true,
-          suggestedTier: tier === 'free' ? 'core' : 'studio',
-          graceEndsAt: subscriptionCheck.graceEndsAt
-        };
-      }
-
-      // Update tier from subscription validation
-      tier = subscriptionCheck.tier;
+      // Subscription validation now handled by FastSpring webhook
+      // Tier enforcement is handled at the backend level
       const usage = await this.getTodaysUsage(userId, tier);
       
       // Get usage warning level for soft limits
