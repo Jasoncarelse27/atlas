@@ -105,5 +105,5 @@ regexes = [
   # Security script patterns (these are detection regex, not actual secrets)
   "sk-ant-\\[a-zA-Z0-9\\\\-\\]\\{95,\\}",
   "AKIA\\[0-9A-Z\\]\\{16\\}",
-  "eyJ\\[a-zA-Z0-9_\\-\\]\\{50,\\}\\.[a-zA-Z0-9_\\-\\]\\{50,\\}\\.[a-zA-Z0-9_\\-\\]\\{50,\\}"
+  "eyJ[a-zA-Z0-9_\\-]{50,}\\.[a-zA-Z0-9_\\-]{50,}\\.[a-zA-Z0-9_\\-]{50,}"
 ]
