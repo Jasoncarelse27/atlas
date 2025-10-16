@@ -63,8 +63,11 @@ export default defineConfig(({ mode }) => {
             if (id.includes('src/features/chat')) {
               return 'chat';
             }
-            // Subscription features
-            if (id.includes('src/features/subscription') || id.includes('src/hooks/useSubscription')) {
+            // Subscription features (including database dependencies)
+            if (id.includes('src/features/subscription') || 
+                id.includes('src/hooks/useSubscription') ||
+                id.includes('src/services/subscriptionApi') ||
+                id.includes('src/database/atlasDB')) {
               return 'subscription';
             }
           }
