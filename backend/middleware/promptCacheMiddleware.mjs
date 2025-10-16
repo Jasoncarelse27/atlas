@@ -5,9 +5,11 @@
  */
 export default async function promptCacheMiddleware(req, res, next) {
   try {
-    const { message, tier } = req.body || {};
+    // 🔒 SECURITY FIX: Never trust client-sent tier
+    const message = req.body?.message;
+    const tier = req.user?.tier || 'free'; // Always use server-validated tier
     
-    if (!message || !tier) {
+    if (!message) {
       return next(); // Skip caching if required data is missing
     }
 

@@ -1,12 +1,12 @@
 import express from 'express';
 import { supabase } from '../config/supabaseClient.mjs';
-import { requireAdminDev } from '../middleware/adminAuth.mjs';
+import { requireAdmin } from '../middleware/adminAuth.mjs';
 
 const router = express.Router();
 
-// Apply admin authentication to all routes
-// Using requireAdminDev for now (bypasses in development)
-router.use(requireAdminDev);
+// 🔒 SECURITY FIX: Apply proper admin authentication to all routes
+// Replaced requireAdminDev with requireAdmin (no development bypass)
+router.use(requireAdmin);
 
 // POST /admin/resetAttempts - Delete all rows from feature_attempts table
 router.post('/resetAttempts', async (req, res) => {

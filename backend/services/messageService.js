@@ -204,16 +204,30 @@ export async function processMessage(userId, text, conversationId = null) {
   const tier = await getUserTier(userId);
   
   // ✅ ENFORCE MESSAGE LIMITS - Check before processing
+  // 🔒 SECURITY: Fail-closed on errors to prevent free tier abuse
   if (tier === 'free') {
     try {
-      const { data: profile } = await getSupabase()
+      const { data: profile, error: profileError } = await getSupabase()
         .from('profiles')
         .select('usage_stats')
         .eq('id', userId)
         .single();
       
+      // 🔒 SECURITY FIX: Fail-closed if we can't verify limits
+      if (profileError) {
+        console.error('[MessageService] ⚠️ Failed to fetch usage stats:', profileError.message);
+        return {
+          success: false,
+          error: 'USAGE_VERIFICATION_FAILED',
+          message: 'Unable to verify message limits. Please try again in a moment.',
+          technical: profileError.message
+        };
+      }
+      
       const messagesThisMonth = profile?.usage_stats?.messages_this_month || 0;
       const monthlyLimit = 15;
+      
+      console.log(`[MessageService] Free tier user ${userId}: ${messagesThisMonth}/${monthlyLimit} messages used`);
       
       if (messagesThisMonth >= monthlyLimit) {
         return {
@@ -226,7 +240,14 @@ export async function processMessage(userId, text, conversationId = null) {
         };
       }
     } catch (error) {
-      // Continue processing if we can't check limits (fail open for reliability)
+      // 🔒 SECURITY FIX: Fail-closed on exception (block access, don't continue)
+      console.error('[MessageService] ⚠️ Exception checking usage limits:', error.message || error);
+      return {
+        success: false,
+        error: 'USAGE_VERIFICATION_FAILED',
+        message: 'Unable to verify message limits. Please try again in a moment.',
+        technical: error.message
+      };
     }
   }
   

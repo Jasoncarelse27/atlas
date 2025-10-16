@@ -13,12 +13,15 @@ const inMemoryUsage = new Map();
  */
 export default async function dailyLimitMiddleware(req, res, next) {
   try {
-    const { userId, tier } = req.body || {};
+    // 🔒 SECURITY FIX: Never trust client-sent tier
+    // Get userId from authenticated user (set by authMiddleware)
+    const userId = req.user?.id;
+    const tier = req.user?.tier || 'free'; // Always use server-validated tier
     
-    if (!userId || !tier) {
+    if (!userId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Missing userId or tier' 
+        message: 'Missing userId - authentication required' 
       });
     }
 

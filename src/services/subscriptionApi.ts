@@ -7,7 +7,7 @@ import { perfMonitor } from '../utils/performanceMonitor';
 import { safeToast } from './toastService';
 
 // Track active mode clearly
-let activeMode: "dexie" | "backend" | null = null;
+let activeMode: "dexie" | "backend" | "supabase" | null = null;
 
 // Safe fetch helper with toast fallback
 async function safeFetch(url: string, options?: RequestInit) {
@@ -55,7 +55,7 @@ class SubscriptionApiService {
   private readonly CACHE_TTL = import.meta.env.DEV ? 1000 : 5000; // 1s dev, 5s prod for faster tier updates
   private pendingRequests: Map<string, Promise<SubscriptionProfile | null>> = new Map();
 
-  private setMode(mode: "dexie" | "backend") {
+  private setMode(mode: "dexie" | "backend" | "supabase") {
     if (activeMode !== mode) {
       activeMode = mode;
       if (mode === "dexie") {
@@ -152,8 +152,10 @@ class SubscriptionApiService {
           console.error('[SubscriptionAPI] Direct Supabase fallback failed:', directErr);
         }
         
-        // If direct Supabase also failed, use Dexie cache as last resort
-        return await this.getProfileFromDexie(userId);
+        // 🔒 SECURITY FIX: Never use stale Dexie cache for tier data
+        // If we can't reach the backend or Supabase, fail with error
+        console.error('[SubscriptionAPI] ❌ Cannot fetch tier - all sources failed');
+        throw new Error('Unable to fetch tier - please check your connection');
       }
 
       this.setMode("backend");
@@ -163,8 +165,8 @@ class SubscriptionApiService {
       
       return profile;
     } catch (error) {
-      // Try direct Supabase before falling back to Dexie
-      this.setMode("dexie");
+      // 🔒 SECURITY FIX: Try direct Supabase but NEVER fall back to stale Dexie cache
+      this.setMode("supabase");
       
       try {
         const { createClient } = await import('@supabase/supabase-js');
@@ -189,7 +191,10 @@ class SubscriptionApiService {
         console.error('[SubscriptionAPI] Error in direct Supabase query:', directErr);
       }
       
-      return await this.getProfileFromDexie(userId);
+      // 🔒 SECURITY FIX: Never use stale Dexie cache for tier data
+      // This prevents users from accessing paid features after cancellation during outages
+      console.error('[SubscriptionAPI] ❌ All tier fetch attempts failed');
+      throw new Error('Unable to fetch tier - please check your connection and try again');
     }
   }
 
@@ -383,7 +388,11 @@ class SubscriptionApiService {
   /**
    * Fallback method to get profile from Dexie cache when backend is unavailable
    */
+  // 🔒 SECURITY: This method is deprecated and should not be used
+  // Kept for backwards compatibility but not called anywhere
+  // @deprecated Use direct Supabase queries instead of stale offline cache
   private async getProfileFromDexie(userId: string): Promise<SubscriptionProfile | null> {
+    console.warn('[SubscriptionAPI] ⚠️ getProfileFromDexie called - this should not happen');
     try {
       // ✅ FIXED: Use profiles table from new Golden Standard Dexie
       const profile = await atlasDB.conversations

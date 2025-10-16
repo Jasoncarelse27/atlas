@@ -43,49 +43,32 @@ const getLocalIPAddress = () => {
 const LOCAL_IP = getLocalIPAddress();
 const PORT = process.env.PORT || process.env.NOVA_BACKEND_PORT || 8000;
 
-// Initialize Supabase client with fallback for development
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+// 🔒 SECURITY: Initialize Supabase client - ALWAYS require real credentials
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 let supabase;
 try {
-  if (supabaseUrl === 'https://your-project.supabase.co' || !supabaseServiceKey) {
-    // Only use mock if credentials are actually missing
-    supabase = {
-      auth: {
-        getUser: async (token) => {
-          if (token === 'mock-token-for-development') {
-            return { data: { user: { id: '550e8400-e29b-41d4-a716-446655440000' } }, error: null };
-          }
-          return { data: { user: null }, error: new Error('Invalid token') };
-        }
-      },
-      from: (_table) => ({
-        select: (_columns) => ({
-          eq: (_column, _value) => ({
-            eq: (_column2, _value2) => ({
-              maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null })
-            }),
-            maybeSingle: () => Promise.resolve({ data: { tier: 'free', status: 'active' }, error: null }),
-            single: () => Promise.resolve({ data: null, error: { code: 'PGRST116' } })
-          }),
-          single: () => Promise.resolve({ data: null, error: { code: 'PGRST116' } })
-        }),
-        insert: (data) => ({
-          select: () => ({
-            single: () => Promise.resolve({ data: data[0], error: null })
-          })
-        })
-      })
-    };
-  } else {
-    // Production mode - use real Supabase client
-    if (!supabaseUrl || !supabaseServiceKey) {
-      process.exit(1);
-    }
-    supabase = createClient(supabaseUrl, supabaseServiceKey);
+  // ✅ SECURITY FIX: Removed mock Supabase client - ALWAYS require real credentials
+  // This prevents authentication bypass and ensures proper database security
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('❌ FATAL: Missing Supabase credentials');
+    console.error('   Required: VITE_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY');
+    process.exit(1);
   }
+  
+  // Always use real Supabase client with proper credentials
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+  
+  console.log('✅ Supabase client initialized successfully');
 } catch (error) {
+  console.error('❌ FATAL: Failed to initialize Supabase client:', error.message);
   process.exit(1);
 }
 
@@ -265,7 +248,7 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
 }
 
 
-// Enhanced JWT verification middleware with development fallback
+// 🔒 SECURITY: Enhanced JWT verification middleware - ALWAYS verify with Supabase
 const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -278,11 +261,8 @@ const verifyJWT = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     
-    // Development mode: only allow specific mock token for local testing
-    if (process.env.NODE_ENV === 'development' && token === 'mock-token-for-development') {
-      req.user = { id: '550e8400-e29b-41d4-a716-446655440000' };
-      return next();
-    }
+    // ✅ SECURITY FIX: Removed mock token bypass - ALWAYS verify with Supabase (even in development)
+    // This prevents authentication bypass vulnerabilities in production
     
     // Enhanced Supabase JWT verification with better error handling
     const { data: { user }, error } = await supabase.auth.getUser(token);
@@ -485,10 +465,10 @@ app.get('/api/auth/status', (req, res) => {
 app.post('/message', async (req, res) => {
   
   try {
-    // Handle both frontend formats: {message, tier} and {text, userId, conversationId, attachments}
-    const { message, text, tier, userId, conversationId, attachments } = req.body;
+    // 🔒 SECURITY FIX: Never trust client-sent tier from request body
+    const { message, text, userId, conversationId, attachments } = req.body;
     const messageText = text || message;
-    const userTier = tier;
+    const userTier = req.user?.tier || 'free'; // Always use server-validated tier
     
     if (!messageText && !attachments) {
       return res.status(400).json({ error: 'Missing message text or attachments' });
@@ -1797,35 +1777,12 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
   }
 });
 
-// Update user profile tier endpoint
-app.put('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const { subscription_tier } = req.body;
-    
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ subscription_tier })
-      .eq('id', userId)
-      .select()
-      .single();
-    
-    if (error) {
-      return res.status(500).json({ error: 'Failed to update profile' });
-    }
-    
-    console.log(`✅ Updated tier for user ${userId} to ${subscription_tier}`);
-    return res
-      .set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-      .set('Pragma', 'no-cache')
-      .set('Expires', '0')
-      .status(200)
-      .json(data);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// 🔒 SECURITY FIX: REMOVED public tier update endpoint
+// ❌ This endpoint allowed anyone to upgrade their tier without payment
+// ✅ Tier updates now ONLY happen via FastSpring webhook with signature verification
+// 
+// Previously at: app.put('/v1/user_profiles/:id', ...)
+// Removed for security: Users must not be able to modify their own subscription_tier
 
 // FastSpring checkout creation endpoint
 app.post('/api/fastspring/create-checkout', async (req, res) => {

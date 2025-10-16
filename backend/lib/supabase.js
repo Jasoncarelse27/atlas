@@ -8,34 +8,16 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 let supabase;
 
+// 🔒 SECURITY FIX: Removed mock Supabase client - ALWAYS require real credentials
+// This prevents authentication bypass and ensures proper database security in all environments
 if (!supabaseUrl || !supabaseServiceRoleKey) {
-  // Check if we're in CI environment
-  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-  
-  if (process.env.NODE_ENV !== 'production' || isCI) {
-    // Mock client avoids backend crash in dev/ci
-    supabase = { 
-      from: () => ({ 
-        select: async () => ({ data: [], error: null }),
-        insert: async () => ({ data: [], error: null }),
-        update: async () => ({ data: [], error: null }),
-        delete: async () => ({ data: [], error: null }),
-        upsert: async () => ({ data: [], error: null })
-      }),
-      rpc: async () => ({ data: null, error: null }),
-      storage: {
-        from: () => ({
-          upload: async () => ({ data: { path: 'mock/path' }, error: null })
-        })
-      }
-    };
-  } else {
-    throw new Error('[Atlas] Missing Supabase backend env vars in PROD!');
-  }
-} else {
-  supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { autoRefreshToken: true, persistSession: false }
-  });
+  console.error('❌ FATAL: Missing Supabase credentials (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
+  console.error('Please set environment variables before starting the server.');
+  process.exit(1);
 }
+
+supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: { autoRefreshToken: true, persistSession: false }
+});
 
 export { supabase };
