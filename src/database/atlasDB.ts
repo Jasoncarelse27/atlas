@@ -35,7 +35,7 @@ export class AtlasDB extends Dexie {
   syncMetadata!: Table<SyncMetadata, string>
 
   constructor() {
-    super("AtlasDB_v7") // ✅ Version 7: Image support
+    super("AtlasDB_v8") // ✅ Version 8: Bundle fix - force fresh build
     
     // ✅ MOBILE FIX: Add error handling for mobile Safari
     this.on('close', () => {
@@ -93,7 +93,7 @@ export class AtlasDB extends Dexie {
   }
 }
 
-export const atlasDB = new AtlasDB()
+export const atlasDB = new AtlasDB() // 🔧 Force rebuild to fix bundle hash
 
 // ✅ PERFORMANCE: Lazy initialization with caching
 let initializationPromise: Promise<void> | null = null;

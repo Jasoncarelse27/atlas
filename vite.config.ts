@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: false,
+      emptyOutDir: true, // 🔧 Force clean build to prevent cache issues
       minify: 'terser',
       terserOptions: {
         compress: {
