@@ -64,7 +64,7 @@ describe('AuthPage', () => {
     });
 
     it('submits form with correct data', async () => {
-      const { supabase } = await import('../../../lib/supabaseClient');
+      const supabase = (await import('../../../lib/supabaseClient')).default;
       const mockSignIn = vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
         data: { user: { id: '123' }, session: {} },
         error: null
@@ -91,7 +91,7 @@ describe('AuthPage', () => {
     });
 
     it('shows error message on login failure', async () => {
-      const { supabase } = await import('../../../lib/supabaseClient');
+      const supabase = (await import('../../../lib/supabaseClient')).default;
       vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
         data: { user: null, session: null },
         error: { message: 'Invalid credentials' }
@@ -124,7 +124,7 @@ describe('AuthPage', () => {
     });
 
     it('shows success message on signup', async () => {
-      const { supabase } = await import('../../../lib/supabaseClient');
+      const supabase = (await import('../../../lib/supabaseClient')).default;
       vi.mocked(supabase.auth.signUp).mockResolvedValue({
         data: { user: { id: '123' }, session: null },
         error: null
@@ -162,7 +162,7 @@ describe('AuthPage', () => {
     });
 
     it('disables submit button while loading', async () => {
-      const { supabase } = await import('../../../lib/supabaseClient');
+      const supabase = (await import('../../../lib/supabaseClient')).default;
       vi.mocked(supabase.auth.signInWithPassword).mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100))
       );

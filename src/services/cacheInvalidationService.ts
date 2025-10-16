@@ -132,7 +132,7 @@ class CacheInvalidationService {
   private async clearSubscriptionApiCache(userId: string): Promise<void> {
     try {
       // Get access token for force refresh
-      const { supabase } = await import('../lib/supabaseClient');
+      const supabase = (await import('../lib/supabaseClient')).default;
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       
@@ -210,7 +210,8 @@ class CacheInvalidationService {
     
     // Fetch fresh tier from server
     try {
-      const { data: { session } } = await (await import('../lib/supabaseClient')).supabase.auth.getSession();
+      const supabase = (await import('../lib/supabaseClient')).default;
+      const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       
       if (!accessToken) {

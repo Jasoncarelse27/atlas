@@ -208,7 +208,8 @@ export function ConversationHistoryDrawer({
                   onClick={async () => {
                     try {
                       const { conversationSyncService } = await import('../services/conversationSyncService');
-                      const { data: { user } } = await (await import('../lib/supabaseClient')).supabase.auth.getUser();
+                      const supabase = (await import('../lib/supabaseClient')).default;
+                      const { data: { user } } = await supabase.auth.getUser();
                       if (user) {
                         console.log('[ConversationHistoryDrawer] 🚀 Starting manual delta sync...');
                         await conversationSyncService.deltaSync(user.id);

@@ -55,7 +55,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
       updateMessage(messageId, { attachments: updated, status: 'uploading' });
 
       // Upload to Supabase
-      const { supabase } = await import('../../lib/supabaseClient');
+      const supabase = (await import('../../lib/supabaseClient')).default;
       const { data, error } = await supabase.storage
         .from("attachments")
         .upload(`${messageId}/${safeName}`, attachment.file, { upsert: true });

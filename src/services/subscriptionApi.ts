@@ -495,13 +495,13 @@ if (typeof window !== 'undefined') {
     clearAllCaches: () => subscriptionApi.clearAllCache(),
     forceRefresh: async (userId?: string) => {
       if (!userId) {
-        const { supabase } = await import('../lib/supabaseClient');
+        const supabase = (await import('../lib/supabaseClient')).default;
         const { data: { session } } = await supabase.auth.getSession();
         userId = session?.user?.id;
       }
       if (!userId) return console.error('No user ID found');
       
-      const { supabase } = await import('../lib/supabaseClient');
+      const supabase = (await import('../lib/supabaseClient')).default;
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       
