@@ -5,15 +5,20 @@ import { vi } from 'vitest';
 import AuthPage from '../../../pages/AuthPage';
 
 // Mock Supabase
-vi.mock('../../../lib/supabaseClient', () => ({
-  supabase: {
+vi.mock('../../../lib/supabaseClient', () => {
+  const mockSupabase = {
     auth: {
       signInWithPassword: vi.fn(),
       signUp: vi.fn()
     }
-  },
-  checkSupabaseHealth: vi.fn(() => Promise.resolve({ ok: true }))
-}));
+  };
+  
+  return {
+    supabase: mockSupabase,
+    default: mockSupabase, // Add default export for dynamic imports
+    checkSupabaseHealth: vi.fn(() => Promise.resolve({ ok: true }))
+  };
+});
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
