@@ -214,7 +214,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Simple logout function
   const handleLogout = async () => {
     try {
-      const { supabase } = await import('../lib/supabase');
+      const supabase = (await import('../lib/supabase')).default;
       await supabase.auth.signOut();
       window.location.href = '/login';
     } catch (error) {
