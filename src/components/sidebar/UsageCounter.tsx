@@ -1,4 +1,8 @@
-import { useSubscription } from '../../hooks/useSubscription';
+import { RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
+import { supabase } from '../../lib/supabaseClient';
+import { subscriptionApi } from '../../services/subscriptionApi';
 import { UpgradeButton } from '../UpgradeButton';
 
 interface UsageCounterProps {
@@ -6,7 +10,58 @@ interface UsageCounterProps {
 }
 
 export default function UsageCounter({ userId }: UsageCounterProps) {
-  const { tier, remainingMessages } = useSubscription(userId);
+  const { tier, isLoading } = useSupabaseAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [forceRender, setForceRender] = useState(0);
+  
+  // ✅ Force re-render when tier changes and fix tier mismatch
+  // MUST be before any conditional returns to follow Rules of Hooks
+  useEffect(() => {
+    console.log('[UsageCounter] 🔄 Tier changed:', tier, 'isLoading:', isLoading);
+    setForceRender(prev => prev + 1);
+    
+    // If tier is 'free' but should be 'studio', force a refresh
+    if (!isLoading && tier === 'free' && userId) {
+      console.log('[UsageCounter] ⚠️ Tier mismatch detected - forcing refresh');
+      const fixTierMismatch = async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            subscriptionApi.clearUserCache(userId);
+            await subscriptionApi.forceRefreshProfile(userId, session.access_token);
+          }
+        } catch (error) {
+          console.error('[UsageCounter] Failed to fix tier mismatch:', error);
+        }
+      };
+      fixTierMismatch();
+    }
+  }, [tier, isLoading, userId]);
+
+  // Show loading state while tier is being fetched
+  if (isLoading) {
+    return (
+      <div className="bg-[#2c2f36] p-4 rounded-lg shadow">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-gray-300 text-sm font-medium">Current Tier</h3>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold text-gray-400">Loading...</span>
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-700 rounded w-24 mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Debug log to verify tier value
+  console.log('[UsageCounter] Current tier:', tier, 'isLoading:', isLoading, 'forceRender:', forceRender);
+  
+  // Simplified remaining messages calculation for studio/core users
+  const remainingMessages = tier === 'free' ? 15 : 0;
   
   // Use consolidated subscription hook for real usage data
   const messageCount = tier === 'free' ? (15 - remainingMessages) : 0;
@@ -41,16 +96,52 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
 
   const isUnlimited = tier === 'core' || tier === 'studio';
 
+  const handleRefreshTier = async () => {
+    if (!userId || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      // Set global flag to skip debounce in useSubscription hook
+      (window as any).__skipDebounce = true;
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        // Clear all caches first
+        subscriptionApi.clearUserCache(userId);
+        
+        // Force refresh with cache-busting
+        await subscriptionApi.forceRefreshProfile(userId, session.access_token);
+        
+        // Force a page refresh to update all components
+        setTimeout(() => window.location.reload(), 500);
+      }
+    } catch (error) {
+      console.error('Failed to refresh tier:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="bg-[#2c2f36] p-4 rounded-lg shadow">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-gray-300 text-sm font-medium">Current Tier</h3>
-        <span 
-          className={`text-xs font-semibold ${getTierColor(tier || 'free')} cursor-help`}
-          title={getTierTooltip(tier || 'free')}
-        >
-          {getTierDisplayName(tier || 'free')}
-        </span>
+        <div className="flex items-center space-x-2">
+          <span 
+            className={`text-xs font-semibold ${getTierColor(tier || 'free')} cursor-help`}
+            title={getTierTooltip(tier || 'free')}
+          >
+            {getTierDisplayName(tier || 'free')}
+          </span>
+          <button
+            onClick={handleRefreshTier}
+            disabled={isRefreshing}
+            className="p-1 text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
+            title="Refresh tier status"
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
       
       {isUnlimited ? (

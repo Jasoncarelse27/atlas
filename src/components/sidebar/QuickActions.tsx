@@ -13,8 +13,13 @@ interface QuickActionsProps {
 }
 
 export default function QuickActions({ onViewHistory }: QuickActionsProps) {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [, setDeletingId] = useState<string | null>(null); // Keep setter for future use
   const [, setConversations] = useState<any[]>([]); // State for UI updates
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  
+  // ✅ Simple caching to avoid repeated DB calls
+  const [cachedConversations, setCachedConversations] = useState<any[]>([]);
+  const [lastCacheTime, setLastCacheTime] = useState(0);
 
   // ✅ ENTERPRISE: Listen for real-time deletion events
   useEffect(() => {
@@ -32,11 +37,30 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     };
   }, []);
 
-  const refreshConversationList = async () => {
+  const refreshConversationList = async (forceRefresh = false) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const now = Date.now();
+      
+      // ✅ Use cache if less than 30 seconds old and not forcing refresh
+      if (!forceRefresh && now - lastCacheTime < 30000 && cachedConversations.length > 0) {
+        logger.debug('[QuickActions] ✅ Using cached conversations');
+        setConversations(cachedConversations);
+        
+        if (onViewHistory) {
+          onViewHistory({
+            conversations: cachedConversations,
+            onDeleteConversation: handleDeleteConversation,
+            deletingId: null
+          });
+        }
+        return cachedConversations;
+      }
+
+      logger.debug('[QuickActions] 🔄 Fetching fresh conversations from database');
+      
       // ✅ PERFORMANCE: Use unified conversation service
       const conversations = await conversationService.getConversations(user.id);
       
@@ -48,7 +72,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         updated_at: conv.updatedAt,
         user_id: conv.userId
       }));
-      
+
+      // ✅ Cache the results
+      setCachedConversations(mappedConversations);
+      setLastCacheTime(now);
       setConversations(mappedConversations);
       
       // Update modal if it's open
@@ -60,9 +87,11 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         });
       }
       
-      logger.debug('[QuickActions] ✅ Conversation list refreshed');
+      logger.debug('[QuickActions] ✅ Conversation list refreshed and cached');
+      return mappedConversations;
     } catch (error) {
       logger.error('[QuickActions] ❌ Failed to refresh conversation list:', error);
+      return [];
     }
   };
 
@@ -82,6 +111,9 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   };
 
   const handleViewHistory = async () => {
+    if (isLoadingHistory) return; // ✅ Prevent duplicate clicks
+    
+    setIsLoadingHistory(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -96,6 +128,8 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       logger.debug('[QuickActions] ✅ View History loaded instantly - background sync keeps data fresh');
     } catch (err) {
       logger.error('[QuickActions] Failed to load history:', err);
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
@@ -168,7 +202,12 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
 
   const actions = [
     { icon: '➕', label: 'Start New Chat', action: handleNewChat },
-    { icon: '📜', label: 'View History', action: handleViewHistory },
+    { 
+      icon: isLoadingHistory ? '⏳' : '📜', 
+      label: isLoadingHistory ? 'Loading...' : 'View History', 
+      action: handleViewHistory,
+      disabled: isLoadingHistory
+    },
     { icon: '🗑️', label: 'Clear All Data', action: handleClearData }
   ];
 
@@ -181,12 +220,21 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
             <li key={index}>
               <button
                 onClick={action.action}
-                className="group w-full text-left bg-gradient-to-br from-gray-800/80 to-gray-800/60 backdrop-blur-sm hover:from-gray-700/80 hover:to-gray-700/60 active:scale-[0.98] p-3 rounded-xl transition-all duration-300 border border-gray-700/50 hover:border-gray-600/50 shadow-md hover:shadow-lg flex items-center space-x-3"
+                disabled={action.disabled}
+                className={`group w-full text-left backdrop-blur-sm p-3 rounded-xl transition-all duration-300 border shadow-md flex items-center space-x-3 ${
+                  action.disabled 
+                    ? 'bg-gray-800/40 border-gray-600/30 cursor-not-allowed opacity-60' 
+                    : 'bg-gradient-to-br from-gray-800/80 to-gray-800/60 hover:from-gray-700/80 hover:to-gray-700/60 active:scale-[0.98] border-gray-700/50 hover:border-gray-600/50 hover:shadow-lg'
+                }`}
               >
                 <div className="flex-shrink-0 w-9 h-9 bg-blue-500/10 rounded-lg flex items-center justify-center border border-blue-500/20">
                   <span className="text-lg">{action.icon}</span>
                 </div>
-                <span className="text-sm font-medium text-white group-hover:text-blue-100 transition-colors">
+                <span className={`text-sm font-medium transition-colors ${
+                  action.disabled 
+                    ? 'text-gray-400' 
+                    : 'text-white group-hover:text-blue-100'
+                }`}>
                   {action.label}
                 </span>
               </button>

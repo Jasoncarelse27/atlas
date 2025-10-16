@@ -48,7 +48,7 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
     };
     init();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setAccessToken(newSession?.access_token ?? null);
@@ -63,6 +63,7 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
     const loadTier = async () => {
       if (!user || !accessToken) {
         setTier('free');
+        setIsLoading(false);
         return;
       }
       try {
@@ -75,10 +76,12 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
           setTier(dbTier);
           console.log(`✅ [useSupabaseAuth] Tier loaded: ${dbTier}`);
         } else {
-          setTier('core'); // Default to core instead of free for better UX
+          setTier('free'); // Default to free when no valid tier found
         }
       } catch (error) {
-        setTier('core'); // Default to core instead of free for better UX
+        setTier('free'); // Default to free on error
+      } finally {
+        setIsLoading(false); // Always set loading to false after tier loads
       }
     };
 

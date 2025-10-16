@@ -51,7 +51,7 @@ class SubscriptionApiService {
   private baseUrl: string;
   private isMockMode: boolean;
   private profileCache: Map<string, { data: SubscriptionProfile; timestamp: number }> = new Map();
-  private readonly CACHE_TTL = 5000; // 🎯 FUTURE-PROOF FIX: 5 seconds for faster tier updates
+  private readonly CACHE_TTL = import.meta.env.DEV ? 1000 : 5000; // 1s dev, 5s prod for faster tier updates
   private pendingRequests: Map<string, Promise<SubscriptionProfile | null>> = new Map();
 
   private setMode(mode: "dexie" | "backend") {
@@ -389,15 +389,9 @@ class SubscriptionApiService {
         return null;
       }
 
-      // Return default core tier profile if no cache available (better UX)
-      return {
-        id: userId,
-        email: 'unknown@example.com',
-        subscription_tier: 'core',
-        subscription_status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // Don't return fake data - return null to force a fresh fetch
+      console.warn('[SubscriptionAPI] ⚠️ All fallbacks failed, returning null');
+      return null;
     } catch (error) {
       return null;
     }
@@ -417,10 +411,97 @@ class SubscriptionApiService {
   clearUserCache(userId: string): void {
     this.profileCache.delete(userId);
     this.pendingRequests.delete(userId);
+    console.log(`[SubscriptionAPI] 🧹 Cleared cache for user: ${userId}`);
+  }
+
+  // Force refresh user profile (bypasses all caches)
+  async forceRefreshProfile(userId: string, accessToken: string): Promise<SubscriptionProfile | null> {
+    console.log(`[SubscriptionAPI] 🔄 Force refreshing profile for user: ${userId}`);
+    
+    // Clear all caches first
+    this.clearUserCache(userId);
+    
+    // Add cache-busting timestamp to prevent HTTP caching
+    const timestamp = Date.now();
+    const url = `${this.baseUrl}/v1/user_profiles/${userId}?t=${timestamp}`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`[SubscriptionAPI] ❌ Force refresh failed: ${response.status}`);
+        return null;
+      }
+
+      const profile = await response.json();
+      console.log(`[SubscriptionAPI] ✅ Force refresh successful: ${profile.subscription_tier}`);
+      
+      // Cache the fresh result
+      this.profileCache.set(userId, { data: profile, timestamp: Date.now() });
+      
+      return profile;
+    } catch (error) {
+      console.error('[SubscriptionAPI] ❌ Force refresh error:', error);
+      return null;
+    }
+  }
+
+  // Clear all caches (for debugging/admin use)
+  clearAllCache(): void {
+    this.profileCache.clear();
+    this.pendingRequests.clear();
+    console.log('[SubscriptionAPI] 🧹 Cleared all caches');
+  }
+
+  // Get cache stats for debugging
+  getCacheStats(): { userCount: number; cacheSize: number } {
+    return {
+      userCount: this.profileCache.size,
+      cacheSize: this.profileCache.size
+    };
   }
 }
 
 // Export singleton instance
 export const subscriptionApi = new SubscriptionApiService();
 export type { FastSpringSubscription, SubscriptionProfile, SubscriptionResponse };
+
+// Global debug function for browser console
+if (typeof window !== 'undefined') {
+  (window as any).atlasTierDebug = {
+    clearAllCaches: () => subscriptionApi.clearAllCache(),
+    forceRefresh: async (userId?: string) => {
+      if (!userId) {
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: { session } } = await supabase.auth.getSession();
+        userId = session?.user?.id;
+      }
+      if (!userId) return console.error('No user ID found');
+      
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      
+      if (!accessToken) return console.error('No access token found');
+      
+      console.log('🔄 Force refreshing tier for user:', userId);
+      const result = await subscriptionApi.forceRefreshProfile(userId, accessToken);
+      console.log('✅ Result:', result);
+      return result;
+    },
+    getCacheStats: () => subscriptionApi.getCacheStats()
+  };
+  
+  console.log('🛠️ Atlas Tier Debug Tools Available:');
+  console.log('  - atlasTierDebug.clearAllCaches()');
+  console.log('  - atlasTierDebug.forceRefresh()');
+  console.log('  - atlasTierDebug.getCacheStats()');
+}
 

@@ -1,7 +1,7 @@
 import 'katex/dist/katex.min.css';
 import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
-import { BlockMath, InlineMath } from 'react-katex';
+// import { InlineMath } from 'react-katex'; // Unused after removing inlineMath components
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -15,7 +15,6 @@ import { AudioMessageBubble } from './AudioMessageBubble';
 interface MessageRendererProps {
   message: Message;
   className?: string;
-  allMessages?: Message[];
 }
 
 // Legacy support for string content
@@ -24,7 +23,7 @@ interface LegacyMessageRendererProps {
   className?: string;
 }
 
-export function MessageRenderer({ message, className = '', allMessages = [] }: MessageRendererProps) {
+export function MessageRenderer({ message, className = '' }: MessageRendererProps) {
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
   const updateMessage = useMessageStore((state) => state.updateMessage);
 
@@ -60,13 +59,13 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
       // Upload to Supabase
       const { supabase } = await import('../../lib/supabaseClient');
       const { data, error } = await supabase.storage
-        .from("uploads")
+        .from("attachments")
         .upload(`${messageId}/${safeName}`, attachment.file, { upsert: true });
 
       if (error) throw error;
 
       const publicUrl = supabase.storage
-        .from("uploads")
+        .from("attachments")
         .getPublicUrl(data.path).data.publicUrl;
 
       // Update with success
@@ -107,8 +106,7 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
             {images.map((img, idx) => (
               <div key={idx} className="relative border rounded p-1">
                 <ImageMessageBubble 
-                  message={{ ...message, content: img.url, type: 'image' }} 
-                  allMessages={allMessages}
+                  message={{ ...message, content: img.url, type: 'image' }}
                 />
                 
                 {/* Progress bar */}
@@ -205,11 +203,11 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
   // Legacy: Handle single image messages
   if (message.type === "image") {
     return (
-      <ImageMessageBubble 
-        message={message} 
-        allMessages={allMessages}
-        className={className}
-      />
+      <div className={className}>
+        <ImageMessageBubble 
+          message={message} 
+        />
+      </div>
     );
   }
 
@@ -242,21 +240,9 @@ export function MessageRenderer({ message, className = '', allMessages = [] }: M
         rehypePlugins={[rehypeRaw]}
         components={{
           // KaTeX Math rendering
-          math: ({ children, ...props }: any) => {
-            try {
-              return <BlockMath math={String(children)} {...props} />;
-            } catch (error) {
-              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
-            }
-          },
-          inlineMath: ({ children, ...props }: any) => {
-            try {
-              return <InlineMath math={String(children)} {...props} />;
-            } catch (error) {
-              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
-            }
-          },
-          code({ node, inline, className, children, ...props }) {
+          // math component removed - not valid in react-markdown
+          // inlineMath component removed - not valid in react-markdown
+          code({ node, inline, className, children, ...props }: any) {
             const match = /language-(\w+)/.exec(className || '');
             const codeContent = String(children).replace(/\n$/, '');
             const codeId = `code-${Math.random().toString(36).substr(2, 9)}`;
@@ -388,21 +374,9 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
         rehypePlugins={[rehypeRaw]}
         components={{
           // KaTeX Math rendering
-          math: ({ children, ...props }: any) => {
-            try {
-              return <BlockMath math={String(children)} {...props} />;
-            } catch (error) {
-              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
-            }
-          },
-          inlineMath: ({ children, ...props }: any) => {
-            try {
-              return <InlineMath math={String(children)} {...props} />;
-            } catch (error) {
-              return <code className="bg-red-900/20 text-red-300 px-1 rounded">{String(children)}</code>;
-            }
-          },
-          code({ node, inline, className, children, ...props }) {
+          // math component removed - not valid in react-markdown
+          // inlineMath component removed - not valid in react-markdown
+          code({ node, inline, className, children, ...props }: any) {
             const match = /language-(\w+)/.exec(className || '');
             const codeContent = String(children).replace(/\n$/, '');
             const codeId = `code-${Math.random().toString(36).substr(2, 9)}`;

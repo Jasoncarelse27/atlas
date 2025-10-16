@@ -44,7 +44,6 @@ export default function EnhancedInputToolbar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
-  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
@@ -111,6 +110,19 @@ export default function EnhancedInputToolbar({
         name: att.name
       }));
       
+      // Show Atlas-branded analyzing toast with loading spinner
+      const analysisToastId = toast.loading(
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-gray-900">Analyzing with AI</span>
+          <span className="text-xs text-gray-500">Processing image content...</span>
+        </div>,
+        {
+          duration: Infinity, // Don't auto-dismiss
+          id: 'image-analysis-loading',
+          icon: <div className="w-5 h-5 border-2 border-[#B2BDA3] border-t-transparent rounded-full animate-spin" />
+        }
+      );
+
       try {
         // Update status to analyzing (more specific feedback)
         attachments.forEach((att: any) => {
@@ -118,9 +130,6 @@ export default function EnhancedInputToolbar({
             setUploadStatus(prev => ({ ...prev, [att.id]: 'analyzing' }));
           }
         });
-
-        // Show analyzing toast
-        toast.success('🧠 Analyzing image...');
         
         // Set processing state for floating indicator
         setIsUploading(true);
@@ -142,8 +151,25 @@ export default function EnhancedInputToolbar({
           }
         });
         
-        // Show success toast
-        toast.success("✅ Image analyzed successfully!");
+        // Dismiss loading toast and show Atlas-branded success
+        toast.dismiss(analysisToastId);
+        toast.success(
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-gray-900">Analysis complete</span>
+            <span className="text-xs text-gray-500">Ready to continue chatting</span>
+          </div>,
+          { 
+            id: 'image-analysis-success', 
+            duration: 3000,
+            icon: (
+              <div className="w-5 h-5 rounded-full bg-[#B2BDA3] flex items-center justify-center">
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            )
+          }
+        );
         
         // Clear upload status after success
         setTimeout(() => {
@@ -158,6 +184,9 @@ export default function EnhancedInputToolbar({
             setUploadStatus(prev => ({ ...prev, [att.id]: 'error' }));
           }
         });
+        
+        // Dismiss loading toast and show error
+        toast.dismiss(analysisToastId);
         
         // More specific error messages
         if (error instanceof Error && error.message === 'Send timeout') {
@@ -399,19 +428,10 @@ export default function EnhancedInputToolbar({
                           src={attachment.url || attachment.publicUrl || attachment.previewUrl}
                           alt={attachment.name}
                           className="w-full h-full object-cover"
-                          onLoad={() => {
-                            setImageLoadingStates(prev => ({ ...prev, [attachment.id]: false }));
-                          }}
                           onError={(e) => {
-                            setImageLoadingStates(prev => ({ ...prev, [attachment.id]: false }));
                             (e.target as HTMLImageElement).style.display = "none";
                           }}
                         />
-                        {imageLoadingStates[attachment.id] && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
-                            <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
-                          </div>
-                        )}
                       </div>
                     )}
                     <Image className="w-4 h-4 text-neutral-400" />
@@ -556,7 +576,7 @@ export default function EnhancedInputToolbar({
 
             {/* Text Input - Dual purpose: text or caption */}
             <textarea
-              ref={inputRef}
+              ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyPress}
@@ -613,8 +633,6 @@ export default function EnhancedInputToolbar({
                     animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
                     transition={{ repeat: Infinity, duration: 1.2 }}
                   />
-                ) : isProcessing ? (
-                  <Loader2 className="w-4 h-4 text-white animate-spin" />
                 ) : (
                   <Send className="w-4 h-4 text-white" />
                 )}

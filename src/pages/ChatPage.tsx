@@ -178,13 +178,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Set React state (Dexie is authoritative source)
       setMessages(formattedMessages);
       console.log('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
-      
-      // ✅ Force React re-render by creating new array reference
-      if (formattedMessages.length > 0) {
-        setTimeout(() => {
-          setMessages([...formattedMessages]);
-        }, 50);
-      }
     } catch (error) {
       console.error('[ChatPage] ❌ Failed to load messages:', error);
       setMessages([]);
@@ -325,7 +318,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         console.warn('[ChatPage] ⚠️ Real-time event not received, using fast fallback reload');
         setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
         await loadMessages(conversationId);
-      }, 500); // ✅ Reduced from 1000ms to 500ms for faster response
+      }, 1000); // ✅ Balanced timing for stable real-time sync
       
       // Keep typing indicator active until real-time listener receives response
       

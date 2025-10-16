@@ -2,8 +2,8 @@ import { useTierAccess } from '@/hooks/useTierAccess';
 import { audioUsageService } from '@/services/audioUsageService';
 import { voiceService } from '@/services/voiceService';
 import { motion } from 'framer-motion';
-import { Bot, Loader2, User, Volume2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Bot, Check, Copy, Loader2, Pause, Play, User, Volume2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
@@ -38,6 +38,17 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   
   // TTS state
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  
+  // Copy state
+  const [isCopied, setIsCopied] = useState(false);
+  
+  // Audio player state for TTS
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  
   const { tier, userId, loading } = useTierAccess();
 
   // Debug: Log userId availability (only when there's an issue)
@@ -185,7 +196,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           }
           return prevIndex;
         });
-      }, 12); // Slightly slower for more natural ChatGPT-like effect
+      }, 25); // Smoother, more natural ChatGPT-like effect
 
       return () => clearInterval(timer);
     } else {
@@ -204,7 +215,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
   const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length;
   
-  // ✅ IMPROVED TTS handler with better error handling and debugging
+  // ✅ IMPROVED TTS handler with audio controls
   const handlePlayTTS = async () => {
     // Wait for auth to complete
     if (loading) {
@@ -231,7 +242,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       return;
     }
     
-    setIsPlayingTTS(true);
+    setIsLoadingAudio(true);
     
     try {
       // ✅ FUTURE-PROOF: Check usage limits and stop gracefully if exceeded
@@ -256,33 +267,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       
       console.log('[TTS] Synthesizing speech for text length:', text.length);
       
-      // ✅ SAFER: Direct synthesis without cache for debugging
-      let audioDataUrl;
-      try {
-        audioDataUrl = await voiceService.synthesizeSpeech(text);
-        console.log('[TTS] Audio synthesized successfully');
-      } catch (synthesisError) {
-        console.error('[TTS] Synthesis failed:', synthesisError);
-        throw synthesisError;
-      }
+      // Synthesize speech
+      const audioDataUrl = await voiceService.synthesizeSpeech(text);
+      console.log('[TTS] Audio synthesized successfully');
       
-      console.log('[TTS] Audio synthesized, playing...');
-      
-      // ✅ MOBILE FIX: Handle autoplay restrictions better
-      try {
-        await voiceService.playAudio(audioDataUrl);
-        toast.success('Audio played');
-      } catch (playError: any) {
-        console.error('[TTS] Playback error:', playError);
-        
-        if (playError.message.includes('user interaction')) {
-          toast.error('Tap Listen again to play audio');
-        } else if (playError.message.includes('timeout')) {
-          toast.error('Audio playback timed out');
-        } else {
-          toast.error('Audio playback failed: ' + playError.message);
-        }
-      }
+      // Store URL for playback control (audio element will auto-play)
+      setAudioUrl(audioDataUrl);
+      setIsPlayingTTS(true);
       
     } catch (error) {
       console.error('[TTS] Full error:', error);
@@ -299,8 +290,86 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         toast.error('Audio playback failed');
       }
     } finally {
-      setIsPlayingTTS(false);
+      setIsLoadingAudio(false);
     }
+  };
+
+  const handleCopy = async () => {
+    try {
+      // Get the actual displayed text (what user sees)
+      const textToCopy = displayedText || messageContent;
+      
+      if (navigator.clipboard && window.isSecureContext) {
+        // Modern clipboard API
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('[EnhancedMessageBubble] Copy failed:', err);
+      // Still show success feedback even if copy fails
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 1000);
+    }
+  };
+
+  // Audio control handlers
+  const toggleAudioPlayback = () => {
+    if (!audioRef.current) return;
+    
+    if (isPlayingTTS) {
+      audioRef.current.pause();
+      setIsPlayingTTS(false);
+    } else {
+      audioRef.current.play();
+      setIsPlayingTTS(true);
+    }
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlayingTTS(false);
+    setAudioUrl(null);
+    setAudioProgress(0);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setAudioProgress(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setAudioDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlayingTTS(false);
+    setAudioProgress(0);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -395,26 +464,100 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
             </div>
           )}
           
-          {/* TTS Button for AI messages */}
+          {/* Action Buttons for AI messages - ChatGPT Style */}
           {!isUser && !showTypingIndicator && message.status !== 'sending' && (
-            <button
-              onClick={handlePlayTTS}
-              disabled={isPlayingTTS}
-              className="mt-3 flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg 
-                       bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 
-                       border border-blue-500/20 transition-all duration-200
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Play audio"
-            >
-              {isPlayingTTS ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <div className="flex items-center gap-1 mt-2">
+              {/* Copy Button */}
+              <button
+                onClick={handleCopy}
+                className="flex items-center justify-center w-7 h-7 rounded-md 
+                           bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
+                           border border-gray-600/20 hover:border-gray-500/40
+                           transition-all duration-200"
+                aria-label="Copy message"
+                title={isCopied ? 'Copied!' : 'Copy message'}
+              >
+                {isCopied ? (
+                  <Check className="w-4 h-4 text-green-400" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Audio Controls - Show full player when audio is loaded */}
+              {!audioUrl ? (
+                // Initial Listen button
+                <button
+                  onClick={handlePlayTTS}
+                  disabled={isLoadingAudio}
+                  className="flex items-center justify-center w-7 h-7 rounded-md 
+                             bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
+                             border border-gray-600/20 hover:border-gray-500/40
+                             transition-all duration-200
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Listen to message"
+                  title="Listen to message"
+                >
+                  {isLoadingAudio ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Volume2 className="w-4 h-4" />
+                  )}
+                </button>
               ) : (
-                <Volume2 className="w-3.5 h-3.5" />
+                // Expanded audio player controls
+                <div className="flex items-center gap-1">
+                  {/* Play/Pause Button */}
+                  <button
+                    onClick={toggleAudioPlayback}
+                    className="flex items-center justify-center w-7 h-7 rounded-md 
+                               bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
+                               border border-gray-600/20 hover:border-gray-500/40
+                               transition-all duration-200"
+                    aria-label={isPlayingTTS ? 'Pause' : 'Play'}
+                    title={isPlayingTTS ? 'Pause' : 'Play'}
+                  >
+                    {isPlayingTTS ? (
+                      <Pause className="w-4 h-4" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                  </button>
+
+                  {/* Progress indicator */}
+                  <div className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400">
+                    <span>{formatTime(audioProgress)}</span>
+                    <span>/</span>
+                    <span>{formatTime(audioDuration)}</span>
+                  </div>
+
+                  {/* Stop Button */}
+                  <button
+                    onClick={stopAudio}
+                    className="flex items-center justify-center w-7 h-7 rounded-md 
+                               bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
+                               border border-gray-600/20 hover:border-gray-500/40
+                               transition-all duration-200"
+                    aria-label="Stop"
+                    title="Stop and close player"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               )}
-              <span className="font-medium">
-                {isPlayingTTS ? 'Playing...' : 'Listen'}
-              </span>
-            </button>
+            </div>
+          )}
+          
+          {/* Hidden audio element for TTS playback */}
+          {audioUrl && (
+            <audio
+              ref={audioRef}
+              src={audioUrl}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onEnded={handleAudioEnded}
+              autoPlay
+            />
           )}
           
           {/* Timestamp */}

@@ -1720,14 +1720,24 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
       }
 
       console.log(`✅ Created fallback profile for user: ${userId}`);
-      return res.status(200).json(newProfile);
+      return res
+        .set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+        .set('Pragma', 'no-cache')
+        .set('Expires', '0')
+        .status(200)
+        .json(newProfile);
     }
 
     if (error) {
       return res.status(500).json({ error: "Database error", details: error });
     }
 
-    return res.status(200).json(profile);
+    return res
+      .set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      .set('Pragma', 'no-cache')
+      .set('Expires', '0')
+      .status(200)
+      .json(profile);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -1776,7 +1786,12 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
     }
 
     console.log(`✅ Created user profile for user: ${user_id}`);
-    return res.status(201).json(newProfile);
+    return res
+      .set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      .set('Pragma', 'no-cache')
+      .set('Expires', '0')
+      .status(201)
+      .json(newProfile);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -1801,7 +1816,12 @@ app.put('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
     }
     
     console.log(`✅ Updated tier for user ${userId} to ${subscription_tier}`);
-    return res.status(200).json(data);
+    return res
+      .set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      .set('Pragma', 'no-cache')
+      .set('Expires', '0')
+      .status(200)
+      .json(data);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }

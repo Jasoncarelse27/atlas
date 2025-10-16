@@ -297,7 +297,7 @@ export const chatService = {
             // Log response - message management handled by calling component
           }
         } else {
-          const _errorText = await response.text();
+          // const errorText = await response.text(); // Unused but kept for debugging
           // Log error - message management handled by calling component
         }
       }
@@ -420,20 +420,9 @@ export async function sendMessageWithAttachments(
       if (data.success && data.analysis) {
         logger.debug("[chatService] ✅ AI analysis complete:", data.analysis);
         
-        // ✅ Add AI response as assistant message
-        const aiMessage = {
-          id: generateUUID(),
-          conversationId,
-          role: "assistant",
-          type: 'text', // ✅ ADD: Explicitly set type
-          content: data.analysis,
-          timestamp: new Date().toISOString(), // ✅ ADD: Use timestamp for consistency
-          createdAt: new Date().toISOString(),
-        };
-        
-        addMessage(aiMessage);
-        
         // ✅ Backend already saved the analysis to database
+        // ✅ Real-time listener will pick it up and add to UI automatically
+        // ✅ No need to manually add - this follows the "single writer" pattern
       }
       
       // 🎯 FUTURE-PROOF FIX: Return success to prevent false error toast

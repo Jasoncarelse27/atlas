@@ -51,8 +51,8 @@ export function useSubscription(userId?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Get tier from profile with proper fallback and logging
-  const tier: UserTier = profile?.subscription_tier || 'core'; // Default to core instead of free
+  // Get tier from profile - wait for actual data, don't hardcode fallbacks
+  const tier: UserTier = profile?.subscription_tier || 'free'; // Only default to free when no profile loaded
   
   // Log tier resolution for debugging - only log when profile is loaded
   useEffect(() => {
@@ -159,7 +159,7 @@ export function useSubscription(userId?: string) {
       } else {
         
         // 🎯 FUTURE-PROOF FIX: Fallback to direct Supabase call if backend API fails
-        const { data, error: directError } = await supabase
+        const { data } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
@@ -221,7 +221,7 @@ export function useSubscription(userId?: string) {
           }
         }
       )
-      .subscribe((status, err) => {
+      .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('✅ [useSubscription] Subscribed to profile realtime updates');
           // Mark subscription as active

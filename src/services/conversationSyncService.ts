@@ -254,10 +254,11 @@ export class ConversationSyncService {
   async deltaSync(userId: string): Promise<void> {
     const startTime = Date.now();
     console.log('[ConversationSync] Starting delta sync...');
+    console.log('[ConversationSync] ⚡ Optimized for recent data only');
     
     try {
       // 1. Get last sync timestamp
-      let lastSyncedAt = '1970-01-01T00:00:00.000Z';  // Default: sync everything first time
+      let lastSyncedAt = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();  // Default: sync last 7 days only
       const syncMeta = await atlasDB.syncMetadata.get(userId);
       if (syncMeta) {
         lastSyncedAt = syncMeta.lastSyncedAt;
@@ -280,6 +281,7 @@ export class ConversationSyncService {
       }
       
       console.log('[ConversationSync] ✅ Found', updatedConversations?.length || 0, 'updated conversations');
+      console.log('[ConversationSync] 📥 Syncing conversations...');
       
       // 3. Sync updated conversations to local (add new ones, update existing ones)
       for (const conv of updatedConversations || []) {
@@ -406,7 +408,9 @@ export class ConversationSyncService {
       });
       
       const duration = Date.now() - startTime;
+      const durationSeconds = (duration / 1000).toFixed(1);
       console.log('[ConversationSync] ✅ Delta sync completed successfully in', duration, 'ms');
+      console.log('[ConversationSync] 🚀 Sync performance:', durationSeconds + 's', duration < 5000 ? '(Excellent!)' : duration < 10000 ? '(Good)' : '(Needs optimization)');
       
       // ✅ PERFORMANCE MONITORING: Log sync metrics (future-proof approach)
       try {
