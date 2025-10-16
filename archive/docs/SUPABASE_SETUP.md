@@ -32,8 +32,7 @@ PORT=3001
 NODE_ENV=development
 VITE_SUPABASE_URL=https://your-new-project-url.supabase.co
 VITE_SUPABASE_ANON_KEY=your-new-anon-key
-ANTHROPIC_API_KEY=sk-ant-api03-7kvow7Ggd8iCHZXLQA7IPQJO_AIoTMCdUdLFAtMTaJBgbkcnoG9EixuPMsHHlB0uw3DZkmGhwe_pN
-Za-ik9sIg-E4hIYQAA
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:5175
 ```
 
