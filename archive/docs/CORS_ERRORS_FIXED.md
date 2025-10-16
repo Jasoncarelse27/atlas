@@ -3,12 +3,12 @@
 ## ✅ **Issues Identified & Fixed**
 
 ### **1. Supabase Edge Function CORS Error**
-- **Problem**: `Access to fetch at 'https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/retryFailedUploads' from origin 'http://localhost:5174' has been blocked by CORS policy`
+- **Problem**: `Access to fetch at 'https://your-project.supabase.co/functions/v1/retryFailedUploads' from origin 'http://localhost:5174' has been blocked by CORS policy`
 - **Root Cause**: Edge Function missing CORS headers
 - **Fix**: Added comprehensive CORS headers to `supabase/functions/retryFailedUploads/index.ts`
 
 ### **2. Retry Logs Table Error**
-- **Problem**: `POST https://rbwabemtucdkytvvpzvk.supabase.co/rest/v1/retry_logs 400 (Bad Request)`
+- **Problem**: `POST https://your-project.supabase.co/rest/v1/retry_logs 400 (Bad Request)`
 - **Root Cause**: Missing `file_type` column in `retry_logs` table
 - **Fix**: Created SQL migration to add `file_type` column
 

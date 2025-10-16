@@ -51,7 +51,7 @@ PADDLE_WEBHOOK_SECRET=your_webhook_secret_here
 
 ### **Webhook URL**
 ```
-https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook
+https://your-project.supabase.co/functions/v1/paddle-webhook
 ```
 
 ---
@@ -129,7 +129,7 @@ https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook
 
 ### **Immediate Actions**
 1. **Configure Paddle Dashboard**:
-   - Add webhook URL: `https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook`
+   - Add webhook URL: `https://your-project.supabase.co/functions/v1/paddle-webhook`
    - Enable events: `transaction.completed`, `subscription.canceled`
    - Set webhook secret in Supabase environment
 

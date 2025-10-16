@@ -43,7 +43,7 @@ http://localhost:5174
 
 **Test Core Tier Upgrade:**
 ```bash
-curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook?test=1" \
+curl -X POST "https://your-project.supabase.co/functions/v1/paddle-webhook?test=1" \
   -H "Content-Type: application/json" \
   -d '{
     "data": {
@@ -57,7 +57,7 @@ curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webho
 
 **Test Studio Tier Upgrade:**
 ```bash
-curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook?test=1" \
+curl -X POST "https://your-project.supabase.co/functions/v1/paddle-webhook?test=1" \
   -H "Content-Type: application/json" \
   -d '{
     "data": {
@@ -71,7 +71,7 @@ curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webho
 
 **Test Free Tier Downgrade:**
 ```bash
-curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook?test=1" \
+curl -X POST "https://your-project.supabase.co/functions/v1/paddle-webhook?test=1" \
   -H "Content-Type: application/json" \
   -d '{
     "data": {

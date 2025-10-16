@@ -105,7 +105,7 @@ GROUP BY source;
 
 ```bash
 # Manual trigger
-curl -X POST https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/retryFailedUploads \
+curl -X POST https://your-project.supabase.co/functions/v1/retryFailedUploads \
   -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
   -d '{"trigger": "manual-test"}'

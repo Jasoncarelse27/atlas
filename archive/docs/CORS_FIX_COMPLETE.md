@@ -3,7 +3,7 @@
 ## ✅ **Issue Resolved**
 
 ### **Problem**
-- **CORS Error**: `Access to fetch at 'https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/retryFailedUploads' from origin 'http://localhost:5174' has been blocked by CORS policy: Request header field apikey is not allowed by Access-Control-Allow-Headers in preflight response.`
+- **CORS Error**: `Access to fetch at 'https://your-project.supabase.co/functions/v1/retryFailedUploads' from origin 'http://localhost:5174' has been blocked by CORS policy: Request header field apikey is not allowed by Access-Control-Allow-Headers in preflight response.`
 - **Root Cause**: Supabase Edge Function was missing the `apikey` header in CORS configuration
 
 ### **Solution Applied**
@@ -41,7 +41,7 @@ function corsHeaders(origin: string | null) {
 ### **✅ Edge Function Deployed**
 - **Status**: Successfully deployed to Supabase
 - **Function**: `retryFailedUploads` now has proper CORS support
-- **URL**: `https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/retryFailedUploads`
+- **URL**: `https://your-project.supabase.co/functions/v1/retryFailedUploads`
 
 ## 🎯 **Expected Results**
 

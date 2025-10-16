@@ -11,7 +11,7 @@
 ### **The Problem:**
 The console showed **11+ 400 Bad Request errors** when trying to save messages to Supabase:
 ```
-POST https://rbwabemtucdkytvvpzvk.supabase.co/rest/v1/messages 400 (Bad Request)
+POST https://your-project.supabase.co/rest/v1/messages 400 (Bad Request)
 ```
 
 ### **Root Cause:**
@@ -103,7 +103,7 @@ if (!error) {
 ### **Should NOT See:**
 ```bash
 # No more of these:
-POST https://rbwabemtucdkytvvpzvk.supabase.co/rest/v1/messages 400 (Bad Request)
+POST https://your-project.supabase.co/rest/v1/messages 400 (Bad Request)
 ```
 
 ---

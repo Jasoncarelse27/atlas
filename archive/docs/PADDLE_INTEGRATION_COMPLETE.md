@@ -97,7 +97,7 @@ User Upgrade Flow:
 ### ✅ **Webhook Testing (PASSED)**
 ```bash
 # Test Core Tier Upgrade
-curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook?test=1" \
+curl -X POST "https://your-project.supabase.co/functions/v1/paddle-webhook?test=1" \
   -H "Content-Type: application/json" \
   -d '{"data": {"customer_id": "user-123", "items": [{"price": {"id": "pri_core_plan"}}]}}'
 
@@ -107,7 +107,7 @@ curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webho
 ### ✅ **Studio Tier Upgrade (PASSED)**
 ```bash
 # Test Studio Tier Upgrade
-curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook?test=1" \
+curl -X POST "https://your-project.supabase.co/functions/v1/paddle-webhook?test=1" \
   -H "Content-Type: application/json" \
   -d '{"data": {"customer_id": "user-123", "items": [{"price": {"id": "pri_studio_plan"}}]}}'
 
@@ -168,7 +168,7 @@ supabase functions deploy paddle-webhook --no-verify-jwt
 ### **Test Webhook**
 ```bash
 # Test mode (bypasses signature verification)
-curl -X POST "https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook?test=1" \
+curl -X POST "https://your-project.supabase.co/functions/v1/paddle-webhook?test=1" \
   -H "Content-Type: application/json" \
   -d '{"data": {"customer_id": "user-id", "items": [{"price": {"id": "pri_core_plan"}}]}}'
 ```
@@ -203,7 +203,7 @@ if (!isTest) {
 ```
 
 ### **2. Configure Paddle Dashboard**
-- Set webhook URL: `https://rbwabemtucdkytvvpzvk.supabase.co/functions/v1/paddle-webhook`
+- Set webhook URL: `https://your-project.supabase.co/functions/v1/paddle-webhook`
 - Select events: `transaction.completed`, `subscription.canceled`
 - Copy webhook secret to environment variables
 
