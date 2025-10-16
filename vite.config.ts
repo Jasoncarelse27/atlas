@@ -34,6 +34,10 @@ export default defineConfig(({ mode }) => {
         compress: {
           drop_console: ['log', 'debug'],  // Remove console.log and console.debug from production
           drop_debugger: true
+        },
+        mangle: {
+          // 🔧 FIX: Preserve named exports to prevent atlasDB import errors
+          reserved: ['atlasDB', 'ensureDatabaseReady']
         }
       },
       rollupOptions: {
