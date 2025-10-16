@@ -35,10 +35,7 @@ export default defineConfig(({ mode }) => {
           drop_console: ['log', 'debug'],  // Remove console.log and console.debug from production
           drop_debugger: true
         },
-        mangle: {
-          // 🔧 FIX: Preserve named exports to prevent atlasDB import errors
-          reserved: ['atlasDB', 'ensureDatabaseReady']
-        }
+        mangle: false // 🔧 FIX: Completely disable mangling to preserve all export names
       },
       rollupOptions: {
         output: {
