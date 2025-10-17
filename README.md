@@ -19,6 +19,31 @@ A modern, scalable AI chat application with support for multiple AI models (Clau
 - **Usage Indicator**: Real-time message count and tier status display
 - **Tier Enforcement**: Automatic daily limits and upgrade prompts
 
+## 💎 Development Workflow
+
+**Ultra-Tier Development Guide**
+
+Atlas is developed using ChatGPT Pro + Cursor Ultra for maximum velocity and quality.
+
+- 📖 **[Cursor Workflow Guide](./CURSOR_WORKFLOW.md)** - Complete guide for model switching and best practices
+- ⚡ **[Quick Reference Card](./CURSOR_QUICK_REFERENCE.md)** - Pin this for daily development
+- 🎯 **[Production Readiness Plan](./atlas-production-readiness.plan.md)** - Deployment checklist
+- 📊 **[Clean Implementation Status](./CLEAN_IMPLEMENTATION_TODO.md)** - ✅ 100% Complete
+
+### Quick Start Commands
+```bash
+# Daily standup
+git pull origin main && npm install
+
+# Model control
+/set-model auto                    # Balanced (default)
+/set-model claude-3-opus          # Deep reasoning
+/set-model claude-3.5-sonnet      # Fast iteration
+
+# Verification
+npm run typecheck && npm run build && npm test
+```
+
 ## 🏗️ Architecture
 
 ### Frontend Components
