@@ -4,6 +4,7 @@
 import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
 import { enhancedResponseCacheService } from './enhancedResponseCacheService';
+import { logger } from '../lib/logger';
 
 export interface CachePerformanceMetrics {
   hitRate: number;
@@ -53,7 +54,7 @@ class CacheManagementService {
       return this.metrics;
 
     } catch (error) {
-      console.error('[CacheManagement] Error getting performance metrics:', error);
+      logger.error('[CacheManagement] Error getting performance metrics:', error);
       return this.metrics;
     }
   }
@@ -77,10 +78,10 @@ class CacheManagementService {
         }
       });
 
-      console.log('[CacheManagement] ✅ Logged cache performance metrics');
+      logger.debug('[CacheManagement] ✅ Logged cache performance metrics');
 
     } catch (error) {
-      console.error('[CacheManagement] Error logging cache performance:', error);
+      logger.error('[CacheManagement] Error logging cache performance:', error);
     }
   }
 
@@ -89,15 +90,15 @@ class CacheManagementService {
    */
   async optimizeCache(): Promise<{ expiredRemoved: number; duplicatesRemoved: number }> {
     try {
-      console.log('[CacheManagement] 🔧 Starting cache optimization...');
+      logger.debug('[CacheManagement] 🔧 Starting cache optimization...');
       
       const result = await enhancedResponseCacheService.optimizeCache();
       
-      console.log('[CacheManagement] ✅ Cache optimization complete:', result);
+      logger.debug('[CacheManagement] ✅ Cache optimization complete:', result);
       return result;
 
     } catch (error) {
-      console.error('[CacheManagement] Error optimizing cache:', error);
+      logger.error('[CacheManagement] Error optimizing cache:', error);
       return { expiredRemoved: 0, duplicatesRemoved: 0 };
     }
   }
@@ -107,14 +108,14 @@ class CacheManagementService {
    */
   async prePopulateHighValueCache(): Promise<void> {
     try {
-      console.log('[CacheManagement] 🌱 Pre-populating high-value cache...');
+      logger.debug('[CacheManagement] 🌱 Pre-populating high-value cache...');
       
       await enhancedResponseCacheService.prePopulateHighValueCache();
       
-      console.log('[CacheManagement] ✅ High-value cache pre-population complete');
+      logger.debug('[CacheManagement] ✅ High-value cache pre-population complete');
 
     } catch (error) {
-      console.error('[CacheManagement] Error pre-populating cache:', error);
+      logger.error('[CacheManagement] Error pre-populating cache:', error);
     }
   }
 
@@ -127,7 +128,7 @@ class CacheManagementService {
       return metrics.tierBreakdown;
 
     } catch (error) {
-      console.error('[CacheManagement] Error getting tier breakdown:', error);
+      logger.error('[CacheManagement] Error getting tier breakdown:', error);
       return { 
         free: { entries: 0, hits: 0, hitRate: 0 }, 
         core: { entries: 0, hits: 0, hitRate: 0 }, 
@@ -145,7 +146,7 @@ class CacheManagementService {
       return metrics.topQueries.slice(0, limit);
 
     } catch (error) {
-      console.error('[CacheManagement] Error getting top queries:', error);
+      logger.error('[CacheManagement] Error getting top queries:', error);
       return [];
     }
   }
@@ -155,14 +156,14 @@ class CacheManagementService {
    */
   async clearCacheForTier(tier: Tier): Promise<void> {
     try {
-      console.log(`[CacheManagement] 🗑️ Clearing cache for tier: ${tier}`);
+      logger.debug(`[CacheManagement] 🗑️ Clearing cache for tier: ${tier}`);
       
       // This would need to be implemented in enhancedResponseCacheService
       // For now, we'll log the request
-      console.log('[CacheManagement] Cache clearing requested for tier:', tier);
+      logger.debug('[CacheManagement] Cache clearing requested for tier:', tier);
 
     } catch (error) {
-      console.error('[CacheManagement] Error clearing cache for tier:', error);
+      logger.error('[CacheManagement] Error clearing cache for tier:', error);
     }
   }
 
@@ -210,7 +211,7 @@ class CacheManagementService {
       return { status, issues, recommendations };
 
     } catch (error) {
-      console.error('[CacheManagement] Error getting cache health:', error);
+      logger.error('[CacheManagement] Error getting cache health:', error);
       return {
         status: 'critical',
         issues: ['Failed to retrieve cache metrics'],
@@ -226,11 +227,11 @@ class CacheManagementService {
     const intervalMs = intervalHours * 60 * 60 * 1000;
     
     setInterval(async () => {
-      console.log('[CacheManagement] 🔄 Running scheduled cache optimization...');
+      logger.debug('[CacheManagement] 🔄 Running scheduled cache optimization...');
       await this.optimizeCache();
     }, intervalMs);
 
-    console.log(`[CacheManagement] ⏰ Scheduled cache optimization every ${intervalHours} hours`);
+    logger.debug(`[CacheManagement] ⏰ Scheduled cache optimization every ${intervalHours} hours`);
   }
 }
 

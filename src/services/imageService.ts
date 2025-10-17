@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { logger } from '../lib/logger';
 
 // Event logging helper
 const logEvent = (eventName: string, props: any) => {
@@ -135,7 +136,7 @@ export const imageService = {
         metadata: { feature, tier },
       });
     } catch (err) {
-      console.error('[ImageService] Error logging feature attempt:', err);
+      logger.error('[ImageService] Error logging feature attempt:', err);
     }
   },
 

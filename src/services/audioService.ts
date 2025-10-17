@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { logger } from '../lib/logger';
 
 export interface AudioTranscriptionResult {
   text: string;
@@ -47,7 +48,7 @@ class AudioService {
       });
 
       if (error) {
-        console.error('Transcription error:', error);
+        logger.error('Transcription error:', error);
         
         // Log transcription failure
         await this.logAudioEvent({

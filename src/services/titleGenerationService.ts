@@ -130,7 +130,7 @@ async function generateStudioTierTitle(message: string): Promise<string> {
     });
     
     if (error) {
-      console.warn('[TitleGen] ⚠️ Studio API failed, using Core fallback:', error.message);
+      logger.warn('[TitleGen] ⚠️ Studio API failed, using Core fallback:', error.message);
       return generateCoreTierTitle(message);
     }
     
@@ -146,7 +146,7 @@ async function generateStudioTierTitle(message: string): Promise<string> {
     return generateCoreTierTitle(message);
     
   } catch (error) {
-    console.warn('[TitleGen] ⚠️ Studio generation failed, using Core fallback');
+    logger.warn('[TitleGen] ⚠️ Studio generation failed, using Core fallback');
     return generateCoreTierTitle(message);
   }
 }

@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 /**
  * Simple performance monitoring utility for tracking operation times
  */
@@ -18,7 +20,7 @@ export class PerformanceMonitor {
   end(label: string): number | null {
     const startTime = this.metrics.get(label);
     if (!startTime) {
-      console.warn(`[PerformanceMonitor] No start time found for: ${label}`);
+      logger.warn(`[PerformanceMonitor] No start time found for: ${label}`);
       return null;
     }
     
@@ -27,7 +29,7 @@ export class PerformanceMonitor {
     
     // Log slow operations
     if (duration > this.SLOW_THRESHOLD_MS) {
-      console.warn(`⚠️ [PerformanceMonitor] Slow operation: ${label} took ${duration.toFixed(0)}ms`);
+      logger.warn(`⚠️ [PerformanceMonitor] Slow operation: ${label} took ${duration.toFixed(0)}ms`);
     }
     
     return duration;
@@ -41,7 +43,7 @@ export class PerformanceMonitor {
     try {
       const result = await operation();
       const duration = this.end(label);
-      console.log(`✅ [${label}] Completed in ${duration?.toFixed(0)}ms`);
+      logger.debug(`✅ [${label}] Completed in ${duration?.toFixed(0)}ms`);
       return result;
     } catch (error) {
       this.end(label);

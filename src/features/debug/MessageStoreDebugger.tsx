@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { atlasDB } from '../../database/atlasDB';
+import { logger } from '../../lib/logger';
 
 export default function MessageStoreDebugger() {
   const [messageCount, setMessageCount] = useState(0);
@@ -50,7 +51,7 @@ export default function MessageStoreDebugger() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      console.log('✅ Dexie data exported successfully');
+      logger.debug('✅ Dexie data exported successfully');
     } catch (error) {
       // Intentionally empty - error handling not required
     }
@@ -62,7 +63,7 @@ export default function MessageStoreDebugger() {
         await atlasDB.messages.clear();
         await atlasDB.conversations.clear();
         await refreshStats();
-        console.log('✅ Database cleared successfully');
+        logger.debug('✅ Database cleared successfully');
       } catch (error) {
       // Intentionally empty - error handling not required
       }

@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabaseClient';
 import { redisTestService } from '../services/redisTestService';
 import type { UserProfile } from '../types/subscription';
 import LoadingSpinner from './LoadingSpinner';
+import { logger } from '../lib/logger';
 
 interface TestingPanelProps {
   user: User | null;
@@ -379,7 +380,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
         tier: profile?.tier,
         status: profile?.subscription_status
       };
-      console.log('Subscription data:', subscriptionData);
+      logger.debug('Subscription data:', subscriptionData);
 
       let status: 'pass' | 'warning' | 'fail' = 'pass';
       let message = '';
@@ -558,7 +559,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
             }
 
             const data = await response.json();
-            console.log(`✅ Response:`, data);
+            logger.debug(`✅ Response:`, data);
 
             // Validate response structure
             const isValidResponse = data && 
@@ -709,7 +710,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
           }
 
           const data = await response.json();
-          console.log(`✅ ${endpoint.name} Response:`, data);
+          logger.debug(`✅ ${endpoint.name} Response:`, data);
 
           // Validate response structure
           const isValidResponse = data && typeof data === 'object';

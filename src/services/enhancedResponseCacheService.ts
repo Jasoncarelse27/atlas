@@ -6,6 +6,7 @@ import CryptoJS from 'crypto-js';
 import { CACHE_CONFIG } from '../config/featureAccess';
 import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
+import { logger } from '../lib/logger';
 
 export interface EnhancedCachedResponse {
   id: number;
@@ -270,7 +271,7 @@ class EnhancedResponseCacheService {
       return data.response_text;
 
     } catch (error) {
-      console.error('[EnhancedCache] Error retrieving cached response:', error);
+      logger.error('[EnhancedCache] Error retrieving cached response:', error);
       return null;
     }
   }
@@ -309,13 +310,13 @@ class EnhancedResponseCacheService {
         });
 
       if (error) {
-        console.error('[EnhancedCache] Error caching response:', error);
+        logger.error('[EnhancedCache] Error caching response:', error);
       } else {
-        console.log('[EnhancedCache] ✅ Cached response for query:', query.substring(0, 50));
+        logger.debug('[EnhancedCache] ✅ Cached response for query:', query.substring(0, 50));
       }
 
     } catch (error) {
-      console.error('[EnhancedCache] Error caching response:', error);
+      logger.error('[EnhancedCache] Error caching response:', error);
     }
   }
 
@@ -377,7 +378,7 @@ class EnhancedResponseCacheService {
       return { totalEntries, totalHits, hitRate, costSavings, topQueries, tierBreakdown };
 
     } catch (error) {
-      console.error('[EnhancedCache] Error getting cache metrics:', error);
+      logger.error('[EnhancedCache] Error getting cache metrics:', error);
       return {
         totalEntries: 0,
         totalHits: 0,
@@ -401,7 +402,7 @@ class EnhancedResponseCacheService {
         .lt('expires_at', new Date().toISOString());
 
       if (expiredError) {
-        console.error('[EnhancedCache] Error removing expired entries:', expiredError);
+        logger.error('[EnhancedCache] Error removing expired entries:', expiredError);
       }
 
       // Remove duplicate entries (keep highest hit count)
@@ -443,7 +444,7 @@ class EnhancedResponseCacheService {
       return { expiredRemoved: expiredCount || 0, duplicatesRemoved };
 
     } catch (error) {
-      console.error('[EnhancedCache] Error optimizing cache:', error);
+      logger.error('[EnhancedCache] Error optimizing cache:', error);
       return { expiredRemoved: 0, duplicatesRemoved: 0 };
     }
   }
@@ -473,7 +474,7 @@ class EnhancedResponseCacheService {
       }
     }
 
-    console.log('[EnhancedCache] ✅ Pre-populated high-value cache');
+    logger.debug('[EnhancedCache] ✅ Pre-populated high-value cache');
   }
 }
 

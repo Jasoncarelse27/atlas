@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { audioUsageService } from './audioUsageService';
 import { voiceService } from './voiceService';
+import { logger } from '../lib/logger';
 
 interface VoiceCallOptions {
   userId: string;
@@ -119,7 +120,7 @@ export class VoiceCallService {
       );
       
     } catch (error) {
-      console.error('[VoiceCall] Chunk processing error:', error);
+      logger.error('[VoiceCall] Chunk processing error:', error);
       // Continue call despite errors
     }
   }
@@ -165,7 +166,7 @@ export class VoiceCallService {
       isAnomaly = anomalyCheck || false;
     } catch (error) {
       // RPC function may not exist yet, continue without anomaly detection
-      console.warn('[VoiceCall] Anomaly detection unavailable:', error);
+      logger.warn('[VoiceCall] Anomaly detection unavailable:', error);
     }
     
     // Update metering table

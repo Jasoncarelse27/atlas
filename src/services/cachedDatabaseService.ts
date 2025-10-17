@@ -5,6 +5,7 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { redisCacheService } from './redisCacheService';
+import { logger } from '../lib/logger';
 
 interface UserProfile {
   id: string;
@@ -41,12 +42,12 @@ class CachedDatabaseService {
       // Try to get from cache first
       const cachedProfile = await redisCacheService.getCachedUserProfile(userId, 'core');
       if (cachedProfile) {
-        console.log('[CachedDB] ✅ User profile from cache');
+        logger.debug('[CachedDB] ✅ User profile from cache');
         return cachedProfile;
       }
 
       // Cache miss - fetch from database
-      console.log('[CachedDB] ❌ Cache miss - fetching user profile from DB');
+      logger.debug('[CachedDB] ❌ Cache miss - fetching user profile from DB');
       const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -54,19 +55,19 @@ class CachedDatabaseService {
         .single();
 
       if (error) {
-        console.error('[CachedDB] ❌ Error fetching user profile:', error);
+        logger.error('[CachedDB] ❌ Error fetching user profile:', error);
         return null;
       }
 
       // Cache the result
       if (profile) {
         await redisCacheService.cacheUserProfile(userId, profile, (profile as any).tier || 'free');
-        console.log('[CachedDB] ✅ User profile cached');
+        logger.debug('[CachedDB] ✅ User profile cached');
       }
 
       return profile;
     } catch (error) {
-      console.error('[CachedDB] ❌ Error in getUserProfile:', error);
+      logger.error('[CachedDB] ❌ Error in getUserProfile:', error);
       return null;
     }
   }
@@ -79,12 +80,12 @@ class CachedDatabaseService {
       // Try to get from cache first
       const cachedConversations = await redisCacheService.getCachedConversations(userId, 'core');
       if (cachedConversations) {
-        console.log('[CachedDB] ✅ Conversations from cache');
+        logger.debug('[CachedDB] ✅ Conversations from cache');
         return cachedConversations.slice(0, limit);
       }
 
       // Cache miss - fetch from database
-      console.log('[CachedDB] ❌ Cache miss - fetching conversations from DB');
+      logger.debug('[CachedDB] ❌ Cache miss - fetching conversations from DB');
       const { data: conversations, error } = await supabase
         .from('conversations')
         .select('*')
@@ -93,19 +94,19 @@ class CachedDatabaseService {
         .limit(limit);
 
       if (error) {
-        console.error('[CachedDB] ❌ Error fetching conversations:', error);
+        logger.error('[CachedDB] ❌ Error fetching conversations:', error);
         return [];
       }
 
       // Cache the result
       if (conversations && conversations.length > 0) {
         await redisCacheService.cacheConversations(userId, conversations, 'core');
-        console.log('[CachedDB] ✅ Conversations cached');
+        logger.debug('[CachedDB] ✅ Conversations cached');
       }
 
       return conversations || [];
     } catch (error) {
-      console.error('[CachedDB] ❌ Error in getConversations:', error);
+      logger.error('[CachedDB] ❌ Error in getConversations:', error);
       return [];
     }
   }
@@ -118,12 +119,12 @@ class CachedDatabaseService {
       // Try to get from cache first
       const cachedMessages = await redisCacheService.getCachedMessages(conversationId, 'core');
       if (cachedMessages) {
-        console.log('[CachedDB] ✅ Messages from cache');
+        logger.debug('[CachedDB] ✅ Messages from cache');
         return cachedMessages.slice(0, limit);
       }
 
       // Cache miss - fetch from database
-      console.log('[CachedDB] ❌ Cache miss - fetching messages from DB');
+      logger.debug('[CachedDB] ❌ Cache miss - fetching messages from DB');
       const { data: messages, error } = await supabase
         .from('messages')
         .select('*')
@@ -132,19 +133,19 @@ class CachedDatabaseService {
         .limit(limit);
 
       if (error) {
-        console.error('[CachedDB] ❌ Error fetching messages:', error);
+        logger.error('[CachedDB] ❌ Error fetching messages:', error);
         return [];
       }
 
       // Cache the result
       if (messages && messages.length > 0) {
         await redisCacheService.cacheMessages(conversationId, messages, 'core');
-        console.log('[CachedDB] ✅ Messages cached');
+        logger.debug('[CachedDB] ✅ Messages cached');
       }
 
       return messages || [];
     } catch (error) {
-      console.error('[CachedDB] ❌ Error in getMessages:', error);
+      logger.error('[CachedDB] ❌ Error in getMessages:', error);
       return [];
     }
   }
@@ -164,17 +165,17 @@ class CachedDatabaseService {
         .single();
 
       if (error) {
-        console.error('[CachedDB] ❌ Error creating conversation:', error);
+        logger.error('[CachedDB] ❌ Error creating conversation:', error);
         return null;
       }
 
       // Invalidate user's conversation cache
       await redisCacheService.invalidateUserCache(userId, 'core');
-      console.log('[CachedDB] ✅ Conversation created and cache invalidated');
+      logger.debug('[CachedDB] ✅ Conversation created and cache invalidated');
 
       return conversation;
     } catch (error) {
-      console.error('[CachedDB] ❌ Error in createConversation:', error);
+      logger.error('[CachedDB] ❌ Error in createConversation:', error);
       return null;
     }
   }
@@ -201,17 +202,17 @@ class CachedDatabaseService {
         .single();
 
       if (error) {
-        console.error('[CachedDB] ❌ Error creating message:', error);
+        logger.error('[CachedDB] ❌ Error creating message:', error);
         return null;
       }
 
       // Invalidate conversation's message cache
       await redisCacheService.invalidateConversationCache(conversationId, 'core');
-      console.log('[CachedDB] ✅ Message created and cache invalidated');
+      logger.debug('[CachedDB] ✅ Message created and cache invalidated');
 
       return message;
     } catch (error) {
-      console.error('[CachedDB] ❌ Error in createMessage:', error);
+      logger.error('[CachedDB] ❌ Error in createMessage:', error);
       return null;
     }
   }
@@ -229,17 +230,17 @@ class CachedDatabaseService {
         .single() as any);
 
       if (error) {
-        console.error('[CachedDB] ❌ Error updating user profile:', error);
+        logger.error('[CachedDB] ❌ Error updating user profile:', error);
         return null;
       }
 
       // Invalidate user cache
       await redisCacheService.invalidateUserCache(userId, 'core');
-      console.log('[CachedDB] ✅ User profile updated and cache invalidated');
+      logger.debug('[CachedDB] ✅ User profile updated and cache invalidated');
 
       return profile;
     } catch (error) {
-      console.error('[CachedDB] ❌ Error in updateUserProfile:', error);
+      logger.error('[CachedDB] ❌ Error in updateUserProfile:', error);
       return null;
     }
   }
@@ -258,7 +259,7 @@ class CachedDatabaseService {
    */
   async clearUserCache(userId: string): Promise<void> {
     await redisCacheService.clearUserCache(userId, 'core');
-    console.log('[CachedDB] ✅ User cache cleared');
+    logger.debug('[CachedDB] ✅ User cache cleared');
   }
 
   /**
@@ -272,7 +273,7 @@ class CachedDatabaseService {
       const { error } = await supabase.from('user_profiles').select('id').limit(1);
       supabaseHealth = !error;
     } catch (error) {
-      console.error('[CachedDB] ❌ Supabase health check failed:', error);
+      logger.error('[CachedDB] ❌ Supabase health check failed:', error);
     }
 
     return {

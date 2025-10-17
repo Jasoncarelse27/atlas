@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 /**
  * Browser-Compatible Cache Service for Atlas
  * Uses localStorage as a fallback for Redis in browser environments
@@ -57,7 +59,7 @@ class RedisCacheService {
   };
 
   constructor() {
-    console.log('[RedisCache] 🚀 Using browser-compatible localStorage cache');
+    logger.debug('[RedisCache] 🚀 Using browser-compatible localStorage cache');
     this.cleanupExpiredEntries();
   }
 
@@ -94,10 +96,10 @@ class RedisCacheService {
       
       keysToRemove.forEach(key => localStorage.removeItem(key));
       if (keysToRemove.length > 0) {
-        console.log(`[RedisCache] 🧹 Cleaned up ${keysToRemove.length} expired entries`);
+        logger.debug(`[RedisCache] 🧹 Cleaned up ${keysToRemove.length} expired entries`);
       }
     } catch (error) {
-      console.error('[RedisCache] ❌ Error cleaning up expired entries:', error);
+      logger.error('[RedisCache] ❌ Error cleaning up expired entries:', error);
     }
   }
 
@@ -118,7 +120,7 @@ class RedisCacheService {
           this.stats.hits++;
           this.stats.totalQueries++;
           this.stats.hitRate = (this.stats.hits / this.stats.totalQueries) * 100;
-          console.log(`[RedisCache] ✅ Cache hit for key: ${key} (tier: ${tier})`);
+          logger.debug(`[RedisCache] ✅ Cache hit for key: ${key} (tier: ${tier})`);
           return entry.data;
         } else {
           // Cache expired, remove it
@@ -129,10 +131,10 @@ class RedisCacheService {
       this.stats.misses++;
       this.stats.totalQueries++;
       this.stats.hitRate = (this.stats.hits / this.stats.totalQueries) * 100;
-      console.log(`[RedisCache] ❌ Cache miss for key: ${key} (tier: ${tier})`);
+      logger.debug(`[RedisCache] ❌ Cache miss for key: ${key} (tier: ${tier})`);
       return null;
     } catch (error) {
-      console.error('[RedisCache] ❌ Error getting cache:', error);
+      logger.error('[RedisCache] ❌ Error getting cache:', error);
       this.stats.misses++;
       this.stats.totalQueries++;
       return null;
@@ -161,10 +163,10 @@ class RedisCacheService {
       localStorage.setItem(fullKey, JSON.stringify(entry));
       
       this.stats.sets++;
-      console.log(`[RedisCache] ✅ Cached data for key: ${key} (tier: ${tier}, ttl: ${ttl}s)`);
+      logger.debug(`[RedisCache] ✅ Cached data for key: ${key} (tier: ${tier}, ttl: ${ttl}s)`);
       return true;
     } catch (error) {
-      console.error('[RedisCache] ❌ Error setting cache:', error);
+      logger.error('[RedisCache] ❌ Error setting cache:', error);
       return false;
     }
   }
@@ -180,12 +182,12 @@ class RedisCacheService {
       
       if (existed) {
         this.stats.deletes++;
-        console.log(`[RedisCache] ✅ Deleted cache for key: ${key} (tier: ${tier})`);
+        logger.debug(`[RedisCache] ✅ Deleted cache for key: ${key} (tier: ${tier})`);
         return true;
       }
       return false;
     } catch (error) {
-      console.error('[RedisCache] ❌ Error deleting cache:', error);
+      logger.error('[RedisCache] ❌ Error deleting cache:', error);
       return false;
     }
   }
@@ -280,10 +282,10 @@ class RedisCacheService {
       
       keysToRemove.forEach(key => localStorage.removeItem(key));
       if (keysToRemove.length > 0) {
-        console.log(`[RedisCache] ✅ Cleared ${keysToRemove.length} cache entries for user: ${userId}`);
+        logger.debug(`[RedisCache] ✅ Cleared ${keysToRemove.length} cache entries for user: ${userId}`);
       }
     } catch (error) {
-      console.error('[RedisCache] ❌ Error clearing user cache:', error);
+      logger.error('[RedisCache] ❌ Error clearing user cache:', error);
     }
   }
 
@@ -319,7 +321,7 @@ class RedisCacheService {
       localStorage.removeItem(testKey);
       return true;
     } catch (error) {
-      console.error('[RedisCache] ❌ Health check failed:', error);
+      logger.error('[RedisCache] ❌ Health check failed:', error);
       return false;
     }
   }
@@ -341,7 +343,7 @@ class RedisCacheService {
    * Graceful shutdown
    */
   async shutdown(): Promise<void> {
-    console.log('[RedisCache] ✅ Browser cache service shutdown');
+    logger.debug('[RedisCache] ✅ Browser cache service shutdown');
   }
 }
 

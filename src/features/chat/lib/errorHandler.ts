@@ -1,3 +1,5 @@
+import { logger } from '../../../lib/logger';
+
 /**
  * Standardized error handling for the chat app
  * Provides consistent error types, messages, and recovery strategies
@@ -201,7 +203,7 @@ export function formatErrorForUser(error: ChatError): string {
  * Log error with context for debugging
  */
 export function logError(error: ChatError, context: ErrorContext): void {
-  console.log({
+  logger.debug({
     code: error.code,
     message: error.message,
     context,

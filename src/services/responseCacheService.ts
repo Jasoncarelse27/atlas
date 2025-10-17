@@ -5,6 +5,7 @@ import CryptoJS from 'crypto-js';
 import { CACHE_CONFIG } from '../config/featureAccess';
 import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
+import { logger } from '../lib/logger';
 
 export interface CachedResponse {
   id: number;
@@ -157,13 +158,13 @@ class ResponseCacheService {
         });
 
       if (error) {
-        console.error('[ResponseCache] Error caching response:', error);
+        logger.error('[ResponseCache] Error caching response:', error);
       } else {
-        console.log('[ResponseCache] ✅ Response cached successfully');
+        logger.debug('[ResponseCache] ✅ Response cached successfully');
       }
 
     } catch (error) {
-      console.error('[ResponseCache] Error in cacheResponse:', error);
+      logger.error('[ResponseCache] Error in cacheResponse:', error);
     }
   }
 
@@ -235,13 +236,13 @@ class ResponseCacheService {
         .eq('tier', tier);
 
       if (error) {
-        console.error('[ResponseCache] Error clearing tier cache:', error);
+        logger.error('[ResponseCache] Error clearing tier cache:', error);
       } else {
-        console.log('[ResponseCache] ✅ Cleared cache for tier:', tier);
+        logger.debug('[ResponseCache] ✅ Cleared cache for tier:', tier);
       }
 
     } catch (error) {
-      console.error('[ResponseCache] Error in clearTierCache:', error);
+      logger.error('[ResponseCache] Error in clearTierCache:', error);
     }
   }
 
@@ -267,7 +268,7 @@ class ResponseCacheService {
       }
     }
 
-    console.log('✅ Pre-populated cache with common responses');
+    logger.debug('✅ Pre-populated cache with common responses');
   }
 }
 

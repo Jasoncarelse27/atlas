@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { logger } from '../lib/logger';
 
 export async function fetchWithAuth(
   url: string,
@@ -32,7 +33,7 @@ export async function fetchWithAuth(
   }
 
   if (!res.ok) {
-    console.error('[FetchWithAuth] Request failed:', res.status, res.statusText);
+    logger.error('[FetchWithAuth] Request failed:', res.status, res.statusText);
   }
 
   return res;

@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 // ✅ FIXED: Use new Golden Standard database name
 const DB_NAME = 'AtlasDB';
 
@@ -8,7 +9,7 @@ export async function handleDexieError(error: any) {
   // ✅ Auto-reset enabled with safety checks
   if ((error?.name === "SchemaError" || error?.name === "UpgradeError" || error?.name === "VersionError") && resetAttempts < 1) {
     if (localStorage.getItem("dexie_reset") === "1") {
-      console.error("🚨 Dexie reset already attempted — manual fix required.")
+      logger.error("🚨 Dexie reset already attempted — manual fix required.")
       toast.error("Atlas reset failed", {
         description: "Schema error persists. Run indexedDB.deleteDatabase('AtlasDB') manually.",
         duration: 4000,
@@ -16,7 +17,7 @@ export async function handleDexieError(error: any) {
       return
     }
 
-    console.warn("🚨 Dexie schema error detected:", error)
+    logger.warn("🚨 Dexie schema error detected:", error)
     resetAttempts++
     localStorage.setItem("dexie_reset", "1")
 
@@ -29,7 +30,7 @@ export async function handleDexieError(error: any) {
     const deleteReq = indexedDB.deleteDatabase(DB_NAME)
 
     deleteReq.onsuccess = () => {
-      console.log("✅ Dexie DB deleted, reloading…")
+      logger.debug("✅ Dexie DB deleted, reloading…")
       toast.success("Atlas reset complete", {
         description: "App will reload with a fresh database.",
         duration: 2000,

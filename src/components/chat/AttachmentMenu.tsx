@@ -6,6 +6,7 @@ import { toast } from "sonner";
 // Removed sendMessageWithAttachments import - using callback pattern instead
 import { useFeatureAccess } from "@/hooks/useTierAccess";
 import { imageService } from "../../services/imageService";
+import { logger } from '../../lib/logger';
 // Removed useMessageStore import - using callback pattern instead
 
 interface AttachmentMenuProps {
@@ -67,7 +68,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       // Use the existing imageService for upload (now uses attachments bucket)
       const result = await imageService.uploadImage(file, userId);
       
-      console.log("✅ Uploaded file:", result);
+      logger.debug("✅ Uploaded file:", result);
 
       // Create attachment object for input area
       const attachment = {
@@ -82,7 +83,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       // If we have the callback, add to input area instead of sending immediately
       if (onAddAttachment) {
         onAddAttachment(attachment);
-        console.log("✅ File added to input area for caption");
+        logger.debug("✅ File added to input area for caption");
         toast.dismiss('image-upload-loading');
         toast.success(
           <div className="flex flex-col">
@@ -153,7 +154,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       // Use the existing imageService for upload (now uses attachments bucket)
       const result = await imageService.uploadImage(file, userId);
       
-      console.log("✅ Uploaded file:", result);
+      logger.debug("✅ Uploaded file:", result);
 
       // Create attachment object for input area
       const attachment = {
@@ -168,7 +169,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       // If we have the callback, add to input area instead of sending immediately
       if (onAddAttachment) {
         onAddAttachment(attachment);
-        console.log("✅ File added to input area for caption");
+        logger.debug("✅ File added to input area for caption");
         toast.dismiss('file-upload-loading');
         toast.success(
           <div className="flex flex-col">

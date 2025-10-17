@@ -10,6 +10,7 @@ import { featureService } from '../../services/featureService';
 import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
+import { logger } from '../../lib/logger';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -57,7 +58,7 @@ export default function EnhancedInputToolbar({
     const timer = setTimeout(() => {
       if (inputRef.current && isVisible) {
         inputRef.current.focus();
-        console.log('[EnhancedInputToolbar] ✅ Input focused on mount');
+        logger.debug('[EnhancedInputToolbar] ✅ Input focused on mount');
       }
     }, 100); // Shorter delay for immediate focus
     return () => clearTimeout(timer);
@@ -67,7 +68,7 @@ export default function EnhancedInputToolbar({
   useEffect(() => {
     if (isVisible && inputRef.current) {
       inputRef.current.focus();
-      console.log('[EnhancedInputToolbar] ✅ Input focused on visibility change');
+      logger.debug('[EnhancedInputToolbar] ✅ Input focused on visibility change');
     }
   }, [isVisible]);
 

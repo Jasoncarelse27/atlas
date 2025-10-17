@@ -1,4 +1,5 @@
 import { atlasDB } from '../database/atlasDB';
+import { logger } from '../lib/logger';
 
 /**
  * Clean database migration service
@@ -17,26 +18,26 @@ export class DatabaseMigrationService {
 
   async migrateDatabase(): Promise<void> {
     if (this.isMigrating) {
-      console.log('[Migration] Already migrating, skipping...');
+      logger.debug('[Migration] Already migrating, skipping...');
       return;
     }
 
     this.isMigrating = true;
-    console.log('[Migration] Starting clean database migration...');
+    logger.debug('[Migration] Starting clean database migration...');
 
     try {
       // Open the new database
       await atlasDB.open();
-      console.log('[Migration] ✅ New database opened successfully');
+      logger.debug('[Migration] ✅ New database opened successfully');
 
       // Clear any existing data to start fresh
       await atlasDB.messages.clear();
       await atlasDB.conversations.clear();
-      console.log('[Migration] ✅ Cleared old data');
+      logger.debug('[Migration] ✅ Cleared old data');
 
-      console.log('[Migration] ✅ Database migration completed successfully');
+      logger.debug('[Migration] ✅ Database migration completed successfully');
     } catch (error) {
-      console.error('[Migration] ❌ Database migration failed:', error);
+      logger.error('[Migration] ❌ Database migration failed:', error);
       throw error;
     } finally {
       this.isMigrating = false;
@@ -47,9 +48,9 @@ export class DatabaseMigrationService {
     try {
       await atlasDB.messages.clear();
       await atlasDB.conversations.clear();
-      console.log('[Migration] ✅ All data cleared');
+      logger.debug('[Migration] ✅ All data cleared');
     } catch (error) {
-      console.error('[Migration] ❌ Failed to clear data:', error);
+      logger.error('[Migration] ❌ Failed to clear data:', error);
     }
   }
 }

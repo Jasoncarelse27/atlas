@@ -1,6 +1,7 @@
 
 import { toast } from "react-hot-toast"
 import { useNavigate } from "react-router-dom"
+import { logger } from '../lib/logger';
 
 // Map which features belong to which tiers
 const tierFeatures: Record<string, string[]> = {
@@ -34,7 +35,7 @@ export function useFeatureService() {
       return false
     }
 
-    console.log(`✅ checkFeature: Access granted for ${feature} with ${tier} tier`)
+    logger.debug(`✅ checkFeature: Access granted for ${feature} with ${tier} tier`)
     return true
   }
 

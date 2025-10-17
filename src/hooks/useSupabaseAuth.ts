@@ -2,6 +2,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { subscriptionApi } from '../services/subscriptionApi';
+import { logger } from '../lib/logger';
 
 type UserTier = 'free' | 'core' | 'studio';
 
@@ -74,7 +75,7 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
         // Future-proof tier validation
         if (dbTier && ['free', 'core', 'studio'].includes(dbTier)) {
           setTier(dbTier);
-          console.log(`✅ [useSupabaseAuth] Tier loaded: ${dbTier}`);
+          logger.debug(`✅ [useSupabaseAuth] Tier loaded: ${dbTier}`);
         } else {
           setTier('free'); // Default to free when no valid tier found
         }

@@ -13,6 +13,7 @@ import { LegacyMessageRenderer } from './MessageRenderer';
 import { StopButton } from './StopButton';
 import SystemMessage from './SystemMessage';
 import { TypingDots } from './TypingDots';
+import { logger } from '../../lib/logger';
 
 interface EnhancedMessageBubbleProps {
   message: Message;
@@ -55,7 +56,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   useEffect(() => {
     // Only log if userId is null AND we're not still loading (indicates real timing issue)
     if (!userId && tier && !loading) {
-      console.warn('[EnhancedMessageBubble] ⚠️ userId not yet available, tier:', tier);
+      logger.warn('[EnhancedMessageBubble] ⚠️ userId not yet available, tier:', tier);
     }
   }, [userId, tier, loading]);
 
@@ -219,22 +220,22 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   const handlePlayTTS = async () => {
     // Wait for auth to complete
     if (loading) {
-      console.warn('[TTS] Waiting for authentication...');
+      logger.warn('[TTS] Waiting for authentication...');
       return;
     }
     
     if (!userId) {
-      console.warn('[TTS] userId not available yet');
+      logger.warn('[TTS] userId not available yet');
       toast.error('Please wait for authentication to complete');
       return;
     }
     
     if (!message.content) {
-      console.warn('[TTS] message content is empty');
+      logger.warn('[TTS] message content is empty');
       return;
     }
     
-    console.log('[TTS] Starting TTS playback for tier:', tier);
+    logger.debug('[TTS] Starting TTS playback for tier:', tier);
     
     // Check tier access
     if (tier === 'free') {
@@ -251,13 +252,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         usageCheck = await audioUsageService.checkAudioUsage(userId, tier);
         if (usageCheck && !usageCheck.canUse) {
           // Show user-friendly message and stop gracefully
-          console.warn('[TTS] Usage limit reached:', usageCheck.warning);
+          logger.warn('[TTS] Usage limit reached:', usageCheck.warning);
           toast.warning(usageCheck.warning || 'Audio limit reached');
           toast.info('💡 Upgrade to Core tier for unlimited audio!');
           return; // Stop here - don't try to play empty audio
         }
       } catch (usageError) {
-        console.warn('[TTS] Usage check failed, allowing playback:', usageError);
+        logger.warn('[TTS] Usage check failed, allowing playback:', usageError);
         // Continue anyway - don't block TTS for usage check failures
       }
       
@@ -265,18 +266,18 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         ? message.content 
         : (message.content as any).text || message.content;
       
-      console.log('[TTS] Synthesizing speech for text length:', text.length);
+      logger.debug('[TTS] Synthesizing speech for text length:', text.length);
       
       // Synthesize speech
       const audioDataUrl = await voiceService.synthesizeSpeech(text);
-      console.log('[TTS] Audio synthesized successfully');
+      logger.debug('[TTS] Audio synthesized successfully');
       
       // Store URL for playback control (audio element will auto-play)
       setAudioUrl(audioDataUrl);
       setIsPlayingTTS(true);
       
     } catch (error) {
-      console.error('[TTS] Full error:', error);
+      logger.error('[TTS] Full error:', error);
       
       if (error instanceof Error) {
         if (error.message.includes('requires Core or Studio')) {
@@ -319,7 +320,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
-      console.error('[EnhancedMessageBubble] Copy failed:', err);
+      logger.error('[EnhancedMessageBubble] Copy failed:', err);
       // Still show success feedback even if copy fails
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 1000);

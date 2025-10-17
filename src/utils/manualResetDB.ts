@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 // Manual database reset utility - call this from browser console if needed
 export const manualResetDB = async () => {
   
@@ -15,7 +17,7 @@ export const manualResetDB = async () => {
           const deleteReq = indexedDB.deleteDatabase(db.name);
           await new Promise((resolve, reject) => {
             deleteReq.onsuccess = () => {
-              console.log(`✅ Deleted ${db.name}`);
+              logger.debug(`✅ Deleted ${db.name}`);
               resolve(true);
             };
             deleteReq.onerror = () => {
@@ -37,7 +39,7 @@ export const manualResetDB = async () => {
       }
     }
     
-    console.log('✅ Database reset complete! Reloading page...');
+    logger.debug('✅ Database reset complete! Reloading page...');
     setTimeout(() => window.location.reload(), 1000);
     
   } catch (error) {

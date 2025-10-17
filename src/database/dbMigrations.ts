@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient"
 import { atlasDB } from "./atlasDB"
+import { logger } from '../lib/logger';
 
 let migrationLock = false
 
@@ -12,11 +13,11 @@ export async function runMigrations() {
 
   try {
     await atlasDB.open()
-    console.log("[DB MIGRATION] Database schema is healthy ✅")
+    logger.debug("[DB MIGRATION] Database schema is healthy ✅")
 
     const user = (await supabase.auth.getUser()).data.user
     if (!user || !user.id) {
-      console.log("[DB MIGRATION] No authenticated user - skipping default conversation")
+      logger.debug("[DB MIGRATION] No authenticated user - skipping default conversation")
       return
     }
     const userId = user.id // ✅ No fallback to "anonymous"
@@ -36,12 +37,12 @@ export async function runMigrations() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
-      console.log(`[DB MIGRATION] Default conversation created ✅ – "${id}"`)
+      logger.debug(`[DB MIGRATION] Default conversation created ✅ – "${id}"`)
     } else {
       // Conversation already exists
     }
 
-    console.log("[DB MIGRATION] Completed successfully ✅")
+    logger.debug("[DB MIGRATION] Completed successfully ✅")
   } catch (err) {
       // Intentionally empty - error handling not required
   } finally {

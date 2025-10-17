@@ -5,6 +5,7 @@
 
 import { cachedDatabaseService } from './cachedDatabaseService';
 import { redisCacheService } from './redisCacheService';
+import { logger } from '../lib/logger';
 
 export class RedisTestService {
   /**
@@ -12,7 +13,7 @@ export class RedisTestService {
    */
   static async testBasicOperations(): Promise<boolean> {
     try {
-      console.log('[RedisTest] 🧪 Testing basic Redis operations...');
+      logger.debug('[RedisTest] 🧪 Testing basic Redis operations...');
       
       // Test 1: Set and get a simple value
       const testKey = 'test:basic';
@@ -20,46 +21,46 @@ export class RedisTestService {
       
       const setResult = await redisCacheService.set(testKey, testData, 'general', 'core');
       if (!setResult) {
-        console.error('[RedisTest] ❌ Failed to set test data');
+        logger.error('[RedisTest] ❌ Failed to set test data');
         return false;
       }
       
       const getResult = await redisCacheService.get(testKey, 'core');
       if (!getResult || (getResult as any).message !== testData.message) {
-        console.error('[RedisTest] ❌ Failed to get test data');
+        logger.error('[RedisTest] ❌ Failed to get test data');
         return false;
       }
       
-      console.log('[RedisTest] ✅ Basic set/get operations working');
+      logger.debug('[RedisTest] ✅ Basic set/get operations working');
       
       // Test 2: Test cache expiration
       await redisCacheService.set('test:expiry', { test: true }, 'general', 'free');
       const beforeExpiry = await redisCacheService.get('test:expiry', 'free');
       if (!beforeExpiry) {
-        console.error('[RedisTest] ❌ Failed to get data before expiry');
+        logger.error('[RedisTest] ❌ Failed to get data before expiry');
         return false;
       }
       
-      console.log('[RedisTest] ✅ Cache expiration test passed');
+      logger.debug('[RedisTest] ✅ Cache expiration test passed');
       
       // Test 3: Test cache deletion
       const deleteResult = await redisCacheService.delete(testKey, 'core');
       if (!deleteResult) {
-        console.error('[RedisTest] ❌ Failed to delete test data');
+        logger.error('[RedisTest] ❌ Failed to delete test data');
         return false;
       }
       
       const afterDelete = await redisCacheService.get(testKey, 'core');
       if (afterDelete) {
-        console.error('[RedisTest] ❌ Data still exists after deletion');
+        logger.error('[RedisTest] ❌ Data still exists after deletion');
         return false;
       }
       
-      console.log('[RedisTest] ✅ Cache deletion working');
+      logger.debug('[RedisTest] ✅ Cache deletion working');
       
       return true;
     } catch (error) {
-      console.error('[RedisTest] ❌ Basic operations test failed:', error);
+      logger.error('[RedisTest] ❌ Basic operations test failed:', error);
       return false;
     }
   }
@@ -69,24 +70,24 @@ export class RedisTestService {
    */
   static async testDatabaseCaching(): Promise<boolean> {
     try {
-      console.log('[RedisTest] 🧪 Testing database caching integration...');
+      logger.debug('[RedisTest] 🧪 Testing database caching integration...');
       
       // Test health check
       const health = await cachedDatabaseService.healthCheck();
       if (!health.redis || !health.supabase) {
-        console.error('[RedisTest] ❌ Health check failed:', health);
+        logger.error('[RedisTest] ❌ Health check failed:', health);
         return false;
       }
       
-      console.log('[RedisTest] ✅ Health check passed');
+      logger.debug('[RedisTest] ✅ Health check passed');
       
       // Test cache statistics
       const stats = cachedDatabaseService.getCacheStats();
-      console.log('[RedisTest] 📊 Cache stats:', stats);
+      logger.debug('[RedisTest] 📊 Cache stats:', stats);
       
       return true;
     } catch (error) {
-      console.error('[RedisTest] ❌ Database caching test failed:', error);
+      logger.error('[RedisTest] ❌ Database caching test failed:', error);
       return false;
     }
   }
@@ -95,7 +96,7 @@ export class RedisTestService {
    * Run comprehensive Redis tests
    */
   static async runAllTests(): Promise<{ success: boolean; results: any }> {
-    console.log('[RedisTest] 🚀 Starting comprehensive Redis tests...');
+    logger.debug('[RedisTest] 🚀 Starting comprehensive Redis tests...');
     
     const results = {
       basicOperations: false,
@@ -116,15 +117,15 @@ export class RedisTestService {
       
       const allPassed = Object.values(results).every(result => result === true);
       
-      console.log('[RedisTest] 📊 Test Results:', results);
-      console.log(`[RedisTest] ${allPassed ? '✅' : '❌'} All tests ${allPassed ? 'PASSED' : 'FAILED'}`);
+      logger.debug('[RedisTest] 📊 Test Results:', results);
+      logger.debug(`[RedisTest] ${allPassed ? '✅' : '❌'} All tests ${allPassed ? 'PASSED' : 'FAILED'}`);
       
       return {
         success: allPassed,
         results
       };
     } catch (error) {
-      console.error('[RedisTest] ❌ Test suite failed:', error);
+      logger.error('[RedisTest] ❌ Test suite failed:', error);
       return {
         success: false,
         results
@@ -136,7 +137,7 @@ export class RedisTestService {
    * Performance test - measure cache hit rates
    */
   static async performanceTest(): Promise<void> {
-    console.log('[RedisTest] 🏃‍♂️ Running performance test...');
+    logger.debug('[RedisTest] 🏃‍♂️ Running performance test...');
     
     const testData = { id: 'perf-test', data: 'Performance test data' };
     const iterations = 100;
@@ -155,12 +156,12 @@ export class RedisTestService {
     }
     
     const stats = redisCacheService.getStats();
-    console.log('[RedisTest] 📈 Performance test results:', stats);
+    logger.debug('[RedisTest] 📈 Performance test results:', stats);
     
     if (stats.hitRate > 0) {
-      console.log('[RedisTest] ✅ Performance test completed successfully');
+      logger.debug('[RedisTest] ✅ Performance test completed successfully');
     } else {
-      console.log('[RedisTest] ⚠️ Performance test completed but no hits recorded');
+      logger.debug('[RedisTest] ⚠️ Performance test completed but no hits recorded');
     }
   }
 }

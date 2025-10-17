@@ -2,6 +2,7 @@ import { canSyncCloud, isPaidTier } from "@/config/featureAccess";
 import { atlasDB } from "@/database/atlasDB";
 import { supabase } from "@/lib/supabaseClient";
 import { conversationSyncService } from "./conversationSyncService";
+import { logger } from '../lib/logger';
 
 // 🎯 FUTURE-PROOF FIX: Define types for Supabase message schema
 type SupabaseMessage = {
@@ -25,14 +26,14 @@ export const syncService = {
   async syncAll(userId: string, tier: 'free' | 'core' | 'studio') {
     // ✅ Use centralized tier config for cloud sync
     if (!canSyncCloud(tier)) {
-      console.log("[SYNC] Cloud sync disabled for tier:", tier);
+      logger.debug("[SYNC] Cloud sync disabled for tier:", tier);
       return
     }
 
     // ✅ Check if user is authenticated before syncing
     const { data: { session } } = await supabase.auth.getSession()
     if (!session || !session.user) {
-      console.log("[SYNC] No authenticated session - skipping sync")
+      logger.debug("[SYNC] No authenticated session - skipping sync")
       return
     }
 
@@ -49,7 +50,7 @@ export const syncService = {
       if (pullErr) {
         // ✅ Handle 403 errors gracefully (user not authenticated)
         if (pullErr.status === 403) {
-          console.log("[SYNC] 403 Forbidden - user not authenticated, stopping sync")
+          logger.debug("[SYNC] 403 Forbidden - user not authenticated, stopping sync")
           return
         }
         throw pullErr;
@@ -62,7 +63,7 @@ export const syncService = {
       for (const msg of remote || []) {
         const exists = local.find((m) => m.id === msg.id)
         if (!exists) {
-          console.log("[SYNC] Adding missing message from remote:", msg.id);
+          logger.debug("[SYNC] Adding missing message from remote:", msg.id);
           await atlasDB.messages.put({
             id: msg.id,
             conversationId: msg.conversation_id,
@@ -75,7 +76,7 @@ export const syncService = {
             updatedAt: msg.created_at
           })
         } else {
-          console.log("[SYNC] Message already exists, skipping:", msg.id);
+          logger.debug("[SYNC] Message already exists, skipping:", msg.id);
         }
       }
 
@@ -107,18 +108,18 @@ export const syncService = {
         if (pushErr) {
           // ✅ Handle 403 errors gracefully (user not authenticated)
           if ((pushErr as any).status === 403) {
-            console.log("[SYNC] 403 Forbidden on push - user not authenticated, stopping sync")
+            logger.debug("[SYNC] 403 Forbidden on push - user not authenticated, stopping sync")
             return
           }
-          console.error("[SYNC] Push error:", pushErr)
+          logger.error("[SYNC] Push error:", pushErr)
         } else {
           await atlasDB.messages.update(msg.id, { synced: true })
         }
       }
 
-      console.log("[SYNC] Dexie ↔ Supabase merge complete ✅")
+      logger.debug("[SYNC] Dexie ↔ Supabase merge complete ✅")
     } catch (err) {
-      console.error("[SYNC] Sync error:", err)
+      logger.error("[SYNC] Sync error:", err)
     } finally {
       await markSyncing(false)
     }
@@ -130,24 +131,24 @@ let syncInterval: ReturnType<typeof setInterval> | null = null
 
 export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'studio') {
   // ✅ DELTA SYNC: Enable efficient background sync with delta updates
-  console.log("[SYNC] 🚀 Starting delta sync background service");
+  logger.debug("[SYNC] 🚀 Starting delta sync background service");
   
   // ✅ Use centralized tier config
   if (!isPaidTier(tier)) {
-    console.log("[SYNC] Free tier - no background sync");
+    logger.debug("[SYNC] Free tier - no background sync");
     return;
   }
 
   // Run delta sync immediately on load
   conversationSyncService.deltaSync(userId).catch(error => {
-    console.error("[SYNC] Initial delta sync failed:", error);
+    logger.error("[SYNC] Initial delta sync failed:", error);
   });
 
   // Re-sync every 2 minutes with delta sync (optimized for performance)
   if (!syncInterval) {
     syncInterval = setInterval(() => {
       conversationSyncService.deltaSync(userId).catch(error => {
-        console.error("[SYNC] Background delta sync failed:", error);
+        logger.error("[SYNC] Background delta sync failed:", error);
       });
     }, 120000) // 2 minutes
   }
@@ -156,12 +157,12 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
   if (typeof window !== "undefined") {
     window.addEventListener("focus", () => {
       conversationSyncService.deltaSync(userId).catch(error => {
-        console.error("[SYNC] Focus delta sync failed:", error);
+        logger.error("[SYNC] Focus delta sync failed:", error);
       });
     })
   }
 
-  console.log("[SYNC] ✅ Delta sync background service active - unified architecture");
+  logger.debug("[SYNC] ✅ Delta sync background service active - unified architecture");
 }
 
 export function stopBackgroundSync() {

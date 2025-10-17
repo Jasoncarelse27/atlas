@@ -4,6 +4,7 @@
 
 import { fastspringService } from './fastspringService';
 import { subscriptionApi } from './subscriptionApi';
+import { logger } from '../lib/logger';
 
 type Tier = 'free' | 'core' | 'studio';
 
@@ -23,7 +24,7 @@ class CacheInvalidationService {
    * Called when webhook updates user tier or when user cancels subscription
    */
   async invalidateUserTier(userId: string): Promise<void> {
-    console.log(`[CacheInvalidation] Clearing all caches for user ${userId}`);
+    logger.debug(`[CacheInvalidation] Clearing all caches for user ${userId}`);
     
     try {
       await Promise.all([
@@ -39,9 +40,9 @@ class CacheInvalidationService {
         this.clearDexieCache(userId),
       ]);
       
-      console.log(`✅ [CacheInvalidation] All caches cleared for user ${userId}`);
+      logger.debug(`✅ [CacheInvalidation] All caches cleared for user ${userId}`);
     } catch (error) {
-      console.error(`[CacheInvalidation] Error clearing caches:`, error);
+      logger.error(`[CacheInvalidation] Error clearing caches:`, error);
       // Don't throw - partial cache clear is better than none
     }
   }
@@ -51,7 +52,7 @@ class CacheInvalidationService {
    * Clears caches AND broadcasts to other tabs
    */
   async onTierChange(userId: string, newTier: Tier, source: string = 'webhook'): Promise<void> {
-    console.log(`[CacheInvalidation] Tier changed for ${userId}: ${newTier} (source: ${source})`);
+    logger.debug(`[CacheInvalidation] Tier changed for ${userId}: ${newTier} (source: ${source})`);
     
     // Clear all caches first
     await this.invalidateUserTier(userId);
@@ -85,7 +86,7 @@ class CacheInvalidationService {
       const { type, userId, newTier } = event.data;
       
       if (type === 'TIER_CHANGED') {
-        console.log(`[CacheInvalidation] Received tier change from another tab: ${userId} -> ${newTier}`);
+        logger.debug(`[CacheInvalidation] Received tier change from another tab: ${userId} -> ${newTier}`);
         
         // Trigger refresh in this tab
         window.dispatchEvent(new CustomEvent('tier-changed', {
@@ -106,7 +107,7 @@ class CacheInvalidationService {
         fastspringService.subscriptionCache.delete(userId);
       }
     } catch (error) {
-      console.warn('[CacheInvalidation] Could not clear FastSpring cache:', error);
+      logger.warn('[CacheInvalidation] Could not clear FastSpring cache:', error);
     }
   }
 
@@ -132,7 +133,7 @@ class CacheInvalidationService {
         await subscriptionApi.forceRefreshProfile(userId, accessToken);
       }
     } catch (error) {
-      console.warn('[CacheInvalidation] Could not clear SubscriptionAPI cache:', error);
+      logger.warn('[CacheInvalidation] Could not clear SubscriptionAPI cache:', error);
     }
   }
 
@@ -157,7 +158,7 @@ class CacheInvalidationService {
         sessionStorage.removeItem(key);
       });
     } catch (error) {
-      console.warn('[CacheInvalidation] Could not clear browser storage:', error);
+      logger.warn('[CacheInvalidation] Could not clear browser storage:', error);
     }
   }
 
@@ -171,7 +172,7 @@ class CacheInvalidationService {
       const { atlasDB } = dbModule;
       
       if (!atlasDB) {
-        console.warn('[CacheInvalidation] AtlasDB not available');
+        logger.warn('[CacheInvalidation] AtlasDB not available');
         return;
       }
       
@@ -181,12 +182,12 @@ class CacheInvalidationService {
         await atlasDB.conversations.where('userId').equals(userId).delete();
       } catch (err) {
         // Tables might not exist or be accessible
-        console.warn('[CacheInvalidation] Could not clear specific tables:', err);
+        logger.warn('[CacheInvalidation] Could not clear specific tables:', err);
       }
       
-      console.log(`[CacheInvalidation] Cleared AtlasDB cache for user ${userId}`);
+      logger.debug(`[CacheInvalidation] Cleared AtlasDB cache for user ${userId}`);
     } catch (error) {
-      console.warn('[CacheInvalidation] Could not clear AtlasDB cache:', error);
+      logger.warn('[CacheInvalidation] Could not clear AtlasDB cache:', error);
     }
   }
 
@@ -194,7 +195,7 @@ class CacheInvalidationService {
    * Force immediate tier refresh from server
    */
   async forceRefresh(userId: string): Promise<Tier> {
-    console.log(`[CacheInvalidation] Force refreshing tier for ${userId}`);
+    logger.debug(`[CacheInvalidation] Force refreshing tier for ${userId}`);
     
     // Clear all caches first
     await this.invalidateUserTier(userId);
@@ -210,10 +211,10 @@ class CacheInvalidationService {
       }
       
       const tier = await subscriptionApi.getUserTier(userId, accessToken);
-      console.log(`✅ [CacheInvalidation] Fresh tier fetched: ${tier}`);
+      logger.debug(`✅ [CacheInvalidation] Fresh tier fetched: ${tier}`);
       return tier;
     } catch (error) {
-      console.error('[CacheInvalidation] Error fetching fresh tier:', error);
+      logger.error('[CacheInvalidation] Error fetching fresh tier:', error);
       return 'free';
     }
   }

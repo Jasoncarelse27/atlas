@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { logger } from '../lib/logger';
 
 export type UserTier = 'free' | 'core' | 'studio';
 
@@ -104,7 +105,7 @@ export function useSubscription(userId?: string) {
       }
 
       if (data) {
-        console.log('✅ [useSubscription] Profile fetched:', data);
+        logger.debug('✅ [useSubscription] Profile fetched:', data);
         setProfile(data);
       }
     } catch (err) {
@@ -145,7 +146,7 @@ export function useSubscription(userId?: string) {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ [useSubscription] Subscribed to profile realtime updates');
+          logger.debug('✅ [useSubscription] Subscribed to profile realtime updates');
           // Clear any existing polling when real-time is working
           if (pollingInterval) {
             clearInterval(pollingInterval);

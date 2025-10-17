@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie"
+import { logger } from '../lib/logger';
 
 export interface Conversation {
   id: string
@@ -39,7 +40,7 @@ export class AtlasDB extends Dexie {
     
     // ✅ MOBILE FIX: Add error handling for mobile Safari
     this.on('close', () => {
-      console.warn('[AtlasDB] Database closed unexpectedly (mobile-safe)');
+      logger.warn('[AtlasDB] Database closed unexpectedly (mobile-safe)');
     });
 
     // Version 4: Delta sync schema (keep for migration)
@@ -87,7 +88,7 @@ export class AtlasDB extends Dexie {
       syncMetadata: "userId, lastSyncedAt, syncVersion"
     }).upgrade(() => {
       // No data migration needed - just schema extension
-      console.log('[AtlasDB] ✅ Upgraded to v7: Image support added');
+      logger.debug('[AtlasDB] ✅ Upgraded to v7: Image support added');
       return Promise.resolve();
     })
   }
@@ -106,12 +107,12 @@ const initializeDatabase = async (): Promise<void> => {
     // Mobile-safe global exposure
     if (typeof window !== 'undefined') {
       (window as any).atlasDB = atlasDB;
-      console.log('[AtlasDB] ✅ Database initialized and exposed globally');
+      logger.debug('[AtlasDB] ✅ Database initialized and exposed globally');
     }
     
     isInitialized = true;
   } catch (error) {
-    console.error('[AtlasDB] ❌ Initialization failed:', error);
+    logger.error('[AtlasDB] ❌ Initialization failed:', error);
     throw error;
   }
 };
@@ -134,7 +135,7 @@ if (typeof window !== 'undefined') {
   // Don't block module loading, but ensure it happens
   setTimeout(() => {
     ensureDatabaseReady().catch(err => {
-      console.warn('[AtlasDB] Background initialization failed:', err);
+      logger.warn('[AtlasDB] Background initialization failed:', err);
     });
   }, 100);
 }

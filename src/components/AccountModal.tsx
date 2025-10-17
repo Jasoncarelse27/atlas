@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabaseClient';
 import type { UserProfile } from '../types/subscription';
 import ErrorMessage from './ErrorMessage';
 import LoadingSpinner from './LoadingSpinner';
+import { logger } from '../lib/logger';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -178,7 +179,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
         rating: feedbackType === 'review' ? rating : null,
         userId: user.id
       };
-      console.log('Feedback submitted:', feedbackData);
+      logger.debug('Feedback submitted:', feedbackData);
 
       if (onSoundPlay) {
         onSoundPlay('success');
@@ -214,7 +215,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
       // This would typically be handled by an admin function or support request
       
       // TODO: Log deletion request to proper audit table
-      console.log({
+      logger.debug({
         id: user.id,
         email: user.email,
         tier: profile.tier,

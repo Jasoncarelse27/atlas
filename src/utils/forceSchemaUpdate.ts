@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 // Force schema update by deleting the old database
 export const forceSchemaUpdate = async () => {
   
@@ -7,7 +9,7 @@ export const forceSchemaUpdate = async () => {
     
     await new Promise((resolve, reject) => {
       deleteReq.onsuccess = () => {
-        console.log('✅ Old database deleted');
+        logger.debug('✅ Old database deleted');
         resolve(true);
       };
       deleteReq.onerror = () => {
@@ -22,7 +24,7 @@ export const forceSchemaUpdate = async () => {
     localStorage.clear();
     sessionStorage.clear();
     
-    console.log('✅ Schema update complete! Reloading page...');
+    logger.debug('✅ Schema update complete! Reloading page...');
     setTimeout(() => window.location.reload(), 1000);
     
   } catch (error) {

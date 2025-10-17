@@ -1,7 +1,8 @@
 import { toast } from "sonner"
+import { logger } from '../lib/logger';
 
 export async function resetLocalData() {
-  console.warn("🚨 Resetting local data (IndexedDB + localStorage)…")
+  logger.warn("🚨 Resetting local data (IndexedDB + localStorage)…")
 
   // Show toast immediately
   toast("Atlas data reset", {
@@ -25,7 +26,7 @@ export async function resetLocalData() {
   localStorage.clear()
   sessionStorage.clear()
 
-  console.log("✅ Local data reset complete — reloading…")
+  logger.debug("✅ Local data reset complete — reloading…")
   setTimeout(() => {
     window.location.reload()
   }, 500) // tiny delay so toast shows

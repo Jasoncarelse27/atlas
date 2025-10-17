@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchWithAuthJSON } from '../services/fetchWithAuth';
+import { logger } from '../lib/logger';
 
 export interface UsageStats {
   tier: 'free' | 'core' | 'studio';
@@ -65,7 +66,7 @@ export function useUsageIndicator() {
 
       // Debug logging in development
       if (import.meta.env.DEV) {
-        console.log({
+        logger.debug({
           tier,
           dailyUsed,
           dailyLimit,

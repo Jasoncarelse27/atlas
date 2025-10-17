@@ -4,6 +4,7 @@ import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { supabase } from '../../lib/supabaseClient';
 import { subscriptionApi } from '../../services/subscriptionApi';
 import { UpgradeButton } from '../UpgradeButton';
+import { logger } from '../../lib/logger';
 
 interface UsageCounterProps {
   userId?: string;
@@ -17,12 +18,12 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
   // ✅ Force re-render when tier changes and fix tier mismatch
   // MUST be before any conditional returns to follow Rules of Hooks
   useEffect(() => {
-    console.log('[UsageCounter] 🔄 Tier changed:', tier, 'isLoading:', isLoading);
+    logger.debug('[UsageCounter] 🔄 Tier changed:', tier, 'isLoading:', isLoading);
     setForceRender(prev => prev + 1);
     
     // If tier is 'free' but should be 'studio', force a refresh
     if (!isLoading && tier === 'free' && userId) {
-      console.log('[UsageCounter] ⚠️ Tier mismatch detected - forcing refresh');
+      logger.debug('[UsageCounter] ⚠️ Tier mismatch detected - forcing refresh');
       const fixTierMismatch = async () => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -31,7 +32,7 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
             await subscriptionApi.forceRefreshProfile(userId, session.access_token);
           }
         } catch (error) {
-          console.error('[UsageCounter] Failed to fix tier mismatch:', error);
+          logger.error('[UsageCounter] Failed to fix tier mismatch:', error);
         }
       };
       fixTierMismatch();
@@ -58,7 +59,7 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
   }
 
   // Debug log to verify tier value
-  console.log('[UsageCounter] Current tier:', tier, 'isLoading:', isLoading, 'forceRender:', forceRender);
+  logger.debug('[UsageCounter] Current tier:', tier, 'isLoading:', isLoading, 'forceRender:', forceRender);
   
   // Simplified remaining messages calculation for studio/core users
   const remainingMessages = tier === 'free' ? 15 : 0;
@@ -116,7 +117,7 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
         setTimeout(() => window.location.reload(), 500);
       }
     } catch (error) {
-      console.error('Failed to refresh tier:', error);
+      logger.error('Failed to refresh tier:', error);
     } finally {
       setIsRefreshing(false);
     }

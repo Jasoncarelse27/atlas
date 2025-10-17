@@ -86,7 +86,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     try {
       // ✅ MOBILE FIX: Ensure userId is available before loading messages
       if (!userId) {
-        console.log('[ChatPage] ⚠️ userId not available yet, skipping message load');
+        logger.debug('[ChatPage] ⚠️ userId not available yet, skipping message load');
         return;
       }
       
@@ -102,7 +102,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // ✅ FALLBACK: If no messages found with userId filter, try without filter (for existing data)
       if (storedMessages.length === 0) {
-        console.log('[ChatPage] ⚠️ No messages with userId filter, trying without filter for existing data');
+        logger.debug('[ChatPage] ⚠️ No messages with userId filter, trying without filter for existing data');
         storedMessages = await atlasDB.messages
           .where("conversationId")
           .equals(conversationId)
@@ -111,7 +111,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // ✅ NEW: If Dexie is still empty, fetch from Supabase and sync to Dexie
       if (storedMessages.length === 0) {
-        console.log('[ChatPage] 🔄 Dexie empty, fetching from Supabase...');
+        logger.debug('[ChatPage] 🔄 Dexie empty, fetching from Supabase...');
         
         const { data: supabaseMessages } = await supabase
           .from('messages')
@@ -120,7 +120,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           .order('created_at');
         
         if (supabaseMessages && supabaseMessages.length > 0) {
-          console.log('[ChatPage] ✅ Found', supabaseMessages.length, 'messages in Supabase, syncing to Dexie...');
+          logger.debug('[ChatPage] ✅ Found', supabaseMessages.length, 'messages in Supabase, syncing to Dexie...');
           
           // Store in Dexie for future use
           await atlasDB.messages.bulkPut(
@@ -146,9 +146,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             .equals(conversationId)
             .sortBy("timestamp");
           
-          console.log('[ChatPage] ✅ Synced', supabaseMessages.length, 'messages from Supabase to Dexie');
+          logger.debug('[ChatPage] ✅ Synced', supabaseMessages.length, 'messages from Supabase to Dexie');
         } else {
-          console.log('[ChatPage] ℹ️ No messages found in Supabase for conversation:', conversationId);
+          logger.debug('[ChatPage] ℹ️ No messages found in Supabase for conversation:', conversationId);
         }
       }
       
@@ -166,7 +166,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ DEBUG: Log image messages being loaded
       const imageMessages = formattedMessages.filter(msg => msg.type === 'image');
       if (imageMessages.length > 0) {
-        console.log('[ChatPage] 🔍 Loading image messages from Dexie:', imageMessages.map(msg => ({
+        logger.debug('[ChatPage] 🔍 Loading image messages from Dexie:', imageMessages.map(msg => ({
           id: msg.id,
           type: msg.type,
           url: msg.url,
@@ -177,9 +177,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // Set React state (Dexie is authoritative source)
       setMessages(formattedMessages);
-      console.log('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
+      logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
     } catch (error) {
-      console.error('[ChatPage] ❌ Failed to load messages:', error);
+      logger.error('[ChatPage] ❌ Failed to load messages:', error);
       setMessages([]);
     }
   }, [userId]); // ✅ MOBILE FIX: Add userId dependency to ensure proper filtering
@@ -240,18 +240,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const handleTextMessage = async (text: string) => {
     // Prevent duplicate calls
     if (isProcessingRef.current) {
-      console.log('[ChatPage] ⚠️ Message already processing, skipping...');
+      logger.debug('[ChatPage] ⚠️ Message already processing, skipping...');
       return;
     }
     
     // Prevent duplicate content
     if (lastMessageRef.current === text.trim()) {
-      console.log('[ChatPage] ⚠️ Duplicate content detected, skipping...');
+      logger.debug('[ChatPage] ⚠️ Duplicate content detected, skipping...');
       return;
     }
     
     if (!conversationId || !userId) {
-      console.error('[ChatPage] ❌ Cannot send message: missing conversationId or userId', {
+      logger.error('[ChatPage] ❌ Cannot send message: missing conversationId or userId', {
         conversationId,
         userId,
         hasConversationId: !!conversationId,
@@ -267,7 +267,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     isProcessingRef.current = true;
     
     try {
-      console.log('[ChatPage] 📤 Sending message to backend...', {
+      logger.debug('[ChatPage] 📤 Sending message to backend...', {
         userId,
         conversationId,
         text: text.slice(0, 50)
@@ -284,7 +284,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // Add to UI instantly for ChatGPT-like experience
       setMessages(prev => [...prev, optimisticUserMessage]);
-      console.log('[ChatPage] ✅ Optimistic user message displayed:', optimisticUserMessage.id);
+      logger.debug('[ChatPage] ✅ Optimistic user message displayed:', optimisticUserMessage.id);
       
       // Show thinking indicator
       setIsTyping(true);
@@ -298,7 +298,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         userId
       );
       
-      console.log('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
+      logger.debug('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
       
       // ✅ AUTO TITLE GENERATION: Generate title for first user message
       if (messages.length === 0) {
@@ -309,13 +309,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           conversationId,
           userId
         }).catch(err => {
-          console.warn('[ChatPage] Title generation failed (non-blocking):', err);
+          logger.warn('[ChatPage] Title generation failed (non-blocking):', err);
         });
       }
       
       // ✅ OPTIMIZED FALLBACK: Reduced timer for faster response (500ms)
       fallbackTimerRef.current = setTimeout(async () => {
-        console.warn('[ChatPage] ⚠️ Real-time event not received, using fast fallback reload');
+        logger.warn('[ChatPage] ⚠️ Real-time event not received, using fast fallback reload');
         setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
         await loadMessages(conversationId);
       }, 1000); // ✅ Balanced timing for stable real-time sync
@@ -323,7 +323,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Keep typing indicator active until real-time listener receives response
       
     } catch (error) {
-      console.error('[ChatPage] ❌ Failed to send message:', error);
+      logger.error('[ChatPage] ❌ Failed to send message:', error);
       
       // ✅ Clear fallback timer on error
       if (fallbackTimerRef.current) {
@@ -333,7 +333,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // ✅ ROLLBACK: Remove optimistic message on error
       setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
-      console.log('[ChatPage] ⚠️ Rolled back optimistic message due to error');
+      logger.debug('[ChatPage] ⚠️ Rolled back optimistic message due to error');
       
       setIsTyping(false);
       setIsStreaming(false);
@@ -360,7 +360,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     const getAuthUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        console.log('[ChatPage] Auth check result:', {
+        logger.debug('[ChatPage] Auth check result:', {
           hasUser: !!user,
           userId: user?.id,
           userEmail: user?.email
@@ -368,13 +368,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         
         if (user) {
           setUserId(user.id);
-          console.log('[ChatPage] ✅ User authenticated:', user.id);
+          logger.debug('[ChatPage] ✅ User authenticated:', user.id);
         } else {
-          console.warn('[ChatPage] ⚠️ No authenticated user found');
+          logger.warn('[ChatPage] ⚠️ No authenticated user found');
           setUserId(null);
         }
       } catch (error) {
-        console.error('[ChatPage] ❌ Auth check failed:', error);
+        logger.error('[ChatPage] ❌ Auth check failed:', error);
         setUserId(null);
       }
     };
@@ -385,7 +385,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useEffect(() => {
     if (!userId || !conversationId) return;
 
-    console.log('[ChatPage] 🔔 Setting up real-time listener (single writer) for conversation:', conversationId);
+    logger.debug('[ChatPage] 🔔 Setting up real-time listener (single writer) for conversation:', conversationId);
 
     // Listen for new messages in real-time
     const subscription = supabase
@@ -400,13 +400,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (fallbackTimerRef.current) {
           clearTimeout(fallbackTimerRef.current);
           fallbackTimerRef.current = null;
-          console.log('[ChatPage] ✅ Real-time working, fallback timer cleared');
+          logger.debug('[ChatPage] ✅ Real-time working, fallback timer cleared');
         }
         
-        console.log('[ChatPage] 🔔 Real-time event RECEIVED:', payload.new?.id, payload.new?.role, payload.new?.content?.slice(0, 50)); // DEBUG LOG
+        logger.debug('[ChatPage] 🔔 Real-time event RECEIVED:', payload.new?.id, payload.new?.role, payload.new?.content?.slice(0, 50)); // DEBUG LOG
         const newMsg = payload.new;
         
-        console.log('[ChatPage] 🔔 Real-time message received:', {
+        logger.debug('[ChatPage] 🔔 Real-time message received:', {
           id: newMsg.id,
           role: newMsg.role,
           contentPreview: newMsg.content?.slice(0, 50),
@@ -435,7 +435,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             attachments: newMsg.attachments || undefined // ✅ Save attachments array
           };
           
-          console.log('[ChatPage] 🔔 Saving to Dexie:', {
+          logger.debug('[ChatPage] 🔔 Saving to Dexie:', {
             id: messageToSave.id,
             type: messageToSave.type,
             hasImageUrl: !!messageToSave.imageUrl,
@@ -445,12 +445,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           await atlasDB.messages.put(messageToSave as any);
           
-          console.log('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
+          logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
           // ✅ OPTIMISTIC UPDATE: Replace temporary message with real one
           if (newMsg.role === 'user') {
             setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
-            console.log('[ChatPage] ✅ Removed optimistic message, real message from Dexie will replace it');
+            logger.debug('[ChatPage] ✅ Removed optimistic message, real message from Dexie will replace it');
           }
           
           // ✅ Reload messages from Dexie (single source of truth)
@@ -460,25 +460,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           if (newMsg.role === 'assistant') {
             setIsStreaming(false);
             setIsTyping(false);
-            console.log('[ChatPage] ✅ Reset typing indicators after assistant response');
+            logger.debug('[ChatPage] ✅ Reset typing indicators after assistant response');
           }
           
         } catch (error) {
-          console.error('[ChatPage] ❌ Failed to write message to Dexie:', error);
+          logger.error('[ChatPage] ❌ Failed to write message to Dexie:', error);
         }
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('[ChatPage] ✅ Real-time listener SUBSCRIBED for conversation:', conversationId);
+          logger.debug('[ChatPage] ✅ Real-time listener SUBSCRIBED for conversation:', conversationId);
         } else if (status === 'CLOSED') {
-          console.log('[ChatPage] 🔕 Real-time listener closed (normal cleanup)');
+          logger.debug('[ChatPage] 🔕 Real-time listener closed (normal cleanup)');
         } else if (status === 'CHANNEL_ERROR') {
-          console.warn('[ChatPage] ⚠️ Real-time listener error, will retry on next message:', status);
+          logger.warn('[ChatPage] ⚠️ Real-time listener error, will retry on next message:', status);
         }
       });
 
     return () => {
-      console.log('[ChatPage] 🔕 Cleaning up real-time listener');
+      logger.debug('[ChatPage] 🔕 Cleaning up real-time listener');
       supabase.removeChannel(subscription);
     };
   }, [userId, conversationId]);
@@ -526,7 +526,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
         
         // ✅ PHASE 2: Switching to conversation
-        console.log('[ChatPage] 🔄 Switching to conversation:', id);
+        logger.debug('[ChatPage] 🔄 Switching to conversation:', id);
         
         // ✅ CRITICAL: Set conversation ID IMMEDIATELY before any messages can be sent
         localStorage.setItem('atlas:lastConversationId', id);
@@ -550,13 +550,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           await conversationSyncService.syncConversationsFromRemote(userId);
           
           // DON'T call loadMessages again - real-time listener will handle new messages
-          console.log('[ChatPage] ✅ Initial sync complete, real-time listener active');
+          logger.debug('[ChatPage] ✅ Initial sync complete, real-time listener active');
         } catch (error) {
-          console.error('[ChatPage] Initial sync failed:', error);
+          logger.error('[ChatPage] Initial sync failed:', error);
         }
         
       } catch (error) {
-        console.error('[ChatPage] Failed to initialize conversation:', error);
+        logger.error('[ChatPage] Failed to initialize conversation:', error);
       }
     };
 
@@ -572,7 +572,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // Only switch if URL has a different conversation ID
       if (urlConversationId && urlConversationId !== conversationId) {
-        console.log('[ChatPage] 🔄 URL changed, switching conversation:', urlConversationId);
+        logger.debug('[ChatPage] 🔄 URL changed, switching conversation:', urlConversationId);
         
         // Update conversation ID and load messages
         localStorage.setItem('atlas:lastConversationId', urlConversationId);
@@ -582,7 +582,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (userId) {
           loadMessages(urlConversationId);
         } else {
-          console.log('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
+          logger.debug('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
         }
       }
     };
@@ -598,7 +598,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ MOBILE FIX: Load messages when userId becomes available
   useEffect(() => {
     if (userId && conversationId) {
-      console.log('[ChatPage] 🔄 userId available, loading messages for conversation:', conversationId);
+      logger.debug('[ChatPage] 🔄 userId available, loading messages for conversation:', conversationId);
       loadMessages(conversationId);
     }
   }, [userId, conversationId, loadMessages]);
@@ -621,11 +621,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         await databaseMigration.migrateDatabase();
         sessionStorage.setItem(migrationKey, 'true');
       } catch (error) {
-        console.error('[ChatPage] Migration error:', error);
+        logger.error('[ChatPage] Migration error:', error);
         try {
           await databaseMigration.clearAllData();
         } catch (clearError) {
-          console.error('[ChatPage] Failed to clear data:', clearError);
+          logger.error('[ChatPage] Failed to clear data:', clearError);
         }
       }
     };
@@ -670,7 +670,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           }
         }
       } catch (error) {
-        console.error('[ChatPage] Background sync initialization error:', error);
+        logger.error('[ChatPage] Background sync initialization error:', error);
       }
     };
 

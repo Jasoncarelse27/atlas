@@ -408,33 +408,6 @@ class SubscriptionApiService {
     }
   }
 
-  /**
-   * Fallback method to get profile from Dexie cache when backend is unavailable
-   */
-  // 🔒 SECURITY: This method is deprecated and should not be used
-  // Kept for backwards compatibility but not called anywhere
-  // @deprecated Use direct Supabase queries instead of stale offline cache
-  private async getProfileFromDexie(userId: string): Promise<SubscriptionProfile | null> {
-    logger.warn('[SubscriptionAPI] ⚠️ getProfileFromDexie called - this should not happen');
-    try {
-      // ✅ FIXED: Use profiles table from new Golden Standard Dexie
-      const profile = await atlasDB.conversations
-        ?.where('userId')
-        .equals(userId)
-        .first();
-
-      if (profile) {
-        // Note: Conversation type doesn't match SubscriptionProfile, returning null for now
-        return null;
-      }
-
-      // Don't return fake data - return null to force a fresh fetch
-      logger.warn('[SubscriptionAPI] ⚠️ All fallbacks failed, returning null');
-      return null;
-    } catch (error) {
-      return null;
-    }
-  }
 
   /**
    * Clear all caches

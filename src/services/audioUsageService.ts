@@ -1,6 +1,7 @@
 import { tierFeatures } from '@/config/featureAccess';
 import { supabase } from '@/lib/supabaseClient';
 import type { Tier } from '@/types/tier';
+import { logger } from '../lib/logger';
 
 interface AudioUsageCheck {
   canUse: boolean;
@@ -109,7 +110,7 @@ export class AudioUsageService {
         warning
       };
     } catch (error) {
-      console.warn('[AudioUsage] Database unavailable, allowing usage:', error);
+      logger.warn('[AudioUsage] Database unavailable, allowing usage:', error);
       // If database is unavailable, allow usage for now
       return {
         canUse: true,
@@ -205,7 +206,7 @@ export class AudioUsageService {
       
       return null;
     } catch (error) {
-      console.warn('[AudioUsage] Cache unavailable:', error);
+      logger.warn('[AudioUsage] Cache unavailable:', error);
       return null; // No cache available, will generate new audio
     }
   }
@@ -235,7 +236,7 @@ export class AudioUsageService {
       } as any);
     } catch (error) {
       // Ignore conflicts - cache entry already exists or table doesn't exist
-      console.warn('[AudioUsage] Cache insert failed:', error);
+      logger.warn('[AudioUsage] Cache insert failed:', error);
     }
   }
   

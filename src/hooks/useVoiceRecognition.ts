@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { logger } from '../lib/logger';
 
 interface UseVoiceRecognitionReturn {
   isListening: boolean;
@@ -75,7 +76,7 @@ const useVoiceRecognition = ({
     recognition.maxAlternatives = 1;
     recognition.lang = 'en-US';
 
-    console.log({
+    logger.debug({
       continuous: recognition.continuous,
       interimResults: recognition.interimResults,
       maxAlternatives: recognition.maxAlternatives,

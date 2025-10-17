@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 /**
  * Atlas AI Sentry Integration
  * Error monitoring and performance tracking with Sentry.io
@@ -197,7 +199,7 @@ class SentryService {
 
   private mockCaptureException(error: unknown, context?: Record<string, any>): string {
     const errorId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('[Sentry Mock]', {
+    logger.debug('[Sentry Mock]', {
       errorId,
       error,
       context,
@@ -208,7 +210,7 @@ class SentryService {
 
   private mockCaptureMessage(message: string, level: string, context?: Record<string, any>): string {
     const messageId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('[Sentry Mock Message]', {
+    logger.debug('[Sentry Mock Message]', {
       messageId,
       message,
       context,

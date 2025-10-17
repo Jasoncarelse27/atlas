@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 // Fallback email failure logger for when Supabase is not available
 const logEmailFailure = async (recipient: string, template: string, error: string) => {
 };
@@ -45,7 +47,7 @@ export const mailerService = {
     }
     
     // Log mock email send for testing
-    console.log(`[MOCK] Email sent to ${to} with template ${templateId}`, data);
+    logger.debug(`[MOCK] Email sent to ${to} with template ${templateId}`, data);
     
     return { 
       success: true, 

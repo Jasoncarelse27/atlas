@@ -2,6 +2,7 @@ import { canUseAudio } from '@/config/featureAccess';
 import { createChatError } from '../features/chat/lib/errorHandler';
 import { supabase } from '../lib/supabaseClient';
 import { generateUUID } from "../utils/uuid";
+import { logger } from '../lib/logger';
 
 export interface TranscriptionResult {
   transcript: string;
@@ -158,7 +159,7 @@ class VoiceService {
       }
 
 
-      console.log('[VoiceService] Making TTS API call to /api/synthesize with token:', token ? 'present' : 'missing');
+      logger.debug('[VoiceService] Making TTS API call to /api/synthesize with token:', token ? 'present' : 'missing');
       
       const response = await fetch('/api/synthesize', {
         method: 'POST',
@@ -171,12 +172,12 @@ class VoiceService {
         }),
       });
       
-      console.log('[VoiceService] TTS API response status:', response.status);
+      logger.debug('[VoiceService] TTS API response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
-        console.error('[VoiceService] TTS API error:', {
+        logger.error('[VoiceService] TTS API error:', {
           status: response.status,
           statusText: response.statusText,
           errorData
@@ -195,7 +196,7 @@ class VoiceService {
       // Convert base64 audio to data URL for playback
       const audioDataUrl = `data:audio/mp3;base64,${result.audio}`;
       
-      console.log(`✅ [VoiceService] Speech synthesized: ${result.size} bytes`);
+      logger.debug(`✅ [VoiceService] Speech synthesized: ${result.size} bytes`);
       
       return audioDataUrl;
     } catch (error) {
@@ -223,7 +224,7 @@ class VoiceService {
       } catch (playError: any) {
         // Handle autoplay blocking (common on mobile)
         if (playError.name === 'NotAllowedError' || playError.name === 'NotSupportedError') {
-          console.warn('[VoiceService] Autoplay blocked, user interaction required');
+          logger.warn('[VoiceService] Autoplay blocked, user interaction required');
           
           // Create a user-friendly error message
           throw new Error('Audio playback requires user interaction. Please tap the Listen button again.');
@@ -234,7 +235,7 @@ class VoiceService {
       return new Promise((resolve, reject) => {
         audio.onended = () => resolve();
         audio.onerror = (event) => {
-          console.error('[VoiceService] Audio playback error:', event);
+          logger.error('[VoiceService] Audio playback error:', event);
           reject(new Error('Audio playback failed'));
         };
         
@@ -281,7 +282,7 @@ class VoiceService {
         .from('voice-notes')
         .getPublicUrl(filename);
       
-      console.log(`✅ [VoiceNote] Uploaded: ${urlData.publicUrl}`);
+      logger.debug(`✅ [VoiceNote] Uploaded: ${urlData.publicUrl}`);
       
       return urlData.publicUrl;
     } catch (error) {

@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { logger } from '../lib/logger';
 
 interface UserCustomization {
   id: string;
@@ -156,7 +157,7 @@ const applyCustomization = (custom: UserCustomization) => {
   document.body.offsetHeight; // Trigger reflow
   document.body.style.display = '';
 
-  console.log('✅ Customization applied to DOM');
+  logger.debug('✅ Customization applied to DOM');
 };
 
 // Helper function to safely attempt database operations
@@ -293,10 +294,10 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       let loadedCustomization: UserCustomization;
 
       if (dbResult.data && !dbResult.error) {
-        console.log('✅ Loaded customization from database:', dbResult.data);
+        logger.debug('✅ Loaded customization from database:', dbResult.data);
         loadedCustomization = dbResult.data;
       } else if (localData) {
-        console.log('✅ Loaded customization from localStorage (database unavailable)');
+        logger.debug('✅ Loaded customization from localStorage (database unavailable)');
         loadedCustomization = JSON.parse(localData);
         
         // Set a non-blocking error message for database unavailability
@@ -338,7 +339,7 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
         let fallbackCustomization: UserCustomization;
         
         if (localData) {
-          console.log('✅ Using localStorage fallback due to network error');
+          logger.debug('✅ Using localStorage fallback due to network error');
           fallbackCustomization = JSON.parse(localData);
         } else {
           fallbackCustomization = createDefaultCustomization(user.id);
@@ -389,7 +390,7 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
             throw new Error(`Database save failed: ${dbError.message}`);
           }
 
-          console.log('✅ Saved to database successfully');
+          logger.debug('✅ Saved to database successfully');
           return true;
         },
         false // Fallback value for network errors

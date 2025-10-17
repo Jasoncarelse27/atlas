@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSubscription } from '../hooks/useSubscription';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { supabase } from '../lib/supabaseClient';
+import { logger } from '../lib/logger';
 
 interface DevTierSwitcherProps {
   onTierChange?: (newTier: string) => void;
@@ -43,14 +44,14 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         throw error;
       }
 
-      console.log('✅ Backend tier updated');
+      logger.debug('✅ Backend tier updated');
 
       // 2. Clear Dexie cache (force next read to pull from backend)
       try {
         // Clear any cached profile data
         if (window.db?.profiles) {
           await window.db.profiles.clear();
-          console.log('✅ Dexie cache cleared');
+          logger.debug('✅ Dexie cache cleared');
         }
       } catch (dexieError) {
       // Intentionally empty - error handling not required
@@ -58,7 +59,7 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
 
       // 3. Refresh React state (re-fetch profile from backend)
       await refresh();
-      console.log('✅ React state refreshed');
+      logger.debug('✅ React state refreshed');
 
       // 4. Update local state
       setCurrentTier(newTier);

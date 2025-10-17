@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 /**
  * Atlas AI Error Logger
  * Centralized error logging with context and optional external service integration
@@ -69,7 +71,7 @@ class ErrorLogger {
 
     // Console logging with emoji based on severity
     const emoji = this.getSeverityEmoji(severity);
-    console.log(`${emoji} [ErrorLogger]`, {
+    logger.debug(`${emoji} [ErrorLogger]`, {
       message,
       context,
       severity,
@@ -78,7 +80,7 @@ class ErrorLogger {
 
     // Log stack trace if available
     if (stack) {
-      console.error('Stack trace:', stack);
+      logger.error('Stack trace:', stack);
     }
 
     // Send to external services if configured
@@ -212,7 +214,7 @@ class ErrorLogger {
           extra: error.context,
         });
       } catch (sentryError) {
-        console.error('[ErrorLogger] Sentry error:', sentryError);
+        logger.error('[ErrorLogger] Sentry error:', sentryError);
       }
     }
 

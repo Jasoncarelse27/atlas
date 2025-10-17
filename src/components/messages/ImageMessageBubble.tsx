@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Message } from '../../types/chat';
+import { logger } from '../../lib/logger';
 
 interface ImageMessageBubbleProps {
   message: Message;
@@ -22,7 +23,7 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
 
   const imageUrl = getImageUrl();
   
-  console.log({
+  logger.debug({
     messageId: message.id,
     imageUrl,
     messageUrl: message.url,
@@ -119,7 +120,7 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
   const renderContent = () => {
     // 🎯 FUTURE-PROOF FIX: Add debugging for image URL resolution
     if (!imageUrl) {
-      console.log('[ImageMessageBubble] Debug info:', {
+      logger.debug('[ImageMessageBubble] Debug info:', {
         messageId: message.id,
         messageUrl: message.url,
         messageContent: message.content,

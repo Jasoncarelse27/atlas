@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
+import { logger } from './logger';
 
 // Environment variables for Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -12,11 +14,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 // Singleton pattern to prevent multiple client instances
-let supabaseInstance: ReturnType<typeof createClient> | null = null;
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 
 export const supabase = (() => {
   if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -61,7 +63,7 @@ export async function checkSupabaseHealth() {
     }
     // Connection healthy - only log occasionally in development
     if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
-      console.log("✅ Supabase connection healthy.");
+      logger.debug("✅ Supabase connection healthy.");
     }
     return { ok: true };
   } catch (err: any) {

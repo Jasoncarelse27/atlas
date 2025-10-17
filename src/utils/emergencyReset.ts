@@ -1,6 +1,8 @@
+import { logger } from '../lib/logger';
+
 // Emergency database reset - call this immediately
 export const emergencyReset = async () => {
-  console.log('🚨 EMERGENCY RESET: Starting immediate database reset...');
+  logger.debug('🚨 EMERGENCY RESET: Starting immediate database reset...');
   
   try {
     // Clear all storage immediately
@@ -16,7 +18,7 @@ export const emergencyReset = async () => {
           const deleteReq = indexedDB.deleteDatabase(db.name);
           await new Promise((resolve) => {
             deleteReq.onsuccess = () => {
-              console.log(`✅ Deleted ${db.name}`);
+              logger.debug(`✅ Deleted ${db.name}`);
               resolve(true);
             };
             deleteReq.onerror = () => {
@@ -38,7 +40,7 @@ export const emergencyReset = async () => {
       }
     }
     
-    console.log('✅ EMERGENCY RESET COMPLETE! Reloading page...');
+    logger.debug('✅ EMERGENCY RESET COMPLETE! Reloading page...');
     // Force reload immediately
     window.location.reload();
     
@@ -51,5 +53,5 @@ export const emergencyReset = async () => {
 // Make it available globally for immediate console access
 if (typeof window !== 'undefined') {
   (window as any).emergencyReset = emergencyReset;
-  console.log('🚨 Emergency reset available: Run emergencyReset() in console');
+  logger.debug('🚨 Emergency reset available: Run emergencyReset() in console');
 }

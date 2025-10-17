@@ -1,8 +1,9 @@
 // Immediate database reset - call this right now
 import { preserveLocalStorage } from './preserveLocalStorage';
+import { logger } from '../lib/logger';
 
 export const immediateReset = async () => {
-  console.log('🚨 IMMEDIATE RESET: Forcing complete database deletion...');
+  logger.debug('🚨 IMMEDIATE RESET: Forcing complete database deletion...');
   
   try {
     // Delete IndexedDB databases
@@ -10,7 +11,7 @@ export const immediateReset = async () => {
     
     await new Promise((resolve) => {
       deleteReq.onsuccess = () => {
-        console.log('✅ AtlasDB deleted');
+        logger.debug('✅ AtlasDB deleted');
         resolve(true);
       };
       deleteReq.onerror = () => {
@@ -40,7 +41,7 @@ export const immediateReset = async () => {
       }
     }
     
-    console.log('✅ IMMEDIATE RESET COMPLETE! Reloading page...');
+    logger.debug('✅ IMMEDIATE RESET COMPLETE! Reloading page...');
     window.location.reload();
     
   } catch (error) {
@@ -51,5 +52,5 @@ export const immediateReset = async () => {
 // Make it available globally
 if (typeof window !== 'undefined') {
   (window as any).immediateReset = immediateReset;
-  console.log('🚨 IMMEDIATE RESET AVAILABLE: Run immediateReset() in console');
+  logger.debug('🚨 IMMEDIATE RESET AVAILABLE: Run immediateReset() in console');
 }

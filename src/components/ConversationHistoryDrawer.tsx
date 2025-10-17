@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect } from "react";
+import { logger } from '../lib/logger';
 
 interface Conversation {
   id: string;
@@ -148,7 +149,7 @@ export function ConversationHistoryDrawer({
                                 minute: '2-digit' 
                               });
                             } catch (error) {
-                              console.error('[ConversationHistoryDrawer] Date parsing error:', error, dateField);
+                              logger.error('[ConversationHistoryDrawer] Date parsing error:', error, dateField);
                               return 'Invalid Date';
                             }
                           })()}</span>
@@ -211,14 +212,14 @@ export function ConversationHistoryDrawer({
                       const supabase = (await import('../lib/supabaseClient')).default;
                       const { data: { user } } = await supabase.auth.getUser();
                       if (user) {
-                        console.log('[ConversationHistoryDrawer] 🚀 Starting manual delta sync...');
+                        logger.debug('[ConversationHistoryDrawer] 🚀 Starting manual delta sync...');
                         await conversationSyncService.deltaSync(user.id);
-                        console.log('[ConversationHistoryDrawer] ✅ Delta sync completed');
+                        logger.debug('[ConversationHistoryDrawer] ✅ Delta sync completed');
                         // Refresh the conversations list
                         window.location.reload();
                       }
                     } catch (error) {
-                      console.error('[ConversationHistoryDrawer] ❌ Delta sync failed:', error);
+                      logger.error('[ConversationHistoryDrawer] ❌ Delta sync failed:', error);
                     }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg transition-all duration-200 border border-green-500/30 hover:border-green-500/50"

@@ -9,6 +9,7 @@ import { useMessageStore } from '../../stores/useMessageStore';
 import type { Attachment, Message } from '../../types/chat';
 import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { AudioMessageBubble } from './AudioMessageBubble';
+import { logger } from '../../lib/logger';
 
 interface MessageRendererProps {
   message: Message;
@@ -33,7 +34,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
         setCopiedStates(prev => ({ ...prev, [codeId]: false }));
       }, 2000);
     } catch (err) {
-      console.error('[MessageRenderer] Error copying to clipboard:', err);
+      logger.error('[MessageRenderer] Error copying to clipboard:', err);
     }
   };
 
@@ -361,7 +362,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
         setCopiedStates(prev => ({ ...prev, [codeId]: false }));
       }, 2000);
     } catch (err) {
-      console.error('[MessageRenderer] Error copying code:', err);
+      logger.error('[MessageRenderer] Error copying code:', err);
     }
   };
 

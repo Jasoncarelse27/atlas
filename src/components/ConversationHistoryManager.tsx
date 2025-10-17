@@ -2,6 +2,7 @@ import { Clock, MessageSquare, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { conversationService } from '../services/conversationService';
+import { logger } from '../lib/logger';
 
 interface Conversation {
   id: string;
@@ -46,7 +47,7 @@ export default function ConversationHistoryManager({
 
       setConversations(conversationsWithCounts);
     } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to load conversations:', error);
+      logger.error('[ConversationHistoryManager] Failed to load conversations:', error);
     } finally {
       setIsLoading(false);
     }
@@ -59,10 +60,10 @@ export default function ConversationHistoryManager({
     try {
       setIsSyncing(true);
       // ✅ CRITICAL FIX: Don't sync - this would restore deleted conversations!
-      console.log('[ConversationHistoryManager] ✅ No sync to preserve deletions');
+      logger.debug('[ConversationHistoryManager] ✅ No sync to preserve deletions');
       await loadConversations(); // Just reload local data
     } catch (error) {
-      console.error('[ConversationHistoryManager] Load failed:', error);
+      logger.error('[ConversationHistoryManager] Load failed:', error);
     } finally {
       setIsSyncing(false);
     }
@@ -81,7 +82,7 @@ export default function ConversationHistoryManager({
         onConversationSelect('');
       }
     } catch (error) {
-      console.error('[ConversationHistoryManager] Failed to delete conversation:', error);
+      logger.error('[ConversationHistoryManager] Failed to delete conversation:', error);
     }
   };
 

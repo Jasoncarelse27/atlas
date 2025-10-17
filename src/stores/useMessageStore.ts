@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
+import { logger } from '../lib/logger';
 
 export interface PendingAttachment {
   id: string;
@@ -52,7 +53,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   addMessage: async (message: Message) => {
     set((state) => {
       const newMessages = [...state.messages, message];
-      console.log('✅ [useMessageStore] Store updated, total messages:', newMessages.length);
+      logger.debug('✅ [useMessageStore] Store updated, total messages:', newMessages.length);
       return {
         messages: newMessages,
       };
@@ -140,7 +141,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
           isHydrated: true 
         });
         
-        console.log(`[useMessageStore] ✅ Hydrated ${localMessages.length} messages from Supabase`);
+        logger.debug(`[useMessageStore] ✅ Hydrated ${localMessages.length} messages from Supabase`);
       } else {
         set({ 
           messages: [], 

@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 /**
  * Mobile-compatible UUID generator
  * Falls back to custom implementation when crypto.randomUUID is not available
@@ -9,7 +11,7 @@ export function generateUUID(): string {
     try {
       return crypto.randomUUID();
     } catch (error) {
-      console.warn('[UUID] crypto.randomUUID failed, using fallback:', error);
+      logger.warn('[UUID] crypto.randomUUID failed, using fallback:', error);
     }
   }
 

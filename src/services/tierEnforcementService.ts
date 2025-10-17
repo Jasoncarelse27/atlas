@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 // Atlas V1 Tier Enforcement Service
 // Handles server-side tier enforcement API calls with middleware integration
 
@@ -160,7 +162,7 @@ class TierEnforcementService {
       const usagePercent = (data.metadata.budgetStatus.used / data.metadata.budgetStatus.limit) * 100;
       if (usagePercent > 80) {
         // Could trigger a toast notification here
-        console.info(`High usage detected: ${usagePercent.toFixed(1)}% of daily budget used`);
+        logger.info(`High usage detected: ${usagePercent.toFixed(1)}% of daily budget used`);
       }
     }
 

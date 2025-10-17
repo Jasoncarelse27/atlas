@@ -205,9 +205,9 @@ export class ConversationSyncService {
           } as any);
 
         if (error) {
-          console.error('[ConversationSync] Failed to sync conversation:', conv.id, error);
+          logger.error('[ConversationSync] Failed to sync conversation:', conv.id, error);
         } else {
-          console.log('[ConversationSync] ✅ Synced conversation:', conv.id);
+          logger.debug('[ConversationSync] ✅ Synced conversation:', conv.id);
         }
       }
 
@@ -232,17 +232,17 @@ export class ConversationSyncService {
           } as any);
 
         if (error) {
-          console.error('[ConversationSync] Failed to sync message:', msg.id, error);
+          logger.error('[ConversationSync] Failed to sync message:', msg.id, error);
         } else {
           // Mark as synced
           await atlasDB.messages.update(msg.id, { synced: true });
-          console.log('[ConversationSync] ✅ Synced message:', msg.id);
+          logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
         }
       }
 
-      console.log('[ConversationSync] ✅ Push sync completed');
+      logger.debug('[ConversationSync] ✅ Push sync completed');
     } catch (error) {
-      console.error('[ConversationSync] ❌ Push sync failed:', error);
+      logger.error('[ConversationSync] ❌ Push sync failed:', error);
     } finally {
       this.syncInProgress = false;
     }
@@ -255,8 +255,8 @@ export class ConversationSyncService {
   async deltaSync(userId: string): Promise<void> {
     perfMonitor.start('conversation-sync');
     const startTime = Date.now();
-    console.log('[ConversationSync] Starting delta sync...');
-    console.log('[ConversationSync] ⚡ Optimized for recent data only');
+    logger.debug('[ConversationSync] Starting delta sync...');
+    logger.debug('[ConversationSync] ⚡ Optimized for recent data only');
     
     try {
       // 1. Get last sync timestamp
@@ -266,7 +266,7 @@ export class ConversationSyncService {
         lastSyncedAt = syncMeta.lastSyncedAt;
       }
       
-      console.log('[ConversationSync] Last synced at:', lastSyncedAt);
+      logger.debug('[ConversationSync] Last synced at:', lastSyncedAt);
       
       // 2. Fetch ONLY conversations updated since last sync (non-deleted only)
       const { data: updatedConversations, error: convError } = await supabase
@@ -278,12 +278,12 @@ export class ConversationSyncService {
         .limit(100) as { data: any[] | null; error: any };  // ← PAGINATION
       
       if (convError) {
-        console.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
+        logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
         return;
       }
       
-      console.log('[ConversationSync] ✅ Found', updatedConversations?.length || 0, 'updated conversations');
-      console.log('[ConversationSync] 📥 Syncing conversations...');
+      logger.debug('[ConversationSync] ✅ Found', updatedConversations?.length || 0, 'updated conversations');
+      logger.debug('[ConversationSync] 📥 Syncing conversations...');
       
       // 3. Sync updated conversations to local (add new ones, update existing ones)
       for (const conv of updatedConversations || []) {
@@ -302,7 +302,7 @@ export class ConversationSyncService {
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
           });
-          console.log('[ConversationSync] ✅ Updated existing conversation:', conv.id);
+          logger.debug('[ConversationSync] ✅ Updated existing conversation:', conv.id);
         } else {
           // ✅ ADD NEW CONVERSATION: This was the missing piece!
           await atlasDB.conversations.put({
@@ -312,7 +312,7 @@ export class ConversationSyncService {
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
           });
-          console.log('[ConversationSync] ✅ Added new conversation:', conv.id, 'title:', conv.title);
+          logger.debug('[ConversationSync] ✅ Added new conversation:', conv.id, 'title:', conv.title);
         }
       }
       
@@ -329,16 +329,16 @@ export class ConversationSyncService {
           .limit(500) as { data: any[] | null; error: any };  // ← PAGINATION
         
         if (msgError) {
-          console.error('[ConversationSync] ❌ Failed to fetch messages:', msgError);
+          logger.error('[ConversationSync] ❌ Failed to fetch messages:', msgError);
         } else {
-          console.log('[ConversationSync] ✅ Found', newMessages?.length || 0, 'new messages');
+          logger.debug('[ConversationSync] ✅ Found', newMessages?.length || 0, 'new messages');
           
           // ✅ PHASE 2: Only add missing messages (duplicate check)
           // Real-time listener is primary writer; this is for offline catch-up only
           for (const msg of newMessages || []) {
             // ✅ CRITICAL: Skip messages with invalid userId
             if (!msg.user_id || msg.user_id === 'anonymous') {
-              console.warn('[ConversationSync] ⚠️ Skipping message with invalid userId from remote:', msg.id);
+              logger.warn('[ConversationSync] ⚠️ Skipping message with invalid userId from remote:', msg.id);
               continue;
             }
             
@@ -356,9 +356,9 @@ export class ConversationSyncService {
                 synced: true,
                 updatedAt: msg.created_at
               });
-              console.log('[ConversationSync] ✅ Added missing message:', msg.id);
+              logger.debug('[ConversationSync] ✅ Added missing message:', msg.id);
             } else {
-              console.log('[ConversationSync] ⚠️ Message already exists, skipping:', msg.id);
+              logger.debug('[ConversationSync] ⚠️ Message already exists, skipping:', msg.id);
             }
           }
         }
@@ -372,12 +372,12 @@ export class ConversationSyncService {
         .toArray();
       
       const unsyncedMessages = allMessages.filter(msg => !msg.synced);
-      console.log('[ConversationSync] ✅ Found', unsyncedMessages.length, 'unsynced messages');
+      logger.debug('[ConversationSync] ✅ Found', unsyncedMessages.length, 'unsynced messages');
       
       for (const msg of unsyncedMessages) {
         // ✅ CRITICAL: Skip messages with invalid userId
         if (!msg.userId || msg.userId === 'anonymous') {
-          console.warn('[ConversationSync] ⚠️ Skipping message with invalid userId:', msg.id);
+          logger.warn('[ConversationSync] ⚠️ Skipping message with invalid userId:', msg.id);
           continue;
         }
         
@@ -395,9 +395,9 @@ export class ConversationSyncService {
         
         if (!error) {
           await atlasDB.messages.update(msg.id, { synced: true });
-          console.log('[ConversationSync] ✅ Synced message:', msg.id);
+          logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
         } else {
-          console.error('[ConversationSync] ❌ Failed to sync message:', msg.id, error);
+          logger.error('[ConversationSync] ❌ Failed to sync message:', msg.id, error);
         }
       }
       
@@ -412,11 +412,11 @@ export class ConversationSyncService {
       const duration = Date.now() - startTime;
       const durationSeconds = (duration / 1000).toFixed(1);
       const perfDuration = perfMonitor.end('conversation-sync');
-      console.log('[ConversationSync] ✅ Delta sync completed successfully in', duration, 'ms');
-      console.log('[ConversationSync] 🚀 Sync performance:', durationSeconds + 's', duration < 5000 ? '(Excellent!)' : duration < 10000 ? '(Good)' : '(Needs optimization)');
+      logger.debug('[ConversationSync] ✅ Delta sync completed successfully in', duration, 'ms');
+      logger.debug('[ConversationSync] 🚀 Sync performance:', durationSeconds + 's', duration < 5000 ? '(Excellent!)' : duration < 10000 ? '(Good)' : '(Needs optimization)');
       
       if (perfDuration && perfDuration > 5000) {
-        console.warn(`⚠️ [Performance] Conversation sync took ${perfDuration.toFixed(0)}ms - consider optimizing`);
+        logger.warn(`⚠️ [Performance] Conversation sync took ${perfDuration.toFixed(0)}ms - consider optimizing`);
       }
       
       // ✅ PERFORMANCE MONITORING: Log sync metrics (future-proof approach)
@@ -455,7 +455,7 @@ export class ConversationSyncService {
       
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.error('[ConversationSync] ❌ Delta sync failed after', duration, 'ms:', error);
+      logger.error('[ConversationSync] ❌ Delta sync failed after', duration, 'ms:', error);
     }
   }
 
@@ -463,7 +463,7 @@ export class ConversationSyncService {
    * Full bidirectional sync (DEPRECATED - use deltaSync instead)
    */
   async fullSync(userId: string): Promise<void> {
-    console.log('[ConversationSync] ⚠️ Using deprecated fullSync - switching to deltaSync');
+    logger.debug('[ConversationSync] ⚠️ Using deprecated fullSync - switching to deltaSync');
     return this.deltaSync(userId);
   }
 
@@ -472,14 +472,14 @@ export class ConversationSyncService {
    */
   async resetSyncTimestamp(userId: string): Promise<void> {
     try {
-      console.log('[ConversationSync] 🔧 Resetting sync timestamp for user:', userId);
+      logger.debug('[ConversationSync] 🔧 Resetting sync timestamp for user:', userId);
       
       // Delete sync metadata to force full sync on next run
       await atlasDB.syncMetadata.delete(userId);
       
-      console.log('[ConversationSync] ✅ Sync timestamp reset - next sync will fetch all conversations');
+      logger.debug('[ConversationSync] ✅ Sync timestamp reset - next sync will fetch all conversations');
     } catch (error) {
-      console.error('[ConversationSync] ❌ Failed to reset sync timestamp:', error);
+      logger.error('[ConversationSync] ❌ Failed to reset sync timestamp:', error);
     }
   }
 
@@ -487,7 +487,7 @@ export class ConversationSyncService {
    * 🔧 DEBUG: Force full sync by resetting timestamp and syncing
    */
   async forceFullSync(userId: string): Promise<void> {
-    console.log('[ConversationSync] 🔧 Forcing full sync...');
+    logger.debug('[ConversationSync] 🔧 Forcing full sync...');
     await this.resetSyncTimestamp(userId);
     await this.deltaSync(userId);
   }

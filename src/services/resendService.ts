@@ -1,6 +1,7 @@
 import { useMessageStore } from '../stores/useMessageStore';
 import { sendMessageWithAttachments } from './chatService';
 import { offlineMessageStore } from './offlineMessageStore';
+import { logger } from '../lib/logger';
 
 export interface ResendResult {
   success: boolean;
@@ -48,7 +49,7 @@ class ResendService {
         }
       }
 
-      console.log(`[RESEND] ✅ Resend completed: ${results.filter(r => r.success).length}/${results.length} successful`);
+      logger.debug(`[RESEND] ✅ Resend completed: ${results.filter(r => r.success).length}/${results.length} successful`);
       return results;
 
     } catch (error) {
@@ -96,7 +97,7 @@ class ResendService {
       // Clear retry attempts on success
       this.retryAttempts.delete(messageId);
 
-      console.log(`[RESEND] ✅ Message ${messageId} resent successfully`);
+      logger.debug(`[RESEND] ✅ Message ${messageId} resent successfully`);
       return {
         success: true,
         messageId: messageId,
@@ -244,7 +245,7 @@ class ResendService {
       useMessageStore.setState({ messages: updatedMessages });
     }
     
-    console.log(`[RESEND] ✅ Cleared ${failedMessages.length} failed messages`);
+    logger.debug(`[RESEND] ✅ Cleared ${failedMessages.length} failed messages`);
   }
 
   /**

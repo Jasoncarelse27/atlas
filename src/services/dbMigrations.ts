@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { atlasDB } from "../database/atlasDB";
 import { supabase } from "../lib/supabaseClient";
+import { logger } from '../lib/logger';
 
 const UUID_REGEX = /^[0-9a-fA-F-]{36}$/;
 const DEFAULT_CONVERSATION_KEY = "atlas-default-conversation";
@@ -24,9 +25,9 @@ export async function runDbMigrations(userId?: string) {
   try {
     // ✅ Use new Golden Standard Dexie schema
     await atlasDB.open();
-    console.log("[DB MIGRATION] Using new Golden Standard Dexie schema ✅");
+    logger.debug("[DB MIGRATION] Using new Golden Standard Dexie schema ✅");
 
-    console.log("[DB MIGRATION] Database schema is healthy ✅");
+    logger.debug("[DB MIGRATION] Database schema is healthy ✅");
   } catch (err) {
       // Intentionally empty - error handling not required
     // ✅ Don't crash app - but reset the flag
@@ -48,7 +49,7 @@ export async function runDbMigrations(userId?: string) {
     );
 
     if (invalidMessages.length > 0) {
-      console.log(`[DB MIGRATION] Found ${invalidMessages.length} invalid messages → clearing`);
+      logger.debug(`[DB MIGRATION] Found ${invalidMessages.length} invalid messages → clearing`);
       await atlasDB.messages.bulkDelete(invalidMessages.map((m) => m.id));
     }
   } else {
@@ -63,7 +64,7 @@ export async function runDbMigrations(userId?: string) {
     );
 
     if (invalidConversations.length > 0) {
-      console.log(`[DB MIGRATION] Found ${invalidConversations.length} invalid conversations → clearing`);
+      logger.debug(`[DB MIGRATION] Found ${invalidConversations.length} invalid conversations → clearing`);
       await atlasDB.conversations.bulkDelete(invalidConversations.map((c) => c.id));
     }
   } else {
@@ -96,7 +97,7 @@ export async function runDbMigrations(userId?: string) {
     conversationId = uuidv4();
     localStorage.setItem(DEFAULT_CONVERSATION_KEY, conversationId);
 
-    console.log(`[DB MIGRATION] Creating fresh default conversation for user ${userId}`);
+    logger.debug(`[DB MIGRATION] Creating fresh default conversation for user ${userId}`);
 
     const { error } = await supabase.from("conversations").insert({
       id: conversationId,
@@ -107,11 +108,11 @@ export async function runDbMigrations(userId?: string) {
     if (error) {
       // Conversation creation error logged elsewhere
     } else {
-      console.log("[DB MIGRATION] Default conversation created ✅", conversationId);
+      logger.debug("[DB MIGRATION] Default conversation created ✅", conversationId);
     }
   }
 
-  console.log("[DB MIGRATION] Completed successfully ✅");
+  logger.debug("[DB MIGRATION] Completed successfully ✅");
   isMigrating = false;
   
   // Clear the timeout

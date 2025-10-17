@@ -6,6 +6,7 @@
 
 import { useCallback } from 'react';
 import { useSubscription } from './useSubscription';
+import { logger } from '../lib/logger';
 
 interface UseMemoryIntegrationProps {
   userId?: string;
@@ -21,12 +22,12 @@ export function useMemoryIntegration({ userId }: UseMemoryIntegrationProps) {
     try {
       // Memory extraction - only log in development
       if (process.env.NODE_ENV === 'development') {
-        console.log('🧠 [useMemoryIntegration] Starting memory extraction for:', message);
+        logger.debug('🧠 [useMemoryIntegration] Starting memory extraction for:', message);
       }
       // Extract memory from the message and wait for completion
       await updateMemory(message);
       if (process.env.NODE_ENV === 'development') {
-        console.log('🧠 [useMemoryIntegration] Memory extraction completed successfully');
+        logger.debug('🧠 [useMemoryIntegration] Memory extraction completed successfully');
       }
     } catch (error) {
       // Don't throw - memory extraction is optional

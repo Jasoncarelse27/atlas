@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { logger } from '../lib/logger';
 
 // Environment variable safety check
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
@@ -48,7 +49,7 @@ export async function fetchWithAuth(
 
   // Debug logging in development
   if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_AUTH) {
-    console.log('[AuthFetch]', {
+    logger.debug('[AuthFetch]', {
       url,
       hasToken: !!token,
       tokenPrefix: token.substring(0, 20) + '...',
@@ -103,7 +104,7 @@ export async function fetchWithAuth(
         const errorData: ApiError = await response.json();
         await handleTierLimitError(errorData);
       } catch (parseError) {
-        console.error('[AuthFetch] Error parsing tier limit error:', parseError);
+        logger.error('[AuthFetch] Error parsing tier limit error:', parseError);
       }
     }
 

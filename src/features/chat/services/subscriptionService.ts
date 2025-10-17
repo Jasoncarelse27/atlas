@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { subscriptionApi } from '../../../services/subscriptionApi';
 import { createChatError } from '../lib/errorHandler';
+import { logger } from '../../../lib/logger';
 // import type { UserTier } from '../hooks/useSubscriptionAccess';
 type UserTier = 'free' | 'core' | 'studio';
 
@@ -260,7 +261,7 @@ class SubscriptionService {
           accessToken
         );
         
-        console.log('✅ Tier upgraded via backend API:', updatedProfile);
+        logger.debug('✅ Tier upgraded via backend API:', updatedProfile);
         
         return {
           success: true,
