@@ -450,7 +450,7 @@ export class ConversationSyncService {
         }
       } catch (logError) {
         // Silent fail - monitoring is optional and non-critical
-        console.debug('[ConversationSync] Monitoring disabled (non-critical)');
+        logger.debug('[ConversationSync] Monitoring disabled (non-critical)');
       }
       
     } catch (error) {
