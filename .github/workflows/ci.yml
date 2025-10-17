@@ -38,6 +38,14 @@ jobs:
       env:
         NODE_ENV: test
         CI: true
+        # Mock environment variables for CI tests
+        VITE_SUPABASE_URL: https://mock.supabase.co
+        VITE_SUPABASE_ANON_KEY: mock-anon-key-for-testing
+        SUPABASE_URL: https://mock.supabase.co
+        SUPABASE_ANON_KEY: mock-anon-key-for-testing
+        SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
+        CLAUDE_API_KEY: mock-claude-api-key
+        ANTHROPIC_API_KEY: mock-anthropic-api-key
         
     - name: Build frontend
       run: npm run build
