@@ -53,8 +53,9 @@ tags = ["openai", "api", "key"]
 [[rules]]
 id = "anthropic-api-key"
 description = "Anthropic API Key"
-regex = '''sk-ant-[0-9a-zA-Z]{32,}'''
+regex = '''sk-ant-[0-9a-zA-Z\-]{32,}'''
 tags = ["anthropic", "api", "key"]
+# This is a regex pattern, not a real key
 
 # --- Railway ---
 [[rules]]

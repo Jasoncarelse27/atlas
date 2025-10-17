@@ -2,136 +2,136 @@ name: Atlas CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: [22]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run linting
-      run: npm run lint
-      
-    - name: Run type checking
-      run: npm run typecheck
-      
-    - name: Run tests
-      run: npm run test
-      env:
-        NODE_ENV: test
-        CI: true
-        # Mock environment variables for CI tests
-        VITE_SUPABASE_URL: https://mock.supabase.co
-        VITE_SUPABASE_ANON_KEY: mock-anon-key-for-testing
-        SUPABASE_URL: https://mock.supabase.co
-        SUPABASE_ANON_KEY: mock-anon-key-for-testing
-        SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
-        CLAUDE_API_KEY: mock-claude-api-key
-        ANTHROPIC_API_KEY: mock-anthropic-api-key
-        
-    - name: Build frontend
-      run: npm run build
-      env:
-        NODE_ENV: production
-        CI: true
-        # Mock environment variables for CI build
-        SUPABASE_URL: https://mock.supabase.co
-        SUPABASE_ANON_KEY: mock-anon-key
-        SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
-        VITE_SUPABASE_URL: https://mock.supabase.co
-        VITE_SUPABASE_ANON_KEY: mock-anon-key
-        
-    - name: Test backend startup (CI mode)
-      run: |
-        timeout 10s npm run start || true
-        echo "Backend startup test completed (expected to timeout in CI)"
-      env:
-        NODE_ENV: production
-        CI: true
-        PORT: 8000
-        # Mock environment variables for CI test
-        SUPABASE_URL: https://mock.supabase.co
-        SUPABASE_ANON_KEY: mock-anon-key
-        SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
-        
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      if: matrix.node-version == 22
-      with:
-        name: build-artifacts
-        path: |
-          dist/
-          backend/
-        retention-days: 7
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run type checking
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test
+        env:
+          NODE_ENV: test
+          CI: true
+          # Mock environment variables for CI tests
+          VITE_SUPABASE_URL: https://mock.supabase.co
+          VITE_SUPABASE_ANON_KEY: mock-anon-key-for-testing
+          SUPABASE_URL: https://mock.supabase.co
+          SUPABASE_ANON_KEY: mock-anon-key-for-testing
+          SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
+          CLAUDE_API_KEY: mock-claude-api-key
+          ANTHROPIC_API_KEY: mock-anthropic-api-key
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+          CI: true
+          # Mock environment variables for CI build
+          SUPABASE_URL: https://mock.supabase.co
+          SUPABASE_ANON_KEY: mock-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
+          VITE_SUPABASE_URL: https://mock.supabase.co
+          VITE_SUPABASE_ANON_KEY: mock-anon-key
+
+      - name: Test backend startup (CI mode)
+        run: |
+          timeout 10s npm run start || true
+          echo "Backend startup test completed (expected to timeout in CI)"
+        env:
+          NODE_ENV: production
+          CI: true
+          PORT: 8000
+          # Mock environment variables for CI test
+          SUPABASE_URL: https://mock.supabase.co
+          SUPABASE_ANON_KEY: mock-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: mock-service-role-key
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: matrix.node-version == 22
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            backend/
+          retention-days: 7
 
   security-audit:
     runs-on: ubuntu-latest
     needs: build-and-test
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run security audit
-      run: npm audit --audit-level high
-      continue-on-error: true
-      
-    - name: Check for vulnerabilities
-      run: |
-        if npm audit --audit-level high --json | jq '.metadata.vulnerabilities.high + .metadata.vulnerabilities.critical' | grep -v '^0$'; then
-          echo "⚠️ High or critical vulnerabilities found"
-          npm audit --audit-level high
-        else
-          echo "✅ No high or critical vulnerabilities found"
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        run: npm audit --audit-level high
+        continue-on-error: true
+
+      - name: Check for vulnerabilities
+        run: |
+          if npm audit --audit-level high --json | jq '.metadata.vulnerabilities.high + .metadata.vulnerabilities.critical' | grep -v '^0$'; then
+            echo "⚠️ High or critical vulnerabilities found"
+            npm audit --audit-level high
+          else
+            echo "✅ No high or critical vulnerabilities found"
+          fi
 
   deployment-ready:
     runs-on: ubuntu-latest
     needs: [build-and-test, security-audit]
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Deployment readiness check
-      run: |
-        echo "🚀 Atlas deployment readiness check"
-        echo "✅ Build completed successfully"
-        echo "✅ Tests passed"
-        echo "✅ Security audit completed"
-        echo ""
-        echo "🎯 Atlas V1 Enterprise Edition ready for deployment!"
-        echo "📊 Features: Intelligent Tier Gate System"
-        echo "🔐 Security: Admin access controls"
-        echo "📈 Analytics: Real-time monitoring"
-        echo "🤖 AI: Smart model routing"
-        echo ""
-        echo "Ready for Railway deployment! 🚀"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deployment readiness check
+        run: |
+          echo "🚀 Atlas deployment readiness check"
+          echo "✅ Build completed successfully"
+          echo "✅ Tests passed"
+          echo "✅ Security audit completed"
+          echo ""
+          echo "🎯 Atlas V1 Enterprise Edition ready for deployment!"
+          echo "📊 Features: Intelligent Tier Gate System"
+          echo "🔐 Security: Admin access controls"
+          echo "📈 Analytics: Real-time monitoring"
+          echo "🤖 AI: Smart model routing"
+          echo ""
+          echo "Ready for Railway deployment! 🚀"

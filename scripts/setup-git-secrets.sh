@@ -51,7 +51,7 @@ git secrets --add '[s|S][e|E][c|C][r|R][e|E][t|T].*['\''|\"][0-9a-zA-Z]{32,45}['
 git secrets --add '[t|T][o|O][k|K][e|E][n|N].*['\''|\"][0-9a-zA-Z]{32,45}['\''|\"]'
 
 # Anthropic API keys
-git secrets --add 'sk-ant-[a-zA-Z0-9\-]{95,}'
+git secrets --add 'sk-ant-[a-zA-Z0-9\\-]{95,}'
 
 # Supabase keys
 git secrets --add 'eyJ[a-zA-Z0-9_-]{50,}\.[a-zA-Z0-9_-]{50,}\.[a-zA-Z0-9_-]{50,}'
