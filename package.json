@@ -22,7 +22,10 @@
     "redis:stop": "redis-cli shutdown",
     "redis:status": "redis-cli ping",
     "cache:stats": "node -e \"import('./src/services/redisCacheService.js').then(m => console.log(m.redisCacheService.getStats()))\"",
-    "cache:clear": "node -e \"import('./src/services/redisCacheService.js').then(m => m.redisCacheService.shutdown())\""
+    "cache:clear": "node -e \"import('./src/services/redisCacheService.js').then(m => m.redisCacheService.shutdown())\"",
+    "health:check": "npm run typecheck && npm run build && npm test",
+    "db:types": "npx supabase gen types typescript --project-id rbwabemtucdkytvvpzvk > src/types/database.types.ts",
+    "fresh": "rm -rf node_modules && npm install"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
