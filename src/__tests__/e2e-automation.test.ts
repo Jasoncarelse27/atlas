@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { logger } from '../lib/logger';
 import { mailerService } from '../services/mailerService.mock';
 import { retry } from '../utils/retry';
 
@@ -44,15 +45,15 @@ describe('Atlas MailerLite Mock Tests', () => {
   });
 
   it('should log mock email sends correctly', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const loggerSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
     
     await mailerService.sendEmail('test@atlas.app', 'welcome', { name: 'Test User' });
     
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(loggerSpy).toHaveBeenCalledWith(
       '[MOCK] Email sent to test@atlas.app with template welcome',
       { name: 'Test User' }
     );
     
-    consoleSpy.mockRestore();
+    loggerSpy.mockRestore();
   });
 });
