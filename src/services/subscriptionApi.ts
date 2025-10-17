@@ -3,9 +3,9 @@
 // instead of direct Supabase calls, ensuring proper security and CORS handling
 
 import { atlasDB } from '../database/atlasDB'; // ✅ FIXED: Import from new Golden Standard Dexie
+import { logger } from '../lib/logger';
 import { perfMonitor } from '../utils/performanceMonitor';
 import { safeToast } from './toastService';
-import { logger } from '../lib/logger';
 
 // Track active mode clearly
 let activeMode: "dexie" | "backend" | "supabase" | null = null;

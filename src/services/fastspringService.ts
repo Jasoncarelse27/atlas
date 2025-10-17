@@ -2,6 +2,7 @@
 // Subscription management, webhooks, and payment processing
 
 import { FASTSPRING_CONFIG } from '../config/featureAccess';
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
 import { subscriptionApi } from './subscriptionApi';
@@ -203,7 +204,7 @@ class FastSpringService {
                        import.meta.env.VITE_FASTSPRING_API_KEY === PENDING_PLACEHOLDER;
     
     if (isMockMode) {
-      console.warn('⏳ FastSpring credentials pending 2FA - returning mock checkout URL');
+      logger.warn('⏳ FastSpring credentials pending 2FA - returning mock checkout URL');
       // TODO(FastSpringAuth): Replace with real checkout flow after 2FA verification
       return `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
     }
@@ -238,7 +239,7 @@ class FastSpringService {
       return checkoutUrl;
 
     } catch (error) {
-      console.error('FastSpring checkout error:', error);
+      logger.error('FastSpring checkout error:', error);
       // In production with valid credentials, this should throw
       // For now, return mock URL to prevent app breakage
       if (isMockMode) {

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { subscriptionApi } from '../services/subscriptionApi';
 import { extractMemoryFromMessage, mergeMemory } from '../utils/memoryExtractor';
-import { logger } from '../lib/logger';
 
 export type UserTier = 'free' | 'core' | 'studio';
 

@@ -10,9 +10,9 @@ import {
   isWithinDailyLimit,
   tierFeatures
 } from '../config/featureAccess';
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
-import { logger } from '../lib/logger';
 // Paddle service removed - using FastSpring only
 
 export interface DailyUsage {

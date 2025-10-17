@@ -5,11 +5,11 @@
 // ✅ Future-proof for enterprise features
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { tierFeatures } from '../config/featureAccess';
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
 
-type Tier = "free" | "core" | "studio" | "enterprise" | null;
+type Tier = "free" | "core" | "studio" | null;
 
 interface TierContextType {
   tier: Tier;
@@ -146,11 +146,11 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const requiresUpgrade = (required: "core" | "studio" | "enterprise", feature?: string): boolean => {
+  const requiresUpgrade = (required: "core" | "studio", feature?: string): boolean => {
     if (state.loading || !state.tier) return true;
     
     // Use tier hierarchy for upgrade checks
-    const tierHierarchy = { free: 0, core: 1, studio: 2, enterprise: 3 };
+    const tierHierarchy = { free: 0, core: 1, studio: 2 };
     const currentTierLevel = tierHierarchy[state.tier] ?? 0;
     const requiredTierLevel = tierHierarchy[required] ?? 0;
     

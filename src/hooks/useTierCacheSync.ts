@@ -1,8 +1,8 @@
 // Atlas Tier Cache Synchronization Hook
 // Invalidates React Query cache after tier updates for consistent UI
 
-import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { useTier } from '../contexts/TierContext';
 import { logger } from '../lib/logger';
 
