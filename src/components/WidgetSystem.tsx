@@ -25,7 +25,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import LoadingSpinner from './LoadingSpinner';
 import Tooltip from './Tooltip';
 

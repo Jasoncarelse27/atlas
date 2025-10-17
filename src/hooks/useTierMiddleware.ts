@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { useSupabaseAuth } from './useSupabaseAuth';
 import { useTierAccess } from './useTierAccess';
 

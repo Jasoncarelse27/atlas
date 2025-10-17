@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Message } from '../types/chat';
-import { supabase } from './supabase';
+import { supabase } from './supabaseClient';
 
 export interface ConversationService {
   sendMessage: (message: string, conversationId?: string) => Promise<{

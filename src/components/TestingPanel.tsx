@@ -12,7 +12,7 @@ import {
   Zap
 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { redisTestService } from '../services/redisTestService';
 import type { UserProfile } from '../types/subscription';
 import LoadingSpinner from './LoadingSpinner';

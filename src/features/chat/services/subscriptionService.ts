@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabaseClient';
 import { subscriptionApi } from '../../../services/subscriptionApi';
 import { createChatError } from '../lib/errorHandler';
 // import type { UserTier } from '../hooks/useSubscriptionAccess';

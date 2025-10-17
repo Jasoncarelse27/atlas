@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSubscription } from '../hooks/useSubscription';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 interface DevTierSwitcherProps {
   onTierChange?: (newTier: string) => void;

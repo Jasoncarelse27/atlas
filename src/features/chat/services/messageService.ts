@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabaseClient';
 import type { Message } from '../../../types/chat';
 import { createChatError } from '../lib/errorHandler';
 

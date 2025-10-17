@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 interface UserCustomization {
   id: string;

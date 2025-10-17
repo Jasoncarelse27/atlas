@@ -4,7 +4,7 @@
 
 import CryptoJS from 'crypto-js';
 import { CACHE_CONFIG } from '../config/featureAccess';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
 
 export interface EnhancedCachedResponse {

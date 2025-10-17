@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import type { SoundType } from '../hooks/useSoundEffects';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import type { UserProfile } from '../types/subscription';
 import ErrorMessage from './ErrorMessage';
 import LoadingSpinner from './LoadingSpinner';

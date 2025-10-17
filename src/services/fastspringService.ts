@@ -2,7 +2,7 @@
 // Subscription management, webhooks, and payment processing
 
 import { FASTSPRING_CONFIG } from '../config/featureAccess';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
 import { subscriptionApi } from './subscriptionApi';
 

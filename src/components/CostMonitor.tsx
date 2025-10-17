@@ -1,6 +1,6 @@
 import { Activity, AlertTriangle, Database, HardDrive, TrendingUp } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 interface CostMetrics {
   storageUsage: number;

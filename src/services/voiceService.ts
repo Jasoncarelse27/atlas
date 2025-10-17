@@ -1,6 +1,6 @@
 import { canUseAudio } from '@/config/featureAccess';
 import { createChatError } from '../features/chat/lib/errorHandler';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { generateUUID } from "../utils/uuid";
 
 export interface TranscriptionResult {

@@ -1,6 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { subscriptionApi } from '../services/subscriptionApi';
 
 type UserTier = 'free' | 'core' | 'studio';

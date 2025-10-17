@@ -2,15 +2,15 @@
 // Daily conversation limits with UTC reset + Revenue protection
 
 import {
-    DAILY_API_BUDGET,
-    MENTAL_HEALTH_RESOURCES,
-    containsCrisisKeywords,
-    getRemainingConversations,
-    getUsageWarningLevel,
-    isWithinDailyLimit,
-    tierFeatures
+  DAILY_API_BUDGET,
+  MENTAL_HEALTH_RESOURCES,
+  containsCrisisKeywords,
+  getRemainingConversations,
+  getUsageWarningLevel,
+  isWithinDailyLimit,
+  tierFeatures
 } from '../config/featureAccess';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
 // Paddle service removed - using FastSpring only
 

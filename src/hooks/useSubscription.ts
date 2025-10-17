@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 import { subscriptionApi } from '../services/subscriptionApi';
 import { extractMemoryFromMessage, mergeMemory } from '../utils/memoryExtractor';
 
