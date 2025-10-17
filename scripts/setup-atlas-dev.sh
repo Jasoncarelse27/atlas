@@ -49,7 +49,7 @@ fi
 
 # Install essential CLI tools
 print_status "Installing development tools..."
-brew install jq httpie bat exa ripgrep fd tree
+brew install jq httpie bat eza ripgrep fd tree
 
 print_success "CLI tools installed successfully"
 
