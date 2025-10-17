@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { subscriptionApi } from '../services/subscriptionApi';
 import { extractMemoryFromMessage, mergeMemory } from '../utils/memoryExtractor';
+import { logger } from '../lib/logger';
 
 export type UserTier = 'free' | 'core' | 'studio';
 
@@ -57,7 +58,7 @@ export function useSubscription(userId?: string) {
   // Log tier resolution for debugging - only log when profile is loaded
   useEffect(() => {
     if (userId && profile) {
-      console.log(`✅ [useSubscription] User ${userId} tier resolved: ${tier} (from profile: ${profile.subscription_tier})`);
+      logger.debug(`✅ [useSubscription] User ${userId} tier resolved: ${tier} (from profile: ${profile.subscription_tier})`);
     }
     // Removed misleading "no profile" warning - it triggers before async fetch completes
   }, [userId, tier, profile]);
@@ -154,7 +155,7 @@ export function useSubscription(userId?: string) {
       const profile = await subscriptionApi.getUserProfile(userId, accessToken);
       
       if (profile) {
-        console.log(`✅ [useSubscription] Profile fetched via backend API: ${profile.subscription_tier}`);
+        logger.debug(`✅ [useSubscription] Profile fetched via backend API: ${profile.subscription_tier}`);
         setProfile(profile as any);
       } else {
         
@@ -166,7 +167,7 @@ export function useSubscription(userId?: string) {
           .single();
         
         if (data) {
-          console.log(`✅ [useSubscription] Profile fetched via direct Supabase: ${(data as any).subscription_tier}`);
+          logger.debug(`✅ [useSubscription] Profile fetched via direct Supabase: ${(data as any).subscription_tier}`);
           setProfile(data as any);
         } else {
           setError('No profile found');
@@ -223,7 +224,7 @@ export function useSubscription(userId?: string) {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ [useSubscription] Subscribed to profile realtime updates');
+          logger.debug('✅ [useSubscription] Subscribed to profile realtime updates');
           // Mark subscription as active
           sessionStorage.setItem(subscriptionKey, 'active');
           // Clear any existing polling when real-time is working
@@ -291,13 +292,13 @@ export function useSubscription(userId?: string) {
   const updateMemory = useCallback(async (message: string) => {
     // Memory update - only log in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('🧠 [updateMemory] Called with message:', message);
-      console.log('🧠 [updateMemory] userId:', userId, 'profile:', !!profile);
+      logger.debug('🧠 [updateMemory] Called with message:', message);
+      logger.debug('🧠 [updateMemory] userId:', userId, 'profile:', !!profile);
     }
     
     if (!userId || !profile) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('🧠 [updateMemory] Skipping - missing userId or profile');
+        logger.debug('🧠 [updateMemory] Skipping - missing userId or profile');
       }
       return;
     }
@@ -305,24 +306,24 @@ export function useSubscription(userId?: string) {
     try {
       const extractedMemory = extractMemoryFromMessage(message);
       if (process.env.NODE_ENV === 'development') {
-        console.log('🧠 [updateMemory] Extracted memory:', extractedMemory);
+        logger.debug('🧠 [updateMemory] Extracted memory:', extractedMemory);
       }
       
       if (!extractedMemory.name && !extractedMemory.context) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('🧠 [updateMemory] No memory to extract');
+          logger.debug('🧠 [updateMemory] No memory to extract');
         }
         return; // Nothing to update
       }
       
       const currentMemory = profile.user_context || {};
       if (process.env.NODE_ENV === 'development') {
-        console.log('🧠 [updateMemory] Current memory:', currentMemory);
+        logger.debug('🧠 [updateMemory] Current memory:', currentMemory);
       }
       
       const mergedMemory = mergeMemory(currentMemory, extractedMemory);
       if (process.env.NODE_ENV === 'development') {
-        console.log('🧠 [updateMemory] Merged memory:', mergedMemory);
+        logger.debug('🧠 [updateMemory] Merged memory:', mergedMemory);
       }
       
       const { error } = await (supabase.from('profiles') as any).update({
@@ -333,10 +334,10 @@ export function useSubscription(userId?: string) {
       if (error) {
         // Update error logged elsewhere
       } else {
-        console.log('✅ Memory updated successfully:', mergedMemory);
+        logger.debug('✅ Memory updated successfully:', mergedMemory);
         // Refresh profile to get updated data
         await fetchProfile();
-        console.log('✅ Profile refreshed with updated memory');
+        logger.debug('✅ Profile refreshed with updated memory');
       }
     } catch (error) {
       // Intentionally empty - error handling not required

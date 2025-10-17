@@ -6,6 +6,9 @@ import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
 import { subscriptionApi } from './subscriptionApi';
 
+// TypeScript const for placeholder detection
+const PENDING_PLACEHOLDER = '__PENDING__' as const;
+
 export interface FastSpringSubscription {
   id: string;
   user_id: string;
@@ -195,6 +198,16 @@ class FastSpringService {
       throw new Error('Cannot create checkout for free tier');
     }
 
+    // Check if we're in mock mode
+    const isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY || 
+                       import.meta.env.VITE_FASTSPRING_API_KEY === PENDING_PLACEHOLDER;
+    
+    if (isMockMode) {
+      console.warn('⏳ FastSpring credentials pending 2FA - returning mock checkout URL');
+      // TODO(FastSpringAuth): Replace with real checkout flow after 2FA verification
+      return `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
+    }
+
     const product = FASTSPRING_CONFIG.products[tier];
     if (!product) {
       throw new Error(`No product configuration for tier: ${tier}`);
@@ -225,6 +238,12 @@ class FastSpringService {
       return checkoutUrl;
 
     } catch (error) {
+      console.error('FastSpring checkout error:', error);
+      // In production with valid credentials, this should throw
+      // For now, return mock URL to prevent app breakage
+      if (isMockMode) {
+        return `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
+      }
       throw new Error('Failed to create checkout session');
     }
   }

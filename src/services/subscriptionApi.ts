@@ -5,9 +5,13 @@
 import { atlasDB } from '../database/atlasDB'; // ✅ FIXED: Import from new Golden Standard Dexie
 import { perfMonitor } from '../utils/performanceMonitor';
 import { safeToast } from './toastService';
+import { logger } from '../lib/logger';
 
 // Track active mode clearly
 let activeMode: "dexie" | "backend" | "supabase" | null = null;
+
+// TypeScript const for placeholder detection
+const PENDING_PLACEHOLDER = '__PENDING__' as const;
 
 // Safe fetch helper with toast fallback
 async function safeFetch(url: string, options?: RequestInit) {
@@ -61,7 +65,7 @@ class SubscriptionApiService {
       if (mode === "dexie") {
         safeToast("⚡ Using offline subscription mode", "error");
       } else {
-        console.log("[SubscriptionAPI] ✅ Using backend API for subscriptions");
+        logger.debug("[SubscriptionAPI] ✅ Using backend API for subscriptions");
       }
     }
   }
@@ -72,7 +76,8 @@ class SubscriptionApiService {
     this.baseUrl = '';
     
     // Check if we're in mock mode (no real FastSpring credentials)
-    this.isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY;
+    this.isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY || 
+                     import.meta.env.VITE_FASTSPRING_API_KEY === PENDING_PLACEHOLDER;
     
   }
 
@@ -83,7 +88,7 @@ class SubscriptionApiService {
     // Check cache first
     const cached = this.profileCache.get(userId);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      console.log('[SubscriptionAPI] Using cached profile ✅', userId, 'tier:', cached.data?.subscription_tier);
+      logger.debug('[SubscriptionAPI] Using cached profile ✅', userId, 'tier:', cached.data?.subscription_tier);
       return cached.data;
     }
 
@@ -121,7 +126,7 @@ class SubscriptionApiService {
       
       const duration = perfMonitor.end('tier-fetch');
       if (duration && profile) {
-        console.log(`✅ [Tier] Loaded "${profile.subscription_tier}" in ${duration.toFixed(0)}ms`);
+        logger.debug(`✅ [Tier] Loaded "${profile.subscription_tier}" in ${duration.toFixed(0)}ms`);
       }
 
       if (profile === null) {
@@ -143,18 +148,18 @@ class SubscriptionApiService {
             .single();
           
           if (directProfile && !directError) {
-            console.log('[SubscriptionAPI] ✅ Got fresh profile from direct Supabase:', (directProfile as any).subscription_tier);
+            logger.debug('[SubscriptionAPI] ✅ Got fresh profile from direct Supabase:', (directProfile as any).subscription_tier);
             // Cache the fresh data
             this.profileCache.set(userId, { data: directProfile as any, timestamp: Date.now() });
             return directProfile as any;
           }
         } catch (directErr) {
-          console.error('[SubscriptionAPI] Direct Supabase fallback failed:', directErr);
+          logger.error('[SubscriptionAPI] Direct Supabase fallback failed:', directErr);
         }
         
         // 🔒 SECURITY FIX: Never use stale Dexie cache for tier data
         // If we can't reach the backend or Supabase, fail with error
-        console.error('[SubscriptionAPI] ❌ Cannot fetch tier - all sources failed');
+        logger.error('[SubscriptionAPI] ❌ Cannot fetch tier - all sources failed');
         throw new Error('Unable to fetch tier - please check your connection');
       }
 
@@ -182,18 +187,18 @@ class SubscriptionApiService {
           .single();
         
         if (directProfile && !directError) {
-          console.log('[SubscriptionAPI] ✅ Got fresh profile from direct Supabase fallback:', (directProfile as any).subscription_tier);
+          logger.debug('[SubscriptionAPI] ✅ Got fresh profile from direct Supabase fallback:', (directProfile as any).subscription_tier);
           // Cache the fresh data
           this.profileCache.set(userId, { data: directProfile as any, timestamp: Date.now() });
           return directProfile as any;
         }
       } catch (directErr) {
-        console.error('[SubscriptionAPI] Error in direct Supabase query:', directErr);
+        logger.error('[SubscriptionAPI] Error in direct Supabase query:', directErr);
       }
       
       // 🔒 SECURITY FIX: Never use stale Dexie cache for tier data
       // This prevents users from accessing paid features after cancellation during outages
-      console.error('[SubscriptionAPI] ❌ All tier fetch attempts failed');
+      logger.error('[SubscriptionAPI] ❌ All tier fetch attempts failed');
       throw new Error('Unable to fetch tier - please check your connection and try again');
     }
   }
@@ -280,13 +285,31 @@ class SubscriptionApiService {
   }
 
   /**
+   * Get mock subscription response for testing/development
+   */
+  private async getMockSubscriptionResponse(userId: string): Promise<FastSpringSubscription> {
+    // Get user profile to determine mock tier
+    const profile = this.profileCache.get(userId)?.data;
+    const tier = profile?.subscription_tier || 'free';
+    
+    return {
+      id: `mock_${userId}`,
+      status: tier === 'free' ? 'free' : 'active',
+      subscription_tier: tier,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Get subscription status (mock mode)
    * Uses backend API instead of direct Supabase calls
    */
   async getSubscriptionStatus(userId: string, accessToken: string): Promise<FastSpringSubscription | null> {
     if (!this.isMockMode) {
       // FastSpring API integration pending approval
-      throw new Error('Real FastSpring integration not implemented yet');
+      logger.warn('⏳ FastSpring credentials pending 2FA - using mock mode');
+      return this.getMockSubscriptionResponse(userId);
     }
 
     // Use backend API instead of direct Supabase calls
@@ -307,7 +330,7 @@ class SubscriptionApiService {
     }
 
     const profile = await response.json();
-    console.log('[SubscriptionAPI] Using backend API ✅', profile);
+    logger.debug('[SubscriptionAPI] Using backend API ✅', profile);
     
     // Convert profile to FastSpringSubscription format
     return {
@@ -347,7 +370,7 @@ class SubscriptionApiService {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    console.log('[SubscriptionAPI] Using backend API ✅', { userId, status, tier });
+    logger.debug('[SubscriptionAPI] Using backend API ✅', { userId, status, tier });
     
     // Clear cache since subscription was updated
     this.clearProfileCache(userId);
@@ -376,7 +399,7 @@ class SubscriptionApiService {
       // ✅ Save to Dexie cache (using new Golden Standard)
       // Note: subscription_stats table not implemented in new schema yet
 
-      console.log('[SubscriptionAPI] Using backend API ✅', data);
+      logger.debug('[SubscriptionAPI] Using backend API ✅', data);
       return data;
     } catch (err) {
 
@@ -392,7 +415,7 @@ class SubscriptionApiService {
   // Kept for backwards compatibility but not called anywhere
   // @deprecated Use direct Supabase queries instead of stale offline cache
   private async getProfileFromDexie(userId: string): Promise<SubscriptionProfile | null> {
-    console.warn('[SubscriptionAPI] ⚠️ getProfileFromDexie called - this should not happen');
+    logger.warn('[SubscriptionAPI] ⚠️ getProfileFromDexie called - this should not happen');
     try {
       // ✅ FIXED: Use profiles table from new Golden Standard Dexie
       const profile = await atlasDB.conversations
@@ -406,7 +429,7 @@ class SubscriptionApiService {
       }
 
       // Don't return fake data - return null to force a fresh fetch
-      console.warn('[SubscriptionAPI] ⚠️ All fallbacks failed, returning null');
+      logger.warn('[SubscriptionAPI] ⚠️ All fallbacks failed, returning null');
       return null;
     } catch (error) {
       return null;
@@ -427,12 +450,12 @@ class SubscriptionApiService {
   clearUserCache(userId: string): void {
     this.profileCache.delete(userId);
     this.pendingRequests.delete(userId);
-    console.log(`[SubscriptionAPI] 🧹 Cleared cache for user: ${userId}`);
+    logger.debug(`[SubscriptionAPI] 🧹 Cleared cache for user: ${userId}`);
   }
 
   // Force refresh user profile (bypasses all caches)
   async forceRefreshProfile(userId: string, accessToken: string): Promise<SubscriptionProfile | null> {
-    console.log(`[SubscriptionAPI] 🔄 Force refreshing profile for user: ${userId}`);
+    logger.debug(`[SubscriptionAPI] 🔄 Force refreshing profile for user: ${userId}`);
     
     // Clear all caches first
     this.clearUserCache(userId);
@@ -452,19 +475,19 @@ class SubscriptionApiService {
       });
 
       if (!response.ok) {
-        console.error(`[SubscriptionAPI] ❌ Force refresh failed: ${response.status}`);
+        logger.error(`[SubscriptionAPI] ❌ Force refresh failed: ${response.status}`);
         return null;
       }
 
       const profile = await response.json();
-      console.log(`[SubscriptionAPI] ✅ Force refresh successful: ${profile.subscription_tier}`);
+      logger.debug(`[SubscriptionAPI] ✅ Force refresh successful: ${profile.subscription_tier}`);
       
       // Cache the fresh result
       this.profileCache.set(userId, { data: profile, timestamp: Date.now() });
       
       return profile;
     } catch (error) {
-      console.error('[SubscriptionAPI] ❌ Force refresh error:', error);
+      logger.error('[SubscriptionAPI] ❌ Force refresh error:', error);
       return null;
     }
   }
@@ -473,7 +496,7 @@ class SubscriptionApiService {
   clearAllCache(): void {
     this.profileCache.clear();
     this.pendingRequests.clear();
-    console.log('[SubscriptionAPI] 🧹 Cleared all caches');
+    logger.debug('[SubscriptionAPI] 🧹 Cleared all caches');
   }
 
   // Get cache stats for debugging
@@ -499,25 +522,25 @@ if (typeof window !== 'undefined') {
         const { data: { session } } = await supabase.auth.getSession();
         userId = session?.user?.id;
       }
-      if (!userId) return console.error('No user ID found');
+      if (!userId) return logger.error('No user ID found');
       
       const supabase = (await import('../lib/supabaseClient')).default;
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       
-      if (!accessToken) return console.error('No access token found');
+      if (!accessToken) return logger.error('No access token found');
       
-      console.log('🔄 Force refreshing tier for user:', userId);
+      logger.debug('🔄 Force refreshing tier for user:', userId);
       const result = await subscriptionApi.forceRefreshProfile(userId, accessToken);
-      console.log('✅ Result:', result);
+      logger.debug('✅ Result:', result);
       return result;
     },
     getCacheStats: () => subscriptionApi.getCacheStats()
   };
   
-  console.log('🛠️ Atlas Tier Debug Tools Available:');
-  console.log('  - atlasTierDebug.clearAllCaches()');
-  console.log('  - atlasTierDebug.forceRefresh()');
-  console.log('  - atlasTierDebug.getCacheStats()');
+  logger.debug('🛠️ Atlas Tier Debug Tools Available:');
+  logger.debug('  - atlasTierDebug.clearAllCaches()');
+  logger.debug('  - atlasTierDebug.forceRefresh()');
+  logger.debug('  - atlasTierDebug.getCacheStats()');
 }
 

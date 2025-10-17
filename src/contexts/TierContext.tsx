@@ -6,6 +6,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { tierFeatures } from '../config/featureAccess';
+import { logger } from '../lib/logger';
 
 type Tier = "free" | "core" | "studio" | "enterprise" | null;
 
@@ -80,7 +82,7 @@ async function fetchTierGlobal(): Promise<Tier> {
 
     globalTierState.lastFetch = now;
     globalTierState.error = null;
-    console.debug("✅ TierContext - Tier loaded:", globalTierState.tier);
+    logger.debug("✅ TierContext - Tier loaded:", globalTierState.tier);
   } catch (err: any) {
     globalTierState.tier = "free";
     globalTierState.error = err;
@@ -122,18 +124,42 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
 
   const canUseFeature = (feature: string): boolean => {
     if (state.loading || !state.tier) return false;
+    // Use centralized config instead of hardcoded checks
+    const features = tierFeatures[state.tier];
+    if (!features) return false;
+    
+    // Check if feature exists in tier config
+    if (feature in features) {
+      const featureValue = features[feature as keyof typeof features];
+      // Handle boolean features
+      if (typeof featureValue === 'boolean') return featureValue;
+      // Handle numeric features (e.g., limits > 0 means enabled)
+      if (typeof featureValue === 'number') return featureValue > 0;
+      // Handle string features (non-empty means enabled)
+      if (typeof featureValue === 'string') return featureValue !== '';
+    }
+    
+    // Legacy compatibility for features not in config
     if (state.tier === "studio") return true;
     if (state.tier === "core") return feature !== "studio-only";
-    if (state.tier === "free") return feature === "text"; // Basic tier check
+    if (state.tier === "free") return feature === "text";
     return false;
   };
 
-  const requiresUpgrade = (required: "core" | "studio", _feature?: string): boolean => {
+  const requiresUpgrade = (required: "core" | "studio" | "enterprise", feature?: string): boolean => {
     if (state.loading || !state.tier) return true;
-    if (state.tier === "studio") return false;
-    if (state.tier === "core") return required === "studio";
-    if (state.tier === "free") return true; // Basic tier check
-    return true;
+    
+    // Use tier hierarchy for upgrade checks
+    const tierHierarchy = { free: 0, core: 1, studio: 2, enterprise: 3 };
+    const currentTierLevel = tierHierarchy[state.tier] ?? 0;
+    const requiredTierLevel = tierHierarchy[required] ?? 0;
+    
+    // If specific feature provided, check if current tier has it
+    if (feature && canUseFeature(feature)) {
+      return false; // Current tier already has the feature
+    }
+    
+    return currentTierLevel < requiredTierLevel;
   };
 
   return (
@@ -158,18 +184,72 @@ export function useTier() {
   return context;
 }
 
-// Simple feature checking
-export function canUseFeature(tier: Tier, feature: string): boolean {
-  if (tier === "studio") return true;
-  if (tier === "core") return feature !== "studio-only";
-  if (tier === "free") return feature === "text";
-  return false;
+// Telemetry for tier checks (analytics-ready)
+let tierCheckTelemetry: { feature: string; tier: Tier; allowed: boolean; timestamp: number }[] = [];
+
+function logTierCheck(feature: string, tier: Tier, allowed: boolean) {
+  tierCheckTelemetry.push({
+    feature,
+    tier,
+    allowed,
+    timestamp: Date.now()
+  });
+  
+  // Keep only last 100 entries
+  if (tierCheckTelemetry.length > 100) {
+    tierCheckTelemetry = tierCheckTelemetry.slice(-100);
+  }
 }
 
-// Simple upgrade requirement check
+// Export telemetry getter for analytics
+export function getTierCheckTelemetry() {
+  return [...tierCheckTelemetry];
+}
+
+// Simple feature checking with centralized config
+export function canUseFeature(tier: Tier, feature: string): boolean {
+  if (!tier) return false;
+  
+  const features = tierFeatures[tier];
+  if (!features) return false;
+  
+  let allowed = false;
+  
+  // Check if feature exists in tier config
+  if (feature in features) {
+    const featureValue = features[feature as keyof typeof features];
+    if (typeof featureValue === 'boolean') allowed = featureValue;
+    else if (typeof featureValue === 'number') allowed = featureValue > 0;
+    else if (typeof featureValue === 'string') allowed = featureValue !== '';
+  } else {
+    // Legacy compatibility
+    if (tier === "studio") allowed = true;
+    else if (tier === "core") allowed = feature !== "studio-only";
+    else if (tier === "free") allowed = feature === "text";
+  }
+  
+  // Log for telemetry
+  logTierCheck(feature, tier, allowed);
+  
+  return allowed;
+}
+
+// Simple upgrade requirement check with centralized config
 export function requiresUpgrade(tier: Tier, feature: string): boolean {
-  if (tier === "studio") return false;
-  if (tier === "core") return feature === "studio-only";
-  if (tier === "free") return feature !== "text";
-  return true;
+  if (!tier) return true;
+  
+  // If current tier has the feature, no upgrade needed
+  if (canUseFeature(tier, feature)) return false;
+  
+  // Check if any higher tier has the feature
+  const tierOrder: Tier[] = ['free', 'core', 'studio'];
+  const currentIndex = tierOrder.indexOf(tier);
+  
+  for (let i = currentIndex + 1; i < tierOrder.length; i++) {
+    if (canUseFeature(tierOrder[i], feature)) {
+      return true; // A higher tier has this feature
+    }
+  }
+  
+  return false; // No tier has this feature
 }

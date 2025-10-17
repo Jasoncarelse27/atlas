@@ -30,6 +30,10 @@ export const logger = {
    */
   error: (...args: any[]) => {
     console.error(...args);
+    // TODO: Send to error tracking service (Sentry)
+    // if (isProduction && window.Sentry) {
+    //   window.Sentry.captureException(args[0] instanceof Error ? args[0] : new Error(String(args[0])));
+    // }
   },
   
   /**
