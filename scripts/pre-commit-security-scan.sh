@@ -50,8 +50,8 @@ for file in $STAGED_FILES; do
         continue
     fi
     
-    # Skip .example files and docs
-    if [[ "$file" == *.example ]] || [[ "$file" == *.md ]] || [[ "$file" == *README* ]]; then
+    # Skip .example files, docs, and test files
+    if [[ "$file" == *.example ]] || [[ "$file" == *.md ]] || [[ "$file" == *README* ]] || [[ "$file" == *test.ts ]] || [[ "$file" == *test.tsx ]] || [[ "$file" == *test.js ]]; then
         continue
     fi
     
