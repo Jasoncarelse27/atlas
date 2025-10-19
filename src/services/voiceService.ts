@@ -1,8 +1,8 @@
 import { canUseAudio } from '@/config/featureAccess';
 import { createChatError } from '../features/chat/lib/errorHandler';
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { generateUUID } from "../utils/uuid";
-import { logger } from '../lib/logger';
 
 export interface TranscriptionResult {
   transcript: string;
@@ -21,7 +21,7 @@ export interface AudioMetadata {
 }
 
 class VoiceService {
-  private readonly STORAGE_BUCKET = 'voice-recordings';
+  private readonly STORAGE_BUCKET = 'voice-notes';
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   private readonly SUPPORTED_FORMATS = ['audio/webm', 'audio/mp4', 'audio/wav', 'audio/m4a'];
 

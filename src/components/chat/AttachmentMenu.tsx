@@ -33,6 +33,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mobileCameraInputRef = useRef<HTMLInputElement>(null);
   
   // Tier access for camera feature
   const { canUse: canUseCamera, attemptFeature: attemptCamera } = useFeatureAccess('camera'); // canUseCamera kept for future use
@@ -417,6 +418,14 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                 />
                 <input
                   type="file"
+                  accept="image/*"
+                  capture="environment"
+                  ref={mobileCameraInputRef}
+                  style={{ display: "none" }}
+                  onChange={handleImageSelect}
+                />
+                <input
+                  type="file"
                   accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
                   ref={fileInputRef}
                   style={{ display: "none" }}
@@ -470,7 +479,13 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                       e.preventDefault();
                       e.stopPropagation();
                       if (!isUploading) {
-                        handleCameraClick();
+                        // Mobile: Use native camera input (opens device camera directly)
+                        // Desktop: Use WebRTC camera (in-app camera with preview)
+                        if (isMobile) {
+                          mobileCameraInputRef.current?.click();
+                        } else {
+                          handleCameraClick();
+                        }
                       }
                     }}
                   >

@@ -444,6 +444,44 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// Usage log endpoint with service role
+app.post('/api/usage-log', verifyJWT, async (req, res) => {
+  try {
+    const { user_id, event, feature, estimated_cost, metadata } = req.body;
+    
+    if (!user_id || !feature || estimated_cost === undefined) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: user_id, feature, estimated_cost' 
+      });
+    }
+    
+    // Use service role key for RLS bypass
+    const { error } = await supabase
+      .from('usage_logs')
+      .insert({
+        user_id,
+        event: event || 'feature_usage',
+        feature,
+        tokens_used: 0,
+        estimated_cost,
+        created_at: new Date().toISOString(),
+        metadata,
+        data: metadata // duplicate for backwards compatibility
+      });
+      
+    if (error) {
+      logger.error('[API /usage-log] Insert failed:', error.message);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    logger.info(`[API /usage-log] Logged ${feature} usage for user ${user_id}`);
+    res.status(200).json({ success: true });
+  } catch (e) {
+    logger.error('[API /usage-log] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Memory reset endpoint (for debugging)
 app.post('/api/reset-memory', async (req, res) => {
   try {
@@ -653,19 +691,18 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     let effectiveTier = userTier;
     if (!effectiveTier) {
       try {
-        const { data: subRow } = await supabase
-          .from('subscriptions')
-          .select('tier, status')
-          .eq('user_id', userId)
-          .eq('status', 'active')
-          .maybeSingle();
-        effectiveTier = subRow?.tier || 'free';
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single();
+        effectiveTier = profile?.subscription_tier || 'free';
       } catch (error) {
         effectiveTier = 'free'; // Default to free tier
       }
     }
 
-    // Enforce Free tier monthly limit (15 messages/month) - skip in development
+    // Enforce Free tier monthly limit (15 messages/month) - Studio/Core unlimited
     if (effectiveTier === 'free' && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
         const startOfMonth = new Date();
@@ -691,6 +728,8 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       } catch (error) {
         // Continue without limit check in case of error
       }
+    } else if (effectiveTier === 'studio' || effectiveTier === 'core') {
+      logger.debug(`[Server] ${effectiveTier} tier - unlimited messages`);
     }
 
     // Update usage stats for Free tier users

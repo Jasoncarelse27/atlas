@@ -1,18 +1,29 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
-import { TierProvider } from "./contexts/TierContext";
 import { AuthProvider, useAuth } from "./providers/AuthProvider";
+import { useSettingsStore } from "./stores/useSettingsStore";
 
 // 🚀 Route-based code splitting for better performance
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
 
-const queryClient = new QueryClient();
+// 🚀 Production-grade Query Client configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes (formerly cacheTime)
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      retry: 3,
+    },
+  },
+});
 
 function ProtectedChatRoute() {
   const { user, loading } = useAuth();
@@ -37,23 +48,26 @@ function PublicAuthRoute() {
 }
 
 function App() {
+  // Initialize settings from localStorage on app load
+  useEffect(() => {
+    useSettingsStore.getState().initializeSettings();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TierProvider>
-          <Router>
-            <Toaster position="top-center" />
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                <Route path="/login" element={<PublicAuthRoute />} />
-                <Route path="/chat" element={<ProtectedChatRoute />} />
-                <Route path="/upgrade" element={<UpgradePage />} />
-                <Route path="/" element={<Navigate to="/chat" replace />} />
-                <Route path="*" element={<Navigate to="/chat" replace />} />
-              </Routes>
-            </Suspense>
-          </Router>
-        </TierProvider>
+        <Router>
+          <Toaster position="top-center" />
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              <Route path="/login" element={<PublicAuthRoute />} />
+              <Route path="/chat" element={<ProtectedChatRoute />} />
+              <Route path="/upgrade" element={<UpgradePage />} />
+              <Route path="/" element={<Navigate to="/chat" replace />} />
+              <Route path="*" element={<Navigate to="/chat" replace />} />
+            </Routes>
+          </Suspense>
+        </Router>
       </AuthProvider>
     </QueryClientProvider>
   );

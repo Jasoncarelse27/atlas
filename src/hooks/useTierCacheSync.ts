@@ -3,8 +3,8 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { useTier } from '../contexts/TierContext';
 import { logger } from '../lib/logger';
+import { useTierQuery } from './useTierQuery'; // Updated import
 
 /**
  * Hook for invalidating React Query cache after tier updates
@@ -12,7 +12,7 @@ import { logger } from '../lib/logger';
  */
 export function useTierCacheSync() {
   const queryClient = useQueryClient();
-  const { tier, refreshTier } = useTier();
+  const { tier, refetch: refreshTier } = useTierQuery(); // Updated to use useTierQuery
   
   /**
    * Refresh tier and invalidate all tier-dependent queries

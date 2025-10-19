@@ -1,3 +1,4 @@
+import { History, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
@@ -201,45 +202,60 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   };
 
   const actions = [
-    { icon: '➕', label: 'Start New Chat', action: handleNewChat },
     { 
-      icon: isLoadingHistory ? '⏳' : '📜', 
+      icon: Plus, 
+      label: 'Start New Chat', 
+      action: handleNewChat,
+      color: 'emerald'
+    },
+    { 
+      icon: isLoadingHistory ? Loader2 : History, 
       label: isLoadingHistory ? 'Loading...' : 'View History', 
       action: handleViewHistory,
-      disabled: isLoadingHistory
+      disabled: isLoadingHistory,
+      color: 'blue',
+      animate: isLoadingHistory
     },
-    { icon: '🗑️', label: 'Clear All Data', action: handleClearData }
+    { 
+      icon: Trash2, 
+      label: 'Clear All Data', 
+      action: handleClearData,
+      color: 'red'
+    }
   ];
 
   return (
     <>
-      <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 p-4 rounded-2xl border border-gray-700/50 shadow-xl backdrop-blur-sm">
-        <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 text-sm font-bold mb-4 tracking-wide">Quick Actions</h3>
+      <div className="bg-slate-700/20 border border-slate-600/20 p-4 rounded-2xl shadow">
+        <h3 className="text-white text-sm font-bold mb-4 tracking-wide">Quick Actions</h3>
         <ul className="space-y-2">
-          {actions.map((action, index) => (
-            <li key={index}>
-              <button
-                onClick={action.action}
-                disabled={action.disabled}
-                className={`group w-full text-left backdrop-blur-sm p-3 rounded-xl transition-all duration-300 border shadow-md flex items-center space-x-3 ${
-                  action.disabled 
-                    ? 'bg-gray-800/40 border-gray-600/30 cursor-not-allowed opacity-60' 
-                    : 'bg-gradient-to-br from-gray-800/80 to-gray-800/60 hover:from-gray-700/80 hover:to-gray-700/60 active:scale-[0.98] border-gray-700/50 hover:border-gray-600/50 hover:shadow-lg'
-                }`}
-              >
-                <div className="flex-shrink-0 w-9 h-9 bg-blue-500/10 rounded-lg flex items-center justify-center border border-blue-500/20">
-                  <span className="text-lg">{action.icon}</span>
-                </div>
-                <span className={`text-sm font-medium transition-colors ${
-                  action.disabled 
-                    ? 'text-gray-400' 
-                    : 'text-white group-hover:text-blue-100'
-                }`}>
-                  {action.label}
-                </span>
-              </button>
-            </li>
-          ))}
+          {actions.map((action, index) => {
+            const IconComponent = action.icon;
+            return (
+              <li key={index}>
+                <button
+                  onClick={action.action}
+                  disabled={action.disabled}
+                  className={`group w-full text-left p-3 rounded-xl transition-all duration-200 border flex items-center space-x-3 ${
+                    action.disabled 
+                      ? 'bg-slate-700/10 border-slate-600/10 cursor-not-allowed opacity-60' 
+                      : 'bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50'
+                  }`}
+                >
+                  <div className={`flex-shrink-0 p-2 rounded-xl bg-${action.color}-600/20 group-hover:bg-${action.color}-600/30 transition-colors`}>
+                    <IconComponent className={`w-5 h-5 text-${action.color}-400 ${action.animate ? 'animate-spin' : ''}`} />
+                  </div>
+                  <span className={`text-sm font-medium transition-colors ${
+                    action.disabled 
+                      ? 'text-slate-400' 
+                      : 'text-white group-hover:text-slate-100'
+                  }`}>
+                    {action.label}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
 

@@ -412,11 +412,25 @@ export class ConversationSyncService {
       const duration = Date.now() - startTime;
       const durationSeconds = (duration / 1000).toFixed(1);
       const perfDuration = perfMonitor.end('conversation-sync');
-      logger.debug('[ConversationSync] ✅ Delta sync completed successfully in', duration, 'ms');
-      logger.debug('[ConversationSync] 🚀 Sync performance:', durationSeconds + 's', duration < 5000 ? '(Excellent!)' : duration < 10000 ? '(Good)' : '(Needs optimization)');
+      logger.info(`[ConversationSync] ✅ Delta sync completed in ${duration}ms`);
+      
+      // Auto-optimize if sync is slow
+      if (duration > 1200) {
+        logger.warn(`[ConversationSync] Slow sync detected (${duration}ms) - optimizing for next run`);
+        // Store optimization flag and reduced sync window
+        const optimizedWindow = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // 1 day instead of 7
+        await atlasDB.syncMetadata.put({
+          userId,
+          lastSyncedAt: optimizedWindow,
+          optimizeNext: true,
+          lastDuration: duration
+        });
+      } else {
+        logger.debug('[ConversationSync] 🚀 Sync performance:', durationSeconds + 's', duration < 500 ? '(Excellent!)' : duration < 1000 ? '(Good)' : '(OK)');
+      }
       
       if (perfDuration && perfDuration > 5000) {
-        logger.warn(`⚠️ [Performance] Conversation sync took ${perfDuration.toFixed(0)}ms - consider optimizing`);
+        logger.warn(`⚠️ [Performance] Conversation sync took ${perfDuration.toFixed(0)}ms - optimization applied`);
       }
       
       // ✅ PERFORMANCE MONITORING: Log sync metrics (future-proof approach)

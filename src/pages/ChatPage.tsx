@@ -1,26 +1,25 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { LogOut, Menu, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
 import SyncStatus from '../components/SyncStatus';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
+import { ProfileSettingsModal } from '../components/modals/ProfileSettingsModal';
+import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
-import type { Message } from '../types/chat';
-// Removed usePersistentMessages import - using direct message management instead
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
-import { useSubscription } from '../hooks/useSubscription';
+import { useTierQuery } from '../hooks/useTierQuery'; // 🔥 Use modern tier hook
 import { logger } from '../lib/logger';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
 import { databaseMigration } from '../services/databaseMigration';
 import { startBackgroundSync, stopBackgroundSync } from '../services/syncService';
 import { autoGenerateTitle } from '../services/titleGenerationService';
-// ✅ PHASE 2: Removed messageRegistry import - no longer needed with single write path
+import type { Message } from '../types/chat';
 import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
@@ -44,6 +43,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   
+  // Profile modal state
+  const [showProfile, setShowProfile] = useState(false);
+  
+  // Get user email for avatar
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  
   // History modal state
   const [showHistory, setShowHistory] = useState(false);
   const [historyData, setHistoryData] = useState<{
@@ -57,8 +62,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Memory integration
   useMemoryIntegration({ userId: userId || undefined });
 
-  // Subscription management
-  const { tier } = useSubscription(userId || undefined);
+  // 🔥 Modern tier management with React Query + Realtime
+  const { tier } = useTierQuery();
 
   // ✅ ENTERPRISE: Real-time conversation deletion listener (clean, reliable)
   useRealtimeConversations(userId || undefined);
@@ -368,6 +373,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         
         if (user) {
           setUserId(user.id);
+          setUserEmail(user.email || null);
           logger.debug('[ChatPage] ✅ User authenticated:', user.id);
         } else {
           logger.warn('[ChatPage] ⚠️ No authenticated user found');
@@ -825,17 +831,31 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 h-full w-80 bg-[#1e1f24] border-r border-gray-800 z-50 overflow-y-auto"
+                className="fixed left-0 top-0 h-full w-80 bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border-r border-slate-700/50 z-50 overflow-y-auto shadow-2xl"
               >
                 <div className="p-4 space-y-6">
-                  {/* Close Button */}
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setSidebarOpen(false)}
-                      className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+                  {/* Header with Profile and Close Buttons */}
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-white">Menu</h2>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowProfile(true)}
+                        className="p-2 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors"
+                        aria-label="Open profile settings"
+                        title="Profile Settings"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center text-sm font-semibold text-gray-900">
+                          {userEmail?.[0]?.toUpperCase() || '?'}
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="p-2 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors"
+                        aria-label="Close menu"
+                      >
+                        <X className="w-5 h-5 text-slate-300" />
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Sidebar Content */}
@@ -850,14 +870,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   {/* Logout Button */}
                   <button
                     onClick={handleLogout}
-                    className="w-full bg-[#2c2f36] p-4 rounded-lg shadow hover:bg-[#353840] transition-colors"
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 border group bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50"
                   >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-lg">🚪</span>
-                      <div className="text-left">
-                        <span className="text-gray-200 text-sm font-medium">Sign Out</span>
-                        <p className="text-gray-400 text-xs">End your session</p>
-                      </div>
+                    <div className="p-2 rounded-xl bg-red-600/20 group-hover:bg-red-600/30 transition-colors">
+                      <LogOut className="w-5 h-5 text-red-400" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <span className="text-white font-medium text-sm">Sign Out</span>
+                      <p className="text-slate-300 text-xs">End your session</p>
                     </div>
                   </button>
                 </div>
@@ -1023,6 +1043,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             deletingId={historyData.deletingId}
           />
         )}
+
+        {/* Profile Settings Modal */}
+        <ProfileSettingsModal
+          isOpen={showProfile}
+          onClose={() => setShowProfile(false)}
+          onSignOut={handleLogout}
+        />
         
       </div>
     </ErrorBoundary>

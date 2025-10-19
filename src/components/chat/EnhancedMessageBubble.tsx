@@ -2,9 +2,10 @@ import { useTierAccess } from '@/hooks/useTierAccess';
 import { audioUsageService } from '@/services/audioUsageService';
 import { voiceService } from '@/services/voiceService';
 import { motion } from 'framer-motion';
-import { Bot, Check, Copy, Loader2, Pause, Play, User, Volume2, X } from 'lucide-react';
+import { Bot, Check, Copy, Loader2, Pause, Play, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { logger } from '../../lib/logger';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
 import ImageMessageBubble from '../messages/ImageMessageBubble';
@@ -13,7 +14,6 @@ import { LegacyMessageRenderer } from './MessageRenderer';
 import { StopButton } from './StopButton';
 import SystemMessage from './SystemMessage';
 import { TypingDots } from './TypingDots';
-import { logger } from '../../lib/logger';
 
 interface EnhancedMessageBubbleProps {
   message: Message;
@@ -42,6 +42,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   
   // Copy state
   const [isCopied, setIsCopied] = useState(false);
+  
+  // Feedback state
+  const [feedback, setFeedback] = useState<'positive' | 'negative' | null>(null);
   
   // Audio player state for TTS
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -483,6 +486,42 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                 ) : (
                   <Copy className="w-4 h-4" />
                 )}
+              </button>
+
+              {/* Thumbs Up */}
+              <button
+                onClick={() => {
+                  setFeedback(feedback === 'positive' ? null : 'positive');
+                  toast.success('Thanks for your feedback!');
+                }}
+                className={`flex items-center justify-center w-7 h-7 rounded-md 
+                           border transition-all duration-200
+                           ${feedback === 'positive' 
+                             ? 'bg-green-600/20 border-green-500/40 text-green-400' 
+                             : 'bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white border-gray-600/20 hover:border-gray-500/40'
+                           }`}
+                aria-label="Good response"
+                title="Good response"
+              >
+                <ThumbsUp className="w-4 h-4" />
+              </button>
+
+              {/* Thumbs Down */}
+              <button
+                onClick={() => {
+                  setFeedback(feedback === 'negative' ? null : 'negative');
+                  toast.error('Feedback noted. We\'ll improve!');
+                }}
+                className={`flex items-center justify-center w-7 h-7 rounded-md 
+                           border transition-all duration-200
+                           ${feedback === 'negative' 
+                             ? 'bg-red-600/20 border-red-500/40 text-red-400' 
+                             : 'bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white border-gray-600/20 hover:border-gray-500/40'
+                           }`}
+                aria-label="Bad response"
+                title="Bad response"
+              >
+                <ThumbsDown className="w-4 h-4" />
               </button>
 
               {/* Audio Controls - Show full player when audio is loaded */}

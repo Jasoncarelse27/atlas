@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CheckCircle2, Image, Loader2, Mic, Plus, Send, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Image, Loader2, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
@@ -10,6 +10,7 @@ import { featureService } from '../../services/featureService';
 import { logger } from '../../lib/logger';
 import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
+import { VoiceCallModal } from '../modals/VoiceCallModal';
 import AttachmentMenu from './AttachmentMenu';
 
 interface EnhancedInputToolbarProps {
@@ -45,6 +46,7 @@ export default function EnhancedInputToolbar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
+  const [showVoiceCall, setShowVoiceCall] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
@@ -388,6 +390,22 @@ export default function EnhancedInputToolbar({
     }
   };
 
+  const handleStartVoiceCall = () => {
+    if (!user) {
+      toast.error('Please log in to use voice calls');
+      return;
+    }
+
+    if (tier !== 'studio') {
+      toast.error('Voice calls are exclusive to Atlas Studio tier');
+      showUpgradeModal('audio');
+      return;
+    }
+    
+    // Open voice call modal
+    setShowVoiceCall(true);
+  };
+
 
   // Click outside detection is handled by AttachmentMenu component
 
@@ -601,31 +619,60 @@ export default function EnhancedInputToolbar({
                 <Mic size={18} />
               </motion.button>
 
-              {/* Dynamic Send/Stop Button */}
-              <motion.button
-                onClick={isStreaming ? stopMessageStream : handleSend}
-                disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
-                title={attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''} with caption` : (isStreaming ? "Stop message" : "Send message")}
-                className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm touch-manipulation ${
-                  isStreaming 
-                    ? 'bg-red-500 hover:bg-red-600' 
-                    : 'bg-blue-500 hover:bg-blue-600'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-                whileTap={{ scale: 0.9 }}
-              >
-                {isStreaming ? (
-                  <motion.div
-                    className="w-3 h-3 bg-white rounded-sm"
-                    animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
-                    transition={{ repeat: Infinity, duration: 1.2 }}
-                  />
-                ) : (
-                  <Send className="w-4 h-4 text-white" />
-                )}
-              </motion.button>
+              {/* Dynamic Button: Phone (empty) → Send (has text) */}
+              {text.trim() || attachmentPreviews.length > 0 ? (
+                // Send button (when text/attachments exist)
+                <motion.button
+                  onClick={isStreaming ? stopMessageStream : handleSend}
+                  disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
+                  title={attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message"}
+                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm touch-manipulation ${
+                    isStreaming 
+                      ? 'bg-red-500 hover:bg-red-600' 
+                      : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  {isStreaming ? (
+                    <motion.div
+                      className="w-3 h-3 bg-white rounded-sm"
+                      animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
+                      transition={{ repeat: Infinity, duration: 1.2 }}
+                    />
+                  ) : (
+                    <Send className="w-4 h-4 text-white" />
+                  )}
+                </motion.button>
+              ) : (
+                // Phone button (when empty - Studio tier only)
+                <motion.button
+                  onClick={handleStartVoiceCall}
+                  disabled={disabled}
+                  title={tier === 'studio' ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
+                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-sm touch-manipulation ${
+                    tier === 'studio'
+                      ? 'bg-emerald-500 hover:bg-emerald-600'
+                      : 'bg-gray-600 hover:bg-gray-500 opacity-60'
+                  }`}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <Phone className="w-4 h-4 text-white" />
+                </motion.button>
+              )}
         </div>
       </motion.div>
+
+      {/* Voice Call Modal */}
+      {user && conversationId && (
+        <VoiceCallModal
+          isOpen={showVoiceCall}
+          onClose={() => setShowVoiceCall(false)}
+          userId={user.id}
+          conversationId={conversationId}
+        />
+      )}
     </div>
   );
 }

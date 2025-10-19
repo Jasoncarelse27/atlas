@@ -2,7 +2,6 @@
 // This service handles all subscription/tier queries through our backend API
 // instead of direct Supabase calls, ensuring proper security and CORS handling
 
-import { atlasDB } from '../database/atlasDB'; // ✅ FIXED: Import from new Golden Standard Dexie
 import { logger } from '../lib/logger';
 import { perfMonitor } from '../utils/performanceMonitor';
 import { safeToast } from './toastService';
@@ -56,7 +55,7 @@ class SubscriptionApiService {
   private baseUrl: string;
   private isMockMode: boolean;
   private profileCache: Map<string, { data: SubscriptionProfile; timestamp: number }> = new Map();
-  private readonly CACHE_TTL = import.meta.env.DEV ? 1000 : 5000; // 1s dev, 5s prod for faster tier updates
+  private readonly CACHE_TTL = 30 * 60 * 1000; // 30 minutes - tier changes are rare, cache aggressively
   private pendingRequests: Map<string, Promise<SubscriptionProfile | null>> = new Map();
 
   private setMode(mode: "dexie" | "backend" | "supabase") {
