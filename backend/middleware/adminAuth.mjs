@@ -1,7 +1,7 @@
 // Atlas Admin Authentication Middleware
 // Ensures only allowlisted admin emails can access admin endpoints
 
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { ADMIN_EMAIL_ALLOWLIST } from '../config/adminConfig.mjs';
 
 /**

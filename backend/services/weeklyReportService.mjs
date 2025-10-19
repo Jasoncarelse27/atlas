@@ -1,7 +1,7 @@
 // Atlas Weekly Report Service
 // Generates and emails weekly usage reports
 
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import nodemailer from 'nodemailer';
 import { supabase } from '../lib/supabase.js';
 

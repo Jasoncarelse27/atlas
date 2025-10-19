@@ -1,0 +1,85 @@
+/* Mobile Optimized Input Styles */
+
+/* Prevent iOS zoom on input focus */
+@supports (-webkit-touch-callout: none) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Better mobile textarea behavior */
+.mobile-textarea {
+  /* Prevent zoom on iOS */
+  font-size: 16px !important;
+  
+  /* Better touch targets */
+  min-height: 44px;
+  
+  /* Smooth transitions */
+  transition: all 0.2s ease-out;
+  
+  /* Prevent text selection issues */
+  -webkit-user-select: text;
+  user-select: text;
+  
+  /* Better scroll behavior */
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+}
+
+/* Mobile keyboard avoidance */
+.mobile-input-container {
+  /* Ensure input stays above keyboard */
+  position: relative;
+  z-index: 50;
+  
+  /* Add safe area padding for notched devices */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Responsive padding adjustments */
+@media (max-width: 640px) {
+  .mobile-input-container {
+    padding: 0.5rem;
+  }
+  
+  .mobile-textarea {
+    padding: 0.75rem;
+    border-radius: 1rem;
+  }
+}
+
+/* Fix for sticky positioning on mobile */
+.mobile-sticky-input {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(75, 85, 99, 0.3);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Prevent double-tap zoom */
+.mobile-button {
+  touch-action: manipulation;
+}
+
+/* Better focus states for mobile */
+.mobile-textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Smooth auto-resize */
+.auto-resize-textarea {
+  overflow: hidden;
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+}

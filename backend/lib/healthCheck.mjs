@@ -1,5 +1,5 @@
 // Enhanced health check system
-import { logger } from './logger.mjs';
+import { logger } from './simpleLogger.mjs';
 import { supabase } from './supabaseClient.mjs';
 
 /**

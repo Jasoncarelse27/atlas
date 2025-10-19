@@ -1,5 +1,5 @@
 // backend/config/supabaseClient.mjs
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { createClient } from "@supabase/supabase-js";
 
 // Function to create and validate Supabase clients

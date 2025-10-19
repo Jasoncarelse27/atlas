@@ -6,52 +6,44 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
   const [shouldGlow, setShouldGlow] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
-  
 
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // FIXED: Proper scroll detection
   useEffect(() => {
-    const handleScroll = () => {
+    const checkScroll = () => {
+      if (!containerRef?.current) return;
       
-      if (containerRef?.current) {
-        // Container scroll
-        const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-        const atBottom = scrollTop + clientHeight >= scrollHeight - 50;
-        
-        setShowScrollButton(!atBottom);
-        setIsAtBottom(atBottom);
-      } else {
-        // Window scroll fallback
-        const scrollTop = window.scrollY;
-        const windowHeight = window.innerHeight;
-        const documentHeight = document.body.offsetHeight;
-        const atBottom = scrollTop + windowHeight >= documentHeight - 50;
-        
-        setShowScrollButton(!atBottom);
-        setIsAtBottom(atBottom);
-      }
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Show button when scrolled up more than 100px from bottom
+      setShowScrollButton(distanceFromBottom > 100);
+      setIsAtBottom(distanceFromBottom < 50);
     };
-
-    // Initial check
-    handleScroll();
-
-    // Listen to scroll events
-    if (containerRef?.current) {
-      containerRef.current.addEventListener("scroll", handleScroll);
-    } else {
-      window.addEventListener("scroll", handleScroll);
+    
+    // Check immediately and after a delay (for content loading)
+    checkScroll();
+    const timer = setTimeout(checkScroll, 500);
+    
+    // Add scroll listener
+    const element = containerRef?.current;
+    if (element) {
+      element.addEventListener('scroll', checkScroll, { passive: true });
+      // Also listen for resize/content changes
+      window.addEventListener('resize', checkScroll);
     }
-
+    
     return () => {
-      if (containerRef?.current) {
-        containerRef.current.removeEventListener("scroll", handleScroll);
-      } else {
-        window.removeEventListener("scroll", handleScroll);
+      clearTimeout(timer);
+      if (element) {
+        element.removeEventListener('scroll', checkScroll);
       }
+      window.removeEventListener('resize', checkScroll);
     };
-  }, [containerRef]);
+  }, [containerRef, deps]); // Re-run when deps change too
 
   // Initial scroll to bottom on page load/refresh
   useEffect(() => {

@@ -1,5 +1,5 @@
 // backend/middleware/dailyLimitMiddleware.mjs
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 
 // In-memory fallback for development when Supabase is not available

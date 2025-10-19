@@ -5,7 +5,7 @@
  */
 
 import { createClient } from 'redis';
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { captureException } from '../lib/sentryService.mjs';
 
 class RedisService {

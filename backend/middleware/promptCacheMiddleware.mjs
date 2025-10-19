@@ -1,6 +1,6 @@
 // backend/middleware/promptCacheMiddleware.mjs
 
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 /**
  * Middleware to cache and retrieve prompt responses for efficiency
  */

@@ -1,7 +1,7 @@
 // backend/services/messageService.js
-const { logger } = require('../lib/logger.mjs');
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { logger } from '../lib/simpleLogger.mjs';
 
 // Initialize clients lazily to ensure env vars are loaded
 let anthropic = null;

@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 // Removed sendMessageWithAttachments import - using callback pattern instead
 import { useFeatureAccess } from "@/hooks/useTierAccess";
-import { imageService } from "../../services/imageService";
 import { logger } from '../../lib/logger';
+import { imageService } from "../../services/imageService";
 // Removed useMessageStore import - using callback pattern instead
 
 interface AttachmentMenuProps {
@@ -425,10 +425,10 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
                 {/* Options - Attach File, Upload Image, and Take Photo */}
                 <div className="space-y-2 sm:space-y-3">
-                  {/* Upload Image */}
+                  {/* Choose Photo - Direct to gallery */}
                   <button
                     disabled={isUploading}
-                    className={`w-full flex items-center justify-between p-3 sm:p-4 rounded-2xl transition-all duration-200 border group ${
+                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border group ${
                       isUploading 
                         ? 'bg-slate-700/20 border-slate-600/20 cursor-not-allowed opacity-60' 
                         : 'bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50'
@@ -441,30 +441,27 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                       }
                     }}
                   >
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className={`p-1.5 sm:p-2 rounded-xl transition-colors ${
-                        isUploading 
-                          ? 'bg-emerald-600/10' 
-                          : 'bg-emerald-600/20 group-hover:bg-emerald-600/30'
-                      }`}>
-                        <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors ${
+                      isUploading 
+                        ? 'bg-emerald-600/10' 
+                        : 'bg-emerald-600/20 group-hover:bg-emerald-600/30'
+                    }`}>
+                      <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="text-white font-medium text-sm sm:text-base">
+                        {isUploading ? 'Uploading...' : 'Choose Photo'}
                       </div>
-                      <div className="text-left">
-                        <div className="text-white font-medium text-sm sm:text-base">
-                          {isUploading ? 'Uploading...' : 'Upload Image'}
-                        </div>
-                        <div className="text-slate-300 text-xs sm:text-sm">
-                          {isUploading ? 'Please wait...' : 'Share photos and images'}
-                        </div>
+                      <div className="text-slate-300 text-xs sm:text-sm">
+                        {isUploading ? 'Please wait...' : 'Select from gallery'}
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
                   </button>
 
-                  {/* Take Photo - Studio only */}
+                  {/* Take Photo - Direct to camera */}
                   <button
                     disabled={isUploading}
-                    className={`w-full flex items-center justify-between p-3 sm:p-4 rounded-2xl transition-all duration-200 border group ${
+                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border group ${
                       isUploading 
                         ? 'bg-slate-700/20 border-slate-600/20 cursor-not-allowed opacity-60' 
                         : 'bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50'
@@ -477,24 +474,21 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                       }
                     }}
                   >
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className={`p-1.5 sm:p-2 rounded-xl transition-colors ${
-                        isUploading 
-                          ? 'bg-[#B2BDA3]/10' 
-                          : 'bg-[#B2BDA3]/20 group-hover:bg-[#B2BDA3]/30'
-                      }`}>
-                        <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-[#B2BDA3]" />
+                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors ${
+                      isUploading 
+                        ? 'bg-[#B2BDA3]/10' 
+                        : 'bg-[#B2BDA3]/20 group-hover:bg-[#B2BDA3]/30'
+                    }`}>
+                      <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-[#B2BDA3]" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="text-white font-medium text-sm sm:text-base">
+                        Take Photo
                       </div>
-                      <div className="text-left">
-                        <div className="text-white font-medium text-sm sm:text-base">
-                          Take Photo
-                        </div>
-                        <div className="text-slate-300 text-xs sm:text-sm">
-                          Capture with camera
-                        </div>
+                      <div className="text-slate-300 text-xs sm:text-sm">
+                        Open camera now
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
                   </button>
 
                   {/* Attach File */}

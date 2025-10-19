@@ -1,4 +1,4 @@
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { PROMPT_CACHE_CONFIG } from '../config/intelligentTierSystem.mjs';
 

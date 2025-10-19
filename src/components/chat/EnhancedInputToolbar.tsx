@@ -7,10 +7,10 @@ import { useTierAccess } from '../../hooks/useTierAccess';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 // Removed useMessageStore import - using props from parent component
+import { logger } from '../../lib/logger';
 import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
-import { logger } from '../../lib/logger';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -492,27 +492,9 @@ export default function EnhancedInputToolbar({
           {/* Main Input Container - Professional Style with Bounce Animation */}
           <motion.div 
             data-input-area
-            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 sm:px-4 sm:py-3 bg-gray-900/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-700/50"
+            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 bg-gray-800/80 backdrop-blur-xl rounded-full shadow-2xl"
             initial={{ y: 0, scale: 1 }}
             animate={{ y: 0, scale: 1 }}
-            whileFocus={{ 
-              y: -2, 
-              scale: 1.02,
-              transition: { 
-                type: "spring", 
-                stiffness: 300, 
-                damping: 20,
-                duration: 0.3 
-              }
-            }}
-            whileTap={{ 
-              scale: 0.98,
-              transition: { 
-                type: "spring", 
-                stiffness: 400, 
-                damping: 25 
-              }
-            }}
             transition={{ 
               type: "spring", 
               stiffness: 300, 
@@ -543,11 +525,12 @@ export default function EnhancedInputToolbar({
                   setMenuOpen(!menuOpen)
                 }}
                 disabled={disabled}
-                className={`p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md ${
+                className={`p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md touch-manipulation ${
                   menuOpen 
                     ? 'bg-blue-500 text-white' 
                     : 'bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white'
                 }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.05 }}
                 title="Add attachment"
@@ -590,7 +573,8 @@ export default function EnhancedInputToolbar({
               onBlur={handleInputBlur}
               onFocus={handleInputFocus}
               placeholder={attachmentPreviews.length > 0 ? "💡 Add a caption and press Enter to send..." : placeholder}
-              className="flex-1 mx-2 sm:mx-3 bg-transparent text-white placeholder-gray-400 focus:outline-none text-base border-none rounded-lg px-2 py-1 sm:px-3 sm:py-2 resize-none min-h-[36px] sm:min-h-[40px] max-h-[120px] transition-all duration-200 ease-in-out"
+              className="flex-1 mx-2 sm:mx-3 bg-transparent text-white placeholder-gray-400 focus:outline-none border-none rounded-full px-3 py-2 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
+              style={{ fontSize: '16px' }} // Prevent iOS zoom
               disabled={isProcessing || disabled}
               autoComplete="off"
               autoCapitalize="sentences"
@@ -605,11 +589,12 @@ export default function EnhancedInputToolbar({
               <motion.button
                 onClick={handleMicPress}
                 disabled={isProcessing || disabled}
-                className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
+                className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm touch-manipulation ${
                   isListening
                     ? 'bg-red-500/80 hover:bg-red-600/90 text-white'
                     : 'bg-gray-700/60 hover:bg-gray-600/80 text-gray-300'
                 }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
                 whileTap={{ scale: 0.95 }}
                 title="Voice recording"
               >
@@ -621,11 +606,12 @@ export default function EnhancedInputToolbar({
                 onClick={isStreaming ? stopMessageStream : handleSend}
                 disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
                 title={attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''} with caption` : (isStreaming ? "Stop message" : "Send message")}
-                className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
+                className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm touch-manipulation ${
                   isStreaming 
                     ? 'bg-red-500 hover:bg-red-600' 
                     : 'bg-blue-500 hover:bg-blue-600'
                 }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
                 whileTap={{ scale: 0.9 }}
               >
                 {isStreaming ? (

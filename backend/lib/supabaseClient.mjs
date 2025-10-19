@@ -1,6 +1,6 @@
 // Supabase client for backend logging
-import { logger } from './logger.mjs';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from './simpleLogger.mjs';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

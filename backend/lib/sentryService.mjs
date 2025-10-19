@@ -4,7 +4,10 @@
  */
 
 import * as Sentry from '@sentry/node';
-import { logger } from './logger.mjs';
+import { logger } from './simpleLogger.mjs';
+
+// Track if Sentry is initialized
+let isSentryInitialized = false;
 
 // PII fields to mask in error reports
 const PII_FIELDS = [
@@ -141,6 +144,7 @@ export function initSentry(app) {
     });
 
     // Express error handler should be added after all other middleware
+    isSentryInitialized = true;
     logger.info(`[Sentry] Initialized for ${environment} environment`);
   } catch (error) {
     logger.error('[Sentry] Failed to initialize:', error);
@@ -151,6 +155,15 @@ export function initSentry(app) {
  * Get Sentry middleware for Express
  */
 export function getSentryMiddleware() {
+  // Return no-op middleware if Sentry is not initialized
+  if (!isSentryInitialized) {
+    return {
+      requestHandler: (req, res, next) => next(),
+      tracingHandler: (req, res, next) => next(),
+      errorHandler: (err, req, res, next) => next(err),
+    };
+  }
+  
   return {
     requestHandler: Sentry.Handlers.requestHandler(),
     tracingHandler: Sentry.Handlers.tracingHandler(),

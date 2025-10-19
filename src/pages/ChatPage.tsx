@@ -800,12 +800,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
                 <SyncStatus isOnline={true} />
-                <button
-                  onClick={handleLogout}
-                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm sm:text-base"
-                >
-                  Logout
-                </button>
               </div>
             </div>
           </div>
@@ -849,6 +843,23 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <UsageCounter userId={userId ?? ''} />
                   <InsightsWidget />
                   <PrivacyToggle />
+                  
+                  {/* Divider */}
+                  <div className="my-4 border-t border-gray-700/50"></div>
+                  
+                  {/* Logout Button */}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full bg-[#2c2f36] p-4 rounded-lg shadow hover:bg-[#353840] transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-lg">🚪</span>
+                      <div className="text-left">
+                        <span className="text-gray-200 text-sm font-medium">Sign Out</span>
+                        <p className="text-gray-400 text-xs">End your session</p>
+                      </div>
+                    </div>
+                  </button>
                 </div>
               </motion.div>
             </>
@@ -874,7 +885,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           {/* Messages */}
           <div 
             ref={messagesContainerRef} 
-            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-4"
+            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32"
             onScroll={() => {
               // 📱 Dismiss keyboard when scrolling (ChatGPT-like behavior)
               if (inputRef.current) {
@@ -961,17 +972,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
           {/* Input Toolbar with Bounce Animation - Floating Design */}
           <motion.div 
-            className="bg-transparent backdrop-blur-2xl p-0 sm:p-4 sticky bottom-0 z-30"
+            className="fixed bottom-0 left-0 right-0 p-4 z-30"
+            style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
             initial={{ y: 0 }}
             animate={{ y: 0 }}
-            whileHover={{ 
-              y: -1,
-              transition: { 
-                type: "spring", 
-                stiffness: 300, 
-                damping: 25 
-              }
-            }}
             transition={{ 
               type: "spring", 
               stiffness: 300, 

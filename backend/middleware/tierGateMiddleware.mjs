@@ -1,6 +1,6 @@
 // backend/middleware/tierGateMiddleware.mjs
 // 🔒 SECURITY: Never trust client-sent tier. Always fetch from database.
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 import { supabase } from '../lib/supabase.js';
 

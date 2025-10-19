@@ -4,7 +4,7 @@
  * Prevents cache poisoning and tier escalation attacks
  */
 
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { redisService } from '../services/redisService.mjs';
 
 /**

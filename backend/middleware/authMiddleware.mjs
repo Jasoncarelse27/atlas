@@ -1,6 +1,6 @@
 // backend/middleware/authMiddleware.mjs
 
-import { logger } from '../lib/logger.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { redisService } from '../services/redisService.mjs';
 
 export default async function authMiddleware(req, res, next) {
