@@ -1,6 +1,7 @@
 // Atlas Weekly Report Service
 // Generates and emails weekly usage reports
 
+import { logger } from '../lib/logger.mjs';
 import nodemailer from 'nodemailer';
 import { supabase } from '../lib/supabase.js';
 
@@ -140,7 +141,7 @@ async function logReportRun(startDate, endDate, storagePath, emailStatus) {
 
     if (error) throw error;
   } catch (error) {
-    console.error('[WeeklyReport] Error saving report:', error.message || error);
+    logger.error('[WeeklyReport] Error saving report:', error.message || error);
   }
 }
 
@@ -188,7 +189,7 @@ export async function generateWeeklyReport(customStartDate = null, customEndDate
         { status: 'failed', error: error.message }
       );
     } catch (logError) {
-      console.error('[WeeklyReport] Error logging failure:', logError.message || logError);
+      logger.error('[WeeklyReport] Error logging failure:', logError.message || logError);
     }
 
     return {

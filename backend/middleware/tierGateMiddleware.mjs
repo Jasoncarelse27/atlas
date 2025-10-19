@@ -1,5 +1,6 @@
 // backend/middleware/tierGateMiddleware.mjs
 // 🔒 SECURITY: Never trust client-sent tier. Always fetch from database.
+import { logger } from '../lib/logger.mjs';
 import { TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 import { supabase } from '../lib/supabase.js';
 
@@ -34,14 +35,14 @@ export default async function tierGateMiddleware(req, res, next) {
         .single();
       
       if (error) {
-        console.error(`[TierGate] Failed to fetch tier for user ${user.id}:`, error.message);
+        logger.error(`[TierGate] Failed to fetch tier for user ${user.id}:`, error.message);
         // Fail closed: Use free tier if we can't verify
         tier = 'free';
       } else {
         tier = profile?.subscription_tier || 'free';
       }
     } catch (dbError) {
-      console.error(`[TierGate] Database error for user ${user.id}:`, dbError.message);
+      logger.error(`[TierGate] Database error for user ${user.id}:`, dbError.message);
       // Fail closed: Use free tier on error
       tier = 'free';
     }
@@ -49,7 +50,7 @@ export default async function tierGateMiddleware(req, res, next) {
     // ✅ Validate tier against known configurations
     const tierConfig = TIER_DEFINITIONS[tier];
     if (!tierConfig) {
-      console.error(`[TierGate] Invalid tier configuration: ${tier}`);
+      logger.error(`[TierGate] Invalid tier configuration: ${tier}`);
       // Fallback to free tier if invalid
       tier = 'free';
       req.tier = tier;
@@ -62,10 +63,10 @@ export default async function tierGateMiddleware(req, res, next) {
       req.tierConfig = tierConfig;
     }
     
-    console.log(`✅ [TierGate] User ${user.id} authenticated with tier: ${tier}, model: ${req.selectedModel}`);
+    logger.debug(`✅ [TierGate] User ${user.id} authenticated with tier: ${tier}, model: ${req.selectedModel}`);
     next();
   } catch (error) {
-    console.error('[TierGate] Unexpected error:', error);
+    logger.error('[TierGate] Unexpected error:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Internal server error',

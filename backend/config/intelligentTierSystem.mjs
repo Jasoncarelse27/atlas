@@ -1,5 +1,6 @@
 // Atlas Enhanced Tier Gate System (backend, ESM, no removals)
 
+import { logger } from '../lib/logger.mjs';
 export const TIER_DEFINITIONS = {
   free:   { dailyMessages: 15, models: ['haiku'],              features: ['basic_chat','habit_logging'],                     budgetCeiling: 20,  priority: 1, monthlyPrice: 0 },
   core:   { dailyMessages: -1, models: ['haiku','sonnet'],     features: ['all_basic','persistent_memory','eq_challenges'],  budgetCeiling: 100, priority: 2, monthlyPrice: 19.99 },
@@ -48,7 +49,7 @@ export function selectOptimalModel(userTier, messageContent = '', requestType = 
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;
   
-  console.log({
+  logger.debug({
     tier: userTier,
     selectedModel,
     messageLength: messageContent.length,

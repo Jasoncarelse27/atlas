@@ -85,13 +85,13 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
     "zod": "^3.22.4",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "@sentry/node": "^10.20.0",
+    "@sentry/react": "^10.20.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@playwright/test": "^1.41.2",
-    "@sentry/node": "^10.20.0",
-    "@sentry/react": "^10.20.0",
     "@sentry/vite-plugin": "^4.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",

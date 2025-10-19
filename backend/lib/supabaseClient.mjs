@@ -1,4 +1,5 @@
 // Supabase client for backend logging
+import { logger } from './logger.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -9,7 +10,7 @@ let supabase = null;
 // Only initialize if we have credentials
 if (supabaseUrl && supabaseServiceKey) {
   supabase = createClient(supabaseUrl, supabaseServiceKey);
-  console.log('✅ Supabase client initialized for logging');
+  logger.debug('✅ Supabase client initialized for logging');
 } else {
   // Create mock client for development
   supabase = {

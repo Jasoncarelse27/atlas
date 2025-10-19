@@ -11,7 +11,11 @@ import { fileURLToPath } from 'node:url';
 import OpenAI from 'openai';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './lib/logger.mjs';
+import { flushSentry, getSentryMiddleware, initSentry } from './lib/sentryService.mjs';
+import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
+import { redisService } from './services/redisService.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,12 +26,18 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 // ✅ Automatic port cleanup to prevent EADDRINUSE errors
 try {
   execSync("lsof -ti:8000 | xargs kill -9", { stdio: "ignore" });
-  console.log("🧹 Port 8000 cleared successfully ✅");
+  logger.debug("🧹 Port 8000 cleared successfully ✅");
 } catch (e) {
-  console.log("🧹 Port 8000 is already clear ✅");
+  logger.debug("🧹 Port 8000 is already clear ✅");
 }
 
 const app = express();
+
+// Initialize Sentry error tracking
+initSentry(app);
+
+// Get Sentry middleware
+const sentryMiddleware = getSentryMiddleware();
 
 // ✅ Detect your machine's local IP for LAN (mobile) access
 const getLocalIPAddress = () => {
@@ -37,7 +47,7 @@ const getLocalIPAddress = () => {
       if (iface.family === "IPv4" && !iface.internal) return iface.address;
     }
   }
-  return "localhost";
+  return process.env.HOST_IP || "localhost";
 };
 
 const LOCAL_IP = getLocalIPAddress();
@@ -53,8 +63,8 @@ try {
   // This prevents authentication bypass and ensures proper database security
   
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('❌ FATAL: Missing Supabase credentials');
-    console.error('   Required: VITE_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY');
+    logger.error('❌ FATAL: Missing Supabase credentials');
+    logger.error('   Required: VITE_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY');
     process.exit(1);
   }
   
@@ -66,9 +76,9 @@ try {
     }
   });
   
-  console.log('✅ Supabase client initialized successfully');
+  logger.debug('✅ Supabase client initialized successfully');
 } catch (error) {
-  console.error('❌ FATAL: Failed to initialize Supabase client:', error.message);
+  logger.error('❌ FATAL: Failed to initialize Supabase client:', error.message);
   process.exit(1);
 }
 
@@ -80,10 +90,10 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
 // Log API key availability
-console.log(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
-console.log(`  OpenAI (Whisper + TTS): ${OPENAI_API_KEY ? '✅ Available' : '❌ Missing'}`);
+logger.debug(`  Claude/Anthropic: ${ANTHROPIC_API_KEY ? '✅ Available' : '❌ Missing'}`);
+logger.debug(`  OpenAI (Whisper + TTS): ${OPENAI_API_KEY ? '✅ Available' : '❌ Missing'}`);
 if (!ANTHROPIC_API_KEY) {
-  console.error('⚠️ [Server] ANTHROPIC_API_KEY is missing - AI features will not work');
+  logger.error('⚠️ [Server] ANTHROPIC_API_KEY is missing - AI features will not work');
 }
 
 // Model mapping by tier (updated to latest non-deprecated models)
@@ -131,7 +141,7 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
   // Get user memory and personalize the prompt
   const userMemory = await getUserMemory(userId);
     if (process.env.NODE_ENV === 'development') {
-      console.log('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
+      logger.debug('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
     }
   let personalizedContent = content;
   
@@ -147,11 +157,11 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
     contextInfo += ' Use this information to provide personalized responses and acknowledge that you remember the user.';
     personalizedContent = `${contextInfo}\n\nUser message: ${content}`;
     if (process.env.NODE_ENV === 'development') {
-      console.log('🧠 [Memory] Personalized content:', personalizedContent.substring(0, 200) + '...');
+      logger.debug('🧠 [Memory] Personalized content:', personalizedContent.substring(0, 200) + '...');
     }
   } else {
     if (process.env.NODE_ENV === 'development') {
-      console.log('🧠 [Memory] No user memory found for userId:', userId);
+      logger.debug('🧠 [Memory] No user memory found for userId:', userId);
     }
   }
 
@@ -178,7 +188,7 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
   // Add conversation history (last 10 messages for context)
   if (conversationHistory && conversationHistory.length > 0) {
     messages.push(...conversationHistory);
-    console.log(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
+    logger.debug(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
   }
   
   // Add current user message
@@ -295,6 +305,10 @@ const verifyJWT = async (req, res, next) => {
 };
 
 // Middleware
+// Sentry request handler must be first
+app.use(sentryMiddleware.requestHandler);
+app.use(sentryMiddleware.tracingHandler);
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -333,7 +347,7 @@ app.use(cors({
     ? process.env.ALLOWED_ORIGINS?.split(',') || ['*']
     : [
         // Vite dev server ports
-        'http://localhost:5173',
+        process.env.FRONTEND_URL || 'http://localhost:5173',
         'http://localhost:5174', 
         'http://localhost:5175',
         'http://localhost:5176',
@@ -368,13 +382,25 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint for Railway
-app.get('/healthz', (req, res) => {
-  res.status(200).json({
+app.get('/healthz', async (req, res) => {
+  const health = {
     status: 'ok',
     uptime: process.uptime(),
     timestamp: Date.now(),
-    ip: LOCAL_IP
-  });
+    ip: LOCAL_IP,
+    redis: false
+  };
+
+  try {
+    health.redis = await redisService.healthCheck();
+    if (req.query.includeStats === 'true') {
+      health.redisStats = redisService.getStats();
+    }
+  } catch (error) {
+    health.redis = false;
+  }
+
+  res.status(200).json(health);
 });
 
 // Health check at /api (for consistency)
@@ -462,7 +488,9 @@ app.get('/api/auth/status', (req, res) => {
 });
 
 // ✅ Clean message endpoint with secure Supabase tier routing + conversation history + image analysis
-app.post('/message', async (req, res) => {
+app.post('/message', 
+  invalidateCacheMiddleware('conversation'),
+  async (req, res) => {
   
   try {
     // 🔒 SECURITY FIX: Never trust client-sent tier from request body
@@ -474,7 +502,7 @@ app.post('/message', async (req, res) => {
       return res.status(400).json({ error: 'Missing message text or attachments' });
     }
 
-    console.log('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId, attachments: attachments?.length });
+    logger.debug('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId, attachments: attachments?.length });
 
     // ✅ Ensure conversation exists before saving messages
     if (conversationId && supabaseUrl !== 'https://your-project.supabase.co') {
@@ -499,17 +527,17 @@ app.post('/message', async (req, res) => {
             }]);
 
           if (createError) {
-            console.error('[Server] Error creating conversation:', createError.message || createError);
+            logger.error('[Server] Error creating conversation:', createError.message || createError);
           } else {
-            console.log('✅ [Backend] Conversation created successfully');
+            logger.debug('✅ [Backend] Conversation created successfully');
           }
         } else if (checkError) {
-          console.error('[Server] Error checking conversation:', checkError.message || checkError);
+          logger.error('[Server] Error checking conversation:', checkError.message || checkError);
         } else {
-          console.log('✅ [Backend] Conversation exists:', conversationId);
+          logger.debug('✅ [Backend] Conversation exists:', conversationId);
         }
       } catch (error) {
-        console.error('[Server] Conversation handling failed:', error.message || error);
+        logger.error('[Server] Conversation handling failed:', error.message || error);
       }
     }
 
@@ -563,7 +591,7 @@ app.post('/message', async (req, res) => {
           const result = await response.json();
           const analysis = result.content[0].text;
 
-          console.log('✅ [Image Analysis] Analysis complete');
+          logger.debug('✅ [Image Analysis] Analysis complete');
 
           res.json({
             success: true,
@@ -650,7 +678,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .eq('role', 'user')
           .gte('created_at', startOfMonth.toISOString());
         if (countErr) {
-          console.error('[Server] Error counting messages:', countErr.message || countErr);
+          logger.error('[Server] Error counting messages:', countErr.message || countErr);
         }
         if ((monthlyCount ?? 0) >= 15) {
           return res.status(429).json({
@@ -737,13 +765,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             }]);
 
           if (convError) {
-            console.error('[Server] Error creating conversation:', convError.message || convError);
+            logger.error('[Server] Error creating conversation:', convError.message || convError);
           } else {
-            console.log('✅ [Backend] Conversation created successfully');
+            logger.debug('✅ [Backend] Conversation created successfully');
           }
         }
       } catch (error) {
-        console.error('[Server] Conversation creation failed:', error.message || error);
+        logger.error('[Server] Conversation creation failed:', error.message || error);
       }
     }
 
@@ -775,7 +803,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         if (insertError) {
           // Continue without storing in case of error
         } else {
-          console.log('✅ [Backend] Saved user message');
+          logger.debug('✅ [Backend] Saved user message');
           storedMessage = stored;
         }
       } catch (error) {
@@ -804,7 +832,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     let conversationHistory = [];
     if (effectiveTier === 'core' || effectiveTier === 'studio') {
       try {
-        console.log(`🧠 [Memory] Fetching conversation history for context...`);
+        logger.debug(`🧠 [Memory] Fetching conversation history for context...`);
         const { data: historyMessages, error: historyError } = await supabase
           .from('messages')
           .select('role, content, created_at')
@@ -813,16 +841,16 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .limit(10); // Last 10 messages for context
         
         if (historyError) {
-          console.error('[Server] Error fetching history:', historyError.message || historyError);
+          logger.error('[Server] Error fetching history:', historyError.message || historyError);
         } else if (historyMessages && historyMessages.length > 0) {
           conversationHistory = historyMessages.map(msg => ({
             role: msg.role,
             content: typeof msg.content === 'object' ? msg.content.text : msg.content
           }));
-          console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
+          logger.debug(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
         }
       } catch (error) {
-        console.error('[Server] Error loading conversation history:', error.message || error);
+        logger.error('[Server] Error loading conversation history:', error.message || error);
       }
     }
 
@@ -846,16 +874,16 @@ app.post('/api/message', verifyJWT, async (req, res) => {
 
       let finalText = '';
       try {
-        console.log(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
+        logger.debug(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
         
         // 🎯 Real AI Model Logic - Use Claude based on tier
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
-          console.log('✅ Claude streaming completed, final text length:', finalText.length);
+          logger.debug('✅ Claude streaming completed, final text length:', finalText.length);
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
-          console.log('✅ Claude fallback completed, final text length:', finalText.length);
+          logger.debug('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
           // Fallback mock streaming for mobile
           const mockChunks = [
@@ -901,13 +929,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             .select()
             .single();
           if (responseError) {
-            console.error('[Server] Error saving assistant message:', responseError.message || responseError);
+            logger.error('[Server] Error saving assistant message:', responseError.message || responseError);
           } else {
-            console.log('✅ [Backend] Saved assistant message');
+            logger.debug('✅ [Backend] Saved assistant message');
             storedResponse = stored;
           }
         } catch (error) {
-          console.error('[Server] Error storing assistant message:', error.message || error);
+          logger.error('[Server] Error storing assistant message:', error.message || error);
         }
       }
       
@@ -942,7 +970,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             });
             
             if (response.ok) {
-              console.log(`✅ [Claude API] Success on attempt ${attempt}`);
+              logger.debug(`✅ [Claude API] Success on attempt ${attempt}`);
               break;
             } else {
               lastError = await response.text().catch(() => 'Claude API error');
@@ -988,7 +1016,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             });
             
             if (response.ok) {
-              console.log(`✅ [Claude Fallback] Success on attempt ${attempt}`);
+              logger.debug(`✅ [Claude Fallback] Success on attempt ${attempt}`);
               break;
             } else {
               lastError = await response.text().catch(() => 'Claude API error');
@@ -1014,7 +1042,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         }
       }
     } catch (oneShotErr) {
-      console.error('[Server] One-shot prompt error:', oneShotErr.message || oneShotErr);
+      logger.error('[Server] One-shot prompt error:', oneShotErr.message || oneShotErr);
     }
 
     const aiResponse = {
@@ -1038,13 +1066,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           .select()
           .single();
         if (responseError) {
-          console.error('[Server] Error saving assistant response:', responseError.message || responseError);
+          logger.error('[Server] Error saving assistant response:', responseError.message || responseError);
         } else {
-          console.log('✅ [Backend] Saved assistant message');
+          logger.debug('✅ [Backend] Saved assistant message');
           storedResponse = stored;
         }
       } catch (error) {
-        console.error('[Server] Error storing assistant response:', error.message || error);
+        logger.error('[Server] Error storing assistant response:', error.message || error);
       }
     }
 
@@ -1100,7 +1128,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
       const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
       claudeMediaType = contentType.startsWith('image/') ? contentType : 'image/jpeg';
       
-      console.log('✅ [Image Analysis] Image downloaded and converted to base64');
+      logger.debug('✅ [Image Analysis] Image downloaded and converted to base64');
     } catch (downloadError) {
       clearTimeout(timeoutId);
       return res.status(400).json({ 
@@ -1148,7 +1176,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
         });
 
         if (response.ok) {
-          console.log(`✅ [Image Analysis] Claude Vision API call successful on attempt ${attempt}`);
+          logger.debug(`✅ [Image Analysis] Claude Vision API call successful on attempt ${attempt}`);
           break; // Success, exit retry loop
         } else {
           lastError = await response.text().catch(() => 'Claude Vision API error');
@@ -1177,7 +1205,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     const result = await response.json();
     const analysis = result.content[0].text;
 
-    console.log('✅ [Image Analysis] Analysis complete');
+    logger.debug('✅ [Image Analysis] Analysis complete');
 
     // ✅ NEW: Save user image message to conversation history
     const conversationId = req.body.conversationId || null;
@@ -1199,9 +1227,9 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
           });
 
         if (userMsgError) {
-          console.error('[Image Analysis] Failed to save user message:', userMsgError.message);
+          logger.error('[Image Analysis] Failed to save user message:', userMsgError.message);
         } else {
-          console.log('✅ [Image Analysis] Saved user image message');
+          logger.debug('✅ [Image Analysis] Saved user image message');
         }
 
         // Save AI analysis response
@@ -1216,12 +1244,12 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
           });
 
         if (aiMsgError) {
-          console.error('[Image Analysis] Failed to save AI response:', aiMsgError.message);
+          logger.error('[Image Analysis] Failed to save AI response:', aiMsgError.message);
         } else {
-          console.log('✅ [Image Analysis] Saved AI response');
+          logger.debug('✅ [Image Analysis] Saved AI response');
         }
       } catch (saveError) {
-        console.error('[Image Analysis] Error saving messages:', saveError.message);
+        logger.error('[Image Analysis] Error saving messages:', saveError.message);
         // Continue - don't fail the request if save fails
       }
     }
@@ -1303,7 +1331,7 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
       }
       
       audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
-      console.log(`✅ [Transcribe] Audio downloaded: ${audioBuffer.length} bytes`);
+      logger.debug(`✅ [Transcribe] Audio downloaded: ${audioBuffer.length} bytes`);
     } catch (downloadError) {
       return res.status(400).json({ 
         error: 'Failed to download audio file',
@@ -1326,7 +1354,7 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
         response_format: 'verbose_json'
       });
       
-      console.log(`✅ [Transcribe] Transcription complete: "${transcription.text.slice(0, 50)}..."`);
+      logger.debug(`✅ [Transcribe] Transcription complete: "${transcription.text.slice(0, 50)}..."`);
       
       // Clean up temp file
       await unlink(tmpFile).catch(() => {});
@@ -1348,7 +1376,7 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
           }).eq('id', userId);
           
         } catch (dbError) {
-          console.error('[Server] Error updating audio usage stats:', dbError.message || dbError);
+          logger.error('[Server] Error updating audio usage stats:', dbError.message || dbError);
         }
       }
       
@@ -1427,7 +1455,7 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
       // Convert stream to buffer
       const audioBuffer = Buffer.from(await mp3.arrayBuffer());
       
-      console.log(`✅ [Synthesize] Audio generated: ${audioBuffer.length} bytes`);
+      logger.debug(`✅ [Synthesize] Audio generated: ${audioBuffer.length} bytes`);
       
       // Return audio as base64 (for easy frontend handling)
       const audioBase64 = audioBuffer.toString('base64');
@@ -1457,7 +1485,11 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
 });
 
 // Get conversation messages
-app.get('/api/conversations/:conversationId/messages', verifyJWT, async (req, res) => {
+app.get('/api/conversations/:conversationId/messages', 
+  verifyJWT, 
+  cacheTierMiddleware,
+  apiCacheMiddleware({ ttlCategory: 'messages', varyByTier: true }),
+  async (req, res) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user.id;
@@ -1543,7 +1575,7 @@ app.post('/api/mailerlite/event', async (req, res) => {
 
     const result = await response.json();
     
-    console.log(`✅ MailerLite event ${event} triggered successfully for ${email}`);
+    logger.debug(`✅ MailerLite event ${event} triggered successfully for ${email}`);
     
     res.json({ 
       success: true, 
@@ -1621,7 +1653,7 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
     }
 
     const result = await createResponse.json();
-    console.log(`✅ Subscriber ${email} synced successfully`);
+    logger.debug(`✅ Subscriber ${email} synced successfully`);
 
     // Add to appropriate group
     if (targetGroup) {
@@ -1634,9 +1666,9 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
           },
           body: JSON.stringify({ email }),
         });
-        console.log(`✅ Subscriber ${email} added to group ${targetGroup}`);
+        logger.debug(`✅ Subscriber ${email} added to group ${targetGroup}`);
       } catch (groupError) {
-        console.error('[Server] Error adding subscriber to group:', groupError.message || groupError);
+        logger.error('[Server] Error adding subscriber to group:', groupError.message || groupError);
       }
     }
 
@@ -1699,7 +1731,7 @@ app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
         return res.status(500).json({ error: "Failed to create user profile", details: createError });
       }
 
-      console.log(`✅ Created fallback profile for user: ${userId}`);
+      logger.debug(`✅ Created fallback profile for user: ${userId}`);
       return res
         .set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
         .set('Pragma', 'no-cache')
@@ -1765,7 +1797,7 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
       return res.status(500).json({ error: "Failed to create user profile", details: createError });
     }
 
-    console.log(`✅ Created user profile for user: ${user_id}`);
+    logger.debug(`✅ Created user profile for user: ${user_id}`);
     return res
       .set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
       .set('Pragma', 'no-cache')
@@ -1899,8 +1931,45 @@ app.get('*', (req, res) => {
   }
 });
 
+// Sentry error handler must be after all other middleware and routes
+app.use(sentryMiddleware.errorHandler);
+
+// Global error handler (after Sentry)
+app.use((err, req, res, next) => {
+  // Log the error
+  logger.error('Unhandled error:', {
+    error: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    userId: req.user?.id
+  });
+
+  // Send error response
+  const statusCode = err.statusCode || err.status || 500;
+  res.status(statusCode).json({
+    error: err.message || 'Internal server error',
+    code: err.code || 'INTERNAL_ERROR',
+    // Only send stack trace in development
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
 // Graceful shutdown
-const gracefulShutdown = (signal) => {
+const gracefulShutdown = async (signal) => {
+  logger.info(`Received ${signal}, shutting down gracefully...`);
+  
+  try {
+    // Flush Sentry before exit
+    await flushSentry();
+    
+    // Close Redis connection
+    await redisService.shutdown();
+    logger.info('Redis connection closed');
+  } catch (error) {
+    logger.error('Error during shutdown:', error);
+  }
+  
   process.exit(0);
 };
 
@@ -1910,5 +1979,5 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // Start server - bind to all interfaces for mobile access
 // ✅ Final "listen" section (replaces old app.listen)
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Atlas backend running on:`);
+  logger.debug(`✅ Atlas backend running on:`);
 });

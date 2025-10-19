@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { PROMPT_CACHE_CONFIG } from '../config/intelligentTierSystem.mjs';
 
@@ -79,7 +80,7 @@ export const promptCacheService = {
         p_cost_savings: costSavings 
       });
     } catch (error) {
-      console.error('[PromptCache] Error tracking cache hit:', error.message || error);
+      logger.error('[PromptCache] Error tracking cache hit:', error.message || error);
     }
   }
 };

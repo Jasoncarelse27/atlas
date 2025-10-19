@@ -1,8 +1,33 @@
 # Redis Setup Guide for Atlas
 
-## 🚀 **Redis Caching Implementation**
+## ✅ Production-Grade Redis Caching Implementation
 
-This guide will help you set up Redis caching for Atlas, providing **40% fewer database queries** and significant performance improvements.
+Atlas now includes a comprehensive Redis caching layer that provides:
+- **40% reduction in database queries**
+- **Tier-based TTL configurations**
+- **Automatic cache invalidation**
+- **Revenue protection through cache isolation**
+- **Graceful fallback when Redis is unavailable**
+
+## 🏗️ **Architecture Overview**
+
+### Backend Redis Service (`backend/services/redisService.mjs`)
+- Production-grade Redis client with connection pooling
+- Automatic reconnection with exponential backoff
+- Tier-based TTL configurations
+- Cache key namespacing to prevent collisions
+- Performance metrics tracking
+
+### Cache Middleware (`backend/middleware/cacheMiddleware.mjs`)
+- Automatic tier caching after authentication
+- API response caching with tier variation
+- Cache invalidation on mutations
+- Cache warming for critical data
+
+### Frontend Integration
+- Browser-compatible caching with localStorage fallback
+- Seamless integration with conversation service
+- Automatic cache synchronization
 
 ## 📋 **Prerequisites**
 

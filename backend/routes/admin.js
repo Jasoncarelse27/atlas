@@ -1,3 +1,4 @@
+const { logger } = require('../lib/logger.mjs');
 import express from 'express';
 import { supabase } from '../config/supabaseClient.mjs';
 import { requireAdmin } from '../middleware/adminAuth.mjs';
@@ -76,7 +77,7 @@ router.get("/verify-subscription", async (req, res) => {
   try {
     // Query Supabase table where you sync subscriptions
     const { data, error } = await supabase
-      .from("paddle_subscriptions")
+      .from("fastspring_subscriptions")
       .select("tier,status")
       .eq("user_id", userId)
       .maybeSingle();
@@ -111,7 +112,7 @@ router.get("/usage", async (req, res) => {
       .single();
 
     if (profileError) {
-      console.error('[Admin] Error fetching profile:', profileError.message || profileError);
+      logger.error('[Admin] Error fetching profile:', profileError.message || profileError);
     }
 
     const tier = profile?.subscription_tier || 'free';
@@ -126,7 +127,7 @@ router.get("/usage", async (req, res) => {
       .maybeSingle();
 
     if (usageError) {
-      console.error('[Admin] Error fetching usage data:', usageError.message || usageError);
+      logger.error('[Admin] Error fetching usage data:', usageError.message || usageError);
     }
 
     const dailyMessagesUsed = usageData?.count || 0;

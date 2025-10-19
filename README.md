@@ -239,7 +239,7 @@ Ensure you copy the following keys into Railway → Staging → Variables:
 ### Staging Configuration
 - **Environment**: `NODE_ENV=staging`
 - **API URL**: `https://atlas-staging.up.railway.app`
-- **Paddle**: Uses sandbox environment
+- **FastSpring**: Uses test environment
 - **Database**: Same Supabase project as production
 - **Test User**: Automatically created via post-deploy hook
 

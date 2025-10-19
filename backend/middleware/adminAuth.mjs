@@ -1,6 +1,7 @@
 // Atlas Admin Authentication Middleware
 // Ensures only allowlisted admin emails can access admin endpoints
 
+import { logger } from '../lib/logger.mjs';
 import { ADMIN_EMAIL_ALLOWLIST } from '../config/adminConfig.mjs';
 
 /**
@@ -31,7 +32,7 @@ export function requireAdmin(req, res, next) {
       });
     }
 
-    console.log(`✅ Admin access granted for: ${userEmail}`);
+    logger.debug(`✅ Admin access granted for: ${userEmail}`);
     req.isAdmin = true;
     next();
     

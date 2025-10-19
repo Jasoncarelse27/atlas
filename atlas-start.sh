@@ -57,7 +57,7 @@ echo -e "\n${BLUE}🧠  Starting Backend (API) on port 8000...${RESET}"
 if [ -f "backend/server.mjs" ]; then
   mkdir -p logs
   cd backend
-  npm run dev > ../logs/backend.log 2>&1 &
+  node server.mjs > ../logs/backend.log 2>&1 &
   BACKEND_PID=$!
   cd ..
   echo -e "${GREEN}✅  Backend started (PID: $BACKEND_PID)${RESET}"

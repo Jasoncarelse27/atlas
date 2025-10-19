@@ -2,9 +2,9 @@
 // Ensures all tier caches are cleared simultaneously when a user's tier changes
 // This prevents stale cache exploits where users access paid features after downgrade
 
+import { logger } from '../lib/logger';
 import { fastspringService } from './fastspringService';
 import { subscriptionApi } from './subscriptionApi';
-import { logger } from '../lib/logger';
 
 type Tier = 'free' | 'core' | 'studio';
 
@@ -30,7 +30,6 @@ class CacheInvalidationService {
       await Promise.all([
         // Clear service-level caches
         this.clearFastSpringCache(userId),
-        this.clearPaddleCache(userId),
         this.clearSubscriptionApiCache(userId),
         
         // Clear browser storage
@@ -111,12 +110,6 @@ class CacheInvalidationService {
     }
   }
 
-  /**
-   * Clear Paddle service cache
-   */
-  private async clearPaddleCache(userId: string): Promise<void> {
-    // Paddle service removed - only FastSpring is used
-  }
 
   /**
    * Clear subscription API cache

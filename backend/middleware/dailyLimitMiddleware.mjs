@@ -1,4 +1,5 @@
 // backend/middleware/dailyLimitMiddleware.mjs
+import { logger } from '../lib/logger.mjs';
 import { TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 
 // In-memory fallback for development when Supabase is not available
@@ -82,7 +83,7 @@ export default async function dailyLimitMiddleware(req, res, next) {
         });
 
       if (upsertErr) {
-        console.log('Daily limit upsert error:', upsertErr.message);
+        logger.debug('Daily limit upsert error:', upsertErr.message);
       }
 
       req.tier = tier;

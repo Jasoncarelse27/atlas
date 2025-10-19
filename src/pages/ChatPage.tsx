@@ -11,9 +11,9 @@ import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 import type { Message } from '../types/chat';
 // Removed usePersistentMessages import - using direct message management instead
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { useSubscription } from '../hooks/useSubscription';
-import ErrorBoundary from '../lib/errorBoundary';
 import { logger } from '../lib/logger';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';

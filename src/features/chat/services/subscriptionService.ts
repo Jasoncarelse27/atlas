@@ -1,7 +1,7 @@
+import { logger } from '../../../lib/logger';
 import { supabase } from '../../../lib/supabaseClient';
 import { subscriptionApi } from '../../../services/subscriptionApi';
 import { createChatError } from '../lib/errorHandler';
-import { logger } from '../../../lib/logger';
 // import type { UserTier } from '../hooks/useSubscriptionAccess';
 type UserTier = 'free' | 'core' | 'studio';
 
@@ -20,7 +20,7 @@ export interface SubscriptionProfile {
   trial_ends_at: string | null;
   subscription_status: 'active' | 'inactive' | 'cancelled' | 'trialing';
   subscription_id: string | null;
-  paddle_subscription_id: string | null;
+  fastspring_subscription_id: string | null;
   usage_stats: UsageStats;
   created_at: string;
   updated_at: string;
@@ -152,9 +152,7 @@ class SubscriptionService {
       const { error } = await supabase
         .from('profiles')
         .update({ updated_at: new Date().toISOString() })
-        .eq('id', userId)
-        .select('updated_at')
-        .single();
+        .eq('id', userId);
 
       if (error) throw error;
       return newStats;
@@ -311,12 +309,12 @@ class SubscriptionService {
         throw new Error('No active subscription found');
       }
 
-      // Cancel with Paddle
-      const { error: paddleError } = await supabase.functions.invoke('cancel-paddle-subscription', {
+      // Cancel with FastSpring
+      const { error: fastspringError } = await supabase.functions.invoke('cancel-fastspring-subscription', {
         body: { subscriptionId: profile.subscription_id },
       });
 
-      if (paddleError) throw paddleError;
+      if (fastspringError) throw fastspringError;
 
       // Update local profile
       const { error: updateError } = await supabase
@@ -349,12 +347,12 @@ class SubscriptionService {
         throw new Error('No subscription found to reactivate');
       }
 
-      // Reactivate with Paddle
-      const { error: paddleError } = await supabase.functions.invoke('reactivate-paddle-subscription', {
+      // Reactivate with FastSpring
+      const { error: fastspringError } = await supabase.functions.invoke('reactivate-fastspring-subscription', {
         body: { subscriptionId: profile.subscription_id },
       });
 
-      if (paddleError) throw paddleError;
+      if (fastspringError) throw fastspringError;
 
       // Update local profile
       const { error: updateError } = await supabase

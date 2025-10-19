@@ -44,7 +44,7 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
     setIsLoading(true);
     
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const baseUrl = import.meta.env.VITE_API_URL || '';  // Use relative URLs
       
       // Get Supabase session token for authentication
       const { data: { session } } = await supabase.auth.getSession();

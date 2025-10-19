@@ -27,7 +27,7 @@ export interface Profile {
   trial_ends_at?: string;
   first_payment_date?: string;
   last_reset_date: string;
-  paddle_customer_id?: string;
+  fastspring_customer_id?: string;
 }
 
 /**
@@ -39,57 +39,8 @@ export interface FeatureAccess {
   restrictionMessage?: string;
 }
 
-/**
- * Paddle product configuration
- */
-export interface PaddleProduct {
-  productId?: string;
-  planId?: string;
-  priceId: string;
-  price: number;
-}
-
-/**
- * Paddle configuration
- */
-export interface PaddleConfig {
-  environment: 'sandbox' | 'live';
-  vendorId?: string;
-  apiKey?: string;
-  publicKey?: string;
-  webhookSecret?: string;
-  products: {
-    core: PaddleProduct;
-    studio: PaddleProduct;
-  };
-  cacheTimeout: number;
-}
-
-/**
- * Webhook event types from Paddle
- */
-export type PaddleEventType = 
-  | 'transaction.completed'
-  | 'subscription.canceled'
-  | 'subscription.updated'
-  | 'subscription.paused'
-  | 'subscription.resumed';
-
-/**
- * Paddle webhook event
- */
-export interface PaddleWebhookEvent {
-  event_type: PaddleEventType;
-  data: {
-    id: string;
-    customer_id: string;
-    items?: Array<{
-      price: {
-        id: string;
-      };
-    }>;
-  };
-}
+// FastSpring types are already defined in fastspringService.ts
+// No need to duplicate them here
 
 /**
  * Feature types for upgrade modals
@@ -190,7 +141,7 @@ export interface HealthCheck {
   timestamp: string;
   services: {
     supabase: boolean;
-    paddle?: boolean;
+    fastspring?: boolean;
     ai?: boolean;
   };
   error?: string;

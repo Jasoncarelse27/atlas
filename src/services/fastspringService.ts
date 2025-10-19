@@ -206,7 +206,7 @@ class FastSpringService {
     if (isMockMode) {
       logger.warn('⏳ FastSpring credentials pending 2FA - returning mock checkout URL');
       // TODO(FastSpringAuth): Replace with real checkout flow after 2FA verification
-      return `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
+      return `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
     }
 
     const product = FASTSPRING_CONFIG.products[tier];

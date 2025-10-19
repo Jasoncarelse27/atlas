@@ -1,4 +1,5 @@
 // backend/services/messageService.js
+const { logger } = require('../lib/logger.mjs');
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -177,7 +178,7 @@ async function getUserTier(userId) {
     }
 
     const tier = data?.subscription_tier || "free";
-    console.log(`✅ [MessageService] User ${userId} tier: ${tier}`);
+    logger.debug(`✅ [MessageService] User ${userId} tier: ${tier}`);
     return tier;
   } catch (err) {
     return "free"; // Always default to free on exception
@@ -191,7 +192,7 @@ async function getUserTier(userId) {
 export async function processMessage(userId, text, conversationId = null) {
   // ✅ CRITICAL: Validate userId before processing
   if (!userId || userId === 'anonymous') {
-    console.error('[MessageService] Invalid userId:', userId);
+    logger.error('[MessageService] Invalid userId:', userId);
     return {
       success: false,
       error: 'AUTHENTICATION_REQUIRED',
@@ -199,7 +200,7 @@ export async function processMessage(userId, text, conversationId = null) {
     };
   }
   
-  console.log("🧠 [MessageService] Processing:", { userId, text, conversationId });
+  logger.debug("🧠 [MessageService] Processing:", { userId, text, conversationId });
 
   const tier = await getUserTier(userId);
   
@@ -215,7 +216,7 @@ export async function processMessage(userId, text, conversationId = null) {
       
       // 🔒 SECURITY FIX: Fail-closed if we can't verify limits
       if (profileError) {
-        console.error('[MessageService] ⚠️ Failed to fetch usage stats:', profileError.message);
+        logger.error('[MessageService] ⚠️ Failed to fetch usage stats:', profileError.message);
         return {
           success: false,
           error: 'USAGE_VERIFICATION_FAILED',
@@ -227,7 +228,7 @@ export async function processMessage(userId, text, conversationId = null) {
       const messagesThisMonth = profile?.usage_stats?.messages_this_month || 0;
       const monthlyLimit = 15;
       
-      console.log(`[MessageService] Free tier user ${userId}: ${messagesThisMonth}/${monthlyLimit} messages used`);
+      logger.debug(`[MessageService] Free tier user ${userId}: ${messagesThisMonth}/${monthlyLimit} messages used`);
       
       if (messagesThisMonth >= monthlyLimit) {
         return {
@@ -241,7 +242,7 @@ export async function processMessage(userId, text, conversationId = null) {
       }
     } catch (error) {
       // 🔒 SECURITY FIX: Fail-closed on exception (block access, don't continue)
-      console.error('[MessageService] ⚠️ Exception checking usage limits:', error.message || error);
+      logger.error('[MessageService] ⚠️ Exception checking usage limits:', error.message || error);
       return {
         success: false,
         error: 'USAGE_VERIFICATION_FAILED',
@@ -267,10 +268,10 @@ export async function processMessage(userId, text, conversationId = null) {
       
       if (!error && conv) {
         convId = conv.id;
-        console.log("✅ [MessageService] Created conversation:", convId);
+        logger.debug("✅ [MessageService] Created conversation:", convId);
       }
     } catch (err) {
-      console.error('[MessageService] Error creating conversation:', err.message || err);
+      logger.error('[MessageService] Error creating conversation:', err.message || err);
     }
   } else if (convId && userId) {
     // ✅ Update generic titles with tier-based logic
@@ -288,10 +289,10 @@ export async function processMessage(userId, text, conversationId = null) {
           .from("conversations")
           .update({ title: newTitle })
           .eq("id", convId);
-        console.log(`✅ [MessageService] Updated conversation title: "${newTitle}"`);
+        logger.debug(`✅ [MessageService] Updated conversation title: "${newTitle}"`);
       }
     } catch (err) {
-      console.error('[MessageService] Error updating conversation title:', err.message || err);
+      logger.error('[MessageService] Error updating conversation title:', err.message || err);
     }
   }
 
@@ -301,7 +302,7 @@ export async function processMessage(userId, text, conversationId = null) {
       try {
         // Extract memory from the message
         const extractedMemory = extractMemoryFromMessage(text);
-        console.log('🧠 [MessageService] Extracted memory:', JSON.stringify(extractedMemory));
+        logger.debug('🧠 [MessageService] Extracted memory:', JSON.stringify(extractedMemory));
         
         if (extractedMemory.name || extractedMemory.context) {
           // Get current memory
@@ -325,14 +326,14 @@ export async function processMessage(userId, text, conversationId = null) {
               .eq('id', userId);
             
             if (updateError) {
-              console.error('[MessageService] Error updating memory:', updateError.message || updateError);
+              logger.error('[MessageService] Error updating memory:', updateError.message || updateError);
             } else {
-              console.log('✅ [MessageService] Memory updated successfully:', JSON.stringify(mergedMemory));
+              logger.debug('✅ [MessageService] Memory updated successfully:', JSON.stringify(mergedMemory));
             }
           }
         }
       } catch (memoryError) {
-        console.error('[MessageService] Memory extraction failed:', memoryError.message || memoryError);
+        logger.error('[MessageService] Memory extraction failed:', memoryError.message || memoryError);
       }
     }
 
@@ -348,18 +349,18 @@ export async function processMessage(userId, text, conversationId = null) {
         
         if (!error && profile?.user_context) {
           const userMemory = profile.user_context;
-          console.log('🧠 [MessageService] Retrieved user memory:', JSON.stringify(userMemory));
+          logger.debug('🧠 [MessageService] Retrieved user memory:', JSON.stringify(userMemory));
           
           // Add memory context if available
           if (userMemory.name) {
             personalizedContent = `[User Context: Name is ${userMemory.name}${userMemory.context ? `, Context: ${userMemory.context}` : ''}]\n\nUser message: ${text}`;
-            console.log('🧠 [MessageService] Personalized content:', personalizedContent.substring(0, 200) + '...');
+            logger.debug('🧠 [MessageService] Personalized content:', personalizedContent.substring(0, 200) + '...');
           } else {
-            console.log('🧠 [MessageService] No user memory found for userId:', userId);
+            logger.debug('🧠 [MessageService] No user memory found for userId:', userId);
           }
         }
       } catch (error) {
-        console.warn('🧠 [MessageService] Failed to fetch user memory:', error);
+        logger.warn('🧠 [MessageService] Failed to fetch user memory:', error);
       }
     }
 
@@ -382,7 +383,7 @@ Core principles:
     let conversationHistory = [];
     if (tier === 'core' || tier === 'studio') {
       try {
-        console.log(`🧠 [Memory] Fetching conversation history for context...`);
+        logger.debug(`🧠 [Memory] Fetching conversation history for context...`);
         const { data: historyMessages, error: historyError } = await getSupabase()
           .from('messages')
           .select('role, content, created_at')
@@ -391,16 +392,16 @@ Core principles:
           .limit(10); // Last 10 messages for context
         
         if (historyError) {
-          console.error('[MessageService] Error fetching conversation history:', historyError.message || historyError);
+          logger.error('[MessageService] Error fetching conversation history:', historyError.message || historyError);
         } else if (historyMessages && historyMessages.length > 0) {
           conversationHistory = historyMessages.map(msg => ({
             role: msg.role,
             content: typeof msg.content === 'object' ? msg.content.text : msg.content
           }));
-          console.log(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
+          logger.debug(`🧠 [Memory] Loaded ${conversationHistory.length} messages for context`);
         }
       } catch (error) {
-        console.error('[MessageService] Error loading conversation history:', error.message || error);
+        logger.error('[MessageService] Error loading conversation history:', error.message || error);
       }
     }
 
@@ -410,7 +411,7 @@ Core principles:
     // Add conversation history (last 10 messages for context)
     if (conversationHistory && conversationHistory.length > 0) {
       messages.push(...conversationHistory);
-      console.log(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
+      logger.debug(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
     }
     
     // Add current user message
@@ -428,7 +429,7 @@ Core principles:
           messages: messages,
         });
         
-        console.log(`✅ [MessageService] Claude API call successful on attempt ${attempt}`);
+        logger.debug(`✅ [MessageService] Claude API call successful on attempt ${attempt}`);
         break; // Success, exit retry loop
         
       } catch (error) {
@@ -445,7 +446,7 @@ Core principles:
     }
 
     const reply = completion.content[0]?.text || "(no response)";
-    console.log("🧠 [MessageService] Claude reply:", { tier, model, reply });
+    logger.debug("🧠 [MessageService] Claude reply:", { tier, model, reply });
 
     // ✅ Save both messages to Supabase (if conversation exists)
     if (convId && userId) {
@@ -459,9 +460,9 @@ Core principles:
         });
         
         if (userError) {
-          console.error('[MessageService] Error saving user message:', userError.message || userError);
+          logger.error('[MessageService] Error saving user message:', userError.message || userError);
         } else {
-          console.log("✅ [MessageService] Saved user message");
+          logger.debug("✅ [MessageService] Saved user message");
         }
 
         // Insert assistant message
@@ -473,16 +474,16 @@ Core principles:
         });
         
         if (assistantError) {
-          console.error('[MessageService] Error saving assistant message:', assistantError.message || assistantError);
+          logger.error('[MessageService] Error saving assistant message:', assistantError.message || assistantError);
         } else {
-          console.log("✅ [MessageService] Saved assistant message");
+          logger.debug("✅ [MessageService] Saved assistant message");
         }
 
         if (!userError && !assistantError) {
-          console.log("✅ [MessageService] Saved both messages to conversation:", convId);
+          logger.debug("✅ [MessageService] Saved both messages to conversation:", convId);
         }
       } catch (err) {
-        console.error('[MessageService] Error saving messages to database:', err.message || err);
+        logger.error('[MessageService] Error saving messages to database:', err.message || err);
       }
     }
 
@@ -524,12 +525,12 @@ Core principles:
           .select();
           
         if (updateError) {
-          console.error('[MessageService] Error updating usage stats:', updateError.message || updateError);
+          logger.error('[MessageService] Error updating usage stats:', updateError.message || updateError);
         } else {
-          console.log('✅ [MessageService] Usage stats updated for Free tier user');
+          logger.debug('✅ [MessageService] Usage stats updated for Free tier user');
         }
       } catch (error) {
-        console.error('[MessageService] Error in usage stats update:', error.message || error);
+        logger.error('[MessageService] Error in usage stats update:', error.message || error);
       }
     }
 

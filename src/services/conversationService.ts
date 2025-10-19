@@ -1,6 +1,7 @@
 import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
+import { redisCacheService } from './redisCacheService';
 
 export interface Conversation {
   id: string;
@@ -35,9 +36,28 @@ class ConversationService {
   async getConversations(userId: string, forceRefresh = false): Promise<Conversation[]> {
     const now = Date.now();
     
-    // Use cache if recent and not forcing refresh
+    // Get user tier for cache configuration
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single();
+    const tier = profile?.subscription_tier || 'free';
+    
+    // Try Redis cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cachedConversations = await redisCacheService.getCachedConversations(userId, tier);
+      if (cachedConversations) {
+        logger.debug('[ConversationService] ✅ Using Redis cached conversations');
+        this.cache = cachedConversations;
+        this.lastFetch = now;
+        return cachedConversations;
+      }
+    }
+    
+    // Use in-memory cache if recent and not forcing refresh
     if (!forceRefresh && this.cache.length > 0 && (now - this.lastFetch) < this.CACHE_TTL) {
-      logger.debug('[ConversationService] ✅ Using cached conversations');
+      logger.debug('[ConversationService] ✅ Using in-memory cached conversations');
       return this.cache;
     }
 
@@ -66,6 +86,10 @@ class ConversationService {
       }));
 
       this.lastFetch = now;
+      
+      // Cache in Redis for future requests
+      await redisCacheService.cacheConversations(userId, this.cache, tier);
+      
       logger.debug(`[ConversationService] ✅ Loaded ${this.cache.length} conversations`);
       
       return this.cache;

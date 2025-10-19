@@ -10,9 +10,9 @@ echo "⏱️  Estimated time: 5-10 minutes"
 echo ""
 
 # Check if we're in the right directory
-if [ ! -f "supabase/migrations/20250110_database_partitioning.sql" ]; then
+if [ ! -f "supabase/migrations/20251019_partition_messages_usage_logs.sql" ]; then
     echo "❌ Error: Database partitioning migration file not found!"
-    echo "   Expected: supabase/migrations/20250110_database_partitioning.sql"
+    echo "   Expected: supabase/migrations/20251019_partition_messages_usage_logs.sql"
     exit 1
 fi
 
@@ -28,9 +28,10 @@ echo ""
 
 # Step 1: Backup current database (safety measure)
 echo "📦 Step 1: Creating database backup..."
-supabase db dump --data-only --file="backup_before_partitioning_$(date +%Y%m%d_%H%M%S).sql"
+BACKUP_FILE="backup_before_partitioning_$(date +%Y%m%d_%H%M%S).sql"
+supabase db dump --data-only --file="$BACKUP_FILE"
 if [ $? -eq 0 ]; then
-    echo "✅ Database backup created successfully"
+    echo "✅ Database backup created: $BACKUP_FILE"
 else
     echo "⚠️  Warning: Database backup failed, but continuing..."
 fi
@@ -51,104 +52,49 @@ echo ""
 # Step 3: Verify partitioning was successful
 echo "🔍 Step 3: Verifying partitioning implementation..."
 
-# Check if partitioned tables exist
-echo "   Checking partitioned tables..."
-supabase db reset --linked --debug 2>/dev/null || true
-
-# Run verification queries
-echo "   Verifying partition creation..."
-supabase db shell --command "
+# Create verification script
+cat > verify_partitioning.sql << 'EOF'
+-- Check if partitioned tables exist
 SELECT 
-    schemaname, 
-    tablename,
-    CASE 
-        WHEN tablename LIKE 'messages_%' THEN 'Messages Partition'
-        WHEN tablename LIKE 'usage_logs_%' THEN 'Usage Logs Partition'
-        ELSE 'Other'
-    END as partition_type
-FROM pg_tables 
-WHERE tablename LIKE 'messages_%' OR tablename LIKE 'usage_logs_%'
-ORDER BY tablename;
-"
-
-echo ""
-echo "   Checking partition sizes..."
-supabase db shell --command "SELECT * FROM get_partition_sizes();"
-
-echo ""
-echo "   Verifying data migration..."
-supabase db shell --command "
-SELECT 
-    'messages' as table_name, 
-    COUNT(*) as original_count 
-FROM messages
+    'Messages partitions' as table_type,
+    COUNT(*) as partition_count
+FROM pg_tables
+WHERE tablename LIKE 'messages_%'
+  AND tablename NOT IN ('messages', 'messages_old')
 UNION ALL
 SELECT 
-    'messages_partitioned' as table_name, 
-    COUNT(*) as partitioned_count 
-FROM messages_partitioned;
-"
+    'Usage logs partitions' as table_type,
+    COUNT(*) as partition_count
+FROM pg_tables
+WHERE tablename LIKE 'usage_logs_%'
+  AND tablename NOT IN ('usage_logs', 'usage_logs_old');
 
-echo ""
-echo "   Checking RLS policies..."
-supabase db shell --command "
+-- Check table sizes
 SELECT 
-    tablename, 
-    policyname, 
-    permissive 
-FROM pg_policies 
-WHERE tablename IN ('messages_partitioned', 'usage_logs_partitioned')
-ORDER BY tablename, policyname;
-"
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables
+WHERE tablename IN ('messages', 'usage_logs', 'messages_old', 'usage_logs_old')
+ORDER BY tablename;
+EOF
+
+echo "   Running verification queries..."
+supabase db query --file verify_partitioning.sql
+
+# Cleanup
+rm -f verify_partitioning.sql
 
 echo ""
-echo "✅ Step 3: Partitioning verification completed"
-echo ""
-
-# Step 4: Performance test
-echo "⚡ Step 4: Running performance test..."
-
-# Test query performance on partitioned table
-echo "   Testing query performance..."
-supabase db shell --command "
-EXPLAIN (ANALYZE, BUFFERS) 
-SELECT COUNT(*) 
-FROM messages_partitioned 
-WHERE created_at >= NOW() - INTERVAL '30 days';
-"
-
-echo ""
-echo "✅ Step 4: Performance test completed"
-echo ""
-
-# Step 5: Success summary
-echo "🎉 DATABASE PARTITIONING DEPLOYMENT SUCCESSFUL!"
-echo ""
-echo "📊 What was implemented:"
-echo "   ✅ Monthly partitions for messages table (36 months: 2024-2027)"
-echo "   ✅ Monthly partitions for usage_logs table (36 months: 2024-2027)"
-echo "   ✅ Optimized indexes for performance"
-echo "   ✅ RLS policies maintained"
-echo "   ✅ Data migration completed"
-echo "   ✅ Automatic partition creation enabled"
-echo "   ✅ Performance monitoring functions created"
-echo ""
-echo "🚀 Expected benefits:"
-echo "   📈 40-60% faster queries on large datasets"
-echo "   💾 Reduced storage costs through better organization"
-echo "   🔧 Easier maintenance with partition-level operations"
-echo "   📊 Better scalability for 100k+ users"
+echo "✅ Partitioning deployment complete!"
 echo ""
 echo "📋 Next steps:"
-echo "   1. Update application code to use partitioned tables"
-echo "   2. Monitor partition performance"
-echo "   3. Set up automatic archiving for old partitions"
-echo "   4. Consider implementing Redis caching layer"
+echo "1. Monitor query performance over the next 24 hours"
+echo "2. Verify that new messages are being inserted correctly"
+echo "3. Check partition sizes: supabase db query \"SELECT * FROM pg_tables WHERE tablename LIKE 'messages_%' ORDER BY tablename;\""
+echo "4. Consider dropping old tables after 30 days: DROP TABLE messages_old, usage_logs_old;"
 echo ""
-echo "🛡️ Safety notes:"
-echo "   • Original tables remain unchanged (safe rollback)"
-echo "   • All data migrated successfully"
-echo "   • RLS policies maintained"
-echo "   • Backup created before deployment"
+echo "🎯 Performance tips:"
+echo "- Queries filtering by created_at will now be much faster"
+echo "- Always include date ranges in your queries when possible"
+echo "- Old partitions can be dropped to save space"
 echo ""
-echo "✅ Atlas is now ready for production scale! 🚀"

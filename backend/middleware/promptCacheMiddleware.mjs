@@ -1,5 +1,6 @@
 // backend/middleware/promptCacheMiddleware.mjs
 
+import { logger } from '../lib/logger.mjs';
 /**
  * Middleware to cache and retrieve prompt responses for efficiency
  */
@@ -69,12 +70,12 @@ export async function cachePromptResponse(prompt, response, tier, tokenCount, co
       });
 
     if (error) {
-      console.log('Cache error:', error.message);
+      logger.debug('Cache error:', error.message);
     } else {
-      console.log('Cache success');
+      logger.debug('Cache success');
     }
   } catch (error) {
-    console.log('Cache catch error:', error.message);
+    logger.debug('Cache catch error:', error.message);
   }
 }
 

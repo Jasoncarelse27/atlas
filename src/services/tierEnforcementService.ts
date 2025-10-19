@@ -50,7 +50,7 @@ class TierEnforcementService {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    this.baseUrl = import.meta.env.VITE_API_URL || '';  // Use relative URLs for mobile compatibility
   }
 
   /**

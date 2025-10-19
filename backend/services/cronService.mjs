@@ -1,6 +1,7 @@
 // Atlas Cron Service
 // Handles scheduled tasks like weekly reports
 
+import { logger } from '../lib/logger.mjs';
 import cron from 'node-cron';
 import { generateWeeklyReport } from './weeklyReportService.mjs';
 
@@ -30,12 +31,12 @@ export function startWeeklyReportCron() {
       const result = await generateWeeklyReport();
       
       if (result.success) {
-        console.log(`✅ Weekly report completed: ${result.filename}`);
+        logger.debug(`✅ Weekly report completed: ${result.filename}`);
       } else {
-        console.error('[Cron] Weekly report generation failed');
+        logger.error('[Cron] Weekly report generation failed');
       }
     } catch (error) {
-      console.error('[Cron] Error in weekly report job:', error.message || error);
+      logger.error('[Cron] Error in weekly report job:', error.message || error);
     }
   }, {
     scheduled: false,

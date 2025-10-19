@@ -1,3 +1,4 @@
+const { logger } = require('./logger.mjs');
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -11,8 +12,8 @@ let supabase;
 // 🔒 SECURITY FIX: Removed mock Supabase client - ALWAYS require real credentials
 // This prevents authentication bypass and ensures proper database security in all environments
 if (!supabaseUrl || !supabaseServiceRoleKey) {
-  console.error('❌ FATAL: Missing Supabase credentials (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
-  console.error('Please set environment variables before starting the server.');
+  logger.error('❌ FATAL: Missing Supabase credentials (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
+  logger.error('Please set environment variables before starting the server.');
   process.exit(1);
 }
 

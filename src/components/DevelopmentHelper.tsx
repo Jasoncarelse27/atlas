@@ -23,7 +23,7 @@ const DevelopmentHelper: React.FC<DevelopmentHelperProps> = ({ className = '' })
   const [showDetails, setShowDetails] = useState(false);
 
   const developmentStatus = {
-    server: { status: 'running', port: 5173, url: 'http://localhost:5173' },
+    server: { status: 'running', port: 5173, url: window.location.origin },
     database: { status: 'connected', type: 'Supabase' },
     git: { status: 'clean', branch: 'main', commits: 3 },
     build: { status: 'ready', lastBuild: '2 minutes ago' }

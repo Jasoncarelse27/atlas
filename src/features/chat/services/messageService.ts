@@ -188,7 +188,7 @@ class MessageService {
       const messageResponse = await this.sendMessage(request);
 
       // Then, make the streaming request to the AI backend
-      const backendUrl = getEnvVar('VITE_API_URL') || 'http://localhost:3000';
+      const backendUrl = getEnvVar('VITE_API_URL') || '';  // Use relative URLs
       const response = await this.makeAuthenticatedRequest(`${backendUrl}/api/chat/stream`, {
         method: 'POST',
         body: JSON.stringify({

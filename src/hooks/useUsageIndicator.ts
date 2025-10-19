@@ -45,7 +45,7 @@ export function useUsageIndicator() {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const API_URL = import.meta.env.VITE_API_URL || "";  // Use relative URLs
       // For development, call admin endpoint directly without auth
       const usage = await fetchWithAuthJSON(`${API_URL}/admin/usage`);
 

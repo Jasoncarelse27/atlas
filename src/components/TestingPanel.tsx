@@ -531,7 +531,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
     try {
       
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const backendUrl = import.meta.env.VITE_API_URL || '';  // Use relative URLs
       const railwayUrl = backendUrl;
       const endpoint = { path: '/ping', name: 'Railway Ping', expectedStatus: 'ok' };
       
@@ -680,7 +680,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
 
     const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const railwayUrl = backendUrl;
-    const localUrl = 'http://localhost:3000';
+    const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3000';  // For dev testing only
     const endpoints = [
       { path: '/ping', name: 'Ping Endpoint', expectedStatus: 'ok' },
       { path: '/healthz', name: 'Health Check', expectedStatus: 'healthy' },

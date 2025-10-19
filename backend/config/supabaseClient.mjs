@@ -1,4 +1,5 @@
 // backend/config/supabaseClient.mjs
+import { logger } from '../lib/logger.mjs';
 import { createClient } from "@supabase/supabase-js";
 
 // Function to create and validate Supabase clients
@@ -28,10 +29,10 @@ function createSupabaseClients() {
     auth: { persistSession: false },
   });
 
-  console.log('✅ Supabase client initialized successfully');
-  console.log(`✅ Supabase URL: ${SUPABASE_URL}`);
-  console.log(`✅ Service role key: ${SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'}`);
-  console.log(`✅ Anon key: ${SUPABASE_ANON_KEY ? 'SET' : 'NOT SET'}`);
+  logger.debug('✅ Supabase client initialized successfully');
+  logger.debug(`✅ Supabase URL: ${SUPABASE_URL}`);
+  logger.debug(`✅ Service role key: ${SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'}`);
+  logger.debug(`✅ Anon key: ${SUPABASE_ANON_KEY ? 'SET' : 'NOT SET'}`);
 
   return { supabase, supabasePublic };
 }
