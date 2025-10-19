@@ -86,7 +86,6 @@
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
-    "winston": "^3.18.3",
     "zod": "^3.22.4",
     "zustand": "^5.0.8"
   },
