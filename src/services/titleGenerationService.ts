@@ -39,10 +39,9 @@ export async function generateConversationTitle(options: TitleGenerationOptions)
         return generateFreeTierTitle(message);
       
       case 'core':
-        return generateCoreTierTitle(message);
-      
       case 'studio':
-        return await generateStudioTierTitle(message);
+        // ✅ SIMPLE: Use Core logic for all paid tiers (no API calls needed)
+        return generateCoreTierTitle(message);
       
       default:
         return generateFreeTierTitle(message);
@@ -116,39 +115,6 @@ function generateCoreTierTitle(message: string): string {
   }
   
   return title;
-}
-
-/**
- * STUDIO TIER: AI-generated title using backend
- * Falls back to CORE logic if API fails
- */
-async function generateStudioTierTitle(message: string): Promise<string> {
-  try {
-    // ✅ Call backend to generate AI title
-    const { data, error } = await supabase.functions.invoke('generate-title', {
-      body: { message: message.substring(0, 200) } // Limit input to reduce cost
-    });
-    
-    if (error) {
-      logger.warn('[TitleGen] ⚠️ Studio API failed, using Core fallback:', error.message);
-      return generateCoreTierTitle(message);
-    }
-    
-    if (data?.title && typeof data.title === 'string') {
-      // Ensure AI title is reasonable length
-      const aiTitle = data.title.trim();
-      if (aiTitle.length > 0 && aiTitle.length <= 60) {
-        return aiTitle;
-      }
-    }
-    
-    // If AI returns invalid title, fallback
-    return generateCoreTierTitle(message);
-    
-  } catch (error) {
-    logger.warn('[TitleGen] ⚠️ Studio generation failed, using Core fallback');
-    return generateCoreTierTitle(message);
-  }
 }
 
 /**

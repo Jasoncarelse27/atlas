@@ -51,7 +51,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const { text, voice = "nova" } = await req.json();
+    const { text, voice = "nova", model = "tts-1" } = await req.json();
 
     if (!text) {
       return new Response(JSON.stringify({ error: "Missing text" }), {
@@ -59,6 +59,10 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    // Validate model
+    const validModels = ['tts-1', 'tts-1-hd'];
+    const ttsModel = validModels.includes(model) ? model : 'tts-1';
 
     // Limit text length to prevent abuse
     if (text.length > 4000) {
@@ -86,7 +90,7 @@ serve(async (req: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "tts-1", // Use tts-1-hd for higher quality (2x cost)
+        model: ttsModel, // ✅ Use client-specified model (tts-1 or tts-1-hd)
         input: text,
         voice: voice, // alloy, echo, fable, onyx, nova, shimmer
       }),
@@ -101,10 +105,18 @@ serve(async (req: Request) => {
       });
     }
 
-    // Convert audio to base64
+    // Convert audio to base64 (chunked to avoid stack overflow)
     const audioBuffer = await ttsResponse.arrayBuffer();
     const audioArray = new Uint8Array(audioBuffer);
-    const base64Audio = btoa(String.fromCharCode(...audioArray));
+    
+    // Process in chunks to avoid stack overflow with large audio files
+    let binaryString = '';
+    const chunkSize = 8192; // Process 8KB at a time
+    for (let i = 0; i < audioArray.length; i += chunkSize) {
+      const chunk = audioArray.subarray(i, i + chunkSize);
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const base64Audio = btoa(binaryString);
 
     const latency = Date.now() - startTime;
     

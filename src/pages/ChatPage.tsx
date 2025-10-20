@@ -271,6 +271,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     lastMessageRef.current = text.trim();
     isProcessingRef.current = true;
     
+    // ✅ FIX: Check message count BEFORE optimistic update
+    const isFirstMessage = messages.length === 0;
+    
     try {
       logger.debug('[ChatPage] 📤 Sending message to backend...', {
         userId,
@@ -306,7 +309,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       logger.debug('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
       
       // ✅ AUTO TITLE GENERATION: Generate title for first user message
-      if (messages.length === 0) {
+      if (isFirstMessage) {
         // This is the first message in the conversation, generate title
         autoGenerateTitle({
           message: text,

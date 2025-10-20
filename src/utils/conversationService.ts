@@ -46,6 +46,7 @@ export async function getUserConversations(user_id: string): Promise<Conversatio
       .from('conversations')
       .select('*')
       .eq('user_id', user_id)
+      .is('deleted_at', null)  // ✅ FIX: Only get non-deleted conversations
       .order('created_at', { ascending: false });
 
     if (error) {

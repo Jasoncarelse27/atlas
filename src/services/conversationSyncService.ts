@@ -68,6 +68,7 @@ export class ConversationSyncService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
+        .is('deleted_at', null)  // ✅ CRITICAL FIX: Only sync non-deleted conversations
         .order('updated_at', { ascending: false }) as { data: SupabaseConversation[] | null; error: any };
 
       if (error) {
@@ -273,6 +274,7 @@ export class ConversationSyncService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
+        .is('deleted_at', null)  // ✅ FIX: Only sync non-deleted conversations
         .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
         .order('updated_at', { ascending: false })
         .limit(100) as { data: any[] | null; error: any };  // ← PAGINATION

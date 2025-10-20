@@ -28,6 +28,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [callStatus, setCallStatus] = useState<'listening' | 'transcribing' | 'thinking' | 'speaking'>('listening');
   
   const callStartTime = useRef<Date | null>(null);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
@@ -111,6 +112,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             logger.error('[VoiceCall] Service error:', error);
             toast.error('Voice call error: ' + error.message);
             endCall();
+          },
+          onStatusChange: (status) => {
+            setCallStatus(status);
           },
         });
         
@@ -234,17 +238,37 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   {/* Audio level visualization */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div
-                      className="w-32 h-32 rounded-full bg-emerald-500/20 transition-transform"
+                      className={`w-32 h-32 rounded-full transition-all ${
+                        callStatus === 'speaking' ? 'bg-emerald-500/30' :
+                        callStatus === 'thinking' ? 'bg-blue-500/30 animate-pulse' :
+                        callStatus === 'transcribing' ? 'bg-purple-500/30 animate-pulse' :
+                        'bg-emerald-500/20'
+                      }`}
                       style={{
-                        transform: `scale(${1 + audioLevel * 0.5})`,
+                        transform: callStatus === 'listening' ? `scale(${1 + audioLevel * 0.5})` : 'scale(1.1)',
                       }}
                     />
                   </div>
-                  <div className="relative w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-colors ${
+                    callStatus === 'speaking' ? 'bg-emerald-500' :
+                    callStatus === 'thinking' ? 'bg-blue-500' :
+                    callStatus === 'transcribing' ? 'bg-purple-500' :
+                    'bg-emerald-500'
+                  }`}>
                     <Phone className="w-12 h-12 text-white" />
                   </div>
                 </div>
-                <p className="text-emerald-400 text-lg font-medium mb-2">Call Active</p>
+                <p className={`text-lg font-medium mb-2 transition-colors ${
+                  callStatus === 'speaking' ? 'text-emerald-400' :
+                  callStatus === 'thinking' ? 'text-blue-400' :
+                  callStatus === 'transcribing' ? 'text-purple-400' :
+                  'text-emerald-400'
+                }`}>
+                  {callStatus === 'listening' ? 'Listening...' :
+                   callStatus === 'transcribing' ? 'Transcribing...' :
+                   callStatus === 'thinking' ? 'Atlas is thinking...' :
+                   'Speaking...'}
+                </p>
                 <p className="text-gray-400 text-3xl font-mono">{formatDuration(callDuration)}</p>
               </>
             ) : (

@@ -1,8 +1,8 @@
 import { Clock, MessageSquare, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
-import { conversationService } from '../services/conversationService';
 import { logger } from '../lib/logger';
+import { conversationService } from '../services/conversationService';
 
 interface Conversation {
   id: string;
@@ -74,7 +74,7 @@ export default function ConversationHistoryManager({
     if (!user) return;
     
     try {
-      await conversationService.deleteConversation(conversationId);
+      await conversationService.deleteConversation(conversationId, user.id);
       await loadConversations(); // Reload after deletion
       
       // If we deleted the current conversation, clear selection

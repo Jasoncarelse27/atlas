@@ -3,9 +3,9 @@
  * Integrates Redis caching with Supabase queries for 40% performance improvement
  */
 
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { redisCacheService } from './redisCacheService';
-import { logger } from '../lib/logger';
 
 interface UserProfile {
   id: string;
@@ -90,6 +90,7 @@ class CachedDatabaseService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
+        .is('deleted_at', null)  // ✅ FIX: Only get non-deleted conversations
         .order('updated_at', { ascending: false })
         .limit(limit);
 

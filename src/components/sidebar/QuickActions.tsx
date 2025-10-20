@@ -166,8 +166,8 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         });
       }
 
-      // ✅ Use unified conversation service
-      await conversationService.deleteConversation(conversationId);
+      // ✅ Use unified conversation service with userId
+      await conversationService.deleteConversation(conversationId, user.id);
       
       logger.debug('[QuickActions] ✅ Conversation deleted successfully');
       

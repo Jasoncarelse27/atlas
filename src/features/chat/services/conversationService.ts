@@ -15,6 +15,7 @@ class ConversationService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
+        .is('deleted_at', null)  // ✅ FIX: Only get non-deleted conversations
         .order('last_updated', { ascending: false });
 
       if (error) throw error;

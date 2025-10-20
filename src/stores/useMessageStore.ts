@@ -1,8 +1,8 @@
 import { create } from "zustand";
+import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
-import { logger } from '../lib/logger';
 
 export interface PendingAttachment {
   id: string;
@@ -111,7 +111,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
     try {
       
       // Fetch messages from Supabase
-      const { data: messages, error } = await supabase
+      const { data: messages, error } = await (supabase as any)
         .from("messages")
         .select("*")
         .eq("conversation_id", conversationId)
@@ -179,11 +179,13 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   initConversation: async (userId: string) => {
     
     try {
-      // Try to fetch an existing conversation
-      const { data: convs, error } = await supabase
+      // Try to fetch an existing conversation (non-deleted only)
+      const { data: convs, error } = await (supabase as any)
         .from("conversations")
         .select("*")
         .eq("user_id", userId)
+        .is("deleted_at", null)  // ✅ RESTORE: Only get non-deleted conversations
+        .order("updated_at", { ascending: false })
         .limit(1);
 
       if (error) {
@@ -197,9 +199,9 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
       if (!conversationId) {
         // Create a new conversation if none exists
         const newId = generateUUID();
-        const { error: insertError } = await supabase
+        const { error: insertError } = await (supabase as any)
           .from("conversations")
-          .insert({ id: newId, title: "New conversation" });
+          .insert({ id: newId, title: "New conversation", user_id: userId });
 
         if (insertError) {
           // Fallback: use local conversation ID

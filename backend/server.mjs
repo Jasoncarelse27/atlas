@@ -5,6 +5,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
+import http from 'http';
+import https from 'https';
 import morgan from 'morgan';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +18,10 @@ import { logger } from './lib/simpleLogger.mjs';
 import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
+
+// Force use of http/https Agent to fix fetch issues
+const httpAgent = new http.Agent({ keepAlive: true });
+const httpsAgent = new https.Agent({ keepAlive: true });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +91,12 @@ try {
 // External AI API keys
 const ANTHROPIC_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+// 🔍 DEBUG: Log API key status
+logger.info('[Server] API Keys loaded:', {
+  ANTHROPIC_API_KEY: ANTHROPIC_API_KEY ? `✅ Set (${ANTHROPIC_API_KEY.substring(0, 8)}...)` : '❌ Missing',
+  OPENAI_API_KEY: OPENAI_API_KEY ? `✅ Set (${OPENAI_API_KEY.substring(0, 8)}...)` : '❌ Missing'
+});
 
 // Initialize AI clients
 const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
@@ -680,11 +692,16 @@ app.post('/message',
 // Legacy endpoint for backward compatibility
 app.post('/api/message', verifyJWT, async (req, res) => {
   try {
-    const { message, conversationId, model = 'claude', userTier, userId: _userIdBody } = req.body;
+    const { message, conversationId, model = 'claude', userTier, userId: _userIdBody, is_voice_call } = req.body;
     const userId = req.user.id;
 
     if (!message || !message.trim()) {
       return res.status(400).json({ error: 'Message content is required' });
+    }
+    
+    // Log if this is a voice call for debugging
+    if (is_voice_call) {
+      logger.debug('[VoiceCall] Processing voice message');
     }
 
     // Determine effective tier from DB if not provided
@@ -855,10 +872,10 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     let routedProvider = 'claude';
     
     if (effectiveTier === 'studio') {
-      selectedModel = 'claude-3-5-opus';
+      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use correct model name
       routedProvider = 'claude';
     } else if (effectiveTier === 'core') {
-      selectedModel = 'claude-3-5-sonnet';
+      selectedModel = 'claude-3-5-sonnet-20240620';
       routedProvider = 'claude';
     } else {
       // Free tier - use Claude Haiku for cost efficiency
@@ -988,6 +1005,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     let finalText = `(${effectiveTier}) Reply via ${routedProvider}: I received your message: "${message}".`;
     try {
       if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
+        logger.debug(`🤖 [Claude] Starting API call for voice message`);
         let response;
         let lastError;
         
@@ -1003,9 +1021,22 @@ app.post('/api/message', verifyJWT, async (req, res) => {
               },
               body: JSON.stringify({
                 model: selectedModel,
-                max_tokens: 2000,
-                messages: [{ role: 'user', content: message.trim() }]
-              })
+                max_tokens: is_voice_call ? 150 : 2000, // ✅ Shorter responses for voice calls
+                messages: is_voice_call 
+                  ? [
+                      ...conversationHistory,
+                      { 
+                        role: 'system', 
+                        content: 'You are Atlas in a voice call. Keep responses brief and conversational (2-3 sentences max). Speak naturally as if in a phone conversation. Be warm and concise.' 
+                      },
+                      { role: 'user', content: message.trim() }
+                    ]
+                  : [
+                      ...conversationHistory,
+                      { role: 'user', content: message.trim() }
+                    ]
+              }),
+              agent: httpsAgent // ✅ Fix: Use custom agent for Node.js fetch
             });
             
             if (response.ok) {
@@ -1013,6 +1044,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
               break;
             } else {
               lastError = await response.text().catch(() => 'Claude API error');
+              logger.error(`❌ [Claude API] Failed on attempt ${attempt}:`, lastError);
               
               if (attempt < 3) {
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1020,6 +1052,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             }
           } catch (fetchError) {
             lastError = fetchError.message;
+            logger.error(`❌ [Claude API] Network error on attempt ${attempt}:`, lastError);
             
             if (attempt < 3) {
               await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1028,10 +1061,12 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         }
         
         if (!response || !response.ok) {
+          logger.error(`❌ [Claude API] All attempts failed. Last error:`, lastError);
           finalText = '⚠️ Atlas had an error contacting Claude. Please try again.';
         } else {
           const data = await response.json();
           finalText = data?.content?.[0]?.text || finalText;
+          logger.debug(`✅ [Claude API] Response received, length: ${finalText.length} chars`);
         }
       } else if (ANTHROPIC_API_KEY) {
         // Fallback to Claude with retry logic

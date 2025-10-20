@@ -42,7 +42,7 @@ class ConversationService {
       .select('subscription_tier')
       .eq('id', userId)
       .single();
-    const tier = profile?.subscription_tier || 'free';
+      const tier = (profile as any)?.subscription_tier || 'free';
     
     // Try Redis cache first (unless forcing refresh)
     if (!forceRefresh) {
@@ -65,14 +65,17 @@ class ConversationService {
       // Ensure database is ready (cached internally)
       await ensureDatabaseReady();
 
-      // Load conversations from Dexie
+      // Load conversations from Dexie - filter out soft-deleted
       const allConversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
         .toArray();
         
+      // Filter out soft-deleted conversations
+      const activeConversations = allConversations.filter(conv => !(conv as any).deletedAt);
+        
       // Sort by updatedAt and limit
-      const conversations = allConversations
+      const conversations = activeConversations
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, 50); // Reasonable limit for performance
 
@@ -111,26 +114,30 @@ class ConversationService {
   /**
    * Delete conversation from both local and remote
    */
-  async deleteConversation(conversationId: string): Promise<void> {
+  async deleteConversation(conversationId: string, userId: string): Promise<void> {
     try {
-      // Delete from local Dexie
-      await atlasDB.conversations.delete(conversationId);
-      await atlasDB.messages.where('conversationId').equals(conversationId).delete();
-
-      // Remove from cache
-      this.cache = this.cache.filter(conv => conv.id !== conversationId);
-
-      // Delete from remote (Supabase)
+      logger.debug(`[ConversationService] Deleting conversation: ${conversationId}`);
+      
+      // 1. Delete from Supabase
       const { error } = await supabase
         .from('conversations')
         .delete()
-        .eq('id', conversationId);
+        .eq('id', conversationId)
+        .eq('user_id', userId);
 
       if (error) {
-        logger.error('[ConversationService] ❌ Failed to delete from remote:', error);
+        logger.error('[ConversationService] ❌ Failed to delete from Supabase:', error);
+        throw error;
       }
 
-      logger.debug('[ConversationService] ✅ Conversation deleted:', conversationId);
+      // 2. Delete from local Dexie immediately (don't wait for real-time)
+      await atlasDB.conversations.delete(conversationId);
+      await atlasDB.messages.where('conversationId').equals(conversationId).delete();
+
+      // 3. Remove from cache
+      this.cache = this.cache.filter(conv => conv.id !== conversationId);
+
+      logger.debug('[ConversationService] ✅ Conversation deleted successfully');
     } catch (error) {
       logger.error('[ConversationService] ❌ Delete failed:', error);
       throw error;
