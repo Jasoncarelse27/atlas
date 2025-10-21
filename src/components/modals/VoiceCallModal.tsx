@@ -5,8 +5,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Mic, MicOff, Phone, PhoneOff, Volume2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useFeatureAccess } from '../../hooks/useTierAccess';
 import { tierFeatures } from '../../config/featureAccess';
+import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
+import { useFeatureAccess } from '../../hooks/useTierAccess';
 import { logger } from '../../lib/logger';
 import { voiceCallService } from '../../services/voiceCallService';
 import { getSafeUserMedia, isAudioRecordingSupported } from '../../utils/audioHelpers';
@@ -25,6 +26,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   conversationId,
 }) => {
   const { canUse, tier } = useFeatureAccess('voice');
+  const { showVoiceUpgrade } = useUpgradeModals();
+  
   const [isCallActive, setIsCallActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
@@ -58,12 +61,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     try {
       // Check tier access using centralized hook
       if (!canUse) {
-        if (tier === 'free') {
-          toast.error('Voice calls available in Atlas Studio ($189.99/month)');
-        } else if (tier === 'core') {
-          toast.error('Upgrade to Atlas Studio for unlimited voice calls');
-        }
         onClose();
+        showVoiceUpgrade();
         return;
       }
 

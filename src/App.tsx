@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
+import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
 import { AuthProvider, useAuth } from "./providers/AuthProvider";
 import { useSettingsStore } from "./stores/useSettingsStore";
 
@@ -56,18 +57,20 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <Toaster position="top-center" />
-          <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-              <Route path="/login" element={<PublicAuthRoute />} />
-              <Route path="/chat" element={<ProtectedChatRoute />} />
-              <Route path="/upgrade" element={<UpgradePage />} />
-              <Route path="/" element={<Navigate to="/chat" replace />} />
-              <Route path="*" element={<Navigate to="/chat" replace />} />
-            </Routes>
-          </Suspense>
-        </Router>
+        <UpgradeModalProvider>
+          <Router>
+            <Toaster position="top-center" />
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/login" element={<PublicAuthRoute />} />
+                <Route path="/chat" element={<ProtectedChatRoute />} />
+                <Route path="/upgrade" element={<UpgradePage />} />
+                <Route path="/" element={<Navigate to="/chat" replace />} />
+                <Route path="*" element={<Navigate to="/chat" replace />} />
+              </Routes>
+            </Suspense>
+          </Router>
+        </UpgradeModalProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -9,6 +9,8 @@ import SyncStatus from '../components/SyncStatus';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { ProfileSettingsModal } from '../components/modals/ProfileSettingsModal';
+import VoiceUpgradeModal from '../components/modals/VoiceUpgradeModal';
+import { useUpgradeModals } from '../contexts/UpgradeModalContext';
 import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
@@ -35,6 +37,14 @@ interface ChatPageProps {
 }
 
 const ChatPage: React.FC<ChatPageProps> = () => {
+  const {
+    voiceModalVisible,
+    hideVoiceUpgrade,
+    genericModalVisible,
+    hideGenericUpgrade,
+    genericModalFeature,
+  } = useUpgradeModals();
+  
   const [healthError, setHealthError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -227,11 +237,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
-  // Upgrade modal state
+  // Upgrade modal state (legacy - keeping for compatibility)
   const [upgradeModalVisible, setUpgradeModalVisible] = React.useState(false);
   const [upgradeReason, setUpgradeReason] = React.useState('monthly limit');
   const [currentUsage, setCurrentUsage] = React.useState<number | undefined>();
   const [limit, setLimit] = React.useState<number | undefined>();
+
+  // Use context modal state when available, fallback to local state
+  const isGenericModalOpen = genericModalVisible || upgradeModalVisible;
+  const closeGenericModal = () => {
+    hideGenericUpgrade();
+    setUpgradeModalVisible(false);
+  };
 
   // Placeholder variables for components that need them
   const isProcessing = isTyping;
@@ -1026,13 +1043,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           shouldGlow={shouldGlow}
         />
 
-        {/* Upgrade Modal */}
+        {/* Upgrade Modals */}
         <EnhancedUpgradeModal
-          isOpen={upgradeModalVisible}
-          onClose={() => setUpgradeModalVisible(false)}
-          feature={upgradeReason}
+          isOpen={isGenericModalOpen}
+          onClose={closeGenericModal}
+          feature={genericModalFeature || upgradeReason}
           currentUsage={currentUsage}
           limit={limit}
+        />
+
+        <VoiceUpgradeModal
+          isOpen={voiceModalVisible}
+          onClose={hideVoiceUpgrade}
         />
 
 

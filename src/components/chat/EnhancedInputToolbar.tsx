@@ -2,8 +2,9 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Image, Loader2, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
-import { useTierAccess, useFeatureAccess } from '../../hooks/useTierAccess';
+import { useFeatureAccess, useTierAccess } from '../../hooks/useTierAccess';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 // Removed useMessageStore import - using props from parent component
@@ -41,6 +42,7 @@ export default function EnhancedInputToolbar({
   const { user } = useSupabaseAuth();
   const { tier, showUpgradeModal } = useTierAccess();
   const { canUse: canUseVoice } = useFeatureAccess('voice');
+  const { showVoiceUpgrade } = useUpgradeModals();
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -398,12 +400,8 @@ export default function EnhancedInputToolbar({
     }
 
     if (!canUseVoice) {
-      if (tier === 'free') {
-        toast.error('Voice calls available in Atlas Studio ($189.99/month)');
-      } else if (tier === 'core') {
-        toast.error('Upgrade to Atlas Studio for unlimited voice calls');
-      }
-      showUpgradeModal('voice');
+      // Show custom voice upgrade modal
+      showVoiceUpgrade();
       return;
     }
     

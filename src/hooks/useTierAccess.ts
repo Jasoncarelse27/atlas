@@ -58,18 +58,13 @@ export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice"
   const attemptFeature = useCallback(async () => {
     if (canUse) return true;
     
-    // Tier-specific upgrade messages
-    if (feature === 'voice') {
-      if (tier === 'free') {
-        toast.error('Voice calls available in Atlas Studio ($189.99/month)');
-      } else if (tier === 'core') {
-        toast.error('Upgrade to Atlas Studio for unlimited voice calls');
-      }
-    } else {
-      toast.error(`${feature} requires ${feature === 'voice' ? 'Studio' : 'Core or Studio'} tier`);
+    // Tier-specific upgrade messages (skip for voice - handled by custom modal)
+    if (feature !== 'voice') {
+      toast.error(`${feature} requires Core or Studio tier`);
     }
+    // No toast for voice - components trigger custom VoiceUpgradeModal
     return false;
-  }, [canUse, feature, tier]);
+  }, [canUse, feature]);
 
   return {
     canUse,
