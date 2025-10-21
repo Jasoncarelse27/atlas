@@ -25,7 +25,7 @@
 3. **Database Schema** (95%)
    - 56 migration files in `supabase/migrations/`
    - Core tables: profiles, conversations, messages
-   - Subscription tracking: paddle_subscriptions, daily_usage
+   - Subscription tracking: fastspring_subscriptions, daily_usage
    - RLS policies implemented
    - Soft delete system in place
 
@@ -37,8 +37,8 @@
    - Health check endpoints
    - Automatic port cleanup (8000)
 
-5. **Paddle Integration** (85%)
-   - Complete service implementation in `src/services/paddleService.ts`
+5. **FastSpring Integration** (95%)
+   - Complete service implementation in `src/services/fastspringService.ts`
    - Webhook handling for all subscription events
    - Subscription caching (5-minute TTL)
    - Grace period for failed payments (7 days)
@@ -69,25 +69,26 @@ OPENAI_API_KEY=your-openai-key (optional)
 
 ---
 
-### **Issue #2: Paddle Configuration** 🟡
-**Status:** FOR REVENUE GENERATION  
-**Impact:** Can't process payments without Paddle setup  
-**Time to Fix:** 30 minutes
+### **Issue #2: FastSpring Configuration** 🟢
+**Status:** ✅ COMPLETE (TEST MODE WORKING)  
+**Impact:** Payment processing working in test mode, ready for production  
+**Time to Production:** 15 minutes (switch to live mode)
 
-**Missing in src/config/featureAccess.ts:**
-```typescript
-// Line 179-195: PADDLE_CONFIG references missing env vars
-VITE_PADDLE_ENVIRONMENT=sandbox
-VITE_PADDLE_CLIENT_TOKEN=your-token
-VITE_PADDLE_CORE_PRICE_ID=pri_core_monthly
-VITE_PADDLE_STUDIO_PRICE_ID=pri_studio_monthly
+**Configured Environment Variables:**
+```bash
+# Already configured and working
+VITE_FASTSPRING_ENVIRONMENT=test
+VITE_FASTSPRING_STORE_ID=otiumcreations_store
+VITE_FASTSPRING_CORE_PRODUCT_ID=atlas-core
+VITE_FASTSPRING_STUDIO_PRODUCT_ID=atlas-studio
+FASTSPRING_WEBHOOK_SECRET=[configured]
 ```
 
-**Action Required:**
-1. Create Paddle account (if not done)
-2. Set up products: Core ($19.99), Studio ($179.99)
-3. Get sandbox credentials
-4. Add to .env file
+**Action Required for Production:**
+1. ✅ FastSpring account created
+2. ✅ Products set up: Core ($19.99), Studio ($189.99)
+3. ✅ Test credentials working
+4. ⏸️ Switch to live mode when ready for production
 
 ---
 
@@ -134,19 +135,20 @@ npm run backend:dev
 - [ ] Verify tier enforcement works
 - [ ] Test conversation history
 
-### **Phase 4: Paddle Integration (30 minutes)** ⏸️ CAN DEFER
-- [ ] Sign up for Paddle account
-- [ ] Create products (Core $19.99, Studio $179.99)
-- [ ] Get sandbox credentials
-- [ ] Add to .env
-- [ ] Test upgrade flow (sandbox mode)
+### **Phase 4: FastSpring Production Launch (15 minutes)** ⏸️ READY WHEN YOU ARE
+- [x] Sign up for FastSpring account
+- [x] Create products (Core $19.99, Studio $189.99)
+- [x] Get test credentials
+- [x] Add to .env
+- [x] Test upgrade flow (test mode working)
+- [ ] Switch to live mode (when ready for production)
 
 ### **Phase 5: Production Deployment (30 minutes)** ⏸️ AFTER TESTING
 - [ ] Add env vars to Railway
 - [ ] Deploy backend
 - [ ] Deploy frontend to Vercel
 - [ ] Test production endpoints
-- [ ] Switch Paddle to live mode (when approved)
+- [ ] Switch FastSpring to live mode (when approved)
 
 ---
 
@@ -194,7 +196,7 @@ Chat System:          100% ✅
 Tier Enforcement:     100% ✅
 Database Schema:       95% ✅
 Backend API:           90% ✅
-Paddle Integration:    85% 🟡
+FastSpring Integration: 95% ✅
 Production Deploy:      0% ⏸️ (waiting for env setup)
 ```
 
@@ -222,7 +224,7 @@ Production Deploy:      0% ⏸️ (waiting for env setup)
 **Total Time: 85 minutes**
 
 1. MVP steps above (55 min)
-2. Paddle setup and testing (30 min)
+2. FastSpring switch to live mode (15 min)
 3. Production deployment (after approval)
 
 **Result:** Revenue-generating Atlas with all tiers

@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Mic, MicOff, Phone, PhoneOff, Volume2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useTierQuery } from '../../hooks/useTierQuery';
+import { useFeatureAccess } from '../../hooks/useTierAccess';
+import { tierFeatures } from '../../config/featureAccess';
 import { logger } from '../../lib/logger';
 import { voiceCallService } from '../../services/voiceCallService';
 import { getSafeUserMedia, isAudioRecordingSupported } from '../../utils/audioHelpers';
@@ -23,7 +24,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   userId,
   conversationId,
 }) => {
-  const { tier } = useTierQuery();
+  const { canUse, tier } = useFeatureAccess('voice');
   const [isCallActive, setIsCallActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
@@ -55,12 +56,20 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   // Start voice call
   const startCall = async () => {
     try {
-      // Check tier
-      if (tier !== 'studio') {
-        toast.error('Voice calls are exclusive to Studio tier');
+      // Check tier access using centralized hook
+      if (!canUse) {
+        if (tier === 'free') {
+          toast.error('Voice calls available in Atlas Studio ($189.99/month)');
+        } else if (tier === 'core') {
+          toast.error('Upgrade to Atlas Studio for unlimited voice calls');
+        }
         onClose();
         return;
       }
+
+      // Get max duration (-1 = unlimited for Studio)
+      const maxDuration = (tierFeatures[tier] as any).voiceCallMaxDuration;
+      logger.debug('[VoiceCall] Max duration:', maxDuration);
 
       setIsCallActive(true);
       callStartTime.current = new Date();
@@ -101,7 +110,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         await voiceCallService.startCall({
           userId,
           conversationId,
-          tier,
+          tier: tier as 'studio', // Only Studio tier can reach here
           onTranscript: (text: string) => {
             logger.debug('[VoiceCall] User said:', text);
           },
@@ -270,6 +279,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                    'Speaking...'}
                 </p>
                 <p className="text-gray-400 text-3xl font-mono">{formatDuration(callDuration)}</p>
+                {(tierFeatures[tier] as any).voiceCallMaxDuration === -1 && (
+                  <p className="text-gray-500 text-sm mt-2">Unlimited</p>
+                )}
               </>
             ) : (
               <>

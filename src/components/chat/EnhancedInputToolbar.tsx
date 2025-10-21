@@ -3,7 +3,7 @@ import { CheckCircle2, Image, Loader2, Mic, Phone, Plus, Send, X, XCircle } from
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
-import { useTierAccess } from '../../hooks/useTierAccess';
+import { useTierAccess, useFeatureAccess } from '../../hooks/useTierAccess';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
 // Removed useMessageStore import - using props from parent component
@@ -40,6 +40,7 @@ export default function EnhancedInputToolbar({
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
   const { tier, showUpgradeModal } = useTierAccess();
+  const { canUse: canUseVoice } = useFeatureAccess('voice');
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -396,9 +397,13 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    if (tier !== 'studio') {
-      toast.error('Voice calls are exclusive to Atlas Studio tier');
-      showUpgradeModal('audio');
+    if (!canUseVoice) {
+      if (tier === 'free') {
+        toast.error('Voice calls available in Atlas Studio ($189.99/month)');
+      } else if (tier === 'core') {
+        toast.error('Upgrade to Atlas Studio for unlimited voice calls');
+      }
+      showUpgradeModal('voice');
       return;
     }
     

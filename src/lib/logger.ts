@@ -1,66 +1,28 @@
-/**
- * Atlas Production-Ready Logger
- * Simple, future-proof logger that respects environment
- * Automatically strips debug logs in production builds
- */
+ 
 
-const isDevelopment = import.meta.env.MODE === 'development';
-const isProduction = import.meta.env.MODE === 'production';
+// ⚡ PERFORMANCE: Silence debug logs in production to reduce console spam
+const IS_PRODUCTION = import.meta.env.PROD;
+const noop = () => {};
 
 export const logger = {
   /**
-   * Development-only debug logs
-   * Automatically stripped in production builds via Vite terser
+   * Debug logs - ONLY in development
+   * Silent in production to prevent console spam
    */
-  debug: (...args: any[]) => {
-    if (isDevelopment) {
-      console.log(...args);
-    }
-  },
+  debug: IS_PRODUCTION ? noop : console.log,
   
   /**
-   * Always log warnings (important for production debugging)
+   * Info logs - visible in all environments
    */
-  warn: (...args: any[]) => {
-    console.warn(...args);
-  },
+  info: console.log,
   
   /**
-   * Always log errors (critical for production monitoring)
+   * Warning logs - visible in all environments
    */
-  error: (...args: any[]) => {
-    console.error(...args);
-    
-    // Send to Sentry in production/staging
-    if (!isDevelopment) {
-      // Dynamic import to avoid circular dependency
-      import('../services/sentryService').then(({ captureException }) => {
-        if (args[0] instanceof Error) {
-          captureException(args[0], { source: 'logger' });
-        }
-      }).catch(() => {
-        // Sentry not available, fail silently
-      });
-    }
-  },
+  warn: console.warn,
   
   /**
-   * Production-safe info logging
-   * Only logs in non-production environments
+   * Error logs - visible in all environments
    */
-  info: (...args: any[]) => {
-    if (!isProduction) {
-      console.log(...args);
-    }
-  },
-
-  /**
-   * Critical logs that should always appear
-   * Use sparingly for truly critical information
-   */
-  critical: (...args: any[]) => {
-    console.error('🚨 CRITICAL:', ...args);
-  }
+  error: console.error,
 };
-
-export default logger;

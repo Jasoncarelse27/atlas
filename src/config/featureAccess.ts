@@ -109,7 +109,7 @@ export const tierFeatures = {
     voiceNotesEnabled: true,
     voiceNoteMaxDuration: 5,          // 5 minutes max per note
     voiceCallsEnabled: true,          // Voice calls ONLY for Studio
-    voiceCallMaxDuration: 30,         // 30 minutes max per call
+    voiceCallMaxDuration: -1,         // Unlimited for Studio
     dailyAudioCap: -1,                // No daily cap
     intelligentMetering: true         // Track costs in real-time
   },

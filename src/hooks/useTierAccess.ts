@@ -1,18 +1,9 @@
-// 🔥 REDIRECTED TO MODERN TIER SYSTEM
-// All tier access now uses the centralized React Query hook with Realtime updates
-
 import { useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { getClaudeModelName, tierFeatures } from '../config/featureAccess';
 import { useTierQuery } from './useTierQuery';
 
 type Tier = "free" | "core" | "studio";
-
-interface TierAccessState {
-  tier: Tier;
-  loading: boolean;
-  userId: string | null;
-}
 
 // ✅ CENTRALIZED TIER ACCESS HOOK - NOW USES REACT QUERY + REALTIME
 export function useTierAccess() {
@@ -60,14 +51,25 @@ export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice"
   const { tier, loading, userId } = useTierAccess();
   
   // ✅ Use tier config instead of hardcoded checks
-  const canUse = tierFeatures[tier]?.[feature] || false;
+  const canUse = feature === 'voice' 
+    ? tierFeatures[tier]?.voiceCallsEnabled || false
+    : tierFeatures[tier]?.[feature] || false;
   
   const attemptFeature = useCallback(async () => {
     if (canUse) return true;
     
-    toast.error(`${feature} requires ${feature === 'voice' ? 'Studio' : 'Core or Studio'} tier`);
+    // Tier-specific upgrade messages
+    if (feature === 'voice') {
+      if (tier === 'free') {
+        toast.error('Voice calls available in Atlas Studio ($189.99/month)');
+      } else if (tier === 'core') {
+        toast.error('Upgrade to Atlas Studio for unlimited voice calls');
+      }
+    } else {
+      toast.error(`${feature} requires ${feature === 'voice' ? 'Studio' : 'Core or Studio'} tier`);
+    }
     return false;
-  }, [canUse, feature]);
+  }, [canUse, feature, tier]);
 
   return {
     canUse,
@@ -83,7 +85,8 @@ export function useMessageLimit() {
   const { tier, loading } = useTierAccess();
   
   // ✅ Get limits from tier config (NO hardcoded checks!)
-  const monthlyLimit = tierFeatures[tier]?.monthlyMessages || 15;
+  const config = tierFeatures[tier] as any;
+  const monthlyLimit = config?.monthlyMessages || config?.maxConversationsPerMonth || 15;
   const isUnlimited = monthlyLimit === -1;
   
   return {

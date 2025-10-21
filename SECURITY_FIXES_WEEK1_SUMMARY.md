@@ -247,7 +247,6 @@ class CacheInvalidationService {
   async invalidateUserTier(userId: string) {
     await Promise.all([
       fastspringService.clearCache(userId),
-      paddleService.clearCache(userId),
       subscriptionApi.clearUserCache(userId),
       this.clearBrowserStorage(userId),
       this.clearDexieCache(userId)

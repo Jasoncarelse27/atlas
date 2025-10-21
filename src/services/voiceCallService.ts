@@ -404,29 +404,25 @@ export class VoiceCallService {
         totalCost: `$${totalCost.toFixed(4)}`,
       });
       
-      // Track in usage_logs table
-      // @ts-ignore - usage_logs schema not in generated types
+      // Track in usage_logs table with proper schema
+      // @ts-ignore - usage_logs schema uses JSONB data field
       const { error } = await supabase.from('usage_logs').insert({
         user_id: userId,
         event: 'voice_call_completed',
-        feature: 'voice_call',
-        tokens_used: 0, // Not applicable for voice calls
-        estimated_cost: totalCost,
-        created_at: new Date().toISOString(),
-        metadata: {
-          duration_seconds: durationSeconds,
-          stt_cost: sttCost,
-          tts_cost: ttsCost,
-          month_year: monthYear,
-        },
         data: {
+          feature: 'voice_call',
+          tier: this.currentOptions?.tier || 'unknown',
           duration_seconds: durationSeconds,
+          tokens_used: 0,
+          estimated_cost: totalCost,
           cost_breakdown: {
             stt: sttCost,
             tts: ttsCost,
             total: totalCost
           }
-        }
+        },
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
       
       if (error) {
