@@ -3,6 +3,18 @@ import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { perfMonitor } from '../utils/performanceMonitor';
 
+// ⚡ PERFORMANCE: Debounce helper to prevent excessive syncing
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+  return function(...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
 // Define proper types for Supabase responses
 interface SupabaseConversation {
   id: string;
@@ -49,6 +61,9 @@ export interface MessageSyncData {
 export class ConversationSyncService {
   private static instance: ConversationSyncService;
   private syncInProgress = false;
+  private lastSyncTime = 0;
+  private readonly SYNC_COOLDOWN = 30000; // 30 seconds minimum between syncs
+  private readonly RECENT_DATA_DAYS = 7; // Only sync last 7 days
 
   static getInstance(): ConversationSyncService {
     if (!ConversationSyncService.instance) {
@@ -59,25 +74,38 @@ export class ConversationSyncService {
 
   /**
    * Sync conversations from Supabase to local Dexie
+   * ⚡ OPTIMIZED: Debounced, rate-limited, recent data only
    */
   async syncConversationsFromRemote(userId: string): Promise<void> {
+    // ⚡ OPTIMIZATION: Skip if synced recently
+    const now = Date.now();
+    if (now - this.lastSyncTime < this.SYNC_COOLDOWN) {
+      return; // Silent skip - no console spam
+    }
+    this.lastSyncTime = now;
+
     try {
-      logger.debug('[ConversationSync] Syncing conversations from remote...');
+      // ⚡ OPTIMIZATION: Only sync recent data (last 7 days)
+      const recentDate = new Date(Date.now() - (this.RECENT_DATA_DAYS * 24 * 60 * 60 * 1000)).toISOString();
       
       const { data: remoteConversations, error } = await supabase
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
-        .is('deleted_at', null)  // ✅ CRITICAL FIX: Only sync non-deleted conversations
-        .order('updated_at', { ascending: false }) as { data: SupabaseConversation[] | null; error: any };
+        .is('deleted_at', null)
+        .gte('updated_at', recentDate) // ⚡ Only recent conversations
+        .order('updated_at', { ascending: false })
+        .limit(20) as { data: SupabaseConversation[] | null; error: any }; // ⚡ Reduced for scale
 
       if (error) {
         logger.error('[ConversationSync] Failed to fetch remote conversations:', error);
         return;
       }
 
-      // Get local conversations
-      const localConversations = await atlasDB.conversations.toArray();
+      // ⚡ SCALABILITY: Limit local query
+      const localConversations = await atlasDB.conversations
+        .limit(100)
+        .toArray();
 
       // Sync conversations
       for (const remoteConv of remoteConversations || []) {
@@ -92,7 +120,7 @@ export class ConversationSyncService {
             createdAt: remoteConv.created_at,
             updatedAt: remoteConv.updated_at
           });
-          logger.debug('[ConversationSync] ✅ Added conversation:', remoteConv.id, 'title:', remoteConv.title);
+          // Silent add - no console spam in production
         } else if (new Date(remoteConv.updated_at) > new Date(localConv.updatedAt)) {
           // ✅ Update conversation (no soft delete check needed since we use hard delete)
           
@@ -164,9 +192,8 @@ export class ConversationSyncService {
             updatedAt: remoteMsg.created_at
           });
           logger.debug('[ConversationSync] ✅ Added missing message:', remoteMsg.id);
-        } else {
-          logger.debug('[ConversationSync] ⚠️ Message already exists, skipping:', remoteMsg.id);
         }
+        // Silent skip - no console spam
       }
 
       logger.debug('[ConversationSync] ✅ Message sync completed for conversation:', conversationId);
@@ -277,7 +304,7 @@ export class ConversationSyncService {
         .is('deleted_at', null)  // ✅ FIX: Only sync non-deleted conversations
         .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
         .order('updated_at', { ascending: false })
-        .limit(100) as { data: any[] | null; error: any };  // ← PAGINATION
+        .limit(20) as { data: any[] | null; error: any };  // ⚡ REDUCED for scale
       
       if (convError) {
         logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
@@ -328,7 +355,7 @@ export class ConversationSyncService {
           .in('conversation_id', conversationIds)  // ← ONLY updated conversations
           .gt('created_at', lastSyncedAt)  // ← DELTA FILTER
           .order('created_at', { ascending: true })
-          .limit(500) as { data: any[] | null; error: any };  // ← PAGINATION
+          .limit(200) as { data: any[] | null; error: any };  // ⚡ REDUCED for scale
         
         if (msgError) {
           logger.error('[ConversationSync] ❌ Failed to fetch messages:', msgError);
@@ -359,9 +386,8 @@ export class ConversationSyncService {
                 updatedAt: msg.created_at
               });
               logger.debug('[ConversationSync] ✅ Added missing message:', msg.id);
-            } else {
-              logger.debug('[ConversationSync] ⚠️ Message already exists, skipping:', msg.id);
             }
+            // Silent skip - no console spam
           }
         }
       }

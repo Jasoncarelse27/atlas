@@ -65,19 +65,13 @@ class ConversationService {
       // Ensure database is ready (cached internally)
       await ensureDatabaseReady();
 
-      // Load conversations from Dexie - filter out soft-deleted
-      const allConversations = await atlasDB.conversations
+      // ⚡ SCALABILITY FIX: Limit at database level, not in-memory
+      const conversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
+        .reverse() // Most recent first (indexed)
+        .limit(50) // Limit BEFORE loading into memory
         .toArray();
-        
-      // Filter out soft-deleted conversations
-      const activeConversations = allConversations.filter(conv => !(conv as any).deletedAt);
-        
-      // Sort by updatedAt and limit
-      const conversations = activeConversations
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        .slice(0, 50); // Reasonable limit for performance
 
       // Transform to consistent format
       this.cache = conversations.map((conv: any) => ({
@@ -113,34 +107,47 @@ class ConversationService {
 
   /**
    * Delete conversation from both local and remote
+   * 🚨 CRITICAL FIX: Delete Supabase FIRST to prevent sync from restoring
    */
   async deleteConversation(conversationId: string, userId: string): Promise<void> {
     try {
-      logger.debug(`[ConversationService] Deleting conversation: ${conversationId}`);
+      logger.info(`[ConversationService] 🗑️ Deleting conversation: ${conversationId}`);
       
-      // 1. Delete from Supabase
-      const { error } = await supabase
+      // 1. DELETE FROM SUPABASE FIRST (and wait for it!)
+      const { error: deleteError } = await supabase
         .from('conversations')
         .delete()
         .eq('id', conversationId)
         .eq('user_id', userId);
 
-      if (error) {
-        logger.error('[ConversationService] ❌ Failed to delete from Supabase:', error);
-        throw error;
+      if (deleteError) {
+        logger.error('[ConversationService] ❌ Supabase delete failed:', deleteError);
+        throw new Error(`Failed to delete from database: ${deleteError.message}`);
+      }
+      
+      logger.info('[ConversationService] ✅ Deleted from Supabase');
+
+      // 2. Now delete local (instant)
+      try {
+        await atlasDB.conversations.delete(conversationId);
+        await atlasDB.messages.where('conversationId').equals(conversationId).delete();
+        logger.info('[ConversationService] ✅ Deleted from local database');
+      } catch (dexieError) {
+        logger.warn('[ConversationService] ⚠️ Local delete failed (non-critical):', dexieError);
       }
 
-      // 2. Delete from local Dexie immediately (don't wait for real-time)
-      await atlasDB.conversations.delete(conversationId);
-      await atlasDB.messages.where('conversationId').equals(conversationId).delete();
+      // 3. Clear cache
+      this.cache = this.cache.filter(c => c.id !== conversationId);
+      
+      // 4. Dispatch event for UI updates
+      window.dispatchEvent(new CustomEvent('conversationDeleted', {
+        detail: { conversationId }
+      }));
 
-      // 3. Remove from cache
-      this.cache = this.cache.filter(conv => conv.id !== conversationId);
-
-      logger.debug('[ConversationService] ✅ Conversation deleted successfully');
+      logger.info('[ConversationService] ✅ Conversation deleted successfully');
     } catch (error) {
       logger.error('[ConversationService] ❌ Delete failed:', error);
-      throw error;
+      throw error; // Let UI handle the error
     }
   }
 

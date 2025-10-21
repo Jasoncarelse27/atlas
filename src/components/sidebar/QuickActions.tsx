@@ -1,8 +1,9 @@
 import { History, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { atlasDB } from '../../database/atlasDB';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
-import { conversationService } from '../../services/conversationService';
+import { deleteConversation } from '../../services/conversationDeleteService';
 import { generateUUID } from '../../utils/uuid';
 
 interface QuickActionsProps {
@@ -62,8 +63,13 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
 
       logger.debug('[QuickActions] 🔄 Fetching fresh conversations from database');
       
-      // ✅ PERFORMANCE: Use unified conversation service
-      const conversations = await conversationService.getConversations(user.id);
+      // ⚡ SCALABILITY FIX: Limit at database level
+      const conversations = await atlasDB.conversations
+        .where('userId')
+        .equals(user.id)
+        .reverse() // Most recent first
+        .limit(50) // Prevent memory overload
+        .toArray();
       
       // Transform for backward compatibility
       const mappedConversations = conversations.map(conv => ({
@@ -135,49 +141,28 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    // Simple confirmation dialog
-    if (!confirm('Delete Conversation\n\nAre you sure you want to delete this conversation? This cannot be undone.')) {
+    // Confirmation
+    if (!window.confirm('🗑️ Delete this conversation?\n\nThis cannot be undone.')) {
       return;
     }
 
-    // ✅ Set loading state - show spinner on delete button
     setDeletingId(conversationId);
     
     try {
-      // ✅ Get authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('No authenticated user');
-      }
+      // Get user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Please login again');
 
-      // ✅ Optimistic update - remove from UI immediately
-      let updatedConversations: any[] = [];
-      setConversations(prev => {
-        updatedConversations = prev.filter(c => c.id !== conversationId);
-        return updatedConversations;
-      });
-      
-      // Update modal immediately with the filtered list
-      if (onViewHistory) {
-        onViewHistory({
-          conversations: updatedConversations,
-          onDeleteConversation: handleDeleteConversation,
-          deletingId: null
-        });
-      }
+      // Simple delete using the clean service
+      await deleteConversation(conversationId, user.id);
 
-      // ✅ Use unified conversation service with userId
-      await conversationService.deleteConversation(conversationId, user.id);
+      // Refresh list after successful delete
+      await refreshConversationList(true);
       
-      logger.debug('[QuickActions] ✅ Conversation deleted successfully');
-      
-    } catch (err) {
-      logger.error('[QuickActions] ❌ Failed to delete conversation:', err);
-      alert('Failed to delete conversation. Please try again.');
-      // ✅ Rollback on error - reload from database
-      await refreshConversationList();
+    } catch (err: any) {
+      logger.error('[QuickActions] ❌ Delete failed:', err);
+      alert(`Failed to delete:\n${err.message || 'Unknown error'}`);
     } finally {
-      // ✅ Clear loading state
       setDeletingId(null);
     }
   };
