@@ -44,7 +44,7 @@ All critical issues have been resolved and Atlas is now **production-ready** wit
 |------|------------------|-------------|--------------|------------|
 | **Free ($0)** | Local-only hard delete | Zero | ❌ No | ❌ No |
 | **Core ($19.99)** | Server + local hard delete | Minimal | ✅ Yes | ❌ No |
-| **Studio ($179.99)** | Soft delete with timestamp | Premium | ✅ Yes | ✅ Yes |
+| **Studio ($189.99)** | Soft delete with timestamp | Premium | ✅ Yes | ✅ Yes |
 
 ### Upgrade Prompts
 
@@ -54,7 +54,7 @@ All critical issues have been resolved and Atlas is now **production-ready** wit
 > With Core, deleted conversations stay deleted everywhere."
 
 **Core → Studio**:
-> "💡 Upgrade to Studio ($179.99/mo) to restore deleted conversations?
+> "💡 Upgrade to Studio ($189.99/mo) to restore deleted conversations?
 > 
 > With Studio, you can recover accidentally deleted chats anytime."
 
@@ -206,7 +206,7 @@ These features are **NOT needed for V1 launch** but can be added later:
 | Upgrade Path | Feature | Monthly Price | Value |
 |-------------|---------|---------------|-------|
 | **Free → Core** | Cross-device sync for deletions | $19.99 | Simple, clear benefit |
-| **Core → Studio** | Restore deleted conversations | $179.99 | Premium safety net |
+| **Core → Studio** | Restore deleted conversations | $189.99 | Premium safety net |
 
 ### Cost Optimization
 

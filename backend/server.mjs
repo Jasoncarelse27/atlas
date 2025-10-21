@@ -15,7 +15,9 @@ import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { flushSentry, getSentryMiddleware, initSentry } from './lib/sentryService.mjs';
 import { logger } from './lib/simpleLogger.mjs';
+import authMiddleware from './middleware/authMiddleware.mjs';
 import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
+import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 
@@ -539,6 +541,8 @@ app.get('/api/auth/status', (req, res) => {
 
 // ✅ Clean message endpoint with secure Supabase tier routing + conversation history + image analysis
 app.post('/message', 
+  authMiddleware,
+  dailyLimitMiddleware,
   invalidateCacheMiddleware('conversation'),
   async (req, res) => {
   
@@ -1899,28 +1903,38 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    const FASTSPRING_API_KEY = process.env.FASTSPRING_API_KEY;
+    const FASTSPRING_API_USERNAME = process.env.FASTSPRING_API_USERNAME;
+    const FASTSPRING_API_PASSWORD = process.env.FASTSPRING_API_PASSWORD;
     const FASTSPRING_STORE_ID = process.env.FASTSPRING_STORE_ID;
+    const FASTSPRING_ENVIRONMENT = process.env.VITE_FASTSPRING_ENVIRONMENT || 'test';
     
-    if (!FASTSPRING_API_KEY || !FASTSPRING_STORE_ID) {
+    if (!FASTSPRING_API_USERNAME || !FASTSPRING_API_PASSWORD || !FASTSPRING_STORE_ID) {
       return res.status(500).json({ error: 'FastSpring API credentials not configured' });
     }
 
-    // Create FastSpring checkout session
-    const fastspringResponse = await fetch(`https://api.fastspring.com/stores/${FASTSPRING_STORE_ID}/sessions`, {
+    // Use test or production API based on environment
+    // Note: FastSpring uses the same API endpoint, test vs live is determined by store settings
+    const apiBaseUrl = 'https://api.fastspring.com';
+
+    // Create FastSpring checkout session with Basic Auth
+    const authString = Buffer.from(`${FASTSPRING_API_USERNAME}:${FASTSPRING_API_PASSWORD}`).toString('base64');
+    
+    logger.info(`[FastSpring] Creating checkout for ${productId}`);
+    
+    const fastspringResponse = await fetch(`${apiBaseUrl}/sessions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${FASTSPRING_API_KEY}`,
+        'Authorization': `Basic ${authString}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         products: [
           {
-            product: productId,
+            path: productId,
             quantity: 1
           }
         ],
-        customer: {
+        contact: {
           email: email,
           firstName: 'Atlas',
           lastName: 'User'
@@ -1929,25 +1943,51 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
           user_id: userId,
           tier: tier
         },
-        successUrl: successUrl,
-        cancelUrl: cancelUrl
+        redirectUrls: {
+          success: successUrl,
+          cancel: cancelUrl
+        }
       })
     });
 
     if (!fastspringResponse.ok) {
       const error = await fastspringResponse.text();
-      return res.status(500).json({ error: 'Failed to create checkout session' });
+      logger.error(`[FastSpring] API Error (${fastspringResponse.status}):`, error);
+      return res.status(500).json({ 
+        error: 'Failed to create checkout session', 
+        status: fastspringResponse.status,
+        details: error 
+      });
     }
 
     const checkoutData = await fastspringResponse.json();
     
+    // Log the full response to see what FastSpring returns
+    logger.info(`[FastSpring] API Response:`, JSON.stringify(checkoutData));
+    
+    // FastSpring Sessions API should return the checkout URL directly
+    // If not, we need to construct it ourselves
+    let checkoutUrl = checkoutData.url || checkoutData.checkoutUrl;
+    
+    if (!checkoutUrl && checkoutData.id) {
+      // Fallback: construct URL manually
+      const storeDomain = FASTSPRING_STORE_ID.replace(/_/g, '-');
+      const storefront = FASTSPRING_ENVIRONMENT === 'live' 
+        ? `https://${storeDomain}.onfastspring.com`
+        : `https://${storeDomain}.test.onfastspring.com`;
+      checkoutUrl = `${storefront}/popup-${checkoutData.id}`;
+    }
+    
+    logger.info(`[FastSpring] Checkout created: ${checkoutUrl}`);
+    
     return res.status(200).json({
-      checkoutUrl: checkoutData.url,
+      checkoutUrl: checkoutUrl,
       sessionId: checkoutData.id
     });
 
   } catch (error) {
-    return res.status(500).json({ error: 'Internal server error' });
+    logger.error('[FastSpring] Checkout creation error:', error);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
 

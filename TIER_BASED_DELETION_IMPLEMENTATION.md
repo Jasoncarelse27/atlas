@@ -39,7 +39,7 @@ A centralized service that handles conversation deletion based on user tier:
 ### 3. **Upgrade Prompts** ✅
 Implemented contextual upgrade prompts:
 - **Free → Core**: "Upgrade to sync deletions across devices ($19.99/mo)"
-- **Core → Studio**: "Upgrade to restore deleted conversations ($179.99/mo)"
+- **Core → Studio**: "Upgrade to restore deleted conversations ($189.99/mo)"
 
 ## 🎯 Revenue Alignment
 
@@ -48,7 +48,7 @@ Implemented contextual upgrade prompts:
 |------|---------------|-------------------|---------------|
 | **Free** | Local-only | Cross-device sync | $0 |
 | **Core** | Hard delete | Restore capability | $19.99 |
-| **Studio** | Soft delete + restore | Premium feature | $179.99 |
+| **Studio** | Soft delete + restore | Premium feature | $189.99 |
 
 ### Cost Optimization
 - **Free tier**: Zero server cost (local only)

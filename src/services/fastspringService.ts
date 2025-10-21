@@ -354,7 +354,7 @@ class FastSpringService {
           
           if (sub.status === 'active') {
             if (tier === 'core') analytics.monthlyRecurringRevenue += 19.99;
-            if (tier === 'studio') analytics.monthlyRecurringRevenue += 179.99;
+            if (tier === 'studio') analytics.monthlyRecurringRevenue += 189.99;
           }
         }
 

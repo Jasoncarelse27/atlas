@@ -110,7 +110,7 @@ export const TIER_CONFIGS: Record<string, TierInfo> = {
     name: 'studio',
     displayName: 'Atlas Studio',
     description: 'Premium AI with advanced emotional intelligence and priority processing',
-    price: '$179.99/month',
+    price: '$189.99/month',
     yearlyPrice: '$1799.99/year',
     currency: 'USD',
     limits: {

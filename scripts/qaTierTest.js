@@ -46,7 +46,7 @@ function checkFeatureAccess(feature, tier) {
     if (feature === 'camera') {
       return {
         allowed: false,
-        message: 'Camera features require Atlas Studio (Claude Opus – $179.99/mo). Upgrade to unlock the full experience.',
+        message: 'Camera features require Atlas Studio (Claude Opus – $189.99/mo). Upgrade to unlock the full experience.',
         suggestedTier: 'studio'
       };
     }
@@ -60,7 +60,7 @@ function checkFeatureAccess(feature, tier) {
   if (tier === 'core' && feature === 'camera') {
     return {
       allowed: false,
-      message: 'Camera features are exclusive to Atlas Studio (Claude Opus – $179.99/mo). Upgrade to unlock.',
+      message: 'Camera features are exclusive to Atlas Studio (Claude Opus – $189.99/mo). Upgrade to unlock.',
       suggestedTier: 'studio'
     };
   }

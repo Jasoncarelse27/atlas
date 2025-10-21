@@ -2,7 +2,7 @@
 -- This migration prevents users from updating their own subscription tier
 -- and ensures only the service role (via webhooks) can modify subscription fields.
 --
--- Security Impact: Prevents $179.99/user revenue loss from tier escalation attacks
+-- Security Impact: Prevents $189.99/user revenue loss from tier escalation attacks
 -- Created: 2025-01-17
 
 -- Step 1: Drop ALL existing insecure update policies on profiles table

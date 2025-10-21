@@ -72,7 +72,7 @@ All **5 critical security fixes** have been implemented, tested, and verified as
 | **Client-sent tier** | 🔴 VULNERABLE | 🟢 FIXED | ✅ Server-validated only |
 | **Mock Supabase** | 🔴 VULNERABLE | 🟢 FIXED | ✅ Real credentials required |
 | **Admin bypass** | 🔴 VULNERABLE | 🟢 FIXED | ✅ Authentication required |
-| **Revenue risk** | 🔴 $179.99/user | 🟢 ZERO | ✅ Backend-enforced |
+| **Revenue risk** | 🔴 $189.99/user | 🟢 ZERO | ✅ Backend-enforced |
 
 ### **Security Improvements:**
 - ✅ **100%** of client-sent tier vulnerabilities fixed
@@ -163,7 +163,7 @@ npm start
 - ✅ **0** breaking changes to API
 
 ### **Revenue Protection:**
-- ✅ **$179.99/user** exploit risk eliminated
+- ✅ **$189.99/user** exploit risk eliminated
 - ✅ **100%** backend enforcement
 - ✅ **0%** client trust
 - ✅ **Immediate** downgrade on cancellation
@@ -179,7 +179,7 @@ npm start
 4. ✅ **1 admin route** - Development bypass removed
 
 ### **Impact:**
-- **Revenue Risk:** $179.99/user → **$0/user**
+- **Revenue Risk:** $189.99/user → **$0/user**
 - **Exploit Difficulty:** 1/10 (Easy) → **N/A (Impossible)**
 - **Attack Vectors:** 5 critical → **0 known**
 - **Security Level:** 🔴 CRITICAL → **🟢 SECURE**

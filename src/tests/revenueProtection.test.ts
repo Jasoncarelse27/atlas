@@ -58,7 +58,7 @@ describe('Revenue Protection System', () => {
     it('should have correct pricing per tier', () => {
       expect(tierFeatures.free.monthlyPrice).toBe(0);
       expect(tierFeatures.core.monthlyPrice).toBe(19.99);
-      expect(tierFeatures.studio.monthlyPrice).toBe(179.99);
+      expect(tierFeatures.studio.monthlyPrice).toBe(189.99);
     });
 
     it('should have correct context window limits', () => {

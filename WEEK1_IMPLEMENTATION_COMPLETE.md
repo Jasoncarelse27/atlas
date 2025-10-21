@@ -88,7 +88,7 @@ router.use(requireAdmin); // No bypass - proper authentication
 | Client-sent tier acceptance | ❌ VULNERABLE | 1/10 (Easy) |
 | Mock Supabase client | ❌ VULNERABLE | 1/10 (Easy) |
 | Admin endpoint bypass | ❌ VULNERABLE | 1/10 (Easy) |
-| **Overall Security** | 🔴 **CRITICAL** | **$179.99/user revenue risk** |
+| **Overall Security** | 🔴 **CRITICAL** | **$189.99/user revenue risk** |
 
 ### **After Fixes:**
 | Vulnerability | Status | Exploitability |
@@ -152,7 +152,7 @@ curl http://localhost:8000/api/admin/snapshots
 - **Reduction:** 100%
 
 ### **Revenue Protection:**
-- **Before:** $179.99/user exploit risk
+- **Before:** $189.99/user exploit risk
 - **After:** Backend-only tier enforcement
 - **Protection:** 100%
 
@@ -243,7 +243,7 @@ git checkout HEAD~1 -- backend/routes/admin.js
 - ✅ Issue #3: Admin endpoint bypass
 
 ### **Revenue Protection:**
-- **Before:** $179.99/user exploit risk
+- **Before:** $189.99/user exploit risk
 - **After:** Backend-enforced tier system
 - **Status:** 🟢 **PROTECTED**
 
