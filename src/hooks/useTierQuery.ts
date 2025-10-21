@@ -87,7 +87,7 @@ export function useTierQuery() {
   useEffect(() => {
     if (!query.data?.userId) return;
 
-    logger.debug(`[useTierQuery] 📡 Setting up realtime subscription for user: ${query.data.userId}`);
+    logger.info(`[useTierQuery] 📡 Realtime active for user: ${query.data.userId.slice(0, 8)}...`);
 
     const channel = supabase
       .channel(`tier-updates-${query.data.userId}`) // Fixed: Use unique channel name format
@@ -136,7 +136,6 @@ export function useTierQuery() {
       });
 
     return () => {
-      logger.debug('[useTierQuery] 🔌 Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [query.data?.userId, queryClient]);
@@ -144,7 +143,10 @@ export function useTierQuery() {
   // Listen for auth state changes (login/logout)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      logger.debug('[useTierQuery] 🔐 Auth state changed:', event);
+      // Only log significant events
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        logger.info(`[useTierQuery] 🔐 Auth: ${event}`);
+      }
       
       // Refetch tier on auth changes
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
