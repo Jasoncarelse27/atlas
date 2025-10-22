@@ -20,6 +20,8 @@ export class VoiceCallService {
   private maxCallDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
   private durationCheckInterval: NodeJS.Timeout | null = null;
   private recordingMimeType: string = 'audio/webm'; // ✅ Store detected MIME type
+  private readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+  private readonly MAX_RETRIES = 3;
   
   async startCall(options: VoiceCallOptions): Promise<void> {
     if (this.isActive) {
@@ -142,18 +144,24 @@ export class VoiceCallService {
         this.restartRecording();
       };
       
-      // 8️⃣ START WITH OPTIMAL TIMESLICE
+      // 8️⃣ START WITH OPTIMAL TIMESLICE (3 seconds for faster responses)
       this.mediaRecorder.start(100); // 100ms chunks for smooth accumulation
       setTimeout(() => {
         if (this.mediaRecorder?.state === 'recording') {
           this.mediaRecorder.stop();
         }
-      }, 5000);
+      }, 3000); // ✅ Reduced to 3 seconds for faster responses
       
     } catch (error) {
       logger.error('[VoiceCall] Recording setup failed:', error);
       this.isActive = false;
-      options.onError(error as Error);
+      // User-friendly error message
+      const friendlyError = error instanceof Error && error.message.includes('Permission denied')
+        ? new Error('Microphone access denied. Please allow microphone permissions.')
+        : error instanceof Error
+        ? error
+        : new Error('Failed to access microphone');
+      options.onError(friendlyError);
     }
   }
   
@@ -167,7 +175,7 @@ export class VoiceCallService {
         if (this.mediaRecorder?.state === 'recording') {
           this.mediaRecorder.stop();
         }
-      }, 5000);
+      }, 3000); // ✅ Reduced to 3 seconds
     }
   }
   
@@ -187,26 +195,28 @@ export class VoiceCallService {
       // 1. Convert audio blob to base64
       const base64Audio = await this.blobToBase64(audioBlob);
       
-      // 2. Call STT Edge Function directly
+      // 2. Call STT Edge Function with retry logic
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
-      const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ audio: base64Audio.split(',')[1] }), // Remove data:audio/webm;base64, prefix
-      });
-      
-      if (!sttResponse.ok) {
-        const error = await sttResponse.json().catch(() => ({}));
-        throw new Error(`STT failed: ${error.error || sttResponse.statusText}`);
-      }
-      
-      const sttResult = await sttResponse.json();
-      const transcript = sttResult.text;
+      const transcript = await this.retryWithBackoff(async () => {
+        const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ audio: base64Audio.split(',')[1] }), // Remove data:audio/webm;base64, prefix
+        });
+        
+        if (!sttResponse.ok) {
+          const error = await sttResponse.json().catch(() => ({}));
+          throw new Error(`STT failed: ${error.error || sttResponse.statusText}`);
+        }
+        
+        const sttResult = await sttResponse.json();
+        return sttResult.text;
+      }, 'Speech Recognition');
       
       if (!transcript || transcript.trim().length === 0) {
         logger.debug('[VoiceCall] Empty transcript, skipping');
@@ -242,26 +252,28 @@ export class VoiceCallService {
       // Update status: speaking
       options.onStatusChange?.('speaking');
       
-      // 4. Call TTS Edge Function directly with Studio tier HD voice
-      const ttsResponse = await fetch(`${supabaseUrl}/functions/v1/tts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ 
-          text: aiResponse, 
-          voice: 'nova',
-          model: 'tts-1-hd' // ✅ HD voice for Studio tier
-        }),
-      });
-      
-      if (!ttsResponse.ok) {
-        const error = await ttsResponse.json().catch(() => ({}));
-        throw new Error(`TTS failed: ${error.error || ttsResponse.statusText}`);
-      }
-      
-      const ttsResult = await ttsResponse.json();
+      // 4. Call TTS Edge Function with retry logic and Studio tier HD voice
+      const ttsResult = await this.retryWithBackoff(async () => {
+        const ttsResponse = await fetch(`${supabaseUrl}/functions/v1/tts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ 
+            text: aiResponse, 
+            voice: 'nova',
+            model: 'tts-1-hd' // ✅ HD voice for Studio tier
+          }),
+        });
+        
+        if (!ttsResponse.ok) {
+          const error = await ttsResponse.json().catch(() => ({}));
+          throw new Error(`TTS failed: ${error.error || ttsResponse.statusText}`);
+        }
+        
+        return await ttsResponse.json();
+      }, 'Text-to-Speech');
       
       // 5. Play audio with proper error handling
       const audioDataUrl = `data:audio/mp3;base64,${ttsResult.base64Audio}`;
@@ -321,6 +333,47 @@ export class VoiceCallService {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+  }
+  
+  /**
+   * Retry wrapper with exponential backoff for network calls
+   */
+  private async retryWithBackoff<T>(
+    fn: () => Promise<T>,
+    operation: string
+  ): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          // Show reconnecting status
+          this.currentOptions?.onStatusChange?.('transcribing'); // Reuse transcribing for "reconnecting"
+          logger.info(`[VoiceCall] Retry attempt ${attempt + 1}/${this.MAX_RETRIES} for ${operation}`);
+          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAYS[attempt - 1]));
+        }
+        
+        return await fn();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Don't retry auth errors or rate limits
+        if (error.message?.includes('401') || error.message?.includes('403') || error.message?.includes('429')) {
+          logger.error(`[VoiceCall] ${operation} failed with non-retryable error:`, error.message);
+          throw error;
+        }
+        
+        // Don't retry if this was the last attempt
+        if (attempt === this.MAX_RETRIES - 1) {
+          logger.error(`[VoiceCall] ${operation} failed after ${this.MAX_RETRIES} attempts`);
+          throw new Error(`Connection lost. Please check your internet connection.`);
+        }
+        
+        logger.warn(`[VoiceCall] ${operation} failed, retrying... (${attempt + 1}/${this.MAX_RETRIES})`);
+      }
+    }
+    
+    throw lastError || new Error(`${operation} failed`);
   }
   
   private async getAIResponse(

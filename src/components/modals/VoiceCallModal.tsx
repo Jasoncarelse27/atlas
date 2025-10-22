@@ -33,6 +33,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const [callDuration, setCallDuration] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const [callStatus, setCallStatus] = useState<'listening' | 'transcribing' | 'thinking' | 'speaking'>('listening');
+  const [lastTranscript, setLastTranscript] = useState<string>('');
+  const [lastAIResponse, setLastAIResponse] = useState<string>('');
+  const [transcriptHistory, setTranscriptHistory] = useState<Array<{role: 'user' | 'assistant', text: string}>>([]);
   
   const callStartTime = useRef<Date | null>(null);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
@@ -112,13 +115,23 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           tier: tier as 'studio', // Only Studio tier can reach here
           onTranscript: (text: string) => {
             logger.debug('[VoiceCall] User said:', text);
+            setLastTranscript(text);
+            setTranscriptHistory(prev => [...prev, { role: 'user', text }]);
           },
           onAIResponse: (text: string) => {
             logger.debug('[VoiceCall] Atlas said:', text);
+            setLastAIResponse(text);
+            setTranscriptHistory(prev => [...prev, { role: 'assistant', text }]);
           },
           onError: (error: Error) => {
             logger.error('[VoiceCall] Service error:', error);
-            toast.error('Voice call error: ' + error.message);
+            // User-friendly error messages
+            const friendlyMessage = error.message.includes('Microphone')
+              ? 'Microphone not available'
+              : error.message.includes('Connection lost')
+              ? 'Connection lost, retrying...'
+              : error.message;
+            toast.error(friendlyMessage);
             endCall();
           },
           onStatusChange: (status) => {
@@ -206,6 +219,31 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     };
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Space = toggle mute (only during call)
+      if (e.code === 'Space' && isCallActive && !e.repeat) {
+        e.preventDefault();
+        toggleMute();
+      }
+      // Escape = end call or close modal
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        if (isCallActive) {
+          endCall();
+        } else {
+          onClose();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isOpen, isCallActive]);
+
   if (!isOpen) return null;
 
   return (
@@ -225,7 +263,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-gray-900/95 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-800"
+          className="bg-gray-900/95 backdrop-blur-xl rounded-3xl p-6 sm:p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-800"
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -293,6 +331,24 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             )}
           </div>
 
+          {/* Transcript Display */}
+          {isCallActive && (lastTranscript || lastAIResponse) && (
+            <div className="mb-6 space-y-3 max-h-32 overflow-y-auto">
+              {lastTranscript && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                  <p className="text-blue-300 text-xs font-medium mb-1">You said:</p>
+                  <p className="text-gray-200 text-sm">{lastTranscript}</p>
+                </div>
+              )}
+              {lastAIResponse && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                  <p className="text-emerald-300 text-xs font-medium mb-1">Atlas:</p>
+                  <p className="text-gray-200 text-sm">{lastAIResponse}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Call Controls */}
           <div className="flex items-center justify-center gap-4">
             {isCallActive ? (
@@ -353,9 +409,18 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                 <li>• Real-time conversation with Atlas AI</li>
                 <li>• Automatic speech recognition</li>
                 <li>• Natural voice responses</li>
-                <li>• 30-minute maximum call duration</li>
-                <li>• Studio tier exclusive (unlimited usage)</li>
+                <li>• Unlimited duration (Studio tier)</li>
               </ul>
+            </div>
+          )}
+
+          {/* Keyboard Shortcuts - Only show during active call */}
+          {isCallActive && (
+            <div className="mt-6 p-3 bg-gray-800/30 rounded-xl">
+              <p className="text-gray-400 text-xs text-center">
+                <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mr-1">Space</span> Mute • 
+                <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mx-1">Esc</span> End Call
+              </p>
             </div>
           )}
         </motion.div>

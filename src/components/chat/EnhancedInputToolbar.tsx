@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Image, Loader2, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import '../../styles/voice-animations.css';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useFeatureAccess, useTierAccess } from '../../hooks/useTierAccess';
@@ -378,6 +379,9 @@ export default function EnhancedInputToolbar({
       return;
     }
     
+    // Mark voice call as used (remove NEW badge)
+    localStorage.setItem('hasUsedVoiceCall', 'true');
+    
     // Open voice call modal
     setShowVoiceCall(true);
   };
@@ -626,15 +630,18 @@ export default function EnhancedInputToolbar({
                   onClick={handleStartVoiceCall}
                   disabled={disabled}
                   title={tier === 'studio' ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
-                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-sm touch-manipulation ${
+                  className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-sm touch-manipulation ${
                     tier === 'studio'
-                      ? 'bg-emerald-500 hover:bg-emerald-600'
+                      ? 'bg-emerald-500 hover:bg-emerald-600 voice-call-pulse'
                       : 'bg-gray-600 hover:bg-gray-500 opacity-60'
                   }`}
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                   whileTap={{ scale: 0.9 }}
                 >
                   <Phone className="w-4 h-4 text-white" />
+                  {tier === 'studio' && !localStorage.getItem('hasUsedVoiceCall') && (
+                    <span className="voice-call-badge">New</span>
+                  )}
                 </motion.button>
               )}
         </div>
