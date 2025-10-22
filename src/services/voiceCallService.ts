@@ -31,10 +31,14 @@ export class VoiceCallService {
   private microphone: MediaStreamAudioSourceNode | null = null;
   private vadCheckInterval: NodeJS.Timeout | null = null;
   private silenceStartTime: number | null = null;
-  private readonly SILENCE_THRESHOLD = 0.02; // Very sensitive (2% volume)
-  private readonly SILENCE_DURATION = 500; // Process 500ms after silence (ChatGPT-speed)
-  private readonly MIN_SPEECH_DURATION = 300; // Minimum 300ms of speech
+  private readonly SILENCE_DURATION = 300; // ⚡ INSTANT: Process after 300ms silence (ChatGPT-level)
+  private readonly MIN_SPEECH_DURATION = 200; // ⚡ Minimum 200ms of speech for faster response
   private lastSpeechTime: number = 0;
+  
+  // 🎯 SMART ADAPTIVE THRESHOLD
+  private baselineNoiseLevel: number = 0;
+  private adaptiveThreshold: number = 0.02; // Starts at 2%, adjusts based on environment
+  private isCalibrated: boolean = false;
   
   async startCall(options: VoiceCallOptions): Promise<void> {
     if (this.isActive) {
@@ -187,6 +191,9 @@ export class VoiceCallService {
       // Start VAD monitoring
       this.startVADMonitoring(options);
       
+      // 🎯 SMART THRESHOLD: Calibrate ambient noise for first 2 seconds
+      await this.calibrateAmbientNoise();
+      
       // Start recording
       this.mediaRecorder.start(100);
       
@@ -200,6 +207,36 @@ export class VoiceCallService {
         : new Error('Failed to access microphone');
       options.onError(friendlyError);
     }
+  }
+  
+  /**
+   * 🎯 SMART ADAPTIVE THRESHOLD: Calibrate to ambient noise
+   */
+  private async calibrateAmbientNoise(): Promise<void> {
+    if (!this.analyser) return;
+    
+    logger.info('[VoiceCall] 🔧 Calibrating ambient noise level...');
+    
+    const samples: number[] = [];
+    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    
+    // Collect 20 samples over 2 seconds
+    for (let i = 0; i < 20; i++) {
+      this.analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+      samples.push(average / 255);
+      await new Promise(r => setTimeout(r, 100));
+    }
+    
+    // Calculate baseline (median to avoid outliers)
+    samples.sort((a, b) => a - b);
+    this.baselineNoiseLevel = samples[Math.floor(samples.length / 2)];
+    
+    // Set adaptive threshold (1.5x baseline, min 0.02)
+    this.adaptiveThreshold = Math.max(this.baselineNoiseLevel * 1.5, 0.02);
+    this.isCalibrated = true;
+    
+    logger.info(`[VoiceCall] ✅ Calibrated - Baseline: ${(this.baselineNoiseLevel * 100).toFixed(1)}%, Threshold: ${(this.adaptiveThreshold * 100).toFixed(1)}%`);
   }
   
   /**
@@ -221,11 +258,24 @@ export class VoiceCallService {
       
       const now = Date.now();
       
+      // 🎯 Use adaptive threshold (or default if not calibrated yet)
+      const threshold = this.isCalibrated ? this.adaptiveThreshold : 0.02;
+      
       // Detect speech vs silence
-      if (audioLevel > this.SILENCE_THRESHOLD) {
+      if (audioLevel > threshold) {
         // User is speaking
         this.silenceStartTime = null;
         this.lastSpeechTime = now;
+        
+        // 🛑 TAP TO INTERRUPT: If user speaks while Atlas is playing
+        if (this.currentAudio && !this.currentAudio.paused) {
+          // User interrupted! Stop Atlas immediately
+          logger.info('[VoiceCall] 🛑 User interrupted Atlas - stopping playback');
+          this.currentAudio.pause();
+          this.currentAudio.currentTime = 0;
+          this.currentAudio = null;
+          options.onStatusChange?.('listening');
+        }
       } else {
         // Silence detected
         if (this.silenceStartTime === null) {
@@ -236,7 +286,7 @@ export class VoiceCallService {
         const silenceDuration = now - this.silenceStartTime;
         const speechDuration = now - this.lastSpeechTime;
         
-        // ✅ CHATGPT-STYLE: Process immediately after 500ms silence
+        // ⚡ INSTANT: Process after 300ms silence
         if (
           silenceDuration >= this.SILENCE_DURATION &&
           speechDuration >= this.MIN_SPEECH_DURATION &&
