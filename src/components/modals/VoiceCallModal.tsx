@@ -382,16 +382,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                     <Phone className="w-12 h-12 text-white" />
                   </div>
                 </div>
-                <p className={`text-lg font-medium mb-2 transition-colors ${
-                  callStatus === 'speaking' ? 'text-emerald-400' :
-                  callStatus === 'thinking' ? 'text-blue-400' :
-                  callStatus === 'transcribing' ? 'text-purple-400' :
-                  'text-emerald-400'
-                }`}>
-                  {callStatus === 'listening' ? 'Listening...' :
-                   callStatus === 'transcribing' ? 'Transcribing...' :
-                   callStatus === 'thinking' ? 'Atlas is thinking...' :
-                   'Speaking...'}
+                <p className="text-lg font-medium mb-2 text-emerald-400">
+                  Voice Call Active
                 </p>
                 <p className="text-gray-400 text-3xl font-mono">{formatDuration(callDuration)}</p>
                 {(tierFeatures[tier] as any).voiceCallMaxDuration === -1 && (
