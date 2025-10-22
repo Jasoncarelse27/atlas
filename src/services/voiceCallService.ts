@@ -22,6 +22,7 @@ export class VoiceCallService {
   private recordingMimeType: string = 'audio/webm'; // ✅ Store detected MIME type
   private readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
   private readonly MAX_RETRIES = 3;
+  private currentAudio: HTMLAudioElement | null = null; // ✅ Track current playing audio
   
   async startCall(options: VoiceCallOptions): Promise<void> {
     if (this.isActive) {
@@ -64,6 +65,13 @@ export class VoiceCallService {
     if (this.durationCheckInterval) {
       clearInterval(this.durationCheckInterval);
       this.durationCheckInterval = null;
+    }
+    
+    // ✅ FIX: Stop any playing audio when call ends
+    if (this.currentAudio && !this.currentAudio.paused) {
+      this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
+      this.currentAudio = null;
     }
     
     // Stop recording
@@ -170,12 +178,25 @@ export class VoiceCallService {
    */
   private restartRecording(): void {
     if (this.isActive && this.mediaRecorder) {
-      this.mediaRecorder.start(100);
-      setTimeout(() => {
-        if (this.mediaRecorder?.state === 'recording') {
-          this.mediaRecorder.stop();
-        }
-      }, 2000); // ✅ 2 seconds for faster voice responses
+      // ✅ FIX: Don't record while Atlas is speaking
+      if (this.currentAudio && !this.currentAudio.paused) {
+        logger.debug('[VoiceCall] Skipping recording - Atlas is still speaking');
+        // Wait for audio to finish before restarting
+        setTimeout(() => this.restartRecording(), 500);
+        return;
+      }
+      
+      // ✅ FIX: Check if already recording before starting
+      if (this.mediaRecorder.state === 'inactive') {
+        this.mediaRecorder.start(100);
+        setTimeout(() => {
+          if (this.mediaRecorder?.state === 'recording') {
+            this.mediaRecorder.stop();
+          }
+        }, 2000); // ✅ 2 seconds for faster voice responses
+      } else {
+        logger.debug('[VoiceCall] Skipping restart - already recording');
+      }
     }
   }
   
@@ -276,8 +297,17 @@ export class VoiceCallService {
       }, 'Text-to-Speech');
       
       // 5. Play audio with proper error handling
+      // ✅ FIX: Stop any existing audio before playing new audio
+      if (this.currentAudio && !this.currentAudio.paused) {
+        logger.debug('[VoiceCall] Stopping previous audio playback');
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+        this.currentAudio = null;
+      }
+      
       const audioDataUrl = `data:audio/mp3;base64,${ttsResult.base64Audio}`;
       const audio = new Audio(audioDataUrl);
+      this.currentAudio = audio;
       
       // Store reference to prevent garbage collection
       (window as any).__atlasAudioElement = audio;
@@ -290,6 +320,9 @@ export class VoiceCallService {
         logger.debug('[VoiceCall] Audio playback ended');
         options.onStatusChange?.('listening'); // ✅ Back to listening after audio ends
         delete (window as any).__atlasAudioElement;
+        if (this.currentAudio === audio) {
+          this.currentAudio = null;
+        }
       };
       
       try {
