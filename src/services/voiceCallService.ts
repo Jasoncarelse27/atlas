@@ -121,7 +121,7 @@ export class VoiceCallService {
         // Validate chunks exist
         const totalChunks = audioChunks.length;
         const totalSize = audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
-        const expectedMinSize = 12000; // ~12KB minimum for 3s chunks (adjusted from 20KB for 5s)
+        const expectedMinSize = 5000; // ~5KB minimum for 3s chunks (more sensitive for better UX)
         
         logger.info(`[VoiceCall] 🎤 Recording complete: ${totalChunks} chunks, ${(totalSize/1024).toFixed(1)}KB`);
         

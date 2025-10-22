@@ -35,7 +35,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const [callStatus, setCallStatus] = useState<'listening' | 'transcribing' | 'thinking' | 'speaking'>('listening');
   const [lastTranscript, setLastTranscript] = useState<string>('');
   const [lastAIResponse, setLastAIResponse] = useState<string>('');
-  const [transcriptHistory, setTranscriptHistory] = useState<Array<{role: 'user' | 'assistant', text: string}>>([]);
+  const [micLevel, setMicLevel] = useState(0); // 0-100 for visual feedback
   
   const callStartTime = useRef<Date | null>(null);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
@@ -52,7 +52,11 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     analyser.current.getByteFrequencyData(dataArray);
     
     const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-    setAudioLevel(average / 255); // Normalize to 0-1
+    const normalizedLevel = average / 255; // 0-1
+    setAudioLevel(normalizedLevel);
+    
+    // Set mic level for visual indicator (0-100)
+    setMicLevel(Math.round(normalizedLevel * 100));
     
     if (isCallActive) {
       requestAnimationFrame(monitorAudioLevel);
@@ -91,6 +95,15 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           throw new Error('Audio recording not supported in this browser');
         }
         
+        // Check for HTTPS on mobile (required for microphone access)
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const isHTTPS = window.location.protocol === 'https:';
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        if (isMobile && !isHTTPS && !isLocalhost) {
+          throw new Error('Voice calls require HTTPS on mobile devices. Please use a secure connection.');
+        }
+        
         audioContext.current = new AudioContext();
         stream.current = await getSafeUserMedia({ audio: true });
         
@@ -116,12 +129,10 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           onTranscript: (text: string) => {
             logger.debug('[VoiceCall] User said:', text);
             setLastTranscript(text);
-            setTranscriptHistory(prev => [...prev, { role: 'user', text }]);
           },
           onAIResponse: (text: string) => {
             logger.debug('[VoiceCall] Atlas said:', text);
             setLastAIResponse(text);
-            setTranscriptHistory(prev => [...prev, { role: 'assistant', text }]);
           },
           onError: (error: Error) => {
             logger.error('[VoiceCall] Service error:', error);
@@ -318,6 +329,37 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                 <p className="text-gray-400 text-3xl font-mono">{formatDuration(callDuration)}</p>
                 {(tierFeatures[tier] as any).voiceCallMaxDuration === -1 && (
                   <p className="text-gray-500 text-sm mt-2">Unlimited</p>
+                )}
+                
+                {/* Microphone Level Indicator */}
+                {callStatus === 'listening' && (
+                  <div className="mt-4 w-full max-w-xs mx-auto">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-gray-400 text-xs">Mic Level:</p>
+                      <p className={`text-xs font-medium ${
+                        micLevel > 30 ? 'text-emerald-400' : 
+                        micLevel > 10 ? 'text-yellow-400' : 
+                        'text-gray-500'
+                      }`}>
+                        {micLevel}%
+                      </p>
+                    </div>
+                    <div className="w-full h-2 bg-gray-700/50 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-100 ${
+                          micLevel > 30 ? 'bg-emerald-500' :
+                          micLevel > 10 ? 'bg-yellow-500' :
+                          'bg-gray-600'
+                        }`}
+                        style={{ width: `${micLevel}%` }}
+                      />
+                    </div>
+                    <p className="text-gray-500 text-xs mt-1 text-center">
+                      {micLevel < 10 ? '🤫 Speak louder to be heard' : 
+                       micLevel < 30 ? '🎤 Good - keep speaking' : 
+                       '✅ Perfect level!'}
+                    </p>
+                  </div>
                 )}
               </>
             ) : (
