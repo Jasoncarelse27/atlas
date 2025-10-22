@@ -121,13 +121,13 @@ export class VoiceCallService {
         // Validate chunks exist
         const totalChunks = audioChunks.length;
         const totalSize = audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
-        const expectedMinSize = 20000; // ~20KB minimum for 5s (browser defaults)
+        const expectedMinSize = 12000; // ~12KB minimum for 3s chunks (adjusted from 20KB for 5s)
         
         logger.info(`[VoiceCall] 🎤 Recording complete: ${totalChunks} chunks, ${(totalSize/1024).toFixed(1)}KB`);
         
         // Skip if too small (likely silence or MediaRecorder issue)
         if (totalSize < expectedMinSize) {
-          logger.warn(`[VoiceCall] ⚠️ Audio too small (${(totalSize/1024).toFixed(1)}KB < ${(expectedMinSize/1024).toFixed(1)}KB min) - check microphone`);
+          logger.debug(`[VoiceCall] 🤫 Silence detected (${(totalSize/1024).toFixed(1)}KB) - waiting for speech...`);
           audioChunks = [];
           this.restartRecording();
           return;
