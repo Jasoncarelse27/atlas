@@ -121,7 +121,7 @@ export class VoiceCallService {
         // Validate chunks exist
         const totalChunks = audioChunks.length;
         const totalSize = audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
-        const expectedMinSize = 1000; // ~1KB minimum (ultra-sensitive for quiet environments)
+        const expectedMinSize = 800; // ~0.8KB minimum for 2-second chunks
         
         logger.info(`[VoiceCall] 🎤 Recording complete: ${totalChunks} chunks, ${(totalSize/1024).toFixed(1)}KB`);
         
@@ -150,7 +150,7 @@ export class VoiceCallService {
         if (this.mediaRecorder?.state === 'recording') {
           this.mediaRecorder.stop();
         }
-      }, 3000); // ✅ Reduced to 3 seconds for faster responses
+      }, 2000); // ✅ 2 seconds for much faster responses
       
     } catch (error) {
       logger.error('[VoiceCall] Recording setup failed:', error);
@@ -175,7 +175,7 @@ export class VoiceCallService {
         if (this.mediaRecorder?.state === 'recording') {
           this.mediaRecorder.stop();
         }
-      }, 3000); // ✅ Reduced to 3 seconds
+      }, 2000); // ✅ 2 seconds for faster voice responses
     }
   }
   

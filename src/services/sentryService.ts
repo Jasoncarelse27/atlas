@@ -32,7 +32,7 @@ export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   
   if (!dsn) {
-    logger.warn('[Sentry] No DSN provided, error tracking disabled');
+    // Silent when no DSN - this is normal for local development
     return;
   }
 
