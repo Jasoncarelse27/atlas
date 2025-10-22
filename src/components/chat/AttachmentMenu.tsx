@@ -51,9 +51,17 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (isUploading) return; // ✅ Prevent duplicate uploads
+    if (isUploading) {
+      logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
+      return; // ✅ Prevent duplicate uploads
+    }
+    
+    // ✅ BEST PRACTICE: Clear input value immediately to prevent re-triggering
+    e.target.value = '';
     
     setIsUploading(true);
+    logger.debug('[AttachmentMenu] Starting image upload:', file.name);
+    
     try {
       toast.loading(
         <div className="flex flex-col">
@@ -124,10 +132,16 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
           }
 
     } catch (err) {
+      logger.error('[AttachmentMenu] Image upload failed:', err);
       toast.dismiss('image-upload-loading');
       toast.error("Upload failed - check console for details");
     } finally {
       setIsUploading(false);
+      
+      // ✅ BEST PRACTICE: Clear all refs to ensure clean state
+      if (imageInputRef.current) imageInputRef.current.value = '';
+      if (mobileCameraInputRef.current) mobileCameraInputRef.current.value = '';
+      
       onClose();
     }
   };
@@ -137,9 +151,16 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (isUploading) return; // ✅ Prevent duplicate uploads
+    if (isUploading) {
+      logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
+      return; // ✅ Prevent duplicate uploads
+    }
+    
+    // ✅ BEST PRACTICE: Clear input value immediately to prevent re-triggering
+    e.target.value = '';
     
     setIsUploading(true);
+    logger.debug('[AttachmentMenu] Starting file upload:', file.name);
     try {
       toast.loading(
         <div className="flex flex-col">
@@ -210,10 +231,15 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
           }
 
     } catch (err) {
+      logger.error('[AttachmentMenu] File upload failed:', err);
       toast.dismiss('file-upload-loading');
       toast.error("Upload failed - check console for details");
     } finally {
       setIsUploading(false);
+      
+      // ✅ BEST PRACTICE: Clear file input ref to ensure clean state
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      
       onClose();
     }
   };

@@ -1,5 +1,5 @@
-import { supabase } from "../lib/supabaseClient";
 import { logger } from '../lib/logger';
+import { supabase } from "../lib/supabaseClient";
 
 // Event logging helper
 const logEvent = (eventName: string, props: any) => {
@@ -69,7 +69,8 @@ export const imageService = {
     const imageUrl = this.getPublicUrl(filePath);
 
     // Call our backend image analysis endpoint
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/image-analysis`, {
+    // ✅ FIX: Use relative URL for proper proxy routing (like chatService.ts does)
+    const res = await fetch('/api/image-analysis', {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",

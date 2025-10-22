@@ -108,21 +108,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE FIX: Ensure database is ready before use
       await ensureDatabaseReady();
       
-      // ✅ MOBILE FIX: Try with userId filter first, fallback without filter if no results
+      // ✅ SECURITY FIX: Always filter by userId to prevent cross-user data exposure
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .and(msg => msg.userId === userId) // ✅ MOBILE FIX: Filter by userId to prevent cross-user data
+        .and(msg => msg.userId === userId) // ✅ CRITICAL: Filter by userId for security
         .sortBy("timestamp");
       
-      // ✅ FALLBACK: If no messages found with userId filter, try without filter (for existing data)
-      if (storedMessages.length === 0) {
-        logger.debug('[ChatPage] ⚠️ No messages with userId filter, trying without filter for existing data');
-        storedMessages = await atlasDB.messages
-          .where("conversationId")
-          .equals(conversationId)
-          .sortBy("timestamp");
-      }
+      // ✅ NOTE: Removed fallback without userId filter for security
+      // If no messages found, fetch from Supabase instead (see below)
       
       // ✅ NEW: If Dexie is still empty, fetch from Supabase and sync to Dexie
       if (storedMessages.length === 0) {

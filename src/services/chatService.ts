@@ -119,29 +119,74 @@ export const chatService = {
       // This ensures mobile devices use the proxy instead of direct localhost calls
       const messageEndpoint = '/message';
       
-      const response = await fetch(messageEndpoint, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          text: text,
-          userId: session?.user?.id || userId || '', // Use passed userId or session userId
-          conversationId: conversationId || null // ✅ Pass conversationId if available
-        }),
-        signal: abortController?.signal, // Add abort signal for cancellation (with null check)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        
-        // ✅ Handle monthly limit reached
-        if (response.status === 429 && errorData.error === 'MONTHLY_LIMIT_REACHED') {
-          throw new Error('MONTHLY_LIMIT_REACHED');
+      // ✅ ENHANCED ERROR HANDLING: Retry with exponential backoff
+      let lastError: Error | null = null;
+      let response: Response | null = null;
+      const MAX_RETRIES = 3;
+      
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          response = await fetch(messageEndpoint, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ 
+              text: text,
+              userId: session?.user?.id || userId || '', // Use passed userId or session userId
+              conversationId: conversationId || null // ✅ Pass conversationId if available
+            }),
+            signal: abortController?.signal, // Add abort signal for cancellation (with null check)
+          });
+          
+          // Break on success
+          if (response.ok) break;
+          
+          // Handle errors
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          
+          // Don't retry on auth/limit errors
+          if (response.status === 401 || response.status === 429) {
+            if (response.status === 429 && errorData.error === 'MONTHLY_LIMIT_REACHED') {
+              throw new Error('MONTHLY_LIMIT_REACHED');
+            }
+            throw new Error(`Backend error: ${errorData.error || response.statusText}`);
+          }
+          
+          // Retry on server errors (500+) or network issues
+          if (response.status >= 500 && attempt < MAX_RETRIES - 1) {
+            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+            logger.warn(`[ChatService] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          
+          throw new Error(`Backend error: ${errorData.error || response.statusText}`);
+        } catch (error) {
+          lastError = error as Error;
+          
+          // Don't retry on abort or specific errors
+          if (error instanceof Error && (
+            error.name === 'AbortError' || 
+            error.message.includes('MONTHLY_LIMIT_REACHED')
+          )) {
+            throw error;
+          }
+          
+          // Retry on network errors
+          if (attempt < MAX_RETRIES - 1) {
+            const delay = Math.pow(2, attempt) * 1000;
+            logger.warn(`[ChatService] Network error, retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
         }
-        
-        throw new Error(`Backend error: ${errorData.error || response.statusText}`);
+      }
+      
+      // If we exhausted retries, throw last error
+      if (!response || !response.ok) {
+        throw lastError || new Error('Failed after max retries');
       }
 
       const data = await response.json();

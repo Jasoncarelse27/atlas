@@ -116,18 +116,8 @@ export default function EnhancedInputToolbar({
         name: att.name
       }));
       
-      // Show Atlas-branded analyzing toast with loading spinner
-      const analysisToastId = toast.loading(
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-900">Analyzing with AI</span>
-          <span className="text-xs text-gray-500">Processing image content...</span>
-        </div>,
-        {
-          duration: Infinity, // Don't auto-dismiss
-          id: 'image-analysis-loading',
-          icon: <div className="w-5 h-5 border-2 border-[#B2BDA3] border-t-transparent rounded-full animate-spin" />
-        }
-      );
+      // ✅ REMOVED: Duplicate toast notification - using only floating overlay
+      // Keep only the professional bottom-center indicator
 
       try {
         // Update status to analyzing (more specific feedback)
@@ -157,25 +147,8 @@ export default function EnhancedInputToolbar({
           }
         });
         
-        // Dismiss loading toast and show Atlas-branded success
-        toast.dismiss(analysisToastId);
-        toast.success(
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900">Analysis complete</span>
-            <span className="text-xs text-gray-500">Ready to continue chatting</span>
-          </div>,
-          { 
-            id: 'image-analysis-success', 
-            duration: 3000,
-            icon: (
-              <div className="w-5 h-5 rounded-full bg-[#B2BDA3] flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            )
-          }
-        );
+        // ✅ REMOVED: Success toast - floating overlay is sufficient
+        // Professional, non-intrusive UX
         
         // Clear upload status after success
         setTimeout(() => {
@@ -191,8 +164,8 @@ export default function EnhancedInputToolbar({
           }
         });
         
-        // Dismiss loading toast and show error
-        toast.dismiss(analysisToastId);
+        // ✅ REMOVED: Toast dismiss (no toast to dismiss)
+        // Error handling through floating overlay only
         
         // More specific error messages
         if (error instanceof Error && error.message === 'Send timeout') {
