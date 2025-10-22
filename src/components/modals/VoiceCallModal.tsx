@@ -30,6 +30,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   
   const [isCallActive, setIsCallActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isPushToTalk, setIsPushToTalk] = useState(false); // 🎙️ ChatGPT-style push-to-talk
+  const [isSpacePressed, setIsSpacePressed] = useState(false); // Track space key
   const [callDuration, setCallDuration] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const [callStatus, setCallStatus] = useState<'listening' | 'transcribing' | 'thinking' | 'speaking'>('listening');
@@ -125,7 +127,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         await voiceCallService.startCall({
           userId,
           conversationId,
-          tier: tier as 'studio', // Only Studio tier can reach here
+          tier: tier as 'studio',
           onTranscript: (text: string) => {
             logger.debug('[VoiceCall] User said:', text);
             setLastTranscript(text);
@@ -136,7 +138,6 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           },
           onError: (error: Error) => {
             logger.error('[VoiceCall] Service error:', error);
-            // User-friendly error messages
             const friendlyMessage = error.message.includes('Microphone')
               ? 'Microphone not available'
               : error.message.includes('Connection lost')
@@ -147,6 +148,11 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           },
           onStatusChange: (status) => {
             setCallStatus(status);
+          },
+          onAudioLevel: (level: number) => {
+            // ✅ CHATGPT-STYLE: Real-time audio level from VAD
+            setAudioLevel(level);
+            setMicLevel(Math.round(level * 100));
           },
         });
         
@@ -230,15 +236,57 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     };
   }, []);
 
+  // 🎙️ ChatGPT-Style Push-to-Talk Mode
+  const togglePushToTalk = () => {
+    setIsPushToTalk(!isPushToTalk);
+    if (!isPushToTalk) {
+      toast.success('Push-to-talk enabled! Hold Space to speak', { duration: 2000 });
+      // Mute immediately when enabling PTT
+      if (stream.current && !isMuted) {
+        const audioTrack = stream.current.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = false;
+          setIsMuted(true);
+        }
+      }
+    } else {
+      toast.success('Push-to-talk disabled', { duration: 2000 });
+      // Unmute when disabling PTT
+      if (stream.current && isMuted) {
+        const audioTrack = stream.current.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = true;
+          setIsMuted(false);
+        }
+      }
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     if (!isOpen) return;
     
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Space = toggle mute (only during call)
+      // Space = toggle mute OR push-to-talk
       if (e.code === 'Space' && isCallActive && !e.repeat) {
         e.preventDefault();
-        toggleMute();
+        
+        if (isPushToTalk) {
+          // Push-to-talk: Space down = unmute
+          if (!isSpacePressed) {
+            setIsSpacePressed(true);
+            if (stream.current) {
+              const audioTrack = stream.current.getAudioTracks()[0];
+              if (audioTrack) {
+                audioTrack.enabled = true;
+                setIsMuted(false);
+              }
+            }
+          }
+        } else {
+          // Normal mode: Space = toggle mute
+          toggleMute();
+        }
       }
       // Escape = end call or close modal
       if (e.code === 'Escape') {
@@ -251,9 +299,28 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       }
     };
     
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Space up = mute in push-to-talk mode
+      if (e.code === 'Space' && isCallActive && isPushToTalk) {
+        e.preventDefault();
+        setIsSpacePressed(false);
+        if (stream.current) {
+          const audioTrack = stream.current.getAudioTracks()[0];
+          if (audioTrack) {
+            audioTrack.enabled = false;
+            setIsMuted(true);
+          }
+        }
+      }
+    };
+    
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isOpen, isCallActive]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isOpen, isCallActive, isPushToTalk, isSpacePressed]);
 
   if (!isOpen) return null;
 
@@ -331,7 +398,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   <p className="text-gray-500 text-sm mt-2">Unlimited</p>
                 )}
                 
-                {/* Microphone Level Indicator */}
+                {/* Microphone Level Indicator - ChatGPT Style */}
                 {callStatus === 'listening' && (
                   <div className="mt-4 w-full max-w-xs mx-auto">
                     <div className="flex items-center justify-between mb-1">
@@ -355,10 +422,15 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                       />
                     </div>
                     <p className="text-gray-500 text-xs mt-1 text-center">
-                      {micLevel < 10 ? '🤫 Speak louder to be heard' : 
-                       micLevel < 30 ? '🎤 Good - keep speaking' : 
-                       '✅ Perfect level!'}
+                      {micLevel < 10 ? '🤫 Speak to be heard' : 
+                       micLevel < 30 ? '🎤 Speaking...' : 
+                       '✅ Clear audio!'}
                     </p>
+                    {isPushToTalk && (
+                      <p className="text-blue-400 text-xs mt-1 text-center flex items-center justify-center gap-1">
+                        {isSpacePressed ? '🎤 Recording...' : '⏸️ Hold Space to speak'}
+                      </p>
+                    )}
                   </div>
                 )}
               </>
@@ -399,11 +471,15 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={toggleMute}
+                  disabled={isPushToTalk}
                   className={`p-4 rounded-full transition-colors ${
                     isMuted
                       ? 'bg-red-500 hover:bg-red-600'
+                      : isPushToTalk
+                      ? 'bg-gray-800 cursor-not-allowed'
                       : 'bg-gray-700 hover:bg-gray-600'
                   }`}
+                  title={isPushToTalk ? 'Disabled in push-to-talk mode' : (isMuted ? 'Unmute' : 'Mute')}
                 >
                   {isMuted ? (
                     <MicOff className="w-6 h-6 text-white" />
@@ -421,10 +497,19 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   <PhoneOff className="w-8 h-8 text-white" />
                 </motion.button>
 
-                {/* Volume Indicator */}
-                <div className="p-4 rounded-full bg-gray-700">
-                  <Volume2 className="w-6 h-6 text-white" />
-                </div>
+                {/* Push-to-Talk Toggle - ChatGPT Style */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={togglePushToTalk}
+                  className={`p-4 rounded-full transition-colors ${
+                    isPushToTalk
+                      ? 'bg-blue-500 hover:bg-blue-600'
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                  title={isPushToTalk ? 'Disable push-to-talk' : 'Enable push-to-talk'}
+                >
+                  <Volume2 className={`w-6 h-6 ${isPushToTalk ? 'text-white' : 'text-gray-400'}`} />
+                </motion.button>
               </>
             ) : (
               /* Start Call Button */
@@ -446,22 +531,32 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           {/* Features Info */}
           {!isCallActive && (
             <div className="mt-8 p-4 bg-gray-800/50 rounded-xl">
-              <p className="text-gray-300 text-sm mb-2">Voice Call Features:</p>
+              <p className="text-gray-300 text-sm mb-2">✨ ChatGPT-Style Voice Features:</p>
               <ul className="text-gray-400 text-xs space-y-1">
-                <li>• Real-time conversation with Atlas AI</li>
-                <li>• Automatic speech recognition</li>
-                <li>• Natural voice responses</li>
+                <li>• Real-time Voice Activity Detection (VAD)</li>
+                <li>• Instant response when you stop speaking</li>
+                <li>• Push-to-talk mode (hold Space to speak)</li>
+                <li>• Live audio level visualization</li>
                 <li>• Unlimited duration (Studio tier)</li>
               </ul>
             </div>
           )}
 
-          {/* Keyboard Shortcuts - Only show during active call */}
+          {/* Keyboard Shortcuts - ChatGPT Style */}
           {isCallActive && (
             <div className="mt-6 p-3 bg-gray-800/30 rounded-xl">
               <p className="text-gray-400 text-xs text-center">
-                <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mr-1">Space</span> Mute • 
-                <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mx-1">Esc</span> End Call
+                {isPushToTalk ? (
+                  <>
+                    <span className="inline-block px-2 py-0.5 bg-blue-600/50 rounded mr-1">Hold Space</span> Speak • 
+                    <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mx-1">Esc</span> End Call
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mr-1">Space</span> Mute • 
+                    <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mx-1">Esc</span> End Call
+                  </>
+                )}
               </p>
             </div>
           )}

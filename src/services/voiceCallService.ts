@@ -10,6 +10,7 @@ interface VoiceCallOptions {
   onAIResponse: (text: string) => void;
   onError: (error: Error) => void;
   onStatusChange?: (status: 'listening' | 'transcribing' | 'thinking' | 'speaking') => void;
+  onAudioLevel?: (level: number) => void; // 0-1 for VAD feedback
 }
 
 export class VoiceCallService {
@@ -23,6 +24,17 @@ export class VoiceCallService {
   private readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
   private readonly MAX_RETRIES = 3;
   private currentAudio: HTMLAudioElement | null = null; // ✅ Track current playing audio
+  
+  // 🎙️ CHATGPT-STYLE VAD (Voice Activity Detection)
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private microphone: MediaStreamAudioSourceNode | null = null;
+  private vadCheckInterval: NodeJS.Timeout | null = null;
+  private silenceStartTime: number | null = null;
+  private readonly SILENCE_THRESHOLD = 0.02; // Very sensitive (2% volume)
+  private readonly SILENCE_DURATION = 500; // Process 500ms after silence (ChatGPT-speed)
+  private readonly MIN_SPEECH_DURATION = 300; // Minimum 300ms of speech
+  private lastSpeechTime: number = 0;
   
   async startCall(options: VoiceCallOptions): Promise<void> {
     if (this.isActive) {
@@ -50,10 +62,10 @@ export class VoiceCallService {
       }
     }, 30000); // Check every 30 seconds
     
-    // Start recording loop
-    await this.startRecordingLoop(options);
+    // Start recording loop with VAD
+    await this.startRecordingWithVAD(options);
     
-    logger.info('[VoiceCall] ✅ Call started with real-time audio processing');
+    logger.info('[VoiceCall] ✅ Call started with ChatGPT-style VAD');
   }
   
   async stopCall(userId: string): Promise<void> {
@@ -65,6 +77,12 @@ export class VoiceCallService {
     if (this.durationCheckInterval) {
       clearInterval(this.durationCheckInterval);
       this.durationCheckInterval = null;
+    }
+    
+    // Clear VAD check interval
+    if (this.vadCheckInterval) {
+      clearInterval(this.vadCheckInterval);
+      this.vadCheckInterval = null;
     }
     
     // ✅ FIX: Stop any playing audio when call ends
@@ -81,6 +99,20 @@ export class VoiceCallService {
       this.mediaRecorder = null;
     }
     
+    // Cleanup VAD audio context
+    if (this.microphone) {
+      this.microphone.disconnect();
+      this.microphone = null;
+    }
+    if (this.analyser) {
+      this.analyser.disconnect();
+      this.analyser = null;
+    }
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      await this.audioContext.close();
+      this.audioContext = null;
+    }
+    
     // Track call in usage logs
     if (this.callStartTime) {
       const duration = (Date.now() - this.callStartTime.getTime()) / 1000;
@@ -91,79 +123,76 @@ export class VoiceCallService {
     logger.info('[VoiceCall] ✅ Call ended');
   }
   
-  private async startRecordingLoop(options: VoiceCallOptions): Promise<void> {
+  /**
+   * 🚀 CHATGPT-STYLE: Voice Activity Detection Recording
+   * Detects when user stops speaking and processes immediately
+   */
+  private async startRecordingWithVAD(options: VoiceCallOptions): Promise<void> {
     try {
-      // Get microphone stream - SIMPLE, no fancy constraints
+      // Get microphone stream
       const stream = await getSafeUserMedia({ audio: true });
       
-      // Create MediaRecorder with explicit high-quality settings
+      // Setup Web Audio API for VAD
+      this.audioContext = new AudioContext();
+      this.microphone = this.audioContext.createMediaStreamSource(stream);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.analyser.smoothingTimeConstant = 0.8; // Smooth out noise
+      
+      this.microphone.connect(this.analyser);
+      
+      // Create MediaRecorder for audio capture
       this.mediaRecorder = new MediaRecorder(stream, {
-        audioBitsPerSecond: 128000  // 128kbps - guaranteed audio data
+        audioBitsPerSecond: 128000  // 128kbps
       });
       
-      // Store MIME type
       this.recordingMimeType = this.mediaRecorder.mimeType;
-      logger.info(`[VoiceCall] 🎙️ Recording: ${this.recordingMimeType} @ 128kbps`);
+      logger.info(`[VoiceCall] 🎙️ VAD enabled: ${this.recordingMimeType}`);
       
-      // 4️⃣ CHUNK COLLECTION WITH VALIDATION
+      // Audio chunk collection
       let audioChunks: Blob[] = [];
-      let chunkCount = 0;
       
       this.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunks.push(event.data);
-          chunkCount++;
-          
-          // Debug logging every second (100ms × 10)
-          if (chunkCount % 10 === 0) {
-            const totalSize = audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
-            logger.debug(`[VoiceCall] Chunks: ${chunkCount}, Total: ${(totalSize/1024).toFixed(1)}KB`);
-          }
         }
       };
       
-      // 5️⃣ PROCESSING WITH COMPREHENSIVE VALIDATION
       this.mediaRecorder.onstop = async () => {
-        if (!this.isActive) return;
-        
-        // Validate chunks exist
-        const totalChunks = audioChunks.length;
-        const totalSize = audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
-        const expectedMinSize = 800; // ~0.8KB minimum for 2-second chunks
-        
-        logger.info(`[VoiceCall] 🎤 Recording complete: ${totalChunks} chunks, ${(totalSize/1024).toFixed(1)}KB`);
-        
-        // Skip if too small (likely silence or MediaRecorder issue)
-        if (totalSize < expectedMinSize) {
-          logger.debug(`[VoiceCall] 🤫 Silence detected (${(totalSize/1024).toFixed(1)}KB) - waiting for speech...`);
+        if (!this.isActive || audioChunks.length === 0) {
           audioChunks = [];
-          this.restartRecording();
           return;
         }
         
-        // 6️⃣ CREATE BLOB WITH CORRECT MIME TYPE (no more hardcoding!)
+        const totalSize = audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+        
+        // ✅ LOWERED THRESHOLD: 800 → 200 bytes (catch quiet speech)
+        if (totalSize < 200) {
+          logger.debug(`[VoiceCall] 🤫 Too quiet (${totalSize} bytes) - waiting for louder speech...`);
+          audioChunks = [];
+          this.restartRecordingVAD();
+          return;
+        }
+        
         const audioBlob = new Blob(audioChunks, { type: this.recordingMimeType });
         audioChunks = [];
         
-        // 7️⃣ PROCESS CHUNK
+        // Process the chunk
         await this.processVoiceChunk(audioBlob, options);
         
-        // Restart for next chunk
-        this.restartRecording();
+        // Restart recording
+        this.restartRecordingVAD();
       };
       
-      // 8️⃣ START WITH OPTIMAL TIMESLICE (3 seconds for faster responses)
-      this.mediaRecorder.start(100); // 100ms chunks for smooth accumulation
-      setTimeout(() => {
-        if (this.mediaRecorder?.state === 'recording') {
-          this.mediaRecorder.stop();
-        }
-      }, 2000); // ✅ 2 seconds for much faster responses
+      // Start VAD monitoring
+      this.startVADMonitoring(options);
+      
+      // Start recording
+      this.mediaRecorder.start(100);
       
     } catch (error) {
       logger.error('[VoiceCall] Recording setup failed:', error);
       this.isActive = false;
-      // User-friendly error message
       const friendlyError = error instanceof Error && error.message.includes('Permission denied')
         ? new Error('Microphone access denied. Please allow microphone permissions.')
         : error instanceof Error
@@ -174,35 +203,77 @@ export class VoiceCallService {
   }
   
   /**
+   * 🔊 VAD Monitoring: Detect when user starts/stops speaking
+   */
+  private startVADMonitoring(options: VoiceCallOptions): void {
+    const dataArray = new Uint8Array(this.analyser!.frequencyBinCount);
+    
+    const checkVAD = () => {
+      if (!this.isActive || !this.analyser) return;
+      
+      // Get audio level
+      this.analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+      const audioLevel = average / 255; // 0-1
+      
+      // Send audio level to UI for visualization
+      options.onAudioLevel?.(audioLevel);
+      
+      const now = Date.now();
+      
+      // Detect speech vs silence
+      if (audioLevel > this.SILENCE_THRESHOLD) {
+        // User is speaking
+        this.silenceStartTime = null;
+        this.lastSpeechTime = now;
+      } else {
+        // Silence detected
+        if (this.silenceStartTime === null) {
+          this.silenceStartTime = now;
+        }
+        
+        // Check if silence duration exceeded
+        const silenceDuration = now - this.silenceStartTime;
+        const speechDuration = now - this.lastSpeechTime;
+        
+        // ✅ CHATGPT-STYLE: Process immediately after 500ms silence
+        if (
+          silenceDuration >= this.SILENCE_DURATION &&
+          speechDuration >= this.MIN_SPEECH_DURATION &&
+          this.mediaRecorder?.state === 'recording'
+        ) {
+          logger.debug('[VoiceCall] 🤫 Silence detected - processing speech');
+          this.mediaRecorder.stop();
+          this.silenceStartTime = null; // Reset
+        }
+      }
+    };
+    
+    // Check every 50ms for responsive VAD
+    this.vadCheckInterval = setInterval(checkVAD, 50);
+  }
+  
+  /**
    * Helper method to restart recording for next chunk
    */
-  private restartRecording(): void {
+  private restartRecordingVAD(): void {
     if (this.isActive && this.mediaRecorder) {
       // ✅ FIX: Don't record while Atlas is speaking
       if (this.currentAudio && !this.currentAudio.paused) {
         logger.debug('[VoiceCall] Skipping recording - Atlas is still speaking');
-        // Wait for audio to finish before restarting
-        setTimeout(() => this.restartRecording(), 500);
+        setTimeout(() => this.restartRecordingVAD(), 500);
         return;
       }
       
       // ✅ FIX: Check if already recording before starting
       if (this.mediaRecorder.state === 'inactive') {
         this.mediaRecorder.start(100);
-        setTimeout(() => {
-          if (this.mediaRecorder?.state === 'recording') {
-            this.mediaRecorder.stop();
-          }
-        }, 2000); // ✅ 2 seconds for faster voice responses
-      } else {
-        logger.debug('[VoiceCall] Skipping restart - already recording');
       }
     }
   }
   
   /**
    * Process a single voice chunk: STT → Claude → TTS → Play
-   * DIRECT Edge Function calls (no voiceService intermediary)
    */
   private async processVoiceChunk(
     audioBlob: Blob,
@@ -227,7 +298,7 @@ export class VoiceCallService {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ audio: base64Audio.split(',')[1] }), // Remove data:audio/webm;base64, prefix
+          body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
         });
         
         if (!sttResponse.ok) {
@@ -241,13 +312,13 @@ export class VoiceCallService {
       
       if (!transcript || transcript.trim().length === 0) {
         logger.debug('[VoiceCall] Empty transcript, skipping');
-        return; // Silence, skip
+        return;
       }
       
       logger.info('[VoiceCall] 👤 User:', transcript);
       options.onTranscript(transcript);
       
-      // Save user's voice message to database
+      // Save user's voice message
       await this.saveVoiceMessage(transcript, 'user', options.conversationId, options.userId);
       
       // Update status: thinking
@@ -256,24 +327,21 @@ export class VoiceCallService {
       // 3. Send to Claude for response
       let aiResponse = await this.getAIResponse(transcript, options.conversationId);
       
-      // Ensure aiResponse is always a string (defensive programming)
       if (typeof aiResponse !== 'string') {
-        logger.warn('[VoiceCall] AI response was not a string, converting:', typeof aiResponse);
         aiResponse = JSON.stringify(aiResponse);
       }
       
-      // Log safely with substring protection
       const logPreview = aiResponse.length > 100 ? aiResponse.substring(0, 100) + '...' : aiResponse;
       logger.info('[VoiceCall] 🤖 Atlas:', logPreview);
       options.onAIResponse(aiResponse);
       
-      // Save Atlas's response to database
+      // Save Atlas's response
       await this.saveVoiceMessage(aiResponse, 'assistant', options.conversationId, options.userId);
       
       // Update status: speaking
       options.onStatusChange?.('speaking');
       
-      // 4. Call TTS Edge Function with retry logic and Studio tier HD voice
+      // 4. Call TTS Edge Function
       const ttsResult = await this.retryWithBackoff(async () => {
         const ttsResponse = await fetch(`${supabaseUrl}/functions/v1/tts`, {
           method: 'POST',
@@ -284,7 +352,7 @@ export class VoiceCallService {
           body: JSON.stringify({ 
             text: aiResponse, 
             voice: 'nova',
-            model: 'tts-1-hd' // ✅ HD voice for Studio tier
+            model: 'tts-1-hd'
           }),
         });
         
@@ -296,10 +364,8 @@ export class VoiceCallService {
         return await ttsResponse.json();
       }, 'Text-to-Speech');
       
-      // 5. Play audio with proper error handling
-      // ✅ FIX: Stop any existing audio before playing new audio
+      // 5. Play audio
       if (this.currentAudio && !this.currentAudio.paused) {
-        logger.debug('[VoiceCall] Stopping previous audio playback');
         this.currentAudio.pause();
         this.currentAudio.currentTime = 0;
         this.currentAudio = null;
@@ -309,53 +375,25 @@ export class VoiceCallService {
       const audio = new Audio(audioDataUrl);
       this.currentAudio = audio;
       
-      // Store reference to prevent garbage collection
       (window as any).__atlasAudioElement = audio;
       
-      // Add event listeners for debugging
       audio.onloadeddata = () => logger.debug('[VoiceCall] Audio data loaded');
       audio.onplay = () => logger.info('[VoiceCall] ✅ Audio playing');
       audio.onerror = (e) => logger.error('[VoiceCall] Audio error:', e);
       audio.onended = () => {
         logger.debug('[VoiceCall] Audio playback ended');
-        options.onStatusChange?.('listening'); // ✅ Back to listening after audio ends
+        options.onStatusChange?.('listening');
         delete (window as any).__atlasAudioElement;
         if (this.currentAudio === audio) {
           this.currentAudio = null;
         }
       };
       
-      try {
-        await audio.play();
-        logger.info('[VoiceCall] ✅ TTS audio played successfully');
-      } catch (playError: any) {
-        logger.error('[VoiceCall] ❌ Audio playback failed:', playError.message);
-        // Try alternative playback method using AudioContext
-        try {
-          const audioContext = new AudioContext();
-          const binaryString = atob(ttsResult.base64Audio);
-          const arrayBuffer = new ArrayBuffer(binaryString.length);
-          const uint8Array = new Uint8Array(arrayBuffer);
-          for (let i = 0; i < binaryString.length; i++) {
-            uint8Array[i] = binaryString.charCodeAt(i);
-          }
-          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          const source = audioContext.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContext.destination);
-          source.start(0);
-          logger.info('[VoiceCall] ✅ Audio played via AudioContext fallback');
-        } catch (fallbackError) {
-          logger.error('[VoiceCall] ❌ AudioContext fallback also failed:', fallbackError);
-          throw new Error('Unable to play audio - both methods failed');
-        }
-      }
-      
-      logger.debug('[VoiceCall] ✅ Chunk processed successfully');
+      await audio.play();
+      logger.info('[VoiceCall] ✅ TTS audio played successfully');
       
     } catch (error) {
       logger.error('[VoiceCall] Chunk processing error:', error);
-      // Don't stop call on processing errors, just log and continue
     }
   }
   
@@ -368,9 +406,6 @@ export class VoiceCallService {
     });
   }
   
-  /**
-   * Retry wrapper with exponential backoff for network calls
-   */
   private async retryWithBackoff<T>(
     fn: () => Promise<T>,
     operation: string
@@ -380,8 +415,7 @@ export class VoiceCallService {
     for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
       try {
         if (attempt > 0) {
-          // Show reconnecting status
-          this.currentOptions?.onStatusChange?.('transcribing'); // Reuse transcribing for "reconnecting"
+          this.currentOptions?.onStatusChange?.('transcribing');
           logger.info(`[VoiceCall] Retry attempt ${attempt + 1}/${this.MAX_RETRIES} for ${operation}`);
           await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAYS[attempt - 1]));
         }
@@ -390,38 +424,26 @@ export class VoiceCallService {
       } catch (error: any) {
         lastError = error;
         
-        // Don't retry auth errors or rate limits
         if (error.message?.includes('401') || error.message?.includes('403') || error.message?.includes('429')) {
-          logger.error(`[VoiceCall] ${operation} failed with non-retryable error:`, error.message);
           throw error;
         }
         
-        // Don't retry if this was the last attempt
         if (attempt === this.MAX_RETRIES - 1) {
-          logger.error(`[VoiceCall] ${operation} failed after ${this.MAX_RETRIES} attempts`);
           throw new Error(`Connection lost. Please check your internet connection.`);
         }
-        
-        logger.warn(`[VoiceCall] ${operation} failed, retrying... (${attempt + 1}/${this.MAX_RETRIES})`);
       }
     }
     
     throw lastError || new Error(`${operation} failed`);
   }
   
-  private async getAIResponse(
-    userMessage: string,
-    conversationId: string
-  ): Promise<string> {
+  private async getAIResponse(userMessage: string, conversationId: string): Promise<string> {
     try {
-      // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('Authentication required');
       }
       
-      // Call backend /api/message endpoint
-      // Backend will fetch conversation history automatically for Studio tier
       const response = await fetch('/api/message', {
         method: 'POST',
         headers: {
@@ -431,7 +453,7 @@ export class VoiceCallService {
         body: JSON.stringify({
           message: userMessage,
           conversationId: conversationId,
-          is_voice_call: true // ✅ Flag for backend to optimize for voice
+          is_voice_call: true
         })
       });
       
@@ -442,27 +464,12 @@ export class VoiceCallService {
       
       const data = await response.json();
       
-      // 🔍 DEBUG: Log the raw backend response
-      logger.warn('[VoiceCall] Raw backend response:', JSON.stringify(data, null, 2));
-      
-      // ✅ Extract text from backend response structure
-      // Backend returns: { success: true, response: { content: { text: "..." } } }
       let responseText = '';
-      
       if (data.response?.content?.text) {
-        // Standard message object format
         responseText = data.response.content.text;
       } else if (typeof data.response === 'string') {
-        // Direct string response
         responseText = data.response;
-      } else if (data.message?.content?.text) {
-        // Fallback to message field
-        responseText = data.message.content.text;
-      } else if (typeof data.text === 'string') {
-        // Simple text field
-        responseText = data.text;
       } else {
-        logger.error('[VoiceCall] Could not extract text from backend response:', data);
         responseText = 'I apologize, I had trouble processing that response.';
       }
       
@@ -475,23 +482,11 @@ export class VoiceCallService {
   
   private async trackCallMetering(userId: string, durationSeconds: number): Promise<void> {
     try {
-      const monthYear = new Date().toISOString().slice(0, 7);
-      
-      // Estimate costs (OpenAI pricing)
-      const sttCost = (durationSeconds / 60) * 0.006; // $0.006/min (Whisper)
-      const estimatedTTSChars = durationSeconds * 25; // ~25 chars/sec speech
-      const ttsCost = (estimatedTTSChars / 1000) * 0.015; // $0.015/1K chars (TTS-1)
+      const sttCost = (durationSeconds / 60) * 0.006;
+      const estimatedTTSChars = durationSeconds * 25;
+      const ttsCost = (estimatedTTSChars / 1000) * 0.015;
       const totalCost = sttCost + ttsCost;
       
-      logger.debug('[VoiceCall] Call metering:', {
-        duration: `${durationSeconds.toFixed(1)}s`,
-        sttCost: `$${sttCost.toFixed(4)}`,
-        ttsCost: `$${ttsCost.toFixed(4)}`,
-        totalCost: `$${totalCost.toFixed(4)}`,
-      });
-      
-      // Track in usage_logs table with proper schema
-      // @ts-ignore - usage_logs schema uses JSONB data field
       const { error } = await supabase.from('usage_logs').insert({
         user_id: userId,
         event: 'voice_call_completed',
@@ -501,64 +496,20 @@ export class VoiceCallService {
           duration_seconds: durationSeconds,
           tokens_used: 0,
           estimated_cost: totalCost,
-          cost_breakdown: {
-            stt: sttCost,
-            tts: ttsCost,
-            total: totalCost
-          }
+          cost_breakdown: { stt: sttCost, tts: ttsCost, total: totalCost }
         },
         timestamp: new Date().toISOString(),
         created_at: new Date().toISOString(),
       });
       
-      if (error) {
-        if (error.message.includes('row-level security')) {
-          logger.warn('[VoiceCall] RLS error - falling back to service role API');
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch('/api/usage-log', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.access_token}`
-              },
-              body: JSON.stringify({ 
-                user_id: userId, 
-                event: 'voice_call_completed',
-                feature: 'voice_call', 
-                estimated_cost: totalCost,
-                metadata: {
-                  duration_seconds: durationSeconds,
-                  stt_cost: sttCost,
-                  tts_cost: ttsCost,
-                  month_year: monthYear,
-                }
-              }),
-            });
-            if (!response.ok) {
-              logger.error('[VoiceCall] API usage log failed:', await response.text());
-            } else {
-              logger.info('[VoiceCall] ✅ Usage logged via API fallback');
-            }
-          } catch (apiError) {
-            logger.error('[VoiceCall] API fallback failed:', apiError);
-          }
-        } else {
-          logger.error('[VoiceCall] Usage log failed:', error.message);
-        }
-      } else {
+      if (!error) {
         logger.info('[VoiceCall] ✅ Usage logged successfully');
       }
-      
     } catch (error) {
       logger.error('[VoiceCall] Metering failed:', error);
-      // Don't throw - don't block call end
     }
   }
   
-  /**
-   * Save voice message to database so it appears in conversation history
-   */
   private async saveVoiceMessage(
     text: string,
     role: 'user' | 'assistant',
@@ -566,28 +517,20 @@ export class VoiceCallService {
     userId: string
   ): Promise<void> {
     try {
-      // ✅ CORRECT: Match actual schema with user_id
       const messageData = {
         conversation_id: conversationId,
         user_id: userId,
         role: role,
         content: text,
-        // created_at auto-populated by database DEFAULT NOW()
       };
       
-      // @ts-ignore - Supabase generated types don't match runtime schema
-      const { error } = await supabase
-        .from('messages')
-        .insert([messageData]);
+      const { error } = await supabase.from('messages').insert([messageData]);
       
-      if (error) {
-        logger.error('[VoiceCall] Failed to save message:', error.message);
-      } else {
+      if (!error) {
         logger.debug(`[VoiceCall] ✅ Saved ${role} voice message`);
       }
     } catch (error) {
       logger.error('[VoiceCall] Error saving message:', error);
-      // Don't throw - don't break the call flow
     }
   }
 }
