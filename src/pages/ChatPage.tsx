@@ -763,37 +763,72 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     );
   }
 
-  // Show health error fallback if Supabase is unreachable
+  // ✅ MODERN: Show health error fallback if Supabase is unreachable (2024/2025 design)
   if (healthError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center p-6">
-        <div className="p-6 bg-yellow-100 text-yellow-800 rounded-xl text-center max-w-md border border-yellow-200">
-          <div className="text-lg font-semibold mb-2">Connection Issue</div>
-          <div className="mb-4">{healthError}</div>
-          {retrying && (
-            <div className="flex justify-center">
-              <svg
-                className="animate-spin h-6 w-6 text-yellow-700"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                ></path>
-              </svg>
+        {/* Modern glassmorphism error card */}
+        <div className="relative max-w-md w-full">
+          {/* Backdrop blur container */}
+          <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-orange-500/5 rounded-3xl blur-xl"></div>
+          
+          {/* Main card */}
+          <div className="relative p-8 bg-gray-900/80 backdrop-blur-xl border border-yellow-500/20 rounded-3xl shadow-2xl">
+            {/* Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="p-4 bg-gradient-to-br from-yellow-500/20 to-orange-500/10 rounded-2xl border border-yellow-500/30">
+                <svg className="w-12 h-12 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
             </div>
-          )}
+            
+            {/* Title */}
+            <h2 className="text-2xl font-bold text-white text-center mb-3">Connection Issue</h2>
+            
+            {/* Message */}
+            <p className="text-gray-300 text-center mb-6 leading-relaxed">{healthError}</p>
+            
+            {/* Status indicator */}
+            {retrying && (
+              <div className="flex items-center justify-center gap-3 mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                <svg
+                  className="animate-spin h-5 w-5 text-yellow-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  ></path>
+                </svg>
+                <span className="text-sm text-yellow-300 font-medium">Reconnecting automatically...</span>
+              </div>
+            )}
+            
+            {/* Action button */}
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full py-3 px-6 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-yellow-500/50"
+            >
+              Reload Atlas Now
+            </button>
+            
+            {/* Help text */}
+            <p className="mt-4 text-xs text-gray-500 text-center">
+              This usually fixes itself in 30 seconds. Click reload to retry immediately.
+            </p>
+          </div>
         </div>
       </div>
     );
