@@ -531,9 +531,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           {/* Features Info */}
           {!isCallActive && (
             <div className="mt-8 p-4 bg-gray-800/50 rounded-xl">
-              <p className="text-gray-300 text-sm mb-2">✨ ChatGPT-Style Voice Features:</p>
+              <p className="text-gray-300 text-sm mb-2">🎙️ Atlas Voice Features:</p>
               <ul className="text-gray-400 text-xs space-y-1">
-                <li>• Real-time Voice Activity Detection (VAD)</li>
+                <li>• Real-time voice conversation</li>
                 <li>• Instant response when you stop speaking</li>
                 <li>• Push-to-talk mode (hold Space to speak)</li>
                 <li>• Live audio level visualization</li>
@@ -542,7 +542,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             </div>
           )}
 
-          {/* Keyboard Shortcuts - ChatGPT Style */}
+          {/* Keyboard Shortcuts */}
           {isCallActive && (
             <div className="mt-6 p-3 bg-gray-800/30 rounded-xl">
               <p className="text-gray-400 text-xs text-center">
