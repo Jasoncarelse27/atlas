@@ -28,8 +28,16 @@ const httpsAgent = new https.Agent({ keepAlive: true });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Load environment variables from .env file
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// ✅ Load environment variables from .env file (root of atlas/)
+const envPath = path.join(__dirname, '..', '.env');
+dotenv.config({ path: envPath });
+logger.info(`[Server] Loading .env from: ${envPath}`);
+
+// ✅ Validate Claude API key is loaded
+if (!process.env.ANTHROPIC_API_KEY && !process.env.CLAUDE_API_KEY) {
+  logger.warn('⚠️  WARNING: No Claude API key found in environment!');
+  logger.warn('   Voice calls and chat will fail. Add ANTHROPIC_API_KEY to .env');
+}
 
 // ✅ Automatic port cleanup to prevent EADDRINUSE errors
 try {
@@ -1026,19 +1034,14 @@ app.post('/api/message', verifyJWT, async (req, res) => {
               body: JSON.stringify({
                 model: selectedModel,
                 max_tokens: is_voice_call ? 150 : 2000, // ✅ Shorter responses for voice calls
-                messages: is_voice_call 
-                  ? [
-                      ...conversationHistory,
-                      { 
-                        role: 'system', 
-                        content: 'You are Atlas in a voice call. Keep responses brief and conversational (2-3 sentences max). Speak naturally as if in a phone conversation. Be warm and concise.' 
-                      },
-                      { role: 'user', content: message.trim() }
-                    ]
-                  : [
-                      ...conversationHistory,
-                      { role: 'user', content: message.trim() }
-                    ]
+                // ✅ FIX: Move system message to top-level for Claude API
+                ...(is_voice_call && {
+                  system: 'You are Atlas in a voice call. Keep responses brief and conversational (2-3 sentences max). Speak naturally as if in a phone conversation. Be warm and concise.'
+                }),
+                messages: [
+                  ...conversationHistory,
+                  { role: 'user', content: message.trim() }
+                ]
               }),
               agent: httpsAgent // ✅ Fix: Use custom agent for Node.js fetch
             });
