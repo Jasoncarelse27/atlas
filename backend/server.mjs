@@ -983,7 +983,6 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         role: 'assistant',
         message_type: 'assistant',
         content: { type: 'text', text: finalText },
-        timestamp: new Date().toISOString(),
         created_at: new Date().toISOString()
       };
       
@@ -1141,7 +1140,6 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
       role: 'assistant',
       message_type: 'assistant',
       content: { type: 'text', text: finalText },
-      timestamp: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
     
