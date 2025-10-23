@@ -2,9 +2,9 @@
 // Real-time voice conversation with Atlas AI
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mic, MicOff, Phone, PhoneOff, Volume2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Mic, MicOff, Phone, PhoneOff, Settings, Volume2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { modernToast } from '../../config/toastConfig';
 import { tierFeatures } from '../../config/featureAccess';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useFeatureAccess } from '../../hooks/useTierAccess';
@@ -39,6 +39,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const [lastAIResponse, setLastAIResponse] = useState<string>('');
   const [micLevel, setMicLevel] = useState(0); // 0-100 for visual feedback
   
+  // Permission states
+  const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied' | 'checking'>('checking');
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [showHTTPSWarning, setShowHTTPSWarning] = useState(false);
+  
   const callStartTime = useRef<Date | null>(null);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
@@ -65,6 +71,91 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     }
   }, [isCallActive]);
 
+  // Check microphone permission status
+  const checkPermissionStatus = useCallback(async () => {
+    try {
+      // Check if Permissions API is supported
+      if (!navigator.permissions || !navigator.permissions.query) {
+        logger.debug('[VoiceCall] Permissions API not supported, will request directly');
+        setPermissionState('prompt');
+        return;
+      }
+
+      // Query microphone permission
+      const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      setPermissionState(result.state as 'prompt' | 'granted' | 'denied');
+      logger.debug('[VoiceCall] Permission state:', result.state);
+
+      // Listen for permission changes
+      result.addEventListener('change', () => {
+        setPermissionState(result.state as 'prompt' | 'granted' | 'denied');
+        logger.debug('[VoiceCall] Permission state changed:', result.state);
+      });
+    } catch (error) {
+      logger.error('[VoiceCall] Permission check failed:', error);
+      // Fallback: assume prompt state
+      setPermissionState('prompt');
+    }
+  }, []);
+
+  // Check permission on mount and when modal opens
+  useEffect(() => {
+    if (isOpen && !isCallActive) {
+      checkPermissionStatus();
+    }
+  }, [isOpen, isCallActive, checkPermissionStatus]);
+
+  // Detect browser and platform for recovery instructions
+  const getPlatformInstructions = (): { platform: string; steps: string[] } => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isIOS = /iphone|ipad|ipod/.test(userAgent);
+    const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent);
+    const isChrome = /chrome/.test(userAgent);
+    const isFirefox = /firefox/.test(userAgent);
+
+    if (isIOS || isSafari) {
+      return {
+        platform: 'iOS Safari',
+        steps: [
+          'Open Settings app',
+          'Scroll to Safari → Website Settings',
+          'Find Microphone and set to "Allow"',
+          'Reload this page and try again'
+        ]
+      };
+    } else if (isChrome) {
+      return {
+        platform: 'Chrome',
+        steps: [
+          'Click the lock icon in address bar',
+          'Go to Site Settings',
+          'Find Microphone and set to "Allow"',
+          'Reload and try again'
+        ]
+      };
+    } else if (isFirefox) {
+      return {
+        platform: 'Firefox',
+        steps: [
+          'Click the shield icon in address bar',
+          'Go to Permissions',
+          'Find Microphone and set to "Allow"',
+          'Reload and try again'
+        ]
+      };
+    }
+
+    return {
+      platform: 'Your Browser',
+      steps: [
+        'Check browser settings',
+        'Look for Site Permissions',
+        'Enable Microphone access',
+        'Reload and try again'
+      ]
+    };
+  };
+
   // Start voice call
   const startCall = async () => {
     try {
@@ -75,6 +166,43 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         return;
       }
 
+      // ✅ Phase 2: Check HTTPS requirement for mobile
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isLocalNetwork = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(window.location.hostname);
+      const isHTTPS = window.location.protocol === 'https:';
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      if (isMobile && isLocalNetwork && !isHTTPS && !isLocalhost) {
+        logger.warn('[VoiceCall] HTTPS required for mobile on local network');
+        setShowHTTPSWarning(true);
+        return;
+      }
+
+      // ✅ Phase 1: Check permission status
+      if (permissionState === 'denied') {
+        logger.warn('[VoiceCall] Permission denied, showing recovery modal');
+        setShowRecoveryModal(true);
+        return;
+      }
+
+      if (permissionState === 'prompt' || permissionState === 'checking') {
+        logger.debug('[VoiceCall] Showing permission context modal');
+        setShowPermissionModal(true);
+        return;
+      }
+
+      // Permission is granted, proceed with call
+      await proceedWithCall();
+    } catch (error) {
+      logger.error('[VoiceCall] Failed to start:', error);
+      modernToast.error('Failed to start voice call', 'Please try again');
+      setIsCallActive(false);
+    }
+  };
+
+  // Proceed with actual call setup (after permission granted)
+  const proceedWithCall = async () => {
+    try {
       // Get max duration (-1 = unlimited for Studio)
       const maxDuration = (tierFeatures[tier] as any).voiceCallMaxDuration;
       logger.debug('[VoiceCall] Max duration:', maxDuration);
@@ -97,15 +225,6 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           throw new Error('Audio recording not supported in this browser');
         }
         
-        // Check for HTTPS on mobile (required for microphone access)
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        const isHTTPS = window.location.protocol === 'https:';
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        
-        if (isMobile && !isHTTPS && !isLocalhost) {
-          throw new Error('Voice calls require HTTPS on mobile devices. Please use a secure connection.');
-        }
-        
         audioContext.current = new AudioContext();
         stream.current = await getSafeUserMedia({ audio: true });
         
@@ -117,8 +236,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         monitorAudioLevel();
       } catch (audioError) {
         logger.error('[VoiceCall] Audio setup failed:', audioError);
-        toast.error('Microphone access denied');
+        modernToast.error('Microphone access denied', 'Check your browser settings to enable microphone');
         setIsCallActive(false);
+        // Show recovery modal if permission was denied
+        if (audioError instanceof Error && audioError.message.includes('Permission denied')) {
+          setShowRecoveryModal(true);
+        }
         return;
       }
 
@@ -143,7 +266,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               : error.message.includes('Connection lost')
               ? 'Connection lost, retrying...'
               : error.message;
-            toast.error(friendlyMessage);
+            modernToast.error(friendlyMessage);
             endCall();
           },
           onStatusChange: (status) => {
@@ -156,15 +279,15 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           },
         });
         
-        toast.success('Voice call started!');
+        modernToast.success('Voice call started!');
       } catch (serviceError) {
         logger.error('[VoiceCall] Service failed to start:', serviceError);
         // Continue with UI active even if backend fails (graceful degradation)
-        toast('Voice call active (backend unavailable)', { icon: '⚠️' });
+        modernToast.warning('Voice call active', 'Backend unavailable');
       }
     } catch (error) {
-      logger.error('[VoiceCall] Failed to start:', error);
-      toast.error('Failed to start voice call');
+      logger.error('[VoiceCall] Failed to proceed with call:', error);
+      modernToast.error('Failed to start voice call');
       setIsCallActive(false);
     }
   };
@@ -196,7 +319,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     setCallDuration(0);
     callStartTime.current = null;
     
-    toast.success('Voice call ended');
+    modernToast.success('Voice call ended');
     onClose();
   };
 
@@ -240,7 +363,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const togglePushToTalk = () => {
     setIsPushToTalk(!isPushToTalk);
     if (!isPushToTalk) {
-      toast.success('Push-to-talk enabled! Hold Space to speak', { duration: 2000 });
+      modernToast.success('Push-to-talk enabled!', 'Hold Space to speak');
       // Mute immediately when enabling PTT
       if (stream.current && !isMuted) {
         const audioTrack = stream.current.getAudioTracks()[0];
@@ -250,7 +373,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         }
       }
     } else {
-      toast.success('Push-to-talk disabled', { duration: 2000 });
+      modernToast.success('Push-to-talk disabled');
       // Unmute when disabling PTT
       if (stream.current && isMuted) {
         const audioTrack = stream.current.getAudioTracks()[0];
@@ -321,6 +444,34 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [isOpen, isCallActive, isPushToTalk, isSpacePressed]);
+
+  // Handle permission modal - Request permission
+  const handleRequestPermission = async () => {
+    setShowPermissionModal(false);
+    try {
+      await proceedWithCall();
+      setPermissionState('granted');
+    } catch (error) {
+      logger.error('[VoiceCall] Permission request failed:', error);
+      setPermissionState('denied');
+      setShowRecoveryModal(true);
+    }
+  };
+
+  // Handle recovery modal - Retry permission check
+  const handleRetryPermission = async () => {
+    setShowRecoveryModal(false);
+    await checkPermissionStatus();
+    
+    // If permission is still denied, show recovery again
+    setTimeout(() => {
+      if (permissionState === 'denied') {
+        setShowRecoveryModal(true);
+      } else if (permissionState === 'granted') {
+        startCall();
+      }
+    }, 500);
+  };
 
   if (!isOpen) return null;
 
@@ -553,6 +704,151 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             </div>
           )}
         </motion.div>
+
+        {/* ✅ Permission Context Modal */}
+        {showPermissionModal && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-emerald-500/30 shadow-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-emerald-500/20 rounded-full">
+                  <Mic className="w-6 h-6 text-emerald-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-white">Microphone Access Needed</h3>
+              </div>
+              
+              <p className="text-gray-300 mb-4">
+                Atlas needs access to your microphone to have voice conversations with you.
+              </p>
+              
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
+                <p className="text-blue-300 text-sm font-medium mb-2">What happens next:</p>
+                <ul className="text-gray-300 text-sm space-y-1">
+                  <li>• Your browser will ask for permission</li>
+                  <li>• Click "Allow" to start the call</li>
+                  <li>• Your audio stays private and secure</li>
+                </ul>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPermissionModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRequestPermission}
+                  className="flex-1 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors"
+                >
+                  Allow Microphone
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ✅ Permission Denied Recovery Modal */}
+        {showRecoveryModal && (() => {
+          const { platform, steps } = getPlatformInstructions();
+          return (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            >
+              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-red-500/20 rounded-full">
+                    <AlertTriangle className="w-6 h-6 text-red-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white">Microphone Access Denied</h3>
+                </div>
+                
+                <p className="text-gray-300 mb-4">
+                  Voice calls require microphone access. Here's how to enable it in <strong>{platform}</strong>:
+                </p>
+                
+                <div className="bg-gray-800/50 rounded-lg p-4 mb-6">
+                  <ol className="text-gray-300 text-sm space-y-2">
+                    {steps.map((step, index) => (
+                      <li key={index} className="flex gap-2">
+                        <span className="text-emerald-400 font-semibold">{index + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                
+                <div className="flex items-center gap-2 text-blue-400 text-sm mb-6">
+                  <Settings className="w-4 h-4" />
+                  <p>After enabling, click "Try Again" below</p>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowRecoveryModal(false)}
+                    className="flex-1 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRetryPermission}
+                    className="flex-1 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })()}
+
+        {/* ✅ HTTPS Warning Modal */}
+        {showHTTPSWarning && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-yellow-500/30 shadow-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-yellow-500/20 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-white">HTTPS Required</h3>
+              </div>
+              
+              <p className="text-gray-300 mb-4">
+                iOS Safari requires a secure connection (HTTPS) for microphone access on non-localhost URLs.
+              </p>
+              
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                <p className="text-yellow-300 text-sm font-medium mb-2">Solutions:</p>
+                <ul className="text-gray-300 text-sm space-y-1">
+                  <li>• Use <code className="bg-gray-700 px-1 rounded">localhost</code> instead of <code className="bg-gray-700 px-1 rounded">{window.location.hostname}</code></li>
+                  <li>• Set up HTTPS for local development</li>
+                  <li>• Use Atlas on desktop for testing</li>
+                </ul>
+              </div>
+              
+              <div className="flex items-center gap-2 text-gray-400 text-xs mb-6">
+                <CheckCircle className="w-4 h-4" />
+                <p>This is a browser security requirement, not an Atlas limitation</p>
+              </div>
+              
+              <button
+                onClick={() => setShowHTTPSWarning(false)}
+                className="w-full px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+              >
+                Got It
+              </button>
+            </div>
+          </motion.div>
+        )}
       </motion.div>
     </AnimatePresence>
   );
