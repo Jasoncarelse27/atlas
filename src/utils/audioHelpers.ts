@@ -93,6 +93,10 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
 
 /**
  * Check if audio recording is supported
+ * 
+ * ✅ FIX: Removed secure context check - we handle HTTPS requirements separately
+ * in VoiceCallModal with proper user guidance. This function now only checks for
+ * API availability, letting the actual getUserMedia() call handle security errors.
  */
 export function isAudioRecordingSupported(): boolean {
   // Check for required APIs
@@ -105,12 +109,9 @@ export function isAudioRecordingSupported(): boolean {
   
   const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
   
-  // Check if we're in a secure context
-  const isSecure = window.isSecureContext || 
-                   window.location.hostname === 'localhost' || 
-                   window.location.hostname === '127.0.0.1';
-  
-  return hasGetUserMedia && hasMediaRecorder && isSecure;
+  // ✅ Only check for API availability, not security context
+  // Security/HTTPS checks are handled in VoiceCallModal with user-friendly warnings
+  return hasGetUserMedia && hasMediaRecorder;
 }
 
 /**
