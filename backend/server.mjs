@@ -379,11 +379,16 @@ app.use(cors({
         'http://localhost:5180',
         'http://localhost:5181',
         'http://localhost:5182',
-        // Mobile + desktop dev site
+        // Mobile + desktop dev site (HTTP)
         `http://${LOCAL_IP}:5174`,
         `http://${LOCAL_IP}:5178`,
         `http://${LOCAL_IP}:5179`,
         `http://${LOCAL_IP}:5180`,
+        // Mobile + desktop dev site (HTTPS - self-signed cert)
+        `https://${LOCAL_IP}:5174`,
+        `https://${LOCAL_IP}:5178`,
+        'https://localhost:5174',
+        'https://localhost:5178',
         // Backend port
         'http://localhost:8000',
         // Expo/React Native ports
