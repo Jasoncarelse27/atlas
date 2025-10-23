@@ -41,6 +41,7 @@ export class VoiceCallService {
   private baselineNoiseLevel: number = 0;
   private adaptiveThreshold: number = 0.02; // Starts at 2%, adjusts based on environment
   private isCalibrated: boolean = false;
+  private hasInterrupted: boolean = false; // 🛑 Track if user already interrupted
   
   async startCall(options: VoiceCallOptions): Promise<void> {
     if (this.isActive) {
@@ -147,6 +148,9 @@ export class VoiceCallService {
       
       this.microphone.connect(this.analyser);
       
+      // 🎯 SMART THRESHOLD: Calibrate ambient noise for first 2 seconds BEFORE starting VAD
+      await this.calibrateAmbientNoise();
+      
       // Create MediaRecorder for audio capture
       this.mediaRecorder = new MediaRecorder(stream, {
         audioBitsPerSecond: 128000  // 128kbps
@@ -190,11 +194,8 @@ export class VoiceCallService {
         this.restartRecordingVAD();
       };
       
-      // Start VAD monitoring
+      // Start VAD monitoring AFTER calibration
       this.startVADMonitoring(options);
-      
-      // 🎯 SMART THRESHOLD: Calibrate ambient noise for first 2 seconds
-      await this.calibrateAmbientNoise();
       
       // Start recording
       this.mediaRecorder.start(100);
@@ -269,19 +270,25 @@ export class VoiceCallService {
         this.silenceStartTime = null;
         this.lastSpeechTime = now;
         
-        // 🛑 TAP TO INTERRUPT: If user speaks while Atlas is playing
-        if (isFeatureEnabled('VOICE_STREAMING')) {
-          audioQueueService.interrupt(); // Stop queue playback
-        } else if (this.currentAudio && !this.currentAudio.paused) {
-          // User interrupted! Stop Atlas immediately
-          logger.info('[VoiceCall] 🛑 User interrupted Atlas - stopping playback');
-          this.currentAudio.pause();
-          this.currentAudio.currentTime = 0;
-          this.currentAudio = null;
+        // 🛑 TAP TO INTERRUPT: If user speaks while Atlas is playing (ONCE per burst)
+        if (!this.hasInterrupted) {
+          if (isFeatureEnabled('VOICE_STREAMING')) {
+            audioQueueService.interrupt(); // Stop queue playback
+            this.hasInterrupted = true;
+            logger.info('[VoiceCall] 🛑 User interrupted - stopping queue');
+          } else if (this.currentAudio && !this.currentAudio.paused) {
+            // User interrupted! Stop Atlas immediately
+            this.currentAudio.pause();
+            this.currentAudio.currentTime = 0;
+            this.currentAudio = null;
+            this.hasInterrupted = true;
+            logger.info('[VoiceCall] 🛑 User interrupted - stopping playback');
+          }
         }
         options.onStatusChange?.('listening');
       } else {
-        // Silence detected
+        // Silence detected - reset interrupt flag
+        this.hasInterrupted = false;
         if (this.silenceStartTime === null) {
           this.silenceStartTime = now;
         }
@@ -480,6 +487,7 @@ export class VoiceCallService {
       const { data: { session } } = await supabase.auth.getSession();
       
       // 1. STT
+      const sttStart = performance.now();
       const transcript = await this.retryWithBackoff(async () => {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
@@ -498,6 +506,7 @@ export class VoiceCallService {
       
       if (!transcript?.trim()) return;
       
+      logger.info(`[VoiceCall] ⏱️ STT: ${(performance.now() - sttStart).toFixed(0)}ms`);
       logger.info('[VoiceCall] 👤 User:', transcript);
       options.onTranscript(transcript);
       await this.saveVoiceMessage(transcript, 'user', options.conversationId, options.userId);
@@ -505,6 +514,7 @@ export class VoiceCallService {
       options.onStatusChange?.('thinking');
       
       // 2. Claude Streaming
+      const claudeStart = performance.now();
       const response = await fetch('/api/message?stream=1', {
         method: 'POST',
         headers: {
@@ -520,6 +530,8 @@ export class VoiceCallService {
       });
       
       if (!response.ok) throw new Error(`Claude streaming failed: ${response.statusText}`);
+      
+      logger.info(`[VoiceCall] ⏱️ Claude connect: ${(performance.now() - claudeStart).toFixed(0)}ms`);
       
       // 3. Parse SSE stream
       const reader = response.body?.getReader();
