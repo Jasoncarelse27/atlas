@@ -7,10 +7,17 @@ import { logger } from '@/lib/logger';
 export async function getSafeUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
   // Check if getUserMedia API exists (iOS Safari hides it on HTTP)
   if (!navigator.mediaDevices?.getUserMedia) {
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isIOS) {
+    // If we're not on HTTPS or localhost, assume it's an HTTPS requirement issue
+    const isSecure = window.location.protocol === 'https:' || 
+                     window.location.hostname === 'localhost' ||
+                     window.location.hostname === '127.0.0.1';
+    
+    if (!isSecure) {
+      // Most likely iOS Safari on HTTP, or any browser with strict security
       throw new Error('Voice features require a secure connection (HTTPS). Please use the desktop app or access via HTTPS.');
     }
+    
+    // If we ARE on HTTPS but getUserMedia is missing, it's truly unsupported
     throw new Error('Your browser does not support audio recording. Please use Chrome, Firefox, or Safari.');
   }
 
