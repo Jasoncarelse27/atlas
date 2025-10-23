@@ -107,10 +107,27 @@ export function isAudioRecordingSupported(): boolean {
     (navigator as any).mozGetUserMedia
   );
   
+  // ✅ FIX: MediaRecorder check removed for iOS compatibility
+  // iOS Safari added MediaRecorder in v14.3, but we can still get audio
+  // through getUserMedia and handle recording differently if needed
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
+  if (isIOS) {
+    // For iOS, only check getUserMedia - we'll handle recording errors gracefully later
+    logger.info('[Audio] iOS detected, checking getUserMedia only');
+    return hasGetUserMedia;
+  }
+  
+  // For desktop/Android, check both APIs
   const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
   
-  // ✅ Only check for API availability, not security context
-  // Security/HTTPS checks are handled in VoiceCallModal with user-friendly warnings
+  logger.info('[Audio] Audio recording support check:', {
+    hasGetUserMedia,
+    hasMediaRecorder,
+    isIOS,
+    userAgent: navigator.userAgent
+  });
+  
   return hasGetUserMedia && hasMediaRecorder;
 }
 
