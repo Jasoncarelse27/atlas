@@ -287,8 +287,7 @@ export class VoiceCallService {
         }
         options.onStatusChange?.('listening');
       } else {
-        // Silence detected - reset interrupt flag
-        this.hasInterrupted = false;
+        // Silence detected
         if (this.silenceStartTime === null) {
           this.silenceStartTime = now;
         }
@@ -297,7 +296,7 @@ export class VoiceCallService {
         const silenceDuration = now - this.silenceStartTime;
         const speechDuration = now - this.lastSpeechTime;
         
-        // ⚡ INSTANT: Process after 300ms silence
+        // ⚡ Process after 600ms silence
         if (
           silenceDuration >= this.SILENCE_DURATION &&
           speechDuration >= this.MIN_SPEECH_DURATION &&
@@ -306,6 +305,7 @@ export class VoiceCallService {
           logger.debug('[VoiceCall] 🤫 Silence detected - processing speech');
           this.mediaRecorder.stop();
           this.silenceStartTime = null; // Reset
+          this.hasInterrupted = false; // Reset interrupt flag after real silence
         }
       }
     };
@@ -488,8 +488,11 @@ export class VoiceCallService {
       
       // 1. STT
       const sttStart = performance.now();
+      logger.info(`[VoiceCall] ⏱️ Audio blob size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
+      
       const transcript = await this.retryWithBackoff(async () => {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const fetchStart = performance.now();
         const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
           method: 'POST',
           headers: {
@@ -498,6 +501,8 @@ export class VoiceCallService {
           },
           body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
         });
+        
+        logger.info(`[VoiceCall] ⏱️ STT fetch: ${(performance.now() - fetchStart).toFixed(0)}ms`);
         
         if (!sttResponse.ok) throw new Error(`STT failed: ${sttResponse.statusText}`);
         const result = await sttResponse.json();
