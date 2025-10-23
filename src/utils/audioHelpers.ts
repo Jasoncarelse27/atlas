@@ -5,6 +5,15 @@ import { logger } from '@/lib/logger';
  * Safely get user media with iOS Safari compatibility
  */
 export async function getSafeUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
+  // Check if getUserMedia API exists (iOS Safari hides it on HTTP)
+  if (!navigator.mediaDevices?.getUserMedia) {
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS) {
+      throw new Error('Voice features require a secure connection (HTTPS). Please use the desktop app or access via HTTPS.');
+    }
+    throw new Error('Your browser does not support audio recording. Please use Chrome, Firefox, or Safari.');
+  }
+
   // Modern API - just try it and handle errors gracefully
   try {
     // For iOS Safari, we need specific constraints
