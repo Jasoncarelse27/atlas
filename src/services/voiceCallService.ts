@@ -3,6 +3,7 @@ import { getSafeUserMedia } from '@/utils/audioHelpers';
 import { isFeatureEnabled } from '../config/featureFlags';
 import { logger } from '../lib/logger';
 import { audioQueueService } from './audioQueueService';
+import { conversationBuffer } from '@/utils/conversationBuffer';
 
 interface VoiceCallOptions {
   userId: string;
@@ -125,6 +126,9 @@ export class VoiceCallService {
       const duration = (Date.now() - this.callStartTime.getTime()) / 1000;
       await this.trackCallMetering(userId, duration);
     }
+    
+    // Clear conversation buffer
+    conversationBuffer.clear();
     
     this.currentOptions = null;
     logger.info('[VoiceCall] ✅ Call ended');
@@ -529,6 +533,10 @@ export class VoiceCallService {
       
       logger.info(`[VoiceCall] ⏱️ STT: ${(performance.now() - sttStart).toFixed(0)}ms`);
       logger.info('[VoiceCall] 👤 User:', transcript);
+      
+      // Add user message to conversational buffer
+      conversationBuffer.add('user', transcript);
+      
       options.onTranscript(transcript);
       await this.saveVoiceMessage(transcript, 'user', options.conversationId, options.userId);
       
@@ -547,6 +555,7 @@ export class VoiceCallService {
           message: transcript,
           conversationId: options.conversationId,
           is_voice_call: true,
+          context: conversationBuffer.getRecent(5), // Send last 5 messages for context
         }),
       });
       
@@ -611,6 +620,9 @@ export class VoiceCallService {
       
       // Save full response to DB
       await this.saveVoiceMessage(fullResponse, 'assistant', options.conversationId, options.userId);
+      
+      // Add assistant response to conversational buffer
+      conversationBuffer.add('assistant', fullResponse);
       
       // ⏱️ Log performance breakdown
       const streamingTime = performance.now() - streamingStart;

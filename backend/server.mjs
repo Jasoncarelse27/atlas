@@ -704,7 +704,7 @@ app.post('/message',
 // Legacy endpoint for backward compatibility
 app.post('/api/message', verifyJWT, async (req, res) => {
   try {
-    const { message, conversationId, model = 'claude', userTier, userId: _userIdBody, is_voice_call } = req.body;
+    const { message, conversationId, model = 'claude', userTier, userId: _userIdBody, is_voice_call, context } = req.body;
     const userId = req.user.id;
 
     if (!message || !message.trim()) {
@@ -714,6 +714,9 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     // Log if this is a voice call for debugging
     if (is_voice_call) {
       logger.debug('[VoiceCall] Processing voice message');
+      if (context && Array.isArray(context)) {
+        logger.debug(`[VoiceCall] Received context: ${context.length} messages`);
+      }
     }
 
     // Determine effective tier from DB if not provided
@@ -897,7 +900,16 @@ app.post('/api/message', verifyJWT, async (req, res) => {
 
     // 🧠 MEMORY 100%: Get conversation history for context (Core/Studio only)
     let conversationHistory = [];
-    if (effectiveTier === 'core' || effectiveTier === 'studio') {
+    
+    // ✅ NEW: Use frontend buffer context if provided (faster for voice calls)
+    if (context && Array.isArray(context) && context.length > 0) {
+      conversationHistory = context.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      logger.debug(`🧠 [Buffer] Using frontend context: ${conversationHistory.length} messages`);
+    } else if (effectiveTier === 'core' || effectiveTier === 'studio') {
+      // Fallback to DB query for text chat or if buffer not provided
       try {
         logger.debug(`🧠 [Memory] Fetching conversation history for context...`);
         const { data: historyMessages, error: historyError } = await supabase
