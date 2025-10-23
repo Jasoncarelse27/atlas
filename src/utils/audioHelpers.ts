@@ -55,7 +55,22 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
       return await navigator.mediaDevices.getUserMedia(iosConstraints);
     }
     
-    // Standard constraints for other browsers
+    // ✅ FIX: Standard constraints for other browsers (disable aggressive processing)
+    if (constraints.audio === true) {
+      // If caller just passed { audio: true }, add detailed constraints
+      const enhancedConstraints = {
+        audio: {
+          echoCancellation: false,  // ✅ Disable echo cancellation
+          noiseSuppression: false,  // ✅ Disable noise suppression
+          autoGainControl: false,   // ✅ Disable auto gain control (THIS WAS RESETTING YOUR VOLUME!)
+          sampleRate: 48000,        // 48kHz for high quality
+          channelCount: 1           // Mono for voice
+        }
+      };
+      return await navigator.mediaDevices.getUserMedia(enhancedConstraints);
+    }
+    
+    // If caller provided detailed audio constraints, use them as-is
     return await navigator.mediaDevices.getUserMedia(constraints);
     
   } catch (error: any) {
