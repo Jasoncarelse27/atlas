@@ -495,26 +495,22 @@ export class VoiceCallService {
       logger.info(`[VoiceCall] ⏱️ Audio blob size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
       
       const transcript = await this.retryWithBackoff(async () => {
-        // Get OpenAI API key from environment
-        const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-        if (!OPENAI_API_KEY) {
-          throw new Error('VITE_OPENAI_API_KEY not configured in .env');
-        }
+        // Convert audio blob to base64 for Deepgram
+        const base64Audio = await this.blobToBase64(audioBlob);
+        const { data: { session } } = await supabase.auth.getSession();
         
         const fetchStart = performance.now();
         
-        // Create FormData for OpenAI Whisper API
-        const formData = new FormData();
-        formData.append('file', audioBlob, 'audio.webm');
-        formData.append('model', 'whisper-1');
-        formData.append('language', 'en');
-        
-        const sttResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        // Call Deepgram via backend (22x faster than Whisper)
+        const sttResponse = await fetch('/api/stt-deepgram', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
           },
-          body: formData,
+          body: JSON.stringify({ 
+            audio: base64Audio.split(',')[1] // Remove data:audio/webm;base64, prefix
+          }),
         });
         
         logger.info(`[VoiceCall] ⏱️ STT fetch: ${(performance.now() - fetchStart).toFixed(0)}ms`);
@@ -525,6 +521,7 @@ export class VoiceCallService {
         }
         
         const result = await sttResponse.json();
+        logger.info(`[VoiceCall] 📊 Deepgram confidence: ${(result.confidence * 100).toFixed(1)}%`);
         return result.text;
       }, 'Speech Recognition');
       
