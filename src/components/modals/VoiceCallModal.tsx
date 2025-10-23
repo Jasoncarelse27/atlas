@@ -220,11 +220,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
 
       // Initialize audio monitoring with iOS compatibility
       try {
-        // Check if audio recording is supported
-        if (!isAudioRecordingSupported()) {
-          throw new Error('Audio recording not supported in this browser');
-        }
-        
+        // ✅ BYPASS: Skip the broken isAudioRecordingSupported check
+        // Let getUserMedia itself determine support and show proper errors
         audioContext.current = new AudioContext();
         stream.current = await getSafeUserMedia({ audio: true });
         
