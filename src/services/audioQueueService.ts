@@ -143,29 +143,30 @@ export class AudioQueueService {
     }
     
     this.isPlaying = false;
-    logger.info('[AudioQueue] Playback loop ended');
+    this.isInterrupted = false; // ✅ FIX: Reset interrupt flag - ready for next input
+    logger.info('[AudioQueue] Playback loop ended - ready for next input');
   }
   
   /**
    * Interrupt playback immediately
    */
   interrupt(): void {
-    logger.info('[AudioQueue] 🛑 Interrupting playback');
+    logger.info('[AudioQueue] 🛑 Interrupting playback and clearing queue');
     this.isInterrupted = true;
+    this.isPlaying = false;
     
-    // Stop current audio
-    if (this.currentIndex < this.queue.length) {
-      const current = this.queue[this.currentIndex];
-      if (current.audio && !current.audio.paused) {
-        current.audio.pause();
-        current.audio.currentTime = 0;
+    // ✅ FIX: Stop ALL audio in queue immediately (not just current)
+    this.queue.forEach((item, index) => {
+      if (item.audio && !item.audio.paused) {
+        item.audio.pause();
+        item.audio.currentTime = 0;
+        logger.debug(`[AudioQueue] Stopped audio for sentence ${index}`);
       }
-    }
+    });
     
     // Clear queue
     this.queue = [];
     this.currentIndex = 0;
-    this.isPlaying = false;
   }
   
   /**
@@ -174,6 +175,13 @@ export class AudioQueueService {
   reset(): void {
     this.interrupt();
     this.isInterrupted = false;
+  }
+  
+  /**
+   * Check if audio is currently playing
+   */
+  getIsPlaying(): boolean {
+    return this.isPlaying;
   }
   
   /**

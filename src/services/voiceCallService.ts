@@ -319,8 +319,12 @@ export class VoiceCallService {
    */
   private restartRecordingVAD(): void {
     if (this.isActive && this.mediaRecorder) {
-      // ✅ FIX: Don't record while Atlas is speaking
-      if (this.currentAudio && !this.currentAudio.paused) {
+      // ✅ FIX: Don't record while Atlas is speaking (check both standard AND streaming audio)
+      const isAtlasSpeaking = 
+        (this.currentAudio && !this.currentAudio.paused) || 
+        (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
+      
+      if (isAtlasSpeaking) {
         logger.debug('[VoiceCall] Skipping recording - Atlas is still speaking');
         setTimeout(() => this.restartRecordingVAD(), 500);
         return;
@@ -329,6 +333,7 @@ export class VoiceCallService {
       // ✅ FIX: Check if already recording before starting
       if (this.mediaRecorder.state === 'inactive') {
         this.mediaRecorder.start(100);
+        logger.debug('[VoiceCall] 🎙️ Mic restarted - ready for next input');
       }
     }
   }
