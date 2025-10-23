@@ -5,45 +5,7 @@ import { logger } from '@/lib/logger';
  * Safely get user media with iOS Safari compatibility
  */
 export async function getSafeUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
-  // Check if we're in a secure context (HTTPS or localhost)
-  const isSecureContext = window.isSecureContext;
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  
-  if (!isSecureContext && !isLocalhost) {
-    logger.warn('[Audio] Insecure context detected. Voice features require HTTPS.');
-    // For development on local network, we'll try anyway but warn
-    if (window.location.hostname.startsWith('192.168.') || window.location.hostname.startsWith('10.')) {
-      logger.warn('[Audio] Local network detected. Voice may not work on iOS Safari without HTTPS.');
-    }
-  }
-  
-  // Check if API exists
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    // Fallback for older browsers
-    const getUserMedia = navigator.getUserMedia || 
-                        (navigator as any).webkitGetUserMedia || 
-                        (navigator as any).mozGetUserMedia || 
-                        (navigator as any).msGetUserMedia;
-    
-    if (!getUserMedia) {
-      // Check if this is due to insecure context on iOS
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const isInsecure = !window.isSecureContext && window.location.protocol !== 'https:';
-      
-      if (isIOS && isInsecure) {
-        throw new Error('Voice features require a secure connection (HTTPS). Please use the desktop app or access via HTTPS.');
-      }
-      
-      throw new Error('Your browser does not support audio recording. Please use Chrome, Firefox, or Safari on desktop.');
-    }
-    
-    // Use legacy API
-    return new Promise((resolve, reject) => {
-      getUserMedia.call(navigator, constraints, resolve, reject);
-    });
-  }
-  
-  // Modern API with iOS-specific handling
+  // Modern API - just try it and handle errors gracefully
   try {
     // For iOS Safari, we need specific constraints
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -70,7 +32,7 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
         audio: {
           echoCancellation: false,  // ✅ Disable echo cancellation
           noiseSuppression: false,  // ✅ Disable noise suppression
-          autoGainControl: false,   // ✅ Disable auto gain control (THIS WAS RESETTING YOUR VOLUME!)
+          autoGainControl: false,   // ✅ Disable auto gain control
           sampleRate: 48000,        // 48kHz for high quality
           channelCount: 1           // Mono for voice
         }
@@ -84,7 +46,7 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
   } catch (error: any) {
     logger.error('[Audio] getUserMedia error:', error);
     
-    // Provide helpful error messages
+    // Provide helpful error messages based on error type
     if (error.name === 'NotAllowedError') {
       throw new Error('Microphone access denied. Please allow microphone permissions in your browser settings.');
     } else if (error.name === 'NotFoundError') {
@@ -92,7 +54,10 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
     } else if (error.name === 'NotReadableError') {
       throw new Error('Microphone is already in use by another application.');
     } else if (error.name === 'SecurityError') {
+      // This is the HTTPS requirement error on iOS
       throw new Error('Voice features require a secure connection (HTTPS). Please use the desktop app or access via HTTPS.');
+    } else if (error.name === 'NotSupportedError') {
+      throw new Error('Your browser does not support audio recording. Please use Chrome, Firefox, or Safari.');
     }
     
     throw error;
