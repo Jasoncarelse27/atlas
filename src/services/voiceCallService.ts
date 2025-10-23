@@ -483,28 +483,42 @@ export class VoiceCallService {
     const startTime = performance.now(); // ⏱️ Start latency tracking
     try {
       options.onStatusChange?.('transcribing');
-      const base64Audio = await this.blobToBase64(audioBlob);
       const { data: { session } } = await supabase.auth.getSession();
       
-      // 1. STT
+      // 1. STT - Call OpenAI Whisper directly (bypassing Supabase Edge Function)
       const sttStart = performance.now();
       logger.info(`[VoiceCall] ⏱️ Audio blob size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
       
       const transcript = await this.retryWithBackoff(async () => {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        // Get OpenAI API key from environment
+        const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+        if (!OPENAI_API_KEY) {
+          throw new Error('VITE_OPENAI_API_KEY not configured in .env');
+        }
+        
         const fetchStart = performance.now();
-        const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
+        
+        // Create FormData for OpenAI Whisper API
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio.webm');
+        formData.append('model', 'whisper-1');
+        formData.append('language', 'en');
+        
+        const sttResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
           },
-          body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
+          body: formData,
         });
         
         logger.info(`[VoiceCall] ⏱️ STT fetch: ${(performance.now() - fetchStart).toFixed(0)}ms`);
         
-        if (!sttResponse.ok) throw new Error(`STT failed: ${sttResponse.statusText}`);
+        if (!sttResponse.ok) {
+          const error = await sttResponse.text();
+          throw new Error(`STT failed: ${error}`);
+        }
+        
         const result = await sttResponse.json();
         return result.text;
       }, 'Speech Recognition');
@@ -536,9 +550,11 @@ export class VoiceCallService {
       
       if (!response.ok) throw new Error(`Claude streaming failed: ${response.statusText}`);
       
-      logger.info(`[VoiceCall] ⏱️ Claude connect: ${(performance.now() - claudeStart).toFixed(0)}ms`);
+      const claudeConnectTime = performance.now() - claudeStart;
+      logger.info(`[VoiceCall] ⏱️ Claude connect (TTFB): ${claudeConnectTime.toFixed(0)}ms`);
       
       // 3. Parse SSE stream
+      const streamingStart = performance.now();
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullResponse = '';
@@ -594,10 +610,12 @@ export class VoiceCallService {
       // Save full response to DB
       await this.saveVoiceMessage(fullResponse, 'assistant', options.conversationId, options.userId);
       
-      // ⏱️ Log total latency
+      // ⏱️ Log performance breakdown
+      const streamingTime = performance.now() - streamingStart;
       const totalLatency = performance.now() - startTime;
-      logger.info(`[VoiceCall] ⏱️ Streaming latency: ${totalLatency.toFixed(0)}ms`);
-      logger.info('[VoiceCall] 🤖 Atlas (streaming complete):', fullResponse.substring(0, 100) + '...');
+      logger.info(`[VoiceCall] ⏱️ Claude streaming: ${streamingTime.toFixed(0)}ms`);
+      logger.info(`[VoiceCall] ⏱️ Total latency: ${totalLatency.toFixed(0)}ms`);
+      logger.info(`[VoiceCall] 🤖 Atlas (streaming complete):`, fullResponse.substring(0, 100) + '...');
       
     } catch (error) {
       logger.error('[VoiceCall] Streaming error:', error);
