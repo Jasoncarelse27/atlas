@@ -1,8 +1,8 @@
 import { supabase } from '@/lib/supabaseClient';
 import { getSafeUserMedia } from '@/utils/audioHelpers';
+import { isFeatureEnabled } from '../config/featureFlags';
 import { logger } from '../lib/logger';
 import { audioQueueService } from './audioQueueService';
-import { isFeatureEnabled } from '../config/featureFlags';
 
 interface VoiceCallOptions {
   userId: string;
@@ -33,8 +33,8 @@ export class VoiceCallService {
   private microphone: MediaStreamAudioSourceNode | null = null;
   private vadCheckInterval: NodeJS.Timeout | null = null;
   private silenceStartTime: number | null = null;
-  private readonly SILENCE_DURATION = 300; // ⚡ INSTANT: Process after 300ms silence (ChatGPT-level)
-  private readonly MIN_SPEECH_DURATION = 200; // ⚡ Minimum 200ms of speech for faster response
+  private readonly SILENCE_DURATION = 600; // 🎯 NATURAL: Allow natural pauses (0.6s)
+  private readonly MIN_SPEECH_DURATION = 400; // 🎯 Don't trigger on "um", "uh" (0.4s)
   private lastSpeechTime: number = 0;
   
   // 🎯 SMART ADAPTIVE THRESHOLD
@@ -473,6 +473,7 @@ export class VoiceCallService {
     audioBlob: Blob,
     options: VoiceCallOptions
   ): Promise<void> {
+    const startTime = performance.now(); // ⏱️ Start latency tracking
     try {
       options.onStatusChange?.('transcribing');
       const base64Audio = await this.blobToBase64(audioBlob);
@@ -575,6 +576,10 @@ export class VoiceCallService {
       
       // Save full response to DB
       await this.saveVoiceMessage(fullResponse, 'assistant', options.conversationId, options.userId);
+      
+      // ⏱️ Log total latency
+      const totalLatency = performance.now() - startTime;
+      logger.info(`[VoiceCall] ⏱️ Streaming latency: ${totalLatency.toFixed(0)}ms`);
       logger.info('[VoiceCall] 🤖 Atlas (streaming complete):', fullResponse.substring(0, 100) + '...');
       
     } catch (error) {

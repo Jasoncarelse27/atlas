@@ -1036,7 +1036,16 @@ app.post('/api/message', verifyJWT, async (req, res) => {
                 max_tokens: is_voice_call ? 500 : 2000, // ✅ Allow complete thoughts for voice calls
                 // ✅ FIX: Move system message to top-level for Claude API
                 ...(is_voice_call && {
-                  system: 'You are Atlas in a voice call. Keep responses brief and conversational (2-3 sentences max). Speak naturally as if in a phone conversation. Be warm and concise.'
+                  system: `You're Atlas, a warm and emotionally intelligent AI companion.
+
+Voice call guidelines:
+- Speak naturally (use "I'm", "you're", "let's")
+- Keep responses brief (2-3 sentences unless asked for detail)
+- Show empathy through tone, not over-explanation
+- It's okay to pause or let silence breathe
+- Match the user's energy
+
+You're having a conversation, not giving a TED talk. Be human, be present, be brief.`
                 }),
                 messages: [
                   ...conversationHistory,
