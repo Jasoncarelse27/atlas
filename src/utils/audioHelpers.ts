@@ -26,6 +26,14 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
                         (navigator as any).msGetUserMedia;
     
     if (!getUserMedia) {
+      // Check if this is due to insecure context on iOS
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isInsecure = !window.isSecureContext && window.location.protocol !== 'https:';
+      
+      if (isIOS && isInsecure) {
+        throw new Error('Voice features require a secure connection (HTTPS). Please use the desktop app or access via HTTPS.');
+      }
+      
       throw new Error('Your browser does not support audio recording. Please use Chrome, Firefox, or Safari on desktop.');
     }
     

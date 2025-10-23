@@ -233,12 +233,25 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         monitorAudioLevel();
       } catch (audioError) {
         logger.error('[VoiceCall] Audio setup failed:', audioError);
-        modernToast.error('Microphone access denied', 'Check your browser settings to enable microphone');
         setIsCallActive(false);
-        // Show recovery modal if permission was denied
-        if (audioError instanceof Error && audioError.message.includes('Permission denied')) {
-          setShowRecoveryModal(true);
+        
+        // Check if this is an HTTPS requirement error
+        if (audioError instanceof Error && audioError.message.includes('secure connection (HTTPS)')) {
+          setShowHTTPSWarning(true);
+          return;
         }
+        
+        // Show recovery modal if permission was denied
+        if (audioError instanceof Error && 
+            (audioError.message.includes('Permission denied') || 
+             audioError.message.includes('Microphone access denied'))) {
+          modernToast.error('Microphone access denied', 'Check your browser settings to enable microphone');
+          setShowRecoveryModal(true);
+          return;
+        }
+        
+        // Generic error
+        modernToast.error('Failed to access microphone', audioError instanceof Error ? audioError.message : 'Unknown error');
         return;
       }
 
