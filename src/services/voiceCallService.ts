@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabaseClient';
 import { getSafeUserMedia } from '@/utils/audioHelpers';
 import { logger } from '../lib/logger';
+import { audioQueueService } from './audioQueueService';
+import { isFeatureEnabled } from '../config/featureFlags';
 
 interface VoiceCallOptions {
   userId: string;
@@ -268,14 +270,16 @@ export class VoiceCallService {
         this.lastSpeechTime = now;
         
         // 🛑 TAP TO INTERRUPT: If user speaks while Atlas is playing
-        if (this.currentAudio && !this.currentAudio.paused) {
+        if (isFeatureEnabled('VOICE_STREAMING')) {
+          audioQueueService.interrupt(); // Stop queue playback
+        } else if (this.currentAudio && !this.currentAudio.paused) {
           // User interrupted! Stop Atlas immediately
           logger.info('[VoiceCall] 🛑 User interrupted Atlas - stopping playback');
           this.currentAudio.pause();
           this.currentAudio.currentTime = 0;
           this.currentAudio = null;
-          options.onStatusChange?.('listening');
         }
+        options.onStatusChange?.('listening');
       } else {
         // Silence detected
         if (this.silenceStartTime === null) {
@@ -323,9 +327,24 @@ export class VoiceCallService {
   }
   
   /**
-   * Process a single voice chunk: STT → Claude → TTS → Play
+   * Process a single voice chunk: Route to streaming or standard mode
    */
   private async processVoiceChunk(
+    audioBlob: Blob,
+    options: VoiceCallOptions
+  ): Promise<void> {
+    // Route to streaming or standard based on feature flag
+    if (isFeatureEnabled('VOICE_STREAMING')) {
+      return this.processVoiceChunkStreaming(audioBlob, options);
+    } else {
+      return this.processVoiceChunkStandard(audioBlob, options);
+    }
+  }
+
+  /**
+   * Standard (non-streaming) voice processing
+   */
+  private async processVoiceChunkStandard(
     audioBlob: Blob,
     options: VoiceCallOptions
   ): Promise<void> {
@@ -444,6 +463,123 @@ export class VoiceCallService {
       
     } catch (error) {
       logger.error('[VoiceCall] Chunk processing error:', error);
+    }
+  }
+  
+  /**
+   * Streaming voice processing: STT → Claude Stream → Progressive TTS
+   */
+  private async processVoiceChunkStreaming(
+    audioBlob: Blob,
+    options: VoiceCallOptions
+  ): Promise<void> {
+    try {
+      options.onStatusChange?.('transcribing');
+      const base64Audio = await this.blobToBase64(audioBlob);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // 1. STT
+      const transcript = await this.retryWithBackoff(async () => {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
+        });
+        
+        if (!sttResponse.ok) throw new Error(`STT failed: ${sttResponse.statusText}`);
+        const result = await sttResponse.json();
+        return result.text;
+      }, 'Speech Recognition');
+      
+      if (!transcript?.trim()) return;
+      
+      logger.info('[VoiceCall] 👤 User:', transcript);
+      options.onTranscript(transcript);
+      await this.saveVoiceMessage(transcript, 'user', options.conversationId, options.userId);
+      
+      options.onStatusChange?.('thinking');
+      
+      // 2. Claude Streaming
+      const response = await fetch('/api/message?stream=1', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({
+          message: transcript,
+          conversationId: options.conversationId,
+          is_voice_call: true,
+        }),
+      });
+      
+      if (!response.ok) throw new Error(`Claude streaming failed: ${response.statusText}`);
+      
+      // 3. Parse SSE stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      let sentenceIndex = 0;
+      let currentSentence = '';
+      
+      audioQueueService.reset(); // Clear queue for new response
+      options.onStatusChange?.('speaking');
+      
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.chunk) {
+                fullResponse += data.chunk;
+                currentSentence += data.chunk;
+                
+                // Split into sentences on .!? followed by space or newline
+                const sentences = currentSentence.split(/([.!?]\s+)/);
+                
+                // Process complete sentences
+                while (sentences.length >= 2) {
+                  const sentence = sentences.shift()! + (sentences.shift() || '');
+                  const cleanSentence = sentence.trim();
+                  
+                  if (cleanSentence.length > 3) {
+                    await audioQueueService.addSentence(cleanSentence, sentenceIndex++, 'nova');
+                    options.onAIResponse(fullResponse); // Update UI with partial response
+                  }
+                }
+                
+                currentSentence = sentences.join('');
+              }
+            } catch (e) {
+              // Ignore parse errors for keep-alive messages
+            }
+          }
+        }
+      }
+      
+      // Process remaining sentence
+      if (currentSentence.trim().length > 3) {
+        await audioQueueService.addSentence(currentSentence.trim(), sentenceIndex++, 'nova');
+      }
+      
+      // Save full response to DB
+      await this.saveVoiceMessage(fullResponse, 'assistant', options.conversationId, options.userId);
+      logger.info('[VoiceCall] 🤖 Atlas (streaming complete):', fullResponse.substring(0, 100) + '...');
+      
+    } catch (error) {
+      logger.error('[VoiceCall] Streaming error:', error);
+      options.onError(error as Error);
     }
   }
   

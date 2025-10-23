@@ -1033,7 +1033,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
               },
               body: JSON.stringify({
                 model: selectedModel,
-                max_tokens: is_voice_call ? 100 : 2000, // ✅ Even shorter responses for faster voice calls
+                max_tokens: is_voice_call ? 500 : 2000, // ✅ Allow complete thoughts for voice calls
                 // ✅ FIX: Move system message to top-level for Claude API
                 ...(is_voice_call && {
                   system: 'You are Atlas in a voice call. Keep responses brief and conversational (2-3 sentences max). Speak naturally as if in a phone conversation. Be warm and concise.'
