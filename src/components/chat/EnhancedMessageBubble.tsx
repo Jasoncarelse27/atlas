@@ -420,6 +420,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   if (message.deletedAt) {
     return (
       <motion.div
+        id={`message-${message.id}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
@@ -463,6 +464,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       />
 
       <motion.div
+        id={`message-${message.id}`}
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ 

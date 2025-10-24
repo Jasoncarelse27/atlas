@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Message } from '../../types/chat';
 import { logger } from '../../lib/logger';
+import type { Message } from '../../types/chat';
 
 interface ImageMessageBubbleProps {
   message: Message;
@@ -32,7 +32,10 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
     attachments: message.attachments
   });
 
-  const handleImagePress = () => {
+  const handleImagePress = (e: React.MouseEvent) => {
+    // Only handle left-click (button 0), ignore right-click (button 2)
+    if (e.button !== 0) return;
+    
     if (message.status === 'done' && !imageError && imageUrl) {
       setIsExpanded(true);
     }
@@ -65,7 +68,19 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
   );
 
   const renderDoneState = () => (
-    <div onClick={handleImagePress} className="relative cursor-pointer">
+    <div 
+      onMouseDown={(e) => {
+        // Only handle left-click for expanding, allow right-click to pass through
+        if (e.button === 0) {
+          handleImagePress(e);
+        }
+      }}
+      onContextMenu={(e) => {
+        // CRITICAL: Don't preventDefault - let it bubble to parent for context menu
+        // Just handle the mouseDown for left-click separately
+      }}
+      className="relative cursor-pointer"
+    >
       {imageUrl ? (
         <img
           src={imageUrl}

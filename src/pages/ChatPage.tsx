@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -28,6 +28,7 @@ import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
 import { ConversationHistoryDrawer } from '../components/ConversationHistoryDrawer';
+import { SearchDrawer } from '../components/SearchDrawer';
 import InsightsWidget from '../components/sidebar/InsightsWidget';
 import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
@@ -68,6 +69,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     onDeleteConversation: (id: string) => void;
     deletingId: string | null;
   } | null>(null);
+  
+  // Search modal state
+  const [showSearch, setShowSearch] = useState(false);
+  
   // Removed duplicate useMessageStore - using usePersistentMessages as single source of truth
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -426,6 +431,38 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
+  // ✅ PHASE 2B: Navigate to message from search
+  const handleNavigateToMessage = async (targetConversationId: string, messageId: string) => {
+    try {
+      logger.debug('[ChatPage] 🔍 Navigating to message:', { targetConversationId, messageId });
+
+      // Switch conversation if needed
+      if (targetConversationId !== conversationId) {
+        setConversationId(targetConversationId);
+        await loadMessages(targetConversationId);
+      }
+
+      // Wait for messages to load
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Scroll to message
+      const messageElement = document.getElementById(`message-${messageId}`);
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Highlight message briefly
+        messageElement.classList.add('ring-2', 'ring-yellow-400', 'rounded-lg');
+        setTimeout(() => {
+          messageElement.classList.remove('ring-2', 'ring-yellow-400', 'rounded-lg');
+        }, 2000);
+      } else {
+        logger.warn('[ChatPage] ⚠️ Message element not found:', messageId);
+      }
+    } catch (error) {
+      logger.error('[ChatPage] ❌ Failed to navigate to message:', error);
+    }
+  };
+
   // ✅ FIX: Get authenticated user with better logging
   useEffect(() => {
     const getAuthUser = async () => {
@@ -452,6 +489,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     };
     getAuthUser();
   }, []);
+
+  // ✅ PHASE 2B: Keyboard shortcut for search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+        logger.debug('[ChatPage] 🔍 Search opened via keyboard shortcut');
+      }
+
+      // Escape to close search
+      if (e.key === 'Escape' && showSearch) {
+        setShowSearch(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showSearch]);
 
   // ✅ PHASE 2: Real-time listener as SINGLE SOURCE OF TRUTH
   useEffect(() => {
@@ -955,6 +1012,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
+                {/* Search Button - PHASE 2B */}
+                <button
+                  onClick={() => setShowSearch(true)}
+                  className="p-2 rounded-lg bg-atlas-sage/10 hover:bg-atlas-sage/20 transition-colors group"
+                  title="Search messages (Cmd+K)"
+                  aria-label="Search messages"
+                >
+                  <Search className="w-5 h-5 text-atlas-stone group-hover:text-atlas-sage" />
+                </button>
                 {/* Sync status hidden per design requirements */}
                 {/* <SyncStatus isOnline={true} /> */}
               </div>
@@ -1198,6 +1264,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             conversations={historyData.conversations}
             onDeleteConversation={historyData.onDeleteConversation}
             deletingId={historyData.deletingId}
+          />
+        )}
+
+        {/* Search Drawer - PHASE 2B */}
+        {userId && (
+          <SearchDrawer
+            isOpen={showSearch}
+            onClose={() => setShowSearch(false)}
+            userId={userId}
+            currentConversationId={conversationId || undefined}
+            onNavigateToMessage={handleNavigateToMessage}
           />
         )}
 

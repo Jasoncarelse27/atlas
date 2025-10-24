@@ -33,7 +33,10 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ attachments, isUser 
   const imageAttachments = attachments.filter(att => getFileType(att.url) === 'image');
   const otherAttachments = attachments.filter(att => getFileType(att.url) !== 'image');
 
-  const handleImageClick = (index: number) => {
+  const handleImageClick = (index: number, e?: React.MouseEvent) => {
+    // Only handle left-click (button 0), ignore right-click (button 2)
+    if (e && e.button !== 0) return;
+    
     setViewerIndex(index);
     setViewerVisible(true);
   };
@@ -81,7 +84,15 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ attachments, isUser 
                 <motion.div
                   key={idx}
                   className="relative group cursor-pointer overflow-hidden"
-                  onClick={() => handleImageClick(idx)}
+                  onMouseDown={(e) => {
+                    // Only handle left-click for gallery, allow right-click to pass through
+                    if (e.button === 0) {
+                      handleImageClick(idx, e);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    // CRITICAL: Don't preventDefault - let it bubble to parent for context menu
+                  }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.2 }}
