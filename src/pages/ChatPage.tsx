@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { LogOut, Menu, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
@@ -297,7 +299,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         role: 'user',
         content: text,
         timestamp: new Date().toISOString(),
-        type: 'text'
+        type: 'text',
+        status: 'sending' // ✅ NEW: Show sending status
       };
       
       // Add to UI instantly for ChatGPT-like experience
@@ -474,6 +477,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           // ✅ Reload messages from Dexie (single source of truth)
           await loadMessages(conversationId);
+
+          // ✅ NEW: Mark user messages as 'sent' when saved to database
+          if (newMsg.role === 'user') {
+            setMessages(prev => prev.map(m => 
+              m.id === newMsg.id ? { ...m, status: 'sent' as const } : m
+            ));
+            logger.debug('[ChatPage] ✅ Marked message as sent:', newMsg.id);
+          }
           
           // Only reset indicators for assistant messages
           if (newMsg.role === 'assistant') {
@@ -728,34 +739,40 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // ✅ FIX: Show authentication status
+  // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center p-6">
-        <div className="p-6 bg-blue-100 text-blue-800 rounded-xl text-center max-w-md border border-blue-200">
-          <div className="text-lg font-semibold mb-2">Authenticating...</div>
-          <div className="mb-4">Please wait while we verify your identity.</div>
-          <div className="flex justify-center">
-            <svg
-              className="animate-spin h-6 w-6 text-blue-700"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-              ></path>
-            </svg>
+      <div className="min-h-screen bg-white">
+        {/* Header Skeleton */}
+        <div className="bg-white/50 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-30">
+          <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <Skeleton circle width={40} height={40} />
+                <div>
+                  <Skeleton width={120} height={24} />
+                  <Skeleton width={200} height={16} className="mt-1" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages Skeleton */}
+        <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] ${i % 2 === 0 ? 'ml-auto' : ''}`}>
+                <Skeleton height={60} borderRadius={16} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Input Skeleton */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+          <div className="max-w-4xl mx-auto">
+            <Skeleton height={50} borderRadius={25} />
           </div>
         </div>
       </div>

@@ -17,7 +17,9 @@ export interface Message {
   attachments?: Attachment[];      // ✅ new: multiple files
   timestamp: string;
   error?: string | boolean; // Support both string error messages and boolean upload failure
-  status?: 'sending' | 'sent' | 'failed' | 'pending' | 'error' | 'uploading' | 'done';
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'pending' | 'error' | 'uploading' | 'done';
+  deliveredAt?: string; // ✅ NEW: When message was delivered to recipient
+  readAt?: string; // ✅ NEW: When message was read by recipient
   audioUrl?: string;
   imageUrl?: string;
   // Extended file support

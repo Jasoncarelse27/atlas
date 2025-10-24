@@ -89,6 +89,18 @@ export default function EnhancedInputToolbar({
     }
   }, [isVisible]);
 
+  // ✅ Auto-expand textarea as user types (ChatGPT-style)
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      // Set height to scrollHeight, max 140px (7 lines)
+      const newHeight = Math.min(textarea.scrollHeight, 140);
+      textarea.style.height = `${newHeight}px`;
+    }
+  }, [text]); // Re-run when text changes
+
   // Keyboard event handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

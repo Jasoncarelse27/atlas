@@ -451,6 +451,27 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               Uploading...
             </div>
           )}
+
+          {/* ✅ Message Status Indicators (WhatsApp-style checkmarks) */}
+          {isUser && message.status && message.status !== 'uploading' && message.status !== 'sending' && (
+            <div className="flex items-center gap-0.5 mt-1 justify-end">
+              {message.status === 'sent' && (
+                <Check className="w-3 h-3 text-gray-300" />
+              )}
+              {message.status === 'delivered' && (
+                <>
+                  <Check className="w-3 h-3 text-gray-300" />
+                  <Check className="w-3 h-3 text-gray-300 -ml-1.5" />
+                </>
+              )}
+              {message.status === 'read' && (
+                <>
+                  <Check className="w-3 h-3 text-blue-400" />
+                  <Check className="w-3 h-3 text-blue-400 -ml-1.5" />
+                </>
+              )}
+            </div>
+          )}
           
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
           {!isUser && !showTypingIndicator && message.status !== 'sending' && (
