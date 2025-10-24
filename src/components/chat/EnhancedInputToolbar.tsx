@@ -614,9 +614,10 @@ export default function EnhancedInputToolbar({
           {/* Main Input Container - Professional Atlas Style */}
           <motion.div 
             data-input-area
-            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 bg-gradient-to-r from-[#F4E8E1] via-[#F3D3B8] to-[#F4E8E1] rounded-full shadow-2xl"
+            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 bg-gradient-to-r from-[#F4E8E1] via-[#F3D3B8] to-[#F4E8E1] rounded-3xl shadow-2xl"
             style={{
-              boxShadow: '0 8px 32px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
+              boxShadow: '0 8px 32px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+              borderRadius: '28px' // Extra rounded for polish
             }}
             initial={{ y: 0, scale: 1 }}
             animate={{ y: 0, scale: 1 }}
@@ -703,8 +704,8 @@ export default function EnhancedInputToolbar({
               onBlur={handleInputBlur}
               onFocus={handleInputFocus}
               placeholder={attachmentPreviews.length > 0 ? "💡 Add a caption and press Enter to send..." : placeholder}
-              className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D3DCAB] border-none rounded-full px-3 py-2 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
-              style={{ fontSize: '16px' }} // Prevent iOS zoom
+              className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D3DCAB] border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
+              style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
               disabled={isProcessing || disabled}
               autoComplete="off"
               autoCapitalize="sentences"
