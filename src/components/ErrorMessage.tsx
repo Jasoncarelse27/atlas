@@ -51,7 +51,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
       case 'info':
         return {
           container: 'bg-blue-50 border-blue-200 text-blue-800',
-          icon: 'text-blue-500',
+          icon: 'text-atlas-sage',
           button: 'bg-blue-100 hover:bg-blue-200 border-blue-300'
         };
       default:

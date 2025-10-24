@@ -179,7 +179,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
         className={`relative p-4 rounded-full transition-all duration-200 ${
           isRecording 
             ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' 
-            : 'bg-blue-600 hover:bg-blue-700 text-white'
+            : 'bg-atlas-sage hover:bg-atlas-success text-white'
         } ${disabled || isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
         aria-label={isRecording ? 'Stop recording' : 'Start recording'}
       >
@@ -206,7 +206,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       
       {isProcessing && (
         <div className="text-center">
-          <div className="text-sm font-medium text-blue-600">
+          <div className="text-sm font-medium text-atlas-sage">
             Processing audio...
           </div>
         </div>

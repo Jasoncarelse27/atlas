@@ -21,7 +21,7 @@ const Logo: React.FC<LogoProps> = ({ className = '' }) => {
           <span className={`text-xl tracking-wide text-transparent bg-clip-text ${
             isDarkMode
               ? 'bg-gradient-to-r from-blue-100 to-blue-400'
-              : 'bg-gradient-to-r from-blue-600 to-blue-800'
+              : 'bg-gradient-to-r from-atlas-sage to-blue-800'
           }`}>
             Atlas 2.0
           </span>

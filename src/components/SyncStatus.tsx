@@ -25,7 +25,7 @@ export default function SyncStatus({ isOnline }: { isOnline: boolean }) {
   
   if (isSyncingNow) { 
     text = "Syncing…"; 
-    color = "text-blue-400"
+    color = "text-atlas-sage"
     icon = <RefreshCw size={14} className="animate-spin" />
   }
   else if (isOnline) { 

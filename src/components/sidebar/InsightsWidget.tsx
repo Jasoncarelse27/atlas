@@ -29,7 +29,7 @@ export default function InsightsWidget() {
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Conversation Analysis</span>
-            <span className="text-blue-400">Coming Soon</span>
+            <span className="text-atlas-sage">Coming Soon</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Wellness Score</span>

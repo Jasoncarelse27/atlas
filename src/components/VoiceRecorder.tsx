@@ -208,7 +208,7 @@ export function VoiceRecorder({
               {/* Mic Icon */}
               <div className="flex justify-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 text-atlas-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                   </svg>
                 </div>
@@ -222,7 +222,7 @@ export function VoiceRecorder({
                 disabled={!isOnline}
                 className={`w-full py-3 px-6 rounded-lg transition-colors ${
                   isOnline 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                    ? 'bg-atlas-sage text-white hover:bg-atlas-success' 
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >

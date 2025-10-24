@@ -133,7 +133,7 @@ export default function ConversationHistoryManager({
         </div>
         
         {isSyncing && (
-          <div className="text-sm text-blue-400 flex items-center gap-2">
+          <div className="text-sm text-atlas-sage flex items-center gap-2">
             <RefreshCw className="w-3 h-3 animate-spin" />
             Syncing conversations...
           </div>
@@ -160,7 +160,7 @@ export default function ConversationHistoryManager({
                 key={conv.id}
                 className={`group relative p-3 rounded-lg cursor-pointer transition-all ${
                   conv.id === currentConversationId
-                    ? 'bg-blue-600/20 border border-blue-500/30'
+                    ? 'bg-atlas-sage/20 border border-atlas-sage/30'
                     : 'bg-gray-800/30 hover:bg-gray-700/50 border border-transparent'
                 }`}
                 onClick={() => onConversationSelect(conv.id)}

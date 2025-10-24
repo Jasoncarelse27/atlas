@@ -128,7 +128,7 @@ const CostMonitor: React.FC = () => {
         </h3>
         <button
           onClick={fetchMetrics}
-          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          className="text-sm text-atlas-sage dark:text-atlas-sage hover:underline"
         >
           Refresh
         </button>
@@ -137,7 +137,7 @@ const CostMonitor: React.FC = () => {
       {/* Storage Usage */}
       <div className="mb-6">
         <div className="flex items-center mb-3">
-          <HardDrive className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2" />
+          <HardDrive className="w-5 h-5 text-atlas-sage dark:text-atlas-sage mr-2" />
           <h4 className="font-medium text-gray-900 dark:text-white">Storage Usage</h4>
         </div>
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
@@ -147,7 +147,7 @@ const CostMonitor: React.FC = () => {
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              className="bg-atlas-sage h-2 rounded-full transition-all duration-300"
               style={{ width: `${Math.min((metrics.databaseSize / (1024 * 1024 * 100)) * 100, 100)}%` }}
             ></div>
           </div>

@@ -101,7 +101,7 @@ const SpeedTestModal: React.FC<SpeedTestModalProps> = ({
         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Wifi className="w-5 h-5 text-blue-600" />
+              <Wifi className="w-5 h-5 text-atlas-sage" />
             </div>
             <div>
               <h2 id="speed-test-title" className="text-lg font-bold text-gray-900">Internet Speed Test</h2>
@@ -155,7 +155,7 @@ const SpeedTestModal: React.FC<SpeedTestModalProps> = ({
               
               <div className="flex items-center justify-center gap-8 text-center">
                 <div className="flex flex-col items-center">
-                  <Download className="w-8 h-8 text-blue-500 mb-2" />
+                  <Download className="w-8 h-8 text-atlas-sage mb-2" />
                   <div className="text-sm text-gray-700">Download Speed</div>
                 </div>
                 
@@ -184,7 +184,7 @@ const SpeedTestModal: React.FC<SpeedTestModalProps> = ({
               <div className="flex gap-4">
                 <button
                   onClick={handleRetry}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                 >
                   <RotateCcw className="w-4 h-4" />
                   Try Again
@@ -222,7 +222,7 @@ const SpeedTestModal: React.FC<SpeedTestModalProps> = ({
             
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <Download className="w-4 h-4 text-blue-500" />
+                <Download className="w-4 h-4 text-atlas-sage" />
                 <span className="text-sm font-medium">Download</span>
               </div>
               

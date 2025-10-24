@@ -72,7 +72,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
       {shouldShowUpgradePrompt() && (
         <button
           onClick={handleUpgradeClick}
-          className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+          className="px-3 py-1.5 text-xs font-medium text-white bg-atlas-sage hover:bg-atlas-success rounded-md transition-colors"
         >
           Upgrade
         </button>

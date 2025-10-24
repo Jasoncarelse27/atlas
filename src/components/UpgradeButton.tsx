@@ -34,11 +34,11 @@ export function UpgradeButton({
   const getVariantStyles = () => {
     switch (variant) {
       case 'secondary':
-        return 'bg-gray-600 hover:bg-gray-700 text-white';
+        return 'bg-atlas-stone hover:bg-atlas-stone/80 text-white';
       case 'outline':
-        return 'border-2 border-indigo-500 text-indigo-400 hover:bg-indigo-500 hover:text-white';
+        return 'border-2 border-atlas-sage text-gray-800 hover:bg-atlas-sage hover:text-gray-900';
       default:
-        return 'bg-indigo-600 hover:bg-indigo-700 text-white';
+        return 'bg-atlas-sage hover:bg-atlas-success text-gray-800 font-semibold';
     }
   };
 

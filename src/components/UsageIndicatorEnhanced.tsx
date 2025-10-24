@@ -65,9 +65,9 @@ export function UsageIndicatorEnhanced({
     
     return {
       status: 'good',
-      color: 'text-blue-600',
+      color: 'text-atlas-sage',
       bgColor: 'bg-blue-100',
-      barColor: 'bg-blue-500',
+      barColor: 'bg-atlas-sage',
       showUpgrade: false
     };
   };

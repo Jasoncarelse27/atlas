@@ -14,8 +14,16 @@ export const TypingDots = () => {
   }, [])
   
   return (
-    <span className="text-gray-500 text-lg animate-pulse">
-      {dots}
-    </span>
+    <div className="flex items-center">
+      <span 
+        className="text-2xl font-bold animate-pulse" 
+        style={{ 
+          color: '#D3DCAB',
+          textShadow: '0 0 1px #D3DCAB'
+        }}
+      >
+        {dots}
+      </span>
+    </div>
   )
 }

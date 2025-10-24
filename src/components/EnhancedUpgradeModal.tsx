@@ -112,8 +112,8 @@ export default function EnhancedUpgradeModal({ isOpen, onClose, feature, current
             <div className="p-6 space-y-6">
               {/* Feature Context */}
               {feature && (
-                <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                  <p className="text-sm text-blue-300">
+                <div className="p-4 bg-atlas-sage/10 border border-atlas-sage/20 rounded-lg">
+                  <p className="text-sm text-gray-300">
                     <strong>{feature}</strong> features are available with Core & Studio plans
                   </p>
                 </div>

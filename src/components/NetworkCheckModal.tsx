@@ -635,7 +635,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Wifi className="w-5 h-5 text-blue-600" />
+              <Wifi className="w-5 h-5 text-atlas-sage" />
             </div>
             <div>
               <h2 id="network-check-title" className="text-lg font-bold text-gray-900">Network Connection Check</h2>
@@ -718,7 +718,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
                   <div className="mt-2">
                     <div className="h-1 bg-blue-100 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-blue-500 rounded-full animate-pulse"
+                        className="h-full bg-atlas-sage rounded-full animate-pulse"
                         style={{ width: '60%' }}
                       ></div>
                     </div>
@@ -746,7 +746,7 @@ const NetworkCheckModal: React.FC<NetworkCheckModalProps> = ({
               <button
                 onClick={runNetworkTests}
                 disabled={isRunningTests}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {isRunningTests ? (
                   <>

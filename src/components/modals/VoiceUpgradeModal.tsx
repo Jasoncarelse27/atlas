@@ -103,7 +103,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
             </button>
 
             {/* Hero Section */}
-            <div className="relative bg-gradient-to-br from-emerald-500/10 to-blue-500/10 p-12 text-center border-b border-gray-700/50">
+            <div className="relative bg-gradient-to-br from-emerald-500/10 to-atlas-sage/10 p-12 text-center border-b border-gray-700/50">
               {/* Animated Microphone */}
               <motion.div
                 animate={{
@@ -115,7 +115,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
                   repeat: Infinity,
                   ease: 'easeInOut',
                 }}
-                className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-blue-500 mb-6 shadow-lg shadow-emerald-500/50"
+                className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-atlas-sage mb-6 shadow-lg shadow-emerald-500/50"
               >
                 <Mic className="w-12 h-12 text-white" />
               </motion.div>
@@ -152,7 +152,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
                     transition={{ delay: index * 0.1 }}
                     className="flex items-start gap-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50 hover:border-emerald-500/30 transition-colors"
                   >
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500/20 to-atlas-sage/20 flex items-center justify-center">
                       <benefit.icon className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
@@ -217,7 +217,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
             </div>
 
             {/* Pricing & CTA */}
-            <div className="p-8 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 border-t border-gray-700/50">
+            <div className="p-8 bg-gradient-to-br from-emerald-500/10 to-atlas-sage/10 border-t border-gray-700/50">
               <div className="max-w-md mx-auto">
                 <div className="text-center mb-6">
                   <div className="inline-flex items-baseline gap-2">
@@ -231,7 +231,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
 
                 <button
                   onClick={handleUpgrade}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/30 transition-all transform hover:scale-105"
+                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-atlas-sage hover:from-emerald-600 hover:to-atlas-sage text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/30 transition-all transform hover:scale-105"
                 >
                   Upgrade to Studio
                 </button>

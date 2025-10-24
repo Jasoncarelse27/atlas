@@ -198,7 +198,7 @@ const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
 
   const getVisualizerColor = () => {
     if (isMuted) return 'bg-gray-400';
-    if (isProcessing) return 'bg-blue-500';
+    if (isProcessing) return 'bg-atlas-sage';
     if (isListening) return 'bg-green-500';
     return 'bg-gray-300';
   };
@@ -212,7 +212,7 @@ const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
 
   const getStatusTextColor = () => {
     if (isMuted) return 'text-gray-500';
-    if (isProcessing) return 'text-blue-600 font-medium';
+    if (isProcessing) return 'text-atlas-sage font-medium';
     if (isListening) return 'text-green-600 font-medium';
     return 'text-gray-500';
   };
@@ -236,8 +236,8 @@ const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
               Muted
             </span>
           ) : isProcessing ? (
-            <span className="text-blue-600 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full animate-pulse"></span>
+            <span className="text-atlas-sage flex items-center gap-1">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-atlas-sage rounded-full animate-pulse"></span>
               Processing...
             </span>
           ) : isListening ? (
@@ -302,7 +302,7 @@ const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
           </span>
         ) : isProcessing ? (
           <span className={`${getStatusTextColor()} flex items-center gap-1`}>
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full animate-pulse"></span>
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-atlas-sage rounded-full animate-pulse"></span>
             Processing...
           </span>
         ) : isListening ? (

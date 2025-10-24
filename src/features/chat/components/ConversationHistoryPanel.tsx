@@ -227,7 +227,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
             <Tooltip content="New conversation">
               <button
                 onClick={handleCreateNewConversation}
-                className="p-2.5 bg-blue-600/90 hover:bg-blue-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                className="p-2.5 bg-atlas-sage/90 hover:bg-atlas-sage text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                 aria-label="New conversation"
               >
                 <Plus className="w-5 h-5" />
@@ -276,7 +276,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                         <div 
                           className={`group flex items-center w-full px-3 py-2 sm:px-4 sm:py-3 mx-2 rounded-xl text-left backdrop-blur-sm transition-all duration-200 ${
                             conversation.id === currentConversationId
-                              ? 'bg-blue-500/20 border border-blue-400/40 shadow-lg'
+                              ? 'bg-atlas-sage/20 border border-blue-400/40 shadow-lg'
                               : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20'
                           }`}
                           onContextMenu={(e) => {
@@ -346,7 +346,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                               >
                                 <div className="flex items-center gap-2 mb-1">
                                   {conversation.pinned && (
-                                    <Pin className="w-3 h-3 text-blue-400" />
+                                    <Pin className="w-3 h-3 text-atlas-sage" />
                                   )}
                                   <h4 className="text-sm font-medium text-white truncate">
                                     {conversation.title}
@@ -392,7 +392,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                                 <Tooltip content={conversation.pinned ? "Unpin" : "Pin"}>
                                   <button
                                     onClick={() => handleTogglePin(conversation.id, !!conversation.pinned)}
-                                    className="p-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-400/40"
+                                    className="p-2.5 bg-atlas-sage/20 hover:bg-atlas-sage/30 text-blue-300 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-400/40"
                                   >
                                     <Pin className="w-4 h-4" />
                                   </button>
@@ -433,7 +433,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
               <p className="text-gray-400 text-center">No conversations found matching "{searchQuery}"</p>
               <button
                 onClick={() => setSearchQuery('')}
-                className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                className="mt-2 px-3 py-1.5 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg text-sm transition-colors"
               >
                 Clear search
               </button>
@@ -444,7 +444,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
               <p className="text-gray-400 text-center">No conversations yet</p>
               <button
                 onClick={handleCreateNewConversation}
-                className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                className="mt-2 px-3 py-1.5 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg text-sm transition-colors"
               >
                 Start a new conversation
               </button>
@@ -457,7 +457,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
           <div className="flex justify-center">
             <button
               onClick={onClose}
-              className="px-8 py-3 bg-blue-600/90 hover:bg-blue-600 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="px-8 py-3 bg-atlas-sage/90 hover:bg-atlas-sage text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Close
             </button>

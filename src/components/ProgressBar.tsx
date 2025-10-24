@@ -32,12 +32,12 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
   const getColorClasses = () => {
     switch (color) {
-      case 'primary': return 'bg-blue-500';
-      case 'secondary': return 'bg-purple-500';
-      case 'success': return 'bg-green-500';
-      case 'warning': return 'bg-yellow-500';
-      case 'error': return 'bg-red-500';
-      default: return 'bg-blue-500';
+      case 'primary': return 'bg-atlas-sage';      // Atlas sage
+      case 'secondary': return 'bg-atlas-stone';   // Atlas stone
+      case 'success': return 'bg-atlas-success';   // Muted sage green
+      case 'warning': return 'bg-atlas-warning';   // Warm gold
+      case 'error': return 'bg-atlas-error';       // Muted rose
+      default: return 'bg-atlas-sage';             // Atlas sage default
     }
   };
 

@@ -72,7 +72,7 @@ export function ImageUpload({ onImageProcessed, userId, className = '' }: ImageU
         className={`
           flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200
           ${hasAccess('image') 
-            ? 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95' 
+            ? 'bg-atlas-sage text-white hover:bg-atlas-sage active:scale-95' 
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }
           ${isProcessing ? 'opacity-50 cursor-wait' : ''}

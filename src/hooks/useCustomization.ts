@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
 
 interface UserCustomization {
   id: string;
@@ -84,7 +84,7 @@ const hexToRgb = (hex: string) => {
     r: parseInt(result[1], 16),
     g: parseInt(result[2], 16),
     b: parseInt(result[3], 16)
-  } : { r: 59, g: 130, b: 246 };
+  } : { r: 211, g: 220, b: 171 }; // Atlas sage default fallback
 };
 
 // Function to apply customization to the DOM
@@ -208,9 +208,9 @@ const createDefaultCustomization = (userId: string): UserCustomization => ({
   user_id: userId,
   theme: {
     mode: 'light',
-    primaryColor: '#3B82F6',
-    accentColor: '#10B981',
-    backgroundColor: '#FFFFFF',
+    primaryColor: '#D3DCAB', // Atlas sage
+    accentColor: '#F3D3B8',  // Atlas peach
+    backgroundColor: '#F4E8E1', // Atlas pearl
     textColor: '#1F2937',
     borderRadius: 8,
     fontSize: 14,

@@ -63,7 +63,7 @@ export function EnhancedMessageBubble({
           {onRetry && (
             <button
               onClick={handleRetry}
-              className="text-blue-400 hover:text-blue-300 underline"
+              className="text-atlas-sage hover:text-blue-300 underline"
             >
               Retry
             </button>
@@ -97,7 +97,7 @@ export function EnhancedMessageBubble({
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                   isPlayingAudio 
                     ? 'bg-red-500 text-white hover:bg-red-600' 
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                    : 'bg-atlas-sage text-white hover:bg-atlas-sage'
                 }`}
               >
                 {isPlayingAudio ? (
@@ -174,7 +174,7 @@ export function EnhancedMessageBubble({
         <div
           className={`rounded-lg px-4 py-2 shadow-sm ${
             isOwnMessage
-              ? 'bg-blue-500 text-white'
+              ? 'bg-atlas-sage text-white'
               : 'bg-gray-100 text-gray-800'
           }`}
         >

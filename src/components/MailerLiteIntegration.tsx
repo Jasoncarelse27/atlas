@@ -241,7 +241,7 @@ export function MailerLiteIntegration({
                   className={`px-3 py-2 text-sm rounded-lg transition-colors ${
                     userTier === tier
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-atlas-sage text-white hover:bg-atlas-success'
                   }`}
                 >
                   {tier.charAt(0).toUpperCase() + tier.slice(1)}
@@ -318,7 +318,7 @@ export function MailerLiteIntegration({
         {stats ? (
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+              <div className="text-2xl font-bold text-atlas-sage">{stats.total}</div>
               <div className="text-gray-600">Total Subscribers</div>
             </div>
             

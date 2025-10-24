@@ -28,7 +28,7 @@ export function MaintenanceMode({
       
       case 'maintenance':
         return {
-          icon: <Shield className="w-12 h-12 text-blue-500" />,
+          icon: <Shield className="w-12 h-12 text-atlas-sage" />,
           title: "Scheduled Maintenance",
           message: "Atlas is currently undergoing scheduled maintenance to improve your experience.",
           subtitle: "We're working to make Atlas even better for you.",

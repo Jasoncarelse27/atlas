@@ -96,7 +96,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
             isUser
-              ? 'bg-blue-600 text-white'
+              ? 'bg-atlas-sage text-white'
               : 'bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] text-gray-800'
           }`}>
             {isUser ? <User size={16} /> : <Bot size={16} />}
@@ -105,11 +105,11 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
         {/* Message Content */}
         <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
-          <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
-            isUser
-              ? 'bg-blue-600 text-white rounded-br-md'
-              : 'bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 text-gray-100 rounded-bl-md'
-          }`}>
+        <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
+          isUser
+            ? 'bg-atlas-sage text-white rounded-br-md'
+            : 'bg-white/70 border border-gray-200 text-black rounded-bl-md'
+        }`}>
             {/* 🖼️ Enhanced Image Gallery */}
             {attachments.length > 0 && (
               <ImageGallery 
@@ -127,8 +127,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
             {/* Timestamp */}
             {message.timestamp && (
-              <div className={`text-xs mt-2 opacity-70 ${
-                isUser ? 'text-blue-100' : 'text-gray-400'
+              <div className={`text-xs mt-2 ${
+                isUser ? 'text-white opacity-80' : 'text-gray-400 opacity-70'
               }`}>
                 {new Date(message.timestamp).toLocaleTimeString([], {
                   hour: '2-digit',
@@ -159,7 +159,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
             isUser 
-              ? 'bg-blue-600 text-white' 
+              ? 'bg-atlas-sage text-white' 
               : 'bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] text-gray-800'
           }`}>
             {isUser ? <User size={16} /> : <Bot size={16} />}
@@ -170,7 +170,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
           <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
             isUser 
-              ? 'bg-blue-600 text-white rounded-br-md' 
+              ? 'bg-atlas-sage text-white rounded-br-md' 
               : 'bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 text-gray-100 rounded-bl-md'
           }`}>
             <pre style={{ color: "red", fontSize: 12, whiteSpace: "pre-wrap" }}>
@@ -385,26 +385,26 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         ease: [0.4, 0, 0.2, 1],
         delay: isLatest ? 0.1 : 0
       }}
-      className={`flex items-start space-x-2 sm:space-x-3 mb-6 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
+      className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
     >
-      {/* Avatar */}
-      <div className={`flex-shrink-0 ${isUser ? 'ml-2 sm:ml-3' : 'mr-2 sm:mr-3'}`}>
+      {/* Avatar removed per design requirements */}
+      {/* <div className={`flex-shrink-0 ${isUser ? 'ml-2 sm:ml-3' : 'mr-2 sm:mr-3'}`}>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
           isUser 
-            ? 'bg-blue-600 text-white' 
+            ? 'bg-atlas-sage text-white' 
             : 'bg-gradient-to-br from-atlas-primary to-atlas-accent text-gray-800'
         }`}>
           {isUser ? <User size={16} /> : <Bot size={16} />}
         </div>
-      </div>
+      </div> */}
 
       {/* Message Content */}
       <div className={`flex-1 ${isUser ? 'max-w-[75%] sm:max-w-[70%] md:max-w-[60%] flex justify-end' : 'w-full'}`}>
         <motion.div 
           className={`relative ${
             isUser 
-              ? 'px-4 py-2 rounded-2xl bg-blue-600 text-white shadow-md text-[15px] leading-relaxed' 
-              : 'px-5 py-3 text-atlas-accent max-w-none text-[16px] leading-relaxed'
+              ? 'px-4 py-2 rounded-2xl bg-atlas-sage text-white shadow-md text-[15px] leading-relaxed' 
+              : 'px-5 py-3 text-black max-w-none text-[16px] leading-relaxed'
           }`} 
           style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
           initial={{ opacity: 0, y: isUser ? 8 : 4 }}
@@ -412,7 +412,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           transition={{ duration: isUser ? 0.2 : 0.3, ease: "easeOut" }}
         >
           {(message.status === 'sending' && (!displayedText || displayedText === '...')) || (isTyping && !isUser) ? (
-              <div className="flex items-center space-x-3 text-gray-300">
+              <div className="flex items-center space-x-3">
                 <TypingDots />
               </div>
             ) : (
@@ -468,21 +468,18 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
             </div>
           )}
           
-          {/* Action Buttons for AI messages - ChatGPT Style */}
+          {/* Action Buttons for AI messages - Orange Icon-Only Style */}
           {!isUser && !showTypingIndicator && message.status !== 'sending' && (
-            <div className="flex items-center gap-1 mt-2">
+            <div className="flex items-center gap-2 mt-2">
               {/* Copy Button */}
               <button
                 onClick={handleCopy}
-                className="flex items-center justify-center w-7 h-7 rounded-md 
-                           bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
-                           border border-gray-600/20 hover:border-gray-500/40
-                           transition-all duration-200"
+                className="flex items-center justify-center p-1 text-[#FF9933] hover:text-[#FF7700] transition-colors duration-200"
                 aria-label="Copy message"
                 title={isCopied ? 'Copied!' : 'Copy message'}
               >
                 {isCopied ? (
-                  <Check className="w-4 h-4 text-green-400" />
+                  <Check className="w-4 h-4" />
                 ) : (
                   <Copy className="w-4 h-4" />
                 )}
@@ -494,12 +491,11 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                   setFeedback(feedback === 'positive' ? null : 'positive');
                   toast.success('Thanks for your feedback!');
                 }}
-                className={`flex items-center justify-center w-7 h-7 rounded-md 
-                           border transition-all duration-200
-                           ${feedback === 'positive' 
-                             ? 'bg-green-600/20 border-green-500/40 text-green-400' 
-                             : 'bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white border-gray-600/20 hover:border-gray-500/40'
-                           }`}
+                className={`flex items-center justify-center p-1 transition-colors duration-200 ${
+                  feedback === 'positive' 
+                    ? 'text-[#FF9933]' 
+                    : 'text-[#FF9933] hover:text-[#FF7700]'
+                }`}
                 aria-label="Good response"
                 title="Good response"
               >
@@ -512,29 +508,23 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                   setFeedback(feedback === 'negative' ? null : 'negative');
                   toast.error('Feedback noted. We\'ll improve!');
                 }}
-                className={`flex items-center justify-center w-7 h-7 rounded-md 
-                           border transition-all duration-200
-                           ${feedback === 'negative' 
-                             ? 'bg-red-600/20 border-red-500/40 text-red-400' 
-                             : 'bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white border-gray-600/20 hover:border-gray-500/40'
-                           }`}
+                className={`flex items-center justify-center p-1 transition-colors duration-200 ${
+                  feedback === 'negative' 
+                    ? 'text-[#FF9933]' 
+                    : 'text-[#FF9933] hover:text-[#FF7700]'
+                }`}
                 aria-label="Bad response"
                 title="Bad response"
               >
                 <ThumbsDown className="w-4 h-4" />
               </button>
 
-              {/* Audio Controls - Show full player when audio is loaded */}
+              {/* Audio Controls */}
               {!audioUrl ? (
-                // Initial Listen button
                 <button
                   onClick={handlePlayTTS}
                   disabled={isLoadingAudio}
-                  className="flex items-center justify-center w-7 h-7 rounded-md 
-                             bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
-                             border border-gray-600/20 hover:border-gray-500/40
-                             transition-all duration-200
-                             disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center p-1 text-[#FF9933] hover:text-[#FF7700] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Listen to message"
                   title="Listen to message"
                 >
@@ -545,7 +535,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                   )}
                 </button>
               ) : (
-                // Expanded audio player controls
                 <div className="flex items-center gap-1">
                   {/* Play/Pause Button */}
                   <button

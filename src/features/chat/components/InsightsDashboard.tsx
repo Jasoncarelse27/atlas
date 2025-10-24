@@ -53,7 +53,7 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
       icon: <MessageSquare className="w-5 h-5" />,
       label: 'Total Messages',
       value: formatNumber(insights.totalMessages),
-      color: 'text-blue-600',
+      color: 'text-atlas-sage',
       bgColor: 'bg-blue-100'
     },
     {
@@ -94,7 +94,7 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+              <div className="p-2 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-lg">
                 <BarChart3 className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -134,7 +134,7 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
           {/* Weekly Activity */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-600" />
+              <Calendar className="w-5 h-5 text-atlas-sage" />
               Weekly Activity
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -142,12 +142,12 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
                 <div key={index} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-medium text-gray-900">{week.label}</span>
-                    <Activity className="w-4 h-4 text-blue-600" />
+                    <Activity className="w-4 h-4 text-atlas-sage" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm text-gray-600">Conversations</div>
-                      <div className="text-xl font-bold text-blue-600">{week.conversations}</div>
+                      <div className="text-xl font-bold text-atlas-sage">{week.conversations}</div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-600">Messages</div>

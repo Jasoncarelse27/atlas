@@ -54,14 +54,14 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
   if (isUnlimited && tier === 'studio') {
     // Studio users have unlimited everything
     return (
-      <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+      <div className="bg-gradient-to-r from-atlas-sand/20 to-atlas-stone/20 border border-atlas-stone/40 rounded-lg p-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <Zap className="w-5 h-5 text-purple-600" />
+          <div className="p-2 bg-atlas-stone/20 rounded-lg">
+            <Zap className="w-5 h-5 text-atlas-stone" />
           </div>
           <div>
-            <h3 className="font-semibold text-purple-900">Atlas Studio</h3>
-            <p className="text-sm text-purple-700">Unlimited access to all features</p>
+            <h3 className="font-semibold text-atlas-stone">Atlas Studio</h3>
+            <p className="text-sm" style={{ color: '#978671' }}>Unlimited access to all features</p>
           </div>
         </div>
       </div>
@@ -92,7 +92,7 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
         {showWarning && (
           <button
             onClick={onUpgrade}
-            className="text-sm bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors"
+            className="text-sm bg-atlas-sage text-gray-800 px-3 py-1 rounded-lg hover:bg-atlas-success transition-colors font-medium"
           >
             Upgrade
           </button>
@@ -105,9 +105,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
           <div className="flex justify-between text-sm mb-1">
             <span className="text-gray-700">Messages</span>
             <span className={`font-medium ${
-              textPercentage >= 90 ? 'text-red-600' : 
-              textPercentage >= 75 ? 'text-yellow-600' : 
-              'text-green-600'
+              textPercentage >= 90 ? 'text-atlas-error' : 
+              textPercentage >= 75 ? 'text-atlas-warning' : 
+              'text-atlas-success'
             }`}>
               {isUnlimited 
                 ? 'Unlimited' 
@@ -119,9 +119,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all ${
-                  textPercentage >= 90 ? 'bg-red-500' :
-                  textPercentage >= 75 ? 'bg-yellow-500' :
-                  'bg-green-500'
+                  textPercentage >= 90 ? 'bg-atlas-error' :
+                  textPercentage >= 75 ? 'bg-atlas-warning' :
+                  'bg-atlas-success'
                 }`}
                 style={{ width: `${textPercentage}%` }}
               />
@@ -135,9 +135,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-700">Voice (minutes)</span>
               <span className={`font-medium ${
-                audioPercentage >= 90 ? 'text-red-600' : 
-                audioPercentage >= 75 ? 'text-yellow-600' : 
-                'text-green-600'
+                audioPercentage >= 90 ? 'text-atlas-error' : 
+                audioPercentage >= 75 ? 'text-atlas-warning' : 
+                'text-atlas-success'
               }`}>
               {isUnlimited 
                 ? 'Unlimited' 
@@ -149,9 +149,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
-                    audioPercentage >= 90 ? 'bg-red-500' :
-                    audioPercentage >= 75 ? 'bg-yellow-500' :
-                    'bg-green-500'
+                    audioPercentage >= 90 ? 'bg-atlas-error' :
+                    audioPercentage >= 75 ? 'bg-atlas-warning' :
+                    'bg-atlas-success'
                   }`}
                   style={{ width: `${audioPercentage}%` }}
                 />
@@ -166,9 +166,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-700">Images</span>
               <span className={`font-medium ${
-                imagePercentage >= 90 ? 'text-red-600' : 
-                imagePercentage >= 75 ? 'text-yellow-600' : 
-                'text-green-600'
+                imagePercentage >= 90 ? 'text-atlas-error' : 
+                imagePercentage >= 75 ? 'text-atlas-warning' : 
+                'text-atlas-success'
               }`}>
               {isUnlimited 
                 ? 'Unlimited' 
@@ -180,9 +180,9 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
-                    imagePercentage >= 90 ? 'bg-red-500' :
-                    imagePercentage >= 75 ? 'bg-yellow-500' :
-                    'bg-green-500'
+                    imagePercentage >= 90 ? 'bg-atlas-error' :
+                    imagePercentage >= 75 ? 'bg-atlas-warning' :
+                    'bg-atlas-success'
                   }`}
                   style={{ width: `${imagePercentage}%` }}
                 />
@@ -203,7 +203,7 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
           </p>
           <button
             onClick={onUpgrade}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="w-full bg-atlas-sage text-gray-800 py-2 px-4 rounded-lg hover:bg-atlas-success transition-colors font-medium"
           >
             Upgrade to {getSubscriptionDisplayName(userTier === 'free' ? 'core' : 'studio')}
           </button>

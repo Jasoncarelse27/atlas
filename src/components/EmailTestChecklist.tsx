@@ -30,7 +30,7 @@ const EmailTestChecklist: React.FC<EmailTestChecklistProps> = ({ className = '' 
     {
       id: 'upgrade_nudge',
       name: 'Upgrade Nudge',
-      icon: <RefreshCw className="w-4 h-4 text-blue-500" />,
+      icon: <RefreshCw className="w-4 h-4 text-atlas-sage" />,
       trigger: 'Usage cap reached',
       api: 'sendUpgradeNudge',
       supabaseTrigger: 'Planned',
@@ -112,7 +112,7 @@ const EmailTestChecklist: React.FC<EmailTestChecklistProps> = ({ className = '' 
   const getTestStatusIcon = (flowId: string) => {
     const result = testResults[flowId];
     if (isTesting === flowId) {
-      return <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />;
+      return <div className="w-4 h-4 border-2 border-atlas-sage border-t-transparent rounded-full animate-spin" />;
     }
     if (result?.success) {
       return <Check className="w-4 h-4 text-green-500" />;
@@ -126,7 +126,7 @@ const EmailTestChecklist: React.FC<EmailTestChecklistProps> = ({ className = '' 
   return (
     <div className={`bg-gray-800 text-white p-6 rounded-lg ${className}`}>
       <div className="flex items-center gap-2 mb-6">
-        <Mail className="w-6 h-6 text-blue-400" />
+        <Mail className="w-6 h-6 text-atlas-sage" />
         <h2 className="text-xl font-bold">Email Test Checklist</h2>
       </div>
 
@@ -142,7 +142,7 @@ const EmailTestChecklist: React.FC<EmailTestChecklistProps> = ({ className = '' 
             value={testEmail}
             onChange={(e) => setTestEmail(e.target.value)}
             placeholder="test@example.com"
-            className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage"
           />
           <button
             onClick={() => {
@@ -201,7 +201,7 @@ const EmailTestChecklist: React.FC<EmailTestChecklistProps> = ({ className = '' 
                   <button
                     onClick={() => handleTestEmail(flow.id)}
                     disabled={isTesting === flow.id || !testEmail.trim()}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                    className="px-3 py-1 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
                   >
                     {isTesting === flow.id ? 'Testing...' : 'Test'}
                   </button>
@@ -235,7 +235,7 @@ const EmailTestChecklist: React.FC<EmailTestChecklistProps> = ({ className = '' 
       )}
 
       {/* Setup Instructions */}
-      <div className="mt-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+      <div className="mt-6 p-4 bg-blue-900/20 border border-atlas-sage/30 rounded-lg">
         <h3 className="font-medium mb-2 text-blue-300">Setup Instructions</h3>
         <div className="text-sm text-gray-300 space-y-1">
           <p>1. Set environment variables: <code className="bg-gray-800 px-1 rounded">VITE_MAILERLITE_API_KEY</code></p>

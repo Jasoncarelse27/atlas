@@ -92,7 +92,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({
               type="text"
               value={editedTitle}
               onChange={(e) => setEditedTitle(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-white focus:outline-none focus:border-blue-500"
+              className="flex-1 px-3 py-2 border border-atlas-sand rounded-lg bg-white text-gray-900 focus:outline-none focus:border-atlas-sage"
               placeholder="Enter conversation title"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -110,7 +110,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({
             </button>
             <button
               onClick={() => setIsEditingTitle(false)}
-              className="p-2 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-atlas-sand/20 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -118,7 +118,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({
         ) : (
           <>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-blue-400" />
+              <MessageSquare className="w-5 h-5 text-atlas-sage" />
               {conversation.title}
             </h2>
             <Tooltip content="Edit title">
@@ -138,8 +138,8 @@ const ConversationView: React.FC<ConversationViewProps> = ({
           key={message.id}
           className={`rounded-xl p-4 ${
             message.role === 'user'
-              ? 'bg-blue-900/40 border border-blue-800/80 shadow-md' 
-              : 'bg-gray-800/90 border border-gray-700 shadow-md'
+              ? 'bg-atlas-sage/20 border border-atlas-sage/40 shadow-md' 
+              : 'bg-white/60 border border-atlas-sand/50 shadow-md'
           }`}
         >
           <div className="flex items-start gap-3">

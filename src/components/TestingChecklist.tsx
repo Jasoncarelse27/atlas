@@ -225,7 +225,7 @@ const TestingChecklist: React.FC<TestingChecklistProps> = ({ className = '' }) =
       case 'pending':
         return <div className="w-4 h-4 border border-gray-300 rounded" />;
       case 'running':
-        return <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />;
+        return <div className="w-4 h-4 border-2 border-atlas-sage border-t-transparent rounded-full animate-spin" />;
       case 'passed':
         return <Check className="w-4 h-4 text-green-500" />;
       case 'failed':
@@ -238,7 +238,7 @@ const TestingChecklist: React.FC<TestingChecklistProps> = ({ className = '' }) =
       case 'pending':
         return 'text-gray-500';
       case 'running':
-        return 'text-blue-500';
+        return 'text-atlas-sage';
       case 'passed':
         return 'text-green-500';
       case 'failed':
@@ -268,7 +268,7 @@ const TestingChecklist: React.FC<TestingChecklistProps> = ({ className = '' }) =
           value={testEmail}
           onChange={(e) => setTestEmail(e.target.value)}
           placeholder="test@example.com"
-          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage"
         />
       </div>
 
@@ -277,7 +277,7 @@ const TestingChecklist: React.FC<TestingChecklistProps> = ({ className = '' }) =
         <button
           onClick={runAllTests}
           disabled={isRunning}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors flex items-center gap-2"
         >
           <Play className="w-4 h-4" />
           {isRunning ? 'Running Tests...' : 'Run All Tests'}
@@ -299,7 +299,7 @@ const TestingChecklist: React.FC<TestingChecklistProps> = ({ className = '' }) =
             <span className="text-green-400">✅ Passed: {passedTests}</span>
             <span className="text-red-400">❌ Failed: {failedTests}</span>
             <span className="text-gray-400">📊 Total: {totalTests}</span>
-            <span className="text-blue-400">
+            <span className="text-atlas-sage">
               📈 Success Rate: {totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0}%
             </span>
           </div>
@@ -342,7 +342,7 @@ const TestingChecklist: React.FC<TestingChecklistProps> = ({ className = '' }) =
                 <button
                   onClick={() => runTest(test)}
                   disabled={isRunning}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-xs transition-colors"
+                  className="px-3 py-1 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-xs transition-colors"
                 >
                   {status === 'running' ? 'Running...' : 'Test'}
                 </button>

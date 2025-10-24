@@ -82,7 +82,7 @@ export default function MessageStoreDebugger() {
       </div>
       
       <div className="space-y-2 text-xs text-gray-400 mb-3">
-        <div>Messages: <span className="text-blue-400">{messageCount}</span></div>
+        <div>Messages: <span className="text-atlas-sage">{messageCount}</span></div>
         <div>Conversations: <span className="text-green-400">{conversationCount}</span></div>
       </div>
 
@@ -90,7 +90,7 @@ export default function MessageStoreDebugger() {
         <button
           onClick={exportJSON}
           disabled={isLoading}
-          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-xs rounded transition-colors"
+          className="px-3 py-1 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-600 text-white text-xs rounded transition-colors"
         >
           📥 Export JSON
         </button>

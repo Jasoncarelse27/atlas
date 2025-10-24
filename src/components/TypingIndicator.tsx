@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MessageSquare, Bot, User } from 'lucide-react';
+import { Bot } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 interface TypingIndicatorProps {
   isVisible: boolean;
@@ -36,7 +36,7 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                className="w-2 h-2 bg-atlas-sage rounded-full animate-bounce"
                 style={{ animationDelay: `${i * 0.1}s` }}
               />
             ))}
@@ -46,9 +46,9 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({
       case 'pulse':
         return (
           <div className="flex space-x-1">
-            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
-            <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-            <div className="w-3 h-3 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+            <div className="w-3 h-3 bg-atlas-sage rounded-full animate-pulse" />
+            <div className="w-3 h-3 bg-[#D3DCAB] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+            <div className="w-3 h-3 bg-[#F3D3B8] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
           </div>
         );
       
@@ -59,7 +59,7 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({
               <div
                 key={i}
                 className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  i <= dotCount ? 'bg-blue-500 scale-100' : 'bg-gray-300 scale-75'
+                  i <= dotCount ? 'bg-atlas-sage scale-100' : 'bg-[#CEC1B8] scale-75'
                 }`}
               />
             ))}
@@ -69,14 +69,14 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({
   };
 
   return (
-    <div className={`flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 ${className}`}>
-      <div className="p-2 bg-blue-100 rounded-full">
-        <Bot className="w-4 h-4 text-blue-600" />
+    <div className={`flex items-center space-x-3 p-4 bg-gradient-to-r from-[#F4E8E1] to-[#F3D3B8] rounded-lg border border-[#CEC1B8] ${className}`}>
+      <div className="p-2 bg-[#D3DCAB]/20 rounded-full">
+        <Bot className="w-4 h-4 text-atlas-sage" />
       </div>
       
       <div className="flex-1">
         <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium text-blue-800">{message}</span>
+          <span className="text-sm font-medium text-gray-800">{message}</span>
           {renderVariant()}
         </div>
       </div>

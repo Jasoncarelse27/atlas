@@ -1,25 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  TestTube, 
-  Grid3X3, 
-  Sliders, 
-  Zap,
-  Clock,
-  Globe,
-  Play,
-  RotateCcw,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Eye,
-  Palette,
-  Monitor,
-  Menu
+import {
+    AlertTriangle,
+    CheckCircle,
+    Clock,
+    Eye,
+    Globe,
+    Grid3X3,
+    Menu,
+    Monitor,
+    Palette,
+    Play,
+    RotateCcw,
+    Sliders,
+    TestTube,
+    XCircle,
+    Zap
 } from 'lucide-react';
-import LoadingSpinner from './LoadingSpinner';
-import Tooltip from './Tooltip';
-import ProgressBar from './ProgressBar';
+import React, { useEffect, useRef, useState } from 'react';
 import ImageCard from './ImageCard';
+import LoadingSpinner from './LoadingSpinner';
+import ProgressBar from './ProgressBar';
+import Tooltip from './Tooltip';
 
 interface DashboardTesterProps {
   onClose: () => void;
@@ -667,8 +667,8 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
         
         try {
           const root = document.documentElement;
-          const originalPrimary = getComputedStyle(root).getPropertyValue('--primary-color') || '#3B82F6';
-          const originalAccent = getComputedStyle(root).getPropertyValue('--accent-color') || '#10B981';
+          const originalPrimary = getComputedStyle(root).getPropertyValue('--primary-color') || '#D3DCAB';
+          const originalAccent = getComputedStyle(root).getPropertyValue('--accent-color') || '#F3D3B8';
           
           // Test theme changes
           root.style.setProperty('--primary-color', '#8B5CF6');
@@ -872,7 +872,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 rounded-xl">
-                <TestTube className="w-8 h-8 text-blue-600" />
+                <TestTube className="w-8 h-8 text-atlas-sage" />
               </div>
               <div>
                 <h2 id="dashboard-tester-title" className="text-2xl font-bold text-gray-900">Dashboard Testing Suite</h2>
@@ -968,7 +968,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
                 <button
                   onClick={runAllTests}
                   disabled={isRunningAll}
-                  className="neumorphic-button w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  className="neumorphic-button w-full px-3 py-2 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                   aria-label="Run all tests in selected category"
                 >
                   {isRunningAll ? (
@@ -996,7 +996,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
                 <button
                   onClick={() => setShowHamburgerDemo(!showHamburgerDemo)}
                   className={`neumorphic-button w-full px-3 py-2 ${
-                    showHamburgerDemo ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                    showHamburgerDemo ? 'bg-atlas-sage text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
                   } rounded-lg text-sm font-medium transition-colors flex items-center gap-2`}
                   aria-label="Toggle hamburger menu demo"
                 >
@@ -1146,7 +1146,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
                           <button
                             onClick={() => runSingleTest(test)}
                             disabled={isRunning}
-                            className="neumorphic-button px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            className="neumorphic-button px-4 py-2 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                             aria-label={`Run ${test.name} test`}
                           >
                             {isRunning ? <LoadingSpinner size="sm" color="white" /> : getStatusIcon(result?.status)}
@@ -1192,7 +1192,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
                           <ul className="text-xs text-gray-800 space-y-1">
                             {result.recommendations.slice(0, 3).map((rec, index) => (
                               <li key={index} className="flex items-start gap-2">
-                                <span className="text-blue-500 mt-0.5">•</span>
+                                <span className="text-atlas-sage mt-0.5">•</span>
                                 <span>{rec}</span>
                               </li>
                             ))}

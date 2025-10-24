@@ -64,7 +64,7 @@ const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         <Tooltip content="New conversation">
           <button
             onClick={onCreateNewConversation}
-            className="neumorphic-button-strong p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            className="neumorphic-button-strong p-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg transition-colors"
             aria-label="New conversation"
           >
             <Plus className="w-5 h-5" />

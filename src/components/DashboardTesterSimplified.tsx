@@ -152,7 +152,7 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-atlas-sage rounded-lg flex items-center justify-center">
               <TestTube className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -176,7 +176,7 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
               <button
                 onClick={runAllTests}
                 disabled={isRunningAll}
-                className="w-full flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors"
+                className="w-full flex items-center space-x-2 px-4 py-2 bg-atlas-sage hover:bg-atlas-success disabled:opacity-50 rounded-lg transition-colors"
               >
                 <Play className="w-4 h-4" />
                 <span>{isRunningAll ? 'Running...' : 'Run All Tests'}</span>
@@ -199,7 +199,7 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
                       onClick={() => setSelectedCategory(category)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                         selectedCategory === category
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-atlas-sage text-white'
                           : 'text-gray-300 hover:bg-gray-700'
                       }`}
                     >

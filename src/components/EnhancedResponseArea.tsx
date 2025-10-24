@@ -148,7 +148,7 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
     switch (mode) {
       case 'image': return <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />;
       case 'voice': return <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />;
-      case 'text': return <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />;
+      case 'text': return <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-atlas-sage" />;
       default: return <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />;
     }
   };
@@ -299,7 +299,7 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-blue-900/50 rounded-lg">
-                  <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
+                  <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-atlas-sage" />
                 </div>
                 <div>
                   <span className="font-semibold text-gray-900 text-xs sm:text-sm">Atlas Response</span>
@@ -364,7 +364,7 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
               {showTyping ? (
                 <div className="text-gray-200 leading-relaxed whitespace-pre-wrap text-xs sm:text-sm">
                   {typingText}
-                  <span className="inline-block w-1.5 h-3 sm:w-2 sm:h-4 bg-blue-500 ml-1 animate-pulse"></span>
+                  <span className="inline-block w-1.5 h-3 sm:w-2 sm:h-4 bg-atlas-sage ml-1 animate-pulse"></span>
                 </div>
               ) : (
                 <div className="text-gray-800 leading-relaxed whitespace-pre-wrap text-xs sm:text-sm">

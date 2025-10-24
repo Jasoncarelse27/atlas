@@ -421,7 +421,10 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <motion.div
-              className="rounded-3xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 shadow-2xl border border-slate-700/50"
+              className="rounded-3xl bg-gradient-to-br from-[#F4E8E1] to-[#F3D3B8] shadow-2xl border-2 border-[#CEC1B8]"
+              style={{
+                boxShadow: '0 20px 60px rgba(151, 134, 113, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+              }}
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -430,8 +433,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
               <div className="p-4 sm:p-6">
                 {/* Header */}
                 <div className="text-center mb-4 sm:mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Attach Media</h2>
-                  <p className="text-white/70 text-xs sm:text-sm">Choose what you'd like to share</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Attach Media</h2>
+                  <p className="text-gray-600 text-xs sm:text-sm">Choose what you'd like to share</p>
                 </div>
 
                 {/* Hidden inputs (triggered programmatically) */}
@@ -463,10 +466,10 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                   {/* Choose Photo - Direct to gallery */}
                   <button
                     disabled={isUploading}
-                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border group ${
+                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border-2 group ${
                       isUploading 
-                        ? 'bg-slate-700/20 border-slate-600/20 cursor-not-allowed opacity-60' 
-                        : 'bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50'
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
+                        : 'bg-white/80 hover:bg-[#D3DCAB]/30 border-[#CEC1B8] hover:border-[#D3DCAB] shadow-md hover:shadow-lg'
                     }`}
                     onClick={(e) => {
                       e.preventDefault();
@@ -476,18 +479,18 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                       }
                     }}
                   >
-                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors ${
+                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
                       isUploading 
-                        ? 'bg-emerald-600/10' 
-                        : 'bg-emerald-600/20 group-hover:bg-emerald-600/30'
+                        ? 'bg-[#D3DCAB]/20' 
+                        : 'bg-[#D3DCAB]/30 group-hover:bg-[#D3DCAB]/50'
                     }`}>
-                      <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                      <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#978671]" />
                     </div>
                     <div className="text-left flex-1">
-                      <div className="text-white font-medium text-sm sm:text-base">
+                      <div className="text-gray-900 font-medium text-sm sm:text-base">
                         {isUploading ? 'Uploading...' : 'Choose Photo'}
                       </div>
-                      <div className="text-slate-300 text-xs sm:text-sm">
+                      <div className="text-gray-600 text-xs sm:text-sm">
                         {isUploading ? 'Please wait...' : 'Select from gallery'}
                       </div>
                     </div>
@@ -496,10 +499,10 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                   {/* Take Photo - Direct to camera */}
                   <button
                     disabled={isUploading}
-                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border group ${
+                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border-2 group ${
                       isUploading 
-                        ? 'bg-slate-700/20 border-slate-600/20 cursor-not-allowed opacity-60' 
-                        : 'bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50'
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
+                        : 'bg-white/80 hover:bg-[#D3DCAB]/30 border-[#CEC1B8] hover:border-[#D3DCAB] shadow-md hover:shadow-lg'
                     }`}
                     onClick={(e) => {
                       e.preventDefault();
@@ -515,18 +518,18 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                       }
                     }}
                   >
-                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors ${
+                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
                       isUploading 
-                        ? 'bg-[#B2BDA3]/10' 
-                        : 'bg-[#B2BDA3]/20 group-hover:bg-[#B2BDA3]/30'
+                        ? 'bg-[#D3DCAB]/20' 
+                        : 'bg-[#D3DCAB]/30 group-hover:bg-[#D3DCAB]/50'
                     }`}>
-                      <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-[#B2BDA3]" />
+                      <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-[#978671]" />
                     </div>
                     <div className="text-left flex-1">
-                      <div className="text-white font-medium text-sm sm:text-base">
+                      <div className="text-gray-900 font-medium text-sm sm:text-base">
                         Take Photo
                       </div>
-                      <div className="text-slate-300 text-xs sm:text-sm">
+                      <div className="text-gray-600 text-xs sm:text-sm">
                         Open camera now
                       </div>
                     </div>
@@ -535,10 +538,10 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                   {/* Attach File */}
                   <button
                     disabled={isUploading}
-                    className={`w-full flex items-center justify-between p-3 sm:p-4 rounded-2xl transition-all duration-200 border group ${
+                    className={`w-full flex items-center justify-between p-3 sm:p-4 rounded-2xl transition-all duration-200 border-2 group ${
                       isUploading 
-                        ? 'bg-slate-700/20 border-slate-600/20 cursor-not-allowed opacity-60' 
-                        : 'bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50'
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
+                        : 'bg-white/80 hover:bg-[#D3DCAB]/30 border-[#CEC1B8] hover:border-[#D3DCAB] shadow-md hover:shadow-lg'
                     }`}
                     onClick={(e) => {
                       e.preventDefault();
@@ -549,29 +552,29 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                     }}
                   >
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <div className={`p-1.5 sm:p-2 rounded-xl transition-colors ${
+                      <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
                         isUploading 
-                          ? 'bg-blue-600/10' 
-                          : 'bg-blue-600/20 group-hover:bg-blue-600/30'
+                          ? 'bg-[#D3DCAB]/20' 
+                          : 'bg-[#D3DCAB]/30 group-hover:bg-[#D3DCAB]/50'
                       }`}>
-                        <FileUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                        <FileUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#978671]" />
                       </div>
                       <div className="text-left">
-                        <div className="text-white font-medium text-sm sm:text-base">
+                        <div className="text-gray-900 font-medium text-sm sm:text-base">
                           {isUploading ? 'Uploading...' : 'Attach File'}
                         </div>
-                        <div className="text-slate-300 text-xs sm:text-sm">
+                        <div className="text-gray-600 text-xs sm:text-sm">
                           {isUploading ? 'Please wait...' : 'Upload documents, PDFs, and more'}
                         </div>
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   </button>
                 </div>
 
                 {/* Footer */}
-                <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-600/30">
-                  <p className="text-slate-400 text-xs text-center">
+                <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
+                  <p className="text-gray-500 text-xs text-center">
                     Supported formats: Images, PDFs, Audio, Documents
                   </p>
                 </div>

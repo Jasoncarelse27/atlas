@@ -145,13 +145,13 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           placeholder="New conversation title..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-atlas-sage"
           onKeyDown={(e) => e.key === 'Enter' && handleCreateConversation()}
         />
         <button
           onClick={handleCreateConversation}
           disabled={createConversation.isPending || !newTitle.trim()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-atlas-sage text-white rounded-lg hover:bg-atlas-success disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {createConversation.isPending ? 'Creating...' : 'Create'}
         </button>
@@ -171,7 +171,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-atlas-sage"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSaveEdit(conversation.id);
                     if (e.key === 'Escape') handleCancelEdit();
@@ -230,7 +230,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
 
       {/* Mutation states */}
       {(createConversation.isPending || updateTitle.isPending || deleteConversation.isPending) && (
-        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
+        <div className="fixed bottom-4 right-4 bg-atlas-sage text-white px-4 py-2 rounded-lg shadow-lg">
           {createConversation.isPending && 'Creating conversation...'}
           {updateTitle.isPending && 'Updating title...'}
           {deleteConversation.isPending && 'Deleting conversation...'}

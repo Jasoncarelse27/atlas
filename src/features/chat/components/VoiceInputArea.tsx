@@ -187,7 +187,7 @@ const VoiceInputArea = forwardRef<HTMLDivElement, VoiceInputAreaProps>(({
       
       {/* Full-screen clickable area to start/stop listening */}
       <div
-        className={`absolute inset-0 cursor-pointer rounded-3xl ${isListening ? 'bg-blue-500/10' : ''}`}
+        className={`absolute inset-0 cursor-pointer rounded-3xl ${isListening ? 'bg-atlas-sage/10' : ''}`}
         style={{zIndex: 20}}
         onMouseDown={!isProcessing && !isMuted && hasPermission ? onPressStart : undefined}
         onMouseUp={isListening ? onPressEnd : undefined}

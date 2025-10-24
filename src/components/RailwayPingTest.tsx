@@ -94,7 +94,7 @@ const RailwayPingTest: React.FC = () => {
       case 'error':
         return <XCircle className="w-5 h-5 text-red-500" />;
       case 'loading':
-        return <Activity className="w-5 h-5 text-blue-500 animate-spin" />;
+        return <Activity className="w-5 h-5 text-atlas-sage animate-spin" />;
       default:
         return <AlertCircle className="w-5 h-5 text-gray-500" />;
     }
@@ -107,7 +107,7 @@ const RailwayPingTest: React.FC = () => {
       case 'error':
         return 'text-red-600 bg-red-50 border-red-200';
       case 'loading':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-atlas-sage bg-blue-50 border-blue-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -118,7 +118,7 @@ const RailwayPingTest: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-100 rounded-lg">
-            <Wifi className="w-5 h-5 text-blue-600" />
+            <Wifi className="w-5 h-5 text-atlas-sage" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Backend Connectivity Test</h3>
@@ -129,7 +129,7 @@ const RailwayPingTest: React.FC = () => {
         <button
           onClick={runPingTest}
           disabled={isRunning}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-atlas-sage text-white rounded-lg hover:bg-atlas-success disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
         >
           {isRunning ? (
             <>
@@ -209,7 +209,7 @@ const RailwayPingTest: React.FC = () => {
       {pingResults.length === 0 && (
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-atlas-sage mt-0.5" />
             <div>
               <h4 className="font-medium text-blue-900 mb-1">Ready to Test</h4>
               <p className="text-sm text-blue-800">

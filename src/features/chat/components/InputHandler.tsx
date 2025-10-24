@@ -138,7 +138,7 @@ const InputHandler: React.FC<InputHandlerProps> = ({
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={placeholder}
-            className="w-full border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32 overflow-y-auto"
+            className="w-full border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-atlas-sage focus:border-transparent max-h-32 overflow-y-auto"
             rows={1}
             disabled={disabled}
             style={{ minHeight: '44px', maxHeight: '128px' }}
@@ -151,7 +151,7 @@ const InputHandler: React.FC<InputHandlerProps> = ({
             <button
               onClick={handleSend}
               disabled={disabled}
-              className="w-10 h-10 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 bg-atlas-sage text-white rounded-full hover:bg-atlas-success disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center flex-shrink-0"
               aria-label="Send message"
             >
               {disabled ? (
@@ -167,7 +167,7 @@ const InputHandler: React.FC<InputHandlerProps> = ({
               className={`relative w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
                 isRecording 
                   ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-atlas-sage hover:bg-atlas-success text-white'
               } ${disabled || isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label={isRecording ? 'Stop recording' : 'Start voice recording'}
             >
@@ -197,7 +197,7 @@ const InputHandler: React.FC<InputHandlerProps> = ({
       
       {isProcessing && (
         <div className="mt-2 text-center">
-          <div className="text-sm font-medium text-blue-600">
+          <div className="text-sm font-medium text-atlas-sage">
             Processing audio...
           </div>
         </div>

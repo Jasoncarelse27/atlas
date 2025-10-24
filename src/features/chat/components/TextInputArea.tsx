@@ -109,7 +109,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
           <AnimatedBackground 
             variant="gradient" 
             intensity="low" 
-            color="var(--primary-color, #3B82F6)"
+            color="var(--primary-color, #D3DCAB)"
           />
         </div>
       )}
@@ -129,7 +129,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
                     : 'dark:bg-gray-800 dark:hover:bg-gray-700 bg-gray-200 hover:bg-gray-100 dark:text-gray-300 text-gray-700 dark:border-gray-700 border-gray-300'
                 }`}
               >
-                <Icon className="w-2.5 h-2.5 dark:text-blue-400 text-blue-600" />
+                <Icon className="w-2.5 h-2.5 dark:text-atlas-sage text-atlas-sage" />
                 <span className="line-clamp-1">{suggestion.text}</span>
               </button>
             );
@@ -140,7 +140,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
       <form onSubmit={handleSubmit} className="relative">
         <div className={`relative transition-all duration-300 rounded-[2rem] px-4 ${
           isFocused 
-            ? 'ring-1 ring-blue-500/30 dark:ring-blue-500/50' 
+            ? 'ring-2 ring-[#D3DCAB]' 
             : ''
         }`}>
           <textarea
@@ -150,18 +150,23 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className={`w-full px-4 py-3 pr-12 dark:bg-gradient-to-br dark:from-gray-800/90 dark:to-gray-900/90 bg-gradient-to-br from-gray-100/90 to-white/90 dark:border-gray-700 border-gray-300 rounded-[2rem] dark:text-white text-gray-900 dark:placeholder-gray-500 placeholder-gray-400 focus:outline-none min-h-[56px] resize-none transition-all duration-300 text-base leading-relaxed font-medium ${
+            className={`w-full px-4 py-3 pr-12 bg-gradient-to-r from-[#F4E8E1] via-[#F3D3B8] to-[#F4E8E1] border-2 border-[#CEC1B8] rounded-[2rem] text-gray-900 placeholder-gray-500 focus:outline-none min-h-[56px] resize-none transition-all duration-300 text-base leading-relaxed font-medium ${
               isFocused 
-                ? 'dark:border-blue-500/60 border-blue-500/40 shadow-lg dark:shadow-blue-900/10 shadow-blue-500/10' 
-                : 'dark:hover:border-gray-600 hover:border-gray-400'
+                ? 'border-[#D3DCAB] shadow-lg' 
+                : 'hover:border-[#D3DCAB]/60'
             }`}
+            style={{
+              boxShadow: isFocused 
+                ? '0 8px 24px rgba(211, 220, 171, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
+                : '0 2px 8px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
+            }}
             placeholder={placeholder}
             disabled={isProcessing}
             rows={1}
             maxLength={2000}
           />
-          <div className="absolute bottom-3 right-3 text-xs text-gray-500 font-medium">
-            <span className="dark:text-gray-400 text-gray-500">{message.length}/2000</span>
+          <div className="absolute bottom-3 right-3 text-xs text-gray-600 font-medium">
+            <span>{message.length}/2000</span>
           </div>
         </div>
 
@@ -172,7 +177,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
               <button
                 type="button"
                 className={`p-1 hover:bg-gray-700 rounded-full transition-colors ${
-                  showEnhancedUI ? 'dark:text-blue-400 dark:hover:text-blue-300 text-blue-600 hover:text-blue-500 dark:hover:bg-gray-700 hover:bg-gray-200' : 'dark:text-gray-400 dark:hover:text-gray-300 text-gray-600 hover:text-gray-700 dark:hover:bg-gray-700 hover:bg-gray-200'
+                  showEnhancedUI ? 'dark:text-atlas-sage dark:hover:text-blue-300 text-atlas-sage hover:text-atlas-sage dark:hover:bg-gray-700 hover:bg-gray-200' : 'dark:text-gray-400 dark:hover:text-gray-300 text-gray-600 hover:text-gray-700 dark:hover:bg-gray-700 hover:bg-gray-200'
                 }`}
                 disabled={isProcessing}
                 onClick={() => onSoundPlay?.('click')}
@@ -201,11 +206,10 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
             <button
               type="submit"
               disabled={isProcessing || !message.trim()}
-              className={`p-1.5 text-white rounded-full transition-colors disabled:opacity-50 ${
-                showEnhancedUI
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:from-blue-600 disabled:to-blue-700'
-                  : 'bg-blue-500 hover:bg-blue-400 disabled:hover:bg-blue-500' 
-              }`}
+              className="p-1.5 bg-[#D3DCAB] hover:bg-[#978671] text-gray-800 rounded-full transition-all duration-200 disabled:opacity-50 disabled:hover:bg-[#D3DCAB] shadow-lg"
+              style={{
+                boxShadow: '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+              }}
             >
               {isProcessing ? (
                 <LoadingSpinner size="sm" color="white" />

@@ -165,7 +165,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               {user && (
                 <div className="p-4 border-b border-gray-200">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                    <div className="w-12 h-12 bg-gradient-to-br from-atlas-sage to-atlas-sage rounded-full flex items-center justify-center text-white text-lg font-bold">
                       {getUserInitials()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -185,7 +185,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                         />
                         <button
                           onClick={() => handleAction(onShowUpgrade)}
-                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                          className="text-xs text-atlas-sage hover:text-blue-700 font-medium"
                         >
                           Upgrade
                         </button>
@@ -259,7 +259,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                       </div>
                       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-blue-500 rounded-full" 
+                          className="h-full bg-atlas-sage rounded-full" 
                           style={{ 
                             width: `${TIER_CONFIGS[profile.tier].limits.requests_per_month === -1 
                               ? 10 
@@ -386,7 +386,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     <button
                       onClick={handleMuteToggle}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        isMuted ? 'bg-gray-300' : 'bg-blue-600'
+                        isMuted ? 'bg-gray-300' : 'bg-atlas-sage'
                       }`}
                       role="switch"
                       aria-checked={!isMuted}

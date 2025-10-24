@@ -79,10 +79,10 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
       case 'processing':
         return {
           icon: Activity,
-          color: 'text-blue-600',
+          color: 'text-atlas-sage',
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
-          dotColor: 'bg-blue-500',
+          dotColor: 'bg-atlas-sage',
           text: text || 'Processing...'
         };
       default:

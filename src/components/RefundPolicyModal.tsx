@@ -66,7 +66,7 @@ const RefundPolicyModal: React.FC<RefundPolicyModalProps> = ({
             <div className="grid gap-4">
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-600 text-sm font-semibold">1</span>
+                  <span className="text-atlas-sage text-sm font-semibold">1</span>
                 </div>
                 <div>
                   <h5 className="font-medium text-gray-900">Request Refund</h5>
@@ -78,7 +78,7 @@ const RefundPolicyModal: React.FC<RefundPolicyModalProps> = ({
 
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-600 text-sm font-semibold">2</span>
+                  <span className="text-atlas-sage text-sm font-semibold">2</span>
                 </div>
                 <div>
                   <h5 className="font-medium text-gray-900">No Questions Asked</h5>
@@ -90,7 +90,7 @@ const RefundPolicyModal: React.FC<RefundPolicyModalProps> = ({
 
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-600 text-sm font-semibold">3</span>
+                  <span className="text-atlas-sage text-sm font-semibold">3</span>
                 </div>
                 <div>
                   <h5 className="font-medium text-gray-900">Quick Processing</h5>
@@ -122,7 +122,7 @@ const RefundPolicyModal: React.FC<RefundPolicyModalProps> = ({
               <div>
                 <h5 className="font-medium text-gray-900">Need a Refund?</h5>
                 <p className="text-gray-600 text-sm">
-                  Email us at <a href={`mailto:${REFUND_POLICY.contact_method}`} className="text-blue-600 hover:underline">{REFUND_POLICY.contact_method}</a>
+                  Email us at <a href={`mailto:${REFUND_POLICY.contact_method}`} className="text-atlas-sage hover:underline">{REFUND_POLICY.contact_method}</a>
                 </p>
               </div>
             </div>
@@ -131,7 +131,7 @@ const RefundPolicyModal: React.FC<RefundPolicyModalProps> = ({
           {/* Processing Time */}
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-blue-600" />
+              <Clock className="w-5 h-5 text-atlas-sage" />
               <div>
                 <h5 className="font-medium text-blue-900">Processing Time</h5>
                 <p className="text-blue-700 text-sm">
@@ -146,7 +146,7 @@ const RefundPolicyModal: React.FC<RefundPolicyModalProps> = ({
         <div className="p-6 border-t border-gray-200">
           <button
             onClick={handleClose}
-            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            className="w-full px-6 py-3 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors"
           >
             Got It
           </button>

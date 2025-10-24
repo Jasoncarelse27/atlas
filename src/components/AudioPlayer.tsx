@@ -286,7 +286,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         <button
           onClick={togglePlayPause}
           disabled={isLoading || !!error}
-          className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors disabled:opacity-50"
+          className="p-2 bg-atlas-sage hover:bg-atlas-sage text-white rounded-full transition-colors disabled:opacity-50"
           aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
         >
           {isLoading ? (
@@ -325,7 +325,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           <button
             onClick={togglePlayPause}
             disabled={isLoading || !!error}
-            className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-all transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+            className="p-3 bg-atlas-sage hover:bg-atlas-sage text-white rounded-full transition-all transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
             aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
           >
             {isLoading ? (
@@ -350,7 +350,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               onClick={handleSeek}
             >
               <div 
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-150"
+                className="h-full bg-gradient-to-r from-atlas-sage to-purple-500 rounded-full transition-all duration-150"
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
@@ -392,7 +392,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Headphones className="w-5 h-5 text-blue-600" />
+              <Headphones className="w-5 h-5 text-atlas-sage" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">{title}</h3>
@@ -418,7 +418,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       {/* Waveform Visualization */}
       {showWaveform && (
-        <div className="relative h-24 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+        <div className="relative h-24 bg-gradient-to-r from-atlas-sage/10 to-purple-500/10">
           <canvas
             ref={canvasRef}
             width={400}
@@ -442,11 +442,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             onClick={handleSeek}
           >
             <div 
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-150"
+              className="h-full bg-gradient-to-r from-atlas-sage to-purple-500 rounded-full transition-all duration-150"
               style={{ width: `${progressPercentage}%` }}
             />
             <div 
-              className="absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white border-2 border-blue-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white border-2 border-atlas-sage rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ left: `calc(${progressPercentage}% - 8px)` }}
             />
           </div>
@@ -472,7 +472,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           <button
             onClick={togglePlayPause}
             disabled={isLoading || !!error}
-            className="p-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-full transition-all transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
+            className="p-4 bg-gradient-to-r from-atlas-sage to-purple-500 hover:from-atlas-sage hover:to-purple-600 text-white rounded-full transition-all transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
             aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
           >
             {isLoading ? (

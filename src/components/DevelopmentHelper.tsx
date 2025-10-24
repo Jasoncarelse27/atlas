@@ -89,7 +89,7 @@ const DevelopmentHelper: React.FC<DevelopmentHelperProps> = ({ className = '' })
           onClick={() => setActiveTab('tools')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'tools'
-              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-atlas-sage dark:text-atlas-sage border-b-2 border-atlas-sage'
               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
@@ -100,7 +100,7 @@ const DevelopmentHelper: React.FC<DevelopmentHelperProps> = ({ className = '' })
           onClick={() => setActiveTab('status')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'status'
-              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-atlas-sage dark:text-atlas-sage border-b-2 border-atlas-sage'
               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
@@ -111,7 +111,7 @@ const DevelopmentHelper: React.FC<DevelopmentHelperProps> = ({ className = '' })
           onClick={() => setActiveTab('shortcuts')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'shortcuts'
-              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-atlas-sage dark:text-atlas-sage border-b-2 border-atlas-sage'
               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >

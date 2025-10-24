@@ -2,12 +2,12 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Image, Loader2, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import '../../styles/voice-animations.css';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useFeatureAccess, useTierAccess } from '../../hooks/useTierAccess';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import { featureService } from '../../services/featureService';
+import '../../styles/voice-animations.css';
 // Removed useMessageStore import - using props from parent component
 import { logger } from '../../lib/logger';
 import { voiceService } from '../../services/voiceService';
@@ -446,8 +446,8 @@ export default function EnhancedInputToolbar({
                     )}
                     {status === 'processing' && (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                        <span className="text-xs text-blue-400">Processing...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-atlas-sage" />
+                        <span className="text-xs text-atlas-sage">Processing...</span>
                       </>
                     )}
                     {status === 'success' && (
@@ -487,10 +487,13 @@ export default function EnhancedInputToolbar({
         </div>
       )}
       
-          {/* Main Input Container - Professional Style with Bounce Animation */}
+          {/* Main Input Container - Professional Atlas Style */}
           <motion.div 
             data-input-area
-            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 bg-gray-800/80 backdrop-blur-xl rounded-full shadow-2xl"
+            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 bg-gradient-to-r from-[#F4E8E1] via-[#F3D3B8] to-[#F4E8E1] rounded-full shadow-2xl"
+            style={{
+              boxShadow: '0 8px 32px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
+            }}
             initial={{ y: 0, scale: 1 }}
             animate={{ y: 0, scale: 1 }}
             transition={{ 
@@ -523,12 +526,17 @@ export default function EnhancedInputToolbar({
                   setMenuOpen(!menuOpen)
                 }}
                 disabled={disabled}
-                className={`p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md touch-manipulation ${
+                className={`p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl touch-manipulation ${
                   menuOpen 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 hover:text-white'
+                    ? 'bg-[#D3DCAB] text-gray-800' 
+                    : 'bg-[#F3D3B8] hover:bg-[#D3DCAB] text-gray-800'
                 }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
+                style={{ 
+                  WebkitTapHighlightColor: 'transparent',
+                  boxShadow: menuOpen 
+                    ? '0 4px 16px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                    : '0 4px 16px rgba(243, 211, 184, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                }}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.05 }}
                 title="Add attachment"
@@ -571,7 +579,7 @@ export default function EnhancedInputToolbar({
               onBlur={handleInputBlur}
               onFocus={handleInputFocus}
               placeholder={attachmentPreviews.length > 0 ? "💡 Add a caption and press Enter to send..." : placeholder}
-              className="flex-1 mx-2 sm:mx-3 bg-transparent text-white placeholder-gray-400 focus:outline-none border-none rounded-full px-3 py-2 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
+              className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D3DCAB] border-none rounded-full px-3 py-2 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
               style={{ fontSize: '16px' }} // Prevent iOS zoom
               disabled={isProcessing || disabled}
               autoComplete="off"
@@ -587,12 +595,17 @@ export default function EnhancedInputToolbar({
               <motion.button
                 onClick={handleMicPress}
                 disabled={isProcessing || disabled}
-                className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm touch-manipulation ${
+                className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md touch-manipulation ${
                   isListening
                     ? 'bg-red-500/80 hover:bg-red-600/90 text-white'
-                    : 'bg-gray-700/60 hover:bg-gray-600/80 text-gray-300'
+                    : 'bg-[#CEC1B8] hover:bg-[#978671] text-gray-700'
                 }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
+                style={{ 
+                  WebkitTapHighlightColor: 'transparent',
+                  boxShadow: isListening 
+                    ? undefined 
+                    : '0 2px 8px rgba(151, 134, 113, 0.3), inset 0 -1px 2px rgba(151, 134, 113, 0.2)'
+                }}
                 whileTap={{ scale: 0.95 }}
                 title="Voice recording"
               >
@@ -606,12 +619,17 @@ export default function EnhancedInputToolbar({
                   onClick={isStreaming ? stopMessageStream : handleSend}
                   disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
                   title={attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message"}
-                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm touch-manipulation ${
+                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation ${
                     isStreaming 
                       ? 'bg-red-500 hover:bg-red-600' 
-                      : 'bg-blue-500 hover:bg-blue-600'
+                      : 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
                   }`}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  style={{ 
+                    WebkitTapHighlightColor: 'transparent',
+                    boxShadow: isStreaming 
+                      ? undefined 
+                      : '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                  }}
                   whileTap={{ scale: 0.9 }}
                 >
                   {isStreaming ? (
@@ -630,12 +648,17 @@ export default function EnhancedInputToolbar({
                   onClick={handleStartVoiceCall}
                   disabled={disabled}
                   title={tier === 'studio' ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
-                  className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-sm touch-manipulation ${
+                  className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
                     tier === 'studio'
-                      ? 'bg-emerald-500 hover:bg-emerald-600 voice-call-pulse'
+                      ? 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800 voice-call-pulse'
                       : 'bg-gray-600 hover:bg-gray-500 opacity-60'
                   }`}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  style={{ 
+                    WebkitTapHighlightColor: 'transparent',
+                    boxShadow: tier === 'studio' 
+                      ? '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                      : undefined
+                  }}
                   whileTap={{ scale: 0.9 }}
                 >
                   <Phone className="w-4 h-4 text-white" />

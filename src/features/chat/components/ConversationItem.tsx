@@ -234,7 +234,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
             >
               <div className="flex items-center gap-1">
                 {conversation.pinned && (
-                  <Pin className="w-3 h-3 text-blue-500" />
+                  <Pin className="w-3 h-3 text-atlas-sage" />
                 )}
                 <h4 className="font-medium text-sm truncate">
                   {conversation.title}
@@ -270,7 +270,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
               <Tooltip content={conversation.pinned ? "Unpin" : "Pin"}>
                 <button
                   onClick={handleTogglePin}
-                  className="neumorphic-button p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  className="neumorphic-button p-1 text-gray-500 hover:text-atlas-sage hover:bg-blue-50 rounded-md transition-colors"
                 >
                   <Pin className="w-3 h-3" />
                 </button>

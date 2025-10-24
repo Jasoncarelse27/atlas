@@ -120,7 +120,7 @@ const ContextualSuggestions: React.FC<ContextualSuggestionsProps> = ({
         <div className="flex items-center justify-between mb-1 sm:mb-1.5">
           <div className="flex items-center gap-1">
             <div className="p-1 bg-blue-100 rounded-full">
-              <Lightbulb className="w-2.5 h-2.5 text-blue-600" />
+              <Lightbulb className="w-2.5 h-2.5 text-atlas-sage" />
             </div>
             <h3 className="font-medium text-blue-800 text-2xs sm:text-xs">Suggested Follow-ups</h3>
           </div>
@@ -128,7 +128,7 @@ const ContextualSuggestions: React.FC<ContextualSuggestionsProps> = ({
           <div className="flex items-center gap-1">
             <button
               onClick={toggleExpand}
-              className="neumorphic-button p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors"
+              className="neumorphic-button p-1 text-atlas-sage hover:text-blue-700 hover:bg-blue-100 rounded-full transition-colors"
               aria-label={isExpanded ? "Show fewer suggestions" : "Show more suggestions"}
             >
               <Zap className="w-2.5 h-2.5" />

@@ -317,7 +317,7 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
       <div
         key={widget.id}
         className={`absolute bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden transition-all duration-200 ${
-          editingWidget === widget.id ? 'ring-2 ring-blue-500' : ''
+          editingWidget === widget.id ? 'ring-2 ring-atlas-sage' : ''
         }`}
         style={{
           left: widget.position.x,
@@ -386,7 +386,7 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-blue-500 h-2 rounded-full" 
+                className="bg-atlas-sage h-2 rounded-full" 
                 style={{ width: `${Math.min(100, (profile.usage_stats.requests_this_month / 100) * 100)}%` }}
               />
             </div>
@@ -416,7 +416,7 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
       case 'quick-actions':
         return (
           <div className="grid grid-cols-2 gap-2">
-            <button className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600 text-sm font-medium transition-colors">
+            <button className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-atlas-sage text-sm font-medium transition-colors">
               New Chat
             </button>
             <button className="p-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-600 text-sm font-medium transition-colors">
@@ -539,7 +539,7 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
                   key={btn}
                   className={`p-2 rounded text-sm font-medium transition-colors ${
                     ['C', '±', '%'].includes(btn) ? 'bg-gray-200 hover:bg-gray-300' :
-                    ['÷', '×', '-', '+', '='].includes(btn) ? 'bg-blue-500 hover:bg-blue-600 text-white' :
+                    ['÷', '×', '-', '+', '='].includes(btn) ? 'bg-atlas-sage hover:bg-atlas-sage text-white' :
                     'bg-gray-100 hover:bg-gray-200'
                   } ${btn === '0' ? 'col-span-2' : ''}`}
                   onClick={() => {
@@ -655,7 +655,7 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
             <Tooltip content="Add new widget" position="bottom">
               <button
                 onClick={() => setShowAddWidget(true)}
-                className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow-sm transition-colors"
+                className="p-2 bg-atlas-sage hover:bg-atlas-sage text-white rounded-lg shadow-sm transition-colors"
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -686,7 +686,7 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
                 <p className="text-gray-500 mb-4">Add your first widget to get started</p>
                 <button
                   onClick={() => setShowAddWidget(true)}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  className="px-4 py-2 bg-atlas-sage hover:bg-atlas-sage text-white rounded-lg transition-colors"
                 >
                   Add Widget
                 </button>

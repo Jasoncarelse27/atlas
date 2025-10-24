@@ -56,7 +56,7 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({
           
           <button
             onClick={onUpgrade}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-purple-600 to-atlas-sage hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
           >
             <div className="flex items-center justify-center gap-2">
               <Sparkles className="w-5 h-5" />
@@ -92,7 +92,7 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({
         
         <button
           onClick={onUpgrade}
-          className="mt-2 w-full text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded transition-colors"
+          className="mt-2 w-full text-xs bg-atlas-sage hover:bg-atlas-success text-white py-1 px-2 rounded transition-colors"
         >
           Upgrade
         </button>

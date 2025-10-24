@@ -7,7 +7,7 @@
 
 /* Simple body styling */
 body {
-  background-color: #0e1012;
+  background-color: #F4E8E1;
 }
 
 /* === Viewport height fix for Safari + Chrome Mobile === */
@@ -118,13 +118,25 @@ body {
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 0px rgba(59, 130, 246, 0);
+    box-shadow: 0 0 0px rgba(211, 220, 171, 0);
   }
   50% {
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
+    box-shadow: 0 0 10px rgba(211, 220, 171, 0.8);
   }
 }
 
 .animate-pulse-glow {
   animation: pulse-glow 1.5s infinite;
+}
+
+/* Atlas Color CSS Variables */
+:root {
+  --atlas-sage: #D3DCAB;
+  --atlas-sand: #CEC1B8;
+  --atlas-pearl: #F4E8E1;
+  --atlas-peach: #F3D3B8;
+  --atlas-stone: #978671;
+  --atlas-success: #A7C080;
+  --atlas-warning: #E8C88E;
+  --atlas-error: #D89090;
 }

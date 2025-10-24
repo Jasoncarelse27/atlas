@@ -20,7 +20,7 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ metrics }) => {
     return (
       <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
         <div className="flex items-center space-x-2 mb-3">
-          <Monitor className="w-5 h-5 text-blue-400" />
+          <Monitor className="w-5 h-5 text-atlas-sage" />
           <h3 className="font-medium text-gray-200">Performance Metrics</h3>
         </div>
         <p className="text-gray-400 text-sm">Loading metrics...</p>
@@ -55,7 +55,7 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ metrics }) => {
     <div className="p-4 rounded-lg bg-gray-800/50 border border-gray-700">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <Monitor className="w-5 h-5 text-blue-400" />
+          <Monitor className="w-5 h-5 text-atlas-sage" />
           <h3 className="font-medium text-gray-200">Performance Metrics</h3>
         </div>
         <div className="text-right">
@@ -81,7 +81,7 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ metrics }) => {
         {/* Render Time */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Monitor className="w-4 h-4 text-blue-400" />
+            <Monitor className="w-4 h-4 text-atlas-sage" />
             <span className="text-sm text-gray-300">Render Time</span>
           </div>
           <span className="text-sm text-gray-200">{metrics.renderTime.toFixed(1)}ms</span>

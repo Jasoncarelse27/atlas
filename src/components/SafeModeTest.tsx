@@ -32,7 +32,7 @@ const SafeModeTest: React.FC = () => {
         
         <button
           onClick={toggleSafeMode}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          className="w-full py-2 px-4 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg transition-colors"
         >
           {isSafeMode ? 'Disable SafeSpace' : 'Enable SafeSpace'}
         </button>
@@ -71,7 +71,7 @@ const SafeModeTest: React.FC = () => {
               value={testMessage}
               onChange={(e) => setTestMessage(e.target.value)}
               placeholder="Type a test message..."
-              className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+              className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-atlas-sage"
             />
             <button
               onClick={() => {
@@ -81,7 +81,7 @@ const SafeModeTest: React.FC = () => {
                 }
               }}
               disabled={isSending || !testMessage.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-500 text-white rounded-lg transition-colors"
             >
               {isSending ? 'Sending...' : 'Send'}
             </button>
@@ -109,7 +109,7 @@ const SafeModeTest: React.FC = () => {
                     key={msg.id || index}
                     className={`p-2 rounded-lg text-sm ${
                       msg.role === 'user' 
-                        ? 'bg-blue-600/20 border border-blue-500/50' 
+                        ? 'bg-atlas-sage/20 border border-atlas-sage/50' 
                         : 'bg-green-600/20 border border-green-500/50'
                     }`}
                   >

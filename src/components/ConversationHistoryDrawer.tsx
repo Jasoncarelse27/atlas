@@ -39,7 +39,7 @@ export function ConversationHistoryDrawer({
         <>
           {/* backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/70 backdrop-blur-md z-[99998]"
+            className="fixed inset-0 bg-atlas-stone/50 backdrop-blur-md z-[99998]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -77,19 +77,19 @@ export function ConversationHistoryDrawer({
             {/* header */}
             <div className="flex items-center justify-between px-5 py-4 md:px-6 md:py-5 border-b border-gray-700/50 bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-t-2xl">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-500/20 rounded-lg border border-blue-500/30 shadow-lg">
-                  <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-2.5 bg-atlas-sage/20 rounded-lg border border-atlas-sage/30 shadow-lg">
+                  <svg className="w-5 h-5 text-atlas-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                 </div>
                 <div>
                   <h2 className="text-lg md:text-xl font-bold text-white">Conversation History</h2>
-                  <p className="text-xs text-gray-400 hidden sm:block">Manage your conversations</p>
+                  <p className="text-xs text-gray-300 hidden sm:block">Manage your conversations</p>
                 </div>
               </div>
               <button 
                 onClick={onClose} 
-                className="p-2 hover:bg-gray-700/50 rounded-lg transition-all duration-200 text-gray-400 hover:text-white"
+                className="p-2 hover:bg-atlas-sand/30 rounded-lg transition-all duration-200 text-gray-300 hover:text-white"
                 aria-label="Close conversation history"
               >
                 <X size={20} />
@@ -118,8 +118,8 @@ export function ConversationHistoryDrawer({
                   >
                     <div className="flex items-center gap-3">
                       {/* Conversation Icon */}
-                      <div className="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 bg-blue-500/10 rounded-lg flex items-center justify-center border border-blue-500/20">
-                        <svg className="w-4 h-4 md:w-5 md:h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 bg-atlas-sage/10 rounded-lg flex items-center justify-center border border-atlas-sage/20">
+                        <svg className="w-4 h-4 md:w-5 md:h-5 text-atlas-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
                       </div>
@@ -129,7 +129,7 @@ export function ConversationHistoryDrawer({
                         <p className="text-sm md:text-base text-white font-semibold leading-tight truncate mb-1">
                           {conv.title || `Conversation ${index + 1}`}
                         </p>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <div className="flex items-center gap-1.5 text-xs text-white">
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
@@ -188,8 +188,8 @@ export function ConversationHistoryDrawer({
             <div className="flex-shrink-0 border-t border-gray-700/50 px-5 py-4 md:px-6 bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-b-2xl">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2 text-center flex-1">
-                  <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 bg-atlas-sage/10 rounded-lg border border-atlas-sage/20">
+                    <svg className="w-4 h-4 text-atlas-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>

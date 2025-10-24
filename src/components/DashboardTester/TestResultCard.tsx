@@ -29,7 +29,7 @@ const TestResultCard: React.FC<TestResultCardProps> = ({ result, onShowDetails }
       case 'warning':
         return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
       case 'running':
-        return <Play className="w-5 h-5 text-blue-500 animate-pulse" />;
+        return <Play className="w-5 h-5 text-atlas-sage animate-pulse" />;
       default:
         return <Clock className="w-5 h-5 text-gray-400" />;
     }
@@ -44,7 +44,7 @@ const TestResultCard: React.FC<TestResultCardProps> = ({ result, onShowDetails }
       case 'warning':
         return 'bg-yellow-500/10 border-yellow-500/20';
       case 'running':
-        return 'bg-blue-500/10 border-blue-500/20';
+        return 'bg-atlas-sage/10 border-atlas-sage/20';
       default:
         return 'bg-gray-500/10 border-gray-500/20';
     }
@@ -92,7 +92,7 @@ const TestResultCard: React.FC<TestResultCardProps> = ({ result, onShowDetails }
           <ul className="text-xs text-gray-300 space-y-1">
             {result.recommendations.slice(0, 2).map((rec, index) => (
               <li key={index} className="flex items-start space-x-1">
-                <span className="text-blue-400 mt-0.5">•</span>
+                <span className="text-atlas-sage mt-0.5">•</span>
                 <span>{rec}</span>
               </li>
             ))}

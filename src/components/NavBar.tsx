@@ -32,7 +32,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
       <nav className="w-full bg-[#10141C] text-white px-4 py-3 flex items-center justify-between shadow-md border-b border-gray-700">
         {/* Left: Logo */}
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-lg flex items-center justify-center">
             <Brain className="h-5 w-5 text-white" />
           </div>
           <span className="font-bold text-lg bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -75,7 +75,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
           
           {/* Tier Badge */}
           <div className="flex items-center space-x-2 px-3 py-1 rounded-lg bg-gray-700/50">
-            <span className="text-sm font-medium text-blue-400">
+            <span className="text-sm font-medium text-atlas-sage">
               Atlas {getTierDisplayName()}
             </span>
             {getRemainingMessages() && (
@@ -87,7 +87,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
 
           {/* User Avatar */}
           {user && (
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
               {getUserInitials()}
             </div>
           )}
@@ -125,7 +125,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
             {/* Mobile Menu Header */}
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-6 h-6 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-lg flex items-center justify-center">
                   <Brain className="h-4 w-4 text-white" />
                 </div>
                 <span className="font-bold text-lg">Atlas AI</span>
@@ -178,7 +178,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
               {/* User Info */}
               {user && (
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
                     {getUserInitials()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -190,7 +190,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
 
               {/* Tier Info */}
               <div className="p-3 rounded-lg bg-gray-700/50">
-                <div className="text-sm font-medium text-blue-400 mb-1">
+                <div className="text-sm font-medium text-atlas-sage mb-1">
                   Atlas {getTierDisplayName()}
                 </div>
                 {getRemainingMessages() && (

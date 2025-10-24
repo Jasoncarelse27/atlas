@@ -111,7 +111,7 @@ const SoundSettings: React.FC<SoundSettingsProps> = ({
             <button
               onClick={onToggleEnabled}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                isEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                isEnabled ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={isEnabled}
@@ -169,7 +169,7 @@ const SoundSettings: React.FC<SoundSettingsProps> = ({
                       <p className="text-sm text-gray-600">{theme.description}</p>
                     </div>
                     {soundTheme === theme.id && (
-                      <Check className="w-5 h-5 text-blue-600" />
+                      <Check className="w-5 h-5 text-atlas-sage" />
                     )}
                   </div>
                 </div>

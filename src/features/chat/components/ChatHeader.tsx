@@ -22,7 +22,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-lg flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -32,7 +32,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
           {/* Navigation */}
           <nav className="flex items-center space-x-4">
-            <button className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors bg-blue-600/20">
+            <button className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors bg-atlas-sage/20">
               <MessageSquare className="w-4 h-4" />
               <span>Chat</span>
             </button>
@@ -43,7 +43,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             
             {/* Tier Display */}
             <div className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-700/50">
-              <span className="text-sm font-medium text-blue-400">
+              <span className="text-sm font-medium text-atlas-sage">
                 Atlas {tier.charAt(0).toUpperCase() + tier.slice(1)}
               </span>
               {tier === 'free' && (
@@ -58,7 +58,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <div className="flex items-center space-x-4">
             {user && (
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-full flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-sm font-medium">{user.email}</span>

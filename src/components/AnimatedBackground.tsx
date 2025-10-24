@@ -11,7 +11,7 @@ interface AnimatedBackgroundProps {
 const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
   variant = 'particles',
   intensity = 'medium',
-  color = 'var(--primary-color, #3B82F6)',
+  color = 'var(--primary-color, #D3DCAB)',
   secondaryColor = 'var(--accent-color, #10B981)',
   className = ''
 }) => {
@@ -63,9 +63,9 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
         const computedStyle = getComputedStyle(root);
         const varName = colorStr.match(/var\((.*?)(,|$|\))/)?.[1]?.trim();
         if (varName) {
-          colorStr = computedStyle.getPropertyValue(varName).trim() || '#3B82F6';
+          colorStr = computedStyle.getPropertyValue(varName).trim() || '#D3DCAB';
         } else {
-          colorStr = '#3B82F6'; // Fallback
+          colorStr = '#D3DCAB'; // Fallback to Atlas sage
         }
       }
       
@@ -87,8 +87,8 @@ const AnimatedBackground: React.FC<AnimatedBackgroundProps> = ({
         };
       }
       
-      // Fallback
-      return { r: 59, g: 130, b: 246 };
+      // Fallback to Atlas sage
+      return { r: 211, g: 220, b: 171 };
     };
 
     const primaryColor = parseColor(color);

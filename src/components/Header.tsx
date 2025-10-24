@@ -409,7 +409,7 @@ const Header: React.FC<HeaderProps> = ({
           <Tooltip content="New conversation" position="bottom">
             <button
               onClick={handleNewConversation}
-              className={`neumorphic-button-strong rounded-md bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transition-colors flex items-center shadow-sm ${getButtonSize()}`}
+              className={`neumorphic-button-strong rounded-md bg-atlas-sage hover:bg-atlas-success text-white cursor-pointer transition-colors flex items-center shadow-sm ${getButtonSize()}`}
               aria-label="Start new conversation"
             >
               <PlusSquare className={`text-white ${getIconSize()}`} />
@@ -553,7 +553,7 @@ const Header: React.FC<HeaderProps> = ({
                         <div className="text-xs opacity-70 truncate">{voice.lang}</div>
                       </div>
                       {voice.name === currentVoice?.name && (
-                        <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0" />
+                        <div className="w-2 h-2 bg-atlas-sage rounded-full flex-shrink-0" />
                       )}
                     </button>
                   ))}
@@ -876,7 +876,7 @@ const Header: React.FC<HeaderProps> = ({
                   <div className="space-y-2">
                     <button
                       onClick={handleNewConversation}
-                      className="w-full px-4 py-3 neumorphic-button-strong bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-3"
+                      className="w-full px-4 py-3 neumorphic-button-strong bg-atlas-sage hover:bg-atlas-success text-white rounded-lg transition-colors flex items-center gap-3"
                     >
                       <PlusSquare className="w-4 h-4" />
                       <span className="font-medium">New Conversation</span>

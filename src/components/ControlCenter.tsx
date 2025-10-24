@@ -1,25 +1,25 @@
 
-import React, { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '../types/subscription';
-import { useCustomization } from '../hooks/useCustomization';
-import { useSoundEffects } from '../hooks/useSoundEffects';
-import type { SoundTheme, SoundType } from '../hooks/useSoundEffects';
-import { 
-  X, 
-  Sliders, 
-  Palette, 
-  Layout, 
-  Settings, 
-  Moon, 
-  Sun, 
-  RefreshCw, 
-  Save, 
-  Volume2, 
-  Download, 
-  Upload, 
-  AlertTriangle
+import {
+    AlertTriangle,
+    Download,
+    Layout,
+    Moon,
+    Palette,
+    RefreshCw,
+    Save,
+    Settings,
+    Sliders,
+    Sun,
+    Upload,
+    Volume2,
+    X
 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useCustomization } from '../hooks/useCustomization';
+import type { SoundTheme, SoundType } from '../hooks/useSoundEffects';
+import { useSoundEffects } from '../hooks/useSoundEffects';
+import type { UserProfile } from '../types/subscription';
 import LoadingSpinner from './LoadingSpinner';
 import SoundSettings from './SoundSettings';
 
@@ -35,8 +35,8 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
   onClose 
 }) => {
   const [activeTab, setActiveTab] = useState<'theme' | 'layout' | 'sound' | 'preferences'>('theme');
-  const [selectedColor, setSelectedColor] = useState<string>('#3B82F6');
-  const [selectedAccentColor, setSelectedAccentColor] = useState<string>('#10B981');
+  const [selectedColor, setSelectedColor] = useState<string>('#D3DCAB'); // Atlas sage
+  const [selectedAccentColor, setSelectedAccentColor] = useState<string>('#F3D3B8'); // Atlas peach
   const [selectedMode, setSelectedMode] = useState<'light' | 'dark' | 'auto'>('light');
   const [selectedFontSize, setSelectedFontSize] = useState<number>(14);
   const [selectedBorderRadius, setSelectedBorderRadius] = useState<number>(8);
@@ -218,29 +218,29 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
   if (!isOpen) return null;
 
   const colorOptions = [
-    { name: 'Blue', value: '#3B82F6' },
-    { name: 'Purple', value: '#8B5CF6' },
-    { name: 'Pink', value: '#EC4899' },
-    { name: 'Red', value: '#EF4444' },
-    { name: 'Orange', value: '#F97316' },
-    { name: 'Amber', value: '#F59E0B' },
-    { name: 'Green', value: '#10B981' },
-    { name: 'Teal', value: '#14B8A6' },
-    { name: 'Cyan', value: '#06B6D4' },
-    { name: 'Indigo', value: '#6366F1' }
+    { name: 'Sage', value: '#D3DCAB' },      // Atlas primary
+    { name: 'Sand', value: '#CEC1B8' },      // Atlas secondary
+    { name: 'Peach', value: '#F3D3B8' },     // Atlas accent
+    { name: 'Stone', value: '#978671' },     // Atlas tertiary
+    { name: 'Pearl', value: '#F4E8E1' },     // Atlas background
+    { name: 'Success', value: '#A7C080' },   // Muted sage green
+    { name: 'Warning', value: '#E8C88E' },   // Warm gold
+    { name: 'Lavender', value: '#B8A8C4' },  // Soft purple option
+    { name: 'Slate', value: '#7A8A99' },     // Cool gray option
+    { name: 'Terracotta', value: '#C89F7F' } // Warm earth option
   ];
 
   const accentColorOptions = [
-    { name: 'Green', value: '#10B981' },
-    { name: 'Blue', value: '#3B82F6' },
-    { name: 'Purple', value: '#8B5CF6' },
-    { name: 'Pink', value: '#EC4899' },
-    { name: 'Red', value: '#EF4444' },
-    { name: 'Orange', value: '#F97316' },
-    { name: 'Amber', value: '#F59E0B' },
-    { name: 'Teal', value: '#14B8A6' },
-    { name: 'Cyan', value: '#06B6D4' },
-    { name: 'Indigo', value: '#6366F1' }
+    { name: 'Peach', value: '#F3D3B8' },     // Atlas accent
+    { name: 'Sage', value: '#D3DCAB' },      // Atlas primary
+    { name: 'Stone', value: '#978671' },     // Atlas tertiary
+    { name: 'Success', value: '#A7C080' },   // Muted sage green
+    { name: 'Warning', value: '#E8C88E' },   // Warm gold
+    { name: 'Sand', value: '#CEC1B8' },      // Atlas secondary
+    { name: 'Lavender', value: '#B8A8C4' },  // Soft purple option
+    { name: 'Rose', value: '#D89090' },      // Muted rose
+    { name: 'Terracotta', value: '#C89F7F' },// Warm earth option
+    { name: 'Slate', value: '#7A8A99' }      // Cool gray option
   ];
 
   const fontSizeOptions = [
@@ -599,7 +599,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={handleCompactModeToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                compactMode ? 'bg-blue-600' : 'bg-gray-300'
+                compactMode ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={compactMode}
@@ -621,7 +621,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={handleShowAnimationsToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                showAnimations ? 'bg-blue-600' : 'bg-gray-300'
+                showAnimations ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={showAnimations}
@@ -650,7 +650,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={handleHighContrastToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                highContrast ? 'bg-blue-600' : 'bg-gray-300'
+                highContrast ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={highContrast}
@@ -672,7 +672,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={handleLargeTextToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                largeText ? 'bg-blue-600' : 'bg-gray-300'
+                largeText ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={largeText}
@@ -694,7 +694,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={handleReduceMotionToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                reduceMotion ? 'bg-blue-600' : 'bg-gray-300'
+                reduceMotion ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={reduceMotion}
@@ -805,7 +805,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={() => updateCustomization('preferences.autoSave', !customization?.preferences?.autoSave)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                customization?.preferences?.autoSave ? 'bg-blue-600' : 'bg-gray-300'
+                customization?.preferences?.autoSave ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={customization?.preferences?.autoSave}
@@ -827,7 +827,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={() => updateCustomization('preferences.notifications', !customization?.preferences?.notifications)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                customization?.preferences?.notifications ? 'bg-blue-600' : 'bg-gray-300'
+                customization?.preferences?.notifications ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={customization?.preferences?.notifications}
@@ -849,7 +849,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             <button
               onClick={() => updateCustomization('preferences.keyboardShortcuts', !customization?.preferences?.keyboardShortcuts)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                customization?.preferences?.keyboardShortcuts ? 'bg-blue-600' : 'bg-gray-300'
+                customization?.preferences?.keyboardShortcuts ? 'bg-atlas-sage' : 'bg-gray-300'
               }`}
               role="switch"
               aria-checked={customization?.preferences?.keyboardShortcuts}
@@ -908,15 +908,15 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
                     
                     // Apply imported settings
                     if (json.theme) {
-                      setSelectedColor(json.theme.primaryColor || '#3B82F6');
-                      setSelectedAccentColor(json.theme.accentColor || '#10B981');
+                      setSelectedColor(json.theme.primaryColor || '#D3DCAB');
+                      setSelectedAccentColor(json.theme.accentColor || '#F3D3B8');
                       setSelectedMode(json.theme.mode || 'light');
                       setSelectedFontSize(json.theme.fontSize || 14);
                       setSelectedBorderRadius(json.theme.borderRadius || 8);
                       
                       updateThemeColors(
-                        json.theme.primaryColor || '#3B82F6',
-                        json.theme.accentColor || '#10B981'
+                        json.theme.primaryColor || '#D3DCAB',
+                        json.theme.accentColor || '#F3D3B8'
                       );
                       updateCustomization('theme.mode', json.theme.mode || 'light');
                       updateCustomization('theme.fontSize', json.theme.fontSize || 14);
@@ -970,7 +970,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <Sliders className="w-5 h-5 text-blue-600" />
+                <Sliders className="w-5 h-5 text-atlas-sage" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Control Center</h2>
@@ -1041,7 +1041,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
         <div className="hidden md:block w-64 border-r border-gray-200 bg-gray-50 p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Sliders className="w-6 h-6 text-blue-600" />
+              <Sliders className="w-6 h-6 text-atlas-sage" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Control Center</h2>
@@ -1104,7 +1104,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
               <button
                 onClick={handleSave}
                 disabled={isLoading || !hasChanges}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <LoadingSpinner size="sm" color="white" />
@@ -1163,7 +1163,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
               <button
                 onClick={handleSave}
                 disabled={isLoading || !hasChanges}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <LoadingSpinner size="sm" color="white" />

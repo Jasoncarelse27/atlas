@@ -38,15 +38,15 @@ export const MobileVoiceWarning: React.FC<MobileVoiceWarningProps> = ({ onClose 
             <p className="font-medium text-white">For the best experience:</p>
             <ul className="space-y-2 text-sm">
               <li className="flex items-start gap-2">
-                <span className="text-blue-400">•</span>
+                <span className="text-atlas-sage">•</span>
                 <span>Use Atlas on desktop (Chrome, Firefox, Safari)</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-400">•</span>
+                <span className="text-atlas-sage">•</span>
                 <span>Access Atlas via HTTPS (https://your-domain.com)</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-400">•</span>
+                <span className="text-atlas-sage">•</span>
                 <span>Use localhost on desktop (http://localhost:5174)</span>
               </li>
             </ul>

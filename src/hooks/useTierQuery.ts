@@ -193,7 +193,7 @@ export function getTierColor(tier: Tier): string {
     case 'free':
       return 'text-yellow-400';
     case 'core':
-      return 'text-blue-400';
+      return 'text-atlas-sage';
     case 'studio':
       return 'text-purple-400';
     default:

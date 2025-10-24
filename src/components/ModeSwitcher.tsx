@@ -73,7 +73,7 @@ const ModeSwitcher = forwardRef<HTMLDivElement, ModeSwitcherProps>(({
     const baseClasses = 'neumorphic-button flex items-center justify-center transition-all duration-300 backdrop-blur-md border shadow-lg';
     
     const activeClasses = 'bg-blue-100 text-blue-700 border-blue-300 shadow-blue-200/50';
-    const inactiveClasses = 'bg-white/80 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200';
+    const inactiveClasses = 'bg-white/80 text-gray-700 border-gray-300 hover:bg-blue-50 hover:text-atlas-sage hover:border-blue-200';
     const disabledClasses = 'opacity-50 cursor-not-allowed';
     const lockedClasses = 'opacity-60 cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200';
     
@@ -200,7 +200,7 @@ const ModeSwitcher = forwardRef<HTMLDivElement, ModeSwitcherProps>(({
                 <span className="ml-2 font-medium text-xs sm:text-sm">{mode.label}</span>
               )}
               {currentMode === mode.id && variant === 'compact' && (
-                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full" />
+                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-atlas-sage rounded-full" />
               )}
             </button>
           </Tooltip>

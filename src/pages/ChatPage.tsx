@@ -5,7 +5,6 @@ import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
-import SyncStatus from '../components/SyncStatus';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
 import { ProfileSettingsModal } from '../components/modals/ProfileSettingsModal';
@@ -836,25 +835,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+      <div className="min-h-screen bg-white text-gray-900">
         {/* Header with Menu Button */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50 sticky top-0 z-30">
+        <div className="bg-white/50 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-30">
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
+                  className="p-2 rounded-lg bg-atlas-sage/10 hover:bg-atlas-sage/20 transition-colors"
                 >
-                  <Menu className="w-5 h-5" />
+                  <Menu className="w-5 h-5 text-atlas-stone" />
                 </button>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-white">Atlas AI</h1>
-                  <p className="text-gray-400 text-sm sm:text-base hidden sm:block">Your emotionally intelligent AI assistant</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Atlas AI</h1>
+                  <p className="text-gray-600 text-sm sm:text-base hidden sm:block">Your emotionally intelligent AI assistant</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
-                <SyncStatus isOnline={true} />
+                {/* Sync status hidden per design requirements */}
+                {/* <SyncStatus isOnline={true} /> */}
               </div>
             </div>
           </div>
@@ -997,7 +997,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            <div className="flex items-center space-x-3 px-4 py-3 bg-gray-800/50 rounded-2xl">
+            <div className="flex items-center space-x-3 px-4 py-3">
               <div className="flex space-x-1.5">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>

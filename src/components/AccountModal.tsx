@@ -309,7 +309,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage"
                     placeholder="Enter your display name"
                   />
                 </div>
@@ -322,7 +322,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage"
                     placeholder="Enter your email"
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -346,7 +346,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                 <button
                   onClick={handleUpdateProfile}
                   disabled={isLoading}
-                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isLoading ? <LoadingSpinner size="sm" color="white" /> : <UserIcon className="w-4 h-4" />}
                   Update Profile
@@ -372,7 +372,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                       type={showPasswords ? 'text' : 'password'}
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage"
                       placeholder="Enter current password"
                     />
                     <button
@@ -398,7 +398,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                     type={showPasswords ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage"
                     placeholder="Enter new password"
                     minLength={6}
                   />
@@ -412,7 +412,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                     type={showPasswords ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage"
                     placeholder="Confirm new password"
                     minLength={6}
                   />
@@ -460,7 +460,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                       }
                       setFeedbackType(e.target.value as 'feedback' | 'bug' | 'review');
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage"
                   >
                     <option value="feedback">General Feedback</option>
                     <option value="bug">Bug Report</option>
@@ -501,7 +501,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                     type="text"
                     value={feedbackSubject}
                     onChange={(e) => setFeedbackSubject(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage"
                     placeholder={
                       feedbackType === 'bug' ? 'Brief description of the bug' :
                       feedbackType === 'review' ? 'Review title' :
@@ -518,7 +518,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                     value={feedbackMessage}
                     onChange={(e) => setFeedbackMessage(e.target.value)}
                     rows={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-atlas-sage resize-none"
                     placeholder={
                       feedbackType === 'bug' ? 'Please describe the bug in detail, including steps to reproduce it...' :
                       feedbackType === 'review' ? 'Share your experience with Atlas...' :
@@ -740,7 +740,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
                       }
                       handleTabChange('feedback');
                     }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" />
                     Contact Support

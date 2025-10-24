@@ -115,7 +115,7 @@ const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <button
                 onClick={onClose}
-              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="flex-1 px-6 py-3 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors"
               >
               Start Using Atlas
               </button>

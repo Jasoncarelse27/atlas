@@ -89,7 +89,7 @@ const SimplifiedHeader: React.FC<SimplifiedHeaderProps> = ({
             } transition-colors`}
             aria-label="New conversation"
           >
-            <PlusSquare className="w-6 h-6 text-blue-400" />
+            <PlusSquare className="w-6 h-6 text-atlas-sage" />
           </button>
         </div>
       </header>
@@ -104,7 +104,7 @@ const SimplifiedHeader: React.FC<SimplifiedHeaderProps> = ({
           onClick={() => handleModeChange('text')}
           className={`flex items-center justify-center px-4 py-2 rounded-full transition-colors ${
             currentMode === 'text' 
-              ? 'bg-blue-600 text-white shadow-sm' 
+              ? 'bg-atlas-sage text-white shadow-sm' 
               : themeMode === 'light' 
                 ? 'text-gray-600 hover:text-gray-800' 
                 : 'text-gray-400 hover:text-gray-200'
@@ -118,7 +118,7 @@ const SimplifiedHeader: React.FC<SimplifiedHeaderProps> = ({
           onClick={() => handleModeChange('voice')}
           className={`flex items-center justify-center px-4 py-2 rounded-full transition-colors ${
             currentMode === 'voice' 
-              ? 'bg-blue-600 text-white shadow-sm' 
+              ? 'bg-atlas-sage text-white shadow-sm' 
               : themeMode === 'light' 
                 ? 'text-gray-600 hover:text-gray-800' 
                 : 'text-gray-400 hover:text-gray-200'
@@ -132,7 +132,7 @@ const SimplifiedHeader: React.FC<SimplifiedHeaderProps> = ({
           onClick={() => handleModeChange('image')}
           className={`flex items-center justify-center px-4 py-2 rounded-full transition-colors ${
             currentMode === 'image' 
-              ? 'bg-blue-600 text-white shadow-sm' 
+              ? 'bg-atlas-sage text-white shadow-sm' 
               : themeMode === 'light' 
                 ? 'text-gray-600 hover:text-gray-800' 
                 : 'text-gray-400 hover:text-gray-200'

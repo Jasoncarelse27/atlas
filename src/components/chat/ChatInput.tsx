@@ -96,15 +96,15 @@ export default function ChatInput({ conversationId, userId, onImageUpload }: Cha
     <div
       {...getRootProps()}
       className={`border-t border-gray-700 ${
-        isDragActive ? "bg-blue-500/20 border-blue-500" : ""
+        isDragActive ? "bg-atlas-sage/20 border-atlas-sage" : ""
       }`}
     >
       <input {...getInputProps()} />
 
       {/* Drag overlay */}
       {isDragActive && (
-        <div className="absolute inset-0 bg-blue-500/20 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center z-10">
-          <p className="text-blue-400 text-lg font-medium">
+        <div className="absolute inset-0 bg-atlas-sage/20 border-2 border-dashed border-atlas-sage rounded-lg flex items-center justify-center z-10">
+          <p className="text-atlas-sage text-lg font-medium">
             Drop files here to attach them
           </p>
         </div>
@@ -142,7 +142,7 @@ export default function ChatInput({ conversationId, userId, onImageUpload }: Cha
                   )}
                   
                   {att.file.type.includes("word") && (
-                    <div className="w-16 h-16 bg-blue-600 rounded flex items-center justify-center">
+                    <div className="w-16 h-16 bg-atlas-sage rounded flex items-center justify-center">
                       <span className="text-white text-xs">📝</span>
                     </div>
                   )}
@@ -158,7 +158,7 @@ export default function ChatInput({ conversationId, userId, onImageUpload }: Cha
                       onChange={(e) =>
                         updatePendingAttachment(att.id, { caption: e.target.value })
                       }
-                      className="w-full bg-transparent border-b border-gray-600 text-white text-sm p-1 outline-none focus:border-blue-500"
+                      className="w-full bg-transparent border-b border-gray-600 text-white text-sm p-1 outline-none focus:border-atlas-sage"
                     />
                   </div>
                 </div>
@@ -206,7 +206,7 @@ export default function ChatInput({ conversationId, userId, onImageUpload }: Cha
           <button
             onClick={handleSend}
             disabled={!text.trim() && pendingAttachments.length === 0}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-atlas-sage hover:bg-atlas-success disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
           >
             <Send className="w-4 h-4" />
             Send

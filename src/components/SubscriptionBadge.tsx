@@ -35,13 +35,13 @@ const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({
     
     switch (tier) {
       case 'free':
-        return `${baseClasses} bg-gray-100 border-gray-300 text-gray-700`;
+        return `${baseClasses} bg-atlas-sand/20 border-atlas-sand text-gray-700`;
       case 'core':
-        return `${baseClasses} bg-blue-100 border-blue-300 text-blue-700`;
+        return `${baseClasses} bg-atlas-sage/30 border-atlas-sage text-gray-800`;
       case 'studio':
-        return `${baseClasses} bg-gradient-to-r from-purple-100 to-pink-100 border-purple-300 text-purple-700`;
+        return `${baseClasses} bg-gradient-to-r from-atlas-stone/20 to-atlas-stone/30 border-atlas-stone text-atlas-stone`;
       default:
-        return `${baseClasses} bg-gray-100 border-gray-300 text-gray-700`;
+        return `${baseClasses} bg-atlas-sand/20 border-atlas-sand text-gray-700`;
     }
   };
 

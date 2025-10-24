@@ -525,7 +525,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                     <div
                       className={`w-32 h-32 rounded-full transition-all ${
                         callStatus === 'speaking' ? 'bg-emerald-500/30' :
-                        callStatus === 'thinking' ? 'bg-blue-500/30 animate-pulse' :
+                        callStatus === 'thinking' ? 'bg-atlas-sage/30 animate-pulse' :
                         callStatus === 'transcribing' ? 'bg-purple-500/30 animate-pulse' :
                         'bg-emerald-500/20'
                       }`}
@@ -536,7 +536,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   </div>
                   <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-colors ${
                     callStatus === 'speaking' ? 'bg-emerald-500' :
-                    callStatus === 'thinking' ? 'bg-blue-500' :
+                    callStatus === 'thinking' ? 'bg-atlas-sage' :
                     callStatus === 'transcribing' ? 'bg-purple-500' :
                     'bg-emerald-500'
                   }`}>
@@ -580,7 +580,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                        '✅ Clear audio!'}
                     </p>
                     {isPushToTalk && (
-                      <p className="text-blue-400 text-xs mt-1 text-center flex items-center justify-center gap-1">
+                      <p className="text-atlas-sage text-xs mt-1 text-center flex items-center justify-center gap-1">
                         {isSpacePressed ? '🎤 Recording...' : '⏸️ Hold Space to speak'}
                       </p>
                     )}
@@ -602,7 +602,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           {isCallActive && (lastTranscript || lastAIResponse) && (
             <div className="mb-6 space-y-3 max-h-32 overflow-y-auto">
               {lastTranscript && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                <div className="bg-atlas-sage/10 border border-atlas-sage/20 rounded-xl p-3">
                   <p className="text-blue-300 text-xs font-medium mb-1">You said:</p>
                   <p className="text-gray-200 text-sm">{lastTranscript}</p>
                 </div>
@@ -656,7 +656,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   onClick={togglePushToTalk}
                   className={`p-4 rounded-full transition-colors ${
                     isPushToTalk
-                      ? 'bg-blue-500 hover:bg-blue-600'
+                      ? 'bg-atlas-sage hover:bg-atlas-sage'
                       : 'bg-gray-700 hover:bg-gray-600'
                   }`}
                   title={isPushToTalk ? 'Disable push-to-talk' : 'Enable push-to-talk'}
@@ -701,7 +701,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               <p className="text-gray-400 text-xs text-center">
                 {isPushToTalk ? (
                   <>
-                    <span className="inline-block px-2 py-0.5 bg-blue-600/50 rounded mr-1">Hold Space</span> Speak • 
+                    <span className="inline-block px-2 py-0.5 bg-atlas-sage/50 rounded mr-1">Hold Space</span> Speak • 
                     <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mx-1">Esc</span> End Call
                   </>
                 ) : (
@@ -734,7 +734,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                 Atlas needs access to your microphone to have voice conversations with you.
               </p>
               
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-6">
+              <div className="bg-atlas-sage/10 border border-atlas-sage/20 rounded-lg p-4 mb-6">
                 <p className="text-blue-300 text-sm font-medium mb-2">What happens next:</p>
                 <ul className="text-gray-300 text-sm space-y-1">
                   <li>• Your browser will ask for permission</li>
@@ -793,7 +793,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   </ol>
                 </div>
                 
-                <div className="flex items-center gap-2 text-blue-400 text-sm mb-6">
+                <div className="flex items-center gap-2 text-atlas-sage text-sm mb-6">
                   <Settings className="w-4 h-4" />
                   <p>After enabling, click "Try Again" below</p>
                 </div>
