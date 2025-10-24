@@ -128,7 +128,38 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ attachments, isUser 
       {otherAttachments.length > 0 && (
         <div className="mt-3 space-y-2">
           {otherAttachments.map((att, idx) => {
-            const fileType = getFileType(att.url);
+            const fileType = getFileType(att.url) || att.type;
+            
+            // 🎙️ Special rendering for audio messages
+            if (fileType === 'audio' || att.type === 'audio') {
+              return (
+                <motion.div
+                  key={idx}
+                  className={`p-3 rounded-lg border ${
+                    isUser 
+                      ? 'bg-atlas-sage/10 border-atlas-sage/30' 
+                      : 'bg-gray-50 border-gray-200'
+                  }`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-center space-x-3 mb-2">
+                    <Music className={`w-4 h-4 ${isUser ? 'text-atlas-sage' : 'text-purple-500'}`} />
+                    <span className="text-sm font-medium text-gray-900">
+                      {att.name || 'Voice Note'}
+                    </span>
+                  </div>
+                  <audio 
+                    controls 
+                    src={att.url}
+                    className="w-full h-8"
+                    style={{ accentColor: isUser ? '#B2BDA3' : '#6B7280' }}
+                  />
+                </motion.div>
+              );
+            }
+            
             return (
               <motion.div
                 key={idx}
@@ -144,7 +175,6 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ attachments, isUser 
               >
                 <div className="flex-shrink-0 mr-3">
                   {fileType === 'video' && <Play className="w-5 h-5 text-red-500" />}
-                  {fileType === 'audio' && <Music className="w-5 h-5 text-purple-500" />}
                   {fileType === 'pdf' && <FileText className="w-5 h-5 text-red-500" />}
                   {fileType === 'file' && <FileText className="w-5 h-5 text-gray-500" />}
                 </div>

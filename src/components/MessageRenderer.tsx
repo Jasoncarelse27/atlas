@@ -34,9 +34,6 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
         ) : (
           <div className="whitespace-pre-wrap break-words">
             {message.content}
-            {isStreaming && (
-              <span className="inline-block w-2 h-5 bg-current opacity-75 animate-pulse ml-1">|</span>
-            )}
           </div>
         )}
         

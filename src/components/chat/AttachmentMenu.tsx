@@ -46,21 +46,20 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   
   // Removed useMessageStore - using onAddAttachment callback instead
 
-  // 🔹 Upload handler for images - adds to input area for caption
+  // 🔹 Upload handler for images - adds to input area for caption (single file, professional UX)
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (isUploading) {
       logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
-      return; // ✅ Prevent duplicate uploads
+      return;
     }
     
-    // ✅ BEST PRACTICE: Clear input value immediately to prevent re-triggering
     e.target.value = '';
     
     setIsUploading(true);
-    logger.debug('[AttachmentMenu] Starting image upload:', file.name);
+    logger.debug('[AttachmentMenu] Starting single file upload');
     
     try {
       toast.loading(
@@ -74,25 +73,22 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         }
       );
       
-      // Use the existing imageService for upload (now uses attachments bucket)
       const result = await imageService.uploadImage(file, userId);
       
-      logger.debug("✅ Uploaded file:", result);
+      logger.debug('✅ File uploaded successfully');
 
-      // Create attachment object for input area
-      const attachment = {
-        type: file.type.startsWith('image/') ? "image" as const : "file" as const,
-        url: result.publicUrl,
-        publicUrl: result.publicUrl, // Keep both for compatibility
-        name: file.name,
-        size: file.size,
-        file: file, // Keep original file for compatibility
-      };
-
-      // If we have the callback, add to input area instead of sending immediately
       if (onAddAttachment) {
+        const attachment = {
+          type: file.type.startsWith('image/') ? "image" as const : "file" as const,
+          url: result.publicUrl,
+          publicUrl: result.publicUrl,
+          name: file.name,
+          size: file.size,
+          file: file,
+        };
         onAddAttachment(attachment);
-        logger.debug("✅ File added to input area for caption");
+        
+        logger.debug('✅ File added to input area for caption');
         toast.dismiss('image-upload-loading');
         toast.success(
           <div className="flex flex-col">
@@ -110,26 +106,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             )
           }
         );
-          } else {
-            // Fallback to old behavior if no callback provided
-            toast.dismiss('image-upload-loading');
-            toast.success(
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-900">Upload complete</span>
-                <span className="text-xs text-gray-500">Add a caption and send</span>
-              </div>,
-              { 
-                duration: 3000,
-                icon: (
-                  <div className="w-5 h-5 rounded-full bg-[#B2BDA3] flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )
-              }
-            );
-          }
+      }
 
     } catch (err) {
       logger.error('[AttachmentMenu] Image upload failed:', err);
@@ -146,21 +123,20 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     }
   };
 
-  // 🔹 Upload handler for files - adds to input area for caption
+  // 🔹 Upload handler for files - adds to input area for caption (single file, professional UX)
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (isUploading) {
       logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
-      return; // ✅ Prevent duplicate uploads
+      return;
     }
     
-    // ✅ BEST PRACTICE: Clear input value immediately to prevent re-triggering
     e.target.value = '';
     
     setIsUploading(true);
-    logger.debug('[AttachmentMenu] Starting file upload:', file.name);
+    logger.debug('[AttachmentMenu] Starting single file upload');
     try {
       toast.loading(
         <div className="flex flex-col">
@@ -173,25 +149,22 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         }
       );
       
-      // Use the existing imageService for upload (now uses attachments bucket)
       const result = await imageService.uploadImage(file, userId);
       
-      logger.debug("✅ Uploaded file:", result);
+      logger.debug('✅ File uploaded successfully');
 
-      // Create attachment object for input area
-      const attachment = {
-        type: file.type.startsWith('image/') ? "image" as const : "file" as const,
-        url: result.publicUrl,
-        publicUrl: result.publicUrl, // Keep both for compatibility
-        name: file.name,
-        size: file.size,
-        file: file, // Keep original file for compatibility
-      };
-
-      // If we have the callback, add to input area instead of sending immediately
       if (onAddAttachment) {
+        const attachment = {
+          type: file.type.startsWith('image/') ? "image" as const : "file" as const,
+          url: result.publicUrl,
+          publicUrl: result.publicUrl,
+          name: file.name,
+          size: file.size,
+          file: file,
+        };
         onAddAttachment(attachment);
-        logger.debug("✅ File added to input area for caption");
+        
+        logger.debug('✅ File added to input area for caption');
         toast.dismiss('file-upload-loading');
         toast.success(
           <div className="flex flex-col">
@@ -209,26 +182,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             )
           }
         );
-          } else {
-            // Fallback to old behavior if no callback provided
-            toast.dismiss('file-upload-loading');
-            toast.success(
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-900">Upload complete</span>
-                <span className="text-xs text-gray-500">Add a caption and send</span>
-              </div>,
-              { 
-                duration: 3000,
-                icon: (
-                  <div className="w-5 h-5 rounded-full bg-[#B2BDA3] flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )
-              }
-            );
-          }
+      }
 
     } catch (err) {
       logger.error('[AttachmentMenu] File upload failed:', err);
@@ -444,6 +398,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                   ref={imageInputRef}
                   style={{ display: "none" }}
                   onChange={handleImageSelect}
+                  aria-label="Select images or videos from gallery"
                 />
                 <input
                   type="file"
@@ -452,6 +407,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                   ref={mobileCameraInputRef}
                   style={{ display: "none" }}
                   onChange={handleImageSelect}
+                  aria-label="Take photo with camera"
                 />
                 <input
                   type="file"
@@ -459,6 +415,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                   ref={fileInputRef}
                   style={{ display: "none" }}
                   onChange={handleFileSelect}
+                  aria-label="Select files to upload"
                 />
 
                 {/* Options - Attach File, Upload Image, and Take Photo */}
@@ -478,6 +435,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                         imageInputRef.current?.click();
                       }
                     }}
+                    aria-label="Choose photos or videos from gallery"
+                    aria-disabled={isUploading}
                   >
                     <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
                       isUploading 
@@ -517,6 +476,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                         }
                       }
                     }}
+                    aria-label="Take photo with camera"
+                    aria-disabled={isUploading}
                   >
                     <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
                       isUploading 
@@ -550,6 +511,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                         fileInputRef.current?.click();
                       }
                     }}
+                    aria-label="Attach files, documents, or PDFs"
+                    aria-disabled={isUploading}
                   >
                     <div className="flex items-center gap-2 sm:gap-3">
                       <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
@@ -575,7 +538,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                 {/* Footer */}
                 <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
                   <p className="text-gray-500 text-xs text-center">
-                    Supported formats: Images, PDFs, Audio, Documents
+                    Supported: Images, PDFs, Audio, Documents
                   </p>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Image, Loader2, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useFeatureAccess, useTierAccess } from '../../hooks/useTierAccess';
@@ -49,15 +49,26 @@ export default function EnhancedInputToolbar({
   const [text, setText] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
   const [showVoiceCall, setShowVoiceCall] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use external ref if provided, otherwise use internal ref
   const inputRef = externalInputRef || internalInputRef;
+
+  // ✅ Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, []);
 
   // ✅ Auto-focus immediately when component mounts
   useEffect(() => {
@@ -83,7 +94,7 @@ export default function EnhancedInputToolbar({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isStreaming) {
         stopMessageStream();
-        toast.success("Message cancelled");
+        modernToast.success("Message Cancelled", "Stopped AI response");
       }
     };
 
@@ -170,9 +181,9 @@ export default function EnhancedInputToolbar({
         
         // More specific error messages
         if (error instanceof Error && error.message === 'Send timeout') {
-          toast.error("Image analysis is taking longer than expected. Please try again.");
+          modernToast.error("Analysis Timeout", "Image is taking too long. Try a smaller file.");
         } else {
-          toast.error("Failed to send attachments. Please try again.");
+          modernToast.error("Upload Failed", "Could not send attachment. Please try again.");
         }
         
         // Restore attachments on error
@@ -283,9 +294,44 @@ export default function EnhancedInputToolbar({
     // The bounce animation will be handled by the motion.div
   };
 
+  // Format recording time (0:03)
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Cancel recording
+  const handleCancelRecording = () => {
+    const mediaRecorder = (window as any).__atlasMediaRecorder;
+    const stream = (window as any).__atlasMediaStream;
+    
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+    }
+    
+    if (stream) {
+      stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+    }
+    
+    // Clear timer
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+    }
+    
+    setIsListening(false);
+    setRecordingDuration(0);
+    
+    // Clean up references
+    delete (window as any).__atlasMediaRecorder;
+    delete (window as any).__atlasMediaStream;
+    
+    modernToast.warning("Recording Cancelled", "Voice note discarded");
+  };
+
   const handleMicPress = async () => {
     if (!user) {
-      toast.error('Please log in to use voice features');
+      modernToast.error('Login Required', 'Sign in to use voice features');
       return;
     }
 
@@ -298,7 +344,7 @@ export default function EnhancedInputToolbar({
     const canUse = tier === 'core' || tier === 'studio';
     
     if (!canUse) {
-      toast.error('Voice features are available in Core & Studio plans. Upgrade to unlock!');
+      modernToast.error('Upgrade Required', 'Voice features available in Core & Studio plans');
       showUpgradeModal('audio');
       return;
     }
@@ -311,6 +357,10 @@ export default function EnhancedInputToolbar({
         const mediaRecorder = new MediaRecorder(stream);
         const audioChunks: Blob[] = [];
         
+        // Store mediaRecorder reference for stopping
+        (window as any).__atlasMediaRecorder = mediaRecorder;
+        (window as any).__atlasMediaStream = stream;
+        
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             audioChunks.push(event.data);
@@ -321,13 +371,18 @@ export default function EnhancedInputToolbar({
           try {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
-            // 🎯 FUTURE-PROOF FIX: Use voiceService for transcription
+            // 🎯 Transcribe audio and send immediately (ChatGPT-style)
+            modernToast.info('Transcribing...', 'Converting speech to text');
             const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
             
-            // Set the transcribed text in the input for user to review and send
-            setText(transcript);
-            
-            toast.success('✅ Voice transcribed! Review and send.');
+            // Auto-send the transcribed message
+            if (transcript && transcript.trim()) {
+              modernToast.success('Voice Transcribed', 'Sending to Atlas...');
+              // Send immediately
+              onSendMessage(transcript);
+            } else {
+              modernToast.error('No Speech Detected', 'Please speak clearly and try again');
+            }
             
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
@@ -336,40 +391,65 @@ export default function EnhancedInputToolbar({
             if (errorMessage.includes('requires Core or Studio')) {
               showUpgradeModal('audio');
             } else {
-              toast.error(errorMessage);
+              modernToast.error('Transcription Failed', errorMessage);
             }
           } finally {
             setIsListening(false);
+            setRecordingDuration(0);
+            // Clear timer
+            if (recordingTimerRef.current) {
+              clearInterval(recordingTimerRef.current);
+            }
             // Stop all tracks
             stream.getTracks().forEach(track => track.stop());
+            // Clean up references
+            delete (window as any).__atlasMediaRecorder;
+            delete (window as any).__atlasMediaStream;
           }
         };
         
         mediaRecorder.start();
         setIsListening(true);
-        toast.success('🎙️ Recording... Speak now!');
+        setRecordingDuration(0);
+        modernToast.success('Recording Started', 'Speak clearly for best results');
+        
+        // Start timer
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingDuration(prev => prev + 1);
+        }, 1000);
         
         // Auto-stop after 30 seconds
         setTimeout(() => {
-          if (isListening && mediaRecorder.state === 'recording') {
+          if (mediaRecorder.state === 'recording') {
+            if (recordingTimerRef.current) {
+              clearInterval(recordingTimerRef.current);
+            }
             mediaRecorder.stop();
           }
         }, 30000);
         
       } catch (error) {
-        toast.error('Microphone access denied. Please allow microphone permissions.');
+        modernToast.error('Microphone Blocked', 'Allow microphone access in browser settings');
         setIsListening(false);
       }
     } else {
       // Stop recording
+      const mediaRecorder = (window as any).__atlasMediaRecorder;
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+        }
+        mediaRecorder.stop();
+        modernToast.info('Processing Audio', 'Converting to text...');
+      }
       setIsListening(false);
-      toast.success('🛑 Recording stopped. Processing...');
+      setRecordingDuration(0);
     }
   };
 
   const handleStartVoiceCall = () => {
     if (!user) {
-      toast.error('Please log in to use voice calls');
+      modernToast.error('Login Required', 'Sign in to start voice calls');
       return;
     }
 
@@ -485,6 +565,38 @@ export default function EnhancedInputToolbar({
             <span className="text-sm text-white/90 font-medium">Analyzing image...</span>
           </div>
         </div>
+      )}
+      
+      {/* 🎙️ Recording Indicator - ChatGPT Style */}
+      {isListening && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          className="absolute bottom-14 left-0 right-0 flex justify-center z-50"
+        >
+          <div className="flex items-center space-x-3 bg-red-500/95 rounded-full px-5 py-3 shadow-2xl border border-red-400/50 backdrop-blur-sm">
+            {/* Pulsing dot */}
+            <div className="relative flex items-center justify-center">
+              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+              <div className="absolute w-3 h-3 bg-white rounded-full animate-ping"></div>
+            </div>
+            
+            {/* Timer */}
+            <span className="text-white font-mono font-medium text-base">
+              {formatTime(recordingDuration)}
+            </span>
+            
+            {/* Cancel button */}
+            <button
+              onClick={handleCancelRecording}
+              className="ml-2 p-1.5 rounded-full hover:bg-white/20 transition-colors"
+              title="Cancel recording"
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </motion.div>
       )}
       
           {/* Main Input Container - Professional Atlas Style */}

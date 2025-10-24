@@ -59,8 +59,14 @@ class VoiceService {
    */
   async uploadAudio(audioBlob: Blob): Promise<AudioMetadata> {
     try {
-      // Generate unique filename
-      const filename = `recording_${Date.now()}_${generateUUID()}.webm`;
+      // Get current user for path structure
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        throw new Error('Authentication required');
+      }
+
+      // Generate unique filename with user ID prefix (required by RLS)
+      const filename = `${session.user.id}/recording_${Date.now()}_${generateUUID()}.webm`;
       
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
@@ -256,7 +262,68 @@ class VoiceService {
   }
 
   /**
+   * Upload audio without transcribing (for voice notes)
+   * Returns audio metadata for preview and sending
+   */
+  async uploadAudioOnly(audioBlob: Blob, userTier?: 'free' | 'core' | 'studio'): Promise<AudioMetadata> {
+    try {
+      // ✅ TIER ENFORCEMENT: Use centralized tier config
+      if (userTier && !canUseAudio(userTier)) {
+        throw new Error('Voice notes require Core or Studio tier. Please upgrade to continue.');
+      }
+
+      // Validate audio file
+      this.validateAudioFile(audioBlob);
+
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        throw new Error('Authentication required');
+      }
+
+      // Upload to voice-notes bucket
+      const filename = `${session.user.id}/voice_${Date.now()}_${generateUUID()}.webm`;
+      
+      const { error } = await supabase.storage
+        .from(this.STORAGE_BUCKET)
+        .upload(filename, audioBlob, {
+          contentType: audioBlob.type,
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) throw error;
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from(this.STORAGE_BUCKET)
+        .getPublicUrl(filename);
+      
+      logger.debug(`✅ [VoiceNote] Uploaded: ${urlData.publicUrl}`);
+
+      // Create metadata
+      const metadata: AudioMetadata = {
+        id: filename,
+        url: urlData.publicUrl,
+        duration: 0, // Will be set from audio element
+        size: audioBlob.size,
+        mimeType: audioBlob.type,
+        uploadedAt: new Date().toISOString(),
+      };
+      
+      return metadata;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'uploadAudioOnly',
+        timestamp: new Date().toISOString()
+      });
+      throw chatError;
+    }
+  }
+
+  /**
    * Record and upload voice note (does NOT transcribe, saves as audio file)
+   * @deprecated Use uploadAudioOnly() instead
    */
   async recordVoiceNote(
     audioBlob: Blob, 

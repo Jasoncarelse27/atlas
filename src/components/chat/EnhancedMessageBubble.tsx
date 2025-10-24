@@ -90,18 +90,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           ease: [0.4, 0, 0.2, 1],
           delay: isLatest ? 0.1 : 0
         }}
-        className={`flex items-start space-x-3 mb-6 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
+        className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
       >
-        {/* Avatar */}
-        <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            isUser
-              ? 'bg-atlas-sage text-white'
-              : 'bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] text-gray-800'
-          }`}>
-            {isUser ? <User size={16} /> : <Bot size={16} />}
-          </div>
-        </div>
+        {/* Avatar removed per user request */}
 
         {/* Message Content */}
         <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
@@ -120,7 +111,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
             {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
             {isUser && messageContent && messageContent.trim() && (
-              <div className="mt-3 text-sm italic text-gray-300">
+              <div className="mt-3 text-sm italic text-white">
                 {messageContent.replace(/^"|"$/g, '')}
               </div>
             )}
@@ -419,13 +410,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <LegacyMessageRenderer content={displayedText} />
-                  {showTypingIndicator && (
-                    <motion.span
-                      animate={{ opacity: [0, 1, 0] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="inline-block w-2 h-4 bg-current ml-1"
-                    />
-                  )}
                 </div>
                 {message.status === 'sending' && displayedText && !isUser && (
                   <StopButton 
