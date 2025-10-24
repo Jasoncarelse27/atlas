@@ -614,7 +614,7 @@ export default function EnhancedInputToolbar({
           {/* Main Input Container - Professional Atlas Style */}
           <motion.div 
             data-input-area
-            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 bg-gradient-to-r from-[#F4E8E1] via-[#F3D3B8] to-[#F4E8E1] rounded-3xl shadow-2xl"
+            className="flex items-end w-full max-w-4xl mx-auto px-3 py-2 bg-gradient-to-r from-[#F4E8E1] via-[#F3D3B8] to-[#F4E8E1] rounded-3xl shadow-2xl"
             style={{
               boxShadow: '0 8px 32px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
               borderRadius: '28px' // Extra rounded for polish
@@ -714,8 +714,8 @@ export default function EnhancedInputToolbar({
               rows={1}
             />
 
-        {/* Action Buttons */}
-        <div className="flex items-center space-x-2">
+        {/* Action Buttons - Aligned to bottom */}
+        <div className="flex items-end space-x-2 pb-1">
               {/* Mic Button */}
               <motion.button
                 onClick={handleMicPress}
