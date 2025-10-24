@@ -227,13 +227,17 @@ class MessageService {
   }
 
   /**
-   * Delete a message
+   * Delete a message (soft delete)
+   * @param deleteForEveryone - If true, marks as deleted for everyone; if false, only for current user
    */
-  async deleteMessage(messageId: string, conversationId: string): Promise<void> {
+  async deleteMessage(messageId: string, conversationId: string, deleteForEveryone: boolean = false): Promise<void> {
     try {
       const { error } = await supabase
         .from('messages')
-        .delete()
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: deleteForEveryone ? 'everyone' : 'user'
+        })
         .eq('id', messageId)
         .eq('conversation_id', conversationId);
 

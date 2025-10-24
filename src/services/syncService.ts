@@ -1,8 +1,8 @@
 import { canSyncCloud, isPaidTier } from "@/config/featureAccess";
 import { atlasDB } from "@/database/atlasDB";
 import { supabase } from "@/lib/supabaseClient";
-import { conversationSyncService } from "./conversationSyncService";
 import { logger } from '../lib/logger';
+import { conversationSyncService } from "./conversationSyncService";
 
 // 🎯 FUTURE-PROOF FIX: Define types for Supabase message schema
 type SupabaseMessage = {
@@ -73,8 +73,17 @@ export const syncService = {
             content: msg.content,
             timestamp: msg.created_at,
             synced: true,
-            updatedAt: msg.created_at
+            updatedAt: msg.created_at,
+            deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
+            deletedBy: msg.deleted_by || undefined  // ✅ PHASE 2: Sync deleted type
           })
+        } else if (msg.deleted_at && !exists.deletedAt) {
+          // ✅ PHASE 2: Update existing message if it was deleted remotely
+          logger.debug("[SYNC] Updating delete status for message:", msg.id);
+          await atlasDB.messages.update(msg.id, {
+            deletedAt: msg.deleted_at,
+            deletedBy: msg.deleted_by || 'user'
+          });
         } else {
           logger.debug("[SYNC] Message already exists, skipping:", msg.id);
         }

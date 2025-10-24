@@ -20,6 +20,8 @@ export interface Message {
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed' | 'pending' | 'error' | 'uploading' | 'done';
   deliveredAt?: string; // ✅ NEW: When message was delivered to recipient
   readAt?: string; // ✅ NEW: When message was read by recipient
+  deletedAt?: string; // ✅ PHASE 2: When message was soft deleted
+  deletedBy?: 'user' | 'everyone'; // ✅ PHASE 2: Who can't see the message
   audioUrl?: string;
   imageUrl?: string;
   // Extended file support

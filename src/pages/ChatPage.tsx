@@ -13,6 +13,7 @@ import { ProfileSettingsModal } from '../components/modals/ProfileSettingsModal'
 import VoiceUpgradeModal from '../components/modals/VoiceUpgradeModal';
 import { useUpgradeModals } from '../contexts/UpgradeModalContext';
 import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
+import { messageService } from '../features/chat/services/messageService';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 import { useTierQuery } from '../hooks/useTierQuery'; // 🔥 Use modern tier hook
@@ -113,7 +114,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .and(msg => msg.userId === userId) // ✅ CRITICAL: Filter by userId for security
+        .and(msg => msg.userId === userId && !msg.deletedAt) // ✅ CRITICAL: Filter by userId AND exclude deleted
         .sortBy("timestamp");
       
       // ✅ NOTE: Removed fallback without userId filter for security
@@ -146,14 +147,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               updatedAt: msg.created_at,
               imageUrl: msg.image_url || undefined, // ✅ Save image URL
               image_url: msg.image_url || undefined, // ✅ Support both formats
-              attachments: msg.attachments || undefined // ✅ Save attachments
+              attachments: msg.attachments || undefined, // ✅ Save attachments
+              deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
+              deletedBy: msg.deleted_by || undefined  // ✅ PHASE 2: Sync deleted type
             }))
           );
           
-          // Reload from Dexie
+          // Reload from Dexie (with deleted filter)
           storedMessages = await atlasDB.messages
             .where("conversationId")
             .equals(conversationId)
+            .and(msg => !msg.deletedAt) // ✅ Exclude deleted messages
             .sortBy("timestamp");
           
           logger.debug('[ChatPage] ✅ Synced', supabaseMessages.length, 'messages from Supabase to Dexie');
@@ -376,6 +380,52 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
+  // ✅ PHASE 2: Delete message handler (soft delete)
+  const handleDeleteMessage = async (messageId: string, deleteForEveryone: boolean) => {
+    if (!conversationId || !userId) {
+      logger.error('[ChatPage] ❌ Cannot delete message: missing conversationId or userId');
+      return;
+    }
+
+    try {
+      logger.debug('[ChatPage] 🗑️ Deleting message:', { messageId, deleteForEveryone });
+
+      // ✅ Optimistic update: Mark message as deleted in UI immediately
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              deletedAt: new Date().toISOString(),
+              deletedBy: deleteForEveryone ? 'everyone' : 'user'
+            } 
+          : msg
+      ));
+
+      // ✅ Update Dexie
+      await atlasDB.messages.update(messageId, {
+        deletedAt: new Date().toISOString(),
+        deletedBy: deleteForEveryone ? 'everyone' : 'user'
+      });
+
+      // ✅ Update Supabase (backend)
+      await messageService.deleteMessage(messageId, conversationId, deleteForEveryone);
+
+      logger.debug('[ChatPage] ✅ Message deleted successfully');
+    } catch (error) {
+      logger.error('[ChatPage] ❌ Failed to delete message:', error);
+      
+      // Revert optimistic update on error
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, deletedAt: undefined, deletedBy: undefined } 
+          : msg
+      ));
+      
+      // Show error to user
+      alert('Failed to delete message. Please try again.');
+    }
+  };
+
   // ✅ FIX: Get authenticated user with better logging
   useEffect(() => {
     const getAuthUser = async () => {
@@ -454,7 +504,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             updatedAt: newMsg.created_at,
             imageUrl: newMsg.image_url || undefined, // ✅ Save image URL
             image_url: newMsg.image_url || undefined, // ✅ Support both formats
-            attachments: newMsg.attachments || undefined // ✅ Save attachments array
+            attachments: newMsg.attachments || undefined, // ✅ Save attachments array
+            deletedAt: newMsg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
+            deletedBy: newMsg.deleted_by || undefined  // ✅ PHASE 2: Sync deleted type
           };
           
           logger.debug('[ChatPage] 🔔 Saving to Dexie:', {
@@ -495,6 +547,39 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
         } catch (error) {
           logger.error('[ChatPage] ❌ Failed to write message to Dexie:', error);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      }, async (payload) => {
+        logger.debug('[ChatPage] 🔔 Real-time UPDATE event received:', payload.new?.id);
+        const updatedMsg = payload.new;
+        
+        try {
+          // ✅ PHASE 2: Sync message updates (deletions) in real-time
+          if (updatedMsg.deleted_at) {
+            logger.debug('[ChatPage] 🗑️ Message deleted remotely, updating local:', updatedMsg.id);
+            
+            // Update Dexie
+            await atlasDB.messages.update(updatedMsg.id, {
+              deletedAt: updatedMsg.deleted_at,
+              deletedBy: updatedMsg.deleted_by || 'user'
+            });
+            
+            // Update UI state
+            setMessages(prev => prev.map(msg => 
+              msg.id === updatedMsg.id 
+                ? { ...msg, deletedAt: updatedMsg.deleted_at, deletedBy: updatedMsg.deleted_by || 'user' } 
+                : msg
+            ));
+            
+            logger.debug('[ChatPage] ✅ Message delete synced in real-time');
+          }
+        } catch (error) {
+          logger.error('[ChatPage] ❌ Failed to sync message update:', error);
         }
       })
       .subscribe((status) => {
@@ -993,6 +1078,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                             message={message}
                             isLatest={index === safeMessages.length - 1}
                             isTyping={false}
+                            onDelete={handleDeleteMessage}
                           />
                         ))}
                         

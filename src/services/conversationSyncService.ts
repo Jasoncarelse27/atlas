@@ -379,9 +379,18 @@ export class ConversationSyncService {
                 content: typeof msg.content === 'string' ? msg.content : msg.content?.text || '',
                 timestamp: msg.created_at,
                 synced: true,
-                updatedAt: msg.created_at
+                updatedAt: msg.created_at,
+                deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
+                deletedBy: msg.deleted_by || undefined  // ✅ PHASE 2: Sync delete type
               });
               logger.debug('[ConversationSync] ✅ Added missing message:', msg.id);
+            } else if (msg.deleted_at && !existingMsg.deletedAt) {
+              // ✅ PHASE 2: Update existing message if it was deleted remotely
+              await atlasDB.messages.update(msg.id, {
+                deletedAt: msg.deleted_at,
+                deletedBy: msg.deleted_by || 'user'
+              });
+              logger.debug('[ConversationSync] ✅ Synced delete status for message:', msg.id);
             }
             // Silent skip - no console spam
           }

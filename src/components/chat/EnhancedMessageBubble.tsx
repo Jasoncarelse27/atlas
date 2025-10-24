@@ -2,14 +2,16 @@ import { useTierAccess } from '@/hooks/useTierAccess';
 import { audioUsageService } from '@/services/audioUsageService';
 import { voiceService } from '@/services/voiceService';
 import { motion } from 'framer-motion';
-import { Bot, Check, Copy, Loader2, Pause, Play, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
+import { Ban, Bot, Check, Copy, Loader2, Pause, Play, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { logger } from '../../lib/logger';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
 import ImageMessageBubble from '../messages/ImageMessageBubble';
+import { DeleteMessageModal } from '../modals/DeleteMessageModal';
 import { ImageGallery } from './ImageGallery';
+import { MessageContextMenu } from './MessageContextMenu';
 import { LegacyMessageRenderer } from './MessageRenderer';
 import { StopButton } from './StopButton';
 import SystemMessage from './SystemMessage';
@@ -19,15 +21,16 @@ interface EnhancedMessageBubbleProps {
   message: Message;
   isLatest?: boolean;
   isTyping?: boolean;
+  onDelete?: (messageId: string, deleteForEveryone: boolean) => void;
 }
 
-export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false }: EnhancedMessageBubbleProps) {
+export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false, onDelete }: EnhancedMessageBubbleProps) {
   
 
   // ✅ Collect all attachments (check both locations for compatibility)
   const attachments = message.attachments || [];
   
-  // Early return if message is invalid
+  // Early return if message is invalid or deleted
   if (!message) {
     return null;
   }
@@ -52,6 +55,14 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  
+  // Context menu state
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingForEveryone, setIsDeletingForEveryone] = useState(false);
   
   const { tier, userId, loading } = useTierAccess();
 
@@ -367,17 +378,101 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // ✅ PHASE 2: Context Menu Handlers
+  const handleContextMenu = (e: React.MouseEvent) => {
+    // Only show context menu for user's own messages
+    if (!isUser) return;
+    
+    e.preventDefault();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowContextMenu(true);
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+    setShowContextMenu(false);
+  };
+
+  const handleDeleteForMe = () => {
+    if (onDelete) {
+      onDelete(message.id, false);
+      toast.success('Message deleted', { description: 'Only you can no longer see this message' });
+    }
+    setShowDeleteModal(false);
+  };
+
+  const handleDeleteForEveryone = () => {
+    if (onDelete) {
+      setIsDeletingForEveryone(true);
+      onDelete(message.id, true);
+      toast.success('Message deleted for everyone', { description: 'This message has been removed' });
+      setIsDeletingForEveryone(false);
+    }
+    setShowDeleteModal(false);
+  };
+
+  // Calculate message age in minutes
+  const messageAgeMinutes = message.timestamp 
+    ? Math.floor((Date.now() - new Date(message.timestamp).getTime()) / 1000 / 60)
+    : Infinity;
+
+  // ✅ Show deleted message placeholder
+  if (message.deletedAt) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
+      >
+        <div className={`flex-1 ${isUser ? 'max-w-[75%] flex justify-end' : 'w-full max-w-[75%]'}`}>
+          <div className={`px-4 py-3 rounded-2xl flex items-center gap-2 text-sm ${
+            isUser ? 'bg-gray-800/30 text-gray-400' : 'bg-gray-100 text-gray-500'
+          }`}>
+            <Ban className="w-4 h-4 flex-shrink-0" />
+            <span className="italic">
+              {message.deletedBy === 'everyone' ? 'This message was deleted' : 'You deleted this message'}
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ 
-        duration: 0.3,
-        ease: [0.4, 0, 0.2, 1],
-        delay: isLatest ? 0.1 : 0
-      }}
-      className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
-    >
+    <>
+      {/* Context Menu */}
+      {showContextMenu && (
+        <MessageContextMenu
+          message={message}
+          position={contextMenuPosition}
+          onClose={() => setShowContextMenu(false)}
+          onDelete={handleDeleteClick}
+          onCopy={handleCopy}
+          canDelete={isUser}
+        />
+      )}
+
+      {/* Delete Modal */}
+      <DeleteMessageModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onDeleteForMe={handleDeleteForMe}
+        onDeleteForEveryone={handleDeleteForEveryone}
+        messageAge={messageAgeMinutes}
+        isDeletingForEveryone={isDeletingForEveryone}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ 
+          duration: 0.3,
+          ease: [0.4, 0, 0.2, 1],
+          delay: isLatest ? 0.1 : 0
+        }}
+        className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
+        onContextMenu={handleContextMenu} // ✅ Right-click handler
+      >
       {/* Avatar removed per design requirements */}
       {/* <div className={`flex-shrink-0 ${isUser ? 'ml-2 sm:ml-3' : 'mr-2 sm:mr-3'}`}>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -608,5 +703,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         </motion.div>
       </div>
     </motion.div>
+    </>
   );
 }
