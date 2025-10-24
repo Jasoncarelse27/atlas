@@ -709,7 +709,7 @@ app.post('/message',
 // Legacy endpoint for backward compatibility
 app.post('/api/message', verifyJWT, async (req, res) => {
   try {
-    const { message, conversationId, model = 'claude', userTier, userId: _userIdBody, is_voice_call, context } = req.body;
+    const { message, conversationId, model = 'claude', is_voice_call, context } = req.body;
     const userId = req.user.id;
 
     if (!message || !message.trim()) {
@@ -724,19 +724,18 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       }
     }
 
-    // Determine effective tier from DB if not provided
-    let effectiveTier = userTier;
-    if (!effectiveTier) {
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', userId)
-          .single();
-        effectiveTier = profile?.subscription_tier || 'free';
-      } catch (error) {
-        effectiveTier = 'free'; // Default to free tier
-      }
+    // 🔒 SECURITY: Always fetch tier from database (never trust client)
+    let effectiveTier = 'free';
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
+      effectiveTier = profile?.subscription_tier || 'free';
+    } catch (error) {
+      logger.warn(`[Message] Failed to fetch tier for ${userId}, defaulting to free`);
+      effectiveTier = 'free'; // Fail closed: Default to free tier
     }
 
     // Enforce Free tier monthly limit (15 messages/month) - Studio/Core unlimited
