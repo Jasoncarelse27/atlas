@@ -72,6 +72,18 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   
   const { tier, userId, loading } = useTierAccess();
 
+  // Temporary forward declarations to fix "before initialization" error
+  let handleDeleteForMe: () => void;
+  let handleDeleteForEveryone: () => void;
+  let handleEditClick: () => void;
+  let handleDeleteClick: () => void;
+  let handleCopy: () => void;
+  let handleContextMenu: (e: React.MouseEvent) => void;
+  let handleTouchStart: (e: React.TouchEvent) => void;
+  let handleTouchMove: (e: React.TouchEvent) => void;
+  let handleTouchEnd: (e: React.TouchEvent) => void;
+  let messageAgeMinutes: number = 0;
+
   // Debug: Log userId availability (only when there's an issue)
   useEffect(() => {
     // Only log if userId is null AND we're not still loading (indicates real timing issue)
@@ -112,54 +124,88 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   // For attachment messages, render with custom attachment layout
   if (attachments.length > 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          duration: 0.3,
-          ease: [0.4, 0, 0.2, 1],
-          delay: isLatest ? 0.1 : 0
-        }}
-        className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
-      >
-        {/* Avatar removed per user request */}
+      <>
+        {/* Context Menu */}
+        {showContextMenu && (
+          <MessageContextMenu
+            message={message}
+            position={contextMenuPosition}
+            onClose={() => setShowContextMenu(false)}
+            onEdit={handleEditClick}
+            onDelete={handleDeleteClick}
+            onCopy={handleCopy}
+            canEdit={isUser && !message.deletedAt}
+            canDelete={isUser}
+          />
+        )}
 
-        {/* Message Content */}
-        <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
-        <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
-          isUser
-            ? 'bg-atlas-sage text-white rounded-br-md'
-            : 'bg-white/70 border border-gray-200 text-black rounded-bl-md'
-        }`}>
-            {/* 🖼️ Enhanced Image Gallery */}
-            {attachments.length > 0 && (
-              <ImageGallery 
-                attachments={attachments} 
-                isUser={isUser}
-              />
-            )}
+        {/* Delete Modal */}
+        <DeleteMessageModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onDeleteForMe={handleDeleteForMe}
+          onDeleteForEveryone={handleDeleteForEveryone}
+          messageAge={messageAgeMinutes}
+          isDeletingForEveryone={isDeletingForEveryone}
+        />
 
-            {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
-            {isUser && messageContent && messageContent.trim() && (
-              <div className="mt-3 text-sm italic text-white">
-                {messageContent.replace(/^"|"$/g, '')}
-              </div>
-            )}
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{
+            duration: 0.3,
+            ease: [0.4, 0, 0.2, 1],
+            delay: isLatest ? 0.1 : 0
+          }}
+          className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
+          onContextMenu={handleContextMenu}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Avatar removed per user request */}
 
-            {/* Timestamp */}
-            {message.timestamp && (
-              <div className={`text-xs mt-2 ${
-                isUser ? 'text-white opacity-80' : 'text-gray-400 opacity-70'
-              }`}>
-                {new Date(message.timestamp).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </div>
-            )}
+          {/* Message Content */}
+          <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
+          <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
+            isUser
+              ? 'bg-atlas-sage text-white rounded-br-md'
+              : 'bg-white/70 border border-gray-200 text-black rounded-bl-md'
+          }`}>
+              {/* 🖼️ Enhanced Image Gallery */}
+              {attachments.length > 0 && (
+                <ImageGallery 
+                  attachments={attachments} 
+                  isUser={isUser}
+                  onContextMenu={isUser ? handleContextMenu : undefined}
+                  onTouchStart={isUser ? handleTouchStart : undefined}
+                  onTouchMove={isUser ? handleTouchMove : undefined}
+                  onTouchEnd={isUser ? handleTouchEnd : undefined}
+                />
+              )}
+
+              {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
+              {isUser && messageContent && messageContent.trim() && (
+                <div className="mt-3 text-sm italic text-white">
+                  {messageContent.replace(/^"|"$/g, '')}
+                </div>
+              )}
+
+              {/* Timestamp */}
+              {message.timestamp && (
+                <div className={`text-xs mt-2 ${
+                  isUser ? 'text-white opacity-80' : 'text-gray-400 opacity-70'
+                }`}>
+                  {new Date(message.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </>
     );
   }
 
@@ -319,7 +365,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     }
   };
 
-  const handleCopy = async () => {
+  handleCopy = async () => {
     try {
       // Get the actual displayed text (what user sees)
       const textToCopy = displayedText || messageContent;
@@ -398,7 +444,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   };
 
   // ✅ PHASE 2: Context Menu Handlers
-  const handleContextMenu = (e: React.MouseEvent) => {
+  handleContextMenu = (e: React.MouseEvent) => {
     // Only show context menu for user's own messages
     if (!isUser) return;
     
@@ -412,7 +458,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   const touchStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const [isLongPressing, setIsLongPressing] = useState(false);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  handleTouchStart = (e: React.TouchEvent) => {
     // Only show context menu for user's own messages
     if (!isUser) return;
     
@@ -440,7 +486,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     }, 500); // 500ms long-press threshold
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  handleTouchMove = (e: React.TouchEvent) => {
     // Cancel long-press if user moves finger too much
     if (longPressTimerRef.current && touchStartPositionRef.current) {
       const touch = e.touches[0];
@@ -459,7 +505,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     }
   };
 
-  const handleTouchEnd = () => {
+  handleTouchEnd = () => {
     // Clear long-press timer
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
@@ -478,12 +524,12 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     };
   }, []);
 
-  const handleDeleteClick = () => {
+  handleDeleteClick = () => {
     setShowDeleteModal(true);
     setShowContextMenu(false);
   };
 
-  const handleDeleteForMe = () => {
+  handleDeleteForMe = () => {
     if (onDelete) {
       onDelete(message.id, false);
       toast.success('Message deleted', { description: 'Only you can no longer see this message' });
@@ -491,7 +537,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     setShowDeleteModal(false);
   };
 
-  const handleDeleteForEveryone = () => {
+  handleDeleteForEveryone = () => {
     if (onDelete) {
       setIsDeletingForEveryone(true);
       onDelete(message.id, true);
@@ -502,12 +548,12 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   };
 
   // Calculate message age in minutes
-  const messageAgeMinutes = message.timestamp 
+  messageAgeMinutes = message.timestamp 
     ? Math.floor((Date.now() - new Date(message.timestamp).getTime()) / 1000 / 60)
     : Infinity;
 
   // ✅ Edit handlers
-  const handleEditClick = () => {
+  handleEditClick = () => {
     setEditedContent(messageContent);
     setIsEditing(true);
     setShowContextMenu(false);

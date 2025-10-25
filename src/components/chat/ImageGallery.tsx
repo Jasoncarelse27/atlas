@@ -82,6 +82,14 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
     }
   };
 
+  const handleContextMenuWrapper = (e: React.MouseEvent) => {
+    // Prevent default to avoid browser context menu
+    e.preventDefault();
+    if (onContextMenu) {
+      onContextMenu(e);
+    }
+  };
+
   if (attachments.length === 0) return null;
 
   return (
@@ -123,7 +131,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
                       handleImageClick(idx, e);
                     }
                   }}
-                  onContextMenu={onContextMenu}
+                  onContextMenu={handleContextMenuWrapper}
                   onTouchStart={handleTouchStartWrapper}
                   onTouchMove={onTouchMove}
                   onTouchEnd={handleTouchEndWrapper}
