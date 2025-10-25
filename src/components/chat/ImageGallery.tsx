@@ -30,6 +30,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
 }) => {
   const [viewerVisible, setViewerVisible] = useState<boolean>(false);
   const [viewerIndex, setViewerIndex] = useState<number>(0);
+  const [isLongPressing, setIsLongPressing] = useState<boolean>(false);
 
   const getFileType = (url: string): string => {
     if (!url) return 'unknown';
@@ -45,6 +46,9 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   const otherAttachments = attachments.filter(att => getFileType(att.url) !== 'image');
 
   const handleImageClick = (index: number, e?: React.MouseEvent) => {
+    // Don't open viewer if user is long-pressing for context menu
+    if (isLongPressing) return;
+    
     // Only handle left-click (button 0), ignore right-click (button 2)
     if (e && e.button !== 0) return;
     
@@ -58,6 +62,24 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   const handleFileClick = (url: string) => {
     window.open(url, '_blank');
+  };
+
+  // ✅ Wrap touch handlers to track long-press state
+  const handleTouchStartWrapper = (e: React.TouchEvent) => {
+    setIsLongPressing(false);
+    if (onTouchStart) {
+      onTouchStart(e);
+      // Set flag after 400ms (before the 500ms menu trigger)
+      setTimeout(() => setIsLongPressing(true), 400);
+    }
+  };
+
+  const handleTouchEndWrapper = (e: React.TouchEvent) => {
+    // Reset after a delay to allow click handler to see the flag
+    setTimeout(() => setIsLongPressing(false), 100);
+    if (onTouchEnd) {
+      onTouchEnd(e);
+    }
   };
 
   if (attachments.length === 0) return null;
@@ -102,9 +124,9 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
                     }
                   }}
                   onContextMenu={onContextMenu}
-                  onTouchStart={onTouchStart}
+                  onTouchStart={handleTouchStartWrapper}
                   onTouchMove={onTouchMove}
-                  onTouchEnd={onTouchEnd}
+                  onTouchEnd={handleTouchEndWrapper}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.2 }}
