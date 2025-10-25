@@ -14,9 +14,20 @@ interface Attachment {
 interface ImageGalleryProps {
   attachments: Attachment[];
   isUser?: boolean;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void;
+  onTouchMove?: (e: React.TouchEvent) => void;
+  onTouchEnd?: (e: React.TouchEvent) => void;
 }
 
-export const ImageGallery: React.FC<ImageGalleryProps> = ({ attachments, isUser = false }) => {
+export const ImageGallery: React.FC<ImageGalleryProps> = ({ 
+  attachments, 
+  isUser = false,
+  onContextMenu,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd
+}) => {
   const [viewerVisible, setViewerVisible] = useState<boolean>(false);
   const [viewerIndex, setViewerIndex] = useState<number>(0);
 
@@ -90,9 +101,10 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ attachments, isUser 
                       handleImageClick(idx, e);
                     }
                   }}
-                  onContextMenu={(e) => {
-                    // CRITICAL: Don't preventDefault - let it bubble to parent for context menu
-                  }}
+                  onContextMenu={onContextMenu}
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.2 }}

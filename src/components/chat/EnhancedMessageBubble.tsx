@@ -407,6 +407,77 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     setShowContextMenu(true);
   };
 
+  // ✅ Mobile: Long-press handler for touch devices
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Only show context menu for user's own messages
+    if (!isUser) return;
+    
+    const touch = e.touches[0];
+    touchStartPositionRef.current = { x: touch.clientX, y: touch.clientY };
+    
+    // Visual feedback: Start scale animation
+    setIsLongPressing(true);
+    
+    // Start long-press timer (500ms)
+    longPressTimerRef.current = setTimeout(() => {
+      if (touchStartPositionRef.current) {
+        // Add haptic feedback if available
+        if (navigator.vibrate) {
+          navigator.vibrate(50); // Short vibration feedback
+        }
+        
+        setContextMenuPosition({ 
+          x: touchStartPositionRef.current.x, 
+          y: touchStartPositionRef.current.y 
+        });
+        setShowContextMenu(true);
+        setIsLongPressing(false);
+      }
+    }, 500); // 500ms long-press threshold
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Cancel long-press if user moves finger too much
+    if (longPressTimerRef.current && touchStartPositionRef.current) {
+      const touch = e.touches[0];
+      const moveDistance = Math.sqrt(
+        Math.pow(touch.clientX - touchStartPositionRef.current.x, 2) +
+        Math.pow(touch.clientY - touchStartPositionRef.current.y, 2)
+      );
+      
+      // Cancel if moved more than 10px
+      if (moveDistance > 10) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+        touchStartPositionRef.current = null;
+        setIsLongPressing(false);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    // Clear long-press timer
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchStartPositionRef.current = null;
+    setIsLongPressing(false);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleDeleteClick = () => {
     setShowDeleteModal(true);
     setShowContextMenu(false);
@@ -530,7 +601,10 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           delay: isLatest ? 0.1 : 0
         }}
         className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
-        onContextMenu={handleContextMenu} // ✅ Right-click handler
+        onContextMenu={handleContextMenu} // ✅ Right-click handler (desktop)
+        onTouchStart={handleTouchStart}   // ✅ Long-press start (mobile)
+        onTouchMove={handleTouchMove}     // ✅ Long-press move detection (mobile)
+        onTouchEnd={handleTouchEnd}       // ✅ Long-press end (mobile)
       >
       {/* Avatar removed per design requirements */}
       {/* <div className={`flex-shrink-0 ${isUser ? 'ml-2 sm:ml-3' : 'mr-2 sm:mr-3'}`}>
@@ -553,7 +627,11 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           }`} 
           style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
           initial={{ opacity: 0, y: isUser ? 8 : 4 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={{ 
+            opacity: 1, 
+            y: 0,
+            scale: isLongPressing ? 0.97 : 1, // ✅ Subtle scale feedback on long-press
+          }}
           transition={{ duration: isUser ? 0.2 : 0.3, ease: "easeOut" }}
         >
           {(message.status === 'sending' && (!displayedText || displayedText === '...')) || (isTyping && !isUser) ? (
@@ -616,6 +694,10 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
             <ImageGallery 
               attachments={attachments} 
               isUser={isUser}
+              onContextMenu={isUser ? handleContextMenu : undefined}
+              onTouchStart={isUser ? handleTouchStart : undefined}
+              onTouchMove={isUser ? handleTouchMove : undefined}
+              onTouchEnd={isUser ? handleTouchEnd : undefined}
             />
           )}
 

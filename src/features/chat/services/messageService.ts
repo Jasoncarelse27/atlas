@@ -258,17 +258,28 @@ class MessageService {
    */
   async editMessage(messageId: string, newContent: string, conversationId: string): Promise<void> {
     try {
+      logger.debug('[messageService] Editing message:', { messageId, conversationId, newContent });
+      
+      // ✅ TODO: Add edited_at column to messages table via migration
+      // For now, just update content and updated_at
       const { error } = await supabase
         .from('messages')
         .update({
           content: newContent,
-          edited_at: new Date().toISOString()
+          updated_at: new Date().toISOString()
+          // edited_at: new Date().toISOString() // Will add this after migration
         })
         .eq('id', messageId)
         .eq('conversation_id', conversationId);
 
-      if (error) throw error;
+      if (error) {
+        logger.error('[messageService] Supabase edit error:', error);
+        throw error;
+      }
+      
+      logger.debug('[messageService] ✅ Message edited successfully');
     } catch (error) {
+      logger.error('[messageService] Edit message failed:', error);
       const chatError = createChatError(error, {
         operation: 'editMessage',
         messageId,
