@@ -502,16 +502,16 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-gray-900/95 backdrop-blur-xl rounded-3xl p-6 sm:p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-800"
+          className="bg-[#F9F6F3] rounded-3xl p-6 sm:p-8 max-w-md w-full mx-4 shadow-2xl border border-[#E8DDD2]"
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-white">Voice Call</h2>
+            <h2 className="text-2xl font-bold text-[#3B3632]">Voice Call</h2>
             <button
               onClick={isCallActive ? endCall : onClose}
-              className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              className="p-2 rounded-lg hover:bg-[#F0E6DC] transition-colors"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5 text-[#8B7E74]" />
             </button>
           </div>
 
@@ -524,10 +524,10 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div
                       className={`w-32 h-32 rounded-full transition-all ${
-                        callStatus === 'speaking' ? 'bg-emerald-500/30' :
-                        callStatus === 'thinking' ? 'bg-atlas-sage/30 animate-pulse' :
-                        callStatus === 'transcribing' ? 'bg-purple-500/30 animate-pulse' :
-                        'bg-emerald-500/20'
+                        callStatus === 'speaking' ? 'bg-[#8FA67E]/30' :
+                        callStatus === 'thinking' ? 'bg-[#B8A5D6]/30 animate-pulse' :
+                        callStatus === 'transcribing' ? 'bg-[#C6D4B0]/30 animate-pulse' :
+                        'bg-[#8FA67E]/20'
                       }`}
                       style={{
                         transform: callStatus === 'listening' ? `scale(${1 + audioLevel * 0.5})` : 'scale(1.1)',
@@ -535,52 +535,52 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                     />
                   </div>
                   <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-colors ${
-                    callStatus === 'speaking' ? 'bg-emerald-500' :
-                    callStatus === 'thinking' ? 'bg-atlas-sage' :
-                    callStatus === 'transcribing' ? 'bg-purple-500' :
-                    'bg-emerald-500'
+                    callStatus === 'speaking' ? 'bg-[#8FA67E]' :
+                    callStatus === 'thinking' ? 'bg-[#B8A5D6]' :
+                    callStatus === 'transcribing' ? 'bg-[#C6D4B0]' :
+                    'bg-[#8FA67E]'
                   }`}>
                     <Phone className="w-12 h-12 text-white" />
                   </div>
                 </div>
-                <p className="text-lg font-medium mb-2 text-emerald-400">
+                <p className="text-lg font-medium mb-2 text-[#8FA67E]">
                   Voice Call Active
                 </p>
-                <p className="text-gray-400 text-3xl font-mono">{formatDuration(callDuration)}</p>
+                <p className="text-[#5A524A] text-3xl font-mono">{formatDuration(callDuration)}</p>
                 {(tierFeatures[tier] as any).voiceCallMaxDuration === -1 && (
-                  <p className="text-gray-500 text-sm mt-2">Unlimited</p>
+                  <p className="text-[#8B7E74] text-sm mt-2">Unlimited</p>
                 )}
                 
                 {/* Microphone Level Indicator - ChatGPT Style */}
                 {callStatus === 'listening' && (
                   <div className="mt-4 w-full max-w-xs mx-auto">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-gray-400 text-xs">Mic Level:</p>
+                      <p className="text-[#8B7E74] text-xs">Mic Level:</p>
                       <p className={`text-xs font-medium ${
-                        micLevel > 30 ? 'text-emerald-400' : 
-                        micLevel > 10 ? 'text-yellow-400' : 
-                        'text-gray-500'
+                        micLevel > 30 ? 'text-[#8FA67E]' : 
+                        micLevel > 10 ? 'text-[#F3B562]' : 
+                        'text-[#B8A9A0]'
                       }`}>
                         {micLevel}%
                       </p>
                     </div>
-                    <div className="w-full h-2 bg-gray-700/50 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#E8DDD2] rounded-full overflow-hidden">
                       <div 
                         className={`h-full transition-all duration-100 ${
-                          micLevel > 30 ? 'bg-emerald-500' :
-                          micLevel > 10 ? 'bg-yellow-500' :
-                          'bg-gray-600'
+                          micLevel > 30 ? 'bg-[#8FA67E]' :
+                          micLevel > 10 ? 'bg-[#F3B562]' :
+                          'bg-[#B8A9A0]'
                         }`}
                         style={{ width: `${micLevel}%` }}
                       />
                     </div>
-                    <p className="text-gray-500 text-xs mt-1 text-center">
+                    <p className="text-[#8B7E74] text-xs mt-1 text-center">
                       {micLevel < 10 ? '🤫 Speak to be heard' : 
                        micLevel < 30 ? '🎤 Speaking...' : 
                        '✅ Clear audio!'}
                     </p>
                     {isPushToTalk && (
-                      <p className="text-atlas-sage text-xs mt-1 text-center flex items-center justify-center gap-1">
+                      <p className="text-[#8FA67E] text-xs mt-1 text-center flex items-center justify-center gap-1">
                         {isSpacePressed ? '🎤 Recording...' : '⏸️ Hold Space to speak'}
                       </p>
                     )}
@@ -589,11 +589,11 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               </>
             ) : (
               <>
-                <div className="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-4">
-                  <Phone className="w-12 h-12 text-gray-400" />
+                <div className="w-24 h-24 rounded-full bg-[#F0E6DC] flex items-center justify-center mx-auto mb-4">
+                  <Phone className="w-12 h-12 text-[#8B7E74]" />
                 </div>
-                <p className="text-gray-400 text-lg">Ready to start voice call</p>
-                <p className="text-gray-500 text-sm mt-2">Studio tier exclusive feature</p>
+                <p className="text-[#5A524A] text-lg">Ready to start voice call</p>
+                <p className="text-[#8B7E74] text-sm mt-2">Studio tier exclusive feature</p>
               </>
             )}
           </div>
@@ -602,15 +602,15 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           {isCallActive && (lastTranscript || lastAIResponse) && (
             <div className="mb-6 space-y-3 max-h-32 overflow-y-auto">
               {lastTranscript && (
-                <div className="bg-atlas-sage/10 border border-atlas-sage/20 rounded-xl p-3">
-                  <p className="text-blue-300 text-xs font-medium mb-1">You said:</p>
-                  <p className="text-gray-200 text-sm">{lastTranscript}</p>
+                <div className="bg-[#C6D4B0]/20 border border-[#C6D4B0]/40 rounded-xl p-3">
+                  <p className="text-[#8FA67E] text-xs font-medium mb-1">You said:</p>
+                  <p className="text-[#3B3632] text-sm">{lastTranscript}</p>
                 </div>
               )}
               {lastAIResponse && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-                  <p className="text-emerald-300 text-xs font-medium mb-1">Atlas:</p>
-                  <p className="text-gray-200 text-sm">{lastAIResponse}</p>
+                <div className="bg-[#B8A5D6]/20 border border-[#B8A5D6]/40 rounded-xl p-3">
+                  <p className="text-[#8B7AB8] text-xs font-medium mb-1">Atlas:</p>
+                  <p className="text-[#3B3632] text-sm">{lastAIResponse}</p>
                 </div>
               )}
             </div>
@@ -627,17 +627,17 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   disabled={isPushToTalk}
                   className={`p-4 rounded-full transition-colors ${
                     isMuted
-                      ? 'bg-red-500 hover:bg-red-600'
+                      ? 'bg-[#CF9A96] hover:bg-[#C18A86]'
                       : isPushToTalk
-                      ? 'bg-gray-800 cursor-not-allowed'
-                      : 'bg-gray-700 hover:bg-gray-600'
+                      ? 'bg-[#E8DDD2] cursor-not-allowed'
+                      : 'bg-[#F0E6DC] hover:bg-[#E8DDD2]'
                   }`}
                   title={isPushToTalk ? 'Disabled in push-to-talk mode' : (isMuted ? 'Unmute' : 'Mute')}
                 >
                   {isMuted ? (
                     <MicOff className="w-6 h-6 text-white" />
                   ) : (
-                    <Mic className="w-6 h-6 text-white" />
+                    <Mic className="w-6 h-6 text-[#5A524A]" />
                   )}
                 </motion.button>
 
@@ -645,7 +645,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={endCall}
-                  className="p-6 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
+                  className="p-6 rounded-full bg-[#CF9A96] hover:bg-[#C18A86] transition-colors"
                 >
                   <PhoneOff className="w-8 h-8 text-white" />
                 </motion.button>
@@ -656,12 +656,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   onClick={togglePushToTalk}
                   className={`p-4 rounded-full transition-colors ${
                     isPushToTalk
-                      ? 'bg-atlas-sage hover:bg-atlas-sage'
-                      : 'bg-gray-700 hover:bg-gray-600'
+                      ? 'bg-[#8FA67E] hover:bg-[#7E9570]'
+                      : 'bg-[#F0E6DC] hover:bg-[#E8DDD2]'
                   }`}
                   title={isPushToTalk ? 'Disable push-to-talk' : 'Enable push-to-talk'}
                 >
-                  <Volume2 className={`w-6 h-6 ${isPushToTalk ? 'text-white' : 'text-gray-400'}`} />
+                  <Volume2 className={`w-6 h-6 ${isPushToTalk ? 'text-white' : 'text-[#8B7E74]'}`} />
                 </motion.button>
               </>
             ) : (
@@ -672,8 +672,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                 disabled={tier !== 'studio'}
                 className={`px-8 py-4 rounded-full font-medium transition-colors ${
                   tier === 'studio'
-                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white'
+                    : 'bg-[#E8DDD2] text-[#B8A9A0] cursor-not-allowed'
                 }`}
               >
                 {tier === 'studio' ? 'Start Voice Call' : 'Studio Tier Required'}
@@ -683,9 +683,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
 
           {/* Features Info */}
           {!isCallActive && (
-            <div className="mt-8 p-4 bg-gray-800/50 rounded-xl">
-              <p className="text-gray-300 text-sm mb-2">🎙️ Atlas Voice Features:</p>
-              <ul className="text-gray-400 text-xs space-y-1">
+            <div className="mt-8 p-4 bg-[#F0E6DC]/50 rounded-xl border border-[#E8DDD2]">
+              <p className="text-[#5A524A] text-sm mb-2 font-medium">🎙️ Atlas Voice Features:</p>
+              <ul className="text-[#8B7E74] text-xs space-y-1">
                 <li>• Real-time voice conversation</li>
                 <li>• Instant response when you stop speaking</li>
                 <li>• Push-to-talk mode (hold Space to speak)</li>
@@ -697,17 +697,17 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
 
           {/* Keyboard Shortcuts */}
           {isCallActive && (
-            <div className="mt-6 p-3 bg-gray-800/30 rounded-xl">
-              <p className="text-gray-400 text-xs text-center">
+            <div className="mt-6 p-3 bg-[#F0E6DC]/50 rounded-xl border border-[#E8DDD2]">
+              <p className="text-[#8B7E74] text-xs text-center">
                 {isPushToTalk ? (
                   <>
-                    <span className="inline-block px-2 py-0.5 bg-atlas-sage/50 rounded mr-1">Hold Space</span> Speak • 
-                    <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mx-1">Esc</span> End Call
+                    <span className="inline-block px-2 py-0.5 bg-[#8FA67E]/50 rounded mr-1 text-white">Hold Space</span> Speak • 
+                    <span className="inline-block px-2 py-0.5 bg-[#E8DDD2] rounded mx-1 text-[#5A524A]">Esc</span> End Call
                   </>
                 ) : (
                   <>
-                    <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mr-1">Space</span> Mute • 
-                    <span className="inline-block px-2 py-0.5 bg-gray-700/50 rounded mx-1">Esc</span> End Call
+                    <span className="inline-block px-2 py-0.5 bg-[#E8DDD2] rounded mr-1 text-[#5A524A]">Space</span> Mute • 
+                    <span className="inline-block px-2 py-0.5 bg-[#E8DDD2] rounded mx-1 text-[#5A524A]">Esc</span> End Call
                   </>
                 )}
               </p>
@@ -722,21 +722,21 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             className="absolute inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           >
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-emerald-500/30 shadow-2xl">
+            <div className="bg-[#F9F6F3] rounded-2xl p-6 max-w-md w-full border border-[#8FA67E]/30 shadow-2xl">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-emerald-500/20 rounded-full">
-                  <Mic className="w-6 h-6 text-emerald-400" />
+                <div className="p-3 bg-[#8FA67E]/20 rounded-full">
+                  <Mic className="w-6 h-6 text-[#8FA67E]" />
                 </div>
-                <h3 className="text-xl font-semibold text-white">Microphone Access Needed</h3>
+                <h3 className="text-xl font-semibold text-[#3B3632]">Microphone Access Needed</h3>
               </div>
               
-              <p className="text-gray-300 mb-4">
+              <p className="text-[#5A524A] mb-4">
                 Atlas needs access to your microphone to have voice conversations with you.
               </p>
               
-              <div className="bg-atlas-sage/10 border border-atlas-sage/20 rounded-lg p-4 mb-6">
-                <p className="text-blue-300 text-sm font-medium mb-2">What happens next:</p>
-                <ul className="text-gray-300 text-sm space-y-1">
+              <div className="bg-[#C6D4B0]/20 border border-[#C6D4B0]/40 rounded-lg p-4 mb-6">
+                <p className="text-[#8FA67E] text-sm font-medium mb-2">What happens next:</p>
+                <ul className="text-[#5A524A] text-sm space-y-1">
                   <li>• Your browser will ask for permission</li>
                   <li>• Click "Allow" to start the call</li>
                   <li>• Your audio stays private and secure</li>
@@ -746,13 +746,13 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowPermissionModal(false)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+                  className="flex-1 px-4 py-3 rounded-xl bg-[#E8DDD2] hover:bg-[#DFC9B6] text-[#5A524A] font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleRequestPermission}
-                  className="flex-1 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors"
+                  className="flex-1 px-4 py-3 rounded-xl bg-[#8FA67E] hover:bg-[#7E9570] text-white font-medium transition-colors"
                 >
                   Allow Microphone
                 </button>
@@ -770,30 +770,30 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               animate={{ opacity: 1, scale: 1 }}
               className="absolute inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
             >
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-red-500/30 shadow-2xl">
+              <div className="bg-[#F9F6F3] rounded-2xl p-6 max-w-md w-full border border-[#CF9A96]/30 shadow-2xl">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 bg-red-500/20 rounded-full">
-                    <AlertTriangle className="w-6 h-6 text-red-400" />
+                  <div className="p-3 bg-[#CF9A96]/20 rounded-full">
+                    <AlertTriangle className="w-6 h-6 text-[#CF9A96]" />
                   </div>
-                  <h3 className="text-xl font-semibold text-white">Microphone Access Denied</h3>
+                  <h3 className="text-xl font-semibold text-[#3B3632]">Microphone Access Denied</h3>
                 </div>
                 
-                <p className="text-gray-300 mb-4">
+                <p className="text-[#5A524A] mb-4">
                   Voice calls require microphone access. Here's how to enable it in <strong>{platform}</strong>:
                 </p>
                 
-                <div className="bg-gray-800/50 rounded-lg p-4 mb-6">
-                  <ol className="text-gray-300 text-sm space-y-2">
+                <div className="bg-[#F0E6DC] rounded-lg p-4 mb-6">
+                  <ol className="text-[#5A524A] text-sm space-y-2">
                     {steps.map((step, index) => (
                       <li key={index} className="flex gap-2">
-                        <span className="text-emerald-400 font-semibold">{index + 1}.</span>
+                        <span className="text-[#8FA67E] font-semibold">{index + 1}.</span>
                         <span>{step}</span>
                       </li>
                     ))}
                   </ol>
                 </div>
                 
-                <div className="flex items-center gap-2 text-atlas-sage text-sm mb-6">
+                <div className="flex items-center gap-2 text-[#8FA67E] text-sm mb-6">
                   <Settings className="w-4 h-4" />
                   <p>After enabling, click "Try Again" below</p>
                 </div>
@@ -801,13 +801,13 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowRecoveryModal(false)}
-                    className="flex-1 px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+                    className="flex-1 px-4 py-3 rounded-xl bg-[#E8DDD2] hover:bg-[#DFC9B6] text-[#5A524A] font-medium transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleRetryPermission}
-                    className="flex-1 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors"
+                    className="flex-1 px-4 py-3 rounded-xl bg-[#8FA67E] hover:bg-[#7E9570] text-white font-medium transition-colors"
                   >
                     Try Again
                   </button>
@@ -824,35 +824,35 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             className="absolute inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           >
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-yellow-500/30 shadow-2xl">
+            <div className="bg-[#F9F6F3] rounded-2xl p-6 max-w-md w-full border border-[#F3B562]/30 shadow-2xl">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-yellow-500/20 rounded-full">
-                  <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                <div className="p-3 bg-[#F3B562]/20 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-[#F3B562]" />
                 </div>
-                <h3 className="text-xl font-semibold text-white">HTTPS Required</h3>
+                <h3 className="text-xl font-semibold text-[#3B3632]">HTTPS Required</h3>
               </div>
               
-              <p className="text-gray-300 mb-4">
+              <p className="text-[#5A524A] mb-4">
                 iOS Safari requires a secure connection (HTTPS) for microphone access on non-localhost URLs.
               </p>
               
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
-                <p className="text-yellow-300 text-sm font-medium mb-2">Solutions:</p>
-                <ul className="text-gray-300 text-sm space-y-1">
-                  <li>• Use <code className="bg-gray-700 px-1 rounded">localhost</code> instead of <code className="bg-gray-700 px-1 rounded">{window.location.hostname}</code></li>
+              <div className="bg-[#F3B562]/10 border border-[#F3B562]/20 rounded-lg p-4 mb-6">
+                <p className="text-[#F3B562] text-sm font-medium mb-2">Solutions:</p>
+                <ul className="text-[#5A524A] text-sm space-y-1">
+                  <li>• Use <code className="bg-[#E8DDD2] px-1 rounded">{window.location.hostname}</code></li>
                   <li>• Set up HTTPS for local development</li>
                   <li>• Use Atlas on desktop for testing</li>
                 </ul>
               </div>
               
-              <div className="flex items-center gap-2 text-gray-400 text-xs mb-6">
+              <div className="flex items-center gap-2 text-[#8B7E74] text-xs mb-6">
                 <CheckCircle className="w-4 h-4" />
                 <p>This is a browser security requirement, not an Atlas limitation</p>
               </div>
               
               <button
                 onClick={() => setShowHTTPSWarning(false)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+                className="w-full px-4 py-3 rounded-xl bg-[#E8DDD2] hover:bg-[#DFC9B6] text-[#5A524A] font-medium transition-colors"
               >
                 Got It
               </button>
