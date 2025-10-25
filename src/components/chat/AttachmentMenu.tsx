@@ -49,13 +49,31 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   
   // Removed useMessageStore - using onAddAttachment callback instead
 
-  // 🔹 Upload handler for images - adds to input area for caption (single file, professional UX)
+  // 🔹 Upload handler for images from gallery - adds to input area for caption
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (isUploading) {
       logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
+      return;
+    }
+    
+    e.target.value = '';
+    
+    // Clear any previous failed upload
+    setFailedUpload(null);
+    
+    await uploadImage(file);
+  };
+  
+  // 🔹 Separate handler for camera capture to prevent duplicate uploads
+  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (isUploading) {
+      logger.debug('[AttachmentMenu] Camera upload already in progress, ignoring duplicate');
       return;
     }
     
@@ -465,7 +483,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                   capture="environment"
                   ref={mobileCameraInputRef}
                   style={{ display: "none" }}
-                  onChange={handleImageSelect}
+                  onChange={handleCameraCapture}
                   aria-label="Take photo with camera"
                 />
                 <input

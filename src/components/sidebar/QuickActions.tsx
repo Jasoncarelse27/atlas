@@ -159,9 +159,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
 
       logger.debug('[QuickActions] Loading conversations for user:', user.id);
       
-      await refreshConversationList();
+      // ✅ FIX: Always force refresh to ensure mobile and web show same data
+      await refreshConversationList(true);
       
-      logger.debug('[QuickActions] ✅ View History loaded instantly - background sync keeps data fresh');
+      logger.debug('[QuickActions] ✅ View History loaded with latest data');
     } catch (err) {
       logger.error('[QuickActions] Failed to load history:', err);
     } finally {
