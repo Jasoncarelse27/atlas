@@ -661,10 +661,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <div className="flex-1" style={{ marginTop: 0, marginBottom: 0 }}>
-                  <div className="[&>div]:my-0 [&>div>*]:my-0">
-                    <LegacyMessageRenderer content={displayedText} />
-                  </div>
+                <div className="flex-1 [&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0">
+                  <LegacyMessageRenderer content={displayedText} />
                 </div>
                 {message.status === 'sending' && displayedText && !isUser && (
                   <StopButton 
