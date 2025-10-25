@@ -154,7 +154,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-atlas-pearl shadow-xl z-50 flex flex-col"
+            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-gradient-to-b from-white to-atlas-pearl/30 shadow-2xl z-50 flex flex-col"
             style={{ filter: 'none', backdropFilter: 'none' }}
           >
             {/* Header */}
@@ -206,43 +206,43 @@ const SideMenu: React.FC<SideMenuProps> = ({
               )}
               
               {/* Mode Selection */}
-              <div className="p-4 border-b border-atlas-sand/30">
+              <div className="p-4 border-b border-atlas-sand/20">
                 <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Mode</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleModeChange('text')}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                       currentMode === 'text' 
-                        ? 'bg-atlas-sage/20 text-atlas-stone border border-atlas-sage/30' 
-                        : 'text-atlas-stone/70 hover:bg-atlas-sand/30 border border-transparent'
+                        ? 'bg-atlas-sage/25 text-atlas-stone border border-atlas-sage/40 shadow-sm' 
+                        : 'text-atlas-stone/70 hover:bg-atlas-sand/20 border border-transparent'
                     }`}
                   >
                     <MessageSquare className="w-5 h-5" />
-                    <span>Text Mode</span>
+                    <span className="font-medium">Text Mode</span>
                   </button>
                   
                   <button
                     onClick={() => handleModeChange('voice')}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                       currentMode === 'voice' 
-                        ? 'bg-atlas-sage/20 text-atlas-stone border border-atlas-sage/30' 
-                        : 'text-atlas-stone/70 hover:bg-atlas-sand/30 border border-transparent'
+                        ? 'bg-atlas-sage/25 text-atlas-stone border border-atlas-sage/40 shadow-sm' 
+                        : 'text-atlas-stone/70 hover:bg-atlas-sand/20 border border-transparent'
                     }`}
                   >
                     <Headphones className="w-5 h-5" />
-                    <span>Voice Mode</span>
+                    <span className="font-medium">Voice Mode</span>
                   </button>
                   
                   <button
                     onClick={() => handleModeChange('image')}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                       currentMode === 'image' 
-                        ? 'bg-atlas-sage/20 text-atlas-stone border border-atlas-sage/30' 
-                        : 'text-atlas-stone/70 hover:bg-atlas-sand/30 border border-transparent'
+                        ? 'bg-atlas-sage/25 text-atlas-stone border border-atlas-sage/40 shadow-sm' 
+                        : 'text-atlas-stone/70 hover:bg-atlas-sand/20 border border-transparent'
                     }`}
                   >
                     <ImageIcon className="w-5 h-5" />
-                    <span>Image Mode</span>
+                    <span className="font-medium">Image Mode</span>
                   </button>
                 </div>
               </div>
@@ -331,39 +331,47 @@ const SideMenu: React.FC<SideMenuProps> = ({
               )}
               
               {/* Quick Actions */}
-              <div className="p-4 border-b border-atlas-sand/30">
+              <div className="p-4 border-b border-atlas-sand/20">
                 <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Actions</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleAction(onShowConversationHistory)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-peach/20 hover:bg-atlas-peach/30 transition-colors"
                   >
-                    <History className="w-5 h-5" />
-                    <span>Conversation History</span>
+                    <div className="w-8 h-8 rounded-full bg-atlas-peach/40 flex items-center justify-center">
+                      <History className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">Conversation History</span>
                   </button>
                   
                   <button
                     onClick={() => handleAction(onShowWidgets)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-sand/30 hover:bg-atlas-sand/40 transition-colors"
                   >
-                    <Grid3X3 className="w-5 h-5" />
-                    <span>Widget Dashboard</span>
+                    <div className="w-8 h-8 rounded-full bg-atlas-sand/50 flex items-center justify-center">
+                      <Grid3X3 className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">Widget Dashboard</span>
                   </button>
                   
                   <button
                     onClick={() => handleAction(onShowControlCenter)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-sand/30 hover:bg-atlas-sand/40 transition-colors"
                   >
-                    <Settings className="w-5 h-5" />
-                    <span>Control Center</span>
+                    <div className="w-8 h-8 rounded-full bg-atlas-sand/50 flex items-center justify-center">
+                      <Settings className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">Control Center</span>
                   </button>
                   
                   <button
                     onClick={() => handleAction(onShowHelp)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-sand/30 hover:bg-atlas-sand/40 transition-colors"
                   >
-                    <HelpCircle className="w-5 h-5" />
-                    <span>Help & Tips</span>
+                    <div className="w-8 h-8 rounded-full bg-atlas-sand/50 flex items-center justify-center">
+                      <HelpCircle className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">Help & Tips</span>
                   </button>
                 </div>
               </div>
