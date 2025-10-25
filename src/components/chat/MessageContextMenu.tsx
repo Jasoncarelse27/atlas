@@ -63,19 +63,19 @@ export function MessageContextMenu({
       icon: Edit3,
       label: 'Edit',
       onClick: onEdit,
-      className: 'text-blue-400 hover:bg-blue-400/10',
+      className: 'text-[#8FA67E] hover:bg-[#8FA67E]/10',
     }] : []),
     ...(onCopy ? [{
       icon: Copy,
       label: 'Copy',
       onClick: onCopy,
-      className: 'text-gray-300 hover:bg-gray-700',
+      className: 'text-[#5A524A] hover:bg-[#E8DDD2]',
     }] : []),
     ...(canDelete && onDelete ? [{
       icon: Trash2,
       label: 'Delete',
       onClick: onDelete,
-      className: 'text-red-400 hover:bg-red-400/10',
+      className: 'text-[#A67571] hover:bg-[#CF9A96]/10',
     }] : []),
   ];
 
@@ -97,7 +97,7 @@ export function MessageContextMenu({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.15 }}
-        className="fixed z-[100] bg-gray-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-700 overflow-hidden"
+        className="fixed z-[100] bg-[#F9F6F3] backdrop-blur-xl rounded-xl shadow-2xl border border-[#E8DDD2] overflow-hidden"
         style={{
           left: `${adjustedPosition.x}px`,
           top: `${adjustedPosition.y}px`,
@@ -117,7 +117,7 @@ export function MessageContextMenu({
               w-full flex items-center gap-3 px-4 py-3
               transition-colors duration-150
               ${item.className}
-              ${index > 0 ? 'border-t border-gray-800' : ''}
+              ${index > 0 ? 'border-t border-[#E8DDD2]/50' : ''}
             `}
           >
             <item.icon className="w-4 h-4" />

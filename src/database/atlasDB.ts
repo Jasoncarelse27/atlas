@@ -22,6 +22,9 @@ export interface Message {
   imageUrl?: string           // Add image URL support
   image_url?: string          // Support both snake_case and camelCase
   attachments?: Array<{ type: string; url: string }>  // Support attachments array
+  deletedAt?: string          // Soft delete support
+  deletedBy?: 'user' | 'everyone' // Who can't see the message
+  editedAt?: string           // Message edit timestamp
 }
 
 export interface SyncMetadata {
@@ -36,7 +39,7 @@ export class AtlasDB extends Dexie {
   syncMetadata!: Table<SyncMetadata, string>
 
   constructor() {
-    super("AtlasDB_v8") // ✅ Version 8: Bundle fix - force fresh build
+    super("AtlasDB_v9") // ✅ Version 9: Add edit/delete support
     
     // ✅ MOBILE FIX: Add error handling for mobile Safari
     this.on('close', () => {
@@ -89,6 +92,26 @@ export class AtlasDB extends Dexie {
     }).upgrade(() => {
       // No data migration needed - just schema extension
       logger.debug('[AtlasDB] ✅ Upgraded to v7: Image support added');
+      return Promise.resolve();
+    })
+
+    // Version 8: Bundle fix - force fresh build
+    this.version(8).stores({
+      conversations: "id, userId, title, createdAt, updatedAt",
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt, image_url",
+      syncMetadata: "userId, lastSyncedAt, syncVersion"
+    }).upgrade(() => {
+      logger.debug('[AtlasDB] ✅ Upgraded to v8: Bundle fix');
+      return Promise.resolve();
+    })
+
+    // Version 9: Add edit/delete support
+    this.version(9).stores({
+      conversations: "id, userId, title, createdAt, updatedAt",
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt, image_url, deletedAt, editedAt",
+      syncMetadata: "userId, lastSyncedAt, syncVersion"
+    }).upgrade(() => {
+      logger.debug('[AtlasDB] ✅ Upgraded to v9: Edit and delete support added');
       return Promise.resolve();
     })
   }

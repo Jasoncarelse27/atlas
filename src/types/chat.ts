@@ -22,6 +22,7 @@ export interface Message {
   readAt?: string; // ✅ NEW: When message was read by recipient
   deletedAt?: string; // ✅ PHASE 2: When message was soft deleted
   deletedBy?: 'user' | 'everyone'; // ✅ PHASE 2: Who can't see the message
+  editedAt?: string; // ✅ NEW: When message was edited
   audioUrl?: string;
   imageUrl?: string;
   // Extended file support

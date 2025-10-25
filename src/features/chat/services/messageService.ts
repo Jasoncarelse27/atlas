@@ -254,6 +254,32 @@ class MessageService {
   }
 
   /**
+   * Edit a message
+   */
+  async editMessage(messageId: string, newContent: string, conversationId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({
+          content: newContent,
+          edited_at: new Date().toISOString()
+        })
+        .eq('id', messageId)
+        .eq('conversation_id', conversationId);
+
+      if (error) throw error;
+    } catch (error) {
+      const chatError = createChatError(error, {
+        operation: 'editMessage',
+        messageId,
+        conversationId,
+        timestamp: new Date().toISOString(),
+      });
+      throw chatError;
+    }
+  }
+
+  /**
    * Retry a failed message
    */
   async retryMessage(messageId: string, conversationId: string): Promise<MediaMessage> {
