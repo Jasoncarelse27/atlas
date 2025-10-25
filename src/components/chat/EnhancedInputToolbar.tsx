@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CheckCircle2, Image, Loader2, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
@@ -501,6 +501,12 @@ export default function EnhancedInputToolbar({
       {/* ✅ Modernized Attachment Previews */}
       {attachmentPreviews.length > 0 && (
         <div className="mb-3 max-w-4xl mx-auto">
+          {/* Subtle Hint */}
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs text-gray-400">Add an optional caption below</span>
+          </div>
+          
           <div className="flex flex-wrap gap-2">
             {attachmentPreviews.map((attachment) => {
               const status = uploadStatus[attachment.id] || 'uploading';
@@ -703,7 +709,7 @@ export default function EnhancedInputToolbar({
               }}
               onBlur={handleInputBlur}
               onFocus={handleInputFocus}
-              placeholder={attachmentPreviews.length > 0 ? "💡 Add a caption and press Enter to send..." : placeholder}
+              placeholder={attachmentPreviews.length > 0 ? "Add a caption (optional)..." : placeholder}
               className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D3DCAB] border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
               style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
               disabled={isProcessing || disabled}
