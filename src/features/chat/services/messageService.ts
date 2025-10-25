@@ -1,7 +1,7 @@
 import { supabase } from '../../../lib/supabaseClient';
 import type { Message } from '../../../types/chat';
 import { createChatError } from '../lib/errorHandler';
-import { logger } from '../../../utils/logger';
+import { logger } from '../../../lib/logger';
 
 // Extended message types for media support
 export interface MediaMessage extends Message {
