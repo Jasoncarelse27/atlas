@@ -121,6 +121,17 @@ export default function EnhancedInputToolbar({
     const currentText = text.trim();
     const currentAttachments = [...attachmentPreviews];
     
+    // ✅ DEBUG: Log attachment details for mobile debugging
+    if (currentAttachments.length > 0) {
+      logger.debug('[EnhancedInputToolbar] 📎 Sending attachments:', {
+        count: currentAttachments.length,
+        hasFile: currentAttachments.map(att => !!att.file),
+        hasUrl: currentAttachments.map(att => !!(att.url || att.publicUrl)),
+        ids: currentAttachments.map(att => att.id),
+        types: currentAttachments.map(att => att.type)
+      });
+    }
+    
     // Clear UI immediately for instant feedback
     setAttachmentPreviews([]);
     setText('');
@@ -133,6 +144,7 @@ export default function EnhancedInputToolbar({
     // 🎯 FUTURE-PROOF FIX: Send attachments even without conversationId (backend will create one)
     if (currentAttachments.length > 0) {
       const attachments = currentAttachments.map(att => ({
+        id: att.id, // ✅ FIX: Include ID for status tracking
         type: att.type,
         file: att.file,
         previewUrl: att.previewUrl,
@@ -154,6 +166,8 @@ export default function EnhancedInputToolbar({
         // Set processing state for floating indicator
         setIsUploading(true);
         
+        logger.debug('[EnhancedInputToolbar] 🚀 Starting sendMessageWithAttachments...');
+        
         // Use Promise.race for timeout protection (increased timeout for image analysis)
         if (addMessage) {
           await Promise.race([
@@ -163,6 +177,8 @@ export default function EnhancedInputToolbar({
             )
           ]);
         }
+        
+        logger.debug('[EnhancedInputToolbar] ✅ sendMessageWithAttachments completed');
         
         // Update status to success
         attachments.forEach((att: any) => {
@@ -180,6 +196,7 @@ export default function EnhancedInputToolbar({
           setUploadStatus({});
         }, 1500);
       } catch (error) {
+        logger.error('[EnhancedInputToolbar] ❌ sendMessageWithAttachments failed:', error);
         
         // Update status to error
         attachments.forEach((att: any) => {
@@ -194,6 +211,8 @@ export default function EnhancedInputToolbar({
         // More specific error messages
         if (error instanceof Error && error.message === 'Send timeout') {
           modernToast.error("Analysis Timeout", "Image is taking too long. Try a smaller file.");
+        } else if (error instanceof Error) {
+          modernToast.error("Analysis Failed", error.message || "Could not send attachment. Please try again.");
         } else {
           modernToast.error("Upload Failed", "Could not send attachment. Please try again.");
         }
