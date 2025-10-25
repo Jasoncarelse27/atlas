@@ -7,10 +7,11 @@ import { deleteConversation } from '../../services/conversationDeleteService';
 import { generateUUID } from '../../utils/uuid';
 
 interface QuickActionsProps {
-  onViewHistory?: (data: {
-    conversations: any[];
-    onDeleteConversation: (id: string) => void;
+  onViewHistory?: (data: { 
+    conversations: any[]; 
+    onDeleteConversation: (id: string) => void; 
     deletingId: string | null;
+    onRefresh: () => Promise<void>;
   }) => void;
 }
 
@@ -55,7 +56,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
           onViewHistory({
             conversations: cachedConversations,
             onDeleteConversation: handleDeleteConversation,
-            deletingId: null
+            deletingId: null,
+            onRefresh: async () => {
+              await refreshConversationList(true);
+            }
           });
         }
         return cachedConversations;
@@ -90,7 +94,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         onViewHistory({
           conversations: mappedConversations,
           onDeleteConversation: handleDeleteConversation,
-          deletingId: null
+          deletingId: null,
+          onRefresh: async () => {
+            await refreshConversationList(true);
+          }
         });
       }
       

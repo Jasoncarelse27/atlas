@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { logger } from '../lib/logger';
 
 interface Conversation {
@@ -16,6 +16,7 @@ interface ConversationHistoryDrawerProps {
   conversations: Conversation[];
   onDeleteConversation: (id: string) => void;
   deletingId: string | null;
+  onRefresh?: () => Promise<void>;
 }
 
 export function ConversationHistoryDrawer({ 
@@ -23,8 +24,13 @@ export function ConversationHistoryDrawer({
   onClose, 
   conversations, 
   onDeleteConversation,
-  deletingId 
+  deletingId,
+  onRefresh
 }: ConversationHistoryDrawerProps) {
+  // ✅ FIX #1: Add loading states for better mobile UX
+  const [isNavigating, setIsNavigating] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // Lock background scroll while drawer is open
   useEffect(() => {
     if (!isOpen) return;
@@ -109,19 +115,35 @@ export function ConversationHistoryDrawer({
                     key={conv.id}
                     className={`
                       group relative bg-white border border-[#E8DDD2] p-3.5 md:p-4 rounded-xl hover:border-[#C6D4B0] hover:shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer
-                      ${deletingId === conv.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}
+                      ${deletingId === conv.id || isNavigating === conv.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}
                     `}
                     onClick={() => {
+                      // ✅ FIX #1: Use history.pushState for instant navigation (no page reload)
+                      setIsNavigating(conv.id);
+                      const url = `/chat?conversation=${conv.id}`;
+                      window.history.pushState({ conversationId: conv.id }, '', url);
+                      
+                      // Trigger custom event for ChatPage to handle
+                      window.dispatchEvent(new PopStateEvent('popstate', { state: { conversationId: conv.id } }));
+                      
                       onClose();
-                      window.location.href = `/chat?conversation=${conv.id}`;
+                      // Reset loading state after navigation
+                      setTimeout(() => setIsNavigating(null), 500);
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Conversation Icon */}
+                      {/* Conversation Icon or Loading Spinner */}
                       <div className="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 bg-[#C6D4B0]/30 rounded-lg flex items-center justify-center border border-[#C6D4B0]/50">
-                        <svg className="w-4 h-4 md:w-5 md:h-5 text-[#8FA67E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
+                        {isNavigating === conv.id ? (
+                          <svg className="animate-spin w-4 h-4 md:w-5 md:h-5 text-[#8FA67E]" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 md:w-5 md:h-5 text-[#8FA67E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                        )}
                       </div>
                       
                       {/* Content */}
@@ -156,14 +178,14 @@ export function ConversationHistoryDrawer({
                         </div>
                       </div>
                       
-                      {/* Delete Button - Right side */}
+                      {/* Delete Button - Right side (44x44px touch target) */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteConversation(conv.id);
                         }}
-                        disabled={deletingId === conv.id}
-                        className="flex-shrink-0 p-2.5 bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 active:bg-[#CF9A96]/30 text-[#A67571] hover:text-[#8B5F5B] rounded-lg transition-all duration-200 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 disabled:opacity-50 disabled:cursor-not-allowed group/delete"
+                        disabled={deletingId === conv.id || isNavigating === conv.id}
+                        className="flex-shrink-0 p-3 bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 active:bg-[#CF9A96]/30 text-[#A67571] hover:text-[#8B5F5B] rounded-lg transition-all duration-200 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 disabled:opacity-50 disabled:cursor-not-allowed group/delete"
                         title="Delete conversation"
                         aria-label="Delete conversation"
                       >
@@ -204,9 +226,11 @@ export function ConversationHistoryDrawer({
                   </div>
                 </div>
                 
-                {/* Manual Delta Sync Button - SAFE to use with delta sync */}
+                {/* Manual Delta Sync Button - Updates in-place (no reload) */}
                 <button
                   onClick={async () => {
+                    // ✅ FIX #2: Update state instead of full page reload
+                    setIsSyncing(true);
                     try {
                       const { conversationSyncService } = await import('../services/conversationSyncService');
                       const supabase = (await import('../lib/supabaseClient')).default;
@@ -215,20 +239,36 @@ export function ConversationHistoryDrawer({
                         logger.debug('[ConversationHistoryDrawer] 🚀 Starting manual delta sync...');
                         await conversationSyncService.deltaSync(user.id);
                         logger.debug('[ConversationHistoryDrawer] ✅ Delta sync completed');
-                        // Refresh the conversations list
-                        window.location.reload();
+                        
+                        // ✅ Refresh the conversations list via callback (no page reload)
+                        if (onRefresh) {
+                          await onRefresh();
+                          logger.debug('[ConversationHistoryDrawer] ✅ Conversation list refreshed');
+                        }
                       }
                     } catch (error) {
                       logger.error('[ConversationHistoryDrawer] ❌ Delta sync failed:', error);
+                      // ✅ Show error to user (better than silent failure)
+                      alert('Sync failed. Please check your connection and try again.');
+                    } finally {
+                      setIsSyncing(false);
                     }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8FA67E]/20 hover:bg-[#8FA67E]/30 text-[#8FA67E] rounded-lg transition-all duration-200 border border-[#8FA67E]/30 hover:border-[#8FA67E]/50"
+                  disabled={isSyncing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8FA67E]/20 hover:bg-[#8FA67E]/30 text-[#8FA67E] rounded-lg transition-all duration-200 border border-[#8FA67E]/30 hover:border-[#8FA67E]/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Delta sync - only fetches changed data"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 9 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span className="text-xs font-medium">Delta Sync</span>
+                  {isSyncing ? (
+                    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 9 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  <span className="text-xs font-medium">{isSyncing ? 'Syncing...' : 'Delta Sync'}</span>
                 </button>
               </div>
             </div>

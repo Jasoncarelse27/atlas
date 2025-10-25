@@ -68,6 +68,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     conversations: any[];
     onDeleteConversation: (id: string) => void;
     deletingId: string | null;
+    onRefresh?: () => Promise<void>;
   } | null>(null);
   
   // Search modal state
@@ -90,6 +91,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     conversations: any[];
     onDeleteConversation: (id: string) => void;
     deletingId: string | null;
+    onRefresh?: () => Promise<void>;
   }) => {
     setHistoryData(data);
     setShowHistory(true);
@@ -1338,6 +1340,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             conversations={historyData.conversations}
             onDeleteConversation={historyData.onDeleteConversation}
             deletingId={historyData.deletingId}
+            onRefresh={historyData.onRefresh}
           />
         )}
 
