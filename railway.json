@@ -12,9 +12,10 @@
     }
   },
   "deploy": {
-    "startCommand": "npm run preview",
-    "healthcheckPath": "/healthz",
+    "startCommand": "npm run backend",
+    "healthcheckPath": "/api/healthz",
     "healthcheckTimeout": 100,
-    "postDeploy": "npm run create-test-user || echo 'Test user already exists or script skipped'"
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
   }
 }
