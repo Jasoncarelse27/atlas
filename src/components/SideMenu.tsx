@@ -1,15 +1,25 @@
-import React from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '../types/subscription';
-import { 
-  X, User as UserIcon, Settings, Grid3X3, History, Wifi, WifiOff, LogOut, 
-  HelpCircle, Volume2, VolumeX, Crown, MessageSquare, Headphones, Image as ImageIcon,
-  TrendingUp, Clock, HardDrive, Moon, Sun, Monitor
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+    Clock,
+    Grid3X3,
+    HardDrive,
+    Headphones,
+    HelpCircle,
+    History,
+    Image as ImageIcon,
+    LogOut,
+    MessageSquare,
+    Settings,
+    Volume2, VolumeX,
+    Wifi, WifiOff,
+    X
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
 import type { SoundType } from '../hooks/useSoundEffects';
-import SubscriptionBadge from './SubscriptionBadge';
+import type { UserProfile } from '../types/subscription';
 import StatusIndicator from './StatusIndicator';
+import SubscriptionBadge from './SubscriptionBadge';
 import ThemeToggle from './ThemeToggle';
 
 interface SideMenuProps {
@@ -144,15 +154,15 @@ const SideMenu: React.FC<SideMenuProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-white shadow-xl z-50 flex flex-col"
+            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-atlas-pearl shadow-xl z-50 flex flex-col"
             style={{ filter: 'none', backdropFilter: 'none' }}
           >
             {/* Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Menu</h2>
+            <div className="p-4 border-b border-atlas-sand/30 flex items-center justify-between bg-white">
+              <h2 className="text-xl font-bold text-atlas-stone">Menu</h2>
               <button
                 onClick={handleClose}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-2 text-atlas-stone/70 hover:text-atlas-stone hover:bg-atlas-sand/30 rounded-full transition-colors"
                 aria-label="Close menu"
               >
                 <X className="w-5 h-5" />
@@ -163,14 +173,14 @@ const SideMenu: React.FC<SideMenuProps> = ({
             <div className="flex-1 overflow-y-auto">
               {/* User Profile Section */}
               {user && (
-                <div className="p-4 border-b border-gray-200">
+                <div className="p-4 border-b border-atlas-sand/30 bg-white">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-atlas-sage to-atlas-sage rounded-full flex items-center justify-center text-white text-lg font-bold">
+                    <div className="w-12 h-12 bg-gradient-to-br from-atlas-sage to-atlas-peach rounded-full flex items-center justify-center text-white text-lg font-bold shadow-sm">
                       {getUserInitials()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">{getUserDisplayName()}</h3>
-                      <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                      <h3 className="font-medium text-atlas-stone truncate">{getUserDisplayName()}</h3>
+                      <p className="text-sm text-atlas-stone/60 truncate">{user.email}</p>
                     </div>
                   </div>
                   
@@ -196,15 +206,15 @@ const SideMenu: React.FC<SideMenuProps> = ({
               )}
               
               {/* Mode Selection */}
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Mode</h3>
+              <div className="p-4 border-b border-atlas-sand/30">
+                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Mode</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleModeChange('text')}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                       currentMode === 'text' 
-                        ? 'bg-blue-50 text-blue-700' 
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-atlas-sage/20 text-atlas-stone border border-atlas-sage/30' 
+                        : 'text-atlas-stone/70 hover:bg-atlas-sand/30 border border-transparent'
                     }`}
                   >
                     <MessageSquare className="w-5 h-5" />
@@ -215,8 +225,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     onClick={() => handleModeChange('voice')}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                       currentMode === 'voice' 
-                        ? 'bg-blue-50 text-blue-700' 
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-atlas-sage/20 text-atlas-stone border border-atlas-sage/30' 
+                        : 'text-atlas-stone/70 hover:bg-atlas-sand/30 border border-transparent'
                     }`}
                   >
                     <Headphones className="w-5 h-5" />
@@ -227,8 +237,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     onClick={() => handleModeChange('image')}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                       currentMode === 'image' 
-                        ? 'bg-blue-50 text-blue-700' 
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-atlas-sage/20 text-atlas-stone border border-atlas-sage/30' 
+                        : 'text-atlas-stone/70 hover:bg-atlas-sand/30 border border-transparent'
                     }`}
                   >
                     <ImageIcon className="w-5 h-5" />
@@ -239,27 +249,27 @@ const SideMenu: React.FC<SideMenuProps> = ({
               
               {/* Usage Stats */}
               {profile && (
-                <div className="p-4 border-b border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Usage</h3>
+                <div className="p-4 border-b border-atlas-sand/30">
+                  <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Usage</h3>
                   
                   <div className="space-y-3">
                     {/* Requests */}
                     <div>
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-atlas-stone/70">
                           <MessageSquare className="w-4 h-4" />
                           <span>Requests</span>
                         </div>
-                        <span className="text-gray-700 font-medium">
+                        <span className="text-atlas-stone font-medium">
                           {profile.usage_stats.requests_this_month}/
                           {TIER_CONFIGS[profile.tier].limits.requests_per_month === -1 
                             ? '∞' 
                             : TIER_CONFIGS[profile.tier].limits.requests_per_month}
                         </span>
                       </div>
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-2 bg-atlas-sand/40 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-atlas-sage rounded-full" 
+                          className="h-full bg-atlas-sage rounded-full transition-all duration-500" 
                           style={{ 
                             width: `${TIER_CONFIGS[profile.tier].limits.requests_per_month === -1 
                               ? 10 
@@ -272,20 +282,20 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     {/* Audio */}
                     <div>
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-atlas-stone/70">
                           <Clock className="w-4 h-4" />
                           <span>Audio</span>
                         </div>
-                        <span className="text-gray-700 font-medium">
+                        <span className="text-atlas-stone font-medium">
                           {profile.usage_stats.audio_minutes_this_month}/
                           {TIER_CONFIGS[profile.tier].limits.audio_minutes_per_month === -1 
                             ? '∞' 
                             : TIER_CONFIGS[profile.tier].limits.audio_minutes_per_month}
                         </span>
                       </div>
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-2 bg-atlas-sand/40 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-green-500 rounded-full" 
+                          className="h-full bg-atlas-peach rounded-full transition-all duration-500" 
                           style={{ 
                             width: `${TIER_CONFIGS[profile.tier].limits.audio_minutes_per_month === -1 
                               ? 10 
@@ -298,18 +308,18 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     {/* Storage */}
                     <div>
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <div className="flex items-center gap-2 text-gray-600">
+                        <div className="flex items-center gap-2 text-atlas-stone/70">
                           <HardDrive className="w-4 h-4" />
                           <span>Storage</span>
                         </div>
-                        <span className="text-gray-700 font-medium">
+                        <span className="text-atlas-stone font-medium">
                           {profile.usage_stats.storage_used_mb}/
                           {TIER_CONFIGS[profile.tier].limits.storage_limit_mb} MB
                         </span>
                       </div>
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-2 bg-atlas-sand/40 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-purple-500 rounded-full" 
+                          className="h-full bg-atlas-stone rounded-full transition-all duration-500" 
                           style={{ 
                             width: `${Math.min(100, (profile.usage_stats.storage_used_mb / TIER_CONFIGS[profile.tier].limits.storage_limit_mb) * 100)}%` 
                           }}
@@ -321,12 +331,12 @@ const SideMenu: React.FC<SideMenuProps> = ({
               )}
               
               {/* Quick Actions */}
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Actions</h3>
+              <div className="p-4 border-b border-atlas-sand/30">
+                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Actions</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleAction(onShowConversationHistory)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
                   >
                     <History className="w-5 h-5" />
                     <span>Conversation History</span>
@@ -334,7 +344,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   
                   <button
                     onClick={() => handleAction(onShowWidgets)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
                   >
                     <Grid3X3 className="w-5 h-5" />
                     <span>Widget Dashboard</span>
@@ -342,7 +352,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   
                   <button
                     onClick={() => handleAction(onShowControlCenter)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
                   >
                     <Settings className="w-5 h-5" />
                     <span>Control Center</span>
@@ -350,7 +360,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   
                   <button
                     onClick={() => handleAction(onShowHelp)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-atlas-stone/70 hover:bg-atlas-sand/30 hover:text-atlas-stone transition-colors"
                   >
                     <HelpCircle className="w-5 h-5" />
                     <span>Help & Tips</span>
@@ -359,8 +369,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
               </div>
               
               {/* Theme Settings */}
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Theme</h3>
+              <div className="p-4 border-b border-atlas-sand/30">
+                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Theme</h3>
                 <ThemeToggle 
                   themeMode={themeMode}
                   onThemeChange={onThemeChange}
@@ -370,30 +380,30 @@ const SideMenu: React.FC<SideMenuProps> = ({
               </div>
               
               {/* Settings */}
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Settings</h3>
+              <div className="p-4 border-b border-atlas-sand/30">
+                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Settings</h3>
                 <div className="space-y-3">
                   {/* Audio Toggle */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {isMuted ? (
-                        <VolumeX className="w-5 h-5 text-gray-600" />
+                        <VolumeX className="w-5 h-5 text-atlas-stone/70" />
                       ) : (
-                        <Volume2 className="w-5 h-5 text-gray-600" />
+                        <Volume2 className="w-5 h-5 text-atlas-stone/70" />
                       )}
-                      <span className="text-gray-700">Audio Responses</span>
+                      <span className="text-atlas-stone">Audio Responses</span>
                     </div>
                     <button
                       onClick={handleMuteToggle}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        isMuted ? 'bg-gray-300' : 'bg-atlas-sage'
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shadow-sm ${
+                        isMuted ? 'bg-atlas-sand' : 'bg-atlas-sage'
                       }`}
                       role="switch"
                       aria-checked={!isMuted}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          isMuted ? 'translate-x-0' : 'translate-x-7'
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                          isMuted ? 'translate-x-1' : 'translate-x-6'
                         }`}
                       />
                     </button>
@@ -403,21 +413,21 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {connectionStatus === 'online' ? (
-                        <Wifi className="w-5 h-5 text-gray-600" />
+                        <Wifi className="w-5 h-5 text-atlas-stone/70" />
                       ) : (
-                        <WifiOff className="w-5 h-5 text-gray-600" />
+                        <WifiOff className="w-5 h-5 text-atlas-stone/70" />
                       )}
-                      <span className="text-gray-700">Connection</span>
+                      <span className="text-atlas-stone">Connection</span>
                     </div>
                     <button
                       onClick={() => handleAction(onShowSpeedTest)}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 px-2 py-1 rounded hover:bg-atlas-sand/30 transition-colors"
                     >
                       <StatusIndicator 
                         status={connectionStatus} 
                         size="sm"
                       />
-                      <span className="text-sm text-gray-600">Check</span>
+                      <span className="text-sm text-atlas-stone/70">Check</span>
                     </button>
                   </div>
                 </div>
@@ -425,17 +435,17 @@ const SideMenu: React.FC<SideMenuProps> = ({
             </div>
             
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 mt-auto">
+            <div className="p-4 border-t border-atlas-sand/30 mt-auto bg-white">
               <button
                 onClick={() => handleAction(onLogout)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-atlas-sand/40 hover:bg-atlas-sand/60 text-atlas-stone rounded-lg transition-colors shadow-sm"
               >
                 <LogOut className="w-5 h-5" />
                 <span>Sign Out</span>
               </button>
               
               {/* Version Info */}
-              <div className="mt-3 text-center text-xs text-gray-500">
+              <div className="mt-3 text-center text-xs text-atlas-stone/50">
                 Atlas 2.0 • Version 2025.06.1
               </div>
             </div>
