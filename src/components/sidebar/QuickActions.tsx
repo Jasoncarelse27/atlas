@@ -67,6 +67,19 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
 
       logger.debug('[QuickActions] 🔄 Fetching fresh conversations from database');
       
+      // ✅ FIX: Always sync from Supabase when force refresh to ensure mobile/web parity
+      if (forceRefresh) {
+        logger.debug('[QuickActions] 📡 Force refresh - syncing from Supabase...');
+        try {
+          const { conversationSyncService } = await import('../../services/conversationSyncService');
+          await conversationSyncService.deltaSync(user.id);
+          logger.debug('[QuickActions] ✅ Force sync completed');
+        } catch (syncError) {
+          logger.error('[QuickActions] ❌ Force sync failed:', syncError);
+          // Continue anyway - will use whatever is in IndexedDB
+        }
+      }
+      
       // ⚡ SCALABILITY FIX: Limit at database level
       let conversations = await atlasDB.conversations
         .where('userId')
@@ -75,8 +88,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
         .limit(50) // Prevent memory overload
         .toArray();
       
-      // ✅ FIX: If IndexedDB is empty (common on mobile/fresh browser), sync from Supabase first
-      if (conversations.length === 0) {
+      logger.debug(`[QuickActions] 📊 Found ${conversations.length} conversations in IndexedDB`);
+      
+      // ✅ FIX: If IndexedDB is empty (common on mobile/fresh browser), sync from Supabase
+      if (conversations.length === 0 && !forceRefresh) {
         logger.debug('[QuickActions] 📡 IndexedDB empty, syncing from Supabase...');
         try {
           const { conversationSyncService } = await import('../../services/conversationSyncService');
