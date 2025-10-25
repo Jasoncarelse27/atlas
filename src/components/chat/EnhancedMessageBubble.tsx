@@ -75,9 +75,22 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   }, [userId, tier, loading]);
 
   // Get content as string for typing effect
-  const messageContent = message.content 
-    ? (Array.isArray(message.content) ? message.content.join(' ') : message.content)
-    : '';
+  const messageContent = (() => {
+    if (!message.content) return '';
+    
+    // Handle object format: {type: "text", text: "..."}
+    if (typeof message.content === 'object' && !Array.isArray(message.content)) {
+      return (message.content as any).text || JSON.stringify(message.content);
+    }
+    
+    // Handle array format
+    if (Array.isArray(message.content)) {
+      return message.content.join(' ');
+    }
+    
+    // Handle plain string
+    return message.content;
+  })();
 
   // Handle system messages
   if (isSystem) {
