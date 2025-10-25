@@ -684,11 +684,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           logger.debug('[ChatPage] ✅ Smoothly replaced optimistic with real message:', newMsg.id);
           
-          // Only reset indicators for assistant messages
+          // ✅ FIX GLITCH #1: Batch all state updates together to prevent double re-render
           if (newMsg.role === 'assistant') {
-            setIsStreaming(false);
-            setIsTyping(false);
-            logger.debug('[ChatPage] ✅ Reset typing indicators after assistant response');
+            // Use startTransition to batch updates (React 18+)
+            React.startTransition(() => {
+              setIsStreaming(false);
+              setIsTyping(false);
+            });
+            logger.debug('[ChatPage] ✅ Reset typing indicators after assistant response (batched)');
           }
           
         } catch (error) {

@@ -375,8 +375,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     if (isLatest && !isUser && message.role === 'assistant') {
       // Only reset if content is empty (new message) or different from current
       if (!displayedText || displayedText !== messageContent) {
-        setDisplayedText('');
-        setCurrentIndex(0);
+        // ✅ FIX GLITCH #2: Start with first character to prevent flash
+        setDisplayedText(messageContent.charAt(0) || '');
+        setCurrentIndex(1);
       }
     }
   }, [messageContent, isLatest, isUser, message.role]); // ✅ Use content, not ID
