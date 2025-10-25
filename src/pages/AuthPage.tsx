@@ -5,13 +5,13 @@ import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 
 // Login Toggle Component
 const LoginToggle = ({ mode, setMode }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void }) => (
-  <div className="flex justify-center space-x-1 bg-gray-100 rounded-full p-1 mb-6">
+  <div className="flex justify-center space-x-1 bg-[#F0E6DC] rounded-full p-1 mb-6">
     <button
       onClick={() => setMode('login')}
       className={`px-4 py-2 rounded-full font-medium transition-all duration-200 ${
         mode === 'login'
-          ? 'bg-[#B2BDA3] text-white shadow-sm'
-          : 'text-gray-500 hover:text-gray-700'
+          ? 'bg-[#8FA67E] text-white shadow-sm'
+          : 'text-[#8B7E74] hover:text-[#5A524A]'
       }`}
     >
       Login
@@ -20,8 +20,8 @@ const LoginToggle = ({ mode, setMode }: { mode: 'login' | 'signup'; setMode: (mo
       onClick={() => setMode('signup')}
       className={`px-4 py-2 rounded-full font-medium transition-all duration-200 ${
         mode === 'signup'
-          ? 'bg-[#B2BDA3] text-white shadow-sm'
-          : 'text-gray-500 hover:text-gray-700'
+          ? 'bg-[#8FA67E] text-white shadow-sm'
+          : 'text-[#8B7E74] hover:text-[#5A524A]'
       }`}
     >
       Sign Up
@@ -83,7 +83,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   // Show health error if Supabase is unreachable
   if (healthError) {
     return (
-      <div className="p-4 bg-red-100 text-red-800 rounded-md text-center border border-red-200">
+      <div className="p-4 bg-[#CF9A96]/10 text-[#A67571] rounded-md text-center border border-[#CF9A96]/30">
         {healthError}
       </div>
     );
@@ -92,12 +92,12 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Email Input */}
-      <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#B2BDA3] focus-within:border-[#B2BDA3] transition-all duration-200">
-        <Mail className="w-5 h-5 text-gray-400 mr-3" />
+      <div className="flex items-center border border-[#E8DDD2] rounded-xl px-4 py-3 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#8FA67E] focus-within:border-[#8FA67E] transition-all duration-200">
+        <Mail className="w-5 h-5 text-[#8B7E74] mr-3" />
         <input
           type="email"
           placeholder="jasonc.jpg@gmail.com"
-          className="w-full outline-none text-gray-700 placeholder-gray-400"
+          className="w-full outline-none text-[#3B3632] placeholder-[#B8A9A0]"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -106,12 +106,12 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
       </div>
 
       {/* Password Input */}
-      <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#B2BDA3] focus-within:border-[#B2BDA3] transition-all duration-200">
-        <Lock className="w-5 h-5 text-gray-400 mr-3" />
+      <div className="flex items-center border border-[#E8DDD2] rounded-xl px-4 py-3 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[#8FA67E] focus-within:border-[#8FA67E] transition-all duration-200">
+        <Lock className="w-5 h-5 text-[#8B7E74] mr-3" />
         <input
           type={showPassword ? 'text' : 'password'}
           placeholder="Password"
-          className="w-full outline-none text-gray-700 placeholder-gray-400"
+          className="w-full outline-none text-[#3B3632] placeholder-[#B8A9A0]"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -120,7 +120,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         <button
           type="button"
           onClick={togglePassword}
-          className="ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="ml-2 text-[#8B7E74] hover:text-[#5A524A] transition-colors"
         >
           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
         </button>
@@ -128,14 +128,14 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
 
       {/* Error Message */}
       {error && (
-        <div className="text-red-500 text-sm text-center bg-red-50 border border-red-200 rounded-lg py-2">
+        <div className="text-[#A67571] text-sm text-center bg-[#CF9A96]/10 border border-[#CF9A96]/30 rounded-lg py-2">
           {error}
         </div>
       )}
 
       {/* Forgot Password - Right Aligned */}
       <div className="flex justify-end">
-        <a href="#" className="text-sm text-gray-500 hover:text-gray-700 hover:underline transition-colors">
+        <a href="#" className="text-sm text-[#8B7E74] hover:text-[#5A524A] hover:underline transition-colors">
           Forgot Password?
         </a>
       </div>
@@ -143,7 +143,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
       {/* Login Button - Full Width, Green Background */}
       <button
         type="submit"
-        className="w-full bg-[#B2BDA3] hover:bg-[#A0AD8F] text-white py-3 rounded-xl font-semibold flex justify-center items-center transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full bg-[#8FA67E] hover:bg-[#7E9570] text-white py-3 rounded-xl font-semibold flex justify-center items-center transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
         disabled={loading}
       >
         {loading ? 'Signing In...' : (
@@ -161,8 +161,8 @@ const AuthPage = () => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F4E5D9] to-[#B2BDA3] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-[#F4E8E1] to-[#CEC1B8] flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-[#F9F6F3] rounded-3xl shadow-lg p-6 space-y-6 border border-[#E8DDD2]">
         {/* Atlas Logo and Branding */}
         <div className="text-center">
           <img
@@ -170,8 +170,8 @@ const AuthPage = () => {
             alt="Atlas AI Logo"
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="text-2xl font-bold text-gray-800">Atlas</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-[#3B3632]">Atlas</h1>
+          <p className="text-sm text-[#8B7E74]">
             Your AI-Powered Emotional Intelligence Companion
           </p>
         </div>
@@ -183,13 +183,13 @@ const AuthPage = () => {
         <AuthForm mode={mode} />
 
         {/* Policy Text - Bottom, Centered */}
-        <p className="text-center text-xs text-gray-400 mt-4">
+        <p className="text-center text-xs text-[#B8A9A0] mt-4">
           By continuing, you agree to our{' '}
-          <a href="#" className="text-gray-500 underline hover:text-gray-700 transition-colors">
+          <a href="#" className="text-[#8B7E74] underline hover:text-[#5A524A] transition-colors">
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="#" className="text-gray-500 underline hover:text-gray-700 transition-colors">
+          <a href="#" className="text-[#8B7E74] underline hover:text-[#5A524A] transition-colors">
             Privacy Policy
           </a>
         </p>

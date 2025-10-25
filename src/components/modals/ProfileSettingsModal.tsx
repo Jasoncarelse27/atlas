@@ -55,25 +55,25 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-md bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
+            <div className="w-full max-w-md bg-[#F9F6F3] rounded-2xl shadow-2xl border border-[#E8DDD2] overflow-hidden">
               {/* Header */}
-              <div className="p-6 border-b border-slate-700/50">
+              <div className="p-6 border-b border-[#E8DDD2] bg-white">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center text-2xl font-semibold text-gray-900">
                       {user?.email?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-white">Profile</h2>
-                      <p className="text-sm text-slate-400">{user?.email}</p>
+                      <h2 className="text-lg font-semibold text-[#3B3632]">Profile</h2>
+                      <p className="text-sm text-[#8B7E74]">{user?.email}</p>
                     </div>
                   </div>
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors"
+                    className="p-2 rounded-xl bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
                     aria-label="Close profile"
                   >
-                    <X className="w-5 h-5 text-slate-300" />
+                    <X className="w-5 h-5 text-[#8B7E74]" />
                   </button>
                 </div>
               </div>
@@ -149,24 +149,24 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
 
                 {/* Account Section */}
                 <Section title="Account">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-slate-700/20 border border-slate-600/20">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-[#E8DDD2]">
                     <div>
-                      <p className="text-sm font-medium text-white">Subscription Tier</p>
-                      <p className="text-xs text-slate-400 mt-1">{getTierDisplay(tier)}</p>
+                      <p className="text-sm font-medium text-[#3B3632]">Subscription Tier</p>
+                      <p className="text-xs text-[#8B7E74] mt-1">{getTierDisplay(tier)}</p>
                     </div>
-                    <div className="px-3 py-1 rounded-full bg-purple-600/20 border border-purple-500/30">
-                      <span className="text-xs font-semibold text-purple-400">{tier?.toUpperCase() || 'FREE'}</span>
+                    <div className="px-3 py-1 rounded-full bg-[#B8A5D6]/20 border border-[#B8A5D6]/30">
+                      <span className="text-xs font-semibold text-[#8B7AB8]">{tier?.toUpperCase() || 'FREE'}</span>
                     </div>
                   </div>
                   
                   <button
                     onClick={onSignOut}
-                    className="w-full flex items-center gap-3 p-4 rounded-xl bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 hover:border-red-500/40 transition-all"
+                    className="w-full flex items-center gap-3 p-4 rounded-xl bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 transition-all"
                   >
-                    <LogOut className="w-5 h-5 text-red-400" />
+                    <LogOut className="w-5 h-5 text-[#A67571]" />
                     <div className="text-left">
-                      <p className="text-sm font-medium text-white">Sign Out</p>
-                      <p className="text-xs text-slate-400">End your session</p>
+                      <p className="text-sm font-medium text-[#3B3632]">Sign Out</p>
+                      <p className="text-xs text-[#8B7E74]">End your session</p>
                     </div>
                   </button>
                 </Section>
@@ -183,7 +183,7 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{title}</h3>
+      <h3 className="text-xs font-semibold text-[#8B7E74] uppercase tracking-wider">{title}</h3>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -201,19 +201,19 @@ interface ToggleItemProps {
 
 function ToggleItem({ icon, label, description, checked, onChange, disabled, comingSoon }: ToggleItemProps) {
   return (
-    <div className={`flex items-center justify-between p-4 rounded-xl bg-slate-700/20 border border-slate-600/20 ${disabled ? 'opacity-60' : ''}`}>
+    <div className={`flex items-center justify-between p-4 rounded-xl bg-white border border-[#E8DDD2] ${disabled ? 'opacity-60' : ''}`}>
       <div className="flex items-center gap-3 flex-1">
-        <div className="text-slate-400">{icon}</div>
+        <div className="text-[#8B7E74]">{icon}</div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white">{label}</p>
+            <p className="text-sm font-medium text-[#3B3632]">{label}</p>
             {comingSoon && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-atlas-sage/20 text-atlas-sage rounded-full border border-atlas-sage/30">
+              <span className="px-2 py-0.5 text-xs font-medium bg-[#8FA67E]/20 text-[#8FA67E] rounded-full border border-[#8FA67E]/30">
                 Coming Soon
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">{description}</p>
+          <p className="text-xs text-[#8B7E74] mt-0.5">{description}</p>
         </div>
       </div>
       
@@ -225,7 +225,7 @@ function ToggleItem({ icon, label, description, checked, onChange, disabled, com
           disabled={disabled}
           className="sr-only peer"
         />
-        <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-atlas-sage disabled:opacity-50 disabled:cursor-not-allowed"></div>
+        <div className="w-11 h-6 bg-[#E8DDD2] peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#8FA67E]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#E8DDD2] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#8FA67E] disabled:opacity-50 disabled:cursor-not-allowed"></div>
       </label>
     </div>
   );
@@ -233,16 +233,16 @@ function ToggleItem({ icon, label, description, checked, onChange, disabled, com
 
 function PlaceholderCard({ icon, label, description }: { icon: React.ReactNode; label: string; description: string }) {
   return (
-    <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-700/10 border border-slate-600/10 border-dashed opacity-60">
-      <div className="text-slate-500">{icon}</div>
+    <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F0E6DC]/50 border border-[#E8DDD2] border-dashed opacity-60">
+      <div className="text-[#B8A9A0]">{icon}</div>
       <div className="flex-1">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-slate-300">{label}</p>
-          <span className="px-2 py-0.5 text-xs font-medium bg-amber-600/20 text-amber-400 rounded-full border border-amber-500/30">
+          <p className="text-sm font-medium text-[#8B7E74]">{label}</p>
+          <span className="px-2 py-0.5 text-xs font-medium bg-[#F3B562]/20 text-[#F3B562] rounded-full border border-[#F3B562]/30">
             Coming Soon
           </span>
         </div>
-        <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+        <p className="text-xs text-[#B8A9A0] mt-0.5">{description}</p>
       </div>
     </div>
   );
