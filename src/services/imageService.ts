@@ -1,5 +1,6 @@
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
+import { compressImage, validateImageFile } from '../utils/imageCompression';
 
 // Event logging helper
 const logEvent = (eventName: string, props: any) => {
@@ -12,20 +13,42 @@ export const imageService = {
   async uploadImage(file: File, userId: string) {
     logEvent("image_upload_start", { fileName: file.name, size: file.size, type: file.type });
 
-    // Log upload start to Supabase
+    // ✅ VALIDATE FILE BEFORE UPLOAD
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // ✅ COMPRESS IMAGE BEFORE UPLOAD (Best Practice for Mobile)
+    const compressedFile = await compressImage(file, {
+      maxSizeMB: 1, // 1MB max for fast mobile uploads
+      maxWidthOrHeight: 2048, // 2048px max dimension
+      quality: 0.85, // 85% quality
+      convertToJPEG: true, // Convert HEIC to JPEG
+    });
+
+    // Log upload start to Supabase (with compressed size)
+    // @ts-expect-error - image_events table type not generated
     await supabase.from("image_events").insert({
       user_id: userId,
       event_name: "image_upload_start",
-      metadata: { name: file.name, size: file.size, type: file.type },
+      metadata: { 
+        name: compressedFile.name, 
+        originalSize: file.size,
+        compressedSize: compressedFile.size,
+        compressionRatio: ((1 - compressedFile.size / file.size) * 100).toFixed(1) + '%',
+        type: compressedFile.type 
+      },
     });
 
-    const filePath = `${userId}/${Date.now()}-${file.name}`;
+    const filePath = `${userId}/${Date.now()}-${compressedFile.name}`;
     const { error } = await supabase.storage
       .from("attachments")
-      .upload(filePath, file);
+      .upload(filePath, compressedFile);
 
     if (error) {
       logEvent("image_upload_fail", { error: error.message });
+      // @ts-expect-error - image_events table type not generated
       await supabase.from("image_events").insert({
         user_id: userId,
         event_name: "image_upload_fail",
@@ -34,15 +57,21 @@ export const imageService = {
       throw error;
     }
 
-    logEvent("image_upload_complete", { filePath, size: file.size });
+    logEvent("image_upload_complete", { filePath, size: compressedFile.size, originalSize: file.size });
 
-    // Log upload success to Supabase
+    // Log upload success to Supabase (with compression metrics)
+    // @ts-expect-error - image_events table type not generated
     await supabase.from("image_events").insert({
       user_id: userId,
       event_name: "image_upload_complete",
       file_path: filePath,
-      file_size: file.size,
-      metadata: { size: file.size, type: file.type },
+      file_size: compressedFile.size,
+      metadata: { 
+        compressedSize: compressedFile.size, 
+        originalSize: file.size,
+        compressionRatio: ((1 - compressedFile.size / file.size) * 100).toFixed(1) + '%',
+        type: compressedFile.type 
+      },
     });
 
     const publicUrl = this.getPublicUrl(filePath);
@@ -58,6 +87,7 @@ export const imageService = {
     logEvent("image_scan_request", { filePath });
 
     // Log scan request to Supabase
+    // @ts-expect-error - image_events table type not generated
     await supabase.from("image_events").insert({
       user_id: userId,
       event_name: "image_scan_request",
@@ -89,6 +119,7 @@ export const imageService = {
       const errorMessage = errorData.details || errorData.error || "Image analysis failed";
       
       logEvent("image_scan_fail", { error: errorMessage });
+      // @ts-expect-error - image_events table type not generated
       await supabase.from("image_events").insert({
         user_id: userId,
         event_name: "image_scan_fail",
@@ -110,6 +141,7 @@ export const imageService = {
     logEvent("image_scan_success", { analysis: result });
 
     // Log scan success to Supabase
+    // @ts-expect-error - image_events table type not generated
     await supabase.from("image_events").insert({
       user_id: userId,
       event_name: "image_scan_success",
@@ -131,6 +163,7 @@ export const imageService = {
     try {
       logEvent("upgrade_prompt_shown", { feature, tier });
 
+      // @ts-expect-error - image_events table type not generated
       await supabase.from("image_events").insert({
         user_id: userId,
         event_name: "upgrade_prompt_shown",

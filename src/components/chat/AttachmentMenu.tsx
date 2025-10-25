@@ -62,14 +62,31 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     logger.debug('[AttachmentMenu] Starting single file upload');
     
     try {
+      // Show compression toast for large files
+      const fileSizeMB = file.size / 1024 / 1024;
+      const needsCompression = fileSizeMB > 0.5; // Show toast for files > 500KB
+
+      if (needsCompression) {
+        toast.loading(
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-gray-900">Optimizing image...</span>
+            <span className="text-xs text-gray-500">Compressing {fileSizeMB.toFixed(1)}MB file</span>
+          </div>,
+          { 
+            id: 'image-compression-loading',
+            icon: <div className="w-5 h-5 border-2 border-[#8FA67E] border-t-transparent rounded-full animate-spin" />
+          }
+        );
+      }
+
       toast.loading(
         <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-900">Uploading file</span>
+          <span className="text-sm font-medium text-gray-900">Uploading image...</span>
           <span className="text-xs text-gray-500">Preparing for analysis...</span>
         </div>,
         { 
           id: 'image-upload-loading',
-          icon: <div className="w-5 h-5 border-2 border-[#B2BDA3] border-t-transparent rounded-full animate-spin" />
+          icon: <div className="w-5 h-5 border-2 border-[#8FA67E] border-t-transparent rounded-full animate-spin" />
         }
       );
       
@@ -89,6 +106,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         onAddAttachment(attachment);
         
         logger.debug('✅ File added to input area for caption');
+        if (needsCompression) toast.dismiss('image-compression-loading');
         toast.dismiss('image-upload-loading');
         toast.success(
           <div className="flex flex-col">
@@ -98,7 +116,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
           { 
             duration: 3000,
             icon: (
-              <div className="w-5 h-5 rounded-full bg-[#B2BDA3] flex items-center justify-center">
+              <div className="w-5 h-5 rounded-full bg-[#8FA67E] flex items-center justify-center">
                 <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
@@ -110,8 +128,14 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
     } catch (err) {
       logger.error('[AttachmentMenu] Image upload failed:', err);
+      toast.dismiss('image-compression-loading');
       toast.dismiss('image-upload-loading');
-      toast.error("Upload failed - check console for details");
+      toast.error(
+        <div className="flex flex-col">
+          <span className="text-sm font-medium text-gray-900">Upload failed</span>
+          <span className="text-xs text-gray-500">{err instanceof Error ? err.message : 'Please try again'}</span>
+        </div>
+      );
     } finally {
       setIsUploading(false);
       
