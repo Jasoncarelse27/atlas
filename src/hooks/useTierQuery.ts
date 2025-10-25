@@ -130,6 +130,9 @@ export function useTierQuery() {
           }, 2000);
         } else if (status === 'TIMED_OUT') {
           logger.warn('[useTierQuery] ⏱️ Realtime subscription timed out');
+        } else if (status === 'CLOSED') {
+          // ✅ FIXED: Don't log errors for intentional cleanup
+          logger.debug('[useTierQuery] 📡 Subscription closed (cleanup)');
         } else {
           logger.debug('[useTierQuery] 📡 Subscription status:', status);
         }
@@ -138,7 +141,7 @@ export function useTierQuery() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [query.data?.userId, queryClient]);
+  }, [query.data?.userId, queryClient, query.refetch]); // ✅ FIXED: Added query.refetch to deps
 
   // Listen for auth state changes (login/logout)
   useEffect(() => {
