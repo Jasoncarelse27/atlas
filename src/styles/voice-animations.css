@@ -17,10 +17,10 @@
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 0 0 rgba(143, 166, 126, 0.4);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    box-shadow: 0 0 0 8px rgba(143, 166, 126, 0);
   }
 }
 
@@ -33,7 +33,7 @@
   position: absolute;
   top: -4px;
   right: -4px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #8FA67E 0%, #7E9570 100%);
   color: white;
   font-size: 9px;
   font-weight: 700;
@@ -41,7 +41,7 @@
   border-radius: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 2px 8px rgba(143, 166, 126, 0.4);
   animation: badge-bounce 2s ease-in-out infinite;
 }
 

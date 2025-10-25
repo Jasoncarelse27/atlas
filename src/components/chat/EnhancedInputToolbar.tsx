@@ -775,13 +775,13 @@ export default function EnhancedInputToolbar({
                   title={tier === 'studio' ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
                   className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
                     tier === 'studio'
-                      ? 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800 voice-call-pulse'
+                      ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse'
                       : 'bg-gray-600 hover:bg-gray-500 opacity-60'
                   }`}
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
                     boxShadow: tier === 'studio' 
-                      ? '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                      ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
                       : undefined
                   }}
                   whileTap={{ scale: 0.9 }}
