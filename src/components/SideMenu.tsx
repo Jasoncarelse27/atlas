@@ -2,6 +2,7 @@ import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
     Clock,
+    Crown,
     Grid3X3,
     HardDrive,
     Headphones,
@@ -11,6 +12,7 @@ import {
     LogOut,
     MessageSquare,
     Settings,
+    TrendingUp,
     Volume2, VolumeX,
     Wifi, WifiOff,
     X
@@ -154,12 +156,12 @@ const SideMenu: React.FC<SideMenuProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-gradient-to-b from-white to-atlas-pearl/30 shadow-2xl z-50 flex flex-col"
+            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-[#F9F6F3] shadow-xl z-50 flex flex-col"
             style={{ filter: 'none', backdropFilter: 'none' }}
           >
             {/* Header */}
-            <div className="p-4 border-b border-atlas-sand/30 flex items-center justify-between bg-white">
-              <h2 className="text-xl font-bold text-atlas-stone">Menu</h2>
+            <div className="p-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[#3B3632]">Menu</h2>
               <button
                 onClick={handleClose}
                 className="p-2 text-atlas-stone/70 hover:text-atlas-stone hover:bg-atlas-sand/30 rounded-full transition-colors"
@@ -173,7 +175,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
             <div className="flex-1 overflow-y-auto">
               {/* User Profile Section */}
               {user && (
-                <div className="p-4 border-b border-atlas-sand/30 bg-white">
+                <div className="p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-12 h-12 bg-gradient-to-br from-atlas-sage to-atlas-peach rounded-full flex items-center justify-center text-white text-lg font-bold shadow-sm">
                       {getUserInitials()}
@@ -184,29 +186,40 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     </div>
                   </div>
                   
-                  {/* Subscription Info */}
+                  {/* Subscription Info - Current Tier */}
                   {profile && (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <SubscriptionBadge 
-                          profile={profile} 
-                          daysRemaining={daysRemaining}
-                          showDetails={true}
-                        />
-                        <button
-                          onClick={() => handleAction(onShowUpgrade)}
-                          className="text-xs text-atlas-sage hover:text-blue-700 font-medium"
-                        >
-                          Upgrade
-                        </button>
+                    <div className="mt-4 p-4 bg-white/50 rounded-xl">
+                      <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-2">Current Tier</h3>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-center">
+                          <Crown className="w-6 h-6 text-[#8B7E74] mb-2" />
+                        </div>
+                        <div className="text-center">
+                          <div className="font-semibold text-[#3B3632]">Atlas Studio</div>
+                          <div className="text-sm text-[#8B7E74]">Unlimited Messages</div>
+                          <div className="text-sm text-[#8B7E74]">All features unlocked</div>
+                        </div>
                       </div>
                     </div>
                   )}
+                  
+                  {/* Emotional Insights */}
+                  <div className="mt-4 p-4 bg-white/50 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-[#B8A5D6]/30 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-[#8B7AB8]" />
+                      </div>
+                      <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider">Emotional Insights</h3>
+                    </div>
+                    <div className="text-sm text-[#5A524A] text-center py-8">
+                      Track your emotional patterns and conversation insights
+                    </div>
+                  </div>
                 </div>
               )}
               
               {/* Mode Selection */}
-              <div className="p-4 border-b border-atlas-sand/20">
+              <div className="p-4">
                 <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Mode</h3>
                 <div className="space-y-2">
                   <button
@@ -249,7 +262,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               
               {/* Usage Stats */}
               {profile && (
-                <div className="p-4 border-b border-atlas-sand/30">
+                <div className="p-4">
                   <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Usage</h3>
                   
                   <div className="space-y-3">
@@ -331,45 +344,57 @@ const SideMenu: React.FC<SideMenuProps> = ({
               )}
               
               {/* Quick Actions */}
-              <div className="p-4 border-b border-atlas-sand/20">
-                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Actions</h3>
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Quick Actions</h3>
                 <div className="space-y-2">
                   <button
-                    onClick={() => handleAction(onShowConversationHistory)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-peach/20 hover:bg-atlas-peach/30 transition-colors"
+                    onClick={() => handleAction(() => {
+                      window.location.href = '/chat';
+                    })}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-atlas-peach/40 flex items-center justify-center">
-                      <History className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
+                      <span className="text-xl text-white">+</span>
                     </div>
-                    <span className="font-medium">Conversation History</span>
+                    <span className="font-medium">Start New Chat</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleAction(onShowConversationHistory)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#C6D4B0] hover:bg-[#B8C6A2] transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center">
+                      <History className="w-4 h-4 text-[#5A524A]" />
+                    </div>
+                    <span className="font-medium">View History</span>
                   </button>
                   
                   <button
                     onClick={() => handleAction(onShowWidgets)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-sand/30 hover:bg-atlas-sand/40 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#E8D5C4] hover:bg-[#DFC9B6] transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-atlas-sand/50 flex items-center justify-center">
-                      <Grid3X3 className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center">
+                      <Grid3X3 className="w-4 h-4 text-[#5A524A]" />
                     </div>
                     <span className="font-medium">Widget Dashboard</span>
                   </button>
                   
                   <button
                     onClick={() => handleAction(onShowControlCenter)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-sand/30 hover:bg-atlas-sand/40 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-atlas-sand/50 flex items-center justify-center">
-                      <Settings className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-full bg-[#CF9A96]/30 flex items-center justify-center">
+                      <Settings className="w-4 h-4 text-[#A67571]" />
                     </div>
-                    <span className="font-medium">Control Center</span>
+                    <span className="font-medium">Clear All Data</span>
                   </button>
                   
                   <button
                     onClick={() => handleAction(onShowHelp)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-atlas-stone bg-atlas-sand/30 hover:bg-atlas-sand/40 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-atlas-sand/50 flex items-center justify-center">
-                      <HelpCircle className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center">
+                      <HelpCircle className="w-4 h-4 text-[#5A524A]" />
                     </div>
                     <span className="font-medium">Help & Tips</span>
                   </button>
@@ -377,8 +402,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
               </div>
               
               {/* Theme Settings */}
-              <div className="p-4 border-b border-atlas-sand/30">
-                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Theme</h3>
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Theme</h3>
                 <ThemeToggle 
                   themeMode={themeMode}
                   onThemeChange={onThemeChange}
@@ -388,8 +413,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
               </div>
               
               {/* Settings */}
-              <div className="p-4 border-b border-atlas-sand/30">
-                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Settings</h3>
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Settings</h3>
                 <div className="space-y-3">
                   {/* Audio Toggle */}
                   <div className="flex items-center justify-between">
@@ -443,17 +468,17 @@ const SideMenu: React.FC<SideMenuProps> = ({
             </div>
             
             {/* Footer */}
-            <div className="p-4 border-t border-atlas-sand/30 mt-auto bg-white">
+            <div className="p-4 mt-auto">
               <button
                 onClick={() => handleAction(onLogout)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-atlas-sand/40 hover:bg-atlas-sand/60 text-atlas-stone rounded-lg transition-colors shadow-sm"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#E8D5C4]/40 hover:bg-[#E8D5C4]/60 text-[#5A524A] rounded-lg transition-colors"
               >
                 <LogOut className="w-5 h-5" />
                 <span>Sign Out</span>
               </button>
               
               {/* Version Info */}
-              <div className="mt-3 text-center text-xs text-atlas-stone/50">
+              <div className="mt-3 text-center text-xs text-[#8B7E74]/50">
                 Atlas 2.0 • Version 2025.06.1
               </div>
             </div>
