@@ -1196,47 +1196,12 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
+    logger.debug('[Image Analysis] 🚀 Starting analysis with URL-based approach (no download needed)');
 
-    // Download image and convert to base64 for Claude API
-    let imageBase64;
-    let claudeMediaType;
+    // ✅ PERFORMANCE FIX: Use URL directly instead of downloading and converting to base64
+    // This saves memory, bandwidth, and processing time (33% payload reduction)
     
-    // Add timeout protection for image download
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    try {
-      const imageResponse = await fetch(imageUrl, {
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`,
-          'apikey': process.env.VITE_SUPABASE_ANON_KEY || ''
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
-      }
-      
-      const imageBuffer = await imageResponse.arrayBuffer();
-      imageBase64 = Buffer.from(imageBuffer).toString('base64');
-      
-      // Determine MIME type from URL or response headers
-      const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-      claudeMediaType = contentType.startsWith('image/') ? contentType : 'image/jpeg';
-      
-      logger.debug('✅ [Image Analysis] Image downloaded and converted to base64');
-    } catch (downloadError) {
-      clearTimeout(timeoutId);
-      return res.status(400).json({ 
-        error: 'Failed to download image',
-        details: downloadError.name === 'AbortError' ? 'Image download timed out' : downloadError.message
-      });
-    }
-
-    // Call Claude Vision API with base64 image (with retry logic)
+    // Call Claude Vision API with URL (with retry logic)
     let response;
     let lastError;
     
@@ -1263,9 +1228,8 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
                   {
                     type: 'image',
                     source: {
-                      type: 'base64',
-                      media_type: claudeMediaType,
-                      data: imageBase64
+                      type: 'url',
+                      url: imageUrl  // ✅ Direct URL - no download/encoding needed!
                     }
                   }
                 ]
@@ -1275,20 +1239,20 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
         });
 
         if (response.ok) {
-          logger.debug(`✅ [Image Analysis] Claude Vision API call successful on attempt ${attempt}`);
+          logger.debug(`✅ [Image Analysis] Claude Vision API call successful on attempt ${attempt} (URL-based)`);
           break; // Success, exit retry loop
         } else {
           lastError = await response.text().catch(() => 'Claude Vision API error');
           
           if (attempt < 3) {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       } catch (fetchError) {
         lastError = fetchError.message;
         
         if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
     }

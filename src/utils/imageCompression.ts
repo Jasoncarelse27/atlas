@@ -156,6 +156,73 @@ function createImageFromFile(file: File): Promise<HTMLImageElement> {
 }
 
 /**
+ * Create a thumbnail from an image file
+ * 
+ * @param file - Original image file
+ * @param maxSize - Maximum width/height for thumbnail (default 400px)
+ * @param quality - JPEG quality (default 0.7)
+ * @returns Thumbnail file
+ */
+export async function createThumbnail(
+  file: File,
+  maxSize: number = 400,
+  quality: number = 0.7
+): Promise<File> {
+  try {
+    const img = await createImageFromFile(file);
+    
+    // Calculate thumbnail dimensions (maintain aspect ratio)
+    let { width, height } = img;
+    if (width > height) {
+      if (width > maxSize) {
+        height = Math.round((height * maxSize) / width);
+        width = maxSize;
+      }
+    } else {
+      if (height > maxSize) {
+        width = Math.round((width * maxSize) / height);
+        height = maxSize;
+      }
+    }
+
+    // Create canvas for thumbnail
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Failed to get canvas context');
+
+    // Draw thumbnail
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    // Convert to blob
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create thumbnail'));
+        },
+        'image/jpeg',
+        quality
+      );
+    });
+
+    // Create file
+    const fileName = file.name.replace(/\.[^.]+$/, '-thumb.jpg');
+    return new File([blob], fileName, {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    logger.error('[Thumbnail] Creation failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Validate image file before upload
  */
 export function validateImageFile(file: File): { valid: boolean; error?: string } {

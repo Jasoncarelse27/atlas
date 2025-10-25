@@ -27,6 +27,9 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
+  // ✅ FIX 3: Cache failed upload for retry
+  const [failedUpload, setFailedUpload] = useState<{ file: File; error: string } | null>(null);
+  
   // 📸 Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -58,6 +61,22 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     
     e.target.value = '';
     
+    // Clear any previous failed upload
+    setFailedUpload(null);
+    
+    await uploadImage(file);
+  };
+
+  // ✅ FIX 3: Retry failed upload
+  const retryFailedUpload = async () => {
+    if (!failedUpload) return;
+    const file = failedUpload.file;
+    setFailedUpload(null); // Clear error state
+    await uploadImage(file);
+  };
+
+  // ✅ FIX 3: Extracted upload logic for reusability
+  const uploadImage = async (file: File) => {
     setIsUploading(true);
     logger.debug('[AttachmentMenu] Starting single file upload');
     
@@ -130,11 +149,27 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       logger.error('[AttachmentMenu] Image upload failed:', err);
       toast.dismiss('image-compression-loading');
       toast.dismiss('image-upload-loading');
+      
+      // ✅ FIX 3: Cache failed upload and show retry option
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+      setFailedUpload({ file, error: errorMessage });
+      
       toast.error(
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-gray-900">Upload failed</span>
-          <span className="text-xs text-gray-500">{err instanceof Error ? err.message : 'Please try again'}</span>
-        </div>
+          <span className="text-xs text-gray-500">{errorMessage}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.dismiss();
+              retryFailedUpload();
+            }}
+            className="mt-1 px-3 py-1 bg-[#8FA67E] hover:bg-[#7E9570] text-white text-xs rounded-lg transition-colors"
+          >
+            Retry Upload
+          </button>
+        </div>,
+        { duration: 10000 } // Longer duration for retry button
       );
     } finally {
       setIsUploading(false);

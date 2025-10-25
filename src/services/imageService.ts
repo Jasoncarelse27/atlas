@@ -1,6 +1,6 @@
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
-import { compressImage, validateImageFile } from '../utils/imageCompression';
+import { compressImage, validateImageFile, createThumbnail } from '../utils/imageCompression';
 
 // Event logging helper
 const logEvent = (eventName: string, props: any) => {
@@ -27,6 +27,10 @@ export const imageService = {
       convertToJPEG: true, // Convert HEIC to JPEG
     });
 
+    // ✅ CREATE THUMBNAIL for faster chat rendering
+    logger.debug('[ImageService] Creating thumbnail...');
+    const thumbnailFile = await createThumbnail(compressedFile, 400, 0.7);
+
     // Log upload start to Supabase (with compressed size)
     // @ts-expect-error - image_events table type not generated
     await supabase.from("image_events").insert({
@@ -36,25 +40,35 @@ export const imageService = {
         name: compressedFile.name, 
         originalSize: file.size,
         compressedSize: compressedFile.size,
+        thumbnailSize: thumbnailFile.size,
         compressionRatio: ((1 - compressedFile.size / file.size) * 100).toFixed(1) + '%',
         type: compressedFile.type 
       },
     });
 
     const filePath = `${userId}/${Date.now()}-${compressedFile.name}`;
-    const { error } = await supabase.storage
-      .from("attachments")
-      .upload(filePath, compressedFile);
+    const thumbnailPath = `${userId}/${Date.now()}-${thumbnailFile.name}`;
 
-    if (error) {
-      logEvent("image_upload_fail", { error: error.message });
+    // Upload both full image and thumbnail
+    const [uploadResult, thumbnailResult] = await Promise.all([
+      supabase.storage.from("attachments").upload(filePath, compressedFile),
+      supabase.storage.from("attachments").upload(thumbnailPath, thumbnailFile)
+    ]);
+
+    if (uploadResult.error) {
+      logEvent("image_upload_fail", { error: uploadResult.error.message });
       // @ts-expect-error - image_events table type not generated
       await supabase.from("image_events").insert({
         user_id: userId,
         event_name: "image_upload_fail",
-        metadata: { error: error.message },
+        metadata: { error: uploadResult.error.message },
       });
-      throw error;
+      throw uploadResult.error;
+    }
+
+    if (thumbnailResult.error) {
+      logger.warn('[ImageService] Thumbnail upload failed (non-critical):', thumbnailResult.error);
+      // Continue without thumbnail - it's not critical
     }
 
     logEvent("image_upload_complete", { filePath, size: compressedFile.size, originalSize: file.size });
@@ -69,13 +83,22 @@ export const imageService = {
       metadata: { 
         compressedSize: compressedFile.size, 
         originalSize: file.size,
+        thumbnailSize: thumbnailFile.size,
         compressionRatio: ((1 - compressedFile.size / file.size) * 100).toFixed(1) + '%',
         type: compressedFile.type 
       },
     });
 
     const publicUrl = this.getPublicUrl(filePath);
-    return { filePath, publicUrl, url: publicUrl };
+    const thumbnailUrl = thumbnailResult.error ? publicUrl : this.getPublicUrl(thumbnailPath);
+
+    return { 
+      filePath, 
+      publicUrl, 
+      url: publicUrl,
+      thumbnailUrl, // ✅ NEW: Return thumbnail URL for faster chat rendering
+      thumbnailPath: thumbnailResult.error ? null : thumbnailPath
+    };
   },
 
   getPublicUrl(path: string) {
