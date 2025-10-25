@@ -2,15 +2,17 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
+    "buildCommand": "npm install && npm run build",
     "nixpacksPlan": {
       "providers": ["node"],
       "variables": {
-        "NODE_VERSION": "22.12.0"
+        "NODE_VERSION": "22.12.0",
+        "NPM_CONFIG_PRODUCTION": "false"
       }
     }
   },
   "deploy": {
-    "startCommand": "npm run start",
+    "startCommand": "npm run preview",
     "healthcheckPath": "/healthz",
     "healthcheckTimeout": 100,
     "postDeploy": "npm run create-test-user || echo 'Test user already exists or script skipped'"
