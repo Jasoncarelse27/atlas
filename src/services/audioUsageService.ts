@@ -1,4 +1,4 @@
-import { tierFeatures } from '@/config/featureAccess';
+import { canUseAudio, isPaidTier, tierFeatures } from '@/config/featureAccess';
 import { supabase } from '@/lib/supabaseClient';
 import type { Tier } from '@/types/tier';
 import { logger } from '../lib/logger';
@@ -19,8 +19,8 @@ export class AudioUsageService {
   async checkAudioUsage(userId: string, tier: Tier): Promise<AudioUsageCheck> {
     const config = tierFeatures[tier] as any;
     
-    // FREE tier: blocked
-    if (tier === 'free') {
+    // ✅ FREE tier: blocked (using centralized function)
+    if (!canUseAudio(tier)) {
       return {
         canUse: false,
         minutesUsed: 0,
@@ -31,7 +31,7 @@ export class AudioUsageService {
       };
     }
     
-    // STUDIO tier: unlimited
+    // ✅ STUDIO tier: unlimited
     if (tier === 'studio') {
       return {
         canUse: true,
@@ -42,7 +42,7 @@ export class AudioUsageService {
       };
     }
     
-    // CORE tier: check if unlimited
+    // ✅ CORE tier: check if unlimited
     if (tier === 'core') {
       const config = tierFeatures[tier] as any;
       
@@ -133,7 +133,8 @@ export class AudioUsageService {
     durationSeconds?: number,
     characters?: number
   ): Promise<void> {
-    if (tier === 'free') return; // FREE tier blocked anyway
+    // ✅ FREE tier blocked (using centralized function)
+    if (!canUseAudio(tier)) return;
     
     const { data: profile } = await supabase
       .from('profiles')

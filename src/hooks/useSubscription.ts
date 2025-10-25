@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+    canUseAudio,
+    canUseCamera,
+    canUseImage,
+    hasUnlimitedMessages,
+    isPaidTier
+} from '../config/featureAccess';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { subscriptionApi } from '../services/subscriptionApi';
@@ -63,17 +70,17 @@ export function useSubscription(userId?: string) {
     // Removed misleading "no profile" warning - it triggers before async fetch completes
   }, [userId, tier, profile]);
   
-  // Calculate tier limits
+  // ✅ Calculate tier limits using centralized functions
   const tierLimits: TierLimits = {
-    dailyMessages: tier === 'free' ? 15 : -1, // -1 means unlimited (for daily tracking)
-    monthlyMessages: tier === 'free' ? 15 : -1, // 15 messages per month for Free tier
-    audioMinutes: tier === 'core' || tier === 'studio' ? 60 : 0,
-    imageUploads: tier === 'core' || tier === 'studio' ? 10 : 0,
+    dailyMessages: hasUnlimitedMessages(tier) ? -1 : 15,
+    monthlyMessages: hasUnlimitedMessages(tier) ? -1 : 15,
+    audioMinutes: isPaidTier(tier) ? 60 : 0,
+    imageUploads: isPaidTier(tier) ? 10 : 0,
   };
 
-  // Check if user can send messages (monthly limit for Free tier)
+  // ✅ Check if user can send messages (using centralized function)
   const canSendMessage = (): boolean => {
-    if (tier === 'core' || tier === 'studio') return true;
+    if (isPaidTier(tier)) return true;
     
     // Get current month in YYYY-MM format
     const now = new Date();
@@ -89,14 +96,9 @@ export function useSubscription(userId?: string) {
     return messagesThisMonth < tierLimits.monthlyMessages;
   };
 
-  // Get remaining messages for display (monthly for Free tier)
+  // ✅ Get remaining messages for display (using centralized function)
   const remainingMessages = (): number => {
-    if (tier === 'core' || tier === 'studio') return -1; // Unlimited
-    
-    // Get current month in YYYY-MM format
-    // const now = new Date();
-    // const currentMonth = now.toISOString().slice(0, 7);
-    // const lastResetMonth = profile?.last_reset_date?.slice(0, 7);
+    if (isPaidTier(tier)) return -1; // Unlimited
     
     // Calculate remaining messages for current month
     const messagesThisMonth = profile?.usage_stats?.messages_this_month || 0;
@@ -399,18 +401,20 @@ export function useSubscription(userId?: string) {
 export function useTierAccess(userId?: string) {
   const { tier, tierLimits, canSendMessage, remainingMessages } = useSubscription(userId);
 
+  // ✅ Check feature access using centralized functions
   const canUseFeature = (feature: string): boolean => {
     switch (feature) {
       case 'voice':
       case 'audio':
-        return tier === 'core' || tier === 'studio';
+        return canUseAudio(tier);
       case 'image':
+        return canUseImage(tier);
       case 'camera':
-        return tier === 'core' || tier === 'studio';
+        return canUseCamera(tier);
       case 'unlimited_messages':
-        return tier === 'core' || tier === 'studio';
+        return hasUnlimitedMessages(tier);
       case 'priority_support':
-        return tier === 'studio';
+        return tier === 'studio'; // Studio-specific feature
       default:
         return true; // Basic features available to all tiers
     }

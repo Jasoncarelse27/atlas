@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { canUseAudio } from '../../config/featureAccess';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
@@ -44,6 +45,9 @@ export default function EnhancedInputToolbar({
   const { tier, showUpgradeModal } = useTierAccess();
   const { canUse: canUseVoice } = useFeatureAccess('voice');
   const { showVoiceUpgrade } = useUpgradeModals();
+  
+  // ✅ Studio-only feature check (voice calls)
+  const isStudioTier = tier === 'studio';
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -382,13 +386,13 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    // 🎯 FUTURE-PROOF FIX: Check tier directly instead of waiting for hasAccess
+    // 🎯 FUTURE-PROOF FIX: Check tier using centralized function
     
     // Log the attempt
     await featureService.logAttempt(user.id, 'audio', tier);
     
-    // Core and Studio tiers have audio access
-    const canUse = tier === 'core' || tier === 'studio';
+    // ✅ Use centralized tier check function
+    const canUse = canUseAudio(tier);
     
     if (!canUse) {
       modernToast.error('Upgrade Required', 'Voice features available in Core & Studio plans');
@@ -802,21 +806,21 @@ export default function EnhancedInputToolbar({
                 <motion.button
                   onClick={handleStartVoiceCall}
                   disabled={disabled}
-                  title={tier === 'studio' ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
+                  title={isStudioTier ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
                   className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
-                    tier === 'studio'
+                    isStudioTier
                       ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse'
                       : 'bg-gray-600 hover:bg-gray-500 opacity-60'
                   }`}
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
-                    boxShadow: tier === 'studio' 
+                    boxShadow: isStudioTier 
                       ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
                       : undefined
                   }}
                 >
                   <Phone className="w-4 h-4 text-white" />
-                  {tier === 'studio' && !localStorage.getItem('hasUsedVoiceCall') && (
+                  {isStudioTier && !localStorage.getItem('hasUsedVoiceCall') && (
                     <span className="voice-call-badge">New</span>
                   )}
                 </motion.button>
