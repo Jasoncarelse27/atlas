@@ -98,7 +98,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     
     // Handle object format: {type: "text", text: "..."}
     if (typeof message.content === 'object' && !Array.isArray(message.content)) {
-      return (message.content as any).text || JSON.stringify(message.content);
+      const contentObj = message.content as any;
+      // ✅ FIX: Try multiple text fields, never show raw JSON
+      return contentObj.text || contentObj.content || contentObj.message || '';
     }
     
     // Handle array format
