@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { getSubscriptionDisplayName } from '../config/featureAccess';
 import type { Tier } from '../types/tier';
 
 export type UpgradeTrigger = 'message_limit' | 'voice_feature' | 'image_feature' | 'general';
@@ -32,8 +33,9 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
     // Track upgrade event
     
     // Here you would integrate with your payment system
-    // For now, we'll just show an alert
-    alert(`Redirecting to payment for Atlas ${tier === 'core' ? 'Core' : 'Studio'}...`);
+    // ✅ Use centralized display name
+    const tierName = getSubscriptionDisplayName(tier);
+    alert(`Redirecting to payment for Atlas ${tierName}...`);
     
     // Payment integration will be implemented
     // window.location.href = `/upgrade?tier=${tier}&reason=${triggerReason}`;

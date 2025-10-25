@@ -1,22 +1,23 @@
 import type { User } from '@supabase/supabase-js';
 import {
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Database,
-  Settings,
-  TestTube,
-  TrendingUp,
-  User as UserIcon,
-  XCircle,
-  Zap
+    AlertTriangle,
+    CheckCircle,
+    Clock,
+    Database,
+    Settings,
+    TestTube,
+    TrendingUp,
+    User as UserIcon,
+    XCircle,
+    Zap
 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
+import { canUseAudio, canUseImage, isPaidTier } from '../config/featureAccess';
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { redisTestService } from '../services/redisTestService';
 import type { UserProfile } from '../types/subscription';
 import LoadingSpinner from './LoadingSpinner';
-import { logger } from '../lib/logger';
 
 interface TestingPanelProps {
   user: User | null;
@@ -311,21 +312,21 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       const features = ['voice', 'text', 'image'];
       
       const accessResults = features.map(feature => {
-        // Use centralized tier access logic
+        // ✅ Use centralized tier access logic
         const canAccess = (feature === 'voice' || feature === 'audio') ? 
-          (tier === 'core' || tier === 'studio') :
+          canUseAudio(tier) :
           feature === 'image' ? 
-          (tier === 'core' || tier === 'studio') :
+          canUseImage(tier) :
           true; // text is always available
         return { feature, canAccess };
       });
 
-      // Expected access based on tier
-      const expectedAccess = profile?.tier === 'free' ? 
+      // ✅ Expected access based on tier using centralized logic
+      const expectedAccess = !isPaidTier(profile?.tier || 'free') ? 
         { voice: false, text: true, image: false } :
-        profile?.tier === 'core' ?
+        canUseAudio(profile?.tier || 'core') && canUseImage(profile?.tier || 'core') ?
         { voice: true, text: true, image: true } :
-        { voice: true, text: true, image: true }; // studio
+        { voice: true, text: true, image: true }; // Studio or Core
 
 
       const isCorrect = accessResults.every(result => 

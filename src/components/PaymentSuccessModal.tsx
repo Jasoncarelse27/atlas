@@ -1,5 +1,6 @@
-import React from 'react';
 import { Check, X } from 'lucide-react';
+import React from 'react';
+import { isPaidTier } from '../config/featureAccess';
 import type { UserProfile } from '../types/subscription';
 import { TIER_CONFIGS } from '../types/subscription';
 import Tooltip from './Tooltip';
@@ -29,7 +30,7 @@ const PaymentSuccessModal: React.FC<PaymentSuccessModalProps> = ({
   const tierConfig = TIER_CONFIGS[tier];
     if (!tierConfig) return '';
 
-    if (tier === 'free') {
+    if (!isPaidTier(tier)) {
       return tierConfig.price;
     }
 

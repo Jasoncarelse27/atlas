@@ -4,13 +4,13 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Mic, MicOff, Phone, PhoneOff, Settings, Volume2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { canUseVoiceEmotion, tierFeatures } from '../../config/featureAccess';
 import { modernToast } from '../../config/toastConfig';
-import { tierFeatures } from '../../config/featureAccess';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useFeatureAccess } from '../../hooks/useTierAccess';
 import { logger } from '../../lib/logger';
 import { voiceCallService } from '../../services/voiceCallService';
-import { getSafeUserMedia, isAudioRecordingSupported } from '../../utils/audioHelpers';
+import { getSafeUserMedia } from '../../utils/audioHelpers';
 
 interface VoiceCallModalProps {
   isOpen: boolean;
@@ -669,14 +669,14 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={startCall}
-                disabled={tier !== 'studio'}
+                disabled={!canUseVoiceEmotion(tier)}
                 className={`px-8 py-4 rounded-full font-medium transition-colors ${
-                  tier === 'studio'
+                  canUseVoiceEmotion(tier)
                     ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white'
                     : 'bg-[#E8DDD2] text-[#B8A9A0] cursor-not-allowed'
                 }`}
               >
-                {tier === 'studio' ? 'Start Voice Call' : 'Studio Tier Required'}
+                {canUseVoiceEmotion(tier) ? 'Start Voice Call' : 'Studio Tier Required'}
               </motion.button>
             )}
           </div>

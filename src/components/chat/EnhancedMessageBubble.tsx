@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Ban, Bot, Check, Copy, Loader2, Pause, Play, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { canUseAudio } from '../../config/featureAccess';
 import { logger } from '../../lib/logger';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
@@ -403,8 +404,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     
     logger.debug('[TTS] Starting TTS playback for tier:', tier);
     
-    // Check tier access
-    if (tier === 'free') {
+    // ✅ Check tier access using centralized function
+    if (!canUseAudio(tier)) {
       toast.error('Text-to-speech requires Core or Studio tier');
       return;
     }

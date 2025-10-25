@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isPaidTier } from '../config/featureAccess';
 import { createChatError } from '../features/chat/lib/errorHandler';
 import { mailerLiteService, type MailerLiteEvent, type SubscriberData } from '../services/mailerService';
 
@@ -146,8 +147,8 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
         last_active: new Date().toISOString(),
       });
 
-      // Check for conversation limit reached (free tier: 2/day)
-      if (tier === 'free' && conversationsToday >= 2) {
+      // ✅ Check for conversation limit reached (free tier: 2/day)
+      if (!isPaidTier(tier) && conversationsToday >= 2) {
         await mailerLiteService.triggerEvent({
           email,
           event: 'conversation_limit_reached',

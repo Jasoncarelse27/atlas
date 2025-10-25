@@ -1,5 +1,6 @@
 import { Brain, LogOut, MessageSquare, Settings, User } from 'lucide-react';
 import React from 'react';
+import { isPaidTier } from '../../../config/featureAccess';
 // import { useTierAccess } from '@/hooks/useSubscription'; // Note: Use for centralized tier checks when userId is available
 
 interface ChatHeaderProps {
@@ -46,7 +47,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <span className="text-sm font-medium text-atlas-sage">
                 Atlas {tier.charAt(0).toUpperCase() + tier.slice(1)}
               </span>
-              {tier === 'free' && (
+              {!isPaidTier(tier) && (
                 <span className="text-xs text-gray-300">
                   {15 - messageCount} left this month
                 </span>

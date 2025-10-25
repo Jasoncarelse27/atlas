@@ -259,8 +259,9 @@ export function getSubscriptionDisplayName(tier: Tier): string {
 
 // ✅ Utility functions to replace hardcoded tier checks
 export function hasUnlimitedMessages(tier: Tier): boolean {
-  const config = tierFeatures[tier];
-  return (config as any).maxConversationsPerDay === -1 || (config as any).maxConversationsPerMonth === -1;
+  // Paid tiers (Core/Studio) have no monthly caps, only daily guardrails
+  // Free tier has hard monthly limit of 15
+  return isPaidTier(tier);
 }
 
 export function canUseAudio(tier: Tier): boolean {

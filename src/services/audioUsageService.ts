@@ -1,4 +1,4 @@
-import { canUseAudio, isPaidTier, tierFeatures } from '@/config/featureAccess';
+import { canUseAudio, canUseVoiceEmotion, isPaidTier, tierFeatures } from '@/config/featureAccess';
 import { supabase } from '@/lib/supabaseClient';
 import type { Tier } from '@/types/tier';
 import { logger } from '../lib/logger';
@@ -31,8 +31,8 @@ export class AudioUsageService {
       };
     }
     
-    // ✅ STUDIO tier: unlimited
-    if (tier === 'studio') {
+    // ✅ STUDIO tier: unlimited (using centralized function)
+    if (canUseVoiceEmotion(tier)) {
       return {
         canUse: true,
         minutesUsed: 0,
@@ -43,7 +43,7 @@ export class AudioUsageService {
     }
     
     // ✅ CORE tier: check if unlimited
-    if (tier === 'core') {
+    if (isPaidTier(tier) && !canUseVoiceEmotion(tier)) {
       const config = tierFeatures[tier] as any;
       
       // If audio is unlimited (-1), skip usage checks

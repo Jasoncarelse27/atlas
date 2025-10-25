@@ -2,13 +2,15 @@
 // Daily conversation limits with UTC reset + Revenue protection
 
 import {
-  DAILY_API_BUDGET,
-  MENTAL_HEALTH_RESOURCES,
-  containsCrisisKeywords,
-  getRemainingConversations,
-  getUsageWarningLevel,
-  isWithinDailyLimit,
-  tierFeatures
+    DAILY_API_BUDGET,
+    MENTAL_HEALTH_RESOURCES,
+    canUseVoiceEmotion,
+    containsCrisisKeywords,
+    getRemainingConversations,
+    getUsageWarningLevel,
+    isPaidTier,
+    isWithinDailyLimit,
+    tierFeatures
 } from '../config/featureAccess';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
@@ -128,7 +130,7 @@ class UsageTrackingService {
           reason: 'daily_limit',
           remainingConversations: 0,
           upgradeRequired: true,
-          suggestedTier: tier === 'free' ? 'core' : 'studio',
+          suggestedTier: !isPaidTier(tier) ? 'core' : 'studio',
           warningLevel: 'exceeded'
         };
       }
@@ -152,8 +154,8 @@ class UsageTrackingService {
       return {
         canProceed: true,
         remainingConversations: remaining,
-        upgradeRequired: showUpgradePrompt && tier !== 'studio',
-        suggestedTier: tier === 'free' ? 'core' : 'studio',
+        upgradeRequired: showUpgradePrompt && !canUseVoiceEmotion(tier),
+        suggestedTier: !isPaidTier(tier) ? 'core' : 'studio',
         warningLevel
       };
     } catch (error) {

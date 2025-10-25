@@ -1,4 +1,4 @@
-import { getSubscriptionDisplayName, hasUnlimitedMessages } from '@/config/featureAccess';
+import { canUseVoiceEmotion, getSubscriptionDisplayName, hasUnlimitedMessages, isPaidTier } from '@/config/featureAccess';
 import { AlertTriangle, TrendingUp, Zap } from 'lucide-react';
 import React from 'react';
 import { useSubscription } from '../hooks/useSubscription';
@@ -51,8 +51,8 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
   const showCritical = textPercentage >= 90 || audioPercentage >= 90 || imagePercentage >= 90;
   const isUnlimited = hasUnlimitedMessages(tier);
 
-  if (isUnlimited && tier === 'studio') {
-    // Studio users have unlimited everything
+  if (isUnlimited && canUseVoiceEmotion(tier)) {
+    // ✅ Studio users have unlimited everything
     return (
       <div className="bg-gradient-to-r from-atlas-sand/20 to-atlas-stone/20 border border-atlas-stone/40 rounded-lg p-4">
         <div className="flex items-center gap-3">
@@ -130,7 +130,7 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
         </div>
 
         {/* Audio Minutes */}
-        {userTier !== 'free' && (
+        {!isPaidTier(userTier) && (
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-700">Voice (minutes)</span>
@@ -161,7 +161,7 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
         )}
 
         {/* Image Uploads */}
-        {userTier !== 'free' && (
+        {isPaidTier(userTier) && (
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-700">Images</span>

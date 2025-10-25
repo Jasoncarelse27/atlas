@@ -1,4 +1,5 @@
 import { Crown } from 'lucide-react';
+import { hasUnlimitedMessages } from '../../config/featureAccess';
 import { getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/useTierQuery';
 import { UpgradeButton } from '../UpgradeButton';
 
@@ -20,11 +21,11 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
     );
   }
   
-  // Calculate usage for free tier (studio/core are unlimited)
+  // ✅ Calculate usage using centralized function
   const messageCount = 0; // TODO: Connect to real usage API
-  const maxMessages = tier === 'free' ? 15 : -1;
-  const remainingMessages = tier === 'free' ? 15 - messageCount : 0;
-  const isUnlimited = tier === 'core' || tier === 'studio';
+  const maxMessages = hasUnlimitedMessages(tier) ? -1 : 15;
+  const remainingMessages = hasUnlimitedMessages(tier) ? 0 : 15 - messageCount;
+  const isUnlimited = hasUnlimitedMessages(tier);
 
   return (
     <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">

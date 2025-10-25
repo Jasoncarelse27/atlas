@@ -2,7 +2,7 @@
 // Shows daily conversation limits and encourages upgrades
 
 import { Clock, MessageCircle, TrendingUp, Zap } from 'lucide-react';
-import { tierFeatures } from '../config/featureAccess';
+import { isPaidTier, tierFeatures } from '../config/featureAccess';
 import type { Tier } from '../types/tier';
 
 interface UsageIndicatorEnhancedProps {
@@ -88,8 +88,9 @@ export function UsageIndicatorEnhanced({
     return `${conversationsToday} of ${maxConversations} conversations used`;
   };
 
+  // ✅ Upgrade message using centralized function
   const getUpgradeMessage = () => {
-    if (tier === 'free') {
+    if (!isPaidTier(tier)) {
       return "Upgrade to Basic for 100 daily conversations";
     }
     return "Upgrade to Premium for unlimited conversations";
@@ -179,9 +180,9 @@ export function UsageIndicatorEnhanced({
         {/* Tier Badge */}
         <div className="mt-2">
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            tier === 'studio' 
+            tier === 'studio'
               ? 'bg-purple-100 text-purple-800'
-              : tier === 'core'
+              : isPaidTier(tier)
               ? 'bg-green-100 text-green-800'
               : 'bg-gray-100 text-gray-800'
           }`}>

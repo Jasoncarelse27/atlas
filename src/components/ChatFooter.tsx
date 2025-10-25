@@ -1,4 +1,5 @@
 import React from 'react';
+import { isPaidTier } from '../config/featureAccess';
 import { useUsageIndicator } from '../hooks/useUsageIndicator';
 
 interface ChatFooterProps {
@@ -79,7 +80,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
       )}
 
       {/* Tier Badge for Paid Users */}
-      {usage && !loading && !error && (usage.tier === 'core' || usage.tier === 'studio') && (
+      {usage && !loading && !error && isPaidTier(usage.tier) && (
         <div className="flex items-center space-x-2">
           <div className={`px-2 py-1 text-xs font-medium rounded-full ${
             usage.tier === 'core' 

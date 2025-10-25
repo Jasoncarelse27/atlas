@@ -1,4 +1,4 @@
-import React from 'react';
+import { canUseVoiceEmotion } from '../../../config/featureAccess';
 import { ClaudeResponse, getModelInfo } from '../lib/ClaudeRouter';
 
 interface ClaudeResponseViewProps {
@@ -14,7 +14,7 @@ export default function ClaudeResponseView({ response }: ClaudeResponseViewProps
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-            modelInfo.tier === 'studio' 
+            canUseVoiceEmotion(modelInfo.tier)
               ? 'bg-purple-100 text-purple-800' 
               : 'bg-blue-100 text-blue-800'
           }`}>

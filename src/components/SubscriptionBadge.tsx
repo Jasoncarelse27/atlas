@@ -1,5 +1,6 @@
 import { Crown, Star, Zap } from 'lucide-react';
 import React from 'react';
+import { isPaidTier } from '../config/featureAccess';
 import type { UserProfile } from '../types/subscription';
 import { TIER_CONFIGS } from '../types/subscription';
 import Tooltip from './Tooltip';
@@ -48,7 +49,7 @@ const SubscriptionBadge: React.FC<SubscriptionBadgeProps> = ({
   const getTooltipContent = () => {
     let content = `${tierConfig.displayName} Plan`;
     
-    if (profile.tier === 'free') {
+    if (!isPaidTier(profile.tier)) {
       content += ' • Always-on access';
     } else if (profile.subscription_status === 'active') {
       content += ' • Active subscription';

@@ -1,21 +1,22 @@
 import type { User } from '@supabase/supabase-js';
 import {
-  Crown,
-  Grid3X3,
-  HelpCircle,
-  History,
-  LogOut,
-  Menu,
-  MessageSquare, PlusSquare,
-  Settings,
-  Sliders as SlidersIcon,
-  TrendingUp,
-  User as UserIcon,
-  Volume2 as VolumeIcon, VolumeX,
-  Wifi, WifiOff,
-  X as XIcon
+    Crown,
+    Grid3X3,
+    HelpCircle,
+    History,
+    LogOut,
+    Menu,
+    MessageSquare, PlusSquare,
+    Settings,
+    Sliders as SlidersIcon,
+    TrendingUp,
+    User as UserIcon,
+    Volume2 as VolumeIcon, VolumeX,
+    Wifi, WifiOff,
+    X as XIcon
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { isPaidTier } from '../config/featureAccess';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { UserProfile } from '../types/subscription';
 import AccountModal from './AccountModal';
@@ -446,7 +447,7 @@ const Header: React.FC<HeaderProps> = ({
               >
                 <Crown className={getIconSize()} />
                 <span className="font-medium">
-                  {profile.tier === 'free' ? 'Upgrade' : 'Plans'}
+                  {isPaidTier(profile.tier) ? 'Plans' : 'Upgrade'}
                 </span>
               </button>
             </Tooltip>

@@ -1,7 +1,7 @@
 // Atlas FastSpring Integration Service
 // Subscription management, webhooks, and payment processing
 
-import { FASTSPRING_CONFIG } from '../config/featureAccess';
+import { FASTSPRING_CONFIG, isPaidTier } from '../config/featureAccess';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
@@ -123,8 +123,8 @@ class FastSpringService {
   }> {
     const { tier, isActive, subscription } = await this.getUserSubscription(userId);
 
-    // Free tier is always allowed (with its own limits)
-    if (tier === 'free') {
+    // ✅ Free tier is always allowed (with its own limits)
+    if (!isPaidTier(tier)) {
       return { canProceed: true, tier };
     }
 
@@ -195,7 +195,7 @@ class FastSpringService {
    * Create FastSpring checkout URL for subscription using live API
    */
   async createCheckoutUrl(userId: string, tier: Tier, email: string): Promise<string> {
-    if (tier === 'free') {
+    if (!isPaidTier(tier)) {
       throw new Error('Cannot create checkout for free tier');
     }
 
@@ -353,8 +353,9 @@ class FastSpringService {
           }
           
           if (sub.status === 'active') {
-            if (tier === 'core') analytics.monthlyRecurringRevenue += 19.99;
-            if (tier === 'studio') analytics.monthlyRecurringRevenue += 189.99;
+            // ✅ Calculate MRR based on tier using centralized config
+            const tierPrices = { core: 19.99, studio: 189.99 };
+            analytics.monthlyRecurringRevenue += tierPrices[tier] || 0;
           }
         }
 

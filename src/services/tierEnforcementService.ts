@@ -1,3 +1,4 @@
+import { canUseAudio, canUseVoiceEmotion } from '../config/featureAccess';
 import { logger } from '../lib/logger';
 
 // Atlas V1 Tier Enforcement Service
@@ -151,8 +152,8 @@ class TierEnforcementService {
         tier: data.metadata?.tier || 'free',
         messages_used: data.metadata?.dailyUsage?.count || 0,
         messages_limit: data.metadata?.dailyUsage?.limit || 15,
-        can_use_audio: data.metadata?.tier !== 'free',
-        can_use_image: data.metadata?.tier === 'studio',
+        can_use_audio: canUseAudio(data.metadata?.tier || 'free'),
+        can_use_image: canUseVoiceEmotion(data.metadata?.tier || 'free'),
         model: data.metadata?.model || 'claude-3-haiku-20240307'
       }
     };

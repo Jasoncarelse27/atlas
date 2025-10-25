@@ -1,5 +1,6 @@
-import { supabase } from '../lib/supabaseClient';
+import { canUseAudio } from '../config/featureAccess';
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
 
 export interface AudioTranscriptionResult {
   text: string;
@@ -141,16 +142,18 @@ class AudioService {
 
   /**
    * Check if user has audio permissions (Core/Studio tier)
+   * ✅ Now uses centralized function
    */
   canUseAudio(tier: string): boolean {
-    return tier === 'core' || tier === 'studio';
+    return canUseAudio(tier);
   }
 
   /**
    * Get audio tier restriction message
+   * ✅ Simplified using centralized logic
    */
   getAudioRestrictionMessage(tier: string): string {
-    if (tier === 'free') {
+    if (!canUseAudio(tier)) {
       return 'Voice recording is available for Core/Studio users. Upgrade to unlock audio features!';
     }
     return '';

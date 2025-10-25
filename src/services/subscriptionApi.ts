@@ -2,6 +2,7 @@
 // This service handles all subscription/tier queries through our backend API
 // instead of direct Supabase calls, ensuring proper security and CORS handling
 
+import { isPaidTier } from '../config/featureAccess';
 import { logger } from '../lib/logger';
 import { perfMonitor } from '../utils/performanceMonitor';
 import { safeToast } from './toastService';
@@ -293,7 +294,7 @@ class SubscriptionApiService {
     
     return {
       id: `mock_${userId}`,
-      status: tier === 'free' ? 'free' : 'active',
+      status: isPaidTier(tier) ? 'active' : 'free',
       subscription_tier: tier,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -334,7 +335,7 @@ class SubscriptionApiService {
     // Convert profile to FastSpringSubscription format
     return {
       id: profile.id,
-      status: profile.subscription_tier === 'free' ? 'free' : 'active',
+      status: isPaidTier(profile.subscription_tier) ? 'active' : 'free',
       subscription_tier: profile.subscription_tier,
       created_at: profile.created_at,
       updated_at: profile.updated_at,

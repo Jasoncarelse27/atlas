@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { canUseAudio, canUseCamera, canUseImage, canUseVoiceEmotion, hasUnlimitedMessages, isPaidTier } from '../config/featureAccess';
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
 
 export type UserTier = 'free' | 'core' | 'studio';
 
@@ -43,17 +44,17 @@ export function useSubscription(userId?: string) {
   // Get tier from profile
   const tier: UserTier = profile?.subscription_tier || 'free';
   
-  // Calculate tier limits
+  // ✅ Calculate tier limits using centralized functions
   const tierLimits: TierLimits = {
-    dailyMessages: tier === 'free' ? 15 : -1, // -1 means unlimited
-    monthlyMessages: tier === 'free' ? 50 : -1,
-    audioMinutes: tier === 'core' || tier === 'studio' ? 60 : 0,
-    imageUploads: tier === 'core' || tier === 'studio' ? 10 : 0,
+    dailyMessages: hasUnlimitedMessages(tier) ? -1 : 15,
+    monthlyMessages: hasUnlimitedMessages(tier) ? -1 : 50,
+    audioMinutes: isPaidTier(tier) ? 60 : 0,
+    imageUploads: isPaidTier(tier) ? 10 : 0,
   };
 
-  // Check if user can send messages
+  // ✅ Check if user can send messages using centralized function
   const canSendMessage = (): boolean => {
-    if (tier === 'core' || tier === 'studio') return true;
+    if (isPaidTier(tier)) return true;
     
     const today = new Date().toISOString().slice(0, 10);
     const lastReset = profile?.usage_stats?.last_reset_date?.slice(0, 10);
@@ -67,9 +68,9 @@ export function useSubscription(userId?: string) {
     return messagesToday < tierLimits.dailyMessages;
   };
 
-  // Get remaining messages for display
+  // ✅ Get remaining messages using centralized function
   const remainingMessages = (): number => {
-    if (tier === 'core' || tier === 'studio') return -1; // Unlimited
+    if (isPaidTier(tier)) return -1; // Unlimited
     
     const today = new Date().toISOString().slice(0, 10);
     const lastReset = profile?.usage_stats?.last_reset_date?.slice(0, 10);
@@ -206,14 +207,14 @@ export function useTierAccess(userId?: string) {
     switch (feature) {
       case 'voice':
       case 'audio':
-        return tier === 'core' || tier === 'studio';
+        return canUseAudio(tier);
       case 'image':
       case 'camera':
-        return tier === 'core' || tier === 'studio';
+        return canUseImage(tier) || canUseCamera(tier);
       case 'unlimited_messages':
-        return tier === 'core' || tier === 'studio';
+        return hasUnlimitedMessages(tier);
       case 'priority_support':
-        return tier === 'studio';
+        return canUseVoiceEmotion(tier);
       default:
         return true; // Basic features available to all tiers
     }
