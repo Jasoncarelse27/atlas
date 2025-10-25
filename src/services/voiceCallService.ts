@@ -618,8 +618,9 @@ export class VoiceCallService {
         await audioQueueService.addSentence(currentSentence.trim(), sentenceIndex++, 'nova');
       }
       
-      // Save full response to DB
-      await this.saveVoiceMessage(fullResponse, 'assistant', options.conversationId, options.userId);
+      // ✅ REMOVED DUPLICATE: Backend /api/message already saves the assistant response
+      // No need to save again here - prevents duplicate messages in UI
+      // await this.saveVoiceMessage(fullResponse, 'assistant', options.conversationId, options.userId);
       
       // Add assistant response to conversational buffer
       conversationBuffer.add('assistant', fullResponse);
