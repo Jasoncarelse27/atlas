@@ -296,16 +296,25 @@ export class ConversationSyncService {
   /**
    * ✅ DELTA SYNC: Only fetch what changed since last sync
    * This fixes the deletion issue and scales to 100k+ users
+   * 
+   * PERFORMANCE METRICS:
+   * - Tracks queries per sync
+   * - Tracks sync duration
+   * - Tracks data volume synced
    */
   async deltaSync(userId: string): Promise<void> {
     perfMonitor.start('conversation-sync');
     const startTime = Date.now();
-    logger.debug('[ConversationSync] Starting delta sync...');
-    logger.debug('[ConversationSync] ⚡ Optimized for recent data only');
+    let queriesExecuted = 0;
+    let conversationsSynced = 0;
+    let messagesSynced = 0;
+    
+    logger.debug('[ConversationSync] 🚀 Starting delta sync...');
+    logger.debug('[ConversationSync] ⚡ Optimized: Cursor-based pagination, recent data only');
     
     try {
       // 1. Get last sync timestamp
-      let lastSyncedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();  // ✅ FIX: Reduced from 90 to 30 days for faster sync
+      let lastSyncedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();  // Default: 30 days
       const syncMeta = await atlasDB.syncMetadata.get(userId);
       if (syncMeta) {
         lastSyncedAt = syncMeta.lastSyncedAt;
@@ -318,17 +327,20 @@ export class ConversationSyncService {
         .from('conversations')
         .select('*')
         .eq('user_id', userId)
-        .is('deleted_at', null)  // ✅ FIX: Only sync non-deleted conversations
+        .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
         .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
         .order('updated_at', { ascending: false })
-        .limit(30) as { data: any[] | null; error: any };  // ✅ FIX: Reduced from 50 to 30 for faster sync
+        .limit(30) as { data: any[] | null; error: any };
+      
+      queriesExecuted++; // Track query count
       
       if (convError) {
         logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
         return;
       }
       
-      logger.debug('[ConversationSync] ✅ Found', updatedConversations?.length || 0, 'updated conversations');
+      conversationsSynced = updatedConversations?.length || 0;
+      logger.debug(`[ConversationSync] ✅ Found ${conversationsSynced} updated conversations`);
       logger.debug('[ConversationSync] 📥 Syncing conversations...');
       
       // 3. Sync updated conversations to local (add new ones, update existing ones)
@@ -372,12 +384,15 @@ export class ConversationSyncService {
           .in('conversation_id', conversationIds)  // ← ONLY updated conversations
           .gt('created_at', lastSyncedAt)  // ← DELTA FILTER
           .order('created_at', { ascending: true })
-          .limit(100) as { data: any[] | null; error: any };  // ⚡ REDUCED from 200 to 100 for faster sync
+          .limit(100) as { data: any[] | null; error: any };
+        
+        queriesExecuted++; // Track query count
         
         if (msgError) {
           logger.error('[ConversationSync] ❌ Failed to fetch messages:', msgError);
         } else {
-          logger.debug('[ConversationSync] ✅ Found', newMessages?.length || 0, 'new messages');
+          messagesSynced = newMessages?.length || 0;
+          logger.debug(`[ConversationSync] ✅ Found ${messagesSynced} new messages`);
           
           // ✅ PHASE 2: Only add missing messages (duplicate check)
           // Real-time listener is primary writer; this is for offline catch-up only
@@ -489,22 +504,24 @@ export class ConversationSyncService {
       const duration = Date.now() - startTime;
       const durationSeconds = (duration / 1000).toFixed(1);
       const perfDuration = perfMonitor.end('conversation-sync');
-      logger.info(`[ConversationSync] ✅ Delta sync completed in ${duration}ms`);
+      
+      // 📊 PERFORMANCE METRICS SUMMARY
+      logger.info(`[ConversationSync] ✅ Delta sync completed in ${durationSeconds}s`);
+      logger.info(`[ConversationSync] 📊 Metrics: ${queriesExecuted} queries | ${conversationsSynced} conversations | ${messagesSynced} messages`);
+      logger.info(`[ConversationSync] ⚡ Efficiency: ${(queriesExecuted / Math.max(duration, 1) * 1000).toFixed(1)} queries/sec`);
       
       // Auto-optimize if sync is slow
       if (duration > 1200) {
-        logger.warn(`[ConversationSync] Slow sync detected (${duration}ms) - optimizing for next run`);
-        // ✅ FIX: Use correct SyncMetadata type
-        logger.debug('[ConversationSync] Consider manual optimization if sync remains slow');
-      } else {
-        logger.debug('[ConversationSync] 🚀 Sync performance:', durationSeconds + 's', duration < 500 ? '(Excellent!)' : duration < 1000 ? '(Good)' : '(OK)');
+        logger.warn(`[ConversationSync] ⚠️ Slow sync detected (${duration}ms) - may need optimization`);
+      } else if (duration < 500) {
+        logger.debug('[ConversationSync] 🚀 Excellent sync performance!');
       }
       
       if (perfDuration && perfDuration > 5000) {
         logger.warn(`⚠️ [Performance] Conversation sync took ${perfDuration.toFixed(0)}ms - optimization applied`);
       }
       
-      // ✅ PERFORMANCE MONITORING: Log sync metrics (future-proof approach)
+      // ✅ PERFORMANCE MONITORING: Log sync metrics
       try {
         // Try edge function first (bypasses RLS restrictions)
         const { error } = await supabase.functions.invoke('log-sync-metrics', {
@@ -513,8 +530,9 @@ export class ConversationSyncService {
             event: 'delta_sync_completed',
             data: {
               duration,
-              conversationsSynced: updatedConversations?.length || 0,
-              messagesSynced: 0,
+              queries: queriesExecuted,
+              conversationsSynced,
+              messagesSynced,
               unsyncedPushed: unsyncedMessages.length
             }
           }
@@ -527,8 +545,9 @@ export class ConversationSyncService {
             event: 'delta_sync_completed',
             data: {
               duration,
-              conversationsSynced: updatedConversations?.length || 0,
-              messagesSynced: 0,
+              queries: queriesExecuted,
+              conversationsSynced,
+              messagesSynced,
               unsyncedPushed: unsyncedMessages.length
             }
           } as any);

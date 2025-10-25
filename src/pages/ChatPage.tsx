@@ -805,10 +805,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         // Sync to get latest messages from backend (only once, don't reload after)
         try {
           const { conversationSyncService } = await import('../services/conversationSyncService');
+          // ✅ OPTIMIZED: Delta sync already handles both conversations AND messages
           await conversationSyncService.deltaSync(userId);
-          
-          // ✅ ADD THIS LINE: Sync conversations from Supabase to local Dexie
-          await conversationSyncService.syncConversationsFromRemote(userId);
           
           // DON'T call loadMessages again - real-time listener will handle new messages
           logger.debug('[ChatPage] ✅ Initial sync complete, real-time listener active');
