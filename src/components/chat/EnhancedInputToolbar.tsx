@@ -89,15 +89,19 @@ export default function EnhancedInputToolbar({
     }
   }, [isVisible]);
 
-  // ✅ Auto-expand textarea as user types (ChatGPT-style)
+  // ✅ Auto-expand textarea as user types (ChatGPT-style) - OPTIMIZED
   useEffect(() => {
     const textarea = inputRef.current;
     if (textarea) {
-      // Reset height to auto to get the correct scrollHeight
-      textarea.style.height = 'auto';
-      // Set height to scrollHeight, max 140px (7 lines)
-      const newHeight = Math.min(textarea.scrollHeight, 140);
-      textarea.style.height = `${newHeight}px`;
+      // Use requestAnimationFrame to batch DOM updates
+      requestAnimationFrame(() => {
+        // Store current scroll position to prevent jump
+        const scrollTop = textarea.scrollTop;
+        textarea.style.height = 'auto';
+        const newHeight = Math.min(textarea.scrollHeight, 140);
+        textarea.style.height = `${newHeight}px`;
+        textarea.scrollTop = scrollTop;
+      });
     }
   }, [text]); // Re-run when text changes
 
@@ -132,9 +136,21 @@ export default function EnhancedInputToolbar({
       });
     }
     
-    // Clear UI immediately for instant feedback
+    // ✅ FIX: Clear UI immediately but prevent height animation glitch
+    // Temporarily disable transitions on textarea
+    if (inputRef.current) {
+      inputRef.current.style.transition = 'none';
+    }
+    
     setAttachmentPreviews([]);
     setText('');
+    
+    // Re-enable transitions after clearing (smooth for future typing)
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.style.transition = '';
+      }
+    });
     
     // Show immediate feedback
     if (onSoundPlay) {
@@ -644,13 +660,6 @@ export default function EnhancedInputToolbar({
               boxShadow: '0 8px 32px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
               borderRadius: '28px' // Extra rounded for polish
             }}
-            initial={{ y: 0, scale: 1 }}
-            animate={{ y: 0, scale: 1 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 300, 
-              damping: 30 
-            }}
           >
         
         {/* + Attachment Button */}
@@ -687,8 +696,6 @@ export default function EnhancedInputToolbar({
                     ? '0 4px 16px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
                     : '0 4px 16px rgba(243, 211, 184, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
                 }}
-                whileTap={{ scale: 0.95 }}
-                whileHover={{ scale: 1.05 }}
                 title="Add attachment"
               >
                 <Plus size={18} className={`transition-transform duration-300 ${menuOpen ? 'rotate-45' : 'rotate-0'}`} />
@@ -756,7 +763,6 @@ export default function EnhancedInputToolbar({
                     ? undefined 
                     : '0 2px 8px rgba(151, 134, 113, 0.3), inset 0 -1px 2px rgba(151, 134, 113, 0.2)'
                 }}
-                whileTap={{ scale: 0.95 }}
                 title="Voice recording"
               >
                 <Mic size={18} />
@@ -780,7 +786,6 @@ export default function EnhancedInputToolbar({
                       ? undefined 
                       : '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
                   }}
-                  whileTap={{ scale: 0.9 }}
                 >
                   {isStreaming ? (
                     <motion.div
@@ -809,7 +814,6 @@ export default function EnhancedInputToolbar({
                       ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
                       : undefined
                   }}
-                  whileTap={{ scale: 0.9 }}
                 >
                   <Phone className="w-4 h-4 text-white" />
                   {tier === 'studio' && !localStorage.getItem('hasUsedVoiceCall') && (

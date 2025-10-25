@@ -12,6 +12,8 @@ type SupabaseMessage = {
   content: string;
   created_at: string;
   updated_at?: string;
+  deleted_at?: string;
+  deleted_by?: string;
 };
 
 export let lastSyncedAt = 0
@@ -64,25 +66,47 @@ export const syncService = {
         const exists = local.find((m) => m.id === msg.id)
         if (!exists) {
           logger.debug("[SYNC] Adding missing message from remote:", msg.id);
+          
+          // ✅ FIX: Parse JSON content if it's a stringified object
+          let parsedContent: string;
+          if (typeof msg.content === 'string') {
+            try {
+              // Check if content looks like JSON
+              if (msg.content.trim().startsWith('{') && msg.content.includes('"type"') && msg.content.includes('"text"')) {
+                const parsed = JSON.parse(msg.content);
+                // Extract the actual text from {type: "text", text: "..."}
+                parsedContent = parsed.text || parsed.content || msg.content;
+              } else {
+                parsedContent = msg.content;
+              }
+            } catch (e) {
+              // Not JSON, keep as-is
+              parsedContent = msg.content;
+            }
+          } else {
+            // Already a string
+            parsedContent = msg.content;
+          }
+          
           await atlasDB.messages.put({
             id: msg.id,
             conversationId: msg.conversation_id,
             userId: userId, // Use userId from function parameter
             role: msg.role,
             type: "text", // Default type
-            content: msg.content,
+            content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: msg.created_at,
             synced: true,
             updatedAt: msg.created_at,
             deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
-            deletedBy: msg.deleted_by || undefined  // ✅ PHASE 2: Sync deleted type
+            deletedBy: (msg.deleted_by as 'user' | 'everyone' | undefined) || undefined  // ✅ PHASE 2: Sync deleted type
           })
         } else if (msg.deleted_at && !exists.deletedAt) {
           // ✅ PHASE 2: Update existing message if it was deleted remotely
           logger.debug("[SYNC] Updating delete status for message:", msg.id);
           await atlasDB.messages.update(msg.id, {
             deletedAt: msg.deleted_at,
-            deletedBy: msg.deleted_by || 'user'
+            deletedBy: (msg.deleted_by as 'user' | 'everyone') || 'user'
           });
         } else {
           logger.debug("[SYNC] Message already exists, skipping:", msg.id);

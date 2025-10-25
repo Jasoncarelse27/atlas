@@ -218,17 +218,22 @@ export const chatService = {
       // Refresh profile to get updated usage stats
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
+        if (session?.access_token && import.meta.env.VITE_API_URL) {
           // Trigger a profile refresh by calling the profile endpoint
+          // ✅ FIX: Only call if VITE_API_URL is set (avoids mixed content errors)
           await fetch(`${import.meta.env.VITE_API_URL}/v1/user_profiles/${userId}`, {
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
               'Content-Type': 'application/json'
             }
+          }).catch(() => {
+            // Silently fail if profile refresh fails (non-critical)
+            // This fixes mixed content errors when VITE_API_URL is HTTP
           });
         }
       } catch (refreshError) {
-        logger.error('[ChatService] Error refreshing messages after streaming:', refreshError);
+        // Silent fail - profile refresh is non-critical
+        logger.debug('[ChatService] Profile refresh skipped:', refreshError);
       }
       
       // Reset streaming state

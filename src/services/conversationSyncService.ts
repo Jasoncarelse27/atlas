@@ -51,7 +51,7 @@ export class ConversationSyncService {
   private syncInProgress = false;
   private lastSyncTime = 0;
   private readonly SYNC_COOLDOWN = 30000; // 30 seconds minimum between syncs
-  private readonly RECENT_DATA_DAYS = 90; // ✅ FIX: Sync last 90 days (3 months) for mobile/web parity
+  private readonly RECENT_DATA_DAYS = 30; // ✅ FIX: Reduced from 90 to 30 days for faster sync
 
   static getInstance(): ConversationSyncService {
     if (!ConversationSyncService.instance) {
@@ -81,9 +81,9 @@ export class ConversationSyncService {
         .select('*')
         .eq('user_id', userId)
         .is('deleted_at', null)
-        .gte('updated_at', recentDate) // ⚡ 90-day window for comprehensive history
+        .gte('updated_at', recentDate) // ⚡ 30-day window for faster sync
         .order('updated_at', { ascending: false })
-        .limit(50) as { data: SupabaseConversation[] | null; error: any }; // ✅ FIX: Increased from 20 to 50
+        .limit(30) as { data: SupabaseConversation[] | null; error: any }; // ✅ FIX: Reduced from 50 to 30
 
       if (error) {
         logger.error('[ConversationSync] Failed to fetch remote conversations:', error);
@@ -169,6 +169,27 @@ export class ConversationSyncService {
         const localMsg = localMessages.find(l => l.id === remoteMsg.id);
         
         if (!localMsg) {
+          // ✅ FIX: Parse JSON content if it's a stringified object
+          let parsedContent: string;
+          if (typeof remoteMsg.content === 'string') {
+            try {
+              // Check if content looks like JSON
+              if (remoteMsg.content.trim().startsWith('{') && remoteMsg.content.includes('"type"') && remoteMsg.content.includes('"text"')) {
+                const parsed = JSON.parse(remoteMsg.content);
+                // Extract the actual text from {type: "text", text: "..."}
+                parsedContent = parsed.text || parsed.content || remoteMsg.content;
+              } else {
+                parsedContent = remoteMsg.content;
+              }
+            } catch (e) {
+              // Not JSON, keep as-is
+              parsedContent = remoteMsg.content;
+            }
+          } else {
+            // Object format
+            parsedContent = remoteMsg.content?.text || '';
+          }
+          
           // Add new message only if it doesn't exist
           await atlasDB.messages.put({
             id: remoteMsg.id,
@@ -176,7 +197,7 @@ export class ConversationSyncService {
             userId: _userId, // ✅ Use function parameter, not remoteMsg.user_id
             role: remoteMsg.role,
             type: remoteMsg.message_type === 'user' ? 'text' : 'text',
-            content: typeof remoteMsg.content === 'string' ? remoteMsg.content : remoteMsg.content?.text || '',
+            content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: remoteMsg.created_at,
             synced: true,
             updatedAt: remoteMsg.created_at
@@ -284,7 +305,7 @@ export class ConversationSyncService {
     
     try {
       // 1. Get last sync timestamp
-      let lastSyncedAt = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();  // ✅ FIX: Sync last 90 days (3 months) for mobile/web parity
+      let lastSyncedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();  // ✅ FIX: Reduced from 90 to 30 days for faster sync
       const syncMeta = await atlasDB.syncMetadata.get(userId);
       if (syncMeta) {
         lastSyncedAt = syncMeta.lastSyncedAt;
@@ -300,7 +321,7 @@ export class ConversationSyncService {
         .is('deleted_at', null)  // ✅ FIX: Only sync non-deleted conversations
         .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
         .order('updated_at', { ascending: false })
-        .limit(50) as { data: any[] | null; error: any };  // ✅ FIX: Increased from 20 to 50 for better coverage
+        .limit(30) as { data: any[] | null; error: any };  // ✅ FIX: Reduced from 50 to 30 for faster sync
       
       if (convError) {
         logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
@@ -351,7 +372,7 @@ export class ConversationSyncService {
           .in('conversation_id', conversationIds)  // ← ONLY updated conversations
           .gt('created_at', lastSyncedAt)  // ← DELTA FILTER
           .order('created_at', { ascending: true })
-          .limit(200) as { data: any[] | null; error: any };  // ⚡ REDUCED for scale
+          .limit(100) as { data: any[] | null; error: any };  // ⚡ REDUCED from 200 to 100 for faster sync
         
         if (msgError) {
           logger.error('[ConversationSync] ❌ Failed to fetch messages:', msgError);
@@ -370,13 +391,34 @@ export class ConversationSyncService {
             // Check if message already exists
             const existingMsg = await atlasDB.messages.get(msg.id);
             if (!existingMsg) {
+              // ✅ FIX: Parse JSON content if it's a stringified object
+              let parsedContent: string;
+              if (typeof msg.content === 'string') {
+                try {
+                  // Check if content looks like JSON
+                  if (msg.content.trim().startsWith('{') && msg.content.includes('"type"') && msg.content.includes('"text"')) {
+                    const parsed = JSON.parse(msg.content);
+                    // Extract the actual text from {type: "text", text: "..."}
+                    parsedContent = parsed.text || parsed.content || msg.content;
+                  } else {
+                    parsedContent = msg.content;
+                  }
+                } catch (e) {
+                  // Not JSON, keep as-is
+                  parsedContent = msg.content;
+                }
+              } else {
+                // Object format
+                parsedContent = msg.content?.text || '';
+              }
+              
               await atlasDB.messages.put({
                 id: msg.id,
                 conversationId: msg.conversation_id,
                 userId: userId, // ✅ Use authenticated userId from function parameter
                 role: msg.role,
                 type: 'text',
-                content: typeof msg.content === 'string' ? msg.content : msg.content?.text || '',
+                content: parsedContent, // ✅ FIX: Use parsed content
                 timestamp: msg.created_at,
                 synced: true,
                 updatedAt: msg.created_at,

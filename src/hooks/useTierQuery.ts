@@ -34,14 +34,14 @@ async function fetchTier(): Promise<TierData> {
     .from('profiles')
     .select('subscription_tier')
     .eq('id', userId)
-    .single();
+    .single<{ subscription_tier: Tier }>();
 
   if (error) {
     logger.error('[useTierQuery] Error fetching tier:', error);
     return { tier: 'free', userId };
   }
 
-  const tier = (data?.subscription_tier as Tier) || 'free';
+  const tier = data?.subscription_tier || 'free';
   logger.debug(`[useTierQuery] ✅ Tier loaded: ${tier} for user ${userId}`);
 
   return {
@@ -108,7 +108,7 @@ export function useTierQuery() {
           });
           
           // Instantly update cache with new tier (no API call needed!)
-          queryClient.setQueryData<TierData>(['user-tier'], (old) => ({
+          queryClient.setQueryData<TierData>(['user-tier'], (_old) => ({
             tier: newTier,
             userId: query.data!.userId,
           }));
@@ -126,7 +126,8 @@ export function useTierQuery() {
           setTimeout(() => {
             logger.debug('[useTierQuery] 🔄 Attempting reconnection...');
             supabase.removeChannel(channel);
-            query.refetch(); // This will trigger the useEffect to recreate the channel
+            // ✅ FIX: Don't call refetch in effect cleanup to avoid infinite loop
+            // query.refetch(); // This will trigger the useEffect to recreate the channel
           }, 2000);
         } else if (status === 'TIMED_OUT') {
           logger.warn('[useTierQuery] ⏱️ Realtime subscription timed out');
@@ -141,7 +142,7 @@ export function useTierQuery() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [query.data?.userId, queryClient, query.refetch]); // ✅ FIXED: Added query.refetch to deps
+  }, [query.data?.userId, queryClient]); // ✅ FIXED: Removed query.refetch from deps to prevent infinite loop
 
   // Listen for auth state changes (login/logout)
   useEffect(() => {

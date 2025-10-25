@@ -72,27 +72,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   
   const { tier, userId, loading } = useTierAccess();
 
-  // Temporary forward declarations to fix "before initialization" error
-  let handleDeleteForMe: () => void;
-  let handleDeleteForEveryone: () => void;
-  let handleEditClick: () => void;
-  let handleDeleteClick: () => void;
-  let handleCopy: () => void;
-  let handleContextMenu: (e: React.MouseEvent) => void;
-  let handleTouchStart: (e: React.TouchEvent) => void;
-  let handleTouchMove: (e: React.TouchEvent) => void;
-  let handleTouchEnd: (e: React.TouchEvent) => void;
-  let messageAgeMinutes: number = 0;
-
-  // Debug: Log userId availability (only when there's an issue)
-  useEffect(() => {
-    // Only log if userId is null AND we're not still loading (indicates real timing issue)
-    if (!userId && tier && !loading) {
-      logger.warn('[EnhancedMessageBubble] ⚠️ userId not yet available, tier:', tier);
-    }
-  }, [userId, tier, loading]);
-
-  // Get content as string for typing effect
+  // Get content as string for typing effect - needed by handlers
   const messageContent = (() => {
     if (!message.content) return '';
     
@@ -108,9 +88,122 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       return message.content.join(' ');
     }
     
-    // Handle plain string
+    // Handle plain string - BUT CHECK IF IT'S JSON!
+    if (typeof message.content === 'string') {
+      // ✅ FIX: Parse JSON strings that look like {"type":"text","text":"..."}
+      if (message.content.trim().startsWith('{') && 
+          message.content.includes('"type"') && 
+          message.content.includes('"text"')) {
+        try {
+          const parsed = JSON.parse(message.content);
+          return parsed.text || parsed.content || message.content;
+        } catch (e) {
+          // Not valid JSON, return as-is
+          return message.content;
+        }
+      }
+      return message.content;
+    }
+    
     return message.content;
   })();
+
+  // Handler functions need to be defined before use
+  const handleDeleteForMe = () => {
+    if (!onDelete || !message.id) return;
+    onDelete(message.id, false);
+    setShowDeleteModal(false);
+  };
+
+  const handleDeleteForEveryone = () => {
+    if (!onDelete || !message.id) return;
+    onDelete(message.id, true);
+    setIsDeletingForEveryone(true);
+    setShowDeleteModal(false);
+  };
+
+  const handleEditClick = () => {
+    setEditedContent(messageContent);
+    setIsEditing(true);
+    setShowContextMenu(false);
+    setTimeout(() => editTextareaRef.current?.focus(), 0);
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+    setShowContextMenu(false);
+  };
+
+  const handleCopy = async () => {
+    try {
+      const textToCopy = displayedText || messageContent;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setIsCopied(true);
+      toast.success('Copied to clipboard');
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      logger.error('[Copy] Failed to copy:', error);
+      toast.error('Failed to copy to clipboard');
+    }
+    setShowContextMenu(false);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!isUser) return;
+    e.preventDefault();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowContextMenu(true);
+  };
+
+  let touchTimer: NodeJS.Timeout | null = null;
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isUser) return;
+    const touch = e.touches[0];
+    touchTimer = setTimeout(() => {
+      setContextMenuPosition({ x: touch.clientX, y: touch.clientY });
+      setShowContextMenu(true);
+    }, 400);
+  };
+
+  const handleTouchMove = (_e: React.TouchEvent) => {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = null;
+    }
+  };
+
+  const handleTouchEnd = (_e: React.TouchEvent) => {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = null;
+    }
+  };
+
+  const messageAgeMinutes = message.timestamp 
+    ? Math.floor((Date.now() - new Date(message.timestamp).getTime()) / 1000 / 60)
+    : Infinity;
+
+  // Debug: Log userId availability (only when there's an issue)
+  useEffect(() => {
+    // Only log if userId is null AND we're not still loading (indicates real timing issue)
+    if (!userId && tier && !loading) {
+      logger.warn('[EnhancedMessageBubble] ⚠️ userId not yet available, tier:', tier);
+    }
+  }, [userId, tier, loading]);
+
 
   // Handle system messages
   if (isSystem) {
@@ -152,12 +245,11 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         />
 
         <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{
-            duration: 0.3,
-            ease: [0.4, 0, 0.2, 1],
-            delay: isLatest ? 0.1 : 0
+            duration: 0.15,
+            ease: "easeOut"
           }}
           className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
           onContextMenu={handleContextMenu}
@@ -215,12 +307,11 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   if (message.type && message.type !== 'text') {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
         transition={{ 
-          duration: 0.3,
-          ease: [0.4, 0, 0.2, 1],
-          delay: isLatest ? 0.1 : 0
+          duration: 0.15,
+          ease: "easeOut"
         }}
         className={`flex items-start space-x-3 mb-6 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
       >
@@ -278,13 +369,16 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     }
   }, [messageContent, isUser, isLatest, message.status]);
 
-  // Reset typing effect when message changes
+  // Reset typing effect when NEW message arrives (not when ID changes during optimistic→real swap)
   useEffect(() => {
-    if (isLatest && !isUser) {
-      setDisplayedText('');
-      setCurrentIndex(0);
+    if (isLatest && !isUser && message.role === 'assistant') {
+      // Only reset if content is empty (new message) or different from current
+      if (!displayedText || displayedText !== messageContent) {
+        setDisplayedText('');
+        setCurrentIndex(0);
+      }
     }
-  }, [message.id, isLatest, isUser]);
+  }, [messageContent, isLatest, isUser, message.role]); // ✅ Use content, not ID
 
   const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length;
   
@@ -367,37 +461,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     }
   };
 
-  handleCopy = async () => {
-    try {
-      // Get the actual displayed text (what user sees)
-      const textToCopy = displayedText || messageContent;
-      
-      if (navigator.clipboard && window.isSecureContext) {
-        // Modern clipboard API
-        await navigator.clipboard.writeText(textToCopy);
-      } else {
-        // Fallback for older browsers or non-secure contexts
-        const textArea = document.createElement('textarea');
-        textArea.value = textToCopy;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-      }
-      
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      logger.error('[EnhancedMessageBubble] Copy failed:', err);
-      // Still show success feedback even if copy fails
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 1000);
-    }
-  };
 
   // Audio control handlers
   const toggleAudioPlayback = () => {
@@ -446,76 +509,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   };
 
   // ✅ PHASE 2: Context Menu Handlers
-  handleContextMenu = (e: React.MouseEvent) => {
-    // Only show context menu for user's own messages
-    if (!isUser) return;
-    
-    e.preventDefault();
-    setContextMenuPosition({ x: e.clientX, y: e.clientY });
-    setShowContextMenu(true);
-  };
 
   // ✅ Mobile: Long-press handler for touch devices
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartPositionRef = useRef<{ x: number; y: number } | null>(null);
-  const [isLongPressing, setIsLongPressing] = useState(false);
-
-  handleTouchStart = (e: React.TouchEvent) => {
-    // Only show context menu for user's own messages
-    if (!isUser) return;
-    
-    const touch = e.touches[0];
-    touchStartPositionRef.current = { x: touch.clientX, y: touch.clientY };
-    
-    // Visual feedback: Start scale animation
-    setIsLongPressing(true);
-    
-    // Start long-press timer (500ms)
-    longPressTimerRef.current = setTimeout(() => {
-      if (touchStartPositionRef.current) {
-        // Add haptic feedback if available
-        if (navigator.vibrate) {
-          navigator.vibrate(50); // Short vibration feedback
-        }
-        
-        setContextMenuPosition({ 
-          x: touchStartPositionRef.current.x, 
-          y: touchStartPositionRef.current.y 
-        });
-        setShowContextMenu(true);
-        setIsLongPressing(false);
-      }
-    }, 500); // 500ms long-press threshold
-  };
-
-  handleTouchMove = (e: React.TouchEvent) => {
-    // Cancel long-press if user moves finger too much
-    if (longPressTimerRef.current && touchStartPositionRef.current) {
-      const touch = e.touches[0];
-      const moveDistance = Math.sqrt(
-        Math.pow(touch.clientX - touchStartPositionRef.current.x, 2) +
-        Math.pow(touch.clientY - touchStartPositionRef.current.y, 2)
-      );
-      
-      // Cancel if moved more than 10px
-      if (moveDistance > 10) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-        touchStartPositionRef.current = null;
-        setIsLongPressing(false);
-      }
-    }
-  };
-
-  handleTouchEnd = () => {
-    // Clear long-press timer
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    touchStartPositionRef.current = null;
-    setIsLongPressing(false);
-  };
 
   // Cleanup on unmount
   useEffect(() => {
@@ -525,43 +521,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       }
     };
   }, []);
-
-  handleDeleteClick = () => {
-    setShowDeleteModal(true);
-    setShowContextMenu(false);
-  };
-
-  handleDeleteForMe = () => {
-    if (onDelete) {
-      onDelete(message.id, false);
-      toast.success('Message deleted', { description: 'Only you can no longer see this message' });
-    }
-    setShowDeleteModal(false);
-  };
-
-  handleDeleteForEveryone = () => {
-    if (onDelete) {
-      setIsDeletingForEveryone(true);
-      onDelete(message.id, true);
-      toast.success('Message deleted for everyone', { description: 'This message has been removed' });
-      setIsDeletingForEveryone(false);
-    }
-    setShowDeleteModal(false);
-  };
-
-  // Calculate message age in minutes
-  messageAgeMinutes = message.timestamp 
-    ? Math.floor((Date.now() - new Date(message.timestamp).getTime()) / 1000 / 60)
-    : Infinity;
-
-  // ✅ Edit handlers
-  handleEditClick = () => {
-    setEditedContent(messageContent);
-    setIsEditing(true);
-    setShowContextMenu(false);
-    // Focus textarea after state update
-    setTimeout(() => editTextareaRef.current?.focus(), 0);
-  };
 
   const handleEditSave = () => {
     if (!editedContent.trim() || editedContent === messageContent) {
@@ -639,15 +598,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
         isDeletingForEveryone={isDeletingForEveryone}
       />
 
-      <motion.div
+      <div
         id={`message-${message.id}`}
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ 
-          duration: 0.3,
-          ease: [0.4, 0, 0.2, 1],
-          delay: isLatest ? 0.1 : 0
-        }}
         className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
         onContextMenu={handleContextMenu} // ✅ Right-click handler (desktop)
         onTouchStart={handleTouchStart}   // ✅ Long-press start (mobile)
@@ -667,20 +619,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
       {/* Message Content */}
       <div className={`flex-1 ${isUser ? 'max-w-[75%] sm:max-w-[70%] md:max-w-[60%] flex justify-end' : 'w-full'}`}>
-        <motion.div 
+        <div 
           className={`relative ${
             isUser 
               ? 'px-4 py-2 rounded-2xl bg-atlas-sage text-white shadow-md text-[15px] leading-relaxed' 
               : 'px-5 py-3 text-black max-w-none text-[16px] leading-relaxed'
           }`} 
           style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
-          initial={{ opacity: 0, y: isUser ? 8 : 4 }}
-          animate={{ 
-            opacity: 1, 
-            y: 0,
-            scale: isLongPressing ? 0.97 : 1, // ✅ Subtle scale feedback on long-press
-          }}
-          transition={{ duration: isUser ? 0.2 : 0.3, ease: "easeOut" }}
         >
           {(message.status === 'sending' && (!displayedText || displayedText === '...')) || (isTyping && !isUser) ? (
               <div className="flex items-center space-x-3">
@@ -716,8 +661,10 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <LegacyMessageRenderer content={displayedText} />
+                <div className="flex-1" style={{ marginTop: 0, marginBottom: 0 }}>
+                  <div className="[&>div]:my-0 [&>div>*]:my-0">
+                    <LegacyMessageRenderer content={displayedText} />
+                  </div>
                 </div>
                 {message.status === 'sending' && displayedText && !isUser && (
                   <StopButton 
@@ -924,9 +871,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               })}
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
-    </motion.div>
+    </div>
     </>
   );
 }

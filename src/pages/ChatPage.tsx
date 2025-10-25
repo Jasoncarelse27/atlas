@@ -207,18 +207,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
   // Modern scroll system with golden sparkle
-  const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages || []], messagesContainerRef);
+  const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages.length], messagesContainerRef);
   
-  // Auto-scroll when messages change
+  // Auto-scroll when messages change (only if length changes, not on every re-render)
   useEffect(() => {
     if (messages && messages.length > 0) {
-      setTimeout(() => {
+      // ✅ Use requestAnimationFrame for smooth scroll (no visual jump)
+      requestAnimationFrame(() => {
         if (messagesContainerRef.current) {
           messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
         }
-      }, 100);
+      });
     }
-  }, [messages]);
+  }, [messages.length]); // ✅ Only scroll when length changes, not on every update
 
   // Ensure scroll to bottom on page refresh/initial load
   useEffect(() => {
@@ -312,13 +313,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         status: 'sending' // ✅ NEW: Show sending status
       };
       
-      // Add to UI instantly for ChatGPT-like experience
+      // ✅ FIX: Batch all updates together to prevent any glitch
       setMessages(prev => [...prev, optimisticUserMessage]);
-      logger.debug('[ChatPage] ✅ Optimistic user message displayed:', optimisticUserMessage.id);
-      
-      // Show thinking indicator
       setIsTyping(true);
       setIsStreaming(true);
+      logger.debug('[ChatPage] ✅ Optimistic user message displayed with typing indicators:', optimisticUserMessage.id);
       
       // Send to backend - real-time listener will replace optimistic with real message
       await chatService.sendMessage(
@@ -343,12 +342,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         });
       }
       
-      // ✅ OPTIMIZED FALLBACK: Reduced timer for faster response (500ms)
+      // ✅ IMPROVED: Extended fallback for stable real-time (5 seconds)
+      // Real-time listener will handle message replacement smoothly
       fallbackTimerRef.current = setTimeout(async () => {
-        logger.warn('[ChatPage] ⚠️ Real-time event not received, using fast fallback reload');
-        setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
+        logger.warn('[ChatPage] ⚠️ Real-time event not received after 5s, reloading messages');
         await loadMessages(conversationId);
-      }, 1000); // ✅ Balanced timing for stable real-time sync
+        setIsTyping(false);
+        setIsStreaming(false);
+      }, 5000); // ✅ Longer timeout - trust real-time, only fallback if it fails
       
       // Keep typing indicator active until real-time listener receives response
       
@@ -605,13 +606,29 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           await ensureDatabaseReady();
           
           // ✅ SINGLE WRITE PATH: Real-time listener writes to Dexie
+          // ✅ FIX: Parse JSON content if it's a stringified object
+          let parsedContent = newMsg.content;
+          if (typeof newMsg.content === 'string') {
+            try {
+              // Check if content looks like JSON
+              if (newMsg.content.trim().startsWith('{') && newMsg.content.includes('"type"') && newMsg.content.includes('"text"')) {
+                const parsed = JSON.parse(newMsg.content);
+                // Extract the actual text from {type: "text", text: "..."}
+                parsedContent = parsed.text || parsed.content || newMsg.content;
+              }
+            } catch (e) {
+              // Not JSON, keep as-is
+              parsedContent = newMsg.content;
+            }
+          }
+          
           const messageToSave = {
             id: newMsg.id,
             conversationId: newMsg.conversation_id,
             userId: userId, // ✅ ALWAYS use authenticated userId, never trust backend
             role: newMsg.role,
-            type: newMsg.image_url ? 'image' : 'text', // ✅ Detect type from message data
-            content: newMsg.content,
+            type: (newMsg.image_url ? 'image' : 'text') as 'text' | 'image' | 'audio', // ✅ Detect type from message data
+            content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: newMsg.created_at,
             synced: true,
             updatedAt: newMsg.created_at,
@@ -634,22 +651,38 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
-          // ✅ OPTIMISTIC UPDATE: Replace temporary message with real one
-          if (newMsg.role === 'user') {
-            setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
-            logger.debug('[ChatPage] ✅ Removed optimistic message, real message from Dexie will replace it');
-          }
+          // ✅ SMOOTH UPDATE: Replace optimistic message with real one - NO RELOAD
+          const realMessage: Message = {
+            id: messageToSave.id,
+            role: messageToSave.role,
+            type: messageToSave.type as 'text' | 'image' | 'audio',
+            content: messageToSave.content,
+            timestamp: messageToSave.timestamp,
+            status: 'sent' as const,
+            imageUrl: messageToSave.imageUrl,
+            attachments: messageToSave.attachments
+          };
           
-          // ✅ Reload messages from Dexie (single source of truth)
-          await loadMessages(conversationId);
-
-          // ✅ NEW: Mark user messages as 'sent' when saved to database
-          if (newMsg.role === 'user') {
-            setMessages(prev => prev.map(m => 
-              m.id === newMsg.id ? { ...m, status: 'sent' as const } : m
-            ));
-            logger.debug('[ChatPage] ✅ Marked message as sent:', newMsg.id);
-          }
+          // ✅ Update UI with real message, replacing optimistic one
+          setMessages(prev => {
+            // Remove optimistic message if it exists
+            const withoutOptimistic = prev.filter(m => !m.id.startsWith('temp-'));
+            
+            // Check if real message already exists
+            const messageExists = withoutOptimistic.some(m => m.id === realMessage.id);
+            
+            if (messageExists) {
+              // Update existing message
+              return withoutOptimistic.map(m => 
+                m.id === realMessage.id ? realMessage : m
+              );
+            } else {
+              // Add new message (messages already sorted from Dexie)
+              return [...withoutOptimistic, realMessage];
+            }
+          });
+          
+          logger.debug('[ChatPage] ✅ Smoothly replaced optimistic with real message:', newMsg.id);
           
           // Only reset indicators for assistant messages
           if (newMsg.role === 'assistant') {
@@ -1205,23 +1238,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                           />
                         ))}
                         
-        {/* ✅ Simple typing dots - back to working pattern */}
-        {(() => {
-          const safeMessages = messages || [];
-          const hasUserMessage = safeMessages.some(m => m.role === 'user');
-          
-          if (isStreaming && hasUserMessage) {
-            return true;
-          }
-          return false;
-        })() && (
-          <motion.div 
-            key="atlas-typing" 
+        {/* ✅ Typing indicator - always rendered to prevent layout shift */}
+        <div className="min-h-[60px] flex items-end">
+          <div 
             className="flex justify-start mb-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ 
+              display: isStreaming && messages.some(m => m.role === 'user') ? 'block' : 'none'
+            }}
           >
             <div className="flex items-center space-x-3 px-4 py-3">
               <div className="flex space-x-1.5">
@@ -1230,8 +1253,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
               </div>
             </div>
-          </motion.div>
-        )}
+          </div>
+        </div>
                         
                       </>
                     );
@@ -1265,17 +1288,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Input Toolbar with Bounce Animation - Floating Design */}
-          <motion.div 
+          {/* Input Toolbar - Static (no spring animation to prevent bounce) */}
+          <div 
             className="fixed bottom-0 left-0 right-0 p-4 z-30"
             style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
-            initial={{ y: 0 }}
-            animate={{ y: 0 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 300, 
-              damping: 30 
-            }}
           >
             <div className="max-w-4xl mx-auto">
               <EnhancedInputToolbar
@@ -1288,7 +1304,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 addMessage={addMessage}
               />
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Modern scroll-to-bottom button with golden sparkle */}

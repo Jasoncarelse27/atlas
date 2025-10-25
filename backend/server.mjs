@@ -996,7 +996,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         conversation_id: finalConversationId,
         user_id: userId,
         role: 'assistant',
-        content: { type: 'text', text: finalText },
+        content: finalText, // ✅ FIX: Send plain string, not object (Supabase stringifies objects)
         created_at: new Date().toISOString()
       };
       
@@ -1152,7 +1152,7 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
       conversation_id: finalConversationId,
       user_id: userId,
       role: 'assistant',
-      content: { type: 'text', text: finalText },
+      content: finalText, // ✅ FIX: Send plain string, not object (Supabase stringifies objects)
       created_at: new Date().toISOString()
     };
     
