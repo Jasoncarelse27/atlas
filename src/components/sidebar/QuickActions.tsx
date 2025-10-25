@@ -68,12 +68,34 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       logger.debug('[QuickActions] 🔄 Fetching fresh conversations from database');
       
       // ⚡ SCALABILITY FIX: Limit at database level
-      const conversations = await atlasDB.conversations
+      let conversations = await atlasDB.conversations
         .where('userId')
         .equals(user.id)
         .reverse() // Most recent first
         .limit(50) // Prevent memory overload
         .toArray();
+      
+      // ✅ FIX: If IndexedDB is empty (common on mobile/fresh browser), sync from Supabase first
+      if (conversations.length === 0) {
+        logger.debug('[QuickActions] 📡 IndexedDB empty, syncing from Supabase...');
+        try {
+          const { conversationSyncService } = await import('../../services/conversationSyncService');
+          await conversationSyncService.deltaSync(user.id);
+          
+          // ✅ Read again after sync
+          conversations = await atlasDB.conversations
+            .where('userId')
+            .equals(user.id)
+            .reverse()
+            .limit(50)
+            .toArray();
+          
+          logger.debug(`[QuickActions] ✅ Synced ${conversations.length} conversations from Supabase`);
+        } catch (syncError) {
+          logger.error('[QuickActions] ❌ Sync failed, showing empty list:', syncError);
+          // Continue with empty list rather than crashing
+        }
+      }
       
       // Transform for backward compatibility
       const mappedConversations = conversations.map(conv => ({
