@@ -92,18 +92,18 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-2xl bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl shadow-2xl border border-gray-700 overflow-hidden max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-2xl bg-[#F9F6F3] rounded-3xl shadow-2xl border border-[#E8DDD2] overflow-hidden max-h-[90vh] overflow-y-auto"
           >
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-6 right-6 p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors z-10"
+              className="absolute top-6 right-6 p-2 rounded-full bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors z-10"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5 text-[#8B7E74]" />
             </button>
 
             {/* Hero Section */}
-            <div className="relative bg-gradient-to-br from-emerald-500/10 to-atlas-sage/10 p-12 text-center border-b border-gray-700/50">
+            <div className="relative bg-gradient-to-br from-[#8FA67E]/10 to-[#C6D4B0]/10 p-12 text-center border-b border-[#E8DDD2]">
               {/* Animated Microphone */}
               <motion.div
                 animate={{
@@ -115,23 +115,23 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
                   repeat: Infinity,
                   ease: 'easeInOut',
                 }}
-                className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-atlas-sage mb-6 shadow-lg shadow-emerald-500/50"
+                className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-[#8FA67E] to-[#C6D4B0] mb-6 shadow-lg shadow-[#8FA67E]/50"
               >
                 <Mic className="w-12 h-12 text-white" />
               </motion.div>
 
-              <h2 className="text-4xl font-bold text-white mb-3">
+              <h2 className="text-4xl font-bold text-[#3B3632] mb-3">
                 Unlock Unlimited Voice Calls
               </h2>
-              <p className="text-xl text-gray-300 max-w-lg mx-auto">
+              <p className="text-xl text-[#8B7E74] max-w-lg mx-auto">
                 Experience real-time AI conversations with Atlas Studio
               </p>
 
               {/* Current Tier Badge */}
               {tier && (
-                <div className="inline-flex items-center gap-2 mt-6 px-4 py-2 bg-gray-800/50 rounded-full border border-gray-700">
-                  <span className="text-sm text-gray-400">Currently on:</span>
-                  <span className="text-sm font-semibold text-white capitalize">
+                <div className="inline-flex items-center gap-2 mt-6 px-4 py-2 bg-white/50 rounded-full border border-[#E8DDD2]">
+                  <span className="text-sm text-[#8B7E74]">Currently on:</span>
+                  <span className="text-sm font-semibold text-[#3B3632] capitalize">
                     Atlas {tier}
                   </span>
                 </div>
@@ -139,8 +139,8 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
             </div>
 
             {/* Benefits Grid */}
-            <div className="p-8 bg-gray-900/50">
-              <h3 className="text-2xl font-bold text-white mb-6 text-center">
+            <div className="p-8 bg-white/50">
+              <h3 className="text-2xl font-bold text-[#3B3632] mb-6 text-center">
                 What You'll Get
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -150,16 +150,16 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-start gap-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50 hover:border-emerald-500/30 transition-colors"
+                    className="flex items-start gap-4 p-4 bg-white rounded-xl border border-[#E8DDD2] hover:border-[#8FA67E]/50 transition-colors"
                   >
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-emerald-500/20 to-atlas-sage/20 flex items-center justify-center">
-                      <benefit.icon className="w-6 h-6 text-emerald-400" />
+                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-[#8FA67E]/20 to-[#C6D4B0]/20 flex items-center justify-center">
+                      <benefit.icon className="w-6 h-6 text-[#8FA67E]" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-white mb-1">
+                      <h4 className="font-semibold text-[#3B3632] mb-1">
                         {benefit.title}
                       </h4>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-[#8B7E74]">
                         {benefit.description}
                       </p>
                     </div>
@@ -169,24 +169,24 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
             </div>
 
             {/* Comparison Table */}
-            <div className="p-8 bg-gray-900/30">
-              <h3 className="text-2xl font-bold text-white mb-6 text-center">
+            <div className="p-8 bg-[#F0E6DC]/30">
+              <h3 className="text-2xl font-bold text-[#3B3632] mb-6 text-center">
                 Compare Tiers
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-3 px-4 text-gray-400 font-medium">
+                    <tr className="border-b border-[#E8DDD2]">
+                      <th className="text-left py-3 px-4 text-[#8B7E74] font-medium">
                         Feature
                       </th>
-                      <th className="text-center py-3 px-4 text-gray-400 font-medium">
+                      <th className="text-center py-3 px-4 text-[#8B7E74] font-medium">
                         Free
                       </th>
-                      <th className="text-center py-3 px-4 text-gray-400 font-medium">
+                      <th className="text-center py-3 px-4 text-[#8B7E74] font-medium">
                         Core
                       </th>
-                      <th className="text-center py-3 px-4 text-emerald-400 font-semibold">
+                      <th className="text-center py-3 px-4 text-[#8FA67E] font-semibold">
                         Studio
                       </th>
                     </tr>
@@ -195,18 +195,18 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
                     {comparison.map((row, index) => (
                       <tr
                         key={index}
-                        className="border-b border-gray-800 hover:bg-gray-800/30"
+                        className="border-b border-[#E8DDD2]/50 hover:bg-[#F0E6DC]/20"
                       >
-                        <td className="py-3 px-4 text-gray-300">
+                        <td className="py-3 px-4 text-[#5A524A]">
                           {row.feature}
                         </td>
-                        <td className="py-3 px-4 text-center text-gray-500">
+                        <td className="py-3 px-4 text-center text-[#B8A9A0]">
                           {row.free}
                         </td>
-                        <td className="py-3 px-4 text-center text-gray-500">
+                        <td className="py-3 px-4 text-center text-[#B8A9A0]">
                           {row.core}
                         </td>
-                        <td className="py-3 px-4 text-center text-emerald-400 font-medium">
+                        <td className="py-3 px-4 text-center text-[#8FA67E] font-medium">
                           {row.studio}
                         </td>
                       </tr>
@@ -217,37 +217,37 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
             </div>
 
             {/* Pricing & CTA */}
-            <div className="p-8 bg-gradient-to-br from-emerald-500/10 to-atlas-sage/10 border-t border-gray-700/50">
+            <div className="p-8 bg-gradient-to-br from-[#8FA67E]/10 to-[#C6D4B0]/10 border-t border-[#E8DDD2]">
               <div className="max-w-md mx-auto">
                 <div className="text-center mb-6">
                   <div className="inline-flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-white">$189.99</span>
-                    <span className="text-gray-400">/month</span>
+                    <span className="text-5xl font-bold text-[#3B3632]">$189.99</span>
+                    <span className="text-[#8B7E74]">/month</span>
                   </div>
-                  <p className="text-sm text-gray-400 mt-2">
+                  <p className="text-sm text-[#8B7E74] mt-2">
                     Cancel anytime • Secure payment
                   </p>
                 </div>
 
                 <button
                   onClick={handleUpgrade}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-atlas-sage hover:from-emerald-600 hover:to-atlas-sage text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/30 transition-all transform hover:scale-105"
+                  className="w-full py-4 bg-gradient-to-r from-[#8FA67E] to-[#C6D4B0] hover:from-[#7E9570] hover:to-[#B8C6A2] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#8FA67E]/30 transition-all transform hover:scale-105"
                 >
                   Upgrade to Studio
                 </button>
 
                 {/* Trust Badges */}
-                <div className="flex items-center justify-center gap-6 mt-6 text-xs text-gray-500">
+                <div className="flex items-center justify-center gap-6 mt-6 text-xs text-[#8B7E74]">
                   <div className="flex items-center gap-1">
-                    <Check className="w-4 h-4 text-emerald-500" />
+                    <Check className="w-4 h-4 text-[#8FA67E]" />
                     <span>Secure Payment</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Check className="w-4 h-4 text-emerald-500" />
+                    <Check className="w-4 h-4 text-[#8FA67E]" />
                     <span>Cancel Anytime</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Check className="w-4 h-4 text-emerald-500" />
+                    <Check className="w-4 h-4 text-[#8FA67E]" />
                     <span>Money-Back Guarantee</span>
                   </div>
                 </div>

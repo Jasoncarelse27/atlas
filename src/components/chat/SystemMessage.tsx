@@ -10,13 +10,13 @@ export default function SystemMessage({ text, action, type = 'info' }: SystemMes
   const getTypeStyles = () => {
     switch (type) {
       case 'warning':
-        return 'bg-yellow-900/20 border-yellow-500/30 text-yellow-200';
+        return 'bg-[#F3B562]/10 border-[#F3B562]/30 text-[#F3B562]';
       case 'error':
-        return 'bg-red-900/20 border-red-500/30 text-red-200';
+        return 'bg-[#CF9A96]/10 border-[#CF9A96]/30 text-[#A67571]';
       case 'success':
-        return 'bg-green-900/20 border-green-500/30 text-green-200';
+        return 'bg-[#8FA67E]/10 border-[#8FA67E]/30 text-[#8FA67E]';
       default:
-        return 'bg-[#2c2f36] border-gray-600/30 text-gray-200';
+        return 'bg-[#F0E6DC] border-[#E8DDD2] text-[#5A524A]';
     }
   };
 
