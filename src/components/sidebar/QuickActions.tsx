@@ -211,36 +211,49 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
 
   return (
     <>
-      <div className="bg-slate-700/20 border border-slate-600/20 p-4 rounded-2xl shadow">
-        <h3 className="text-white text-sm font-bold mb-4 tracking-wide">Quick Actions</h3>
+      <div className="p-4">
+        <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Quick Actions</h3>
         <ul className="space-y-2">
-          {actions.map((action, index) => {
-            const IconComponent = action.icon;
-            return (
-              <li key={index}>
-                <button
-                  onClick={action.action}
-                  disabled={action.disabled}
-                  className={`group w-full text-left p-3 rounded-xl transition-all duration-200 border flex items-center space-x-3 ${
-                    action.disabled 
-                      ? 'bg-slate-700/10 border-slate-600/10 cursor-not-allowed opacity-60' 
-                      : 'bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50'
-                  }`}
-                >
-                  <div className={`flex-shrink-0 p-2 rounded-xl bg-${action.color}-600/20 group-hover:bg-${action.color}-600/30 transition-colors`}>
-                    <IconComponent className={`w-5 h-5 text-${action.color}-400 ${action.animate ? 'animate-spin' : ''}`} />
-                  </div>
-                  <span className={`text-sm font-medium transition-colors ${
-                    action.disabled 
-                      ? 'text-slate-400' 
-                      : 'text-white group-hover:text-slate-100'
-                  }`}>
-                    {action.label}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+          <li>
+            <button
+              onClick={handleNewChat}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
+                <Plus className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-medium">Start New Chat</span>
+            </button>
+          </li>
+          
+          <li>
+            <button
+              onClick={handleViewHistory}
+              disabled={isLoadingHistory}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#C6D4B0] hover:bg-[#B8C6A2] transition-colors disabled:opacity-60"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center">
+                {isLoadingHistory ? (
+                  <Loader2 className="w-4 h-4 text-[#5A524A] animate-spin" />
+                ) : (
+                  <History className="w-4 h-4 text-[#5A524A]" />
+                )}
+              </div>
+              <span className="font-medium">{isLoadingHistory ? 'Loading...' : 'View History'}</span>
+            </button>
+          </li>
+          
+          <li>
+            <button
+              onClick={handleClearData}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#CF9A96]/30 flex items-center justify-center">
+                <Trash2 className="w-4 h-4 text-[#A67571]" />
+              </div>
+              <span className="font-medium">Clear All Data</span>
+            </button>
+          </li>
         </ul>
       </div>
 

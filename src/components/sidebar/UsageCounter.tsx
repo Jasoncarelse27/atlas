@@ -1,5 +1,5 @@
 import { Crown } from 'lucide-react';
-import { getTierColor, getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/useTierQuery';
+import { getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/useTierQuery';
 import { UpgradeButton } from '../UpgradeButton';
 
 interface UsageCounterProps {
@@ -13,9 +13,9 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
   // Show shimmer skeleton while loading
   if (isLoading) {
     return (
-      <div className="bg-slate-700/20 border border-slate-600/20 p-4 rounded-2xl shadow animate-pulse">
-        <div className="h-4 bg-slate-600/40 rounded w-24 mb-2"></div>
-        <div className="h-6 bg-slate-600/40 rounded w-32"></div>
+      <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm animate-pulse">
+        <div className="h-4 bg-[#E8DDD2] rounded w-24 mb-2"></div>
+        <div className="h-6 bg-[#E8DDD2] rounded w-32"></div>
       </div>
     );
   }
@@ -27,11 +27,11 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
   const isUnlimited = tier === 'core' || tier === 'studio';
 
   return (
-    <div className="bg-slate-700/20 border border-slate-600/20 p-4 rounded-2xl shadow">
+    <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-slate-300 text-sm font-medium">Current Tier</h3>
+        <h3 className="text-[#8B7E74] text-sm font-medium uppercase tracking-wider">Current Tier</h3>
         <span 
-          className={`text-xs font-semibold ${getTierColor(tier)} cursor-help`}
+          className="text-xs font-semibold text-[#9B8FDB] cursor-help"
           title={getTierTooltip(tier)}
         >
           {getTierDisplayName(tier)}
@@ -41,28 +41,28 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
       {isUnlimited ? (
         <div className="text-center py-2">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="p-2 rounded-xl bg-emerald-600/20">
-              <Crown className="w-5 h-5 text-emerald-400" />
+            <div className="p-2 rounded-xl bg-[#8FA67E]/20">
+              <Crown className="w-5 h-5 text-[#8FA67E]" />
             </div>
           </div>
-          <p className="text-emerald-400 text-sm font-medium">Unlimited Messages</p>
-          <p className="text-slate-400 text-xs mt-1">All features unlocked</p>
+          <p className="text-[#8FA67E] text-sm font-semibold">Unlimited Messages</p>
+          <p className="text-[#8B7E74] text-xs mt-1">All features unlocked</p>
         </div>
       ) : (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Messages This Month</span>
-            <span className="text-gray-200">{messageCount} / {maxMessages}</span>
+            <span className="text-[#8B7E74]">Messages This Month</span>
+            <span className="text-[#5A524A] font-medium">{messageCount} / {maxMessages}</span>
           </div>
           
-          <div className="w-full bg-gray-700 rounded-full h-2">
+          <div className="w-full bg-[#E8DDD2] rounded-full h-2">
             <div 
-              className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
+              className="bg-[#F3B562] h-2 rounded-full transition-all duration-300"
               style={{ width: `${(messageCount / maxMessages) * 100}%` }}
             />
           </div>
           
-          <p className="text-gray-400 text-xs text-center">
+          <p className="text-[#8B7E74] text-xs text-center">
             {remainingMessages} messages remaining this month
           </p>
           

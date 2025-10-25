@@ -1048,16 +1048,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 h-full w-80 bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border-r border-slate-700/50 z-50 overflow-y-auto shadow-2xl"
+                className="fixed left-0 top-0 h-full w-80 bg-[#F9F6F3] border-r border-[#E8DDD2] z-50 overflow-y-auto shadow-xl"
               >
                 <div className="p-4 space-y-6">
                   {/* Header with Profile and Close Buttons */}
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-white">Menu</h2>
+                    <h2 className="text-lg font-semibold text-[#3B3632]">Menu</h2>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setShowProfile(true)}
-                        className="p-2 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors"
+                        className="p-2 rounded-xl bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
                         aria-label="Open profile settings"
                         title="Profile Settings"
                       >
@@ -1067,10 +1067,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       </button>
                       <button
                         onClick={() => setSidebarOpen(false)}
-                        className="p-2 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors"
+                        className="p-2 rounded-xl bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
                         aria-label="Close menu"
                       >
-                        <X className="w-5 h-5 text-slate-300" />
+                        <X className="w-5 h-5 text-[#5A524A]" />
                       </button>
                     </div>
                   </div>
@@ -1082,19 +1082,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <PrivacyToggle />
                   
                   {/* Divider */}
-                  <div className="my-4 border-t border-gray-700/50"></div>
+                  <div className="my-4 border-t border-[#E8DDD2]/50"></div>
                   
                   {/* Logout Button */}
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 p-4 rounded-2xl transition-all duration-200 border group bg-slate-700/30 hover:bg-slate-700/50 active:bg-slate-700/60 border-slate-600/30 hover:border-slate-500/50"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
                   >
-                    <div className="p-2 rounded-xl bg-red-600/20 group-hover:bg-red-600/30 transition-colors">
-                      <LogOut className="w-5 h-5 text-red-400" />
+                    <div className="w-8 h-8 rounded-full bg-[#CF9A96]/30 flex items-center justify-center">
+                      <LogOut className="w-4 h-4 text-[#A67571]" />
                     </div>
                     <div className="text-left flex-1">
-                      <span className="text-white font-medium text-sm">Sign Out</span>
-                      <p className="text-slate-300 text-xs">End your session</p>
+                      <span className="font-medium text-sm">Sign Out</span>
+                      <p className="text-[#8B7E74] text-xs">End your session</p>
                     </div>
                   </button>
                 </div>
