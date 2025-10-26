@@ -185,18 +185,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         attachments: msg.attachments // ✅ Include attachments
       } as Message));
       
-      // ✅ DEBUG: Log image messages being loaded
-      const imageMessages = formattedMessages.filter(msg => msg.type === 'image');
-      if (imageMessages.length > 0) {
-        logger.debug('[ChatPage] 🔍 Loading image messages from Dexie:', imageMessages.map(msg => ({
-          id: msg.id,
-          type: msg.type,
-          url: msg.url,
-          imageUrl: msg.imageUrl,
-          hasAttachments: !!msg.attachments
-        })));
-      }
-      
       // Set React state (Dexie is authoritative source)
       setMessages(formattedMessages);
       logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
@@ -599,9 +587,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           id: newMsg.id,
           role: newMsg.role,
           contentPreview: newMsg.content?.slice(0, 50),
-          image_url: newMsg.image_url, // ✅ DEBUG: Check if image_url exists
-          attachments: newMsg.attachments, // ✅ DEBUG: Check if attachments exist
-          hasImageData: !!(newMsg.image_url || newMsg.attachments) // ✅ DEBUG: Quick check
+          hasImageData: !!(newMsg.image_url || newMsg.attachments)
         });
         
         try {

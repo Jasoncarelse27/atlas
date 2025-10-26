@@ -42,7 +42,6 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
   onShowWidgets,
   onShowControlCenter
 }) => {
-  // const [activeTest, setActiveTest] = useState<string | null>(null); // TODO: Use for active test tracking
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetricsData | null>(null);
@@ -103,7 +102,6 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
 
   const runAllTests = async () => {
     setIsRunningAll(true);
-    // setActiveTest('all'); // TODO: Use for active test tracking
 
     // Simulate running tests
     const tests = [
@@ -136,7 +134,6 @@ const DashboardTesterSimplified: React.FC<DashboardTesterProps> = ({
     }
 
     setIsRunningAll(false);
-    // setActiveTest(null); // TODO: Use for active test tracking
   };
 
   const handleShowDetails = (id: string) => {

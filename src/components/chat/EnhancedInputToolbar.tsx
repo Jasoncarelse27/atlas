@@ -129,17 +129,6 @@ export default function EnhancedInputToolbar({
     const currentText = text.trim();
     const currentAttachments = [...attachmentPreviews];
     
-    // ✅ DEBUG: Log attachment details for mobile debugging
-    if (currentAttachments.length > 0) {
-      logger.debug('[EnhancedInputToolbar] 📎 Sending attachments:', {
-        count: currentAttachments.length,
-        hasFile: currentAttachments.map(att => !!att.file),
-        hasUrl: currentAttachments.map(att => !!(att.url || att.publicUrl)),
-        ids: currentAttachments.map(att => att.id),
-        types: currentAttachments.map(att => att.type)
-      });
-    }
-    
     // ✅ FIX: Clear UI immediately but prevent height animation glitch
     // Temporarily disable transitions on textarea
     if (inputRef.current) {
