@@ -223,15 +223,26 @@ class CacheManagementService {
   /**
    * Schedule automatic cache optimization
    */
-  scheduleOptimization(intervalHours: number = 24): void {
+  scheduleOptimization(intervalHours: number = 24): NodeJS.Timeout {
     const intervalMs = intervalHours * 60 * 60 * 1000;
     
-    setInterval(async () => {
+    const intervalId = setInterval(async () => {
       logger.debug('[CacheManagement] 🔄 Running scheduled cache optimization...');
       await this.optimizeCache();
     }, intervalMs);
 
     logger.debug(`[CacheManagement] ⏰ Scheduled cache optimization every ${intervalHours} hours`);
+    
+    // ✅ FIX: Return interval ID so caller can clear it
+    return intervalId;
+  }
+  
+  /**
+   * Stop scheduled optimization
+   */
+  stopScheduledOptimization(intervalId: NodeJS.Timeout): void {
+    clearInterval(intervalId);
+    logger.debug('[CacheManagement] 🛑 Stopped scheduled optimization');
   }
 }
 

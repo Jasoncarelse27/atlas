@@ -223,14 +223,14 @@ jobs:
       - name: 🩺 Verify staging health
         run: |
           STAGING_URL="${{ secrets.STAGING_URL }}"
-          
+
           # ✅ FIX: Skip health check if STAGING_URL not configured
           if [ -z "$STAGING_URL" ] || [ "$STAGING_URL" = "" ]; then
             echo "⚠️ STAGING_URL not configured - skipping health check"
             echo "ℹ️ To enable staging health checks, set STAGING_URL in GitHub Secrets"
             exit 0
           fi
-          
+
           sleep 30  # Wait for deployment
 
           # Check frontend
@@ -305,14 +305,14 @@ jobs:
       - name: 🩺 Verify production health
         run: |
           PROD_URL="${{ secrets.PRODUCTION_URL }}"
-          
+
           # ✅ FIX: Skip health check if PRODUCTION_URL not configured
           if [ -z "$PROD_URL" ] || [ "$PROD_URL" = "" ]; then
             echo "⚠️ PRODUCTION_URL not configured - skipping health check"
             echo "ℹ️ To enable production health checks, set PRODUCTION_URL in GitHub Secrets"
             exit 0
           fi
-          
+
           sleep 30  # Wait for deployment
 
           # Check frontend
@@ -337,7 +337,7 @@ jobs:
         run: |
           # Basic smoke tests
           PROD_URL="${{ secrets.PRODUCTION_URL }}"
-          
+
           # ✅ FIX: Skip smoke tests if PRODUCTION_URL not configured
           if [ -z "$PROD_URL" ] || [ "$PROD_URL" = "" ]; then
             echo "⚠️ PRODUCTION_URL not configured - skipping smoke tests"
