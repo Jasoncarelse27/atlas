@@ -1,10 +1,10 @@
 // Cache Management Service
 // Monitor and optimize enhanced response caching performance
 
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../types/tier';
 import { enhancedResponseCacheService } from './enhancedResponseCacheService';
-import { logger } from '../lib/logger';
 
 export interface CachePerformanceMetrics {
   hitRate: number;

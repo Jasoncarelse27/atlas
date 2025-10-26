@@ -1,10 +1,111 @@
 /**
  * Sentry Error Tracking Service
  * Unified error tracking for web and mobile with PII masking
+ * Enhanced with error rate monitoring and alerting
  */
 
 import { logger } from '@/lib/logger';
 import * as Sentry from '@sentry/react';
+
+// Error rate tracking
+interface ErrorRateMetrics {
+  timestamp: number;
+  errorCount: number;
+}
+
+class ErrorRateTracker {
+  private errors: ErrorRateMetrics[] = [];
+  
+  /**
+   * Record an error occurrence
+   */
+  recordError(): void {
+    this.errors.push({
+      timestamp: Date.now(),
+      errorCount: 1,
+    });
+    
+    // Trim old errors (keep last 24 hours)
+    const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    this.errors = this.errors.filter(e => e.timestamp > dayAgo);
+    
+    // Alert if error rate is high
+    this.checkErrorRate();
+  }
+  
+  /**
+   * Check error rate and alert if threshold exceeded
+   */
+  private checkErrorRate(): void {
+    const last5min = this.getErrorCount(5);
+    const last15min = this.getErrorCount(15);
+    const last1hour = this.getErrorCount(60);
+    
+    // Alert thresholds
+    const THRESHOLD_5MIN = 10; // 10 errors in 5 minutes
+    const THRESHOLD_15MIN = 25; // 25 errors in 15 minutes
+    const THRESHOLD_1HOUR = 50; // 50 errors in 1 hour
+    
+    if (last5min >= THRESHOLD_5MIN) {
+      captureMessage(
+        `HIGH ERROR RATE: ${last5min} errors in last 5 minutes`,
+        'error'
+      );
+    } else if (last15min >= THRESHOLD_15MIN) {
+      captureMessage(
+        `ELEVATED ERROR RATE: ${last15min} errors in last 15 minutes`,
+        'warning'
+      );
+    } else if (last1hour >= THRESHOLD_1HOUR) {
+      captureMessage(
+        `ERROR RATE ALERT: ${last1hour} errors in last hour`,
+        'warning'
+      );
+    }
+  }
+  
+  /**
+   * Get error count for last N minutes
+   */
+  getErrorCount(minutes: number): number {
+    const threshold = Date.now() - minutes * 60 * 1000;
+    return this.errors.filter(e => e.timestamp > threshold).length;
+  }
+  
+  /**
+   * Get error rate per minute
+   */
+  getErrorRate(minutes: number = 5): number {
+    const count = this.getErrorCount(minutes);
+    return count / minutes;
+  }
+  
+  /**
+   * Get error stats summary
+   */
+  getSummary() {
+    return {
+      last5min: this.getErrorCount(5),
+      last15min: this.getErrorCount(15),
+      last1hour: this.getErrorCount(60),
+      ratePerMinute: this.getErrorRate(5),
+      total24h: this.errors.length,
+    };
+  }
+  
+  /**
+   * Clear all error history (for testing)
+   */
+  clear(): void {
+    this.errors = [];
+  }
+}
+
+// Singleton instance
+const errorRateTracker = new ErrorRateTracker();
+
+// Export for monitoring dashboard
+export { errorRateTracker };
 
 // PII fields to mask in error reports
 const PII_FIELDS = [
@@ -81,7 +182,7 @@ export function initSentry() {
       ],
       
       // PII Masking
-      beforeSend(event, hint) {
+      beforeSend(event) {
         // Mask PII in error messages
         if (event.message) {
           event.message = maskPII(event.message);
@@ -107,7 +208,7 @@ export function initSentry() {
         
         // Mask PII in context
         if (event.contexts) {
-          event.contexts = maskPIIInObject(event.contexts);
+          event.contexts = maskPIIInObject(event.contexts) as any;
         }
         
         // Mask PII in extra data
@@ -183,7 +284,7 @@ function maskPIIInObject(obj: Record<string, unknown>): Record<string, unknown> 
     return obj;
   }
   
-  const masked = Array.isArray(obj) ? [...obj] : { ...obj };
+  const masked: Record<string, unknown> = Array.isArray(obj) ? { ...obj as any } : { ...obj };
   
   for (const key in masked) {
     // Check if key contains PII field names
@@ -194,10 +295,11 @@ function maskPIIInObject(obj: Record<string, unknown>): Record<string, unknown> 
     }
     
     // Recursively mask nested objects
-    if (typeof masked[key] === 'object' && masked[key] !== null) {
-      masked[key] = maskPIIInObject(masked[key]);
-    } else if (typeof masked[key] === 'string') {
-      masked[key] = maskPII(masked[key]);
+    const value = masked[key];
+    if (typeof value === 'object' && value !== null) {
+      masked[key] = maskPIIInObject(value as Record<string, unknown>);
+    } else if (typeof value === 'string') {
+      masked[key] = maskPII(value);
     }
   }
   
@@ -221,6 +323,9 @@ function getPlatform(): string {
  * Capture exception with additional context
  */
 export function captureException(error: Error | unknown, context?: Record<string, any>) {
+  // Record error for rate tracking
+  errorRateTracker.recordError();
+  
   // Add Atlas-specific context
   const atlasContext = {
     ...context,
