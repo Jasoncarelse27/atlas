@@ -212,7 +212,7 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     } catch (err: unknown) {
       const error = err as Error;
       logger.error('[QuickActions] ❌ Delete failed:', err);
-      alert(`Failed to delete:\n${error.message || 'Unknown error'}`);
+      toast.error(`Failed to delete: ${error.message || 'Unknown error'}`);
     } finally {
       setDeletingId(null);
     }
@@ -233,7 +233,7 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       
     } catch (err) {
       logger.error('[QuickActions] Failed to clear data:', err);
-      alert('Failed to clear data. Please try again.');
+      toast.error('Failed to clear data. Please try again.');
     }
   };
 

@@ -44,7 +44,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         userId,
         timestamp: new Date().toISOString(),
       });
-      alert(getUserFriendlyMessage(chatError));
+      toast.error(getUserFriendlyMessage(chatError));
     }
   };
 
@@ -72,7 +72,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         conversationId,
         timestamp: new Date().toISOString(),
       });
-      alert(getUserFriendlyMessage(chatError));
+      toast.error(getUserFriendlyMessage(chatError));
     }
   };
 
@@ -94,7 +94,7 @@ export function ReactQueryIntegration({ userId }: ReactQueryIntegrationProps) {
         conversationId,
         timestamp: new Date().toISOString(),
       });
-      alert(getUserFriendlyMessage(chatError));
+      toast.error(getUserFriendlyMessage(chatError));
     }
   };
 

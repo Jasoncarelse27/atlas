@@ -249,7 +249,7 @@ export function ConversationHistoryDrawer({
                     } catch (error) {
                       logger.error('[ConversationHistoryDrawer] ❌ Delta sync failed:', error);
                       // ✅ Show error to user (better than silent failure)
-                      alert('Sync failed. Please check your connection and try again.');
+                      toast.error('Sync failed. Please check your connection and try again.');
                     } finally {
                       setIsSyncing(false);
                     }

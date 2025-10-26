@@ -35,7 +35,7 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
     // Here you would integrate with your payment system
     // ✅ Use centralized display name
     const tierName = getSubscriptionDisplayName(tier);
-    alert(`Redirecting to payment for Atlas ${tierName}...`);
+    toast.info(`Redirecting to payment for Atlas ${tierName}...`);
     
     // Payment integration will be implemented
     // window.location.href = `/upgrade?tier=${tier}&reason=${triggerReason}`;

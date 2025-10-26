@@ -62,7 +62,7 @@ const EmailTestChecklist: React.FC<EmailTestChecklistProps> = ({ className = '' 
 
   const handleTestEmail = async (flowId: string) => {
     if (!testEmail.trim()) {
-      alert('Please enter a test email address');
+      toast.error('Please enter a test email address');
       return;
     }
 

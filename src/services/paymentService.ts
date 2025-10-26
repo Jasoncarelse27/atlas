@@ -6,6 +6,6 @@ export const paymentService = {
   },
 
   promptUpgrade() {
-    alert("🚀 Upgrade via FastSpring coming soon!")
+    toast.info("🚀 Upgrade via FastSpring coming soon!")
   },
 }
