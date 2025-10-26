@@ -701,6 +701,11 @@ export class VoiceCallService {
       logger.info(`[VoiceCall] ⏱️ Claude streaming: ${streamingTime.toFixed(0)}ms`);
       logger.info(`[VoiceCall] ⏱️ Total latency: ${totalLatency.toFixed(0)}ms`);
       logger.info(`[VoiceCall] 🤖 Atlas (streaming complete):`, fullResponse.substring(0, 100) + '...');
+      
+    } catch (error) {
+      logger.error('[VoiceCall] processVoiceChunkStreaming error:', error);
+      options.onError(error as Error);
+    }
   }
   
   private async blobToBase64(blob: Blob): Promise<string> {
