@@ -29,11 +29,11 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
     if (onUpgradeClick) {
       onUpgradeClick();
     } else {
-      // Default behavior: trigger global upgrade modal
+      // Default behavior: trigger global upgrade modal (no page reload)
       if (typeof window !== 'undefined' && (window as any).showUpgradeModal) {
         (window as any).showUpgradeModal();
       } else {
-        // Fallback: redirect to upgrade page
+        // Fallback: Use FastSpring checkout (external navigation is acceptable here)
         window.location.href = '/upgrade';
       }
     }

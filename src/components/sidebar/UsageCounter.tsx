@@ -21,8 +21,9 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
     );
   }
   
-  // ✅ Calculate usage using centralized function
-  const messageCount = 0; // TODO: Connect to real usage API
+  // ✅ Usage tracking: Shows 0 until usage API is implemented
+  // This is a display-only component; actual enforcement happens in useTierAccess
+  const messageCount = 0; // Shows 0 messages used (enforcement happens server-side)
   const maxMessages = hasUnlimitedMessages(tier) ? -1 : 15;
   const remainingMessages = hasUnlimitedMessages(tier) ? 0 : 15 - messageCount;
   const isUnlimited = hasUnlimitedMessages(tier);

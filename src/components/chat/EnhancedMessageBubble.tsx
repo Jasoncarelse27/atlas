@@ -197,6 +197,16 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     ? Math.floor((Date.now() - new Date(message.timestamp).getTime()) / 1000 / 60)
     : Infinity;
 
+  // ✅ FIX: Cleanup touchTimer on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
+    };
+  }, []);
+
   // Debug: Log userId availability (only when there's an issue)
   useEffect(() => {
     // Only log if userId is null AND we're not still loading (indicates real timing issue)

@@ -370,8 +370,8 @@ export const stopMessageStream = () => {
 // Export the sendMessageWithAttachments function for resendService
 export async function sendMessageWithAttachments(
   conversationId: string,
-  attachments: any[],
-  addMessage: (msg: any) => void,
+  attachments: Array<{ type: string; url?: string; publicUrl?: string }>,
+  addMessage: (msg: Message) => void,
   caption?: string,
   userId?: string
 ) {
@@ -381,7 +381,7 @@ export async function sendMessageWithAttachments(
   // ✅ FUTURE-PROOF FIX: Format message to match what EnhancedMessageBubble expects
   const imageUrl = attachments[0]?.url || attachments[0]?.publicUrl;
   
-  const newMessage = {
+  const newMessage: Message = {
     id: tempId,
     conversationId,
     role: "user",
@@ -391,14 +391,14 @@ export async function sendMessageWithAttachments(
     imageUrl: imageUrl, // ✅ also set imageUrl for compatibility
     image_url: imageUrl, // ✅ ADD: Support snake_case for Supabase compatibility
     attachments: attachments.map(att => ({
-      type: att.type || 'image',
+      type: (att.type || 'image') as 'image' | 'file' | 'audio',
       url: att.url || att.publicUrl,
       caption: caption || ''
     })), // ✅ properly formatted attachments array
     status: "pending",
     timestamp: new Date().toISOString(),
     createdAt: new Date().toISOString(),
-  };
+  } as Message;
 
 
   // Show optimistically in UI
@@ -450,11 +450,12 @@ export async function sendMessageWithAttachments(
         if (response.status === 403 && errorData.upgrade) {
           
           // Add upgrade message to chat
-          const upgradeMessage = {
+          const upgradeMessage: Message = {
             id: generateUUID(),
             conversationId,
             role: "assistant",
             content: errorData.message,
+            timestamp: new Date().toISOString(),
             createdAt: new Date().toISOString(),
           };
           

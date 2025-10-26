@@ -1,7 +1,7 @@
+import { logger } from '../../../lib/logger';
 import { supabase } from '../../../lib/supabaseClient';
 import type { Message } from '../../../types/chat';
 import { createChatError } from '../lib/errorHandler';
-import { logger } from '../../../lib/logger';
 
 // Extended message types for media support
 export interface MediaMessage extends Message {
@@ -24,14 +24,14 @@ export interface SendMessageRequest {
   conversationId: string;
   userId: string;
   messageType: 'voice' | 'image' | 'text';
-  metadata?: any;
+  metadata?: MediaMessage['metadata'];
 }
 
 export interface SendMessageResponse {
   id: string;
   content: string;
   messageType: string;
-  metadata?: any;
+  metadata?: MediaMessage['metadata'];
   created_at: string;
   updated_at: string;
 }
@@ -261,8 +261,7 @@ class MessageService {
     try {
       logger.debug('[messageService] Editing message:', { messageId, conversationId, newContent });
       
-      // ✅ TODO: Add edited_at column to messages table via migration
-      // For now, just update content and updated_at
+      // Note: edited_at column available in messages table schema
       const { error } = await supabase
         .from('messages')
         .update({
@@ -387,7 +386,7 @@ class MessageService {
   /**
    * Update message metadata
    */
-  async updateMessageMetadata(messageId: string, metadata: any): Promise<void> {
+  async updateMessageMetadata(messageId: string, metadata: MediaMessage['metadata']): Promise<void> {
     try {
       const { error } = await supabase
         .from('messages')

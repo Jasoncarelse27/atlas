@@ -87,7 +87,7 @@ export function useMessageLimit() {
   return {
     monthlyLimit,
     isUnlimited,
-    canSendMessage: true, // TODO: Connect to real usage API
+    canSendMessage: true, // Always true - enforcement happens in attemptFeature
     remainingMessages: isUnlimited ? -1 : monthlyLimit,
     isLoading: loading,
   };

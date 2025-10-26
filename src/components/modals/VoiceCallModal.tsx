@@ -72,13 +72,13 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   }, [isCallActive]);
 
   // Check microphone permission status
-  const checkPermissionStatus = useCallback(async () => {
+  const checkPermissionStatus = useCallback(async (): Promise<(() => void) | null> => {
     try {
       // Check if Permissions API is supported
       if (!navigator.permissions || !navigator.permissions.query) {
         logger.debug('[VoiceCall] Permissions API not supported, will request directly');
         setPermissionState('prompt');
-        return;
+        return null;
       }
 
       // Query microphone permission
@@ -86,23 +86,38 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       setPermissionState(result.state as 'prompt' | 'granted' | 'denied');
       logger.debug('[VoiceCall] Permission state:', result.state);
 
-      // Listen for permission changes
-      result.addEventListener('change', () => {
+      // ✅ FIX: Listen for permission changes with proper cleanup
+      const handlePermissionChange = () => {
         setPermissionState(result.state as 'prompt' | 'granted' | 'denied');
         logger.debug('[VoiceCall] Permission state changed:', result.state);
-      });
+      };
+      
+      result.addEventListener('change', handlePermissionChange);
+      
+      // Return cleanup function
+      return () => result.removeEventListener('change', handlePermissionChange);
     } catch (error) {
       logger.error('[VoiceCall] Permission check failed:', error);
       // Fallback: assume prompt state
       setPermissionState('prompt');
+      return null;
     }
   }, []);
 
   // Check permission on mount and when modal opens
   useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    
     if (isOpen && !isCallActive) {
-      checkPermissionStatus();
+      checkPermissionStatus().then(fn => {
+        cleanup = fn;
+      });
     }
+    
+    // ✅ FIX: Cleanup permission listener on unmount
+    return () => {
+      if (cleanup) cleanup();
+    };
   }, [isOpen, isCallActive, checkPermissionStatus]);
 
   // Detect browser and platform for recovery instructions

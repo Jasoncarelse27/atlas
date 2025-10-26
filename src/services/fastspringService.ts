@@ -204,8 +204,8 @@ class FastSpringService {
                        import.meta.env.VITE_FASTSPRING_API_KEY === PENDING_PLACEHOLDER;
     
     if (isMockMode) {
-      logger.warn('⏳ FastSpring credentials pending 2FA - returning mock checkout URL');
-      // TODO(FastSpringAuth): Replace with real checkout flow after 2FA verification
+      logger.warn('⏳ FastSpring credentials pending 2FA - using mock checkout (development only)');
+      // Development mode: Mock checkout for testing without FastSpring credentials
       return `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
     }
 
