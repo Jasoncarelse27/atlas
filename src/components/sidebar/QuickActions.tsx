@@ -209,9 +209,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       // Refresh list after successful delete
       await refreshConversationList(true);
       
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       logger.error('[QuickActions] ❌ Delete failed:', err);
-      alert(`Failed to delete:\n${err.message || 'Unknown error'}`);
+      alert(`Failed to delete:\n${error.message || 'Unknown error'}`);
     } finally {
       setDeletingId(null);
     }

@@ -1,6 +1,6 @@
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
-import { compressImage, validateImageFile, createThumbnail } from '../utils/imageCompression';
+import { compressImage, createThumbnail, validateImageFile } from '../utils/imageCompression';
 
 // Event logging helper
 const logEvent = (eventName: string, props: Record<string, unknown>) => {

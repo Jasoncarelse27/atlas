@@ -5,7 +5,7 @@ const DB_NAME = 'AtlasDB';
 
 let resetAttempts = 0;
 
-export async function handleDexieError(error: any) {
+export async function handleDexieError(error: Error & { name?: string }): Promise<void> {
   // ✅ Auto-reset enabled with safety checks
   if ((error?.name === "SchemaError" || error?.name === "UpgradeError" || error?.name === "VersionError") && resetAttempts < 1) {
     if (localStorage.getItem("dexie_reset") === "1") {

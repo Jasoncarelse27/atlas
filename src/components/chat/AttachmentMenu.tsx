@@ -321,8 +321,9 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         videoRef.current.srcObject = mediaStream;
       }
       setIsCameraOpen(true);
-    } catch (error: any) {
-      if (error.name === 'NotAllowedError') {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.name === 'NotAllowedError') {
         toast.error('Camera access denied. Please allow camera access.');
       } else if (error.name === 'NotFoundError') {
         toast.error('No camera found on this device.');

@@ -101,7 +101,8 @@ const AccountModal: React.FC<AccountModalProps> = ({
         onSoundPlay('success');
       }
       setSuccess('Profile updated successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       if (onSoundPlay) {
         onSoundPlay('error');
       }
@@ -146,7 +147,8 @@ const AccountModal: React.FC<AccountModalProps> = ({
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       if (onSoundPlay) {
         onSoundPlay('error');
       }
@@ -188,7 +190,8 @@ const AccountModal: React.FC<AccountModalProps> = ({
       setFeedbackSubject('');
       setFeedbackMessage('');
       setRating(5);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       if (onSoundPlay) {
         onSoundPlay('error');
       }
@@ -229,7 +232,8 @@ const AccountModal: React.FC<AccountModalProps> = ({
       setSuccess('Account deletion request submitted. Our support team will process your request within 24 hours and send you a confirmation email.');
       setDeleteConfirmation('');
       setShowDeleteConfirm(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       if (onSoundPlay) {
         onSoundPlay('error');
       }

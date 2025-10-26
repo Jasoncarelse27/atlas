@@ -6,7 +6,7 @@ import { generateUUID } from "../utils/uuid";
 export interface PendingOperation {
   id: string;
   type: 'send_message' | 'delete_message' | 'create_conversation' | 'update_subscription' | 'voice_transcription' | 'image_upload';
-  data: any;
+  data: Record<string, unknown>;
   priority: number;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error?: string;
@@ -34,7 +34,7 @@ export class PendingQueueManager {
   /**
    * Add operation to pending queue
    */
-  async addToQueue(type: PendingOperation['type'], data: any, priority: number = 1): Promise<string> {
+  async addToQueue(type: PendingOperation['type'], data: Record<string, unknown>, priority: number = 1): Promise<string> {
     try {
       const operation: PendingOperation = {
         id: generateUUID(),

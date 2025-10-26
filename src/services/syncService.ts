@@ -211,5 +211,4 @@ export function stopBackgroundSync() {
     window.removeEventListener("focus", focusHandler);
     focusHandler = null;
   }
-  }
 }

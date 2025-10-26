@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabaseClient';
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
 
 export interface SearchResult {
   messageId: string;

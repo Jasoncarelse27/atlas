@@ -83,7 +83,7 @@ export function extractMemoryFromMessage(message: string): ExtractedMemory {
  * Merge new memory with existing memory
  * Preserves existing data, adds new information
  */
-export function mergeMemory(existing: any, newMemory: ExtractedMemory): any {
+export function mergeMemory(existing: Record<string, unknown>, newMemory: ExtractedMemory): Record<string, unknown> {
   const merged = { ...existing };
   
   // Add name if found and not already set

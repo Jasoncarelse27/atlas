@@ -59,7 +59,7 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
     // If caller provided detailed audio constraints, use them as-is
     return await navigator.mediaDevices.getUserMedia(constraints);
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Audio] getUserMedia error:', error);
     
     // Provide helpful error messages based on error type

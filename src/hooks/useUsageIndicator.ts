@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchWithAuthJSON } from '../services/fetchWithAuth';
 import { logger } from '../lib/logger';
+import { fetchWithAuthJSON } from '../services/fetchWithAuth';
 
 export interface UsageStats {
   tier: 'free' | 'core' | 'studio';

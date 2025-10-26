@@ -1,7 +1,7 @@
+import { logger } from '../lib/logger';
 import { useMessageStore } from '../stores/useMessageStore';
 import { sendMessageWithAttachments } from './chatService';
 import { offlineMessageStore } from './offlineMessageStore';
-import { logger } from '../lib/logger';
 
 export interface ResendResult {
   success: boolean;

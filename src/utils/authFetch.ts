@@ -219,7 +219,7 @@ function showToast(message: string, type: 'error' | 'warning' | 'success' = 'err
  * Convenience methods for common API calls
  */
 export const authApi = {
-  async post(url: string, data: any, options: AuthFetchOptions = {}) {
+  async post(url: string, data: Record<string, unknown>, options: AuthFetchOptions = {}) {
     const response = await fetchWithAuth(url, {
       ...options,
       method: 'POST',
