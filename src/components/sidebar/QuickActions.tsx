@@ -157,8 +157,13 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     const newChatUrl = `/chat?conversation=${newConversationId}`;
     logger.debug('[QuickActions] ✅ Navigating to:', newChatUrl);
     
-    // ✅ Navigate to new chat
-    window.location.href = newChatUrl;
+    // ✅ MOBILE FIX: Use history.pushState for instant navigation (no page reload)
+    window.history.pushState({ conversationId: newConversationId }, '', newChatUrl);
+    
+    // Trigger custom event for ChatPage to handle
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { conversationId: newConversationId } }));
+    
+    logger.debug('[QuickActions] ✅ Navigation triggered without page reload');
   };
 
   const handleViewHistory = async () => {

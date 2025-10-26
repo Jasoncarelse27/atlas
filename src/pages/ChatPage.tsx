@@ -857,15 +857,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return () => {
       window.removeEventListener('popstate', handleUrlChange);
     };
-  }, [conversationId, loadMessages, userId]); // Keep userId in deps for loadMessages calls
+  }, [conversationId, userId]); // Note: loadMessages deliberately excluded - stable callback with userId dependency
 
   // ✅ MOBILE FIX: Load messages when userId becomes available
+  // Note: loadMessages not in deps to prevent infinite loop (stable callback with userId dependency)
   useEffect(() => {
     if (userId && conversationId) {
       logger.debug('[ChatPage] 🔄 userId available, loading messages for conversation:', conversationId);
       loadMessages(conversationId);
     }
-  }, [userId, conversationId, loadMessages]);
+  }, [userId, conversationId]); // Note: loadMessages deliberately excluded - stable callback
 
   // Removed - redundant with main message loading useEffect
 
@@ -1068,10 +1069,28 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             
             {/* Action button */}
             <button
-              onClick={() => window.location.reload()}
-              className="w-full py-3 px-6 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-yellow-500/50"
+              onClick={async () => {
+                // ✅ MOBILE FIX: Try graceful recovery before full reload
+                setRetrying(true);
+                try {
+                  // Try to reconnect to Supabase
+                  await checkSupabaseHealth();
+                  
+                  // If successful, clear error and continue
+                  setHealthError(null);
+                  logger.debug('[ChatPage] ✅ Reconnection successful, resuming...');
+                } catch (error) {
+                  // If still failing, do a full reload as last resort
+                  logger.error('[ChatPage] Reconnection failed, reloading...', error);
+                  window.location.reload();
+                } finally {
+                  setRetrying(false);
+                }
+              }}
+              disabled={retrying}
+              className="w-full py-3 px-6 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              Reload Atlas Now
+              {retrying ? 'Reconnecting...' : 'Reload Atlas Now'}
             </button>
             
             {/* Help text */}

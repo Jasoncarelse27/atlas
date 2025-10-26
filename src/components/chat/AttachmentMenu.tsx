@@ -93,6 +93,36 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     await uploadImage(file);
   };
 
+  // ✅ BEST PRACTICE: Upload with automatic retry and exponential backoff
+  const uploadWithRetry = async (file: File, maxAttempts = 3): Promise<any> => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        logger.debug(`[AttachmentMenu] Upload attempt ${attempt + 1}/${maxAttempts}`);
+        return await imageService.uploadImage(file, userId);
+      } catch (error) {
+        const isLastAttempt = attempt === maxAttempts - 1;
+        
+        // Check if error is retryable (network errors, timeouts)
+        const isRetryable = error instanceof Error && (
+          error.message.includes('network') ||
+          error.message.includes('timeout') ||
+          error.message.includes('fetch') ||
+          error.message.includes('failed to fetch')
+        );
+        
+        if (isLastAttempt || !isRetryable) {
+          throw error; // Give up after max attempts or non-retryable errors
+        }
+        
+        // Exponential backoff: 1s, 2s, 4s
+        const delayMs = Math.pow(2, attempt) * 1000;
+        logger.debug(`[AttachmentMenu] Upload failed, retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+    throw new Error('Upload failed after all retry attempts');
+  };
+
   // ✅ FIX 3: Extracted upload logic for reusability
   const uploadImage = async (file: File) => {
     setIsUploading(true);
@@ -127,7 +157,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         }
       );
       
-      const result = await imageService.uploadImage(file, userId);
+      // ✅ BEST PRACTICE: Use automatic retry for better success rate
+      const result = await uploadWithRetry(file, 3);
       
       logger.debug('✅ File uploaded successfully');
 

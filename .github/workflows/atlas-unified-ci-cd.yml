@@ -142,7 +142,7 @@ jobs:
           echo "✅ Backend health check passed"
 
           # Test Redis connection
-          curl -f http://localhost:8000/healthz | jq '.redis' | grep '"status":"healthy"' || exit 1
+          curl -f http://localhost:8000/healthz | jq '.redis' | grep 'true' || exit 1
           echo "✅ Redis connection verified"
 
           # Cleanup

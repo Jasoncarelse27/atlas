@@ -225,7 +225,7 @@ export async function createThumbnail(
 /**
  * Validate image file before upload
  */
-export function validateImageFile(file: File): { valid: boolean; error?: string } {
+export async function validateImageFile(file: File): Promise<{ valid: boolean; error?: string }> {
   // Check file type
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
   if (!validTypes.includes(file.type) && !file.name.match(/\.(jpe?g|png|gif|webp|heic|heif)$/i)) {
@@ -236,6 +236,31 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   const maxOriginalSize = 20 * 1024 * 1024;
   if (file.size > maxOriginalSize) {
     return { valid: false, error: 'File too large. Maximum size is 20MB.' };
+  }
+
+  // ✅ BEST PRACTICE: Check image dimensions to prevent memory exhaustion attacks
+  try {
+    const img = await createImageFromFile(file);
+    const MAX_DIMENSION = 8000; // 8000px max (reasonable for modern displays)
+    
+    if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
+      return { 
+        valid: false, 
+        error: `Image dimensions too large (${img.width}x${img.height}). Maximum is ${MAX_DIMENSION}px per side.` 
+      };
+    }
+    
+    // Check for suspicious aspect ratios (e.g., 1x10000 images)
+    const aspectRatio = Math.max(img.width, img.height) / Math.min(img.width, img.height);
+    if (aspectRatio > 10) {
+      return { 
+        valid: false, 
+        error: 'Unusual image aspect ratio detected. Please use a standard image format.' 
+      };
+    }
+  } catch (error) {
+    logger.error('[ImageValidation] Failed to validate dimensions:', error);
+    // Continue without dimension validation if it fails
   }
 
   return { valid: true };
