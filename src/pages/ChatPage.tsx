@@ -153,8 +153,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               timestamp: msg.created_at,
               synced: true,
               updatedAt: msg.created_at,
-              imageUrl: msg.image_url || undefined, // ✅ Save image URL
-              image_url: msg.image_url || undefined, // ✅ Support both formats
+              // ✅ FIX: Don't duplicate - use ONLY attachments array
               attachments: msg.attachments || undefined, // ✅ Save attachments
               deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
               deletedBy: msg.deleted_by || undefined  // ✅ PHASE 2: Sync deleted type
@@ -180,8 +179,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         content: msg.content,
         timestamp: msg.timestamp,
         type: msg.type || 'text',
-        url: msg.imageUrl || msg.image_url, // ✅ ADD: url field for ImageMessageBubble
-        imageUrl: msg.imageUrl || msg.image_url, // ✅ Include image URL
+        // ✅ FIX: Don't duplicate - use ONLY attachments array
         attachments: msg.attachments // ✅ Include attachments
       } as Message));
       
@@ -621,8 +619,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             timestamp: newMsg.created_at,
             synced: true,
             updatedAt: newMsg.created_at,
-            imageUrl: newMsg.image_url || undefined, // ✅ Save image URL
-            image_url: newMsg.image_url || undefined, // ✅ Support both formats
+            // ✅ FIX: Don't duplicate - use ONLY attachments array
             attachments: newMsg.attachments || undefined, // ✅ Save attachments array
             deletedAt: newMsg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
             deletedBy: newMsg.deleted_by || undefined  // ✅ PHASE 2: Sync deleted type
@@ -631,8 +628,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] 🔔 Saving to Dexie:', {
             id: messageToSave.id,
             type: messageToSave.type,
-            hasImageUrl: !!messageToSave.imageUrl,
-            hasImage_url: !!messageToSave.image_url,
             hasAttachments: !!messageToSave.attachments
           });
           
@@ -648,7 +643,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             content: messageToSave.content,
             timestamp: messageToSave.timestamp,
             status: 'sent' as const,
-            imageUrl: messageToSave.imageUrl,
+            // ✅ FIX: Don't duplicate - use ONLY attachments array
             attachments: messageToSave.attachments
           };
           

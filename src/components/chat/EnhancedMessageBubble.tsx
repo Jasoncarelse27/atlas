@@ -9,7 +9,6 @@ import { canUseAudio } from '../../config/featureAccess';
 import { logger } from '../../lib/logger';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
-import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { DeleteMessageModal } from '../modals/DeleteMessageModal';
 import { ImageGallery } from './ImageGallery';
 import { MessageContextMenu } from './MessageContextMenu';
