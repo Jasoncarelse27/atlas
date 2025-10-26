@@ -63,7 +63,7 @@ class ResendService {
   /**
    * Resend a single failed message with exponential backoff retry
    */
-  async resendSingleMessage(message: any): Promise<ResendResult> {
+  async resendSingleMessage(message: FailedMessage): Promise<ResendResult> {
     const messageId = message.id;
     const currentRetries = this.retryAttempts.get(messageId) || 0;
     
@@ -163,7 +163,7 @@ class ResendService {
   /**
    * Resend a message with attachments using retry logic
    */
-  private async resendMessageWithAttachments(message: any): Promise<void> {
+  private async resendMessageWithAttachments(message: FailedMessage): Promise<void> {
     
     // Use the existing sendMessageWithAttachments function with retry logic
     const messageStore = useMessageStore.getState();
@@ -177,7 +177,7 @@ class ResendService {
   /**
    * Resend a simple text message
    */
-  private async resendTextMessage(message: any): Promise<void> {
+  private async resendTextMessage(message: FailedMessage): Promise<void> {
     // This would need to be implemented based on your text message sending logic
     // For now, we'll just mark it as sent since the sync service will handle the actual sending
     
@@ -265,9 +265,20 @@ class ResendService {
 // Export singleton instance
 export const resendService = new ResendService();
 
-// Auto-retry when connection is restored
-window.addEventListener('online', () => {
+// ✅ FIX: Auto-retry with cleanup
+const handleOnline = () => {
   setTimeout(() => {
     resendService.autoRetryOnConnection();
   }, 2000); // Wait 2 seconds after coming online
-});
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', handleOnline);
+}
+
+// ✅ FIX: Export cleanup function
+export const cleanupResendListeners = () => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('online', handleOnline);
+  }
+};

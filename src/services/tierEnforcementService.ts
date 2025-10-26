@@ -14,11 +14,19 @@ interface TierInfo {
 }
 
 // Custom error class for tier limit violations
+export interface TierLimitMetadata {
+  currentUsage?: number;
+  limit?: number;
+  tier?: string;
+  feature?: string;
+  [key: string]: unknown;
+}
+
 export class TierLimitError extends Error {
   public readonly type: 'daily_limit' | 'budget_limit' | 'unknown';
-  public readonly metadata?: any;
+  public readonly metadata?: TierLimitMetadata;
 
-  constructor(type: 'daily_limit' | 'budget_limit' | 'unknown', message: string, metadata?: any) {
+  constructor(type: 'daily_limit' | 'budget_limit' | 'unknown', message: string, metadata?: TierLimitMetadata) {
     super(message);
     this.name = 'TierLimitError';
     this.type = type;

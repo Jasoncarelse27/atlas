@@ -23,7 +23,7 @@ Best regards,
 The Atlas AI Team`;
 }
 
-export function generateWeeklySummaryHTML({ name }: { name: string }, summaryData?: any) {
+export function generateWeeklySummaryHTML({ name }: { name: string }, summaryData?: { messageCount?: number; topTopics?: string[] }) {
   const messageCount = summaryData?.messageCount || 0;
   const topTopic = summaryData?.topTopics?.[0] || 'General Chat';
   
@@ -44,7 +44,7 @@ export function generateWeeklySummaryHTML({ name }: { name: string }, summaryDat
 </html>`;
 }
 
-export function generateWeeklySummaryText({ name }: { name: string }, summaryData?: any) {
+export function generateWeeklySummaryText({ name }: { name: string }, summaryData?: { messageCount?: number; topTopics?: string[] }) {
   const messageCount = summaryData?.messageCount || 0;
   const topTopic = summaryData?.topTopics?.[0] || 'General Chat';
   

@@ -6,11 +6,11 @@ import { useTierAccess } from './useTierAccess';
 
 interface MiddlewareResponse {
   success: boolean;
-  data?: any;
+  data?: Record<string, unknown>;
   error?: {
     type: 'daily_limit' | 'budget_limit' | 'network' | 'unknown';
     message: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
   };
 }
 

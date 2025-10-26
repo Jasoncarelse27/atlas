@@ -43,8 +43,9 @@ export function useSupabaseAuth(): UseSupabaseAuthResult {
           setUser(null);
           setAccessToken(null);
         }
-      } catch (e: any) {
-        setError(e?.message || 'Failed to load session');
+      } catch (e: unknown) {
+        const error = e as Error;
+        setError(error?.message || 'Failed to load session');
       }
     };
     init();

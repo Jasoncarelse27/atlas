@@ -329,7 +329,7 @@ class UsageTrackingService {
   /**
    * Log usage events for billing analysis
    */
-  private async logUsageEvent(event: string, data: any): Promise<void> {
+  private async logUsageEvent(event: string, data: Record<string, unknown>): Promise<void> {
     try {
       await supabase
         .from('usage_logs')
@@ -403,7 +403,7 @@ class UsageTrackingService {
   /**
    * Log errors for monitoring
    */
-  private async logError(error: string, data: any): Promise<void> {
+  private async logError(error: string, data: Record<string, unknown>): Promise<void> {
     try {
       await supabase
         .from('error_logs')

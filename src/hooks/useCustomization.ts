@@ -53,7 +53,7 @@ interface UseCustomizationReturn {
   customization: UserCustomization | null;
   isLoading: boolean;
   error: string | null;
-  updateCustomization: (path: string, value: any, preview?: boolean) => void;
+  updateCustomization: (path: string, value: string | number | boolean | Record<string, unknown>, preview?: boolean) => void;
   updateThemeColors: (primaryColor: string, accentColor: string, preview?: boolean) => void;
   saveCustomization: () => Promise<void>;
   resetToDefaults: () => void;

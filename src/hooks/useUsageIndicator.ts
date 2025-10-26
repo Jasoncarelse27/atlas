@@ -74,7 +74,7 @@ export function useUsageIndicator() {
           isUnlimited,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       
       // Set fallback state for free tier if API fails
       setState({

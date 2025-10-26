@@ -181,7 +181,7 @@ const useVoiceRecognition = ({
       }
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       
       setIsListening(false);
       
@@ -224,7 +224,7 @@ const useVoiceRecognition = ({
       }
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       
       setRetryCount(0);
       setIsRetrying(false);
@@ -400,7 +400,7 @@ const useVoiceRecognition = ({
     
     try {
       recognitionRef.current.start();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Intentionally empty - error handling not required
       setIsListening(false);
       setIsRetrying(false);

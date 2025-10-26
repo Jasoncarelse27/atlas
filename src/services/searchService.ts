@@ -66,7 +66,7 @@ export async function searchMessages(
     }
 
     // Format results with snippets
-    const results: SearchResult[] = data.map((msg: any) => {
+    const results: SearchResult[] = data.map((msg: { id: string; content?: string; conversation_id: string; created_at: string; role: string }) => {
       const content = msg.content || '';
       const snippet = createSnippet(content, searchTerm);
 

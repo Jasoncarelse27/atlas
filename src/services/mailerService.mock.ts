@@ -6,7 +6,7 @@ const logEmailFailure = async (recipient: string, template: string, error: strin
 
 // Mock MailerLite service for tests
 export const mailerService = {
-  sendEmail: async (to: string, templateId: string, data: any) => {
+  sendEmail: async (to: string, templateId: string, data: Record<string, unknown>) => {
     // Simulate validation errors for empty email
     if (!to || to.trim() === '') {
       const errorMessage = 'Email address is required';
@@ -58,7 +58,7 @@ export const mailerService = {
   },
 
   // Optional: Simulate failure for testing error handling
-  sendEmailWithFailure: async (to: string, templateId: string, data: any) => {
+  sendEmailWithFailure: async (to: string, templateId: string, data: Record<string, unknown>) => {
     const errorMessage = `Mock failure: ${templateId} to ${to}`;
     
     // Log mock failure to Supabase for testing

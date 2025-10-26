@@ -74,7 +74,7 @@ class ConversationService {
         .toArray();
 
       // Transform to consistent format
-      this.cache = conversations.map((conv: any) => ({
+      this.cache = conversations.map((conv: { id: string; title?: string; user_id: string; created_at: string; updated_at: string; last_message_at?: string }) => ({
         id: conv.id,
         title: conv.title,
         createdAt: conv.createdAt,

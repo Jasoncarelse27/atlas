@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { compressImage, validateImageFile, createThumbnail } from '../utils/imageCompression';
 
 // Event logging helper
-const logEvent = (eventName: string, props: any) => {
+const logEvent = (eventName: string, props: Record<string, unknown>) => {
   if (process.env.NODE_ENV !== "production") {
     // Log events in development
   }

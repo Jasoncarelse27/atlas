@@ -12,7 +12,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.MAILERLITE_API_KEY) {
 const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
 
 export const mailerService = {
-  sendEmail: async (to: string, templateId: string, data: any) => {
+  sendEmail: async (to: string, templateId: string, data: Record<string, unknown>) => {
     if (!MAILERLITE_API_KEY) {
       throw new Error("Missing MAILERLITE_API_KEY");
     }

@@ -188,11 +188,13 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
 
   // Also sync when app regains focus (Web + React Native)
   if (typeof window !== "undefined") {
-    window.addEventListener("focus", () => {
+    focusHandler = () => {
       conversationSyncService.deltaSync(userId).catch(error => {
         logger.error("[SYNC] Focus delta sync failed:", error);
       });
-    })
+    };
+    
+    window.addEventListener("focus", focusHandler);
   }
 
   logger.debug("[SYNC] ✅ Delta sync background service active - unified architecture");
@@ -200,7 +202,14 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
 
 export function stopBackgroundSync() {
   if (syncInterval) {
-    clearInterval(syncInterval)
-    syncInterval = null
+    clearInterval(syncInterval);
+    syncInterval = null;
+  }
+  
+  // ✅ FIX: Cleanup focus listener
+  if (focusHandler && typeof window !== "undefined") {
+    window.removeEventListener("focus", focusHandler);
+    focusHandler = null;
+  }
   }
 }

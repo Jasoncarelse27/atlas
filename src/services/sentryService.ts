@@ -178,7 +178,7 @@ function maskPII(str: string): string {
 /**
  * Mask PII in an object recursively
  */
-function maskPIIInObject(obj: any): any {
+function maskPIIInObject(obj: Record<string, unknown>): Record<string, unknown> {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }

@@ -195,7 +195,7 @@ class RedisCacheService {
   /**
    * Cache user profile data
    */
-  async cacheUserProfile(userId: string, profile: any, tier: 'free' | 'core' | 'studio'): Promise<void> {
+  async cacheUserProfile(userId: string, profile: Record<string, unknown>, tier: 'free' | 'core' | 'studio'): Promise<void> {
     await this.set(`user:${userId}`, profile, 'userProfile', tier);
   }
 
@@ -237,7 +237,7 @@ class RedisCacheService {
   /**
    * Cache API responses
    */
-  async cacheApiResponse(query: string, response: any, tier: 'free' | 'core' | 'studio'): Promise<void> {
+  async cacheApiResponse(query: string, response: Record<string, unknown>, tier: 'free' | 'core' | 'studio'): Promise<void> {
     const hash = this.hashString(query);
     await this.set(`api:${hash}`, response, 'apiResponses', tier);
   }
