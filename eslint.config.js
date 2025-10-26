@@ -74,6 +74,6 @@ export default [
     },
   },
   {
-    ignores: ['dist', 'node_modules', '*.config.js', 'venv/**/*', '*.py', 'server.py'],
+    ignores: ['dist', 'node_modules', '*.config.js', 'venv/**/*', '*.py', 'server.py', 'api/voice-v2/**'],
   },
 ];
