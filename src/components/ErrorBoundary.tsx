@@ -3,6 +3,7 @@
  * Catches React errors and displays user-friendly fallback
  */
 
+import { logger } from '@/lib/logger';
 import { captureException } from '@/services/sentryService';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';

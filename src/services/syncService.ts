@@ -19,6 +19,9 @@ type SupabaseMessage = {
 export let lastSyncedAt = 0
 export let isSyncingNow = false
 
+let syncInterval: NodeJS.Timeout | null = null;
+let focusHandler: (() => void) | null = null;
+
 export async function markSyncing(state: boolean) {
   isSyncingNow = state
   if (!state) lastSyncedAt = Date.now()
@@ -160,7 +163,6 @@ export const syncService = {
 }
 
 // Background sync functionality
-let syncInterval: ReturnType<typeof setInterval> | null = null
 
 export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'studio') {
   // ✅ DELTA SYNC: Enable efficient background sync with delta updates
