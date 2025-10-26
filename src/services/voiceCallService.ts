@@ -34,8 +34,8 @@ export class VoiceCallService {
   private microphone: MediaStreamAudioSourceNode | null = null;
   private vadCheckInterval: NodeJS.Timeout | null = null;
   private silenceStartTime: number | null = null;
-  private readonly SILENCE_DURATION = 600; // 🎯 NATURAL: Allow natural pauses (0.6s)
-  private readonly MIN_SPEECH_DURATION = 400; // 🎯 Don't trigger on "um", "uh" (0.4s)
+  private readonly SILENCE_DURATION = 800; // 🎯 NATURAL: Allow natural pauses (0.8s)
+  private readonly MIN_SPEECH_DURATION = 1000; // 🎯 Require 1+ second of speech (filters noise)
   private lastSpeechTime: number = 0;
   
   // 🎯 SMART ADAPTIVE THRESHOLD
@@ -497,6 +497,13 @@ export class VoiceCallService {
       // 1. STT - Call OpenAI Whisper directly (bypassing Supabase Edge Function)
       const sttStart = performance.now();
       logger.info(`[VoiceCall] ⏱️ Audio blob size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
+      
+      // Skip if audio blob is too small (< 20KB = likely just noise)
+      if (audioBlob.size < 20 * 1024) {
+        logger.warn(`[VoiceCall] ⚠️ Audio too small (${(audioBlob.size / 1024).toFixed(1)}KB), skipping`);
+        this.restartRecording(options);
+        return;
+      }
       
       const transcript = await this.retryWithBackoff(async () => {
         // Convert audio blob to base64 for Deepgram
