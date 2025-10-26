@@ -227,9 +227,10 @@ class VoiceService {
       // ✅ Mobile Fix: Handle autoplay restrictions
       try {
         await audio.play();
-      } catch (playError: any) {
+      } catch (playError: unknown) {
+        const error = playError as Error & { name?: string };
         // Handle autoplay blocking (common on mobile)
-        if (playError.name === 'NotAllowedError' || playError.name === 'NotSupportedError') {
+        if (error.name === 'NotAllowedError' || error.name === 'NotSupportedError') {
           logger.warn('[VoiceService] Autoplay blocked, user interaction required');
           
           // Create a user-friendly error message

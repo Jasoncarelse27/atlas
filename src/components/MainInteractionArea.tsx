@@ -11,7 +11,7 @@ interface MainInteractionAreaProps {
   isProcessing: boolean;
   response: string;
   audioUrl: string | null;
-  imageAnalysisResult?: any;
+  imageAnalysisResult?: { description: string; confidence?: number; labels?: string[] };
   transcript: string;
   isListening: boolean;
   voices?: SpeechSynthesisVoice[];

@@ -747,7 +747,7 @@ const DashboardTester: React.FC<DashboardTesterProps> = ({
     }
   ];
 
-  const runSingleTest = async (test: any) => {
+  const runSingleTest = async (test: { id: string; name: string; run: () => Promise<void> }) => {
     setActiveTest(test.id);
     setTestResults(prev => ({
       ...prev,

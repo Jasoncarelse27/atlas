@@ -426,7 +426,7 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
   }, [customization, user]);
 
   // Update a specific customization property
-  const updateCustomization = useCallback((path: string, value: any, preview: boolean = true) => {
+  const updateCustomization = useCallback((path: string, value: string | number | boolean | Record<string, unknown>, preview: boolean = true) => {
     if (!customization) return;
 
 

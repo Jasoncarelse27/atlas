@@ -66,8 +66,9 @@ export async function checkSupabaseHealth() {
       logger.debug("✅ Supabase connection healthy.");
     }
     return { ok: true };
-  } catch (err: any) {
-    return { ok: false, message: err.message };
+  } catch (err: unknown) {
+    const error = err as Error;
+    return { ok: false, message: error.message };
   }
 }
 

@@ -25,7 +25,7 @@ interface EnhancedInputToolbarProps {
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
   isVisible?: boolean;
   onSoundPlay?: (soundType: string) => void;
-  addMessage?: (message: any) => void;
+  addMessage?: (message: Message) => void;
   isStreaming?: boolean;
 }
 
@@ -177,7 +177,7 @@ export default function EnhancedInputToolbar({
 
       try {
         // Update status to analyzing (more specific feedback)
-        attachments.forEach((att: any) => {
+        attachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id]: 'analyzing' }));
           }
@@ -201,7 +201,7 @@ export default function EnhancedInputToolbar({
         logger.debug('[EnhancedInputToolbar] ✅ sendMessageWithAttachments completed');
         
         // Update status to success
-        attachments.forEach((att: any) => {
+        attachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id]: 'success' }));
           }
@@ -219,7 +219,7 @@ export default function EnhancedInputToolbar({
         logger.error('[EnhancedInputToolbar] ❌ sendMessageWithAttachments failed:', error);
         
         // Update status to error
-        attachments.forEach((att: any) => {
+        attachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id]: 'error' }));
           }
@@ -259,7 +259,7 @@ export default function EnhancedInputToolbar({
   };
 
   // Handle adding attachments to input area
-  const handleAddAttachment = (attachment: any) => {
+  const handleAddAttachment = (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File }) => {
     const attachmentWithId = {
       ...attachment,
       id: attachment.id || generateUUID() // Ensure it has an ID

@@ -36,7 +36,7 @@ import UsageCounter from '../components/sidebar/UsageCounter';
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 
 interface ChatPageProps {
-  user?: any;
+  user?: { id: string; email?: string };
 }
 
 const ChatPage: React.FC<ChatPageProps> = () => {
@@ -142,7 +142,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           // Store in Dexie for future use
           await atlasDB.messages.bulkPut(
-            supabaseMessages.map((msg: any) => ({
+            supabaseMessages.map((msg: { id: string; conversation_id: string; content: string; role: string; created_at: string; updated_at: string; message_type?: string; metadata?: Record<string, unknown> }) => ({
               id: msg.id,
               conversationId: msg.conversation_id,
               userId: msg.user_id,

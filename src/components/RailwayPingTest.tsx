@@ -6,7 +6,7 @@ interface PingResult {
   status: 'success' | 'error' | 'loading';
   responseTime?: number;
   error?: string;
-  data?: any;
+  data?: { message?: string; [key: string]: unknown };
 }
 
 const RailwayPingTest: React.FC = () => {

@@ -662,8 +662,8 @@ export class VoiceCallService {
         }
         
         return await fn();
-      } catch (error: any) {
-        lastError = error;
+      } catch (error: unknown) {
+        lastError = error as Error;
         
         if (error.message?.includes('401') || error.message?.includes('403') || error.message?.includes('429')) {
           throw error;

@@ -38,7 +38,8 @@ export default function ChatScreen() {
           updateAssistantMessage('[Error generating response]');
         },
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       updateAssistantMessage('[Error generating response]');
     }
   };

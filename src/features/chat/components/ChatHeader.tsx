@@ -4,7 +4,7 @@ import { isPaidTier } from '../../../config/featureAccess';
 // import { useTierAccess } from '@/hooks/useSubscription'; // Note: Use for centralized tier checks when userId is available
 
 interface ChatHeaderProps {
-  user?: any;
+  user?: { id: string; email?: string };
   tier: string;
   messageCount: number;
   onLogout: () => void;

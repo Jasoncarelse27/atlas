@@ -11,7 +11,7 @@ export interface SentryConfig {
   release?: string;
   debug?: boolean;
   tracesSampleRate?: number;
-  beforeSend?: (event: any) => any;
+  beforeSend?: (event: Record<string, unknown>) => Record<string, unknown> | null;
 }
 
 class SentryService {

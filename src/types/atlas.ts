@@ -106,7 +106,7 @@ export interface AnalyticsEvent {
   timestamp: string;
   props: {
     tier: Tier;
-    [key: string]: any;
+    [key: string]: string | number | boolean | Tier | undefined;
   };
 }
 

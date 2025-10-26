@@ -241,7 +241,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
           // KaTeX Math rendering
           // math component removed - not valid in react-markdown
           // inlineMath component removed - not valid in react-markdown
-          code({ node, inline, className, children, ...props }: any) {
+          code({ node, inline, className, children, ...props }: { node?: unknown; inline?: boolean; className?: string; children?: React.ReactNode; [key: string]: unknown }) {
             const match = /language-(\w+)/.exec(className || '');
             const codeContent = String(children).replace(/\n$/, '');
             const codeId = `code-${Math.random().toString(36).substr(2, 9)}`;
@@ -375,7 +375,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
           // KaTeX Math rendering
           // math component removed - not valid in react-markdown
           // inlineMath component removed - not valid in react-markdown
-          code({ node, inline, className, children, ...props }: any) {
+          code({ node, inline, className, children, ...props }: { node?: unknown; inline?: boolean; className?: string; children?: React.ReactNode; [key: string]: unknown }) {
             const match = /language-(\w+)/.exec(className || '');
             const codeContent = String(children).replace(/\n$/, '');
             const codeId = `code-${Math.random().toString(36).substr(2, 9)}`;

@@ -83,9 +83,10 @@ async function fetchTierGlobal(): Promise<Tier> {
     globalTierState.lastFetch = now;
     globalTierState.error = null;
     logger.debug("✅ TierContext - Tier loaded:", globalTierState.tier);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as Error;
     globalTierState.tier = "free";
-    globalTierState.error = err;
+    globalTierState.error = error;
   } finally {
     globalTierState.inFlight = false;
     globalTierState.loading = false;

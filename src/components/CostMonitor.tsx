@@ -44,14 +44,14 @@ const CostMonitor: React.FC = () => {
         .select('*')
         .limit(5);
 
-      const rowCountsMap = rowCounts?.reduce((acc: any, row: any) => {
+      const rowCountsMap = rowCounts?.reduce((acc: Record<string, number>, row: { table_name: string; row_count: number }) => {
         acc[row.table_name] = row.row_count;
         return acc;
       }, {}) || {};
 
       setMetrics({
         storageUsage: storageData?.[0]?.size_bytes || 0,
-        databaseSize: storageData?.reduce((sum: number, table: any) => sum + (table.size_bytes || 0), 0) || 0,
+        databaseSize: storageData?.reduce((sum: number, table: { size_bytes?: number }) => sum + (table.size_bytes || 0), 0) || 0,
         rowCounts: {
           conversations: rowCountsMap.conversations || 0,
           messages: rowCountsMap.messages || 0,

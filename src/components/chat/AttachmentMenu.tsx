@@ -14,7 +14,7 @@ interface AttachmentMenuProps {
   onClose: () => void;
   conversationId?: string; // Made optional since we're using callback pattern
   userId: string;
-  onAddAttachment?: (attachment: any) => void; // New callback for adding to input area
+  onAddAttachment?: (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File }) => void;
 }
 
 const AttachmentMenu: React.FC<AttachmentMenuProps> = ({

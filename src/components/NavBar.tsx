@@ -2,7 +2,7 @@ import { BarChart3, Brain, LogOut, Menu, MessageSquare, Settings, Shield, X } fr
 import { useState } from "react";
 
 interface NavBarProps {
-  user?: any;
+  user?: { id: string; email?: string };
   tier?: string;
   messageCount?: number;
   onLogout?: () => void;

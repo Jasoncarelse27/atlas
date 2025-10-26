@@ -537,7 +537,7 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       const endpoint = { path: '/ping', name: 'Railway Ping', expectedStatus: 'ok' };
       
       // Use the same test function as the health suite for consistency
-      const testEndpoint = async (baseUrl: string, endpoint: any, timeout: number = 8000, retries: number = 3) => {
+      const testEndpoint = async (baseUrl: string, endpoint: { path: string; method: string; expectedStatus?: number }, timeout: number = 8000, retries: number = 3) => {
         const testUrl = `${baseUrl}${endpoint.path}`;
         let lastError = '';
         
