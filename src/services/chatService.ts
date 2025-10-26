@@ -387,9 +387,7 @@ export async function sendMessageWithAttachments(
     role: "user",
     type: 'image', // ✅ ADD: Explicitly set type to 'image'
     content: caption || "", // ✅ user caption as content
-    url: imageUrl, // ✅ image URL for display
-    imageUrl: imageUrl, // ✅ also set imageUrl for compatibility
-    image_url: imageUrl, // ✅ ADD: Support snake_case for Supabase compatibility
+    // ✅ FIX: Don't duplicate image in both url AND attachments - use attachments only
     attachments: attachments.map(att => ({
       type: (att.type || 'image') as 'image' | 'file' | 'audio',
       url: att.url || att.publicUrl,
