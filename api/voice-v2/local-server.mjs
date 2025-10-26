@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* eslint-disable no-console */
 // Week 4 - WebSocket Server with Deepgram STT + Claude AI + OpenAI TTS
 // Complete voice conversation: User speaks → Atlas hears → thinks → speaks back
 // Architecture: Matches ChatGPT Advanced Voice Mode
