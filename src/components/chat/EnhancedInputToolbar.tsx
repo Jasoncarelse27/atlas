@@ -728,7 +728,11 @@ export default function EnhancedInputToolbar({
               }}
               onBlur={handleInputBlur}
               onFocus={handleInputFocus}
-              placeholder={attachmentPreviews.length > 0 ? "Add a caption (optional)..." : placeholder}
+              placeholder={
+                attachmentPreviews.length > 0 
+                  ? (window.innerWidth < 640 ? "Add a caption..." : "Add a caption (optional)...")
+                  : placeholder
+              }
               className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D3DCAB] border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
               style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
               disabled={isProcessing || disabled}
