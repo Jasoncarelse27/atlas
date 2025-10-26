@@ -1284,7 +1284,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
             conversation_id: conversationId,
             role: 'user',
             content: prompt,
-            image_url: imageUrl,
+            // ✅ FIX: Use ONLY attachments array, not both image_url and attachments
             attachments: [{ type: 'image', url: imageUrl }],
             created_at: new Date().toISOString()
           });
