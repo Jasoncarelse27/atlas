@@ -48,10 +48,10 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0', // Allow external connections
       port: 5174,
-      // 🔒 HTTPS for iOS microphone access (self-signed certificate)
-      https: fs.existsSync('./dev-cert.pem') ? {
-        key: fs.readFileSync('./dev-key.pem'),
-        cert: fs.readFileSync('./dev-cert.pem'),
+      // 🔒 HTTPS for iOS microphone access (mkcert trusted certificates)
+      https: fs.existsSync('./localhost+1.pem') ? {
+        key: fs.readFileSync('./localhost+1-key.pem'),
+        cert: fs.readFileSync('./localhost+1.pem'),
       } : undefined,
       proxy: {
         '/v1': {
