@@ -165,9 +165,12 @@ class ConversationServiceImpl implements ConversationService {
           role: message.role,
           content: message.content,
           created_at: message.timestamp,  // ✅ FIX: Use created_at instead of timestamp
-          // audio_url doesn't exist - use attachments for audio
-          attachments: message.audioUrl ? [{type: 'audio', url: message.audioUrl}] : undefined,
-          image_url: message.imageUrl
+          // ✅ FIX: Use ONLY attachments array for all media (audio, image, etc.)
+          attachments: message.audioUrl 
+            ? [{type: 'audio', url: message.audioUrl}] 
+            : message.imageUrl 
+            ? [{type: 'image', url: message.imageUrl}]
+            : message.attachments || undefined
         });
 
       if (error) {
