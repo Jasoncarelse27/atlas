@@ -34,8 +34,8 @@ export class VoiceCallService {
   private microphone: MediaStreamAudioSourceNode | null = null;
   private vadCheckInterval: NodeJS.Timeout | null = null;
   private silenceStartTime: number | null = null;
-  private readonly SILENCE_DURATION = 800; // 🎯 NATURAL: Allow natural pauses (0.8s)
-  private readonly MIN_SPEECH_DURATION = 1000; // 🎯 Require 1+ second of speech (filters noise)
+  private readonly SILENCE_DURATION = 1000; // 🎯 NATURAL: Allow natural pauses (1.0s)
+  private readonly MIN_SPEECH_DURATION = 1500; // 🎯 Require 1.5+ seconds of speech (filters noise bursts)
   private lastSpeechTime: number = 0;
   
   // 🎯 SMART ADAPTIVE THRESHOLD
@@ -239,8 +239,8 @@ export class VoiceCallService {
     samples.sort((a, b) => a - b);
     this.baselineNoiseLevel = samples[Math.floor(samples.length / 2)];
     
-    // Set adaptive threshold (2x baseline, min 0.08 for better noise rejection)
-    this.adaptiveThreshold = Math.max(this.baselineNoiseLevel * 2.0, 0.08);
+    // Set adaptive threshold (2.5x baseline, min 0.12 for noisy environments)
+    this.adaptiveThreshold = Math.max(this.baselineNoiseLevel * 2.5, 0.12);
     this.isCalibrated = true;
     
     logger.info(`[VoiceCall] ✅ Calibrated - Baseline: ${(this.baselineNoiseLevel * 100).toFixed(1)}%, Threshold: ${(this.adaptiveThreshold * 100).toFixed(1)}%`);
