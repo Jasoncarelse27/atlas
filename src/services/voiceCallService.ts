@@ -527,38 +527,51 @@ export class VoiceCallService {
         
         const fetchStart = performance.now();
         
-        // Call Deepgram via backend (22x faster than Whisper)
-        const sttResponse = await fetch('/api/stt-deepgram', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ 
-            audio: base64Audio.split(',')[1] // Remove data:audio/webm;base64, prefix
-          }),
-        });
+        // Call Deepgram via backend with timeout
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000); // 🚀 5s timeout for STT
         
-        logger.info(`[VoiceCall] ⏱️ STT fetch: ${(performance.now() - fetchStart).toFixed(0)}ms`);
-        
-        if (!sttResponse.ok) {
-          const error = await sttResponse.text();
-          throw new Error(`STT failed: ${error}`);
+        try {
+          const sttResponse = await fetch('/api/stt-deepgram', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ 
+              audio: base64Audio.split(',')[1] // Remove data:audio/webm;base64, prefix
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          
+          logger.info(`[VoiceCall] ⏱️ STT fetch: ${(performance.now() - fetchStart).toFixed(0)}ms`);
+          
+          if (!sttResponse.ok) {
+            const error = await sttResponse.text();
+            throw new Error(`STT failed: ${error}`);
+          }
+          
+          const result = await sttResponse.json();
+          const confidence = result.confidence || 0;
+          const text = result.text || '';
+          
+          logger.info(`[VoiceCall] 📊 Deepgram confidence: ${(confidence * 100).toFixed(1)}%`);
+          
+          // If low confidence, log more details for debugging
+          if (confidence < 0.5) {
+            logger.warn(`[VoiceCall] ⚠️ Low confidence (${(confidence * 100).toFixed(1)}%). Audio may be unclear or silent.`);
+            logger.debug(`[VoiceCall] Debug - Format: ${this.recordingMimeType}, Size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
+          }
+          
+          return text;
+        } catch (error) {
+          clearTimeout(timeout);
+          if (error.name === 'AbortError') {
+            throw new Error('STT timeout - server took too long to respond');
+          }
+          throw error;
         }
-        
-        const result = await sttResponse.json();
-        const confidence = result.confidence || 0;
-        const text = result.text || '';
-        
-        logger.info(`[VoiceCall] 📊 Deepgram confidence: ${(confidence * 100).toFixed(1)}%`);
-        
-        // If low confidence, log more details for debugging
-        if (confidence < 0.5) {
-          logger.warn(`[VoiceCall] ⚠️ Low confidence (${(confidence * 100).toFixed(1)}%). Audio may be unclear or silent.`);
-          logger.debug(`[VoiceCall] Debug - Format: ${this.recordingMimeType}, Size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
-        }
-        
-        return text;
       }, 'Speech Recognition');
       
       if (!transcript?.trim()) return;
@@ -577,24 +590,30 @@ export class VoiceCallService {
       // 🎵 Play subtle acknowledgment sound for natural conversation flow
       this.playAcknowledgmentSound();
       
-      // 2. Claude Streaming
+      // 2. Claude Streaming with timeout
       const claudeStart = performance.now();
-      const response = await fetch('/api/message?stream=1', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          message: transcript,
-          conversationId: options.conversationId,
-          is_voice_call: true,
-          context: conversationBuffer.getRecent(5), // Send last 5 messages for context
-        }),
-      });
+      const claudeController = new AbortController();
+      const claudeTimeout = setTimeout(() => claudeController.abort(), 10000); // 🚀 10s timeout for Claude
       
-      if (!response.ok) throw new Error(`Claude streaming failed: ${response.statusText}`);
+      try {
+        const response = await fetch('/api/message?stream=1', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify({
+            message: transcript,
+            conversationId: options.conversationId,
+            is_voice_call: true,
+            context: conversationBuffer.getRecent(5), // Send last 5 messages for context
+          }),
+          signal: claudeController.signal,
+        });
+          clearTimeout(claudeTimeout);
+        
+        if (!response.ok) throw new Error(`Claude streaming failed: ${response.statusText}`);
       
       const claudeConnectTime = performance.now() - claudeStart;
       logger.info(`[VoiceCall] ⏱️ Claude connect (TTFB): ${claudeConnectTime.toFixed(0)}ms`);
@@ -668,8 +687,14 @@ export class VoiceCallService {
       logger.info(`[VoiceCall] 🤖 Atlas (streaming complete):`, fullResponse.substring(0, 100) + '...');
       
     } catch (error) {
-      logger.error('[VoiceCall] Streaming error:', error);
-      options.onError(error as Error);
+      clearTimeout(claudeTimeout);
+      if (error.name === 'AbortError') {
+        logger.error('[VoiceCall] Claude timeout - took too long to respond');
+        options.onError(new Error('Atlas took too long to respond. Please try again.'));
+      } else {
+        logger.error('[VoiceCall] Streaming error:', error);
+        options.onError(error as Error);
+      }
     }
   }
   

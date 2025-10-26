@@ -10,6 +10,7 @@ import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useFeatureAccess } from '../../hooks/useTierAccess';
 import { logger } from '../../lib/logger';
 import { voiceCallService } from '../../services/voiceCallService';
+import { voiceCallState } from '../../services/voiceCallState';
 import { getSafeUserMedia } from '../../utils/audioHelpers';
 
 interface VoiceCallModalProps {
@@ -223,6 +224,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       logger.debug('[VoiceCall] Max duration:', maxDuration);
 
       setIsCallActive(true);
+      voiceCallState.setActive(true); // 🚀 Disable heavy operations
       callStartTime.current = new Date();
       
       // Start duration timer
@@ -341,6 +343,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     }
     
     setIsCallActive(false);
+    voiceCallState.setActive(false); // 🚀 Re-enable background operations
     setCallDuration(0);
     callStartTime.current = null;
     

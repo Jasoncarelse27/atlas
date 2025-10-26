@@ -103,8 +103,8 @@ export class AudioQueueService {
       // Wait for TTS to be ready (with timeout)
       const startWait = Date.now();
       while (item.status !== 'ready' && item.status !== 'error') {
-        if (Date.now() - startWait > 10000) {
-          logger.error(`[AudioQueue] Timeout waiting for sentence ${item.index}`);
+        if (Date.now() - startWait > 30000) { // 🚀 Increased from 10s to 30s for slower networks
+          logger.error(`[AudioQueue] Timeout waiting for sentence ${item.index} after 30s`);
           item.status = 'error';
           break;
         }

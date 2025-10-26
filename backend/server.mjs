@@ -22,8 +22,18 @@ import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 
 // Force use of http/https Agent to fix fetch issues
-const httpAgent = new http.Agent({ keepAlive: true });
-const httpsAgent = new https.Agent({ keepAlive: true });
+const httpAgent = new http.Agent({ 
+  keepAlive: true,
+  maxSockets: 50, // 🚀 Increase connection pool
+  maxFreeSockets: 10,
+  timeout: 30000 // 30s timeout
+});
+const httpsAgent = new https.Agent({ 
+  keepAlive: true,
+  maxSockets: 50, // 🚀 Increase connection pool for faster API calls
+  maxFreeSockets: 10,
+  timeout: 30000 // 30s timeout
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1044,8 +1054,8 @@ app.post('/api/message', verifyJWT, async (req, res) => {
                 'anthropic-version': '2023-06-01'
               },
               body: JSON.stringify({
-                model: selectedModel,
-                max_tokens: is_voice_call ? 500 : 2000, // ✅ Allow complete thoughts for voice calls
+                model: is_voice_call ? 'claude-3-haiku-20240307' : selectedModel, // 🚀 Use fast Haiku for voice
+                max_tokens: is_voice_call ? 300 : 2000, // 🚀 Shorter responses for voice
                 // ✅ FIX: Move system message to top-level for Claude API
                 ...(is_voice_call && {
                   system: `You're Atlas, a warm and emotionally intelligent AI companion.

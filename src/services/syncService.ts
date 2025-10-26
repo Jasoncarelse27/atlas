@@ -3,6 +3,7 @@ import { atlasDB } from "@/database/atlasDB";
 import { supabase } from "@/lib/supabaseClient";
 import { logger } from '../lib/logger';
 import { conversationSyncService } from "./conversationSyncService";
+import { voiceCallState } from './voiceCallState';
 
 // 🎯 FUTURE-PROOF FIX: Define types for Supabase message schema
 type SupabaseMessage = {
@@ -174,14 +175,22 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     return;
   }
 
-  // Run delta sync immediately on load
-  conversationSyncService.deltaSync(userId).catch(error => {
-    logger.error("[SYNC] Initial delta sync failed:", error);
-  });
+  // Run delta sync immediately on load (skip if voice call active)
+  if (!voiceCallState.getActive()) {
+    conversationSyncService.deltaSync(userId).catch(error => {
+      logger.error("[SYNC] Initial delta sync failed:", error);
+    });
+  }
 
   // Re-sync every 2 minutes with delta sync (optimized for performance)
   if (!syncInterval) {
     syncInterval = setInterval(() => {
+      // 🚀 Skip sync if voice call is active
+      if (voiceCallState.getActive()) {
+        logger.debug("[SYNC] Skipping sync - voice call active");
+        return;
+      }
+      
       conversationSyncService.deltaSync(userId).catch(error => {
         logger.error("[SYNC] Background delta sync failed:", error);
       });
@@ -191,6 +200,12 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
   // Also sync when app regains focus (Web + React Native)
   if (typeof window !== "undefined") {
     focusHandler = () => {
+      // 🚀 Skip sync if voice call is active
+      if (voiceCallState.getActive()) {
+        logger.debug("[SYNC] Skipping focus sync - voice call active");
+        return;
+      }
+      
       conversationSyncService.deltaSync(userId).catch(error => {
         logger.error("[SYNC] Focus delta sync failed:", error);
       });
