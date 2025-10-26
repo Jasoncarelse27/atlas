@@ -607,6 +607,14 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               </>
             ) : (
               <>
+                {/* Beta Label */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                  <p className="text-amber-800 text-sm">
+                    🎙️ <strong>Voice Chat (Beta)</strong>: Response times 5-10 seconds. 
+                    Real-time voice coming Q1 2025.
+                  </p>
+                </div>
+                
                 <div className="w-24 h-24 rounded-full bg-[#F0E6DC] flex items-center justify-center mx-auto mb-4">
                   <Phone className="w-12 h-12 text-[#8B7E74]" />
                 </div>

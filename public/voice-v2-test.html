@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice V2 - WebSocket Echo Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    button.danger {
+      background: #f44336;
+    }
+    button.danger:hover {
+      background: #da190b;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    .status.connected {
+      background: #4CAF50;
+      color: white;
+    }
+    .status.disconnected {
+      background: #f44336;
+      color: white;
+    }
+    .status.connecting {
+      background: #FF9800;
+      color: white;
+    }
+    .log-container {
+      margin-top: 30px;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      height: 400px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      margin-bottom: 5px;
+    }
+    .log-entry.success { color: #4CAF50; }
+    .log-entry.error { color: #f44336; }
+    .log-entry.info { color: #2196F3; }
+    .log-entry.debug { color: #9E9E9E; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .metric {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    .metric-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎙️ Voice V2 - WebSocket Echo Test</h1>
+    <p class="subtitle">Week 1: Testing WebSocket connection and audio capture</p>
+
+    <div>
+      <button id="connectBtn" onclick="connect()">Connect</button>
+      <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+      <button id="startAudioBtn" onclick="startAudio()" disabled>Start Audio</button>
+      <button id="stopAudioBtn" onclick="stopAudio()" disabled class="danger">Stop Audio</button>
+      <button onclick="clearLogs()">Clear Logs</button>
+      <span id="status" class="status disconnected">Disconnected</span>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-value" id="messagesReceived">0</div>
+        <div class="metric-label">Messages Received</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="audioChunksSent">0</div>
+        <div class="metric-label">Audio Chunks Sent</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="transcriptCount">0</div>
+        <div class="metric-label">Transcripts Received</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; background: #f0f8ff; border: 2px solid #4CAF50; border-radius: 8px; padding: 20px;">
+      <h3 style="margin: 0 0 10px 0; color: #333;">📝 Live Transcript</h3>
+      <div id="partialTranscript" style="color: #999; font-style: italic; min-height: 24px; margin-bottom: 10px;">
+        Waiting for speech...
+      </div>
+      <div id="finalTranscript" style="color: #333; font-weight: 500; min-height: 24px; font-size: 18px;">
+        No final transcript yet
+      </div>
+      <div id="confidence" style="color: #666; font-size: 12px; margin-top: 10px;">
+        Confidence: -
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; background: #fff4e6; border: 2px solid #FF9800; border-radius: 8px; padding: 20px;">
+      <h3 style="margin: 0 0 10px 0; color: #333;">🤖 Atlas AI Response</h3>
+      <div id="aiStatus" style="color: #FF9800; font-style: italic; min-height: 24px; margin-bottom: 10px;">
+        Waiting for you to speak...
+      </div>
+      <div id="aiResponse" style="color: #333; font-weight: 400; min-height: 48px; font-size: 16px; line-height: 1.5;">
+        No response yet
+      </div>
+      <div id="aiLatency" style="color: #666; font-size: 12px; margin-top: 10px;">
+        Latency: -
+      </div>
+    </div>
+
+    <div class="log-container" id="logContainer"></div>
+  </div>
+
+  <script>
+    let ws = null;
+    let audioContext = null;
+    let processor = null;
+    let stream = null;
+    let messagesReceived = 0;
+    let audioChunksSent = 0;
+    let transcriptCount = 0;
+    let sessionId = null;
+    let audioQueue = []; // Queue for TTS audio
+    let isPlayingAudio = false;
+
+    function log(message, type = 'info') {
+      const container = document.getElementById('logContainer');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const timestamp = new Date().toLocaleTimeString();
+      entry.textContent = `[${timestamp}] ${message}`;
+      container.appendChild(entry);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function updateStatus(status, className) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = status;
+      statusEl.className = `status ${className}`;
+    }
+
+    function updateMetrics() {
+      document.getElementById('messagesReceived').textContent = messagesReceived;
+      document.getElementById('audioChunksSent').textContent = audioChunksSent;
+      document.getElementById('transcriptCount').textContent = transcriptCount;
+    }
+
+    function connect() {
+      try {
+        updateStatus('Connecting...', 'connecting');
+        log('🔌 Connecting to WebSocket...', 'info');
+
+        // For Week 1 local testing, use local WebSocket server
+        // In production, this will be: wss://atlas.app/api/voice-v2
+        const wsUrl = 'ws://localhost:3001';
+
+        log(`URL: ${wsUrl}`, 'debug');
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          log('✅ WebSocket connected!', 'success');
+          updateStatus('Connected', 'connected');
+          
+          document.getElementById('connectBtn').disabled = true;
+          document.getElementById('disconnectBtn').disabled = false;
+          document.getElementById('startAudioBtn').disabled = false;
+        };
+
+        ws.onmessage = (event) => {
+          messagesReceived++;
+          updateMetrics();
+
+          const message = JSON.parse(event.data);
+          
+          if (message.type === 'connected') {
+            sessionId = message.sessionId;
+            log(`✅ Session ID: ${sessionId}`, 'success');
+          } else if (message.type === 'audio_received') {
+            log(`🎤 Audio received: ${message.size} bytes (total: ${message.totalChunks})`, 'debug');
+          } else if (message.type === 'partial_transcript') {
+            // Update partial transcript display
+            document.getElementById('partialTranscript').textContent = message.text;
+            document.getElementById('confidence').textContent = `Confidence: ${(message.confidence * 100).toFixed(1)}%`;
+            log(`📝 Partial: "${message.text}"`, 'info');
+          } else if (message.type === 'final_transcript') {
+            // Update final transcript display
+            transcriptCount++;
+            updateMetrics();
+            document.getElementById('finalTranscript').textContent = message.text;
+            document.getElementById('partialTranscript').textContent = 'Listening...';
+            document.getElementById('confidence').textContent = `Confidence: ${(message.confidence * 100).toFixed(1)}%`;
+            log(`✅ FINAL: "${message.text}" (${(message.confidence * 100).toFixed(1)}%)`, 'success');
+          } else if (message.type === 'ai_thinking') {
+            // AI is processing
+            document.getElementById('aiStatus').textContent = '🤔 Atlas is thinking...';
+            document.getElementById('aiResponse').textContent = '';
+            log(`🤖 AI processing...`, 'info');
+          } else if (message.type === 'ai_response_chunk') {
+            // Streaming AI response
+            document.getElementById('aiStatus').textContent = '💬 Atlas is speaking...';
+            document.getElementById('aiResponse').textContent = message.fullText;
+            // Don't log every chunk to reduce noise
+          } else if (message.type === 'ai_response_complete') {
+            // AI response complete
+            document.getElementById('aiStatus').textContent = '✅ Response complete';
+            document.getElementById('aiResponse').textContent = message.text;
+            document.getElementById('aiLatency').textContent = `Latency: ${message.latency}ms`;
+            log(`✅ AI: "${message.text}" (${message.latency}ms)`, 'success');
+          } else if (message.type === 'tts_audio') {
+            // Atlas speaking - play TTS audio
+            document.getElementById('aiStatus').textContent = '🔊 Atlas is speaking...';
+            log(`🔊 TTS audio received [${message.index}] (${message.latency}ms)`, 'info');
+            playTTSAudio(message.audio, message.index);
+          } else {
+            log(`📨 ${message.type}: ${JSON.stringify(message)}`, 'info');
+          }
+        };
+
+        ws.onerror = (error) => {
+          log(`❌ WebSocket error: ${error}`, 'error');
+        };
+
+        ws.onclose = () => {
+          log('🔴 WebSocket closed', 'info');
+          updateStatus('Disconnected', 'disconnected');
+          
+          document.getElementById('connectBtn').disabled = false;
+          document.getElementById('disconnectBtn').disabled = true;
+          document.getElementById('startAudioBtn').disabled = true;
+          document.getElementById('stopAudioBtn').disabled = true;
+          
+          stopAudio();
+        };
+      } catch (error) {
+        log(`❌ Connection failed: ${error.message}`, 'error');
+        updateStatus('Error', 'disconnected');
+      }
+    }
+
+    function disconnect() {
+      if (ws) {
+        log('🔴 Disconnecting...', 'info');
+        ws.close();
+        ws = null;
+      }
+    }
+
+    async function startAudio() {
+      try {
+        log('🎤 Starting audio capture...', 'info');
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          }
+        });
+
+        audioContext = new AudioContext({ sampleRate: 16000 });
+        const source = audioContext.createMediaStreamSource(stream);
+        processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+        processor.onaudioprocess = (e) => {
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+          const audioData = e.inputBuffer.getChannelData(0);
+          
+          // Convert to Int16
+          const pcm = new Int16Array(audioData.length);
+          for (let i = 0; i < audioData.length; i++) {
+            const s = Math.max(-1, Math.min(1, audioData[i]));
+            pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          }
+
+          ws.send(pcm.buffer);
+          audioChunksSent++;
+          if (audioChunksSent % 10 === 0) {
+            updateMetrics();
+          }
+        };
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        log('✅ Audio capture started (16kHz PCM)', 'success');
+        document.getElementById('startAudioBtn').disabled = true;
+        document.getElementById('stopAudioBtn').disabled = false;
+      } catch (error) {
+        log(`❌ Audio capture failed: ${error.message}`, 'error');
+      }
+    }
+
+    function stopAudio() {
+      if (processor) {
+        processor.disconnect();
+        processor = null;
+      }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+
+      log('✅ Audio capture stopped', 'success');
+      document.getElementById('startAudioBtn').disabled = false;
+      document.getElementById('stopAudioBtn').disabled = true;
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+      messagesReceived = 0;
+      audioChunksSent = 0;
+      updateMetrics();
+      log('🧹 Logs cleared', 'info');
+    }
+
+    // 🆕 WEEK 4: TTS Audio Playback Functions
+    function playTTSAudio(base64Audio, index) {
+      // Add to queue
+      audioQueue.push({ base64Audio, index });
+      
+      // Start playing if not already playing
+      if (!isPlayingAudio) {
+        playNextAudio();
+      }
+    }
+
+    async function playNextAudio() {
+      if (audioQueue.length === 0) {
+        isPlayingAudio = false;
+        document.getElementById('aiStatus').textContent = '✅ Speaking complete';
+        return;
+      }
+
+      isPlayingAudio = true;
+      const { base64Audio, index } = audioQueue.shift();
+
+      try {
+        // Convert base64 to audio blob
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const audioUrl = URL.createObjectURL(blob);
+
+        // Create audio element and play
+        const audio = new Audio(audioUrl);
+        
+        audio.onplay = () => {
+          log(`▶️ Playing audio [${index}]`, 'success');
+        };
+
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          log(`✅ Finished playing audio [${index}]`, 'success');
+          // Play next in queue
+          setTimeout(() => playNextAudio(), 100); // Small gap between sentences
+        };
+
+        audio.onerror = (error) => {
+          log(`❌ Audio playback error [${index}]: ${error}`, 'error');
+          URL.revokeObjectURL(audioUrl);
+          // Try next in queue
+          playNextAudio();
+        };
+
+        await audio.play();
+
+      } catch (error) {
+        log(`❌ Failed to play audio [${index}]: ${error}`, 'error');
+        playNextAudio();
+      }
+    }
+
+    // Initial log
+    log('🚀 Voice V2 Echo Test Ready', 'info');
+    log('📝 Week 4 Goal: Full voice conversation with TTS', 'info');
+  </script>
+</body>
+</html>
+
