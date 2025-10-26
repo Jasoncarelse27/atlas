@@ -11,21 +11,23 @@ const logEvent = (eventName: string, props: Record<string, unknown>) => {
 
 export const imageService = {
   async uploadImage(file: File, userId: string) {
-    logEvent("image_upload_start", { fileName: file.name, size: file.size, type: file.type });
+    try {
+      logEvent("image_upload_start", { fileName: file.name, size: file.size, type: file.type });
 
-    // ✅ VALIDATE FILE BEFORE UPLOAD
-    const validation = validateImageFile(file);
-    if (!validation.valid) {
-      throw new Error(validation.error);
-    }
+      // ✅ VALIDATE FILE BEFORE UPLOAD
+      const validation = await validateImageFile(file);
+      if (!validation.valid) {
+        logger.error('[ImageService] Validation failed:', validation.error);
+        throw new Error(validation.error);
+      }
 
-    // ✅ COMPRESS IMAGE BEFORE UPLOAD (Best Practice for Mobile)
-    const compressedFile = await compressImage(file, {
-      maxSizeMB: 1, // 1MB max for fast mobile uploads
-      maxWidthOrHeight: 2048, // 2048px max dimension
-      quality: 0.85, // 85% quality
-      convertToJPEG: true, // Convert HEIC to JPEG
-    });
+      // ✅ COMPRESS IMAGE BEFORE UPLOAD (Best Practice for Mobile)
+      const compressedFile = await compressImage(file, {
+        maxSizeMB: 1, // 1MB max for fast mobile uploads
+        maxWidthOrHeight: 2048, // 2048px max dimension
+        quality: 0.85, // 85% quality
+        convertToJPEG: true, // Convert HEIC to JPEG
+      });
 
     // ✅ CREATE THUMBNAIL for faster chat rendering
     logger.debug('[ImageService] Creating thumbnail...');
@@ -99,6 +101,10 @@ export const imageService = {
       thumbnailUrl, // ✅ NEW: Return thumbnail URL for faster chat rendering
       thumbnailPath: thumbnailResult.error ? null : thumbnailPath
     };
+    } catch (error) {
+      logger.error('[ImageService] Upload failed:', error);
+      throw error;
+    }
   },
 
   getPublicUrl(path: string) {
