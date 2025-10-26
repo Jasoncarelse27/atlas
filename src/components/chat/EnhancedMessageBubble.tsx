@@ -687,14 +687,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               </div>
             )}
 
-          {/* 🖼️ Handle Image Messages Specifically */}
-          {(message.type as string) === 'image' && (
-            <ImageMessageBubble 
-              message={message}
-            />
-          )}
-
-          {/* 🖼️ Enhanced Image Gallery */}
+          {/* 🖼️ Enhanced Image Gallery - SINGLE SOURCE OF TRUTH for image rendering */}
           {attachments.length > 0 && (
             <ImageGallery 
               attachments={attachments} 
