@@ -595,8 +595,9 @@ export class VoiceCallService {
       const claudeController = new AbortController();
       const claudeTimeout = setTimeout(() => claudeController.abort(), 10000); // 🚀 10s timeout for Claude
       
+      let response;
       try {
-        const response = await fetch('/api/message?stream=1', {
+        response = await fetch('/api/message?stream=1', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -611,9 +612,24 @@ export class VoiceCallService {
           }),
           signal: claudeController.signal,
         });
-          clearTimeout(claudeTimeout);
-        
-        if (!response.ok) throw new Error(`Claude streaming failed: ${response.statusText}`);
+        clearTimeout(claudeTimeout);
+      } catch (error) {
+        clearTimeout(claudeTimeout);
+        if (error.name === 'AbortError') {
+          logger.error('[VoiceCall] Claude timeout - took too long to respond');
+          options.onError(new Error('Atlas took too long to respond. Please try again.'));
+        } else {
+          logger.error('[VoiceCall] Claude connection error:', error);
+          options.onError(error as Error);
+        }
+        return;
+      }
+      
+      if (!response.ok) {
+        logger.error(`[VoiceCall] Claude streaming failed: ${response.statusText}`);
+        options.onError(new Error(`Claude streaming failed: ${response.statusText}`));
+        return;
+      }
       
       const claudeConnectTime = performance.now() - claudeStart;
       logger.info(`[VoiceCall] ⏱️ Claude connect (TTFB): ${claudeConnectTime.toFixed(0)}ms`);
@@ -685,17 +701,6 @@ export class VoiceCallService {
       logger.info(`[VoiceCall] ⏱️ Claude streaming: ${streamingTime.toFixed(0)}ms`);
       logger.info(`[VoiceCall] ⏱️ Total latency: ${totalLatency.toFixed(0)}ms`);
       logger.info(`[VoiceCall] 🤖 Atlas (streaming complete):`, fullResponse.substring(0, 100) + '...');
-      
-    } catch (error) {
-      clearTimeout(claudeTimeout);
-      if (error.name === 'AbortError') {
-        logger.error('[VoiceCall] Claude timeout - took too long to respond');
-        options.onError(new Error('Atlas took too long to respond. Please try again.'));
-      } else {
-        logger.error('[VoiceCall] Streaming error:', error);
-        options.onError(error as Error);
-      }
-    }
   }
   
   private async blobToBase64(blob: Blob): Promise<string> {
