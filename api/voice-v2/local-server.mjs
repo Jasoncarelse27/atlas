@@ -61,7 +61,7 @@ wss.on('connection', (ws, req) => {
     sample_rate: 16000,
     channels: 1,
     interim_results: true,
-    utterance_end_ms: 1000,
+    utterance_end_ms: 500, // ⚡ Faster response: 0.5s pause (was 1s)
     vad_events: true,
   });
 
