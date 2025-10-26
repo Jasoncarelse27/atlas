@@ -1,9 +1,9 @@
 import { supabase } from '@/lib/supabaseClient';
 import { getSafeUserMedia } from '@/utils/audioHelpers';
+import { conversationBuffer } from '@/utils/conversationBuffer';
 import { isFeatureEnabled } from '../config/featureFlags';
 import { logger } from '../lib/logger';
 import { audioQueueService } from './audioQueueService';
-import { conversationBuffer } from '@/utils/conversationBuffer';
 
 interface VoiceCallOptions {
   userId: string;
@@ -501,7 +501,7 @@ export class VoiceCallService {
       // Skip if audio blob is too small (< 20KB = likely just noise)
       if (audioBlob.size < 20 * 1024) {
         logger.warn(`[VoiceCall] ⚠️ Audio too small (${(audioBlob.size / 1024).toFixed(1)}KB), skipping`);
-        this.restartRecording(options);
+        this.restartRecordingVAD();
         return;
       }
       
