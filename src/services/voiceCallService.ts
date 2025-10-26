@@ -443,7 +443,8 @@ export class VoiceCallService {
           body: JSON.stringify({ 
             text: aiResponse, 
             voice: 'nova',
-            model: 'tts-1-hd'
+            model: 'tts-1-hd',
+            speed: 1.05, // 🎯 Natural conversation pace
           }),
         });
         

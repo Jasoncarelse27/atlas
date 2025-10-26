@@ -65,6 +65,7 @@ export class AudioQueueService {
           text: item.text,
           voice,
           model: 'tts-1-hd',
+          speed: 1.05, // 🎯 Slightly faster for more natural conversation pace
         }),
       });
       
