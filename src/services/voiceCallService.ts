@@ -239,8 +239,8 @@ export class VoiceCallService {
     samples.sort((a, b) => a - b);
     this.baselineNoiseLevel = samples[Math.floor(samples.length / 2)];
     
-    // Set adaptive threshold (1.5x baseline, min 0.02)
-    this.adaptiveThreshold = Math.max(this.baselineNoiseLevel * 1.5, 0.02);
+    // Set adaptive threshold (2x baseline, min 0.08 for better noise rejection)
+    this.adaptiveThreshold = Math.max(this.baselineNoiseLevel * 2.0, 0.08);
     this.isCalibrated = true;
     
     logger.info(`[VoiceCall] ✅ Calibrated - Baseline: ${(this.baselineNoiseLevel * 100).toFixed(1)}%, Threshold: ${(this.adaptiveThreshold * 100).toFixed(1)}%`);
