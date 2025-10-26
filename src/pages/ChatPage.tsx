@@ -1215,9 +1215,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           )}
         </AnimatePresence>
 
-        {/* Chat Container */}
-        <div 
+        {/* ✅ WCAG AA: Skip link for keyboard navigation */}
+        <a 
+          href="#main-chat"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#CF9A96] focus:text-white focus:rounded-lg focus:shadow-lg"
+        >
+          Skip to main chat
+        </a>
+
+        {/* Chat Container - ✅ WCAG AA: Semantic <main> landmark */}
+        <main 
+          id="main-chat"
           className="flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-80px)]"
+          aria-label="Chat conversation"
           onClick={(e) => {
             // 📱 ChatGPT-like behavior: dismiss keyboard when clicking outside input
             const target = e.target as HTMLElement;
@@ -1235,6 +1245,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           <div 
             ref={messagesContainerRef} 
             className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32"
+            role="log"
+            aria-live="polite"
+            aria-label="Message list"
             onScroll={() => {
               // 📱 Dismiss keyboard when scrolling (ChatGPT-like behavior)
               if (inputRef.current) {
@@ -1328,7 +1341,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               />
             </div>
           </div>
-        </div>
+        </main>
 
         {/* Modern scroll-to-bottom button with golden sparkle */}
         <ScrollToBottomButton
