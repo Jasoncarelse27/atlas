@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Conversation } from '../../../types/chat';
 import { createChatError, getUserFriendlyMessage } from '../lib/errorHandler';
 import { useConversations, useCreateConversation, useDeleteConversation, useUpdateConversationTitle } from '../services/conversationService';
