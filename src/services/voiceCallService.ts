@@ -34,11 +34,11 @@ export class VoiceCallService {
   private microphone: MediaStreamAudioSourceNode | null = null;
   private vadCheckInterval: NodeJS.Timeout | null = null;
   private silenceStartTime: number | null = null;
-  private readonly SILENCE_DURATION = 1000; // 🎯 NATURAL: Allow natural pauses (1.0s)
-  private readonly MIN_SPEECH_DURATION = 1500; // 🎯 Require 1.5+ seconds of speech (filters noise bursts)
+  private readonly SILENCE_DURATION = 400; // 🎯 ChatGPT-like: Quick response after pause (0.4s)
+  private readonly MIN_SPEECH_DURATION = 300; // 🎯 ChatGPT-like: Detect short utterances (0.3s)
   private lastSpeechTime: number = 0;
   private lastProcessTime: number = 0; // 🛑 Track last processing time to prevent loops
-  private readonly MIN_PROCESS_INTERVAL = 3000; // 🛑 Min 3 seconds between processing attempts
+  private readonly MIN_PROCESS_INTERVAL = 500; // 🎯 ChatGPT-like: Quick turn-taking (0.5s)
   
   // 🎯 SMART ADAPTIVE THRESHOLD
   private baselineNoiseLevel: number = 0;
@@ -276,20 +276,21 @@ export class VoiceCallService {
         this.silenceStartTime = null;
         this.lastSpeechTime = now;
         
-        // 🛑 TAP TO INTERRUPT: If user speaks while Atlas is playing (ONCE per burst)
-        if (!this.hasInterrupted) {
-          if (isFeatureEnabled('VOICE_STREAMING')) {
+        // 🛑 INSTANT INTERRUPT: User speaks = Atlas stops immediately
+        if (isFeatureEnabled('VOICE_STREAMING')) {
+          // Check if Atlas is currently speaking
+          if (audioQueueService.getIsPlaying() && !this.hasInterrupted) {
             audioQueueService.interrupt(); // Stop queue playback
             this.hasInterrupted = true;
-            logger.info('[VoiceCall] 🛑 User interrupted - stopping queue');
-          } else if (this.currentAudio && !this.currentAudio.paused) {
-            // User interrupted! Stop Atlas immediately
-            this.currentAudio.pause();
-            this.currentAudio.currentTime = 0;
-            this.currentAudio = null;
-            this.hasInterrupted = true;
-            logger.info('[VoiceCall] 🛑 User interrupted - stopping playback');
+            logger.info('[VoiceCall] 🛑 User interrupted - stopping queue instantly');
           }
+        } else if (this.currentAudio && !this.currentAudio.paused && !this.hasInterrupted) {
+          // User interrupted! Stop Atlas immediately
+          this.currentAudio.pause();
+          this.currentAudio.currentTime = 0;
+          this.currentAudio = null;
+          this.hasInterrupted = true;
+          logger.info('[VoiceCall] 🛑 User interrupted - stopping playback instantly');
         }
         options.onStatusChange?.('listening');
       } else {
@@ -503,8 +504,8 @@ export class VoiceCallService {
       const sttStart = performance.now();
       logger.info(`[VoiceCall] ⏱️ Audio blob size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
       
-      // Skip if audio blob is too small (< 20KB = likely just noise)
-      if (audioBlob.size < 20 * 1024) {
+      // Skip if audio blob is too small (< 5KB = likely just noise)
+      if (audioBlob.size < 5 * 1024) {
         logger.warn(`[VoiceCall] ⚠️ Audio too small (${(audioBlob.size / 1024).toFixed(1)}KB), skipping`);
         this.restartRecordingVAD();
         return;
@@ -553,6 +554,9 @@ export class VoiceCallService {
       await this.saveVoiceMessage(transcript, 'user', options.conversationId, options.userId);
       
       options.onStatusChange?.('thinking');
+      
+      // 🎵 Play subtle acknowledgment sound for natural conversation flow
+      this.playAcknowledgmentSound();
       
       // 2. Claude Streaming
       const claudeStart = performance.now();
@@ -784,6 +788,35 @@ export class VoiceCallService {
       }
     } catch (error) {
       logger.error('[VoiceCall] Error saving message:', error);
+    }
+  }
+
+  /**
+   * 🎵 Play subtle acknowledgment sounds for natural conversation flow
+   */
+  private playAcknowledgmentSound(): void {
+    try {
+      // Create a subtle "hmm" sound using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Very soft, low frequency for subtle acknowledgment
+      oscillator.frequency.setValueAtTime(150, audioContext.currentTime); // Low hum
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.05, audioContext.currentTime + 0.05); // Fade in
+      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2); // Fade out
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+      
+      logger.debug('[VoiceCall] 🎵 Played acknowledgment sound');
+    } catch (error) {
+      // Silently fail - acknowledgment sounds are nice but not critical
+      logger.debug('[VoiceCall] Could not play acknowledgment sound:', error);
     }
   }
 }
