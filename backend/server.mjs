@@ -1492,13 +1492,14 @@ app.post('/api/stt-deepgram', verifyJWT, async (req, res) => {
     logger.debug(`[Deepgram] Processing ${(audioBuffer.length / 1024).toFixed(1)}KB audio`);
     
     // Call Deepgram API
+    // Deepgram auto-detects format, but we'll hint at webm
     const deepgramResponse = await fetch(
-      'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en',
+      'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en&punctuate=true&utterances=true',
       {
         method: 'POST',
         headers: {
           'Authorization': `Token ${DEEPGRAM_API_KEY}`,
-          'Content-Type': 'audio/webm',
+          'Content-Type': 'audio/webm', // Deepgram will auto-detect if different
         },
         body: audioBuffer,
       }

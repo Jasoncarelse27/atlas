@@ -158,12 +158,20 @@ export class VoiceCallService {
       await this.calibrateAmbientNoise();
       
       // Create MediaRecorder for audio capture
+      // Try to use webm/opus format for better compatibility with Deepgram
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : 'audio/ogg;codecs=opus'; // Fallback
+      
       this.mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
         audioBitsPerSecond: 128000  // 128kbps
       });
       
-      this.recordingMimeType = this.mediaRecorder.mimeType;
-      logger.info(`[VoiceCall] 🎙️ VAD enabled: ${this.recordingMimeType}`);
+      this.recordingMimeType = this.mediaRecorder.mimeType || mimeType;
+      logger.info(`[VoiceCall] 🎙️ VAD enabled with format: ${this.recordingMimeType}`);
       
       // Audio chunk collection
       let audioChunks: Blob[] = [];
@@ -539,8 +547,18 @@ export class VoiceCallService {
         }
         
         const result = await sttResponse.json();
-        logger.info(`[VoiceCall] 📊 Deepgram confidence: ${(result.confidence * 100).toFixed(1)}%`);
-        return result.text;
+        const confidence = result.confidence || 0;
+        const text = result.text || '';
+        
+        logger.info(`[VoiceCall] 📊 Deepgram confidence: ${(confidence * 100).toFixed(1)}%`);
+        
+        // If low confidence, log more details for debugging
+        if (confidence < 0.5) {
+          logger.warn(`[VoiceCall] ⚠️ Low confidence (${(confidence * 100).toFixed(1)}%). Audio may be unclear or silent.`);
+          logger.debug(`[VoiceCall] Debug - Format: ${this.recordingMimeType}, Size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
+        }
+        
+        return text;
       }, 'Speech Recognition');
       
       if (!transcript?.trim()) return;
