@@ -376,7 +376,7 @@ export async function sendMessageWithAttachments(
   userId?: string
 ) {
 
-  const tempId = generateUUID();
+  const tempId = `temp-${generateUUID()}`;
 
   // ✅ FUTURE-PROOF FIX: Format message to match what EnhancedMessageBubble expects
   const imageUrl = attachments[0]?.url || attachments[0]?.publicUrl;
