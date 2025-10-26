@@ -3,6 +3,7 @@ import { LogOut, Menu, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
+import { toast } from 'sonner';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
@@ -288,7 +289,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
       
       // Show user-friendly error
-      alert('Please wait for authentication to complete before sending messages.');
+      toast.error('Please wait for authentication to complete before sending messages.');
       return;
     }
     
@@ -430,7 +431,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       ));
       
       // Show error to user
-      alert('Failed to delete message. Please try again.');
+      toast.error('Failed to delete message. Please try again.');
     }
   };
 
@@ -486,7 +487,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
       
       // Show error to user
-      alert('Failed to edit message. Please try again.');
+      toast.error('Failed to edit message. Please try again.');
     }
   };
 

@@ -38,7 +38,8 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
       // External checkout URL - full page navigation is acceptable here
       window.location.href = checkoutUrl;
     } catch (error) {
-      console.error('Upgrade error:', error);
+      logger.error('Upgrade error:', error);
+      toast.error('Unable to open checkout. Please try again.');
     }
   };
 
