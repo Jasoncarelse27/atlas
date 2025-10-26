@@ -37,6 +37,8 @@ export class VoiceCallService {
   private readonly SILENCE_DURATION = 1000; // 🎯 NATURAL: Allow natural pauses (1.0s)
   private readonly MIN_SPEECH_DURATION = 1500; // 🎯 Require 1.5+ seconds of speech (filters noise bursts)
   private lastSpeechTime: number = 0;
+  private lastProcessTime: number = 0; // 🛑 Track last processing time to prevent loops
+  private readonly MIN_PROCESS_INTERVAL = 3000; // 🛑 Min 3 seconds between processing attempts
   
   // 🎯 SMART ADAPTIVE THRESHOLD
   private baselineNoiseLevel: number = 0;
@@ -299,14 +301,17 @@ export class VoiceCallService {
         // Check if silence duration exceeded
         const silenceDuration = now - this.silenceStartTime;
         const speechDuration = now - this.lastSpeechTime;
+        const timeSinceLastProcess = now - this.lastProcessTime;
         
-        // ⚡ Process after 600ms silence
+        // ⚡ Process after 1.0s silence + 1.5s+ speech + 3s cooldown
         if (
           silenceDuration >= this.SILENCE_DURATION &&
           speechDuration >= this.MIN_SPEECH_DURATION &&
+          timeSinceLastProcess >= this.MIN_PROCESS_INTERVAL &&
           this.mediaRecorder?.state === 'recording'
         ) {
           logger.debug('[VoiceCall] 🤫 Silence detected - processing speech');
+          this.lastProcessTime = now; // Update cooldown timer
           this.mediaRecorder.stop();
           this.silenceStartTime = null; // Reset
           this.hasInterrupted = false; // Reset interrupt flag after real silence
