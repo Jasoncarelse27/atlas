@@ -803,12 +803,16 @@ export default function EnhancedInputToolbar({
               ) : (
                 // Phone button (when empty - Studio tier only)
                 <motion.button
-                  onClick={handleStartVoiceCall}
+                  onClick={() => {
+                    // ✅ Add haptic feedback
+                    if ('vibrate' in navigator) navigator.vibrate(20);
+                    handleStartVoiceCall();
+                  }}
                   disabled={disabled}
                   title={isStudioTier ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
                   className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
                     isStudioTier
-                      ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse'
+                      ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse animate-pulse-subtle'
                       : 'bg-gray-600 hover:bg-gray-500 opacity-60'
                   }`}
                   style={{ 

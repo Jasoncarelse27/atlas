@@ -34,7 +34,7 @@ export class VoiceCallService {
   private microphone: MediaStreamAudioSourceNode | null = null;
   private vadCheckInterval: NodeJS.Timeout | null = null;
   private silenceStartTime: number | null = null;
-  private readonly SILENCE_DURATION = 400; // 🎯 ChatGPT-like: Quick response after pause (0.4s)
+  private readonly SILENCE_DURATION = 250; // 🎯 ChatGPT-like: Quick response after pause (0.25s)
   private readonly MIN_SPEECH_DURATION = 300; // 🎯 ChatGPT-like: Detect short utterances (0.3s)
   private lastSpeechTime: number = 0;
   private lastProcessTime: number = 0; // 🛑 Track last processing time to prevent loops
