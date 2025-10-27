@@ -38,7 +38,9 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
         )}
         
         {/* Timestamp */}
-        <div className={`text-xs mt-1 opacity-60 ${isUser ? 'text-right' : 'text-left'}`}>
+        <div className={`text-[11px] font-medium mt-1 ${
+          isUser ? 'text-right text-gray-800' : 'text-left text-gray-400'
+        }`}>
           {new Date(message.timestamp).toLocaleTimeString([], { 
             hour: '2-digit', 
             minute: '2-digit' 

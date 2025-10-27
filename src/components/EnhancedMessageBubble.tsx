@@ -182,8 +182,8 @@ export function EnhancedMessageBubble({
           {renderMessageContent()}
           
           {/* Timestamp and Status */}
-          <div className={`mt-2 flex items-center justify-between text-xs ${
-            isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+          <div className={`mt-2 flex items-center justify-between text-[11px] font-medium ${
+            isOwnMessage ? 'text-white/90' : 'text-gray-300'
           }`}>
             <span>
               {new Date(message.created_at).toLocaleTimeString([], { 
