@@ -342,6 +342,54 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
           em({ children }) {
             return <em className="italic text-gray-600">{children}</em>;
           },
+          // Tables (GitHub Flavored Markdown)
+          table({ children }) {
+            return (
+              <div className="overflow-x-auto my-4">
+                <table className="min-w-full border-collapse border border-gray-300">
+                  {children}
+                </table>
+              </div>
+            );
+          },
+          thead({ children }) {
+            return <thead className="bg-gray-100">{children}</thead>;
+          },
+          tbody({ children }) {
+            return <tbody className="bg-white">{children}</tbody>;
+          },
+          tr({ children }) {
+            return <tr className="border-b border-gray-200">{children}</tr>;
+          },
+          th({ children }) {
+            return (
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+                {children}
+              </th>
+            );
+          },
+          td({ children }) {
+            return (
+              <td className="px-4 py-2 text-sm text-gray-800 border border-gray-300">
+                {children}
+              </td>
+            );
+          },
+          // Images
+          img({ src, alt }) {
+            return (
+              <img
+                src={src}
+                alt={alt || 'Image'}
+                className="max-w-full h-auto rounded-lg my-3 shadow-sm"
+                loading="lazy"
+              />
+            );
+          },
+          // Horizontal rule
+          hr() {
+            return <hr className="my-4 border-t border-gray-300" />;
+          },
         }}
       >
         {content}
@@ -475,6 +523,54 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
           },
           em({ children }) {
             return <em className="italic text-gray-600">{children}</em>;
+          },
+          // Tables (GitHub Flavored Markdown)
+          table({ children }) {
+            return (
+              <div className="overflow-x-auto my-4">
+                <table className="min-w-full border-collapse border border-gray-300">
+                  {children}
+                </table>
+              </div>
+            );
+          },
+          thead({ children }) {
+            return <thead className="bg-gray-100">{children}</thead>;
+          },
+          tbody({ children }) {
+            return <tbody className="bg-white">{children}</tbody>;
+          },
+          tr({ children }) {
+            return <tr className="border-b border-gray-200">{children}</tr>;
+          },
+          th({ children }) {
+            return (
+              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+                {children}
+              </th>
+            );
+          },
+          td({ children }) {
+            return (
+              <td className="px-4 py-2 text-sm text-gray-800 border border-gray-300">
+                {children}
+              </td>
+            );
+          },
+          // Images
+          img({ src, alt }) {
+            return (
+              <img
+                src={src}
+                alt={alt || 'Image'}
+                className="max-w-full h-auto rounded-lg my-3 shadow-sm"
+                loading="lazy"
+              />
+            );
+          },
+          // Horizontal rule
+          hr() {
+            return <hr className="my-4 border-t border-gray-300" />;
           },
         }}
       >
