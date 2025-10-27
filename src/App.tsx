@@ -64,6 +64,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<PublicAuthRoute />} />
                 <Route path="/chat" element={<ProtectedChatRoute />} />
+                <Route path="/rituals" element={<ProtectedRitualRoute />} />
                 <Route path="/upgrade" element={<UpgradePage />} />
                 <Route path="/" element={<Navigate to="/chat" replace />} />
                 <Route path="*" element={<Navigate to="/chat" replace />} />
