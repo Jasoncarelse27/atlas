@@ -44,7 +44,7 @@ export default function EnhancedInputToolbar({
   const { user } = useSupabaseAuth();
   const { tier } = useTierAccess();
   const { canUse: canUseVoice } = useFeatureAccess('voice');
-  const { showVoiceUpgrade, showGenericUpgrade } = useUpgradeModals();
+  const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ Studio-only feature check (voice calls)
   const isStudioTier = tier === 'studio';
@@ -494,8 +494,8 @@ export default function EnhancedInputToolbar({
     }
 
     if (!canUseVoice) {
-      // Show custom voice upgrade modal
-      showVoiceUpgrade();
+      // ✅ Show upgrade modal with voice_calls feature (triggers Studio tier)
+      showGenericUpgrade('voice_calls');
       return;
     }
     
