@@ -12,6 +12,7 @@ import { useSettingsStore } from "./stores/useSettingsStore";
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
+const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary})));
 
 // 🚀 Production-grade Query Client configuration
 const queryClient = new QueryClient({
@@ -46,6 +47,19 @@ function PublicAuthRoute() {
   if (user) return <Navigate to="/chat" replace />;
 
   return <AuthPage />;
+}
+
+function ProtectedRitualRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return (
+    <ErrorBoundary>
+      <RitualLibrary />
+    </ErrorBoundary>
+  );
 }
 
 function App() {

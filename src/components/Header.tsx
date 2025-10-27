@@ -9,6 +9,7 @@ import {
     MessageSquare, PlusSquare,
     Settings,
     Sliders as SlidersIcon,
+    Sparkles,
     TrendingUp,
     User as UserIcon,
     Volume2 as VolumeIcon, VolumeX,
@@ -890,6 +891,14 @@ const Header: React.FC<HeaderProps> = ({
                       <MessageSquare className="w-4 h-4" />
                       <span className="font-medium">View All Conversations</span>
                     </button>
+                    
+                    <a
+                      href="/rituals"
+                      className="w-full px-4 py-3 neumorphic-button bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 rounded-lg transition-colors flex items-center gap-3"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span className="font-medium">Ritual Library</span>
+                    </a>
                   </div>
                 </div>
 
