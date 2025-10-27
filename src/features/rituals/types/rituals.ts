@@ -21,8 +21,9 @@ export type TierLevel = "free" | "core" | "studio";
 export type MoodRating = "happy" | "neutral" | "worried" | "stressed" | "tired";
 
 export interface RitualStep {
+  id: string; // Client-side generated UUID for ordering/editing
   type: RitualStepType;
-  duration: number; // in seconds
+  duration: number; // in minutes (changed from seconds for UX)
   order: number;
   config: {
     title: string;
