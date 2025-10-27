@@ -295,9 +295,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                 </div>
               )}
 
-              {/* Timestamp - Improved Visibility */}
+              {/* Timestamp - Balanced Size */}
               {message.timestamp && (
-                <div className={`text-sm font-medium mt-2 ${
+                <div className={`text-xs font-medium mt-2 ${
                   isUser ? 'text-white/90' : 'text-gray-300'
                 }`}>
                   {new Date(message.timestamp).toLocaleTimeString([], {
@@ -862,9 +862,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
             />
           )}
           
-          {/* Timestamp - Improved Visibility */}
+          {/* Timestamp - Balanced Size */}
           {message.timestamp && !showTypingIndicator && (
-            <div className={`text-sm font-medium mt-2 ${
+            <div className={`text-xs font-medium mt-2 ${
               isUser ? 'text-white/90' : 'text-gray-300'
             }`}>
               {new Date(message.timestamp).toLocaleTimeString([], { 
