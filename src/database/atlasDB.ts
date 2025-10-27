@@ -33,13 +33,48 @@ export interface SyncMetadata {
   syncVersion: number
 }
 
+export interface Ritual {
+  id: string
+  userId: string
+  title: string
+  goal: "energy" | "calm" | "focus" | "creativity"
+  steps: Array<{
+    type: string
+    duration: number
+    order: number
+    config: {
+      title: string
+      instructions: string
+    }
+  }>
+  isPreset: boolean
+  tierRequired: "free" | "core" | "studio"
+  createdAt: string
+  updatedAt: string
+  synced?: boolean
+}
+
+export interface RitualLog {
+  id: string
+  ritualId: string
+  userId: string
+  completedAt: string
+  durationSeconds: number
+  moodBefore: string
+  moodAfter: string
+  notes?: string
+  synced?: boolean
+}
+
 export class AtlasDB extends Dexie {
   conversations!: Table<Conversation, string>
   messages!: Table<Message, string>
   syncMetadata!: Table<SyncMetadata, string>
+  rituals!: Table<Ritual, string>
+  ritualLogs!: Table<RitualLog, string>
 
   constructor() {
-    super("AtlasDB_v9") // ✅ Version 9: Add edit/delete support
+    super("AtlasDB_v10") // ✅ Version 10: Add ritual builder support
     
     // ✅ MOBILE FIX: Add error handling for mobile Safari
     this.on('close', () => {
@@ -112,6 +147,18 @@ export class AtlasDB extends Dexie {
       syncMetadata: "userId, lastSyncedAt, syncVersion"
     }).upgrade(() => {
       logger.debug('[AtlasDB] ✅ Upgraded to v9: Edit and delete support added');
+      return Promise.resolve();
+    })
+
+    // Version 10: Add ritual builder support
+    this.version(10).stores({
+      conversations: "id, userId, title, createdAt, updatedAt",
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt, image_url, deletedAt, editedAt",
+      syncMetadata: "userId, lastSyncedAt, syncVersion",
+      rituals: "id, userId, title, goal, isPreset, tierRequired, createdAt, updatedAt, synced",
+      ritualLogs: "id, ritualId, userId, completedAt, synced"
+    }).upgrade(() => {
+      logger.debug('[AtlasDB] ✅ Upgraded to v10: Ritual builder support added');
       return Promise.resolve();
     })
   }
