@@ -294,18 +294,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
                   {messageContent.replace(/^"|"$/g, '')}
                 </div>
               )}
-
-              {/* Timestamp - Subtle Size */}
-              {message.timestamp && (
-                <div className={`text-[11px] font-medium mt-2 ${
-                  isUser ? 'text-white/90' : 'text-gray-300'
-                }`}>
-                  {new Date(message.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </div>
-              )}
             </div>
           </div>
         </motion.div>

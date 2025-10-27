@@ -181,20 +181,12 @@ export function EnhancedMessageBubble({
           {/* Message Content */}
           {renderMessageContent()}
           
-          {/* Timestamp and Status */}
-          <div className={`mt-2 flex items-center justify-between text-[11px] font-medium ${
-            isOwnMessage ? 'text-white/90' : 'text-gray-300'
-          }`}>
-            <span>
-              {new Date(message.created_at).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </span>
-            
-            {/* Status indicator for own messages */}
-            {isOwnMessage && getStatusIndicator()}
-          </div>
+          {/* Status indicator for own messages */}
+          {isOwnMessage && (
+            <div className="mt-2 flex items-center justify-end">
+              {getStatusIndicator()}
+            </div>
+          )}
         </div>
         
         {/* Action Buttons */}
