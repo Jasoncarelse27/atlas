@@ -317,7 +317,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-[#3B3632]">$179.99</div>
+                        <div className="text-3xl font-bold text-[#3B3632]">$189.99</div>
                         <div className="text-sm text-[#8B7E74]">/month</div>
                       </div>
                     </div>
@@ -335,7 +335,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
                   <div className="text-center mb-6">
                     <div className="inline-flex items-baseline gap-2">
                       <span className="text-5xl font-bold text-[#3B3632]">
-                        {selectedTier === 'studio' ? '$179.99' : '$19.99'}
+                        {selectedTier === 'studio' ? '$189.99' : '$19.99'}
                       </span>
                       <span className="text-[#8B7E74]">/month</span>
                     </div>
