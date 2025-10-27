@@ -5,11 +5,11 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
+import { logger } from '../../lib/logger';
 import { useMessageStore } from '../../stores/useMessageStore';
 import type { Attachment, Message } from '../../types/chat';
 import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { AudioMessageBubble } from './AudioMessageBubble';
-import { logger } from '../../lib/logger';
 
 interface MessageRendererProps {
   message: Message;
