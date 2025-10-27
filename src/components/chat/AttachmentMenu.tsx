@@ -38,11 +38,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mobileCameraInputRef = useRef<HTMLInputElement>(null);
   
-  // Tier access for camera feature
-  const { canUse: canUseCamera, attemptFeature: attemptCamera } = useFeatureAccess('camera'); // canUseCamera kept for future use
-  
-  // Suppress unused variable warning
-  void canUseCamera;
+  // Tier access for image upload features
+  const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
   
   // Detect mobile device
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -53,6 +50,13 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // ✅ Check tier access before uploading
+    const hasAccess = await attemptImage();
+    if (!hasAccess) {
+      e.target.value = ''; // Reset input
+      return; // attemptImage already shows upgrade modal
+    }
 
     if (isUploading) {
       logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
@@ -71,6 +75,13 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // ✅ Check tier access before uploading
+    const hasAccess = await attemptImage();
+    if (!hasAccess) {
+      e.target.value = ''; // Reset input
+      return; // attemptImage already shows upgrade modal
+    }
 
     if (isUploading) {
       logger.debug('[AttachmentMenu] Camera upload already in progress, ignoring duplicate');
