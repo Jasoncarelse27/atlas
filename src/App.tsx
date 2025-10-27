@@ -12,8 +12,8 @@ import { useSettingsStore } from "./stores/useSettingsStore";
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
-const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary})));
-const RitualBuilder = lazy(() => import("./features/rituals/components/RitualBuilder").then(m => ({ default: m.RitualBuilder})));
+const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary })));
+const RitualBuilder = lazy(() => import("./features/rituals/components/RitualBuilder").then(m => ({ default: m.RitualBuilder })));
 
 // 🚀 Production-grade Query Client configuration
 const queryClient = new QueryClient({
