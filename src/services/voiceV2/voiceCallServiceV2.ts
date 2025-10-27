@@ -25,12 +25,24 @@ export class VoiceCallServiceV2 {
   private sessionId: string | null = null;
   private isActive: boolean = false;
 
+  // ✅ RECONNECTION: Track reconnection attempts
+  private reconnectAttempts: number = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = 5;
+  private reconnectTimer: number | null = null;
+  private lastOptions: VoiceCallOptions | null = null;
+  
+  // ✅ HEARTBEAT: Keep-alive ping/pong
+  private heartbeatInterval: number | null = null;
+  private lastPongTime: number = Date.now();
+  private readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
+  private readonly PONG_TIMEOUT = 10000; // 10 seconds
+
   // Audio configuration
   private readonly audioConfig: AudioConfig = {
     sampleRate: 16000,
     channelCount: 1,
     encoding: 'linear16',
-    chunkSize: 4096, // 256ms at 16kHz
+    chunkSize: 1600, // ✅ 100ms at 16kHz (optimized from 256ms for lower latency)
   };
 
   /**
@@ -39,6 +51,9 @@ export class VoiceCallServiceV2 {
   async startCall(options: VoiceCallOptions): Promise<void> {
     try {
       logger.info('[VoiceV2] 🚀 Starting voice call...');
+
+      // ✅ RECONNECTION: Save options for reconnection
+      this.lastOptions = options;
 
       // 1. Connect WebSocket
       await this.connectWebSocket(options);
@@ -53,6 +68,9 @@ export class VoiceCallServiceV2 {
         conversationId: options.conversationId,
         authToken: options.authToken,
       });
+
+      // ✅ HEARTBEAT: Start keep-alive pings
+      this.startHeartbeat();
 
       this.isActive = true;
       logger.info('[VoiceV2] ✅ Voice call started');
@@ -71,6 +89,16 @@ export class VoiceCallServiceV2 {
 
     this.isActive = false;
 
+    // ✅ RECONNECTION: Clear reconnection attempts
+    this.reconnectAttempts = 0;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // ✅ HEARTBEAT: Stop keep-alive
+    this.stopHeartbeat();
+
     // Stop audio capture
     this.stopAudioCapture();
 
@@ -81,6 +109,7 @@ export class VoiceCallServiceV2 {
     }
 
     this.sessionId = null;
+    this.lastOptions = null;
     logger.info('[VoiceV2] ✅ Voice call ended');
   }
 
@@ -102,6 +131,8 @@ export class VoiceCallServiceV2 {
         // Connection opened
         this.ws.onopen = () => {
           logger.info('[VoiceV2] ✅ WebSocket connected');
+          // ✅ RECONNECTION: Reset attempts on successful connection
+          this.reconnectAttempts = 0;
           resolve();
         };
 
@@ -111,9 +142,16 @@ export class VoiceCallServiceV2 {
         };
 
         // Connection closed
-        this.ws.onclose = () => {
-          logger.info('[VoiceV2] 🔴 WebSocket closed');
-          options.onDisconnected();
+        this.ws.onclose = (event) => {
+          logger.info(`[VoiceV2] 🔴 WebSocket closed (code: ${event.code}, reason: ${event.reason})`);
+          
+          // ✅ RECONNECTION: Attempt to reconnect if not intentionally closed
+          if (this.isActive && event.code !== 1000) {
+            logger.warn('[VoiceV2] ⚠️  Unexpected disconnection, attempting reconnect...');
+            this.attemptReconnect(options);
+          } else {
+            options.onDisconnected();
+          }
         };
 
         // Error occurred
@@ -180,11 +218,25 @@ export class VoiceCallServiceV2 {
 
         case 'error':
           logger.error(`[VoiceV2] ❌ Error: ${message.message}`);
-          options.onError(new Error(message.message));
+          
+          // ✅ SECURITY: Handle authentication errors specially
+          const errorCode = (message as any).code;
+          if (errorCode === 'AUTH_REQUIRED' || errorCode === 'AUTH_INVALID' || errorCode === 'AUTH_ERROR') {
+            const authError = new Error(`Authentication failed: ${message.message}`);
+            (authError as any).code = errorCode;
+            options.onError(authError);
+            
+            // Close connection on auth failure
+            this.endCall();
+          } else {
+            options.onError(new Error(message.message));
+          }
           break;
 
         case 'pong':
           logger.debug('[VoiceV2] 🏓 Pong received');
+          // ✅ HEARTBEAT: Update last pong time
+          this.lastPongTime = Date.now();
           break;
 
         default:
@@ -310,6 +362,93 @@ export class VoiceCallServiceV2 {
    */
   getSessionId(): string | null {
     return this.sessionId;
+  }
+
+  /**
+   * ✅ RECONNECTION: Attempt to reconnect with exponential backoff
+   */
+  private attemptReconnect(options: VoiceCallOptions): void {
+    if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      logger.error('[VoiceV2] ❌ Max reconnection attempts reached');
+      options.onError(new Error('Max reconnection attempts reached'));
+      this.endCall();
+      return;
+    }
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s (max 30s)
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    this.reconnectAttempts++;
+
+    logger.info(`[VoiceV2] 🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
+
+    this.reconnectTimer = window.setTimeout(async () => {
+      if (!this.isActive || !this.lastOptions) {
+        return;
+      }
+
+      try {
+        // Close existing connection
+        if (this.ws) {
+          this.ws.close();
+          this.ws = null;
+        }
+
+        // Reconnect
+        await this.connectWebSocket(this.lastOptions);
+
+        // Resend session start
+        this.sendControlMessage({
+          type: 'session_start',
+          userId: this.lastOptions.userId,
+          conversationId: this.lastOptions.conversationId,
+          authToken: this.lastOptions.authToken,
+        });
+
+        // Resume audio capture if needed
+        if (!this.stream) {
+          await this.startAudioCapture(this.lastOptions);
+        }
+
+        logger.info('[VoiceV2] ✅ Reconnected successfully');
+      } catch (error) {
+        logger.error('[VoiceV2] ❌ Reconnection failed:', error);
+        this.attemptReconnect(this.lastOptions);
+      }
+    }, delay);
+  }
+
+  /**
+   * ✅ HEARTBEAT: Start sending keep-alive pings
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat(); // Clear any existing interval
+
+    this.lastPongTime = Date.now();
+
+    this.heartbeatInterval = window.setInterval(() => {
+      // Check if pong was received recently
+      const timeSinceLastPong = Date.now() - this.lastPongTime;
+      if (timeSinceLastPong > this.HEARTBEAT_INTERVAL + this.PONG_TIMEOUT) {
+        logger.warn('[VoiceV2] ⚠️  Heartbeat timeout - connection may be dead');
+        if (this.lastOptions) {
+          this.attemptReconnect(this.lastOptions);
+        }
+        return;
+      }
+
+      // Send ping
+      this.ping();
+    }, this.HEARTBEAT_INTERVAL);
+  }
+
+  /**
+   * ✅ HEARTBEAT: Stop keep-alive pings
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 }
 
