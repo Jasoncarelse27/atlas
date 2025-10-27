@@ -319,6 +319,12 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
   // 📸 Camera functions
   const startCamera = async () => {
+    // ✅ Check tier access before opening camera
+    const hasAccess = await attemptImage();
+    if (!hasAccess) {
+      return; // attemptImage already shows upgrade modal
+    }
+
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
