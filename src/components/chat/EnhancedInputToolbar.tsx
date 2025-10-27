@@ -45,6 +45,7 @@ export default function EnhancedInputToolbar({
   const { tier } = useTierAccess();
   const { canUse: canUseVoice } = useFeatureAccess('voice');
   const { canUse: canUseImage } = useFeatureAccess('image');
+  const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio'); // ✅ Add audio feature access
   const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ Studio-only feature check (voice calls)
@@ -376,20 +377,12 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    // 🎯 FUTURE-PROOF FIX: Check tier using centralized function
-    
-    // Log the attempt
-    await featureService.logAttempt(user.id, 'audio', tier);
-    
-    // ✅ Use centralized tier check function
-    const canUse = canUseAudio(tier);
-    
-    if (!canUse) {
-      modernToast.error('Upgrade Required', 'Voice features available in Core & Studio plans');
-      showGenericUpgrade('audio'); // ✅ Use generic modal which will trigger VoiceUpgradeModal with feature='audio'
+    // ✅ Use centralized feature access check
+    const hasAccess = await attemptAudio();
+    if (!hasAccess) {
+      // attemptAudio already shows upgrade modal
       return;
     }
-    
 
     if (!isListening) {
       // Start recording
@@ -427,13 +420,7 @@ export default function EnhancedInputToolbar({
             
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
-            
-            // Show upgrade prompt if tier restriction error
-            if (errorMessage.includes('requires Core or Studio')) {
-              showUpgradeModal('audio');
-            } else {
-              modernToast.error('Transcription Failed', errorMessage);
-            }
+            modernToast.error('Transcription Failed', errorMessage);
           } finally {
             setIsListening(false);
             setRecordingDuration(0);
