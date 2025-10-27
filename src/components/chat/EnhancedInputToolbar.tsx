@@ -1,13 +1,11 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { canUseAudio } from '../../config/featureAccess';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useFeatureAccess, useTierAccess } from '../../hooks/useTierAccess';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
-import { featureService } from '../../services/featureService';
 import '../../styles/voice-animations.css';
 // Removed useMessageStore import - using props from parent component
 import { logger } from '../../lib/logger';

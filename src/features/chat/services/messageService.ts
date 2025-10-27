@@ -261,13 +261,12 @@ class MessageService {
     try {
       logger.debug('[messageService] Editing message:', { messageId, conversationId, newContent });
       
-      // ✅ Update both updated_at and edited_at
+      // ✅ FIX: Only update content and edited_at (updated_at doesn't exist in schema)
       const { error } = await supabase
         .from('messages')
         .update({
           content: newContent,
-          updated_at: new Date().toISOString(),
-          edited_at: new Date().toISOString() // ✅ Track when message was edited
+          edited_at: new Date().toISOString() // Track when message was edited
         })
         .eq('id', messageId)
         .eq('conversation_id', conversationId);
