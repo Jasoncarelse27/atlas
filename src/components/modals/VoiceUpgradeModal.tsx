@@ -9,12 +9,15 @@ import { logger } from '../../lib/logger';
 interface VoiceUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultTier?: 'core' | 'studio'; // ✅ NEW: Allow specifying which tier to show
+  feature?: 'voice_calls' | 'audio' | 'image'; // ✅ NEW: Feature context
 }
 
-export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModalProps) {
+export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'studio', feature = 'voice_calls' }: VoiceUpgradeModalProps) {
   const { user } = useSupabaseAuth();
   const { tier } = useTierAccess();
   const [isVisible, setIsVisible] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<'core' | 'studio'>(defaultTier);
 
   useEffect(() => {
     if (isOpen) {
@@ -27,11 +30,14 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
     }
   }, [isOpen]);
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = async (targetTier?: 'core' | 'studio') => {
     if (!user?.id || !user?.email) {
       toast.error('Please log in to upgrade');
       return;
     }
+
+    // Use selected tier or fallback to default
+    const upgradeToTier = targetTier || selectedTier;
 
     try {
       // Show loading toast
@@ -40,7 +46,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
       const { fastspringService } = await import('../../services/fastspringService');
       const checkoutUrl = await fastspringService.createCheckoutUrl(
         user.id,
-        'studio',
+        upgradeToTier,
         user.email
       );
       
@@ -48,7 +54,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
       toast.dismiss(loadingToast);
       
       // ✅ BEST PRACTICE: Log checkout URL for debugging
-      logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
+      logger.info(`Redirecting to FastSpring checkout for ${upgradeToTier}:`, checkoutUrl);
       
       // External checkout URL - full page navigation is acceptable here
       window.location.href = checkoutUrl;
@@ -64,26 +70,57 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
     }
   };
 
+  // ✅ Dynamic content based on feature
+  const getModalContent = () => {
+    if (feature === 'voice_calls') {
+      return {
+        title: 'Unlock Unlimited Voice Calls',
+        subtitle: 'Experience real-time AI conversations with Atlas Studio',
+        defaultTier: 'studio' as const,
+        showBothPlans: true, // Voice calls = Studio, but show Core as alternative
+      };
+    } else {
+      return {
+        title: feature === 'audio' ? 'Unlock Voice Features' : 'Unlock Image Analysis',
+        subtitle: feature === 'audio' 
+          ? 'Record voice notes and get transcriptions with Atlas Core' 
+          : 'Upload images and get AI-powered analysis with Atlas Core',
+        defaultTier: 'core' as const,
+        showBothPlans: true, // Show both options for flexibility
+      };
+    }
+  };
+
+  const modalContent = getModalContent();
+
   const benefits = [
     {
       icon: Phone,
-      title: 'Unlimited Duration',
-      description: 'Talk as long as you need - no time limits',
+      title: feature === 'voice_calls' ? 'Unlimited Duration' : 'Voice Recording',
+      description: feature === 'voice_calls' 
+        ? 'Talk as long as you need - no time limits' 
+        : 'Record and transcribe voice messages',
     },
     {
       icon: Zap,
-      title: 'Real-Time Processing',
-      description: 'Natural, flowing conversations with instant responses',
+      title: feature === 'voice_calls' ? 'Real-Time Processing' : 'Unlimited Messages',
+      description: feature === 'voice_calls'
+        ? 'Natural, flowing conversations with instant responses'
+        : 'No daily message limits - chat as much as you need',
     },
     {
       icon: Sparkles,
       title: 'Advanced AI Model',
-      description: 'Claude Opus for deeper emotional intelligence',
+      description: selectedTier === 'studio' 
+        ? 'Claude Opus for deeper emotional intelligence' 
+        : 'Claude Sonnet for high-quality responses',
     },
     {
       icon: Mic,
-      title: 'Priority Processing',
-      description: 'Faster response times than text conversations',
+      title: feature === 'image' ? 'Image Analysis' : 'Priority Processing',
+      description: feature === 'image'
+        ? 'Upload and analyze images with AI'
+        : selectedTier === 'studio' ? 'Faster response times than text conversations' : 'Full access to voice and image features',
     },
   ];
 
@@ -144,10 +181,10 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
               </motion.div>
 
               <h2 className="text-4xl font-bold text-[#3B3632] mb-3">
-                Unlock Unlimited Voice Calls
+                {modalContent.title}
               </h2>
               <p className="text-xl text-[#8B7E74] max-w-lg mx-auto">
-                Experience real-time AI conversations with Atlas Studio
+                {modalContent.subtitle}
               </p>
 
               {/* Current Tier Badge */}
@@ -241,38 +278,94 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
 
             {/* Pricing & CTA */}
             <div className="p-8 bg-gradient-to-br from-[#8FA67E]/10 to-[#C6D4B0]/10 border-t border-[#E8DDD2]">
-              <div className="max-w-md mx-auto">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-[#3B3632]">$189.99</span>
-                    <span className="text-[#8B7E74]">/month</span>
+              {modalContent.showBothPlans ? (
+                // Show both Core and Studio options
+                <div className="space-y-4">
+                  {/* Core Plan Option */}
+                  {(feature === 'audio' || feature === 'image') && (
+                    <div className={`border-2 rounded-xl p-6 transition-all ${
+                      selectedTier === 'core' ? 'border-[#8FA67E] bg-[#8FA67E]/5' : 'border-[#E8DDD2] bg-white'
+                    }`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-2xl font-bold text-[#3B3632]">Core</h3>
+                          <p className="text-sm text-[#8B7E74]">Voice & Image Features</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-3xl font-bold text-[#3B3632]">$19.99</div>
+                          <div className="text-sm text-[#8B7E74]">/month</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleUpgrade('core')}
+                        className="w-full py-3 bg-gradient-to-r from-[#8FA67E] to-[#C6D4B0] hover:from-[#7E9570] hover:to-[#B8C6A2] text-white font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-105"
+                      >
+                        Upgrade to Core
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Studio Plan Option */}
+                  <div className={`border-2 rounded-xl p-6 transition-all ${
+                    selectedTier === 'studio' ? 'border-[#8FA67E] bg-[#8FA67E]/5' : 'border-[#E8DDD2] bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-2xl font-bold text-[#3B3632]">Studio</h3>
+                        <p className="text-sm text-[#8B7E74]">
+                          {feature === 'voice_calls' ? 'Unlimited Voice Calls + Everything' : 'Everything in Core + Voice Calls'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-3xl font-bold text-[#3B3632]">$189.99</div>
+                        <div className="text-sm text-[#8B7E74]">/month</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleUpgrade('studio')}
+                      className="w-full py-3 bg-gradient-to-r from-[#8FA67E] to-[#C6D4B0] hover:from-[#7E9570] hover:to-[#B8C6A2] text-white font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-105"
+                    >
+                      Upgrade to Studio
+                    </button>
                   </div>
-                  <p className="text-sm text-[#8B7E74] mt-2">
-                    Cancel anytime • Secure payment
-                  </p>
                 </div>
+              ) : (
+                // Single plan layout (legacy)
+                <div className="max-w-md mx-auto">
+                  <div className="text-center mb-6">
+                    <div className="inline-flex items-baseline gap-2">
+                      <span className="text-5xl font-bold text-[#3B3632]">
+                        {selectedTier === 'studio' ? '$189.99' : '$19.99'}
+                      </span>
+                      <span className="text-[#8B7E74]">/month</span>
+                    </div>
+                    <p className="text-sm text-[#8B7E74] mt-2">
+                      Cancel anytime • Secure payment
+                    </p>
+                  </div>
 
-                <button
-                  onClick={handleUpgrade}
-                  className="w-full py-4 bg-gradient-to-r from-[#8FA67E] to-[#C6D4B0] hover:from-[#7E9570] hover:to-[#B8C6A2] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#8FA67E]/30 transition-all transform hover:scale-105"
-                >
-                  Upgrade to Studio
-                </button>
+                  <button
+                    onClick={() => handleUpgrade()}
+                    className="w-full py-4 bg-gradient-to-r from-[#8FA67E] to-[#C6D4B0] hover:from-[#7E9570] hover:to-[#B8C6A2] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#8FA67E]/30 transition-all transform hover:scale-105"
+                  >
+                    Upgrade to {selectedTier === 'studio' ? 'Studio' : 'Core'}
+                  </button>
+                </div>
+              )}
 
-                {/* Trust Badges */}
-                <div className="flex items-center justify-center gap-6 mt-6 text-xs text-[#8B7E74]">
-                  <div className="flex items-center gap-1">
-                    <Check className="w-4 h-4 text-[#8FA67E]" />
-                    <span>Secure Payment</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Check className="w-4 h-4 text-[#8FA67E]" />
-                    <span>Cancel Anytime</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Check className="w-4 h-4 text-[#8FA67E]" />
-                    <span>Money-Back Guarantee</span>
-                  </div>
+              {/* Trust Badges */}
+              <div className="flex items-center justify-center gap-6 mt-6 text-xs text-[#8B7E74]">
+                <div className="flex items-center gap-1">
+                  <Check className="w-4 h-4 text-[#8FA67E]" />
+                  <span>Secure Payment</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Check className="w-4 h-4 text-[#8FA67E]" />
+                  <span>Cancel Anytime</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Check className="w-4 h-4 text-[#8FA67E]" />
+                  <span>Money-Back Guarantee</span>
                 </div>
               </div>
             </div>

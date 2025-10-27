@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useTierAccess } from '../hooks/useTierAccess';
-import { fastspringService } from '../services/fastspringService';
 import { logger } from '../lib/logger';
+import { fastspringService } from '../services/fastspringService';
 
 interface UpgradeButtonProps {
   className?: string;
