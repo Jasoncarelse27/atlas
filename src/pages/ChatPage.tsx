@@ -1332,18 +1332,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           shouldGlow={shouldGlow}
         />
 
-        {/* Upgrade Modals */}
-        <EnhancedUpgradeModal
-          isOpen={isGenericModalOpen}
-          onClose={closeGenericModal}
-          feature={genericModalFeature || upgradeReason}
-          currentUsage={currentUsage}
-          limit={limit}
-        />
-
+        {/* ✅ Use VoiceUpgradeModal for ALL upgrade scenarios (consistent warm UI) */}
         <VoiceUpgradeModal
-          isOpen={voiceModalVisible}
-          onClose={hideVoiceUpgrade}
+          isOpen={genericModalVisible}
+          onClose={hideGenericUpgrade}
           feature={genericModalFeature === 'audio' ? 'audio' : genericModalFeature === 'image' ? 'image' : 'voice_calls'}
           defaultTier={genericModalFeature === 'audio' || genericModalFeature === 'image' ? 'core' : 'studio'}
         />
