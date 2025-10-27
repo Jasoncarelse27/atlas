@@ -309,13 +309,13 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             return <h3 className="text-base font-medium mb-2 text-white">{children}</h3>;
           },
           ul({ children }) {
-            return <ul className="list-disc ml-5 mb-4 space-y-2.5 text-gray-100">{children}</ul>;
+            return <ul className="list-disc ml-5 mb-4 space-y-2.5 text-white">{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal ml-5 mb-4 space-y-2.5 text-gray-100">{children}</ol>;
+            return <ol className="list-decimal ml-5 mb-4 space-y-2.5 text-white">{children}</ol>;
           },
           li({ children }) {
-            return <li className="text-gray-100 pl-1.5 leading-relaxed">{children}</li>;
+            return <li className="text-white pl-1.5 leading-relaxed">{children}</li>;
           },
           blockquote({ children }) {
             return (
@@ -443,13 +443,13 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             return <h3 className="text-base font-medium mb-2 text-white">{children}</h3>;
           },
           ul({ children }) {
-            return <ul className="list-disc ml-5 mb-4 space-y-2.5 text-gray-100">{children}</ul>;
+            return <ul className="list-disc ml-5 mb-4 space-y-2.5 text-white">{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal ml-5 mb-4 space-y-2.5 text-gray-100">{children}</ol>;
+            return <ol className="list-decimal ml-5 mb-4 space-y-2.5 text-white">{children}</ol>;
           },
           li({ children }) {
-            return <li className="text-gray-100 pl-1.5 leading-relaxed">{children}</li>;
+            return <li className="text-white pl-1.5 leading-relaxed">{children}</li>;
           },
           blockquote({ children }) {
             return (
