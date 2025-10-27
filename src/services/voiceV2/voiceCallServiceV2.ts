@@ -216,7 +216,7 @@ export class VoiceCallServiceV2 {
           options.onStatusChange(message.status);
           break;
 
-        case 'error':
+        case 'error': {
           logger.error(`[VoiceV2] ❌ Error: ${message.message}`);
           
           // ✅ SECURITY: Handle authentication errors specially
@@ -232,6 +232,7 @@ export class VoiceCallServiceV2 {
             options.onError(new Error(message.message));
           }
           break;
+        }
 
         case 'pong':
           logger.debug('[VoiceV2] 🏓 Pong received');
