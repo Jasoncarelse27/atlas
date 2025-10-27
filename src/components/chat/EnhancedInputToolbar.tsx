@@ -44,6 +44,7 @@ export default function EnhancedInputToolbar({
   const { user } = useSupabaseAuth();
   const { tier } = useTierAccess();
   const { canUse: canUseVoice } = useFeatureAccess('voice');
+  const { canUse: canUseImage } = useFeatureAccess('image');
   const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ Studio-only feature check (voice calls)
@@ -660,6 +661,11 @@ export default function EnhancedInputToolbar({
               <motion.button
                 ref={buttonRef}
                 onClick={() => {
+                  // ✅ Check tier access before opening attachment menu
+                  if (!canUseImage) {
+                    showGenericUpgrade('image');
+                    return;
+                  }
                   
                   if (!menuOpen) {
                     // 📱 Close the keyboard before opening menu (prevents overlap)
