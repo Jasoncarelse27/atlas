@@ -337,10 +337,10 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             );
           },
           strong({ children }) {
-            return <strong className="font-semibold text-white">{children}</strong>;
+            return <strong className="font-semibold text-gray-900">{children}</strong>;
           },
           em({ children }) {
-            return <em className="italic text-gray-300">{children}</em>;
+            return <em className="italic text-gray-600">{children}</em>;
           },
         }}
       >
@@ -471,10 +471,10 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             );
           },
           strong({ children }) {
-            return <strong className="font-semibold text-white">{children}</strong>;
+            return <strong className="font-semibold text-gray-900">{children}</strong>;
           },
           em({ children }) {
-            return <em className="italic text-gray-300">{children}</em>;
+            return <em className="italic text-gray-600">{children}</em>;
           },
         }}
       >
