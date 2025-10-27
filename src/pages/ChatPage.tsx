@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { toast } from 'sonner';
-import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
+// Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
+// import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
