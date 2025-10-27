@@ -40,10 +40,9 @@ export const useRitualStore = create<RitualStore>((set, get) => ({
   loadPresets: async () => {
     set({ loading: true, error: null });
     try {
-      // Try Dexie first (offline-first)
+      // Try Dexie first (offline-first) - use filter instead of where for boolean
       const localPresets = await atlasDB.rituals
-        .where('isPreset')
-        .equals(true)
+        .filter(r => r.isPreset === true)
         .toArray();
 
       if (localPresets.length > 0) {
@@ -72,11 +71,9 @@ export const useRitualStore = create<RitualStore>((set, get) => ({
   loadUserRituals: async (userId: string) => {
     set({ loading: true, error: null });
     try {
-      // Try Dexie first
+      // Try Dexie first - use filter for complex queries
       const localRituals = await atlasDB.rituals
-        .where('userId')
-        .equals(userId)
-        .and(r => !r.isPreset)
+        .filter(r => r.userId === userId && r.isPreset === false)
         .toArray();
 
       if (localRituals.length > 0) {

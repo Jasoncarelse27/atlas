@@ -3,10 +3,10 @@
  * Users drag these steps into their custom ritual
  */
 
-import React from 'react';
-import { Heart, Brain, Target, Activity, BookOpen, Smile, Eye } from 'lucide-react';
-import type { RitualStepType } from '../types/rituals';
 import type { LucideIcon } from 'lucide-react';
+import { Activity, BookOpen, Brain, Eye, Heart, Smile, Target } from 'lucide-react';
+import React from 'react';
+import type { RitualStepType } from '../types/rituals';
 
 export interface StepTypeDefinition {
   type: RitualStepType;

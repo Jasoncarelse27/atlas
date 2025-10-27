@@ -3,22 +3,22 @@
  * Drag-and-drop interface for Core/Studio users
  */
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { DndContext, closestCenter } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Plus, Trash2, Save, ArrowLeft, GripVertical, Sparkles } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import toast from 'react-hot-toast';
-import { useRitualStore } from '../hooks/useRitualStore';
-import { useTierQuery } from '@/hooks/useTierQuery';
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
-import { StepLibrary, STEP_TYPE_DEFINITIONS } from './StepLibrary';
-import { StepConfigPanel } from './StepConfigPanel';
-import type { RitualStep, RitualGoal, RitualStepType } from '../types/rituals';
+import { useTierQuery } from '@/hooks/useTierQuery';
 import { logger } from '@/lib/logger';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
+import { useRitualStore } from '../hooks/useRitualStore';
+import type { RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
+import { StepConfigPanel } from './StepConfigPanel';
+import { STEP_TYPE_DEFINITIONS, StepLibrary } from './StepLibrary';
 
 interface SortableStepCardProps {
   step: RitualStep;

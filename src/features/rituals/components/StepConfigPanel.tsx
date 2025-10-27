@@ -3,8 +3,8 @@
  * Allows users to customize duration and instructions for each step
  */
 
+import { Clock, FileText, X } from 'lucide-react';
 import React from 'react';
-import { X, Clock, FileText } from 'lucide-react';
 import type { RitualStep } from '../types/rituals';
 import { STEP_TYPE_DEFINITIONS } from './StepLibrary';
 
