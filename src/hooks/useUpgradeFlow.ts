@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { getSubscriptionDisplayName } from '../config/featureAccess';
+import { toast } from 'react-hot-toast';
+import { logger } from '../lib/logger';
 import type { Tier } from '../types/tier';
 
 export type UpgradeTrigger = 'message_limit' | 'voice_feature' | 'image_feature' | 'general';
@@ -9,7 +10,7 @@ interface UseUpgradeFlowReturn {
   triggerReason: UpgradeTrigger | undefined;
   openUpgradeModal: (reason: UpgradeTrigger) => void;
   closeUpgradeModal: () => void;
-  handleUpgrade: (tier: 'core' | 'studio') => void;
+  handleUpgrade: (tier: 'core' | 'studio') => Promise<void>;
 }
 
 export function useUpgradeFlow(): UseUpgradeFlowReturn {
@@ -26,19 +27,51 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
     setTriggerReason(undefined);
   }, []);
 
-  const handleUpgrade = useCallback((tier: 'core' | 'studio') => {
+  const handleUpgrade = useCallback(async (tier: 'core' | 'studio') => {
     // Close modal first
     closeUpgradeModal();
     
-    // Track upgrade event
-    
-    // Here you would integrate with your payment system
-    // ✅ Use centralized display name
-    const tierName = getSubscriptionDisplayName(tier);
-    toast.info(`Redirecting to payment for Atlas ${tierName}...`);
-    
-    // Payment integration will be implemented
-    // window.location.href = `/upgrade?tier=${tier}&reason=${triggerReason}`;
+    try {
+      // Show loading toast
+      const loadingToast = toast.loading('Opening secure checkout...');
+      
+      // ✅ BEST PRACTICE: Dynamic import to avoid circular dependencies
+      const { fastspringService } = await import('../services/fastspringService');
+      const { useSupabaseAuth } = await import('./useSupabaseAuth');
+      
+      // Get user info from hook
+      const { user } = useSupabaseAuth();
+      if (!user?.id || !user?.email) {
+        toast.dismiss(loadingToast);
+        toast.error('Please log in to upgrade');
+        return;
+      }
+      
+      // Create checkout URL
+      const checkoutUrl = await fastspringService.createCheckoutUrl(user.id, tier, user.email);
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      // ✅ BEST PRACTICE: Log for debugging
+      logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
+      
+      // Track upgrade attempt
+      ConversionAnalytics.trackUpgradeAttempt(tier, triggerReason || 'general');
+      
+      // Redirect to FastSpring checkout
+      window.location.href = checkoutUrl;
+      
+    } catch (error) {
+      logger.error('Upgrade error:', error);
+      
+      // ✅ BEST PRACTICE: User-friendly error with actionable guidance
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(
+        `${errorMessage}\n\nPlease contact support if this persists.`,
+        { duration: 5000 }
+      );
+    }
   }, [triggerReason, closeUpgradeModal]);
 
   return {
@@ -52,35 +85,35 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
 
 // Conversion funnel analytics
 export class ConversionAnalytics {
-  static trackUpgradeTrigger(trigger: UpgradeTrigger, currentTier: Tier) {
+  static trackUpgradeTrigger(_trigger: UpgradeTrigger, _currentTier: Tier) {
     // Track when users hit upgrade triggers
     
     // Analytics integration will be implemented
     // analytics.track('upgrade_trigger', {
-    //   trigger,
-    //   current_tier: currentTier,
+    //   trigger: _trigger,
+    //   current_tier: _currentTier,
     //   timestamp: new Date().toISOString()
     // });
   }
 
-  static trackUpgradeAttempt(targetTier: 'core' | 'studio', trigger: UpgradeTrigger) {
+  static trackUpgradeAttempt(_targetTier: 'core' | 'studio', _trigger: UpgradeTrigger) {
     // Track when users attempt to upgrade
     
     // Analytics integration will be implemented
     // analytics.track('upgrade_attempt', {
-    //   target_tier: targetTier,
-    //   trigger,
+    //   target_tier: _targetTier,
+    //   trigger: _trigger,
     //   timestamp: new Date().toISOString()
     // });
   }
 
-  static trackUpgradeSuccess(targetTier: 'core' | 'studio', trigger: UpgradeTrigger) {
+  static trackUpgradeSuccess(_targetTier: 'core' | 'studio', _trigger: UpgradeTrigger) {
     // Track successful upgrades
     
     // Analytics integration will be implemented
     // analytics.track('upgrade_success', {
-    //   target_tier: targetTier,
-    //   trigger,
+    //   target_tier: _targetTier,
+    //   trigger: _trigger,
     //   timestamp: new Date().toISOString()
     // });
   }

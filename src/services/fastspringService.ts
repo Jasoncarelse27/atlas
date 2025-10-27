@@ -193,6 +193,7 @@ class FastSpringService {
 
   /**
    * Create FastSpring checkout URL for subscription using live API
+   * Best Practice: Graceful fallback with detailed error logging
    */
   async createCheckoutUrl(userId: string, tier: Tier, email: string): Promise<string> {
     if (!isPaidTier(tier)) {
@@ -226,26 +227,37 @@ class FastSpringService {
           tier,
           email,
           productId: product.productId,
-          successUrl: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/success`,
-          cancelUrl: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/cancel`
+          successUrl: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5174'}/subscription/success`,
+          cancelUrl: `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5174'}/subscription/cancel`
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        logger.error('FastSpring API error:', {
+          status: response.status,
+          error: errorData
+        });
+        
+        // ✅ BEST PRACTICE: Detailed error for debugging
+        throw new Error(`FastSpring API error (${response.status}): ${JSON.stringify(errorData)}`);
       }
 
       const { checkoutUrl } = await response.json();
+      
+      if (!checkoutUrl) {
+        throw new Error('No checkout URL returned from FastSpring');
+      }
+      
+      logger.info('✅ FastSpring checkout URL created successfully');
       return checkoutUrl;
 
     } catch (error) {
       logger.error('FastSpring checkout error:', error);
-      // In production with valid credentials, this should throw
-      // For now, return mock URL to prevent app breakage
-      if (isMockMode) {
-        return `${import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
-      }
-      throw new Error('Failed to create checkout session');
+      
+      // ✅ BEST PRACTICE: User-friendly error with context
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Unable to connect to payment provider. ${errorMessage}`);
     }
   }
 

@@ -1,8 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Mic, Phone, Sparkles, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useTierAccess } from '../../hooks/useTierAccess';
+import { logger } from '../../lib/logger';
 
 interface VoiceUpgradeModalProps {
   isOpen: boolean;
@@ -26,20 +28,39 @@ export default function VoiceUpgradeModal({ isOpen, onClose }: VoiceUpgradeModal
   }, [isOpen]);
 
   const handleUpgrade = async () => {
-    if (!user?.id || !user?.email) return;
+    if (!user?.id || !user?.email) {
+      toast.error('Please log in to upgrade');
+      return;
+    }
 
     try {
+      // Show loading toast
+      const loadingToast = toast.loading('Opening secure checkout...');
+      
       const { fastspringService } = await import('../../services/fastspringService');
       const checkoutUrl = await fastspringService.createCheckoutUrl(
         user.id,
         'studio',
         user.email
       );
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      // ✅ BEST PRACTICE: Log checkout URL for debugging
+      logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
+      
       // External checkout URL - full page navigation is acceptable here
       window.location.href = checkoutUrl;
     } catch (error) {
       logger.error('Upgrade error:', error);
-      toast.error('Unable to open checkout. Please try again.');
+      
+      // ✅ BEST PRACTICE: User-friendly error with actionable guidance
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(
+        `${errorMessage}\n\nPlease contact support if this persists.`,
+        { duration: 5000 }
+      );
     }
   };
 

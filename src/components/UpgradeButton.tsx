@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useTierAccess } from '../hooks/useTierAccess';
 import { fastspringService } from '../services/fastspringService';
+import { logger } from '../lib/logger';
 
 interface UpgradeButtonProps {
   className?: string;
@@ -44,20 +46,39 @@ export function UpgradeButton({
 
   const handleUpgrade = async () => {
     if (!user?.id || !user?.email) {
+      toast.error('Please log in to upgrade');
       return;
     }
 
     setIsLoading(true);
     
     try {
+      // Show loading toast
+      const loadingToast = toast.loading('Opening secure checkout...');
+      
       // Default to Core tier for upgrade
       const tier = 'core';
       const checkoutUrl = await fastspringService.createCheckoutUrl(user.id, tier, user.email);
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      // ✅ BEST PRACTICE: Log checkout URL for debugging
+      logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
       
       // Redirect to FastSpring checkout
       window.location.href = checkoutUrl;
       
     } catch (error) {
+      logger.error('Upgrade error:', error);
+      
+      // ✅ BEST PRACTICE: User-friendly error with actionable guidance
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(
+        `${errorMessage}\n\nPlease contact support if this persists.`,
+        { duration: 5000 }
+      );
+      
       // Fallback to showing upgrade modal
       showUpgradeModal('subscription');
     } finally {
