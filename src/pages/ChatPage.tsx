@@ -1343,6 +1343,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         <VoiceUpgradeModal
           isOpen={voiceModalVisible}
           onClose={hideVoiceUpgrade}
+          feature={genericModalFeature === 'audio' ? 'audio' : genericModalFeature === 'image' ? 'image' : 'voice_calls'}
+          defaultTier={genericModalFeature === 'audio' || genericModalFeature === 'image' ? 'core' : 'studio'}
         />
 
 

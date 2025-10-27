@@ -42,9 +42,9 @@ export default function EnhancedInputToolbar({
   isStreaming = false
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
-  const { tier, showUpgradeModal } = useTierAccess();
+  const { tier } = useTierAccess();
   const { canUse: canUseVoice } = useFeatureAccess('voice');
-  const { showVoiceUpgrade } = useUpgradeModals();
+  const { showVoiceUpgrade, showGenericUpgrade } = useUpgradeModals();
   
   // ✅ Studio-only feature check (voice calls)
   const isStudioTier = tier === 'studio';
@@ -385,7 +385,7 @@ export default function EnhancedInputToolbar({
     
     if (!canUse) {
       modernToast.error('Upgrade Required', 'Voice features available in Core & Studio plans');
-      showUpgradeModal('audio');
+      showGenericUpgrade('audio'); // ✅ Use generic modal which will trigger VoiceUpgradeModal with feature='audio'
       return;
     }
     
