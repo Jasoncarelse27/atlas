@@ -14,6 +14,7 @@ const ChatPage = lazy(() => import("./pages/ChatPage"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
 const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary })));
 const RitualBuilder = lazy(() => import("./features/rituals/components/RitualBuilder").then(m => ({ default: m.RitualBuilder })));
+const RitualRunView = lazy(() => import("./features/rituals/components/RitualRunView").then(m => ({ default: m.RitualRunView })));
 
 // 🚀 Production-grade Query Client configuration
 const queryClient = new QueryClient({
@@ -76,6 +77,19 @@ function ProtectedRitualBuilderRoute() {
   );
 }
 
+function ProtectedRitualRunRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return (
+    <ErrorBoundary>
+      <RitualRunView />
+    </ErrorBoundary>
+  );
+}
+
 function App() {
   // Initialize settings from localStorage on app load
   useEffect(() => {
@@ -94,6 +108,7 @@ function App() {
                 <Route path="/chat" element={<ProtectedChatRoute />} />
                 <Route path="/rituals" element={<ProtectedRitualRoute />} />
                 <Route path="/rituals/builder" element={<ProtectedRitualBuilderRoute />} />
+                <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
                 <Route path="/upgrade" element={<UpgradePage />} />
                 <Route path="/" element={<Navigate to="/chat" replace />} />
                 <Route path="*" element={<Navigate to="/chat" replace />} />

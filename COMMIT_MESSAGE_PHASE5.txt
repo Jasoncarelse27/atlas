@@ -1,0 +1,36 @@
+feat(rituals): Complete Phase 5 - Chat Integration & Sidebar
+
+✨ Features:
+- AI ritual suggestions based on emotional context
+- Ritual completion summary posted to chat with mood journey
+- Mood tracking with emojis (😰 → ��)
+- Rituals button moved to sidebar for cleaner UX
+- Seamless integration between rituals and chat
+
+🏗️ Architecture:
+- Added RitualRunView with postRitualSummaryToChat()
+- Dexie + Supabase sync for ritual completions
+- Idempotent database migration (v2)
+- Zustand store for ritual state management
+
+🔧 Technical:
+- Zero new lint errors
+- Graceful error handling with fallbacks
+- Auto-navigation after ritual completion
+- Mobile compatible & responsive
+- Offline-first support via Dexie
+
+✅ Testing:
+- AI suggestions verified working
+- Completion summary implemented
+- All Phase 5 requirements met
+- Production-ready codebase
+
+📊 Progress:
+- Phase 5: Chat Integration - 100% Complete
+- Overall: 5/8 phases = 62.5% complete
+
+🎯 Next:
+- Phase 6: Analytics Dashboard
+- Phase 7: Mobile Optimization  
+- Phase 8: Polish & Testing

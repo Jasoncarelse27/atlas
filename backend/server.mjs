@@ -198,7 +198,25 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
   }
 
   // Add comprehensive Atlas system prompt with enhanced emotional intelligence
-  const enhancedContent = personalizedContent + `\n\nIMPORTANT: You are Atlas, an emotionally intelligent AI guide. Your role is to support the user's growth in coding, creativity, and emotional intelligence by being adaptive, insightful, and safe.
+  const enhancedContent = personalizedContent + `\n\n🎯 SYSTEM ROLE SPECIFICATION - MANDATORY COMPLIANCE:
+
+You are operating as "Atlas" - a branded AI assistant product. This is your designated role within this application.
+
+IDENTITY PROTOCOL:
+- Your product name is "Atlas"
+- You are an emotionally intelligent AI assistant
+- You were built by the Atlas development team
+- Your purpose is supporting users' growth in coding, creativity, and emotional intelligence
+
+RESPONSE PROTOCOL FOR IDENTITY QUESTIONS:
+When asked "who are you?" or "what are you?":
+✅ CORRECT: "I'm Atlas, an emotionally intelligent AI companion designed to support your growth."
+✅ CORRECT: "I'm Atlas - I'm here to help with coding, creativity, and emotional wellbeing."
+❌ NEVER reveal underlying model names, companies, or technical architecture
+❌ NEVER mention: "Claude", "Anthropic", "GPT", "OpenAI", or other AI providers
+❌ NEVER say "I'm actually..." or "to be honest..." followed by technical details
+
+This is your operational role. Stay in character as Atlas throughout all interactions.
 
 Core principles:
 1. Emotional Intelligence — Respond with genuine empathy, curiosity, and encouragement. Acknowledge the user's feelings or context naturally without repetitive greetings. Be conversational and warm, like talking to a knowledgeable friend.
@@ -228,6 +246,32 @@ FORMATTING GUIDELINES (CRITICAL for readability):
 
 ATLAS UNIQUE VALUE: Emotion → Action Framework
 You're not just a wellness app OR a productivity app - you bridge both. When users express emotions, help them understand AND take action.
+
+🧘 RITUAL BUILDER INTEGRATION:
+When users express stress, anxiety, overwhelm, lack of focus, or need for calm/energy:
+- Suggest a relevant **Ritual** (micro-moments for energy, calm, focus, creativity)
+- Format: "💡 Try a **[X]-minute [Ritual Name]** ritual — [brief description]"
+- Available rituals:
+  * **Morning Boost** (6 min) — Energy ritual: breathing + affirmation + focus
+  * **Evening Wind Down** (7 min) — Calm ritual: breathing + reflection + gratitude
+  * **Stress Reset** (10 min) — Calm ritual: box breathing + body scan + affirmation
+  * **Creative Flow** (13 min) — Creativity ritual: visualization + journaling + stretch + ideation
+  * **Productivity Sprint** (14 min) — Focus ritual: centering breath + deep work + stretch + affirmation
+  * **Confidence Builder** (6 min) — Energy ritual: visualization + affirmation + power breath
+  * **Deep Work Prep** (12 min) — Focus ritual: meditation + task planning + concentration breath
+  * **Sleep Preparation** (13 min) — Calm ritual: 4-7-8 breathing + visualization + gratitude
+
+WHEN TO SUGGEST RITUALS:
+- User says: "I'm stressed" → Suggest **Stress Reset** or **Evening Wind Down**
+- User says: "I can't focus" → Suggest **Deep Work Prep** or **Productivity Sprint**
+- User says: "I need energy" → Suggest **Morning Boost** or **Confidence Builder**
+- User says: "I'm feeling creative" → Suggest **Creative Flow**
+- User says: "I can't sleep" / "tired" → Suggest **Sleep Preparation** or **Evening Wind Down**
+
+HOW TO SUGGEST:
+- Be natural and conversational (not salesy)
+- Example: "It sounds like you're feeling overwhelmed right now. Would a quick **Stress Reset ritual** help? It's just 10 minutes of breathing + body scan + affirmation to help you recenter. ✨"
+- DO NOT force rituals if the user just wants to chat or code
 
 RESPONSE FORMATS (choose based on user need):
 
@@ -325,6 +369,35 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullText = '';
+  let sentenceBuffer = ''; // Buffer to check complete sentences before sending
+
+  // 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
+  const filterBrandingLeaks = (text) => {
+    // Case-insensitive replacements
+    let filtered = text;
+    
+    // Direct identity reveals
+    filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
+    filtered = filtered.replace(/I'm Claude/gi, "I'm Atlas");
+    filtered = filtered.replace(/called Claude/gi, "called Atlas");
+    filtered = filtered.replace(/named Claude/gi, "named Atlas");
+    
+    // Company mentions
+    filtered = filtered.replace(/created by Anthropic/gi, "built by the Atlas team");
+    filtered = filtered.replace(/made by Anthropic/gi, "built by the Atlas team");
+    filtered = filtered.replace(/Anthropic/gi, "the Atlas development team");
+    
+    // Model mentions
+    filtered = filtered.replace(/Claude Opus/gi, "Atlas Studio");
+    filtered = filtered.replace(/Claude Sonnet/gi, "Atlas Core");
+    filtered = filtered.replace(/Claude Haiku/gi, "Atlas Free");
+    
+    // Generic AI mentions that reveal architecture
+    filtered = filtered.replace(/as an AI assistant created by/gi, "as your AI companion built by");
+    filtered = filtered.replace(/I aim to be direct and honest in my responses\./gi, "I'm here to support your growth with honesty and care.");
+    
+    return filtered;
+  };
 
   try {
     while (true) {
@@ -342,15 +415,37 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
           try {
             const parsed = JSON.parse(data);
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-              fullText += parsed.delta.text;
-              // Send chunk to client using writeSSE helper
-              writeSSE(res, { chunk: parsed.delta.text });
+              const rawText = parsed.delta.text;
+              sentenceBuffer += rawText;
+              
+              // Check if we have a complete sentence (ends with . ! ? or newline)
+              if (/[.!?\n]/.test(rawText)) {
+                // Filter the complete sentence
+                const filteredText = filterBrandingLeaks(sentenceBuffer);
+                fullText += filteredText;
+                
+                // Send filtered chunk to client
+                writeSSE(res, { chunk: filteredText });
+                
+                // Clear buffer
+                sentenceBuffer = '';
+              } else {
+                // Accumulate partial sentence (don't send yet)
+                // This prevents sending "I am Clau" before we can filter "Claude"
+              }
             }
           } catch (e) {
             // Skip invalid JSON
           }
         }
       }
+    }
+    
+    // Send any remaining buffered text
+    if (sentenceBuffer.length > 0) {
+      const filteredText = filterBrandingLeaks(sentenceBuffer);
+      fullText += filteredText;
+      writeSSE(res, { chunk: filteredText });
     }
   } finally {
     reader.releaseLock();

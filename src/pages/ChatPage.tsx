@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, Menu, Search, X } from 'lucide-react';
+import { LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 // Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
 // import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
@@ -42,6 +43,7 @@ interface ChatPageProps {
 }
 
 const ChatPage: React.FC<ChatPageProps> = () => {
+  const navigate = useNavigate();
   const {
     voiceModalVisible,
     hideVoiceUpgrade,
@@ -1173,6 +1175,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <QuickActions onViewHistory={handleViewHistory} />
                   <UsageCounter userId={userId ?? ''} />
                   <InsightsWidget />
+                  
+                  {/* Rituals Button */}
+                  <button
+                    onClick={() => {
+                      navigate('/rituals');
+                      setSidebarOpen(false); // Close sidebar after navigation
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[#C8956A]/30 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-[#C8956A]" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <span className="font-medium text-sm">Rituals</span>
+                      <p className="text-[#8B7E74] text-xs">Mindfulness & Focus</p>
+                    </div>
+                  </button>
+                  
                   <PrivacyToggle />
                   
                   {/* Divider */}

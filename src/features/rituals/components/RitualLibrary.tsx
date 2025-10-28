@@ -3,14 +3,14 @@
  * Displays rituals filtered by user tier with upgrade prompts
  */
 
+import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
+import { useTierQuery } from '@/hooks/useTierQuery';
+import { Plus, Sparkles } from 'lucide-react';
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Sparkles } from 'lucide-react';
 import { useRitualStore } from '../hooks/useRitualStore';
-import { RitualStepCard } from './RitualStepCard';
-import { useTierQuery } from '@/hooks/useTierQuery';
-import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import type { Ritual } from '../types/rituals';
+import { RitualStepCard } from './RitualStepCard';
 
 export const RitualLibrary: React.FC = () => {
   const navigate = useNavigate();
@@ -34,7 +34,6 @@ export const RitualLibrary: React.FC = () => {
   });
 
   const handleStartRitual = (ritual: Ritual) => {
-    // TODO: Navigate to ritual runner (Phase 4)
     navigate(`/rituals/run/${ritual.id}`);
   };
 
@@ -47,7 +46,7 @@ export const RitualLibrary: React.FC = () => {
     if (tier === 'free') {
       showGenericUpgrade('audio');
     } else {
-      // TODO: Navigate to builder (Phase 3)
+      // Navigate to builder (Phase 3)
       navigate('/rituals/builder');
     }
   };

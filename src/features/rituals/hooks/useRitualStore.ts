@@ -3,10 +3,10 @@
  * Manages rituals (presets + custom) with Supabase sync
  */
 
-import { create } from 'zustand';
 import { atlasDB } from '@/database/atlasDB';
-import { ritualService } from '../services/ritualService';
 import { logger } from '@/lib/logger';
+import { create } from 'zustand';
+import { ritualService } from '../services/ritualService';
 import type { Ritual, RitualLog } from '../types/rituals';
 
 interface RitualStore {

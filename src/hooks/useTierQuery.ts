@@ -87,10 +87,20 @@ export function useTierQuery() {
   useEffect(() => {
     if (!query.data?.userId) return;
 
-    logger.info(`[useTierQuery] 📡 Realtime active for user: ${query.data.userId.slice(0, 8)}...`);
+    // ✅ CRITICAL FIX: Only log once per unique user session to prevent console spam
+    const channelName = `tier-updates-${query.data.userId}`;
+    
+    // Check if channel already exists (prevents duplicate subscriptions)
+    const existingChannel = supabase.getChannels().find(ch => ch.topic === channelName);
+    if (existingChannel) {
+      logger.debug('[useTierQuery] ⚡ Reusing existing realtime channel');
+      return; // Don't create duplicate subscription
+    }
+
+    logger.debug(`[useTierQuery] 📡 Starting realtime for user: ${query.data.userId.slice(0, 8)}...`);
 
     const channel = supabase
-      .channel(`tier-updates-${query.data.userId}`) // Fixed: Use unique channel name format
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -101,42 +111,25 @@ export function useTierQuery() {
         },
         (payload) => {
           const newTier = (payload.new as any).subscription_tier as Tier || 'free';
-          logger.debug('[useTierQuery] 🔄 Realtime tier update:', {
-            old: query.data?.tier,
-            new: newTier,
-            userId: query.data?.userId,
-          });
+          logger.info(`[useTierQuery] ✨ Tier updated: ${newTier.toUpperCase()}`);
           
           // Instantly update cache with new tier (no API call needed!)
           queryClient.setQueryData<TierData>(['user-tier'], (_old) => ({
             tier: newTier,
             userId: query.data!.userId,
           }));
-
-          // Show success toast (optional - can be disabled)
-          logger.info(`✨ Tier updated to ${newTier.toUpperCase()}`);
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          logger.debug('[useTierQuery] ✅ Realtime subscription active');
+          logger.debug('[useTierQuery] ✅ Realtime ready');
         } else if (status === 'CHANNEL_ERROR') {
-          logger.error('[useTierQuery] ❌ Realtime subscription error - reconnecting...');
-          // Auto-reconnect after channel error
+          logger.error('[useTierQuery] ❌ Channel error - reconnecting...');
           setTimeout(() => {
-            logger.debug('[useTierQuery] 🔄 Attempting reconnection...');
             supabase.removeChannel(channel);
-            // ✅ FIX: Don't call refetch in effect cleanup to avoid infinite loop
-            // query.refetch(); // This will trigger the useEffect to recreate the channel
           }, 2000);
-        } else if (status === 'TIMED_OUT') {
-          logger.warn('[useTierQuery] ⏱️ Realtime subscription timed out');
-        } else if (status === 'CLOSED') {
-          // ✅ FIXED: Don't log errors for intentional cleanup
-          logger.debug('[useTierQuery] 📡 Subscription closed (cleanup)');
-        } else {
-          logger.debug('[useTierQuery] 📡 Subscription status:', status);
         }
+        // Suppress CLOSED and other status logs to reduce noise
       });
 
     return () => {
@@ -154,14 +147,14 @@ export function useTierQuery() {
       
       // Refetch tier on auth changes
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-        query.refetch();
+        queryClient.invalidateQueries({ queryKey: ['user-tier'] });
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [query]);
+  }, [queryClient]); // ✅ FIXED: Use queryClient instead of query object
 
   return {
     tier: query.data?.tier || 'free',
