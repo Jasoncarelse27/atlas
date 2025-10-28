@@ -5,11 +5,11 @@
 
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { logger } from '@/lib/logger';
 import { MessageCircle, Plus, Sparkles, TrendingUp } from 'lucide-react';
 import React, { useEffect } from 'react';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { logger } from '@/lib/logger';
+import { toast } from 'sonner';
 import { useRitualStore } from '../hooks/useRitualStore';
 import type { Ritual } from '../types/rituals';
 import { DataMigrationButton } from './DataMigrationButton';

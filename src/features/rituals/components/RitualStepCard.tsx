@@ -3,10 +3,10 @@
  * Shows ritual info with goal badge, duration, and tier lock
  */
 
+import { Edit2, Heart, Lock, Sparkles, Target, Trash2, Zap } from 'lucide-react';
 import React from 'react';
-import { Lock, Sparkles, Heart, Target, Zap, Edit2, Trash2 } from 'lucide-react';
-import type { Ritual } from '../types/rituals';
 import { formatDuration } from '../services/ritualTemplates';
+import type { Ritual } from '../types/rituals';
 
 interface RitualStepCardProps {
   ritual: Ritual;

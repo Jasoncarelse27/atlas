@@ -36,9 +36,11 @@ export async function fixCorruptedRitualDurations(userId: string): Promise<numbe
 
     let fixedCount = 0;
 
-    for (const ritual of rituals) {
+    // Cast to any[] to handle snake_case from Supabase
+    const ritualsData = rituals as any[];
+
+    for (const ritual of ritualsData) {
       const steps = ritual.steps as any[];
-      let needsFix = false;
 
       // Check if any step has suspiciously low duration (< 10 seconds)
       const hasCorruptedDuration = steps.some(step => 
@@ -65,7 +67,6 @@ export async function fixCorruptedRitualDurations(userId: string): Promise<numbe
         } else {
           logger.info('[ritualDataMigration] ✅ Fixed ritual:', ritual.id, ritual.title);
           fixedCount++;
-          needsFix = true;
         }
       }
     }

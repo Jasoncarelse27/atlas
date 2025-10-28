@@ -13,7 +13,7 @@ import { fixCorruptedRitualDurations } from '../utils/ritualDataMigration';
 export const DataMigrationButton: React.FC = () => {
   const { userId } = useTierQuery();
   const [fixing, setFixing] = useState(false);
-  const { refreshRituals } = useRitualStore();
+  const { loadUserRituals } = useRitualStore();
 
   const handleFix = async () => {
     if (!userId) {
@@ -30,7 +30,7 @@ export const DataMigrationButton: React.FC = () => {
         toast.success(`✅ Fixed ${fixedCount} ritual(s)! Refreshing...`);
         
         // Refresh the ritual list
-        await refreshRituals();
+        await loadUserRituals(userId);
         
         // Give user time to see the success message
         setTimeout(() => {
