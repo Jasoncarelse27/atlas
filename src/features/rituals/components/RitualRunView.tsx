@@ -7,7 +7,7 @@ import { atlasDB } from '@/database/atlasDB';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { generateUUID } from '@/utils/uuid';
-import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, X } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, Pause, Play, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { modernToast } from '../../../config/toastConfig';
@@ -202,19 +202,34 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
       <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <button
-              onClick={handleExit}
-              className="p-2 rounded-lg hover:bg-white/50 transition-colors"
-            >
-              <ArrowLeft className="w-6 h-6 text-[#3B3632]" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-[#3B3632]">{ritual.title}</h1>
-              <p className="text-[#8B7E74]">
-                {ritual.steps.length} steps • {Math.ceil(ritual.steps.reduce((sum, step) => sum + step.duration, 0) / 60)} min
-              </p>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleExit}
+                className="p-2 rounded-lg hover:bg-white/50 transition-colors"
+                aria-label="Back to library"
+              >
+                <ArrowLeft className="w-6 h-6 text-[#3B3632]" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-[#3B3632]">{ritual.title}</h1>
+                <p className="text-[#8B7E74]">
+                  {ritual.steps.length} steps • {Math.ceil(ritual.steps.reduce((sum, step) => sum + step.duration, 0) / 60)} min
+                </p>
+              </div>
             </div>
+
+            {/* Back to Chat Button - Mobile Optimized */}
+            <button
+              onClick={() => navigate('/chat')}
+              className="flex items-center gap-2 px-4 py-2 bg-white/80 hover:bg-white border-2 border-[#E8DCC8] 
+                rounded-xl transition-all hover:shadow-md active:scale-95
+                min-h-[44px] touch-manipulation" // 44px minimum touch target
+              aria-label="Back to chat"
+            >
+              <MessageCircle className="w-5 h-5 text-[#8B7E74]" />
+              <span className="hidden sm:inline text-[#3B3632] font-medium">Chat</span>
+            </button>
           </div>
 
           {/* Mood Selection */}
@@ -324,6 +339,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <button
               onClick={handleExit}
               className="p-2 rounded-lg hover:bg-white/50 transition-colors"
+              aria-label="Exit ritual"
             >
               <X className="w-6 h-6 text-[#3B3632]" />
             </button>
@@ -334,6 +350,18 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
               </p>
             </div>
           </div>
+
+          {/* Back to Chat Button - Mobile Optimized */}
+          <button
+            onClick={() => navigate('/chat')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/80 hover:bg-white border-2 border-[#E8DCC8] 
+              rounded-xl transition-all hover:shadow-md active:scale-95
+              min-h-[44px] touch-manipulation" // 44px minimum touch target
+            aria-label="Back to chat"
+          >
+            <MessageCircle className="w-5 h-5 text-[#8B7E74]" />
+            <span className="hidden sm:inline text-[#3B3632] font-medium">Chat</span>
+          </button>
         </div>
 
         {/* Progress Bar */}
