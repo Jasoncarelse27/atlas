@@ -4,11 +4,12 @@
  */
 
 import { atlasDB } from '@/database/atlasDB';
+import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { supabase } from '@/lib/supabaseClient';
 import { generateUUID } from '@/utils/uuid';
 import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, Pause, Play, X } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { modernToast } from '../../../config/toastConfig';
 import { logger } from '../../../lib/logger';
@@ -21,11 +22,17 @@ export const RitualRunView: React.FC = () => {
   const { ritualId } = useParams<{ ritualId: string }>();
   const { user } = useSupabaseAuth();
   const { presets, userRituals, loading } = useRitualStore();
+  const { isMobile } = useMobileOptimization();
 
   const [selectedMoodBefore, setSelectedMoodBefore] = useState<string | null>(null);
   const [selectedMoodAfter, setSelectedMoodAfter] = useState<string | null>(null);
   const [completionNotes, setCompletionNotes] = useState('');
   const [hasStarted, setHasStarted] = useState(false);
+
+  // Swipe gesture support
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
+  const stepCardRef = useRef<HTMLDivElement>(null);
 
   // Find ritual
   const ritual = [...presets, ...userRituals].find((r) => r.id === ritualId);
@@ -34,6 +41,50 @@ export const RitualRunView: React.FC = () => {
     ritual: ritual,
     userId: user?.id || '',
   });
+
+  // Swipe gesture handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const swipeThreshold = 50; // Minimum distance for swipe
+    const diff = touchStartX.current - touchEndX.current;
+
+    if (Math.abs(diff) > swipeThreshold) {
+      // Haptic feedback if supported
+      if (navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+
+      if (diff > 0) {
+        // Swipe left - next step
+        if (runner.currentStepIndex < ritual!.steps.length - 1) {
+          runner.nextStep();
+        }
+      } else {
+        // Swipe right - previous step
+        if (runner.currentStepIndex > 0) {
+          runner.previousStep();
+        }
+      }
+    }
+
+    // Reset
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
+
+  // Haptic feedback on step completion
+  useEffect(() => {
+    if (runner.isComplete && navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]); // Double vibration
+    }
+  }, [runner.isComplete]);
 
   if (loading) {
     return (
@@ -233,21 +284,23 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           </div>
 
           {/* Mood Selection */}
-          <div className="bg-white/80 rounded-2xl p-8 shadow-lg">
+          <div className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg">
             <h2 className="text-xl font-semibold text-[#3B3632] mb-4">How are you feeling right now?</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {MOOD_OPTIONS.map((mood) => (
                 <button
                   key={mood.value}
                   onClick={() => setSelectedMoodBefore(mood.value)}
-                  className={`p-4 rounded-xl ${mood.color} border-2 transition-all ${
+                  className={`p-4 md:p-4 rounded-xl ${mood.color} border-2 transition-all
+                    min-h-[100px] md:min-h-[120px] touch-manipulation
+                    active:scale-95 ${
                     selectedMoodBefore === mood.value
-                      ? 'border-[#C8956A] scale-105'
+                      ? 'border-[#C8956A] scale-105 shadow-lg'
                       : 'border-transparent'
                   }`}
                 >
-                  <div className="text-4xl mb-2">{mood.emoji}</div>
-                  <div className="text-sm font-medium text-[#3B3632]">{mood.label}</div>
+                  <div className="text-5xl md:text-4xl mb-2">{mood.emoji}</div>
+                  <div className="text-sm md:text-sm font-medium text-[#3B3632]">{mood.label}</div>
                 </button>
               ))}
             </div>
@@ -255,8 +308,9 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <button
               onClick={handleStart}
               disabled={!selectedMoodBefore}
-              className="mt-8 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-lg
-                hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="mt-8 w-full py-4 md:py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-lg
+                hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all
+                min-h-[60px] touch-manipulation active:scale-95"
             >
               Begin Ritual ✨
             </button>
@@ -279,21 +333,23 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           </div>
 
           {/* Mood After Selection */}
-          <div className="bg-white/80 rounded-2xl p-8 shadow-lg mb-4">
+          <div className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg mb-4">
             <h2 className="text-xl font-semibold text-[#3B3632] mb-4">How do you feel now?</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {MOOD_OPTIONS.map((mood) => (
                 <button
                   key={mood.value}
                   onClick={() => setSelectedMoodAfter(mood.value)}
-                  className={`p-4 rounded-xl ${mood.color} border-2 transition-all ${
+                  className={`p-4 md:p-4 rounded-xl ${mood.color} border-2 transition-all
+                    min-h-[100px] md:min-h-[120px] touch-manipulation
+                    active:scale-95 ${
                     selectedMoodAfter === mood.value
-                      ? 'border-[#C8956A] scale-105'
+                      ? 'border-[#C8956A] scale-105 shadow-lg'
                       : 'border-transparent'
                   }`}
                 >
-                  <div className="text-4xl mb-2">{mood.emoji}</div>
-                  <div className="text-sm font-medium text-[#3B3632]">{mood.label}</div>
+                  <div className="text-5xl md:text-4xl mb-2">{mood.emoji}</div>
+                  <div className="text-sm md:text-sm font-medium text-[#3B3632]">{mood.label}</div>
                 </button>
               ))}
             </div>
@@ -304,15 +360,17 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
               value={completionNotes}
               onChange={(e) => setCompletionNotes(e.target.value)}
               className="w-full p-4 rounded-xl border border-[#E8DDD2] bg-white/50 text-[#3B3632]
-                placeholder-[#8B7E74]/50 focus:outline-none focus:ring-2 focus:ring-[#C8956A]"
+                placeholder-[#8B7E74]/50 focus:outline-none focus:ring-2 focus:ring-[#C8956A]
+                min-h-[100px] md:min-h-[80px] text-base"
               rows={3}
             />
 
             <button
               onClick={handleComplete}
               disabled={!selectedMoodAfter}
-              className="mt-4 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-lg
-                hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="mt-4 w-full py-4 md:py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-lg
+                hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all
+                min-h-[60px] touch-manipulation active:scale-95"
             >
               Complete Ritual ✨
             </button>
@@ -331,21 +389,24 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
   // DURING RITUAL: Timer + Step Display
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-4 md:p-6
+      landscape:flex landscape:items-center landscape:py-4">
+      <div className="max-w-4xl mx-auto w-full 
+        landscape:flex landscape:flex-row landscape:gap-6 landscape:items-start">
+        {/* Header - Hide in landscape to save space */}
+        <div className="flex items-center justify-between mb-6 md:mb-8 landscape:hidden">
           <div className="flex items-center gap-4">
             <button
               onClick={handleExit}
-              className="p-2 rounded-lg hover:bg-white/50 transition-colors"
+              className="p-2 rounded-lg hover:bg-white/50 transition-colors
+                min-w-[44px] min-h-[44px] touch-manipulation"
               aria-label="Exit ritual"
             >
               <X className="w-6 h-6 text-[#3B3632]" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-[#3B3632]">{ritual.title}</h1>
-              <p className="text-sm text-[#8B7E74]">
+              <h1 className="text-lg md:text-xl font-bold text-[#3B3632]">{ritual.title}</h1>
+              <p className="text-xs md:text-sm text-[#8B7E74]">
                 Step {runner.currentStepIndex + 1} of {ritual.steps.length}
               </p>
             </div>
@@ -356,7 +417,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             onClick={() => navigate('/chat')}
             className="flex items-center gap-2 px-4 py-2 bg-white/80 hover:bg-white border-2 border-[#E8DCC8] 
               rounded-xl transition-all hover:shadow-md active:scale-95
-              min-h-[44px] touch-manipulation" // 44px minimum touch target
+              min-h-[44px] touch-manipulation"
             aria-label="Back to chat"
           >
             <MessageCircle className="w-5 h-5 text-[#8B7E74]" />
@@ -365,7 +426,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8 landscape:hidden">
           <div className="h-2 bg-white/50 rounded-full overflow-hidden">
             <div
               className="h-full bg-[#C8956A] transition-all duration-1000"
@@ -375,62 +436,124 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           <div className="text-right text-sm text-[#8B7E74] mt-2">{runner.progress}% Complete</div>
         </div>
 
-        {/* Current Step Card */}
-        <div className="bg-white/80 rounded-2xl p-8 shadow-lg mb-6">
-          {/* Timer */}
-          <div className="text-center mb-8">
-            <div className="text-7xl font-bold text-[#3B3632] mb-2">
+        {/* Current Step Card - With Swipe Gestures */}
+        <div 
+          ref={stepCardRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg mb-6
+            landscape:flex-1 landscape:mb-0"
+        >
+          {/* Timer - Larger on mobile */}
+          <div className="text-center mb-6 md:mb-8">
+            <div className={`font-bold text-[#3B3632] mb-2
+              ${isMobile ? 'text-7xl' : 'text-7xl md:text-8xl'}
+              landscape:text-6xl`}>
               {formatTime(runner.timeRemaining)}
             </div>
-            <div className="text-lg text-[#8B7E74]">
+            <div className="text-base md:text-lg text-[#8B7E74]">
               {runner.currentStep?.config.title || 'Step'}
+            </div>
+            {/* Step counter for landscape mode */}
+            <div className="hidden landscape:block text-sm text-[#8B7E74] mt-2">
+              Step {runner.currentStepIndex + 1} of {ritual.steps.length}
             </div>
           </div>
 
           {/* Instructions */}
-          <div className="bg-[#F5F0E8] rounded-xl p-6 mb-6">
-            <p className="text-[#3B3632] text-lg leading-relaxed">
+          <div className="bg-[#F5F0E8] rounded-xl p-4 md:p-6 mb-6">
+            <p className="text-[#3B3632] text-base md:text-lg leading-relaxed">
               {runner.currentStep?.config.instructions}
             </p>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-4">
+          {/* Controls - Larger touch targets */}
+          <div className="flex items-center justify-center gap-4 md:gap-6">
             <button
               onClick={runner.previousStep}
               disabled={runner.currentStepIndex === 0}
-              className="p-3 rounded-lg bg-white/50 hover:bg-white disabled:opacity-30 transition-colors"
+              className="p-4 md:p-3 rounded-lg bg-white/50 hover:bg-white disabled:opacity-30 transition-colors
+                min-w-[64px] min-h-[64px] md:min-w-[60px] md:min-h-[60px] touch-manipulation
+                active:scale-95"
+              aria-label="Previous step"
             >
-              <ChevronLeft className="w-6 h-6 text-[#3B3632]" />
+              <ChevronLeft className="w-6 h-6 md:w-6 md:h-6 text-[#3B3632]" />
             </button>
 
             <button
               onClick={runner.isPaused ? runner.resume : runner.pause}
-              className="p-6 rounded-full bg-[#C8956A] hover:bg-[#B8855A] transition-colors"
+              className="p-6 md:p-6 rounded-full bg-[#C8956A] hover:bg-[#B8855A] transition-colors
+                min-w-[80px] min-h-[80px] md:min-w-[88px] md:min-h-[88px] touch-manipulation
+                active:scale-95 shadow-lg"
+              aria-label={runner.isPaused ? 'Resume' : 'Pause'}
             >
               {runner.isPaused ? (
-                <Play className="w-8 h-8 text-white" />
+                <Play className="w-8 h-8 md:w-8 md:h-8 text-white" />
               ) : (
-                <Pause className="w-8 h-8 text-white" />
+                <Pause className="w-8 h-8 md:w-8 md:h-8 text-white" />
               )}
             </button>
 
             <button
               onClick={runner.nextStep}
               disabled={runner.currentStepIndex === ritual.steps.length - 1}
-              className="p-3 rounded-lg bg-white/50 hover:bg-white disabled:opacity-30 transition-colors"
+              className="p-4 md:p-3 rounded-lg bg-white/50 hover:bg-white disabled:opacity-30 transition-colors
+                min-w-[64px] min-h-[64px] md:min-w-[60px] md:min-h-[60px] touch-manipulation
+                active:scale-95"
+              aria-label="Next step"
             >
-              <ChevronRight className="w-6 h-6 text-[#3B3632]" />
+              <ChevronRight className="w-6 h-6 md:w-6 md:h-6 text-[#3B3632]" />
             </button>
           </div>
 
           {/* Skip Button */}
           <button
             onClick={runner.nextStep}
-            className="mt-6 w-full py-2 text-[#8B7E74] hover:text-[#3B3632] transition-colors"
+            className="mt-6 w-full py-2 text-[#8B7E74] hover:text-[#3B3632] transition-colors
+              min-h-[44px] touch-manipulation"
           >
             Skip to Next Step
           </button>
+
+          {/* Swipe hint for mobile */}
+          {isMobile && (
+            <div className="mt-4 text-center text-xs text-[#8B7E74]/70">
+              💡 Tip: Swipe left/right to change steps
+            </div>
+          )}
+        </div>
+
+        {/* Landscape: Progress sidebar */}
+        <div className="hidden landscape:block landscape:w-48">
+          <div className="bg-white/80 rounded-2xl p-4 shadow-lg sticky top-4">
+            <h3 className="text-sm font-semibold text-[#3B3632] mb-2">{ritual.title}</h3>
+            <div className="text-xs text-[#8B7E74] mb-4">
+              {runner.progress}% Complete
+            </div>
+            <div className="space-y-2">
+              {ritual.steps.map((step, index) => (
+                <div
+                  key={index}
+                  className={`text-xs p-2 rounded-lg ${
+                    index === runner.currentStepIndex
+                      ? 'bg-[#C8956A] text-white'
+                      : index < runner.currentStepIndex
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {step.config.title}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleExit}
+              className="mt-4 w-full py-2 text-sm text-[#8B7E74] hover:text-[#3B3632] transition-colors"
+            >
+              Exit
+            </button>
+          </div>
         </div>
       </div>
     </div>
