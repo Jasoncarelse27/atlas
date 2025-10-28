@@ -3,9 +3,9 @@
  * Tests mobile feature detection, haptics, and native APIs
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('useMobileOptimization Hook', () => {
   const originalNavigator = global.navigator;
