@@ -3,12 +3,12 @@
  * Fixes corrupted ritual durations in the database
  */
 
-import React, { useState } from 'react';
-import { Wrench } from 'lucide-react';
-import { toast } from 'sonner';
 import { useTierQuery } from '@/hooks/useTierQuery';
-import { fixCorruptedRitualDurations } from '../utils/ritualDataMigration';
+import { Wrench } from 'lucide-react';
+import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { useRitualStore } from '../hooks/useRitualStore';
+import { fixCorruptedRitualDurations } from '../utils/ritualDataMigration';
 
 export const DataMigrationButton: React.FC = () => {
   const { userId } = useTierQuery();

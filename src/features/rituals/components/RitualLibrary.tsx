@@ -7,17 +7,19 @@ import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useTierQuery } from '@/hooks/useTierQuery';
 import { MessageCircle, Plus, Sparkles, TrendingUp } from 'lucide-react';
 import React, { useEffect } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '@/lib/logger';
 import { useRitualStore } from '../hooks/useRitualStore';
 import type { Ritual } from '../types/rituals';
-import { RitualStepCard } from './RitualStepCard';
 import { DataMigrationButton } from './DataMigrationButton';
+import { RitualStepCard } from './RitualStepCard';
 
 export const RitualLibrary: React.FC = () => {
   const navigate = useNavigate();
   const { tier, userId } = useTierQuery();
   const { showGenericUpgrade } = useUpgradeModals();
-  const { presets, userRituals, loading, loadPresets, loadUserRituals } = useRitualStore();
+  const { presets, userRituals, loading, loadPresets, loadUserRituals, deleteRitual } = useRitualStore();
 
   useEffect(() => {
     loadPresets();
@@ -33,6 +35,9 @@ export const RitualLibrary: React.FC = () => {
       return ritual.tierRequired === 'free' || ritual.tierRequired === 'core';
     return true; // Studio sees all
   });
+
+  // User's custom rituals (renamed from userRituals to avoid conflict)
+  const customRituals = userRituals;
 
   const handleStartRitual = (ritual: Ritual) => {
     navigate(`/rituals/run/${ritual.id}`);
@@ -55,6 +60,20 @@ export const RitualLibrary: React.FC = () => {
   const handleEditRitual = (ritual: Ritual) => {
     // Navigate to builder with ritual data for editing
     navigate('/rituals/builder', { state: { editRitual: ritual } });
+  };
+
+  const handleDeleteRitual = async (ritual: Ritual) => {
+    // Confirm deletion
+    const confirmed = window.confirm(`Delete "${ritual.title}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      await deleteRitual(ritual.id);
+      toast.success('Ritual deleted successfully');
+    } catch (error) {
+      logger.error('[RitualLibrary] Failed to delete ritual:', error);
+      toast.error('Failed to delete ritual. Please try again.');
+    }
   };
 
   if (loading && presets.length === 0) {
@@ -131,6 +150,7 @@ export const RitualLibrary: React.FC = () => {
                   userTier={tier}
                   onStart={handleStartRitual}
                   onEdit={handleEditRitual}
+                  onDelete={handleDeleteRitual}
                   isCustom={true}
                 />
               ))}

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Lock, Sparkles, Heart, Target, Zap, Edit2 } from 'lucide-react';
+import { Lock, Sparkles, Heart, Target, Zap, Edit2, Trash2 } from 'lucide-react';
 import type { Ritual } from '../types/rituals';
 import { formatDuration } from '../services/ritualTemplates';
 
@@ -13,8 +13,9 @@ interface RitualStepCardProps {
   userTier: 'free' | 'core' | 'studio';
   onStart: (ritual: Ritual) => void;
   onPreview?: (ritual: Ritual) => void;
-  onEdit?: (ritual: Ritual) => void; // New prop for editing
-  isCustom?: boolean; // Flag to show edit button
+  onEdit?: (ritual: Ritual) => void; // Edit custom ritual
+  onDelete?: (ritual: Ritual) => void; // Delete custom ritual
+  isCustom?: boolean; // Flag to show edit/delete buttons
 }
 
 const goalIcons = {
@@ -37,6 +38,7 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
   onStart,
   onPreview,
   onEdit,
+  onDelete,
   isCustom = false,
 }) => {
   const Icon = goalIcons[ritual.goal];
@@ -55,6 +57,11 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     onEdit?.(ritual);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    onDelete?.(ritual);
   };
 
   return (
@@ -79,18 +86,34 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
         </div>
       )}
 
-      {/* Edit Button for Custom Rituals */}
-      {isCustom && !isLocked && onEdit && (
-        <div className="absolute top-4 right-4">
-          <button
-            onClick={handleEdit}
-            className="p-2 rounded-lg bg-white/80 hover:bg-white border border-[#E8DCC8] 
-              transition-all hover:shadow-md active:scale-95
-              min-h-[36px] min-w-[36px]" // Touch-friendly
-            aria-label="Edit ritual"
-          >
-            <Edit2 size={16} className="text-[#8B7E74]" />
-          </button>
+      {/* Edit & Delete Buttons for Custom Rituals */}
+      {isCustom && !isLocked && (onEdit || onDelete) && (
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          {/* Edit Button */}
+          {onEdit && (
+            <button
+              onClick={handleEdit}
+              className="p-2 rounded-lg bg-white/80 hover:bg-white border border-[#E8DCC8] 
+                transition-all hover:shadow-md active:scale-95
+                min-h-[36px] min-w-[36px]" // Touch-friendly
+              aria-label="Edit ritual"
+            >
+              <Edit2 size={16} className="text-[#8B7E74]" />
+            </button>
+          )}
+
+          {/* Delete Button */}
+          {onDelete && (
+            <button
+              onClick={handleDelete}
+              className="p-2 rounded-lg bg-red-50/80 hover:bg-red-100 border border-red-200 
+                transition-all hover:shadow-md active:scale-95
+                min-h-[36px] min-w-[36px]" // Touch-friendly
+              aria-label="Delete ritual"
+            >
+              <Trash2 size={16} className="text-red-600" />
+            </button>
+          )}
         </div>
       )}
 

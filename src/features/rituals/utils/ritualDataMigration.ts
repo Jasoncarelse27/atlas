@@ -5,8 +5,8 @@
  * This utility detects and fixes corrupted data.
  */
 
-import { supabase } from '@/lib/supabaseClient';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabaseClient';
 import type { Ritual } from '../types/rituals';
 
 /**
