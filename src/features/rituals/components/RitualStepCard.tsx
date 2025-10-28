@@ -32,7 +32,7 @@ const goalColors = {
   creativity: 'text-pink-600 bg-pink-50',
 };
 
-export const RitualStepCard: React.FC<RitualStepCardProps> = ({
+export const RitualStepCard: React.FC<RitualStepCardProps> = React.memo(({
   ritual,
   userTier,
   onStart,
@@ -42,7 +42,10 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
   isCustom = false,
 }) => {
   const Icon = goalIcons[ritual.goal];
-  const totalDuration = ritual.steps.reduce((sum, step) => sum + step.duration, 0);
+  const totalDuration = React.useMemo(
+    () => ritual.steps.reduce((sum, step) => sum + step.duration, 0),
+    [ritual.steps]
+  );
   const isLocked = ritual.tierRequired !== 'free' && userTier === 'free';
 
   const handleClick = () => {
@@ -164,5 +167,13 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
       )}
     </button>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  return (
+    prevProps.ritual.id === nextProps.ritual.id &&
+    prevProps.ritual.updatedAt === nextProps.ritual.updatedAt &&
+    prevProps.userTier === nextProps.userTier &&
+    prevProps.isCustom === nextProps.isCustom
+  );
+});
 
