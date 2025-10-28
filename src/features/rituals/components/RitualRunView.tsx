@@ -16,6 +16,7 @@ import { logger } from '../../../lib/logger';
 import { useRitualRunner } from '../hooks/useRitualRunner';
 import { useRitualStore } from '../hooks/useRitualStore';
 import { MOOD_OPTIONS, type Ritual } from '../types/rituals';
+import { RitualRewardModal } from './RitualRewardModal';
 
 export const RitualRunView: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +29,16 @@ export const RitualRunView: React.FC = () => {
   const [selectedMoodAfter, setSelectedMoodAfter] = useState<string | null>(null);
   const [completionNotes, setCompletionNotes] = useState('');
   const [hasStarted, setHasStarted] = useState(false);
+  
+  // ✨ NEW: Reward modal state
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [completedRitualData, setCompletedRitualData] = useState<{
+    title: string;
+    durationMinutes: number;
+    moodBefore: string;
+    moodAfter: string;
+    reflection: string;
+  } | null>(null);
 
   // Swipe gesture support
   const touchStartX = useRef<number>(0);
@@ -135,12 +146,16 @@ export const RitualRunView: React.FC = () => {
       // 🎯 POST RITUAL COMPLETION SUMMARY TO CHAT
       await postRitualSummaryToChat(ritual!, selectedMoodBefore!, selectedMoodAfter, completionNotes, runner.totalDuration);
       
-      modernToast.success('Ritual complete! Summary posted to chat ✨');
+      // ✨ NEW: Show reward modal instead of toast + auto-navigate
+      setCompletedRitualData({
+        title: ritual!.title,
+        durationMinutes: Math.ceil(runner.totalDuration / 60),
+        moodBefore: selectedMoodBefore!,
+        moodAfter: selectedMoodAfter,
+        reflection: completionNotes,
+      });
+      setShowRewardModal(true);
       
-      // Navigate back to chat after 2 seconds
-      setTimeout(() => {
-        navigate('/chat');
-      }, 2000);
     } catch (error) {
       logger.error('[RitualRunView] Failed to complete ritual:', error);
       modernToast.error('Failed to save ritual completion');
@@ -556,6 +571,26 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           </div>
         </div>
       </div>
+
+      {/* ✨ Reward Modal */}
+      {completedRitualData && (
+        <RitualRewardModal
+          isOpen={showRewardModal}
+          onClose={() => {
+            setShowRewardModal(false);
+            navigate('/chat'); // Navigate to chat on close
+          }}
+          ritualData={completedRitualData}
+          onViewInsights={() => {
+            setShowRewardModal(false);
+            navigate('/chat'); // For now, insights are in chat - can change to /insights later
+          }}
+          onStartAnother={() => {
+            setShowRewardModal(false);
+            navigate('/rituals');
+          }}
+        />
+      )}
     </div>
   );
 };
