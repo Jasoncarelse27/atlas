@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Lock, Sparkles, Heart, Target, Zap } from 'lucide-react';
+import { Lock, Sparkles, Heart, Target, Zap, Edit2 } from 'lucide-react';
 import type { Ritual } from '../types/rituals';
 import { formatDuration } from '../services/ritualTemplates';
 
@@ -13,6 +13,8 @@ interface RitualStepCardProps {
   userTier: 'free' | 'core' | 'studio';
   onStart: (ritual: Ritual) => void;
   onPreview?: (ritual: Ritual) => void;
+  onEdit?: (ritual: Ritual) => void; // New prop for editing
+  isCustom?: boolean; // Flag to show edit button
 }
 
 const goalIcons = {
@@ -34,6 +36,8 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
   userTier,
   onStart,
   onPreview,
+  onEdit,
+  isCustom = false,
 }) => {
   const Icon = goalIcons[ritual.goal];
   const totalDuration = ritual.steps.reduce((sum, step) => sum + step.duration, 0);
@@ -46,6 +50,11 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
     } else {
       onStart(ritual);
     }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    onEdit?.(ritual);
   };
 
   return (
@@ -67,6 +76,21 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
             <Lock size={12} />
             <span>{ritual.tierRequired === 'core' ? 'Core' : 'Studio'}</span>
           </div>
+        </div>
+      )}
+
+      {/* Edit Button for Custom Rituals */}
+      {isCustom && !isLocked && onEdit && (
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={handleEdit}
+            className="p-2 rounded-lg bg-white/80 hover:bg-white border border-[#E8DCC8] 
+              transition-all hover:shadow-md active:scale-95
+              min-h-[36px] min-w-[36px]" // Touch-friendly
+            aria-label="Edit ritual"
+          >
+            <Edit2 size={16} className="text-[#8B7E74]" />
+          </button>
         </div>
       )}
 

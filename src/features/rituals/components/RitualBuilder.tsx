@@ -13,10 +13,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useRitualStore } from '../hooks/useRitualStore';
-import type { RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
+import type { Ritual, RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
 import { StepConfigPanel } from './StepConfigPanel';
 import { STEP_TYPE_DEFINITIONS, StepLibrary } from './StepLibrary';
 
@@ -86,13 +86,28 @@ const SortableStepCard: React.FC<SortableStepCardProps> = ({ step, index, onEdit
 
 export const RitualBuilder: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { tier, userId } = useTierQuery();
   const { showGenericUpgrade } = useUpgradeModals();
   const { createRitual } = useRitualStore();
 
-  const [title, setTitle] = useState('');
-  const [goal, setGoal] = useState<RitualGoal>('focus');
-  const [steps, setSteps] = useState<RitualStep[]>([]);
+  // Check if we're editing an existing ritual
+  const editRitual = location.state?.editRitual as Ritual | undefined;
+  const isEditing = !!editRitual;
+
+  // Initialize state from editRitual if editing
+  const [title, setTitle] = useState(editRitual?.title || '');
+  const [goal, setGoal] = useState<RitualGoal>(editRitual?.goal || 'focus');
+  const [steps, setSteps] = useState<RitualStep[]>(() => {
+    if (editRitual?.steps) {
+      // Convert seconds back to minutes for editing
+      return editRitual.steps.map(step => ({
+        ...step,
+        duration: step.duration / 60, // Convert seconds to minutes
+      }));
+    }
+    return [];
+  });
   const [selectedStep, setSelectedStep] = useState<RitualStep | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -233,8 +248,12 @@ export const RitualBuilder: React.FC = () => {
               <ArrowLeft size={24} className="text-[#3B3632]" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-[#3B3632]">Create Custom Ritual</h1>
-              <p className="text-gray-600">Design your personalized micro-moment</p>
+              <h1 className="text-3xl font-bold text-[#3B3632]">
+                {isEditing ? 'Edit Ritual' : 'Create Custom Ritual'}
+              </h1>
+              <p className="text-gray-600">
+                {isEditing ? 'Update your personalized micro-moment' : 'Design your personalized micro-moment'}
+              </p>
             </div>
           </div>
 

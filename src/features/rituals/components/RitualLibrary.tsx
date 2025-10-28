@@ -51,6 +51,11 @@ export const RitualLibrary: React.FC = () => {
     }
   };
 
+  const handleEditRitual = (ritual: Ritual) => {
+    // Navigate to builder with ritual data for editing
+    navigate('/rituals/builder', { state: { editRitual: ritual } });
+  };
+
   if (loading && presets.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F9F6F1]">
@@ -121,6 +126,8 @@ export const RitualLibrary: React.FC = () => {
                   ritual={ritual}
                   userTier={tier}
                   onStart={handleStartRitual}
+                  onEdit={handleEditRitual}
+                  isCustom={true}
                 />
               ))}
             </div>
