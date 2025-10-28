@@ -1,376 +1,383 @@
-# 🚀 DEPLOYMENT CHECKLIST - Voice Upgrade Modal (Option C)
+# 🚀 Atlas Deployment Checklist
 
-**Date:** October 21, 2025  
-**Feature:** Custom VoiceUpgradeModal for Studio Tier  
-**Status:** DEPLOYMENT IN PROGRESS
+Comprehensive pre-launch checklist for Atlas production deployment.
 
 ---
 
-## ✅ Step 1: Git Commit & Push
+## 📋 **Pre-Deployment Verification**
 
-### Commit Details
+### **1. Code Quality** ✅
+
+- [ ] **All tests passing (100%)**
+  ```bash
+  npm test -- --run
+  # Expected: 177/177 tests passing
+  ```
+
+- [ ] **No TypeScript errors**
+  ```bash
+  npm run typecheck
+  # Expected: No errors
+  ```
+
+- [ ] **No linter errors/warnings**
+  ```bash
+  npm run lint
+  # Expected: 0 warnings, 0 errors
+  ```
+
+- [ ] **Production build successful**
+  ```bash
+  npm run build
+  # Expected: dist/ folder created, no errors
+  ```
+
+- [ ] **Bundle size acceptable**
+  - Main bundle: < 700KB gzipped
+  - ChatPage: < 450KB gzipped
+  - RitualInsightsDashboard: < 110KB gzipped
+
+### **2. Environment Configuration** 🔐
+
+#### **Production Environment Variables**
+
+- [ ] **Supabase**
+  - `VITE_SUPABASE_URL` - Production Supabase URL
+  - `VITE_SUPABASE_ANON_KEY` - Production anon key
+  - `SUPABASE_SERVICE_ROLE_KEY` - Service role key (backend only)
+
+- [ ] **Backend API**
+  - `VITE_BACKEND_URL` - Production API URL (Railway)
+  - `PORT` - Set to Railway's `$PORT` variable
+  - `NODE_ENV=production`
+
+- [ ] **FastSpring**
+  - `VITE_FASTSPRING_STOREFRONT_ID` - Production storefront ID
+  - `FASTSPRING_API_KEY` - Production API key
+  - `FASTSPRING_API_SECRET` - Production API secret
+
+- [ ] **MailerLite**
+  - `MAILERLITE_API_KEY` - Production API key
+  - Email templates created and tested
+
+- [ ] **AI Models**
+  - `CLAUDE_API_KEY` - Anthropic API key
+  - `GROQ_API_KEY` - Groq API key (optional)
+  - Billing alerts configured for API providers
+
+#### **Security Variables**
+
+- [ ] **Secret Rotation**
+  - All JWT secrets rotated for production
+  - Service role key limited to backend only
+  - No secrets in client-side code
+
+- [ ] **CORS Configuration**
+  - Allowed origins limited to production domains
+  - No `localhost` or `*` wildcards in production
+
+### **3. Database Setup** 🗄️
+
+- [ ] **Supabase Production Project**
+  - Production project created
+  - Row Level Security (RLS) policies applied
+  - Database migrations applied:
+    - `20250115_atlas_v1_schema.sql`
+    - `20250916_phase5_triggers.sql`
+
+- [ ] **Database Verification**
+  ```sql
+  -- Verify tables exist
+  SELECT table_name FROM information_schema.tables 
+  WHERE table_schema = 'public';
+  
+  -- Expected tables:
+  -- messages, conversations, profiles, rituals, ritual_logs, 
+  -- ritual_steps, feature_attempts, feature_flags, 
+  -- email_failures, daily_usage, budget_tracking
+  ```
+
+- [ ] **RLS Policies Active**
+  ```sql
+  -- Check RLS is enabled
+  SELECT tablename, rowsecurity 
+  FROM pg_tables 
+  WHERE schemaname = 'public';
+  
+  -- All tables should have rowsecurity = true
+  ```
+
+- [ ] **Database Cleanup Jobs**
+  - pg_cron installed (or manual cleanup scheduled)
+  - Daily cleanup job scheduled (00:10 UTC)
+  - Test cleanup functions work:
+    ```sql
+    SELECT rotate_daily_usage();
+    SELECT compact_budget_tracking();
+    SELECT cleanup_old_cache_entries();
+    ```
+
+### **4. Feature Verification** 🎯
+
+#### **Core Features**
+
+- [ ] **Authentication**
+  - Sign up flow works
+  - Login flow works
+  - Password reset works
+  - Session persistence works
+  - Logout works
+
+- [ ] **Chat Interface**
+  - Message sending works
+  - Claude API integration works
+  - Message history loads correctly
+  - Real-time updates work
+
+- [ ] **Tier System**
+  - Free tier limits enforced (15 messages/month)
+  - Upgrade prompts appear correctly
+  - Tier-gated features work:
+    - Audio (Core+)
+    - Image analysis (Core+)
+    - Advanced models (Studio)
+
+- [ ] **Rituals**
+  - Ritual library loads
+  - Start ritual flow works
+  - Complete ritual flow works
+  - Custom ritual creation works
+  - Ritual analytics display correctly
+
+#### **Mobile Optimization**
+
+- [ ] **Responsive Design**
+  - Test on mobile viewport (375x667)
+  - Test on tablet viewport (768x1024)
+  - Test on desktop (1920x1080)
+
+- [ ] **Mobile Gestures**
+  - Swipe gestures work
+  - Pull-to-refresh works
+  - Haptic feedback works (if supported)
+  - Touch targets ≥ 48px (iOS) / 120px (optimal)
+
+- [ ] **PWA Features**
+  - Service worker registered
+  - Offline mode works
+  - Install prompt appears
+  - App manifest valid
+
+#### **Subscription Flow**
+
+- [ ] **FastSpring Integration**
+  - Checkout URL generation works
+  - Redirect to FastSpring works
+  - Webhook handler works
+  - Subscription status updates correctly
+  - Cancel/reactivate flows work
+
+- [ ] **Tier Upgrades**
+  - Free → Core upgrade works
+  - Core → Studio upgrade works
+  - Downgrade flow works
+  - Trial period handled correctly
+
+### **5. Performance** ⚡
+
+- [ ] **Load Times**
+  - First Contentful Paint (FCP) < 1.5s
+  - Time to Interactive (TTI) < 3.5s
+  - Largest Contentful Paint (LCP) < 2.5s
+
+- [ ] **Optimization Checks**
+  - Lazy loading implemented for heavy components
+  - Images optimized (WebP format)
+  - Code splitting applied
+  - React.memo used for expensive components
+
+- [ ] **Caching Strategy**
+  - Static assets cached (1 year)
+  - API responses cached appropriately
+  - Service worker caching configured
+
+### **6. Security** 🔒
+
+- [ ] **Secret Scanning**
+  - No hardcoded secrets in code
+  - Pre-commit hooks active
+  - Secret scan CI/CD workflow passing
+
+- [ ] **API Security**
+  - Rate limiting enabled (100 req/15min global)
+  - Message endpoint rate limited (20 req/min)
+  - JWT validation on all protected endpoints
+  - CORS properly configured
+
+- [ ] **Frontend Security**
+  - No localStorage used for sensitive data
+  - XSS protection enabled (Helmet)
+  - CSP headers configured
+  - HTTPS enforced
+
+- [ ] **Database Security**
+  - RLS policies tested
+  - Service role key secured (backend only)
+  - User data isolation verified
+
+### **7. Monitoring & Logging** 📊
+
+- [ ] **Error Tracking**
+  - Sentry configured (or equivalent)
+  - Error boundaries in place
+  - Unhandled errors logged
+
+- [ ] **Health Checks**
+  - `/healthz` endpoint works
+  - Railway health checks configured
+  - Database connectivity monitored
+
+- [ ] **Usage Analytics**
+  - Feature usage tracked
+  - Tier enforcement logged
+  - API costs monitored
+
+- [ ] **Email Monitoring**
+  - Email failures logged to `email_failures` table
+  - `npm run check:failures` command works
+  - MailerLite delivery rates monitored
+
+### **8. Deployment Platform** 🚂
+
+#### **Railway Configuration**
+
+- [ ] **Backend Deployment**
+  - Service connected to GitHub
+  - Environment variables set
+  - Health checks configured
+  - Auto-deploy enabled on main branch
+  - Resource limits appropriate:
+    - Memory: 512MB minimum
+    - CPU: 1 vCPU minimum
+
+- [ ] **Post-Deploy Hooks**
+  - Test user creation script runs
+  - Database migrations applied
+
+#### **Vercel Configuration (Frontend)**
+
+- [ ] **Frontend Deployment**
+  - Project connected to GitHub
+  - Environment variables set
+  - Auto-deploy enabled on main branch
+  - Build command: `npm run build`
+  - Output directory: `dist`
+
+- [ ] **Domain Configuration**
+  - Production domain configured
+  - SSL certificate active
+  - DNS records correct
+
+### **9. Backup & Rollback** 💾
+
+- [ ] **Backup Strategy**
+  - Supabase daily backups enabled
+  - Point-in-time recovery configured
+  - Database export tested
+
+- [ ] **Rollback Plan**
+  - Previous deployment tagged in git
+  - Rollback procedure documented
+  - Database migration rollback scripts ready
+
+### **10. Testing in Production** 🧪
+
+#### **Smoke Tests**
+
+- [ ] **Homepage loads**
+- [ ] **Login works**
+- [ ] **Send message works**
+- [ ] **Ritual flow works**
+- [ ] **Upgrade prompt works**
+
+#### **Cross-Browser Testing**
+
+- [ ] **Chrome** (latest)
+- [ ] **Firefox** (latest)
+- [ ] **Safari** (latest)
+- [ ] **Mobile Safari** (iOS 15+)
+- [ ] **Mobile Chrome** (Android 10+)
+
+#### **User Acceptance Testing**
+
+- [ ] **Free tier user journey**
+  - Sign up → onboard → send messages → hit limit → upgrade prompt
+- [ ] **Core tier user journey**
+  - Upgrade → unlimited messages → voice/image features → rituals
+- [ ] **Studio tier user journey**
+  - Upgrade → advanced models → full feature access
+
+---
+
+## 🚨 **Launch Day Checklist**
+
+### **Pre-Launch (T-24 hours)**
+
+- [ ] Final production build deployed
+- [ ] All smoke tests passing
+- [ ] Error tracking active
+- [ ] Health checks green
+- [ ] Team notified of launch
+
+### **Launch (T-0)**
+
+- [ ] Switch DNS to production (if needed)
+- [ ] Verify site loads at production URL
+- [ ] Monitor error rates in Sentry
+- [ ] Monitor API response times
+- [ ] Monitor database performance
+
+### **Post-Launch (T+1 hour)**
+
+- [ ] Check user registrations working
+- [ ] Check first messages sent successfully
+- [ ] Check upgrade flow working
+- [ ] Check FastSpring webhooks firing
+- [ ] Check email delivery working
+
+### **Post-Launch (T+24 hours)**
+
+- [ ] Review error logs
+- [ ] Review performance metrics
+- [ ] Review user feedback
+- [ ] Check API costs vs. projections
+- [ ] Check database size vs. projections
+
+---
+
+## 📞 **Support Contacts**
+
+- **Supabase**: support@supabase.io
+- **Railway**: support@railway.app
+- **FastSpring**: support@fastspring.com
+- **Anthropic (Claude)**: support@anthropic.com
+- **MailerLite**: support@mailerlite.com
+
+---
+
+## 🎉 **Ready to Launch?**
+
+If all checkboxes are ✅, you're ready to deploy Atlas to production!
+
+**Final Command:**
 ```bash
-✅ Files committed: 10
-   - New: 5 files (2 code, 3 docs)
-   - Modified: 5 files
-   
-✅ Commit message: Comprehensive, follows conventional commits
-✅ Push to origin/main: SUCCESS
+# Run full pre-deploy check
+npm run lint && npm run typecheck && npm test -- --run && npm run build
+
+# If all pass:
+git tag -a v1.0.0 -m "Atlas V1 Production Release"
+git push origin v1.0.0
+git push origin main
 ```
 
-### Git Log
-```
-feat: Add custom VoiceUpgradeModal for Studio tier conversions
-
-Implementation:
-- UpgradeModalContext.tsx (71 lines)
-- VoiceUpgradeModal.tsx (262 lines)
-- 5 files modified (App, ChatPage, Toolbar, Modal, Hook)
-
-Testing: All checks passed (TypeScript, Linter, Build)
-```
-
----
-
-## ✅ Step 2: Start Dev Server & Test
-
-### Dev Server Status
-```bash
-✅ Command: npm run dev (background)
-✅ Port: 5173
-✅ Status: Starting...
-```
-
-### Testing Instructions
-
-#### Test 1: Free Tier User
-**Goal:** Verify VoiceUpgradeModal appears for voice calls
-
-**Steps:**
-1. Open http://localhost:5173 in browser
-2. Login as Free tier user
-3. Click voice call button (phone icon)
-4. **Expected:** VoiceUpgradeModal opens
-5. **Verify:**
-   - [ ] "Currently on: Atlas Free" badge visible
-   - [ ] Animated microphone icon (pulse + rotate)
-   - [ ] 4 benefits cards display
-   - [ ] Comparison table shows (Studio column highlighted)
-   - [ ] $189.99 pricing prominent
-   - [ ] "Upgrade to Studio" button works
-   - [ ] Close button (X) works
-   - [ ] Backdrop click closes modal
-
-#### Test 2: Core Tier User
-**Goal:** Verify VoiceUpgradeModal appears for Core users
-
-**Steps:**
-1. Switch to Core tier user account
-2. Click voice call button
-3. **Expected:** VoiceUpgradeModal opens
-4. **Verify:**
-   - [ ] "Currently on: Atlas Core" badge visible
-   - [ ] All modal features work same as Free
-   - [ ] Generic modal still works for other features
-
-#### Test 3: Studio Tier User
-**Goal:** Verify voice calls work directly (no upgrade prompt)
-
-**Steps:**
-1. Switch to Studio tier user account
-2. Click voice call button
-3. **Expected:** VoiceCallModal opens (NOT upgrade modal)
-4. **Verify:**
-   - [ ] Voice call starts successfully
-   - [ ] "Unlimited" label shows below duration
-   - [ ] No upgrade prompts appear
-   - [ ] Call can run indefinitely
-
-#### Test 4: Mobile Responsive
-**Goal:** Verify modal works on mobile devices
-
-**Steps:**
-1. Open browser dev tools (F12)
-2. Toggle device toolbar (iPhone/Android view)
-3. Click voice button
-4. **Verify:**
-   - [ ] Modal fits screen (max-h-90vh)
-   - [ ] Benefits grid stacks vertically
-   - [ ] Comparison table scrolls horizontally
-   - [ ] Buttons are tap-friendly (44x44px min)
-   - [ ] Animations smooth on mobile
-
-#### Test 5: Integration
-**Goal:** Verify no conflicts with existing features
-
-**Steps:**
-1. Test image upload (should use generic modal if needed)
-2. Test audio recording (should use generic modal if needed)
-3. Open voice modal, then try opening another feature
-4. **Verify:**
-   - [ ] Only one modal open at a time
-   - [ ] No modal state conflicts
-   - [ ] Body scroll locks correctly
-   - [ ] All close methods work (X, backdrop, ESC)
-
----
-
-## 🔄 Step 3: Deploy to Staging
-
-### Staging Deployment Commands
-```bash
-# Option A: Manual Staging Deploy
-git push origin main:staging
-
-# Option B: Automated CI/CD (if configured)
-# Triggers automatically after push to main
-
-# Option C: Platform-specific (Vercel/Netlify/Railway)
-# Deploys automatically from main branch
-```
-
-### Staging Verification
-Once deployed to staging:
-
-1. **URL Check:**
-   ```
-   https://staging.atlas.app (or your staging URL)
-   ```
-
-2. **Smoke Tests:**
-   - [ ] App loads successfully
-   - [ ] Login works
-   - [ ] Voice button visible
-   - [ ] VoiceUpgradeModal opens (Free/Core)
-   - [ ] Voice calls work (Studio)
-
-3. **Cross-Browser Testing:**
-   - [ ] Chrome/Edge (Chromium)
-   - [ ] Firefox
-   - [ ] Safari (macOS/iOS)
-   - [ ] Mobile browsers (iOS Safari, Chrome Mobile)
-
-4. **Performance Check:**
-   - [ ] Page load time < 3s
-   - [ ] Modal open time < 100ms
-   - [ ] Animations smooth (60fps)
-   - [ ] No console errors
-
----
-
-## 🚀 Step 4: Launch to Production
-
-### Pre-Production Checklist
-Before deploying to production, verify:
-
-- [ ] All staging tests passed
-- [ ] No critical bugs found
-- [ ] FastSpring checkout works in test mode
-- [ ] Analytics tracking configured
-- [ ] Error monitoring active (Sentry)
-- [ ] Database migrations applied (if any)
-- [ ] Environment variables set correctly
-
-### Production Deployment
-
-#### Option 1: Manual Deployment
-```bash
-# If using manual process
-git checkout production
-git merge main
-git push origin production
-```
-
-#### Option 2: Automated CI/CD
-```bash
-# Already deployed via CI/CD pipeline after staging
-# Usually triggers automatically or via approval gate
-```
-
-#### Option 3: Platform Deploy
-```bash
-# Vercel/Netlify/Railway
-# Promote staging to production via dashboard
-# or merge to production branch
-```
-
-### Post-Deployment Verification
-
-1. **Production URL:**
-   ```
-   https://atlas.app (or your production URL)
-   ```
-
-2. **Critical Path Test:**
-   - [ ] App loads
-   - [ ] Login works
-   - [ ] Voice button works
-   - [ ] VoiceUpgradeModal opens (Free/Core)
-   - [ ] Voice calls work (Studio)
-   - [ ] FastSpring checkout redirects correctly
-
-3. **Monitoring Setup:**
-   - [ ] Error tracking active (check Sentry dashboard)
-   - [ ] Analytics tracking modal opens
-   - [ ] Conversion funnel configured
-   - [ ] Alert rules configured (error rate, performance)
-
-4. **Rollback Plan Ready:**
-   ```bash
-   # If critical issues found
-   git revert HEAD
-   git push origin main
-   # Or revert via platform dashboard
-   ```
-
----
-
-## 📊 Post-Launch Monitoring
-
-### Week 1 Metrics to Watch
-
-**Conversion Funnel:**
-```
-Voice Button Clicks
-  ↓
-Modal Opens (Free/Core users)
-  ↓
-"Upgrade to Studio" Clicks
-  ↓
-FastSpring Checkout Starts
-  ↓
-Successful Subscriptions
-```
-
-**Key Metrics:**
-- Modal open rate (% of voice button clicks)
-- CTA click rate (% of modal opens)
-- Conversion rate (% of CTA clicks → subscriptions)
-- Average time on modal
-- Bounce rate (close without action)
-- Error rate (if any issues)
-
-**Comparison Baseline:**
-- Compare VoiceUpgradeModal vs EnhancedUpgradeModal
-- Expected improvement: +30-50% conversion rate
-- A/B test duration: 2 weeks minimum
-
-### Analytics Events to Track
-
-```javascript
-// Track modal opens
-analytics.track('voice_upgrade_modal_opened', {
-  tier: 'free' | 'core',
-  source: 'voice_button' | 'voice_call_modal'
-});
-
-// Track CTA clicks
-analytics.track('voice_upgrade_cta_clicked', {
-  tier: 'free' | 'core',
-  time_on_modal: seconds
-});
-
-// Track conversions
-analytics.track('studio_subscription_completed', {
-  source: 'voice_upgrade_modal',
-  tier_before: 'free' | 'core'
-});
-```
-
----
-
-## 🎯 Success Criteria
-
-### Must Have (Critical)
-- ✅ TypeScript compilation: 0 errors
-- ✅ Linter checks: 0 errors
-- ✅ Build successful
-- ✅ All tier checks work correctly
-- ✅ FastSpring checkout works
-- ✅ No breaking changes to existing features
-
-### Should Have (Important)
-- [ ] Modal animations smooth (60fps)
-- [ ] Mobile responsive (all screen sizes)
-- [ ] Cross-browser compatible
-- [ ] Accessibility compliant (WCAG 2.1)
-- [ ] Analytics tracking working
-- [ ] Error monitoring active
-
-### Nice to Have (Enhancement)
-- [ ] A/B test setup complete
-- [ ] Conversion rate improved vs baseline
-- [ ] Loading time optimized
-- [ ] SEO meta tags (if applicable)
-
----
-
-## 🔥 Current Status Summary
-
-### ✅ Completed
-1. **Git Commit & Push:** SUCCESS
-   - All files committed and pushed to origin/main
-   - Comprehensive commit message
-   - Clean git history
-
-2. **Dev Server:** STARTING
-   - Running on http://localhost:5173
-   - Background process active
-   - Ready for local testing
-
-### 🔄 In Progress
-3. **Testing:** READY TO START
-   - Dev server available
-   - All test cases documented
-   - Manual testing required
-
-4. **Staging Deployment:** PENDING
-   - Waiting for local test results
-   - CI/CD may auto-deploy
-
-5. **Production Deployment:** PENDING
-   - Waiting for staging verification
-   - Rollback plan ready
-
----
-
-## 📝 Next Actions
-
-### Immediate (Next 15 minutes)
-1. ✅ Open http://localhost:5173 in browser
-2. ✅ Run Free tier test (Test 1)
-3. ✅ Run Core tier test (Test 2)
-4. ✅ Run Studio tier test (Test 3)
-5. ✅ Run mobile responsive test (Test 4)
-
-### Short-term (Next 1 hour)
-1. Fix any bugs found in testing
-2. Commit fixes if needed
-3. Deploy to staging
-4. Run staging smoke tests
-
-### Medium-term (Next 4 hours)
-1. Complete staging verification
-2. Deploy to production
-3. Monitor for first hour
-4. Verify analytics tracking
-
----
-
-## 🎉 DEPLOYMENT PIPELINE STATUS
-
-```
-[✅] 1. Git Commit     ━━━━━━━━━━ 100% COMPLETE
-[✅] 2. Git Push       ━━━━━━━━━━ 100% COMPLETE  
-[🔄] 3. Dev Server    ━━━━━━━━━━  95% STARTING
-[⏳] 4. Local Testing ━━━━━━━━━━   0% PENDING
-[⏳] 5. Staging       ━━━━━━━━━━   0% PENDING
-[⏳] 6. Production    ━━━━━━━━━━   0% PENDING
-```
-
-**Ready for manual testing!** 🚀
-
-Open http://localhost:5173 in your browser to start testing.
-
-
-
+🚀 **Happy Launching!**
