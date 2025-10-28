@@ -1,16 +1,23 @@
 /**
  * Ritual Builder - Custom Ritual Creation
  * Drag-and-drop interface for Core/Studio users
+ * 
+ * Mobile Features:
+ * - 48px drag handles with touch sensors
+ * - Haptic feedback on drag/delete
+ * - Bottom sheet for step config
+ * - Responsive layout with mobile-first design
  */
 
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { logger } from '@/lib/logger';
-import type { DragEndEvent } from '@dnd-kit/core';
-import { DndContext, closestCenter } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, TouchSensor, MouseSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -25,9 +32,18 @@ interface SortableStepCardProps {
   index: number;
   onEdit: (step: RitualStep) => void;
   onDelete: (stepId: string) => void;
+  triggerHaptic: (duration: number) => void;
+  isMobile: boolean;
 }
 
-const SortableStepCard: React.FC<SortableStepCardProps> = ({ step, index, onEdit, onDelete }) => {
+const SortableStepCard: React.FC<SortableStepCardProps> = ({ 
+  step, 
+  index, 
+  onEdit, 
+  onDelete,
+  triggerHaptic,
+  isMobile 
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: step.id,
   });
@@ -41,43 +57,68 @@ const SortableStepCard: React.FC<SortableStepCardProps> = ({ step, index, onEdit
   const stepDef = STEP_TYPE_DEFINITIONS[step.type];
   const Icon = stepDef.icon;
 
+  const handleDelete = () => {
+    triggerHaptic(100); // Strong haptic for delete
+    onDelete(step.id);
+  };
+
+  const handleEdit = () => {
+    triggerHaptic(10); // Light haptic for edit
+    onEdit(step);
+  };
+
   return (
     <div ref={setNodeRef} style={style} className="group">
       <div
-        className={`flex items-center gap-3 p-4 bg-white rounded-lg border-2 ${stepDef.color} transition-all hover:shadow-md`}
+        className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-lg border-2 ${stepDef.color} 
+          transition-all hover:shadow-md
+          ${isMobile ? 'min-h-[60px]' : ''}`}
       >
-        {/* Drag Handle */}
+        {/* Drag Handle - 48px minimum touch target on mobile */}
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 
+            flex-shrink-0 p-2 sm:p-1
+            min-h-[48px] min-w-[48px] sm:min-h-0 sm:min-w-0
+            flex items-center justify-center
+            active:scale-110 transition-transform"
+          aria-label="Drag to reorder"
         >
-          <GripVertical size={20} />
+          <GripVertical size={isMobile ? 24 : 20} />
         </button>
 
         {/* Step Number */}
-        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600">
+        <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-200 
+          flex items-center justify-center text-xs font-semibold text-gray-600">
           {index + 1}
         </div>
 
         {/* Icon */}
-        <div className={`p-2 rounded-lg ${stepDef.color}`}>
-          <Icon size={18} />
+        <div className={`p-2 rounded-lg ${stepDef.color} flex-shrink-0`}>
+          <Icon size={isMobile ? 20 : 18} />
         </div>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0" onClick={() => onEdit(step)}>
-          <div className="font-medium text-sm text-[#3B3632] truncate">{step.config.title}</div>
+        {/* Info - Tappable to edit */}
+        <div 
+          className="flex-1 min-w-0 cursor-pointer" 
+          onClick={handleEdit}
+        >
+          <div className="font-medium text-sm sm:text-base text-[#3B3632] truncate">
+            {step.config.title}
+          </div>
           <div className="text-xs text-gray-600">{step.duration} min</div>
         </div>
 
-        {/* Delete Button */}
+        {/* Delete Button - Always visible on mobile, hover on desktop */}
         <button
-          onClick={() => onDelete(step.id)}
-          className="flex-shrink-0 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+          onClick={handleDelete}
+          className={`flex-shrink-0 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors
+            min-h-[44px] min-w-[44px]
+            ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           aria-label="Delete step"
         >
-          <Trash2 size={18} />
+          <Trash2 size={isMobile ? 20 : 18} />
         </button>
       </div>
     </div>
@@ -90,6 +131,17 @@ export const RitualBuilder: React.FC = () => {
   const { tier, userId } = useTierQuery();
   const { showGenericUpgrade } = useUpgradeModals();
   const { createRitual } = useRitualStore();
+  const { isMobile, triggerHaptic } = useMobileOptimization();
+
+  // Touch sensors for mobile drag-and-drop
+  const mouseSensor = useSensor(MouseSensor);
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 250, // 250ms delay for scrolling
+      tolerance: 5, // 5px movement tolerance
+    },
+  });
+  const sensors = useSensors(mouseSensor, touchSensor);
 
   // Check if we're editing an existing ritual
   const editRitual = location.state?.editRitual as Ritual | undefined;
@@ -113,6 +165,9 @@ export const RitualBuilder: React.FC = () => {
   });
   const [selectedStep, setSelectedStep] = useState<RitualStep | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Mobile: Show config as bottom sheet
+  const [showMobileConfig, setShowMobileConfig] = useState(false);
 
   // Tier gate
   if (tier === 'free') {
@@ -159,6 +214,7 @@ export const RitualBuilder: React.FC = () => {
     };
 
     setSteps([...steps, newStep]);
+    triggerHaptic(50); // Medium haptic for add
     toast.success(`Added ${stepDef.label}`);
   };
 
@@ -166,12 +222,24 @@ export const RitualBuilder: React.FC = () => {
     setSteps(steps.filter((s) => s.id !== stepId));
     if (selectedStep?.id === stepId) {
       setSelectedStep(null);
+      if (isMobile) setShowMobileConfig(false);
     }
     toast.success('Step removed');
   };
 
   const handleUpdateStep = (updatedStep: RitualStep) => {
     setSteps(steps.map((s) => (s.id === updatedStep.id ? updatedStep : s)));
+  };
+
+  const handleEditStep = (step: RitualStep) => {
+    setSelectedStep(step);
+    if (isMobile) {
+      setShowMobileConfig(true);
+    }
+  };
+
+  const handleDragStart = (_event: DragStartEvent) => {
+    triggerHaptic(10); // Light haptic on drag start
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -187,6 +255,9 @@ export const RitualBuilder: React.FC = () => {
       }));
 
       setSteps(reordered);
+      triggerHaptic(50); // Medium haptic on reorder
+    } else {
+      triggerHaptic(10); // Light haptic on cancel
     }
   };
 
@@ -240,48 +311,60 @@ export const RitualBuilder: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F9F6F1]">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
-              onClick={() => navigate('/rituals')}
-              className="p-2 hover:bg-white rounded-lg transition-colors"
+              onClick={() => {
+                triggerHaptic(10);
+                navigate('/rituals');
+              }}
+              className="p-2 hover:bg-white rounded-lg transition-colors
+                min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Back to ritual library"
             >
-              <ArrowLeft size={24} className="text-[#3B3632]" />
+              <ArrowLeft size={isMobile ? 24 : 20} className="text-[#3B3632]" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-[#3B3632]">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#3B3632]">
                 {isEditing ? 'Edit Ritual' : 'Create Custom Ritual'}
               </h1>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600 mt-1">
                 {isEditing ? 'Update your personalized micro-moment' : 'Design your personalized micro-moment'}
               </p>
             </div>
           </div>
 
           <button
-            onClick={handleSave}
+            onClick={() => {
+              triggerHaptic(50);
+              handleSave();
+            }}
             disabled={saving || steps.length === 0 || !title.trim()}
-            className="flex items-center gap-2 px-6 py-3 bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 
+              bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] 
+              disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium
+              min-h-[48px] touch-manipulation active:scale-95"
           >
             <Save size={20} />
             <span>{saving ? 'Saving...' : 'Save Ritual'}</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Step Library */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6 sticky top-4">
+        {/* Mobile: Stack vertically, Desktop: 3-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Step Library - Hidden on mobile behind expand/collapse or in modal */}
+          <div className={`lg:col-span-1 ${isMobile ? 'order-3' : ''}`}>
+            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-4 sm:p-6 lg:sticky lg:top-4">
               <StepLibrary onStepSelect={handleAddStep} />
             </div>
           </div>
 
-          {/* Center: Ritual Canvas */}
-          <div className="lg:col-span-1 space-y-6">
+          {/* Ritual Canvas - Centered on desktop, top on mobile */}
+          <div className={`lg:col-span-1 space-y-4 sm:space-y-6 ${isMobile ? 'order-1' : ''}`}>
             {/* Ritual Info */}
-            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6">
+            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-4 sm:p-6">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-[#3B3632] mb-2">
                   Ritual Title *
@@ -291,7 +374,9 @@ export const RitualBuilder: React.FC = () => {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Morning Energy Boost"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B2BDA3] focus:border-transparent"
+                  className="w-full px-4 py-2 sm:py-3 border border-gray-300 rounded-lg 
+                    focus:outline-none focus:ring-2 focus:ring-[#B2BDA3] focus:border-transparent
+                    text-base min-h-[48px]"
                 />
               </div>
 
@@ -300,7 +385,9 @@ export const RitualBuilder: React.FC = () => {
                 <select
                   value={goal}
                   onChange={(e) => setGoal(e.target.value as RitualGoal)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#B2BDA3] focus:border-transparent"
+                  className="w-full px-4 py-2 sm:py-3 border border-gray-300 rounded-lg 
+                    focus:outline-none focus:ring-2 focus:ring-[#B2BDA3] focus:border-transparent
+                    text-base min-h-[48px]"
                 >
                   <option value="energy">Energy</option>
                   <option value="calm">Calm</option>
@@ -316,7 +403,7 @@ export const RitualBuilder: React.FC = () => {
             </div>
 
             {/* Steps */}
-            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6">
+            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-4 sm:p-6">
               <h3 className="text-sm font-semibold text-[#3B3632] uppercase tracking-wide mb-4">
                 Your Ritual ({steps.length} steps)
               </h3>
@@ -329,7 +416,12 @@ export const RitualBuilder: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <DndContext 
+                  collisionDetection={closestCenter} 
+                  onDragEnd={handleDragEnd}
+                  onDragStart={handleDragStart}
+                  sensors={sensors}
+                >
                   <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-3">
                       {steps.map((step, index) => (
@@ -337,8 +429,10 @@ export const RitualBuilder: React.FC = () => {
                           key={step.id}
                           step={step}
                           index={index}
-                          onEdit={setSelectedStep}
+                          onEdit={handleEditStep}
                           onDelete={handleDeleteStep}
+                          triggerHaptic={triggerHaptic}
+                          isMobile={isMobile}
                         />
                       ))}
                     </div>
@@ -348,26 +442,79 @@ export const RitualBuilder: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Config Panel */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-4">
-              {selectedStep ? (
-                <StepConfigPanel
-                  step={selectedStep}
-                  onUpdate={handleUpdateStep}
-                  onClose={() => setSelectedStep(null)}
-                />
-              ) : (
-                <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6 text-center">
-                  <p className="text-gray-500 text-sm">
-                    Click on a step to edit its duration and instructions
-                  </p>
-                </div>
-              )}
+          {/* Config Panel - Desktop only, mobile uses bottom sheet */}
+          {!isMobile && (
+            <div className="lg:col-span-1">
+              <div className="sticky top-4">
+                {selectedStep ? (
+                  <StepConfigPanel
+                    step={selectedStep}
+                    onUpdate={handleUpdateStep}
+                    onClose={() => setSelectedStep(null)}
+                  />
+                ) : (
+                  <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6 text-center">
+                    <p className="text-gray-500 text-sm">
+                      Click on a step to edit its duration and instructions
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
+
+      {/* Mobile Bottom Sheet for Step Config */}
+      {isMobile && showMobileConfig && selectedStep && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/40 z-50 animate-in fade-in duration-200"
+            onClick={() => {
+              triggerHaptic(10);
+              setShowMobileConfig(false);
+            }}
+          />
+          
+          {/* Bottom Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl 
+            animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto">
+            {/* Handle Bar */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                triggerHaptic(10);
+                setShowMobileConfig(false);
+              }}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 active:scale-95 
+                min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close"
+            >
+              <X size={24} className="text-gray-600" />
+            </button>
+
+            {/* Config Panel Content */}
+            <div className="px-4 pb-8 pt-4">
+              <StepConfigPanel
+                step={selectedStep}
+                onUpdate={(updated) => {
+                  handleUpdateStep(updated);
+                  triggerHaptic(50);
+                }}
+                onClose={() => {
+                  triggerHaptic(10);
+                  setShowMobileConfig(false);
+                }}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
