@@ -9,7 +9,7 @@ import type { Ritual, RitualStep } from '../types/rituals';
 import { useRitualStore } from './useRitualStore';
 
 interface UseRitualRunnerProps {
-  ritual: Ritual;
+  ritual: Ritual | undefined;
   userId: string;
 }
 
@@ -52,6 +52,30 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
   const [startTime, setStartTime] = useState<Date | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Early return with safe defaults if ritual is undefined
+  if (!ritual || !ritual.steps) {
+    return {
+      currentStepIndex: 0,
+      timeRemaining: 0,
+      isPaused: true,
+      isComplete: false,
+      moodBefore: null,
+      moodAfter: null,
+      notes: '',
+      startTime: null,
+      start: () => {},
+      pause: () => {},
+      resume: () => {},
+      nextStep: () => {},
+      previousStep: () => {},
+      complete: async () => {},
+      reset: () => {},
+      currentStep: null,
+      progress: 0,
+      totalDuration: 0,
+    };
+  }
 
   // Calculate total duration in seconds
   const totalDuration = ritual.steps.reduce((sum, step) => sum + (step.duration * 60), 0);

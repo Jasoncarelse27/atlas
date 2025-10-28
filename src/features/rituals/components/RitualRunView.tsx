@@ -11,6 +11,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, X } from 'lucide-rea
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { modernToast } from '../../../config/toastConfig';
+import { logger } from '../../../lib/logger';
 import { useRitualRunner } from '../hooks/useRitualRunner';
 import { useRitualStore } from '../hooks/useRitualStore';
 import { MOOD_OPTIONS, type Ritual } from '../types/rituals';
@@ -30,7 +31,7 @@ export const RitualRunView: React.FC = () => {
   const ritual = [...presets, ...userRituals].find((r) => r.id === ritualId);
 
   const runner = useRitualRunner({
-    ritual: ritual as Ritual,
+    ritual: ritual,
     userId: user?.id || '',
   });
 
@@ -90,7 +91,7 @@ export const RitualRunView: React.FC = () => {
         navigate('/chat');
       }, 2000);
     } catch (error) {
-      console.error('Failed to complete ritual:', error);
+      logger.error('[RitualRunView] Failed to complete ritual:', error);
       modernToast.error('Failed to save ritual completion');
     }
   };
@@ -170,7 +171,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
       } as any); // Type assertion to bypass Supabase type issues
       
       if (error) {
-        console.error('Supabase insert error:', error);
+        logger.error('[RitualRunView] Supabase insert error:', error);
       }
       
       // Update conversation updatedAt
@@ -179,7 +180,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
       });
       
     } catch (error) {
-      console.error('Failed to post ritual summary to chat:', error);
+      logger.error('[RitualRunView] Failed to post ritual summary to chat:', error);
       // Don't throw - completion should still work even if chat post fails
     }
   };
