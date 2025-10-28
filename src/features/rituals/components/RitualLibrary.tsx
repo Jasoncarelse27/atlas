@@ -5,7 +5,7 @@
 
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useTierQuery } from '@/hooks/useTierQuery';
-import { Plus, Sparkles, TrendingUp } from 'lucide-react';
+import { MessageCircle, Plus, Sparkles, TrendingUp } from 'lucide-react';
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRitualStore } from '../hooks/useRitualStore';
@@ -76,6 +76,18 @@ export const RitualLibrary: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
+            {/* Back to Chat Button - Mobile Optimized */}
+            <button
+              onClick={() => navigate('/chat')}
+              className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-[#E8DCC8] text-[#3B3632] 
+                rounded-xl hover:bg-[#F9F6F1] transition-all hover:shadow-md active:scale-95
+                min-h-[44px] touch-manipulation"
+              aria-label="Back to chat"
+            >
+              <MessageCircle className="w-5 h-5 text-[#8B7E74]" />
+              <span className="hidden sm:inline font-medium">Chat</span>
+            </button>
+
             {/* Insights Button (Core/Studio only) */}
             {tier !== 'free' && (
               <button

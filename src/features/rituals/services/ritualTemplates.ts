@@ -391,7 +391,15 @@ export const getRitualsByTier = (tier: 'free' | 'core' | 'studio'): RitualTempla
 export const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  if (secs === 0) return `${mins} min`;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+  
+  // Always show minutes for clarity (e.g., "5 min" not "0:05")
+  if (mins === 0 && secs > 0) {
+    return `${secs}s`; // Less than 1 minute
+  }
+  if (secs === 0) {
+    return `${mins} min`;
+  }
+  // Only show mm:ss format for in-progress timers, not for duration display
+  return `${mins} min`;
 };
 

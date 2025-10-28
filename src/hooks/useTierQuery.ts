@@ -5,7 +5,7 @@
 // ✅ Zero manual refreshes needed
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 
