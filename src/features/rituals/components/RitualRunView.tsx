@@ -212,7 +212,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <div>
               <h1 className="text-2xl font-bold text-[#3B3632]">{ritual.title}</h1>
               <p className="text-[#8B7E74]">
-                {ritual.steps.length} steps • {Math.ceil(runner.totalDuration / 60)} min
+                {ritual.steps.length} steps • {Math.ceil(ritual.steps.reduce((sum, step) => sum + step.duration, 0) / 60)} min
               </p>
             </div>
           </div>
