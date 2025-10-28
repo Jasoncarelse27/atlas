@@ -61,3 +61,11 @@ export const MOOD_OPTIONS: MoodOption[] = [
   { emoji: "🎯", label: "Focused", value: "focused", color: "bg-purple-100 hover:bg-purple-200" },
   { emoji: "✨", label: "Energized", value: "energized", color: "bg-yellow-100 hover:bg-yellow-200" },
 ];
+
+// Personal Insights Type
+export interface PersonalInsight {
+  type: 'mood' | 'consistency' | 'preference' | 'achievement';
+  message: string;
+  icon: string;
+  value?: number;
+}

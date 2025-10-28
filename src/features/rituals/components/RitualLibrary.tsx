@@ -5,7 +5,7 @@
 
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useTierQuery } from '@/hooks/useTierQuery';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, TrendingUp } from 'lucide-react';
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRitualStore } from '../hooks/useRitualStore';
@@ -74,14 +74,28 @@ export const RitualLibrary: React.FC = () => {
             </p>
           </div>
 
-          {/* Create Custom Ritual Button */}
-          <button
-            onClick={handleCreateRitual}
-            className="flex items-center gap-2 px-6 py-3 bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] transition-colors"
-          >
-            <Plus size={20} />
-            <span className="font-medium">Create Ritual</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Insights Button (Core/Studio only) */}
+            {tier !== 'free' && (
+              <button
+                onClick={() => navigate('/rituals/insights')}
+                className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-[#E8DCC8] text-[#3B3632] rounded-xl hover:bg-[#F9F6F1] transition-colors"
+              >
+                <TrendingUp size={18} />
+                <span className="font-medium">Insights</span>
+              </button>
+            )}
+
+            {/* Create Custom Ritual Button */}
+            <button
+              onClick={handleCreateRitual}
+              className="flex items-center gap-2 px-6 py-3 bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] transition-colors"
+            >
+              <Plus size={20} />
+              <span className="font-medium">Create Ritual</span>
+            </button>
+          </div>
         </div>
 
         {/* User's Custom Rituals */}
