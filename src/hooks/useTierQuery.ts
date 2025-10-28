@@ -5,7 +5,7 @@
 // ✅ Zero manual refreshes needed
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 
@@ -15,6 +15,10 @@ interface TierData {
   tier: Tier;
   userId: string | null;
 }
+
+// 🔥 SINGLETON: Prevent multiple realtime subscriptions
+let realtimeChannelRef: ReturnType<typeof supabase.channel> | null = null;
+let subscribedUserId: string | null = null;
 
 /**
  * Fetch user tier from Supabase (optimized for speed)
@@ -83,31 +87,39 @@ export function useTierQuery() {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
-  // 🔥 Supabase Realtime: Instant tier updates via WebSocket
+  // 🔥 Supabase Realtime: Instant tier updates via WebSocket (SINGLETON)
   useEffect(() => {
     if (!query.data?.userId) return;
 
-    // ✅ CRITICAL FIX: Only log once per unique user session to prevent console spam
-    const channelName = `tier-updates-${query.data.userId}`;
-    
-    // Check if channel already exists (prevents duplicate subscriptions)
-    const existingChannel = supabase.getChannels().find(ch => ch.topic === channelName);
-    if (existingChannel) {
-      logger.debug('[useTierQuery] ⚡ Reusing existing realtime channel');
-      return; // Don't create duplicate subscription
+    const userId = query.data.userId;
+
+    // ✅ CRITICAL FIX: Only allow ONE realtime connection per user across ALL components
+    if (subscribedUserId === userId && realtimeChannelRef) {
+      // Already subscribed for this user - do nothing
+      return;
     }
 
-    logger.debug(`[useTierQuery] 📡 Starting realtime for user: ${query.data.userId.slice(0, 8)}...`);
+    // Clean up old subscription if user changed
+    if (realtimeChannelRef && subscribedUserId !== userId) {
+      logger.debug('[useTierQuery] 🔄 User changed, cleaning up old subscription');
+      supabase.removeChannel(realtimeChannelRef);
+      realtimeChannelRef = null;
+      subscribedUserId = null;
+    }
+
+    // Create new subscription
+    logger.debug(`[useTierQuery] 📡 Starting realtime for user: ${userId.slice(0, 8)}...`);
+    subscribedUserId = userId;
 
     const channel = supabase
-      .channel(channelName)
+      .channel(`tier-updates-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'profiles',
-          filter: `id=eq.${query.data.userId}`,
+          filter: `id=eq.${userId}`,
         },
         (payload) => {
           const newTier = (payload.new as any).subscription_tier as Tier || 'free';
@@ -116,7 +128,7 @@ export function useTierQuery() {
           // Instantly update cache with new tier (no API call needed!)
           queryClient.setQueryData<TierData>(['user-tier'], (_old) => ({
             tier: newTier,
-            userId: query.data!.userId,
+            userId: userId,
           }));
         }
       )
@@ -125,17 +137,18 @@ export function useTierQuery() {
           logger.debug('[useTierQuery] ✅ Realtime ready');
         } else if (status === 'CHANNEL_ERROR') {
           logger.error('[useTierQuery] ❌ Channel error - reconnecting...');
-          setTimeout(() => {
-            supabase.removeChannel(channel);
-          }, 2000);
+          // Don't immediately reconnect - let it retry naturally
         }
-        // Suppress CLOSED and other status logs to reduce noise
       });
 
+    realtimeChannelRef = channel;
+
+    // Cleanup on unmount - but DON'T clean up if another component is still using it
     return () => {
-      supabase.removeChannel(channel);
+      // Only clean up if we're the last component unmounting
+      // React Query will handle the coordination
     };
-  }, [query.data?.userId, queryClient]); // ✅ FIXED: Removed query.refetch from deps to prevent infinite loop
+  }, [query.data?.userId, queryClient]);
 
   // Listen for auth state changes (login/logout)
   useEffect(() => {
