@@ -193,11 +193,17 @@ export const RitualBuilder: React.FC = () => {
     const loadingToast = toast.loading('Saving ritual...');
 
     try {
+      // Convert step durations from MINUTES to SECONDS for consistency with presets
+      const stepsWithCorrectDuration = steps.map(step => ({
+        ...step,
+        duration: step.duration * 60, // Convert minutes to seconds
+      }));
+
       await createRitual({
         userId,
         title: title.trim(),
         goal,
-        steps,
+        steps: stepsWithCorrectDuration,
         isPreset: false,
         tierRequired: tier,
       });
