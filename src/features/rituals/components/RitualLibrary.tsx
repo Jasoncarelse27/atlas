@@ -10,11 +10,11 @@
  */
 
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
-import { useTierQuery } from '@/hooks/useTierQuery';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
+import { useTierQuery } from '@/hooks/useTierQuery';
 import { logger } from '@/lib/logger';
-import { MessageCircle, Plus, Sparkles, TrendingUp, X, Lock } from 'lucide-react';
-import React, { useEffect, useState, useRef } from 'react';
+import { Lock, MessageCircle, Plus, Sparkles, TrendingUp, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useRitualStore } from '../hooks/useRitualStore';

@@ -10,11 +10,11 @@
  */
 
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
-import { useTierQuery } from '@/hooks/useTierQuery';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
+import { useTierQuery } from '@/hooks/useTierQuery';
 import { logger } from '@/lib/logger';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { DndContext, closestCenter, TouchSensor, MouseSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
