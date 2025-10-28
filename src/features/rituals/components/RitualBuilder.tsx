@@ -13,7 +13,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useRitualStore } from '../hooks/useRitualStore';
 import type { Ritual, RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
@@ -100,10 +100,13 @@ export const RitualBuilder: React.FC = () => {
   const [goal, setGoal] = useState<RitualGoal>(editRitual?.goal || 'focus');
   const [steps, setSteps] = useState<RitualStep[]>(() => {
     if (editRitual?.steps) {
-      // Convert seconds back to minutes for editing
+      // Check if durations are already in minutes (< 10) or in seconds (> 10)
+      // This handles both old corrupted data and new data
       return editRitual.steps.map(step => ({
         ...step,
-        duration: step.duration / 60, // Convert seconds to minutes
+        duration: step.duration < 10 
+          ? step.duration // Already corrupted/in minutes, keep as is
+          : step.duration / 60, // In seconds, convert to minutes
       }));
     }
     return [];

@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRitualStore } from '../hooks/useRitualStore';
 import type { Ritual } from '../types/rituals';
 import { RitualStepCard } from './RitualStepCard';
+import { DataMigrationButton } from './DataMigrationButton';
 
 export const RitualLibrary: React.FC = () => {
   const navigate = useNavigate();
@@ -81,6 +82,9 @@ export const RitualLibrary: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
+            {/* Data Migration - Fix Corrupted Durations */}
+            {customRituals.length > 0 && <DataMigrationButton />}
+
             {/* Back to Chat Button - Mobile Optimized */}
             <button
               onClick={() => navigate('/chat')}
