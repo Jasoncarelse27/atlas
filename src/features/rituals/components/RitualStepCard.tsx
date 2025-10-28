@@ -69,12 +69,14 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = ({
       onClick={handleClick}
       className={`
         relative w-full p-6 rounded-2xl border-2 transition-all duration-200
+        min-h-[120px] touch-manipulation
         ${
           isLocked
-            ? 'border-gray-200 bg-gray-50 cursor-pointer hover:border-gray-300'
-            : 'border-[#E8DCC8] bg-white hover:border-[#D4C4A8] hover:shadow-lg cursor-pointer'
+            ? 'border-gray-200 bg-gray-50 cursor-pointer hover:border-gray-300 active:scale-[0.98]'
+            : 'border-[#E8DCC8] bg-white hover:border-[#D4C4A8] hover:shadow-lg cursor-pointer active:scale-[0.98]'
         }
       `}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       {/* Lock Badge */}
       {isLocked && (

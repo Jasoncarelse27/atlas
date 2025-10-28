@@ -128,11 +128,19 @@ export const useMobileOptimization = () => {
     }
   };
 
+  // Haptic feedback (vibration)
+  const triggerHaptic = (duration: number = 10) => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(duration);
+    }
+  };
+
   return {
     ...features,
     shareContent,
     installPWA,
     getCameraAccess,
-    getMicrophoneAccess
+    getMicrophoneAccess,
+    triggerHaptic
   };
 }; 
