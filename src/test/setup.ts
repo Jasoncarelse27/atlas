@@ -21,7 +21,7 @@ Object.defineProperty(window, 'localStorage', {
 const sessionStorageMock = {
   getItem: vi.fn(),
   setItem: vi.fn(),
-  removeItem: vi.fn(),
+  removeListener: vi.fn(),
   clear: vi.fn(),
   length: 0,
   key: vi.fn(),
@@ -64,3 +64,82 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }))
+
+// Mock window.matchMedia (for PWA detection and responsive design)
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+
+// Mock navigator.vibrate (for haptic feedback)
+Object.defineProperty(navigator, 'vibrate', {
+  writable: true,
+  configurable: true,
+  value: vi.fn().mockReturnValue(true),
+})
+
+// Mock navigator.share (for native sharing)
+Object.defineProperty(navigator, 'share', {
+  writable: true,
+  configurable: true,
+  value: vi.fn().mockResolvedValue(undefined),
+})
+
+// Mock navigator.mediaDevices (for camera/microphone)
+Object.defineProperty(navigator, 'mediaDevices', {
+  writable: true,
+  configurable: true,
+  value: {
+    getUserMedia: vi.fn().mockResolvedValue({}),
+  },
+})
+
+// Mock navigator.serviceWorker (for PWA installation)
+Object.defineProperty(navigator, 'serviceWorker', {
+  writable: true,
+  configurable: true,
+  value: {
+    register: vi.fn().mockResolvedValue({}),
+    ready: Promise.resolve({}),
+  },
+})
+
+// Mock window.PushManager (for PWA notifications)
+Object.defineProperty(window, 'PushManager', {
+  writable: true,
+  value: vi.fn(),
+})
+
+// Mock window.speechSynthesis (for text-to-speech)
+Object.defineProperty(window, 'speechSynthesis', {
+  writable: true,
+  value: {
+    speak: vi.fn(),
+    cancel: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    getVoices: vi.fn().mockReturnValue([]),
+  },
+})
+
+// Mock window.SpeechRecognition (for speech-to-text)
+Object.defineProperty(window, 'SpeechRecognition', {
+  writable: true,
+  value: vi.fn().mockImplementation(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    abort: vi.fn(),
+    onresult: null,
+    onerror: null,
+    onend: null,
+  })),
+})
