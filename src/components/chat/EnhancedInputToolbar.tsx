@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
-import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Phone, Plus, Send, X, XCircle } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Phone, Plus, Send, Square, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
@@ -756,14 +756,21 @@ export default function EnhancedInputToolbar({
                 <Mic size={18} />
               </motion.button>
 
-              {/* Dynamic Button: Phone (empty) → Send (has text) */}
+              {/* Dynamic Button: Phone (empty) → Send/Stop (has text) */}
               {text.trim() || attachmentPreviews.length > 0 ? (
-                // Send button (when text/attachments exist)
+                // Send/Stop button with progressive animation
                 <motion.button
-                  onClick={isStreaming ? stopMessageStream : handleSend}
+                  onClick={() => {
+                    // Haptic feedback
+                    if ('vibrate' in navigator) {
+                      navigator.vibrate(isStreaming ? 40 : 20);
+                    }
+                    isStreaming ? stopMessageStream() : handleSend();
+                  }}
                   disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
-                  title={attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message"}
-                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation ${
+                  title={isStreaming ? "Stop Generation" : (attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message")}
+                  whileTap={{ scale: 0.95 }}
+                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation ${
                     isStreaming 
                       ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
@@ -771,19 +778,33 @@ export default function EnhancedInputToolbar({
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
                     boxShadow: isStreaming 
-                      ? undefined 
+                      ? '0 4px 16px rgba(239, 68, 68, 0.5)' 
                       : '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
                   }}
                 >
-                  {isStreaming ? (
-                    <motion.div
-                      className="w-3 h-3 bg-white rounded-sm"
-                      animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
-                      transition={{ repeat: Infinity, duration: 1.2 }}
-                    />
-                  ) : (
-                    <Send className="w-4 h-4 text-white" />
-                  )}
+                  <AnimatePresence mode="wait" initial={false}>
+                    {isStreaming ? (
+                      <motion.div
+                        key="stop"
+                        initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                      >
+                        <Square className="w-4 h-4 text-white" fill="white" />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="send"
+                        initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                      >
+                        <Send className="w-4 h-4 text-white" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.button>
               ) : (
                 // Phone button (when empty - Studio tier only)
