@@ -313,22 +313,51 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
           {/* Mood Selection */}
           <div className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg">
-            <h2 className="text-xl font-semibold text-[#3B3632] mb-4">How are you feeling right now?</h2>
+            {/* Animated Mood Display */}
+            <div className="flex flex-col items-center mb-8 py-6">
+              <h2 className="text-2xl font-semibold text-[#3B3632] mb-6">
+                How Do You Feel Today?
+              </h2>
+              
+              <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center mb-4">
+                {/* Animated ripples */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 opacity-20 animate-ripple" />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 opacity-40 animate-ripple" style={{ animationDelay: '0.5s' }} />
+                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-purple-50 to-pink-50 opacity-30 animate-ripple" style={{ animationDelay: '1s' }} />
+                
+                {/* Main animated emoji */}
+                <div 
+                  key={selectedMoodBefore || 'default'}
+                  className="text-7xl md:text-8xl transform animate-bounce-in z-10"
+                >
+                  {MOOD_OPTIONS.find(m => m.value === selectedMoodBefore)?.emoji || '😐'}
+                </div>
+              </div>
+              
+              <p className="text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center">
+                {MOOD_OPTIONS.find(m => m.value === selectedMoodBefore)?.label || 'Select your mood below'}
+              </p>
+            </div>
+
+            {/* Mood Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {MOOD_OPTIONS.map((mood) => (
                 <button
                   key={mood.value}
-                  onClick={() => setSelectedMoodBefore(mood.value)}
-                  className={`p-4 md:p-4 rounded-xl ${mood.color} border-2 transition-all
+                  onClick={() => {
+                    setSelectedMoodBefore(mood.value);
+                    // Haptic feedback on mobile
+                    if (navigator.vibrate) navigator.vibrate(10);
+                  }}
+                  className={`mood-button p-4 rounded-xl ${mood.color} border-2 
                     min-h-[100px] md:min-h-[120px] touch-manipulation
-                    active:scale-95 ${
-                    selectedMoodBefore === mood.value
-                      ? 'border-[#C8956A] scale-105 shadow-lg'
-                      : 'border-transparent'
+                    ${selectedMoodBefore === mood.value
+                      ? 'mood-button-selected border-[#C8956A]'
+                      : 'border-transparent hover:border-gray-300'
                   }`}
                 >
-                  <div className="text-5xl md:text-4xl mb-2">{mood.emoji}</div>
-                  <div className="text-sm md:text-sm font-medium text-[#3B3632]">{mood.label}</div>
+                  <div className="text-4xl md:text-3xl mb-2">{mood.emoji}</div>
+                  <div className="text-sm font-medium text-[#3B3632]">{mood.label}</div>
                 </button>
               ))}
             </div>
@@ -362,22 +391,51 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
           {/* Mood After Selection */}
           <div className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg mb-4">
-            <h2 className="text-xl font-semibold text-[#3B3632] mb-4">How do you feel now?</h2>
+            {/* Animated Mood Display */}
+            <div className="flex flex-col items-center mb-8 py-6">
+              <h2 className="text-2xl font-semibold text-[#3B3632] mb-6">
+                How Do You Feel Now?
+              </h2>
+              
+              <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center mb-4">
+                {/* Animated ripples */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-100 to-teal-100 opacity-20 animate-ripple" />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-50 to-teal-50 opacity-40 animate-ripple" style={{ animationDelay: '0.5s' }} />
+                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-teal-50 to-emerald-50 opacity-30 animate-ripple" style={{ animationDelay: '1s' }} />
+                
+                {/* Main animated emoji */}
+                <div 
+                  key={selectedMoodAfter || 'default'}
+                  className="text-7xl md:text-8xl transform animate-bounce-in z-10"
+                >
+                  {MOOD_OPTIONS.find(m => m.value === selectedMoodAfter)?.emoji || '😊'}
+                </div>
+              </div>
+              
+              <p className="text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center">
+                {MOOD_OPTIONS.find(m => m.value === selectedMoodAfter)?.label || 'Select your current mood'}
+              </p>
+            </div>
+
+            {/* Mood Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {MOOD_OPTIONS.map((mood) => (
                 <button
                   key={mood.value}
-                  onClick={() => setSelectedMoodAfter(mood.value)}
-                  className={`p-4 md:p-4 rounded-xl ${mood.color} border-2 transition-all
+                  onClick={() => {
+                    setSelectedMoodAfter(mood.value);
+                    // Haptic feedback on mobile
+                    if (navigator.vibrate) navigator.vibrate(10);
+                  }}
+                  className={`mood-button p-4 rounded-xl ${mood.color} border-2 
                     min-h-[100px] md:min-h-[120px] touch-manipulation
-                    active:scale-95 ${
-                    selectedMoodAfter === mood.value
-                      ? 'border-[#C8956A] scale-105 shadow-lg'
-                      : 'border-transparent'
+                    ${selectedMoodAfter === mood.value
+                      ? 'mood-button-selected border-[#C8956A]'
+                      : 'border-transparent hover:border-gray-300'
                   }`}
                 >
-                  <div className="text-5xl md:text-4xl mb-2">{mood.emoji}</div>
-                  <div className="text-sm md:text-sm font-medium text-[#3B3632]">{mood.label}</div>
+                  <div className="text-4xl md:text-3xl mb-2">{mood.emoji}</div>
+                  <div className="text-sm font-medium text-[#3B3632]">{mood.label}</div>
                 </button>
               ))}
             </div>
