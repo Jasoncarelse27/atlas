@@ -122,7 +122,7 @@ export class PatternDetectionService {
     const dayCounts: Record<number, number> = {};
 
     logs.forEach((log: any) => {
-      const dow = log.day_of_week;
+      const dow = new Date(log.completed_at).getDay();
       dayCounts[dow] = (dayCounts[dow] || 0) + 1;
     });
 
