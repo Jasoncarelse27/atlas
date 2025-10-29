@@ -188,26 +188,45 @@ export const RitualRunView: React.FC = () => {
   ) => {
     try {
       // Get or create active conversation
-      const conversations = await atlasDB.conversations
-        .where('userId')
-        .equals(user!.id)
-        .reverse()
-        .sortBy('createdAt');
+      let conversationId: string;
       
-      let conversationId = conversations[0]?.id;
+      // Check Supabase first for existing conversation
+      const { data: existingConvos } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
       
-      // If no conversation exists, create one
-      if (!conversationId) {
-        const newConversation = {
-          id: generateUUID(),
+      if (existingConvos && existingConvos.length > 0) {
+        conversationId = existingConvos[0].id;
+      } else {
+        // Create new conversation in Supabase first
+        conversationId = generateUUID();
+        const { error: convError } = await supabase
+          .from('conversations')
+          .insert({
+            id: conversationId,
+            user_id: user!.id,
+            title: 'New Chat',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        
+        if (convError) {
+          logger.error('[RitualRunView] Failed to create conversation:', convError);
+          return; // Exit early if we can't create conversation
+        }
+        
+        // Also save to Dexie for offline access
+        await atlasDB.conversations.put({
+          id: conversationId,
           userId: user!.id,
           title: 'New Chat',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          synced: false,
-        };
-        await atlasDB.conversations.add(newConversation);
-        conversationId = newConversation.id;
+          synced: true,
+        });
       }
       
       // Find mood emojis
