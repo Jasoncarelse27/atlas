@@ -1,9 +1,9 @@
-/* Import mobile optimizations */
-@import './styles/mobile-optimizations.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ✅ Mobile optimizations */
+@import './features/rituals/styles/mobile.css';
 
 /* Simple body styling */
 body {
