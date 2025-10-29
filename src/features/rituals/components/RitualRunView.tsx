@@ -156,10 +156,7 @@ export const RitualRunView: React.FC = () => {
       // Complete the ritual (saves to database)
       await runner.complete(selectedMoodAfter, completionNotes);
       
-      // 🎯 POST RITUAL COMPLETION SUMMARY TO CHAT
-      await postRitualSummaryToChat(ritual!, selectedMoodBefore!, selectedMoodAfter, completionNotes, runner.totalDuration);
-      
-      // ✨ NEW: Show reward modal instead of toast + auto-navigate
+      // ✨ Show reward modal immediately (non-blocking)
       setCompletedRitualData({
         title: ritual!.title,
         durationMinutes: Math.ceil(runner.totalDuration / 60),
@@ -169,9 +166,15 @@ export const RitualRunView: React.FC = () => {
       });
       setShowRewardModal(true);
       
+      // 🎯 POST RITUAL COMPLETION SUMMARY TO CHAT (async, non-blocking)
+      postRitualSummaryToChat(ritual!, selectedMoodBefore!, selectedMoodAfter, completionNotes, runner.totalDuration)
+        .catch(err => logger.error('[RitualRunView] Failed to post to chat:', err));
+      
     } catch (error) {
       logger.error('[RitualRunView] Failed to complete ritual:', error);
       modernToast.error('Failed to save ritual completion');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -220,9 +223,9 @@ export const RitualRunView: React.FC = () => {
 
 ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is logged and ready for insights.`;
       
-      // Create message object
+      // Create message object with unique timestamp-based ID
       const message = {
-        id: generateUUID(),
+        id: `${generateUUID()}_${Date.now()}`, // Make ID more unique
         conversationId,
         userId: user!.id,
         role: 'assistant' as const,
@@ -236,8 +239,8 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
         deletedBy: undefined,
       };
       
-      // Save to Dexie (local)
-      await atlasDB.messages.add(message);
+      // Save to Dexie (local) - use .put instead of .add to allow duplicates
+      await atlasDB.messages.put(message);
       
       // Sync to Supabase (using type assertion for compatibility)
       const { error } = await supabase.from('messages').insert({

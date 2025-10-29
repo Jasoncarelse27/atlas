@@ -29,8 +29,6 @@ export class PatternDetectionService {
         completed_at,
         mood_before,
         mood_after,
-        hour_of_day,
-        day_of_week,
         rituals (
           id,
           title,
@@ -68,10 +66,10 @@ export class PatternDetectionService {
    * Detect when user most often completes rituals
    */
   private detectTimeOfDayPattern(logs: any[]): RitualPattern | null {
-    // Group by hour
+    // Group by hour (calculated from completed_at)
     const hourCounts: Record<number, number> = {};
     logs.forEach((log: any) => {
-      const hour = log.hour_of_day;
+      const hour = new Date(log.completed_at).getHours();
       hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
 
