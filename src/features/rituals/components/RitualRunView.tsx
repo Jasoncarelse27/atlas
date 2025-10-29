@@ -673,10 +673,16 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             setShowRewardModal(false);
             navigate('/chat'); // Navigate to chat on close
           }}
-          ritualData={completedRitualData}
+          ritualData={{
+            title: completedRitualData.title,
+            durationMinutes: completedRitualData.durationMinutes,
+            moodBefore: completedRitualData.moodBefore,
+            moodAfter: completedRitualData.moodAfter,
+            reflection: completedRitualData.reflection,
+          }}
           onViewInsights={() => {
             setShowRewardModal(false);
-            navigate('/chat'); // For now, insights are in chat - can change to /insights later
+            navigate('/chat'); // Navigate to chat with ritual summary visible
           }}
           onStartAnother={() => {
             setShowRewardModal(false);

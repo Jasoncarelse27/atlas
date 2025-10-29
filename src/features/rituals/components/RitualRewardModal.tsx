@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, TrendingUp, X } from 'lucide-react';
 import { useEffect } from 'react';
+import confetti from 'canvas-confetti';
 
 interface RitualRewardModalProps {
   isOpen: boolean;
@@ -25,6 +26,37 @@ export function RitualRewardModal({
   onStartAnother,
   autoDismiss = false
 }: RitualRewardModalProps) {
+  
+  // ✅ BEST PRACTICE #0: Confetti celebration
+  useEffect(() => {
+    if (isOpen) {
+      // Trigger confetti burst
+      const duration = 3000;
+      const end = Date.now() + duration;
+      
+      const frame = () => {
+        confetti({
+          particleCount: 2,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#C8956A', '#B8855A', '#E8DDD2', '#F9F6F3']
+        });
+        confetti({
+          particleCount: 2,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#C8956A', '#B8855A', '#E8DDD2', '#F9F6F3']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }
+  }, [isOpen]);
   
   // ✅ BEST PRACTICE #1: Lock body scroll
   useEffect(() => {
