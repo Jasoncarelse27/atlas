@@ -78,7 +78,8 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
   }
 
   // Calculate total duration in seconds
-  const totalDuration = ritual.steps.reduce((sum, step) => sum + (step.duration * 60), 0);
+  // ✅ FIX: Duration is already in seconds in ritualTemplates.ts, don't multiply by 60
+  const totalDuration = ritual.steps.reduce((sum, step) => sum + step.duration, 0);
 
   // Current step
   const currentStep = ritual.steps[currentStepIndex] || null;
@@ -96,7 +97,8 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
             // Step complete - move to next
             if (currentStepIndex < ritual.steps.length - 1) {
               setCurrentStepIndex((i) => i + 1);
-              return ritual.steps[currentStepIndex + 1].duration * 60;
+              // ✅ FIX: Duration is already in seconds, don't multiply by 60
+              return ritual.steps[currentStepIndex + 1].duration;
             } else {
               // Ritual complete
               setIsComplete(true);
@@ -121,7 +123,8 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
     setMoodBefore(mood);
     setStartTime(new Date());
     setCurrentStepIndex(0);
-    setTimeRemaining(ritual.steps[0].duration * 60);
+    // ✅ FIX: Duration is already in seconds, don't multiply by 60
+    setTimeRemaining(ritual.steps[0].duration);
     setIsPaused(false);
     logger.debug('[RitualRunner] Started ritual:', ritual.title);
   }, [ritual]);

@@ -136,9 +136,12 @@ export const RitualRunView: React.FC = () => {
   };
 
   // Handle complete ritual
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const handleComplete = async () => {
-    if (!selectedMoodAfter) return;
+    if (!selectedMoodAfter || isSubmitting) return;
     
+    setIsSubmitting(true);
     try {
       // Complete the ritual (saves to database)
       await runner.complete(selectedMoodAfter, completionNotes);
@@ -382,12 +385,12 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
             <button
               onClick={handleComplete}
-              disabled={!selectedMoodAfter}
+              disabled={!selectedMoodAfter || isSubmitting}
               className="mt-4 w-full py-4 md:py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-lg
                 hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all
                 min-h-[60px] touch-manipulation active:scale-95"
             >
-              Complete Ritual ✨
+              {isSubmitting ? 'Saving...' : 'Complete Ritual ✨'}
             </button>
           </div>
 
