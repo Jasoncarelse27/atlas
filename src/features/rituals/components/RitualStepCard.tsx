@@ -72,18 +72,26 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = React.memo(({
   };
 
   return (
-    <button
+    <div
       onClick={handleClick}
       className={`
         relative w-full p-6 rounded-2xl border-2 transition-all duration-200
-        min-h-[120px] touch-manipulation
+        min-h-[120px] touch-manipulation cursor-pointer
         ${
           isLocked
-            ? 'border-gray-200 bg-gray-50 cursor-pointer hover:border-gray-300 active:scale-[0.98]'
-            : 'border-[#E8DCC8] bg-white hover:border-[#D4C4A8] hover:shadow-lg cursor-pointer active:scale-[0.98]'
+            ? 'border-gray-200 bg-gray-50 hover:border-gray-300 active:scale-[0.98]'
+            : 'border-[#E8DCC8] bg-white hover:border-[#D4C4A8] hover:shadow-lg active:scale-[0.98]'
         }
       `}
       style={{ WebkitTapHighlightColor: 'transparent' }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
     >
       {/* Top Right Actions/Badges */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
@@ -183,7 +191,7 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = React.memo(({
           </p>
         </div>
       )}
-    </button>
+    </div>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison function for React.memo
