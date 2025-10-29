@@ -9,6 +9,8 @@
  * - Floating action button
  */
 
+import '../styles/mobile.css';
+
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useTierQuery } from '@/hooks/useTierQuery';
@@ -197,7 +199,7 @@ export const RitualLibrary: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="min-h-screen bg-[#F9F6F1] relative"
+      className="min-h-screen bg-[#F9F6F1] relative safe-area"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

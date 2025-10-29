@@ -1,0 +1,115 @@
+/**
+ * Mobile-Specific CSS Utilities
+ * Safe area insets for iOS notch/home indicator
+ * Reduced motion support for accessibility
+ */
+
+/* ✅ iOS Safe Area Insets */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Full safe area padding */
+  .safe-area {
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ✅ Reduced Motion Support (Accessibility) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  /* Keep essential animations but make them instant */
+  .animate-pulse {
+    animation: none;
+  }
+  
+  .animate-spin {
+    animation: none;
+  }
+  
+  /* Remove scale/transform transitions for reduced motion */
+  .active\:scale-\[0\.98\]:active {
+    transform: none !important;
+  }
+  
+  .hover\:scale-105:hover {
+    transform: none !important;
+  }
+}
+
+/* ✅ Touch Target Enforcement (48px minimum) */
+@media (pointer: coarse) {
+  /* Ensure all interactive elements are touch-friendly */
+  button,
+  a,
+  [role="button"],
+  [role="link"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px; /* iOS HIG standard */
+    min-width: 44px;
+  }
+  
+  /* Increase tap target for small icons */
+  .icon-button {
+    padding: 12px;
+  }
+}
+
+/* ✅ High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .border-gray-200 {
+    border-color: #000;
+  }
+  
+  .text-gray-600 {
+    color: #000;
+  }
+}
+
+/* ✅ Dark Mode Preparation (Future) */
+@media (prefers-color-scheme: dark) {
+  /* Currently using light mode only, but prepared for dark mode */
+  :root {
+    --text-primary: #ffffff;
+    --bg-primary: #1a1a1a;
+  }
+}
+
+/* ✅ Orientation Lock Warning (Landscape on mobile) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .portrait-only-warning {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+}

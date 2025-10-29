@@ -122,7 +122,22 @@ export const StreakPrediction: React.FC = () => {
     fetchStreakData();
   }, [userId]);
 
-  if (loading || !streakInfo || streakInfo.currentStreak === 0) {
+  if (loading) {
+    // ✅ Mobile: Loading skeleton
+    return (
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 mb-4 border border-gray-200/50 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gray-200" />
+          <div className="flex-1">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-gray-200 rounded w-1/2" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!streakInfo || streakInfo.currentStreak === 0) {
     return null; // Don't show if no streak
   }
 
