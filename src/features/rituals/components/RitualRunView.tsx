@@ -223,9 +223,9 @@ export const RitualRunView: React.FC = () => {
 
 ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is logged and ready for insights.`;
       
-      // Create message object with unique timestamp-based ID
+      // Create message object
       const message = {
-        id: `${generateUUID()}_${Date.now()}`, // Make ID more unique
+        id: generateUUID(), // Standard UUID
         conversationId,
         userId: user!.id,
         role: 'assistant' as const,
@@ -239,7 +239,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
         deletedBy: undefined,
       };
       
-      // Save to Dexie (local) - use .put instead of .add to allow duplicates
+      // Save to Dexie (local) first
       await atlasDB.messages.put(message);
       
       // Sync to Supabase (using type assertion for compatibility)
