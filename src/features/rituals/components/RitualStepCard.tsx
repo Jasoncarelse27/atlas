@@ -3,7 +3,7 @@
  * Shows ritual info with goal badge, duration, and tier lock
  */
 
-import { Edit2, Heart, Lock, Sparkles, Target, Trash2, Zap } from 'lucide-react';
+import { Edit2, Heart, Lock, Sparkles, Target, Trash2, Zap, Star } from 'lucide-react';
 import React from 'react';
 import { formatDuration } from '../services/ritualTemplates';
 import type { Ritual } from '../types/rituals';
@@ -16,6 +16,8 @@ interface RitualStepCardProps {
   onEdit?: (ritual: Ritual) => void; // Edit custom ritual
   onDelete?: (ritual: Ritual) => void; // Delete custom ritual
   isCustom?: boolean; // Flag to show edit/delete buttons
+  isFavorite?: boolean;
+  onToggleFavorite?: (ritualId: string) => void;
 }
 
 const goalIcons = {
@@ -40,6 +42,8 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = React.memo(({
   onEdit,
   onDelete,
   isCustom = false,
+  isFavorite = false,
+  onToggleFavorite,
 }) => {
   const Icon = goalIcons[ritual.goal];
   const totalDuration = React.useMemo(
@@ -81,46 +85,60 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = React.memo(({
       `}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      {/* Lock Badge */}
-      {isLocked && (
-        <div className="absolute top-4 right-4">
+      {/* Top Right Actions/Badges */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        {/* Favorite Button */}
+        {!isLocked && onToggleFavorite && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(ritual.id);
+            }}
+            className={`p-2 rounded-lg border transition-all active:scale-95 min-h-[36px] min-w-[36px] ${
+              isFavorite
+                ? 'bg-yellow-50 border-yellow-300 text-yellow-600 hover:bg-yellow-100'
+                : 'bg-white/80 border-[#E8DCC8] text-gray-400 hover:bg-white hover:text-gray-600'
+            }`}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
+        )}
+
+        {/* Edit Button */}
+        {isCustom && !isLocked && onEdit && (
+          <button
+            onClick={handleEdit}
+            className="p-2 rounded-lg bg-white/80 hover:bg-white border border-[#E8DCC8] 
+              transition-all hover:shadow-md active:scale-95
+              min-h-[36px] min-w-[36px]"
+            aria-label="Edit ritual"
+          >
+            <Edit2 size={16} className="text-[#8B7E74]" />
+          </button>
+        )}
+
+        {/* Delete Button */}
+        {isCustom && !isLocked && onDelete && (
+          <button
+            onClick={handleDelete}
+            className="p-2 rounded-lg bg-red-50/80 hover:bg-red-100 border border-red-200 
+              transition-all hover:shadow-md active:scale-95
+              min-h-[36px] min-w-[36px]"
+            aria-label="Delete ritual"
+          >
+            <Trash2 size={16} className="text-red-600" />
+          </button>
+        )}
+
+        {/* Lock Badge */}
+        {isLocked && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-200 text-gray-600 text-xs font-medium">
             <Lock size={12} />
             <span>{ritual.tierRequired === 'core' ? 'Core' : 'Studio'}</span>
           </div>
-        </div>
-      )}
-
-      {/* Edit & Delete Buttons for Custom Rituals */}
-      {isCustom && !isLocked && (onEdit || onDelete) && (
-        <div className="absolute top-4 right-4 flex items-center gap-2">
-          {/* Edit Button */}
-          {onEdit && (
-            <button
-              onClick={handleEdit}
-              className="p-2 rounded-lg bg-white/80 hover:bg-white border border-[#E8DCC8] 
-                transition-all hover:shadow-md active:scale-95
-                min-h-[36px] min-w-[36px]" // Touch-friendly
-              aria-label="Edit ritual"
-            >
-              <Edit2 size={16} className="text-[#8B7E74]" />
-            </button>
-          )}
-
-          {/* Delete Button */}
-          {onDelete && (
-            <button
-              onClick={handleDelete}
-              className="p-2 rounded-lg bg-red-50/80 hover:bg-red-100 border border-red-200 
-                transition-all hover:shadow-md active:scale-95
-                min-h-[36px] min-w-[36px]" // Touch-friendly
-              aria-label="Delete ritual"
-            >
-              <Trash2 size={16} className="text-red-600" />
-            </button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Goal Icon */}
       <div

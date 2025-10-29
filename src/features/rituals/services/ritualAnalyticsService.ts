@@ -62,7 +62,8 @@ class RitualAnalyticsService {
         .eq('user_id', userId)
         .gte('completed_at', dateRange.start.toISOString())
         .lte('completed_at', dateRange.end.toISOString())
-        .order('completed_at', { ascending: false });
+        .order('completed_at', { ascending: false })
+        .limit(100); // ✅ Performance: Limit to most recent 100 logs
 
       if (error) throw error;
 
@@ -128,7 +129,8 @@ class RitualAnalyticsService {
         .eq('user_id', userId)
         .gte('completed_at', dateRange.start.toISOString())
         .lte('completed_at', dateRange.end.toISOString())
-        .order('completed_at', { ascending: true });
+        .order('completed_at', { ascending: true })
+        .limit(100); // ✅ Performance: Limit to most recent 100 logs
 
       if (error) throw error;
 
@@ -271,7 +273,8 @@ class RitualAnalyticsService {
         .select('mood_before, mood_after')
         .eq('user_id', userId)
         .gte('completed_at', startDate.toISOString())
-        .lte('completed_at', endDate.toISOString());
+        .lte('completed_at', endDate.toISOString())
+        .limit(100); // ✅ Performance: Limit to most recent 100 logs
 
       if (error) throw error;
 

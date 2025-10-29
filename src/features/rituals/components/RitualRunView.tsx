@@ -129,10 +129,20 @@ export const RitualRunView: React.FC = () => {
   };
 
   // Handle start ritual
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!selectedMoodBefore) return;
     runner.start(selectedMoodBefore);
     setHasStarted(true);
+    
+    // ✅ Save as last ritual for quick start
+    try {
+      await supabase
+        .from('profiles')
+        .update({ last_ritual_id: ritualId } as any)
+        .eq('id', user?.id!);
+    } catch (error) {
+      logger.debug('[RitualRunView] Failed to save last ritual:', error);
+    }
   };
 
   // Handle complete ritual

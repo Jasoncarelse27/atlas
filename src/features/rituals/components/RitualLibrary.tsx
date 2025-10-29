@@ -14,13 +14,18 @@ import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useTierQuery } from '@/hooks/useTierQuery';
 import { logger } from '@/lib/logger';
 import { Lock, MessageCircle, Plus, Sparkles, TrendingUp, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useRitualStore } from '../hooks/useRitualStore';
 import type { Ritual } from '../types/rituals';
 import { DataMigrationButton } from './DataMigrationButton';
 import { RitualStepCard } from './RitualStepCard';
+import { QuickStartWidget } from './QuickStartWidget';
+import { useFavoriteRituals } from '../hooks/useFavoriteRituals';
+import { StreakPrediction } from './StreakPrediction';
+import { StreakFreeze } from './StreakFreeze';
+import { PatternInsights } from './PatternInsights';
 
 export const RitualLibrary: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +33,7 @@ export const RitualLibrary: React.FC = () => {
   const { showGenericUpgrade } = useUpgradeModals();
   const { presets, userRituals, loading, loadPresets, loadUserRituals, deleteRitual } = useRitualStore();
   const { isMobile, triggerHaptic } = useMobileOptimization();
+  const { favoriteIds, toggleFavorite, isFavorite } = useFavoriteRituals();
 
   // Pull-to-refresh state
   const [pullStartY, setPullStartY] = useState(0);
@@ -45,16 +51,39 @@ export const RitualLibrary: React.FC = () => {
     }
   }, [userId, loadPresets, loadUserRituals]);
 
-  // Filter presets by tier
-  const visiblePresets = presets.filter((ritual) => {
-    if (tier === 'free') return ritual.tierRequired === 'free';
-    if (tier === 'core')
-      return ritual.tierRequired === 'free' || ritual.tierRequired === 'core';
-    return true; // Studio sees all
-  });
+  // ✅ Performance: Memoize tier filtering
+  const visiblePresets = useMemo(() => {
+    return presets.filter((ritual) => {
+      if (tier === 'free') return ritual.tierRequired === 'free';
+      if (tier === 'core')
+        return ritual.tierRequired === 'free' || ritual.tierRequired === 'core';
+      return true; // Studio sees all
+    });
+  }, [presets, tier]);
 
   // User's custom rituals (renamed from userRituals to avoid conflict)
   const customRituals = userRituals;
+  
+  // ✅ Sort rituals: favorites first
+  const sortedPresets = useMemo(() => {
+    return [...visiblePresets].sort((a, b) => {
+      const aFav = isFavorite(a.id);
+      const bFav = isFavorite(b.id);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return 0;
+    });
+  }, [visiblePresets, favoriteIds]);
+  
+  const sortedCustomRituals = useMemo(() => {
+    return [...customRituals].sort((a, b) => {
+      const aFav = isFavorite(a.id);
+      const bFav = isFavorite(b.id);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return 0;
+    });
+  }, [customRituals, favoriteIds]);
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -293,7 +322,7 @@ export const RitualLibrary: React.FC = () => {
             <h2 className="text-lg sm:text-xl font-semibold text-[#3B3632] mb-4">Your Custom Rituals</h2>
             {/* Mobile: Single column, Desktop: Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {userRituals.map((ritual) => (
+              {sortedCustomRituals.map((ritual) => (
                 <div key={ritual.id} className="min-h-[120px]"> {/* Minimum touch target height */}
                   <RitualStepCard
                     ritual={ritual}
@@ -302,6 +331,8 @@ export const RitualLibrary: React.FC = () => {
                     onEdit={handleEditRitual}
                     onDelete={handleDeleteRitual}
                     isCustom={true}
+                    isFavorite={isFavorite(ritual.id)}
+                    onToggleFavorite={toggleFavorite}
                   />
                 </div>
               ))}
@@ -309,17 +340,31 @@ export const RitualLibrary: React.FC = () => {
           </div>
         )}
 
+        {/* Quick Start Widget */}
+        <QuickStartWidget />
+        
+        {/* Streak Prediction */}
+        <StreakPrediction />
+        
+        {/* Streak Freeze */}
+        <StreakFreeze />
+        
+        {/* Pattern Insights */}
+        <PatternInsights />
+
         {/* Preset Rituals */}
         <div>
           <h2 className="text-lg sm:text-xl font-semibold text-[#3B3632] mb-4">Preset Rituals</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {visiblePresets.map((ritual) => (
+            {sortedPresets.map((ritual) => (
               <div key={ritual.id} className="min-h-[120px]">
                 <RitualStepCard
                   ritual={ritual}
                   userTier={tier}
                   onStart={handleStartRitual}
                   onPreview={handlePreviewLocked}
+                  isFavorite={isFavorite(ritual.id)}
+                  onToggleFavorite={toggleFavorite}
                 />
               </div>
             ))}
@@ -340,6 +385,8 @@ export const RitualLibrary: React.FC = () => {
                       userTier={tier}
                       onStart={handleStartRitual}
                       onPreview={handlePreviewLocked}
+                      isFavorite={isFavorite(ritual.id)}
+                      onToggleFavorite={toggleFavorite}
                     />
                   </div>
                 ))}
