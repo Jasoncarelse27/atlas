@@ -9,6 +9,15 @@ import { create } from 'zustand';
 import { ritualService } from '../services/ritualService';
 import type { Ritual, RitualLog } from '../types/rituals';
 
+// ✅ Cache configuration
+const PRESET_CACHE_KEY = 'ritual-presets-cache';
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+interface CachedData {
+  data: Ritual[];
+  timestamp: number;
+}
+
 interface RitualStore {
   // State
   presets: Ritual[];
@@ -28,7 +37,7 @@ interface RitualStore {
   syncWithDexie: (userId: string) => Promise<void>;
 }
 
-export const useRitualStore = create<RitualStore>((set, get) => ({
+export const useRitualStore = create<RitualStore>((set) => ({
   // Initial state
   presets: [],
   userRituals: [],
@@ -40,13 +49,30 @@ export const useRitualStore = create<RitualStore>((set, get) => ({
   loadPresets: async () => {
     set({ loading: true, error: null });
     try {
+      // ✅ Check cache first
+      const cached = sessionStorage.getItem(PRESET_CACHE_KEY);
+      if (cached) {
+        try {
+          const cachedData: CachedData = JSON.parse(cached);
+          const age = Date.now() - cachedData.timestamp;
+          
+          if (age < CACHE_DURATION) {
+            set({ presets: cachedData.data, loading: false });
+            logger.debug('[RitualStore] Loaded presets from cache:', cachedData.data.length);
+            return;
+          }
+        } catch (e) {
+          // Invalid cache, continue to fetch
+        }
+      }
+
       // Try Dexie first (offline-first) - use filter instead of where for boolean
       const localPresets = await atlasDB.rituals
         .filter(r => r.isPreset === true)
         .toArray();
 
       if (localPresets.length > 0) {
-        set({ presets: localPresets, loading: false });
+        set({ presets: localPresets as Ritual[], loading: false });
         logger.debug('[RitualStore] Loaded presets from Dexie:', localPresets.length);
       }
 
@@ -58,6 +84,12 @@ export const useRitualStore = create<RitualStore>((set, get) => ({
         ...r,
         synced: true,
       })));
+
+      // ✅ Update session cache
+      sessionStorage.setItem(PRESET_CACHE_KEY, JSON.stringify({
+        data: remotePresets,
+        timestamp: Date.now(),
+      }));
 
       set({ presets: remotePresets, loading: false });
       logger.debug('[RitualStore] Loaded presets from Supabase:', remotePresets.length);
@@ -77,7 +109,7 @@ export const useRitualStore = create<RitualStore>((set, get) => ({
         .toArray();
 
       if (localRituals.length > 0) {
-        set({ userRituals: localRituals, loading: false });
+        set({ userRituals: localRituals as Ritual[], loading: false });
       }
 
       // Fetch from Supabase
@@ -231,7 +263,7 @@ export const useRitualStore = create<RitualStore>((set, get) => ({
 
       for (const ritual of unsynced) {
         try {
-          await ritualService.createRitual(ritual);
+          await ritualService.createRitual(ritual as unknown as Omit<Ritual, 'id' | 'createdAt' | 'updatedAt'>);
           await atlasDB.rituals.update(ritual.id, { synced: true });
         } catch (error) {
           logger.error('[RitualStore] Failed to sync ritual:', ritual.id, error);

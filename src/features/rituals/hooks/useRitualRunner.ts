@@ -111,6 +111,7 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
       }, 1000);
     }
 
+    // ✅ Cleanup on unmount or when dependencies change
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -146,7 +147,7 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
     if (currentStepIndex < ritual.steps.length - 1) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
-      setTimeRemaining(ritual.steps[nextIndex].duration * 60);
+      setTimeRemaining(ritual.steps[nextIndex].duration); // ✅ Duration already in seconds
       logger.debug('[RitualRunner] Skipped to next step:', nextIndex);
     } else {
       setIsComplete(true);
@@ -159,7 +160,7 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
     if (currentStepIndex > 0) {
       const prevIndex = currentStepIndex - 1;
       setCurrentStepIndex(prevIndex);
-      setTimeRemaining(ritual.steps[prevIndex].duration * 60);
+      setTimeRemaining(ritual.steps[prevIndex].duration); // ✅ Duration already in seconds
       logger.debug('[RitualRunner] Went back to step:', prevIndex);
     }
   }, [currentStepIndex, ritual.steps]);
