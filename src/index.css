@@ -1,13 +1,13 @@
+/* ✅ Mobile optimizations - MUST be first */
+@import './features/rituals/styles/mobile.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ✅ Mobile optimizations */
-@import './features/rituals/styles/mobile.css';
-
 /* Simple body styling */
 body {
-  background-color: #F4E8E1;
+  background-color: #f4e8e1;
 }
 
 /* === Viewport height fix for Safari + Chrome Mobile === */
@@ -131,12 +131,12 @@ body {
 
 /* Atlas Color CSS Variables */
 :root {
-  --atlas-sage: #D3DCAB;
-  --atlas-sand: #CEC1B8;
-  --atlas-pearl: #F4E8E1;
-  --atlas-peach: #F3D3B8;
+  --atlas-sage: #d3dcab;
+  --atlas-sand: #cec1b8;
+  --atlas-pearl: #f4e8e1;
+  --atlas-peach: #f3d3b8;
   --atlas-stone: #978671;
-  --atlas-success: #A7C080;
-  --atlas-warning: #E8C88E;
-  --atlas-error: #D89090;
+  --atlas-success: #a7c080;
+  --atlas-warning: #e8c88e;
+  --atlas-error: #d89090;
 }
