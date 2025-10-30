@@ -314,13 +314,15 @@ export class ConversationSyncService {
     
     try {
       // 1. Get last sync timestamp
-      let lastSyncedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();  // Default: 30 days
       const syncMeta = await atlasDB.syncMetadata.get(userId);
-      if (syncMeta) {
-        lastSyncedAt = syncMeta.lastSyncedAt;
-      }
+      const isFirstSync = !syncMeta;
       
-      logger.debug('[ConversationSync] Last synced at:', lastSyncedAt);
+      // ✅ CRITICAL FIX: On first sync (empty Dexie), fetch ALL data, not just last 30 days
+      let lastSyncedAt = isFirstSync 
+        ? new Date(0).toISOString()  // Epoch = fetch everything
+        : syncMeta.lastSyncedAt;
+      
+      logger.debug('[ConversationSync] Last synced at:', lastSyncedAt, isFirstSync ? '(FIRST SYNC - fetching all data)' : '(delta sync)');
       
       // 2. Fetch ONLY conversations updated since last sync (non-deleted only)
       const { data: updatedConversations, error: convError } = await supabase
