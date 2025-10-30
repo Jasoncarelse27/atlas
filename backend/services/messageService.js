@@ -565,6 +565,8 @@ What feels right? ✨"`;
     // ✅ Save both messages to Supabase (if conversation exists)
     if (convId && userId) {
       try {
+        logger.debug("📝 [MessageService] Saving messages with userId:", userId);
+        
         // Insert user message
         const { error: userError } = await getSupabase().from("messages").insert({
           user_id: userId,

@@ -195,8 +195,8 @@ export class ConversationSyncService {
             id: remoteMsg.id,
             conversationId: remoteMsg.conversation_id,
             userId: _userId, // ✅ Use function parameter, not remoteMsg.user_id
-            role: remoteMsg.role,
-            type: remoteMsg.message_type === 'user' ? 'text' : 'text',
+            role: remoteMsg.role, // ✅ CRITICAL: Use actual role from DB (user/assistant)
+            type: 'text', // Default to text for now
             content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: remoteMsg.created_at,
             synced: true,

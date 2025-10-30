@@ -118,7 +118,10 @@ export function ConversationHistoryDrawer({
                       ${deletingId === conv.id || isNavigating === conv.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}
                     `}
                     onClick={() => {
-                      // ✅ FIX #1: Use history.pushState for instant navigation (no page reload)
+                      // ✅ Close drawer IMMEDIATELY for instant feedback
+                      onClose();
+                      
+                      // ✅ Then navigate in background
                       setIsNavigating(conv.id);
                       const url = `/chat?conversation=${conv.id}`;
                       window.history.pushState({ conversationId: conv.id }, '', url);
@@ -126,7 +129,6 @@ export function ConversationHistoryDrawer({
                       // Trigger custom event for ChatPage to handle
                       window.dispatchEvent(new PopStateEvent('popstate', { state: { conversationId: conv.id } }));
                       
-                      onClose();
                       // Reset loading state after navigation
                       setTimeout(() => setIsNavigating(null), 500);
                     }}

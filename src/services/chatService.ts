@@ -75,11 +75,14 @@ export const chatService = {
       
       // Get user ID from session if not provided
       const actualUserId = userId || session?.user?.id;
-      logger.debug('[ChatService] User ID resolution:', {
+      
+      // ✅ CRITICAL: Log the exact userId being used
+      logger.info('[ChatService] 🔍 User ID resolution:', {
         providedUserId: userId,
         sessionUserId: session?.user?.id,
         actualUserId,
-        hasSession: !!session
+        hasSession: !!session,
+        token: token?.substring(0, 20) + '...'
       });
       
       // ✅ FIX: Prevent 'anonymous' from reaching Supabase
@@ -135,7 +138,8 @@ export const chatService = {
             },
             body: JSON.stringify({ 
               message: text, // Backend expects "message" field
-              conversationId: conversationId || null // ✅ Pass conversationId if available
+              conversationId: conversationId || null // ✅ Backend now gets userId from auth token
+              // userId removed - backend uses req.user.id from auth middleware
             }),
             signal: abortController?.signal, // Add abort signal for cancellation (with null check)
           });

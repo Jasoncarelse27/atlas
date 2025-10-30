@@ -770,9 +770,12 @@ app.post('/message',
   
   try {
     // 🔒 SECURITY FIX: Never trust client-sent tier from request body
-    const { message, text, userId, conversationId, attachments } = req.body;
+    const { message, text, conversationId, attachments } = req.body;
+    const userId = req.user?.id; // ✅ FIX: Get userId from auth middleware, not body!
     const messageText = text || message;
     const userTier = req.user?.tier || 'free'; // Always use server-validated tier
+    
+    logger.debug('🔍 [Server] Auth check - userId:', userId, 'req.user:', req.user);
     
     if (!messageText && !attachments) {
       return res.status(400).json({ error: 'Missing message text or attachments' });

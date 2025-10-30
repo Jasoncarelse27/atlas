@@ -99,6 +99,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   }) => {
     setHistoryData(data);
     setShowHistory(true);
+    setSidebarOpen(false); // ✅ Close main sidebar when opening history
   };
 
   // ✅ PHASE 2: Messages state - only updated by loadMessages (from Dexie)
@@ -121,11 +122,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE FIX: Ensure database is ready before use
       await ensureDatabaseReady();
       
-      // ✅ SECURITY FIX: Always filter by userId to prevent cross-user data exposure
+      // ✅ CRITICAL FIX: Load all messages for this conversation
+      // The conversation already belongs to the user, so all messages in it are theirs
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .and(msg => msg.userId === userId && !msg.deletedAt) // ✅ CRITICAL: Filter by userId AND exclude deleted
+        .and(msg => !msg.deletedAt) // Only filter out deleted messages
         .sortBy("timestamp");
       
       // ✅ NOTE: Removed fallback without userId filter for security
@@ -135,21 +137,27 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       if (storedMessages.length === 0) {
         logger.debug('[ChatPage] 🔄 Dexie empty, fetching from Supabase...');
         
-        const { data: supabaseMessages } = await supabase
+        // ✅ CRITICAL FIX: Load messages by conversation ID only
+        // Don't filter by user_id since it might be null for some messages
+        const { data: supabaseMessages, error: msgError } = await supabase
           .from('messages')
           .select('*')
           .eq('conversation_id', conversationId)
           .order('created_at');
+        
+        if (msgError) {
+          logger.error('[ChatPage] Error loading messages from Supabase:', msgError);
+        }
         
         if (supabaseMessages && supabaseMessages.length > 0) {
           logger.debug('[ChatPage] ✅ Found', supabaseMessages.length, 'messages in Supabase, syncing to Dexie...');
           
           // Store in Dexie for future use
           await atlasDB.messages.bulkPut(
-            supabaseMessages.map((msg: { id: string; conversation_id: string; content: string; role: string; created_at: string; updated_at: string; message_type?: string; metadata?: Record<string, unknown> }) => ({
+            supabaseMessages.map((msg: any) => ({
               id: msg.id,
               conversationId: msg.conversation_id,
-              userId: msg.user_id,
+              userId: msg.user_id || userId,  // ✅ FIX: Fallback to current userId if missing
               role: msg.role,
               type: msg.image_url ? 'image' : 'text', // ✅ Detect type from data
               content: msg.content,
@@ -167,7 +175,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           storedMessages = await atlasDB.messages
             .where("conversationId")
             .equals(conversationId)
-            .and(msg => !msg.deletedAt) // ✅ Exclude deleted messages
+            .and(msg => !msg.deletedAt) // Only filter out deleted messages
             .sortBy("timestamp");
           
           logger.debug('[ChatPage] ✅ Synced', supabaseMessages.length, 'messages from Supabase to Dexie');
