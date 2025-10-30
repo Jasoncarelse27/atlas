@@ -17,16 +17,16 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2, X, Lightbulb, AlertCircle, Info } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { ArrowLeft, GripVertical, Info, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useRitualStore } from '../hooks/useRitualStore';
+import { analyzeRitual, type RitualSuggestion } from '../services/ritualSuggestions';
 import type { Ritual, RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
 import { StepConfigPanel } from './StepConfigPanel';
 import { STEP_TYPE_DEFINITIONS, StepLibrary } from './StepLibrary';
-import { analyzeRitual, suggestNextStep, type RitualSuggestion } from '../services/ritualSuggestions';
 
 interface SortableStepCardProps {
   step: RitualStep;
@@ -75,14 +75,12 @@ const SortableStepCard: React.FC<SortableStepCardProps> = ({
           transition-all hover:shadow-md
           ${isMobile ? 'min-h-[60px]' : ''}`}
       >
-        {/* Drag Handle - 48px minimum touch target on mobile */}
+        {/* Drag Handle - 48px minimum touch target */}
         <button
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 
-            flex-shrink-0 p-2 sm:p-1
-            min-h-[48px] min-w-[48px] sm:min-h-0 sm:min-w-0
-            flex items-center justify-center
+            flex-shrink-0 touch-target
             active:scale-110 transition-transform"
           aria-label="Drag to reorder"
         >
@@ -105,7 +103,7 @@ const SortableStepCard: React.FC<SortableStepCardProps> = ({
           className="flex-1 min-w-0 cursor-pointer" 
           onClick={handleEdit}
         >
-          <div className="font-medium text-sm sm:text-base text-[#3B3632] truncate">
+          <div className="font-medium text-sm sm:text-base text-[#3B3632] line-clamp-2">
             {step.config.title}
           </div>
           <div className="text-xs text-gray-600">{step.duration} min</div>
@@ -365,9 +363,9 @@ export const RitualBuilder: React.FC = () => {
 
         {/* Mobile: Stack vertically, Desktop: 3-column grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Step Library - Hidden on mobile behind expand/collapse or in modal */}
-          <div className={`lg:col-span-1 ${isMobile ? 'order-3' : ''}`}>
-            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-4 sm:p-6 lg:sticky lg:top-4">
+          {/* Step Library - More accessible on mobile */}
+          <div className={`lg:col-span-1 ${isMobile ? 'order-2' : ''}`}>
+            <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-4 sm:p-6 lg:sticky lg:top-4 safe-bottom-nav">
               <StepLibrary onStepSelect={handleAddStep} />
             </div>
           </div>
@@ -420,11 +418,31 @@ export const RitualBuilder: React.FC = () => {
               </h3>
 
               {steps.length === 0 ? (
-                <div className="text-center py-12">
+                <div className="text-center py-12 space-y-4">
                   <Plus size={48} className="text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 text-sm">
-                    Add steps from the library to build your ritual
-                  </p>
+                  <div>
+                    <p className="text-gray-600 font-medium mb-2">
+                      Start Building Your Ritual
+                    </p>
+                    <p className="text-gray-500 text-sm mb-4">
+                      Choose steps from the library to create your personalized ritual
+                    </p>
+                  </div>
+                  
+                  {/* First-time hint */}
+                  {isMobile && (
+                    <div className="bg-blue-50 p-3 rounded-lg mx-auto max-w-xs">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-left">
+                          <p className="text-xs text-blue-800 font-medium">Pro tip:</p>
+                          <p className="text-xs text-blue-700">
+                            Drag steps to reorder them. Tap any step to customize duration and instructions.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <DndContext 
@@ -475,6 +493,19 @@ export const RitualBuilder: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Floating Action Button - Mobile Only */}
+      {isMobile && (
+        <button
+          onClick={() => navigate('/rituals/library')}
+          className="fixed bottom-20 right-4 w-14 h-14 bg-atlas-orange 
+            rounded-full shadow-lg flex items-center justify-center z-40
+            active:scale-95 transition-transform"
+          aria-label="Browse ritual library"
+        >
+          <Plus className="w-6 h-6 text-white" />
+        </button>
+      )}
 
       {/* Mobile Bottom Sheet for Step Config */}
       {isMobile && showMobileConfig && selectedStep && (

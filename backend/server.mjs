@@ -541,15 +541,18 @@ app.use(helmet({
         "https://*.supabase.co",
         "https://openrouter.ai",
         "https://api.anthropic.com",
+        "https://*.ingest.us.sentry.io",  // ✅ Sentry error monitoring
+        "https://*.up.railway.app",        // ✅ Railway backend API
         "ws://localhost:*",
-        "wss://localhost:*"
+        "wss://localhost:*",
+        "wss://*.supabase.co"              // ✅ Supabase Realtime (secure)
       ],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
+      mediaSrc: ["'self'", "data:", "blob:"],  // ✅ Allow audio data URLs
       frameSrc: ["'none'"]
     }
   }

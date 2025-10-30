@@ -16,18 +16,18 @@ import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useTierQuery } from '@/hooks/useTierQuery';
 import { logger } from '@/lib/logger';
 import { Lock, MessageCircle, Plus, Sparkles, TrendingUp, X } from 'lucide-react';
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useFavoriteRituals } from '../hooks/useFavoriteRituals';
 import { useRitualStore } from '../hooks/useRitualStore';
 import type { Ritual } from '../types/rituals';
 import { DataMigrationButton } from './DataMigrationButton';
-import { RitualStepCard } from './RitualStepCard';
-import { QuickStartWidget } from './QuickStartWidget';
-import { useFavoriteRituals } from '../hooks/useFavoriteRituals';
-import { StreakPrediction } from './StreakPrediction';
-import { StreakFreeze } from './StreakFreeze';
 import { PatternInsights } from './PatternInsights';
+import { QuickStartWidget } from './QuickStartWidget';
+import { RitualStepCard } from './RitualStepCard';
+import { StreakFreeze } from './StreakFreeze';
+import { StreakPrediction } from './StreakPrediction';
 
 export const RitualLibrary: React.FC = () => {
   const navigate = useNavigate();
@@ -187,10 +187,30 @@ export const RitualLibrary: React.FC = () => {
 
   if (loading && presets.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F9F6F1]">
-        <div className="text-center">
-          <Sparkles className="w-12 h-12 text-[#B2BDA3] animate-pulse mx-auto mb-4" />
-          <p className="text-gray-600">Loading rituals...</p>
+      <div className="min-h-screen bg-[#F9F6F1] p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Skeleton */}
+          <div className="animate-pulse">
+            <div className="h-8 w-48 bg-gray-200 rounded mb-2"></div>
+            <div className="h-4 w-64 bg-gray-200 rounded"></div>
+          </div>
+          
+          {/* Grid Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-white rounded-xl border-2 border-gray-200 p-6 animate-pulse">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                  <div className="flex-1">
+                    <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 w-24 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                <div className="h-3 w-full bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 w-3/4 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
