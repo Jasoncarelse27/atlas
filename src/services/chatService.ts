@@ -3,7 +3,6 @@ import { supabase } from "../lib/supabaseClient";
 import { logger } from "../lib/logger";
 import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
-import { audioService } from "./audioService";
 import { enhancedResponseCacheService } from "./enhancedResponseCacheService";
 import { subscriptionApi } from "./subscriptionApi";
 
@@ -28,12 +27,13 @@ export async function sendAttachmentMessage(
   
   // Send to backend - use relative URL for mobile compatibility
   // This ensures mobile devices use the Vite proxy instead of direct localhost calls
-  const messageEndpoint = '/message';
+  const messageEndpoint = '/api/message?stream=1';
   
   const response = await fetch(messageEndpoint, {
     method: "POST",
     headers: { 
       "Content-Type": "application/json",
+      "Accept": "text/event-stream",
       "Authorization": `Bearer ${token}`
     },
     body: JSON.stringify({ 
@@ -117,7 +117,7 @@ export const chatService = {
       // Get response from backend (JSON response, not streaming)
       // Use relative URL to leverage Vite proxy for mobile compatibility
       // This ensures mobile devices use the proxy instead of direct localhost calls
-      const messageEndpoint = '/message';
+      const messageEndpoint = '/api/message?stream=1';
       
       // ✅ ENHANCED ERROR HANDLING: Retry with exponential backoff
       let lastError: Error | null = null;
@@ -130,11 +130,11 @@ export const chatService = {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
+              "Accept": "text/event-stream",
               "Authorization": `Bearer ${token}`
             },
             body: JSON.stringify({ 
-              text: text,
-              userId: session?.user?.id || userId || '', // Use passed userId or session userId
+              message: text, // Backend expects "message" field
               conversationId: conversationId || null // ✅ Pass conversationId if available
             }),
             signal: abortController?.signal, // Add abort signal for cancellation (with null check)
@@ -189,46 +189,27 @@ export const chatService = {
         throw lastError || new Error('Failed after max retries');
       }
 
-      const data = await response.json();
+      // ✅ SUCCESS: Backend saves messages to DB immediately
+      // Real-time Supabase listeners will pick up the assistant response
+      // No need to read the SSE stream - just return success
+      logger.debug('[ChatService] ✅ Message sent successfully, real-time will handle response');
       
-      // Handle different response formats
-      let responseText;
-      if (data.reply) {
-        responseText = data.reply;
-      } else if (data.response) {
-        responseText = data.response;
-      } else if (typeof data === 'string') {
-        responseText = data;
-      } else {
-        responseText = "Sorry, I couldn't process that request.";
-      }
-
-      // ✅ ENHANCED CACHING: Cache the response for future use
-      logger.debug('[ChatService] 💾 Caching response for future cost savings');
-      await enhancedResponseCacheService.cacheResponse(text, responseText, currentTier as any);
-
-      // 🔊 Play TTS if tier allows
-      if (currentTier !== "free" && typeof audioService.play === "function") {
-        audioService.play(responseText);
-      }
-
-      // Call completion callback to clear typing indicator
+      // Call completion callback
       onComplete?.();
       
       // Refresh profile to get updated usage stats
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token && import.meta.env.VITE_API_URL) {
+        if (session?.access_token) {
           // Trigger a profile refresh by calling the profile endpoint
-          // ✅ FIX: Only call if VITE_API_URL is set (avoids mixed content errors)
-          await fetch(`${import.meta.env.VITE_API_URL}/v1/user_profiles/${userId}`, {
+          // ✅ Use relative path to leverage Vite proxy (avoids mixed content errors)
+          await fetch(`/v1/user_profiles/${userId}`, {
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
               'Content-Type': 'application/json'
             }
           }).catch(() => {
             // Silently fail if profile refresh fails (non-critical)
-            // This fixes mixed content errors when VITE_API_URL is HTTP
           });
         }
       } catch (refreshError) {
@@ -237,13 +218,12 @@ export const chatService = {
       }
       
       // Reset streaming state
-      // Removed useMessageStore.setIsStreaming - using callback pattern instead
       abortController = null;
       
-      // Return both response text and conversation ID
+      // Return success (real-time will handle message display)
       return {
-        response: responseText,
-        conversationId: data.conversationId
+        response: "Message sent",
+        conversationId: conversationId || undefined
       };
     } catch (error) {
       
@@ -284,10 +264,11 @@ export const chatService = {
       const imageTier = await subscriptionApi.getUserTier(actualUserId, token);
       
       // Send multi-attachment analysis request to backend
-      const response = await fetch('/message', {
+      const response = await fetch('/api/message?stream=1', {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
+          "Accept": "text/event-stream",
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ 
@@ -331,10 +312,11 @@ export const chatService = {
           imageUrl: imageUrl // Send image URL for analysis
         };
         
-        const response = await fetch(`/message`, {
+        const response = await fetch(`/api/message?stream=1`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
+            "Accept": "text/event-stream",
             "Authorization": `Bearer ${token}`
           },
           body: JSON.stringify(requestBody),

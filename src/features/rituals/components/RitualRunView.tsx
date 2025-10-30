@@ -491,6 +491,32 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             Back to Library
           </button>
         </div>
+
+        {/* ✨ Reward Modal - Show after completion */}
+        {completedRitualData && (
+          <RitualRewardModal
+            isOpen={showRewardModal}
+            onClose={() => {
+              setShowRewardModal(false);
+              navigate('/chat'); // Navigate to chat on close
+            }}
+            ritualData={{
+              title: completedRitualData.title,
+              durationMinutes: completedRitualData.durationMinutes,
+              moodBefore: completedRitualData.moodBefore,
+              moodAfter: completedRitualData.moodAfter,
+              reflection: completedRitualData.reflection,
+            }}
+            onViewInsights={() => {
+              setShowRewardModal(false);
+              navigate('/ritual-insights'); // ✅ FIX: Navigate to insights page
+            }}
+            onStartAnother={() => {
+              setShowRewardModal(false);
+              navigate('/rituals');
+            }}
+          />
+        )}
       </div>
     );
   }

@@ -4,6 +4,7 @@ import compression from 'compression';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import fs from 'fs';
 import helmet from 'helmet';
 import http from 'http';
 import https from 'https';
@@ -130,8 +131,8 @@ if (!ANTHROPIC_API_KEY) {
 
 // Model mapping by tier (updated to latest non-deprecated models)
 const _mapTierToAnthropicModel = (tier) => {
-  if (tier === 'studio') return 'claude-3-5-sonnet-20241022';
-  return 'claude-3-5-sonnet-20241022';
+  if (tier === 'studio') return 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL (old retired Oct 29!)
+  return 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL (old retired Oct 29!)
 };
 
 // Stream helper: write SSE data chunk
@@ -506,6 +507,31 @@ const verifyJWT = async (req, res, next) => {
 app.use(sentryMiddleware.requestHandler);
 app.use(sentryMiddleware.tracingHandler);
 
+// 🔒 Production HTTPS enforcement
+if (process.env.NODE_ENV === 'production') {
+  // Trust proxy headers from load balancers (Fly.io, Vercel, etc)
+  app.set('trust proxy', true);
+  
+  // Force HTTPS redirect in production
+  app.use((req, res, next) => {
+    // Check if request came through HTTPS
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    
+    if (proto !== 'https') {
+      // Redirect to HTTPS version
+      const httpsUrl = `https://${req.headers.host}${req.url}`;
+      logger.debug(`[HTTPS] Redirecting HTTP → HTTPS: ${httpsUrl}`);
+      return res.redirect(301, httpsUrl);
+    }
+    
+    // Add Strict Transport Security header
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    next();
+  });
+  
+  logger.info('🔒 [Server] HTTPS enforcement enabled for production');
+}
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -541,7 +567,12 @@ app.use(morgan('combined'));
 // ✅ Allow LAN devices to connect (same Wi-Fi)
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.ALLOWED_ORIGINS?.split(',') || ['*']
+    ? process.env.ALLOWED_ORIGINS?.split(',') || [
+        'https://atlas-ai.app',
+        'https://www.atlas-ai.app',
+        'https://atlas.vercel.app',
+        'https://atlas-frontend.fly.dev'
+      ]
     : [
         // Vite dev server ports
         process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -802,7 +833,7 @@ app.post('/message',
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: 'claude-3-5-sonnet-20241022',
+              model: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL
               max_tokens: 2000,
               messages: [
                 {
@@ -837,7 +868,7 @@ app.post('/message',
 
           res.json({
             success: true,
-            model: 'claude-3-5-sonnet-20241022',
+            model: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL
             tier: userTier || 'free',
             reply: analysis,
             conversationId: conversationId,
@@ -1061,18 +1092,18 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     }
 
     // 🎯 Dynamic model selection based on user tier
-    let selectedModel = 'claude-3-5-sonnet'; // Default
+    let selectedModel = 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL
     let routedProvider = 'claude';
     
     if (effectiveTier === 'studio') {
-      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use correct model name
+      selectedModel = 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL
       routedProvider = 'claude';
     } else if (effectiveTier === 'core') {
-      selectedModel = 'claude-3-5-sonnet-20240620';
+      selectedModel = 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL
       routedProvider = 'claude';
     } else {
-      // Free tier - use Claude Haiku for cost efficiency
-      selectedModel = 'claude-3-5-haiku-20241022';
+      // Free tier - use Claude Haiku
+      selectedModel = 'claude-3-haiku-20240307'; // ✅ Already correct
       routedProvider = 'claude';
     }
     
@@ -1135,6 +1166,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         logger.debug(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
         
         // 🎯 Real AI Model Logic - Use Claude based on tier
+        logger.debug(`🔍 ROUTE CHECK: provider=${routedProvider}, hasKey=${!!ANTHROPIC_API_KEY}, model=${selectedModel}`);
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
           logger.debug('✅ Claude streaming completed, final text length:', finalText.length);
@@ -1160,6 +1192,14 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           finalText = mockChunks.join('');
         }
       } catch (streamErr) {
+        // Log the actual error for debugging
+        logger.error('[Server] ❌ Claude streaming error:', streamErr);
+        logger.error('[Server] Error details:', {
+          message: streamErr.message,
+          stack: streamErr.stack,
+          name: streamErr.name
+        });
+        
         // Send error as SSE chunk
         writeSSE(res, { chunk: 'Sorry, I hit an error generating the response.' });
         finalText = 'Sorry, I hit an error generating the response.';
@@ -1390,7 +1430,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-3-5-sonnet-20241022',
+            model: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL
             max_tokens: 2000,
             messages: [
               {
@@ -2340,7 +2380,24 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start server - bind to all interfaces for mobile access
-// ✅ Final "listen" section (replaces old app.listen)
-app.listen(PORT, '0.0.0.0', () => {
-  logger.debug(`✅ Atlas backend running on:`);
-});
+// ✅ Support HTTPS if certs exist (for camera/audio testing)
+const certPath = path.join(__dirname, '..', 'localhost+1.pem');
+const keyPath = path.join(__dirname, '..', 'localhost+1-key.pem');
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  const httpsOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+  };
+  
+  https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+    logger.debug(`✅ Atlas backend (HTTPS) running on:`);
+    logger.debug(`   https://localhost:${PORT}`);
+    logger.debug(`   https://192.168.0.10:${PORT}`);
+  });
+} else {
+  app.listen(PORT, '0.0.0.0', () => {
+    logger.debug(`✅ Atlas backend (HTTP) running on:`);
+    logger.debug(`   http://localhost:${PORT}`);
+  });
+}

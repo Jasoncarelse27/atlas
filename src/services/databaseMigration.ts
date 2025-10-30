@@ -23,21 +23,21 @@ export class DatabaseMigrationService {
     }
 
     this.isMigrating = true;
-    logger.debug('[Migration] Starting clean database migration...');
+    logger.debug('[Migration] Starting database check...');
 
     try {
-      // Open the new database
+      // ✅ FIX: Just ensure database is open, DON'T clear data!
+      // The old code was clearing messages on every page refresh!
       await atlasDB.open();
-      logger.debug('[Migration] ✅ New database opened successfully');
+      logger.debug('[Migration] ✅ Database opened successfully');
 
-      // Clear any existing data to start fresh
-      await atlasDB.messages.clear();
-      await atlasDB.conversations.clear();
-      logger.debug('[Migration] ✅ Cleared old data');
+      // ✅ FIX: REMOVED data clearing - this was deleting messages on every refresh!
+      // await atlasDB.messages.clear();  ❌ DON'T DO THIS!
+      // await atlasDB.conversations.clear();  ❌ DON'T DO THIS!
 
-      logger.debug('[Migration] ✅ Database migration completed successfully');
+      logger.debug('[Migration] ✅ Database check completed');
     } catch (error) {
-      logger.error('[Migration] ❌ Database migration failed:', error);
+      logger.error('[Migration] ❌ Database check failed:', error);
       throw error;
     } finally {
       this.isMigrating = false;

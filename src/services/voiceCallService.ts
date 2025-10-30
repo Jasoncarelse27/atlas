@@ -755,10 +755,11 @@ export class VoiceCallService {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch('/api/message', {
+      const response = await fetch('/api/message?stream=1', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({

@@ -652,20 +652,35 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           // ✅ Update UI with real message, replacing optimistic one
           setMessages(prev => {
-            // Remove optimistic message if it exists
-            const withoutOptimistic = prev.filter(m => !m.id.startsWith('temp-'));
+            // ✅ FIX: Only remove the optimistic message if this is a user message being replaced
+            // Don't remove ALL temp messages when assistant responds!
+            let updatedMessages = [...prev];
             
-            // Check if real message already exists
-            const messageExists = withoutOptimistic.some(m => m.id === realMessage.id);
-            
-            if (messageExists) {
-              // Update existing message
-              return withoutOptimistic.map(m => 
-                m.id === realMessage.id ? realMessage : m
+            if (realMessage.role === 'user') {
+              // For user messages, find and replace the matching temp message
+              const tempIndex = updatedMessages.findIndex(m => 
+                m.id.startsWith('temp-') && 
+                m.content === realMessage.content &&
+                m.role === 'user'
               );
+              
+              if (tempIndex !== -1) {
+                // Replace the temp message with the real one
+                updatedMessages[tempIndex] = realMessage;
+                return updatedMessages;
+              }
+            }
+            
+            // For assistant messages or if no temp message found, just add/update normally
+            const existingIndex = updatedMessages.findIndex(m => m.id === realMessage.id);
+            
+            if (existingIndex !== -1) {
+              // Update existing message
+              updatedMessages[existingIndex] = realMessage;
+              return updatedMessages;
             } else {
-              // Add new message (messages already sorted from Dexie)
-              return [...withoutOptimistic, realMessage];
+              // Add new message
+              return [...updatedMessages, realMessage];
             }
           });
           

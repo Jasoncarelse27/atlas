@@ -17,8 +17,8 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
-import React, { useState } from 'react';
+import { ArrowLeft, GripVertical, Plus, Save, Sparkles, Trash2, X, Lightbulb, AlertCircle, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,6 +26,7 @@ import { useRitualStore } from '../hooks/useRitualStore';
 import type { Ritual, RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
 import { StepConfigPanel } from './StepConfigPanel';
 import { STEP_TYPE_DEFINITIONS, StepLibrary } from './StepLibrary';
+import { analyzeRitual, suggestNextStep, type RitualSuggestion } from '../services/ritualSuggestions';
 
 interface SortableStepCardProps {
   step: RitualStep;
@@ -165,6 +166,16 @@ export const RitualBuilder: React.FC = () => {
   });
   const [selectedStep, setSelectedStep] = useState<RitualStep | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // 🔥 NEW: Smart suggestions
+  const [suggestions, setSuggestions] = useState<RitualSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+
+  // Analyze ritual and provide suggestions whenever steps or goal change
+  useEffect(() => {
+    const newSuggestions = analyzeRitual(steps, goal);
+    setSuggestions(newSuggestions);
+  }, [steps, goal]);
 
   // Mobile: Show config as bottom sheet
   const [showMobileConfig, setShowMobileConfig] = useState(false);

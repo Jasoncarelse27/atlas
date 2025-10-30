@@ -97,10 +97,11 @@ class TierEnforcementService {
    * Send message with server-side tier enforcement and middleware
    */
   async sendMessage(userId: string, message: string, tier: string = 'free', conversationId?: string, promptType?: string): Promise<MessageResponse> {
-    const response = await fetch(`${this.baseUrl}/message`, {
+    const response = await fetch(`${this.baseUrl}/api/message?stream=1`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
       },
       body: JSON.stringify({
         userId,

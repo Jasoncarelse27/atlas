@@ -16,10 +16,9 @@ export const FEATURE_GATES = {
 
 export const MODEL_COSTS = {
   // Current models (updated Oct 2025)
-  'claude-3-5-haiku-20241022':  { input: 0.00025, output: 0.00125 },
-  'claude-3-5-sonnet-20241022': { input: 0.003,   output: 0.015   },
+  'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 }, // ✅ FIX: Correct Haiku model name
+  'claude-sonnet-4-5-20250929': { input: 0.003,   output: 0.015   }, // ✅ NEW MODEL
   // Legacy model names for backward compatibility
-  'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 },
   'claude-3.5-sonnet-20240620': { input: 0.003,   output: 0.015   },
   'claude-3-opus-20240229':   { input: 0.015,   output: 0.075   },
   'claude-3-haiku':  { input: 0.00025, output: 0.00125 },
@@ -42,9 +41,9 @@ export const SYSTEM_LIMITS = {
 export function selectOptimalModel(userTier, messageContent = '', requestType = '') {
   // ✅ Tier-based model selection (aligned with messageService.js)
   const MODEL_MAP = {
-    free: 'claude-3-5-haiku-20241022',
-    core: 'claude-3-5-sonnet-20241022',
-    studio: 'claude-3-5-sonnet-20241022', // Use Sonnet for Studio (Opus deprecated)
+    free: 'claude-3-haiku-20240307', // ✅ FIX: Correct Haiku model name
+    core: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL (old retired Oct 29!)
+    studio: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL (old retired Oct 29!)
   };
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;

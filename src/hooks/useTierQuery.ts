@@ -150,24 +150,29 @@ export function useTierQuery() {
     };
   }, [query.data?.userId, queryClient]);
 
-  // Listen for auth state changes (login/logout)
+  // Listen for auth state changes (login/logout) - DEDUPLICATED
   useEffect(() => {
+    let isSubscribed = true;
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      // Only log significant events
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        logger.info(`[useTierQuery] 🔐 Auth: ${event}`);
-      }
+      if (!isSubscribed) return; // Ignore events after unmount
       
-      // Refetch tier on auth changes
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+      // ONLY care about actual sign in/out (ignore token refresh spam)
+      if (event === 'SIGNED_IN') {
+        logger.info(`[useTierQuery] 🔐 User signed in`);
+        queryClient.invalidateQueries({ queryKey: ['user-tier'] });
+      } else if (event === 'SIGNED_OUT') {
+        logger.info(`[useTierQuery] 🔐 User signed out`);
         queryClient.invalidateQueries({ queryKey: ['user-tier'] });
       }
+      // Silently ignore: TOKEN_REFRESHED, INITIAL_SESSION, USER_UPDATED
     });
 
     return () => {
+      isSubscribed = false;
       subscription.unsubscribe();
     };
-  }, [queryClient]); // ✅ FIXED: Use queryClient instead of query object
+  }, [queryClient]);
 
   return {
     tier: query.data?.tier || 'free',

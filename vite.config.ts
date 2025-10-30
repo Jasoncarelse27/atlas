@@ -54,17 +54,31 @@ export default defineConfig(({ mode }) => {
         cert: fs.readFileSync('./localhost+1.pem'),
       } : undefined,
       proxy: {
+        // API routes
         '/v1': {
-          target: 'http://localhost:8000',
-          changeOrigin: true
+          target: 'https://localhost:8000',
+          changeOrigin: true,
+          secure: false, // Accept self-signed certs in development
+          ws: true, // Enable WebSocket support
+          configure: (proxy, options) => {
+            proxy.on('error', (err) => {
+              console.error('Proxy error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req) => {
+              console.log('Proxying:', req.method, req.url, '→', options.target + req.url);
+            });
+          }
         },
         '/api': {
-          target: 'http://localhost:8000',
-          changeOrigin: true
+          target: 'https://localhost:8000',
+          changeOrigin: true,
+          secure: false,
+          ws: true
         },
         '/message': {
-          target: 'http://localhost:8000',
-          changeOrigin: true
+          target: 'https://localhost:8000',
+          changeOrigin: true,
+          secure: false
         }
       }
     }

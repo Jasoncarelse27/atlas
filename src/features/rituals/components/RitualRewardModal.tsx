@@ -1,7 +1,7 @@
+import confetti from 'canvas-confetti';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, TrendingUp, X } from 'lucide-react';
 import { useEffect } from 'react';
-import confetti from 'canvas-confetti';
 
 interface RitualRewardModalProps {
   isOpen: boolean;
@@ -27,33 +27,123 @@ export function RitualRewardModal({
   autoDismiss = false
 }: RitualRewardModalProps) {
   
-  // ✅ BEST PRACTICE #0: Confetti celebration
+  // ✨ Orbiting spiritual particles - like an aura around the modal
   useEffect(() => {
     if (isOpen) {
-      // Trigger confetti burst
-      const duration = 3000;
+      const duration = 5000; // Peaceful presence
       const end = Date.now() + duration;
       
+      const colors = [
+        '#DBC8B5', // Soft sand
+        '#C9B8A8', // Warm taupe
+        '#E8DDD2', // Light cream
+        '#B8A99A', // Sage brown
+        '#D4C4B0', // Soft gold
+        '#E5D9CE'  // Pale rose
+      ];
+      
       const frame = () => {
+        const now = Date.now();
+        const progress = (now % 3000) / 3000; // Cycle every 3 seconds
+        
+        // Create particles that orbit around the modal perimeter
+        // Top edge (moving right)
         confetti({
-          particleCount: 2,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: ['#C8956A', '#B8855A', '#E8DDD2', '#F9F6F3']
+          particleCount: 1,
+          angle: 0, // Move horizontally
+          spread: 20,
+          origin: { 
+            x: 0.3 + (progress * 0.4), // Move across top
+            y: 0.2 
+          },
+          colors: colors,
+          gravity: -0.1, // Float upward slightly
+          scalar: 0.7,
+          drift: 0.3,
+          ticks: 150,
+          shapes: ['circle'],
+          startVelocity: 5,
         });
+        
+        // Right edge (moving down)
         confetti({
-          particleCount: 2,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: ['#C8956A', '#B8855A', '#E8DDD2', '#F9F6F3']
+          particleCount: 1,
+          angle: 90,
+          spread: 20,
+          origin: { 
+            x: 0.7,
+            y: 0.2 + (progress * 0.6) // Move down right side
+          },
+          colors: colors,
+          gravity: 0.1,
+          scalar: 0.7,
+          drift: -0.3,
+          ticks: 150,
+          shapes: ['circle'],
+          startVelocity: 5,
+        });
+        
+        // Bottom edge (moving left)
+        confetti({
+          particleCount: 1,
+          angle: 180,
+          spread: 20,
+          origin: { 
+            x: 0.7 - (progress * 0.4), // Move across bottom
+            y: 0.8
+          },
+          colors: colors,
+          gravity: 0.1,
+          scalar: 0.7,
+          drift: -0.3,
+          ticks: 150,
+          shapes: ['circle'],
+          startVelocity: 5,
+        });
+        
+        // Left edge (moving up)
+        confetti({
+          particleCount: 1,
+          angle: 270,
+          spread: 20,
+          origin: { 
+            x: 0.3,
+            y: 0.8 - (progress * 0.6) // Move up left side
+          },
+          colors: colors,
+          gravity: -0.1,
+          scalar: 0.7,
+          drift: 0.3,
+          ticks: 150,
+          shapes: ['circle'],
+          startVelocity: 5,
         });
 
         if (Date.now() < end) {
           requestAnimationFrame(frame);
         }
       };
+      
+      // Initial gentle bloom around modal
+      setTimeout(() => {
+        for (let i = 0; i < 12; i++) {
+          const angle = (i / 12) * 360;
+          confetti({
+            particleCount: 1,
+            angle: angle,
+            spread: 30,
+            origin: { x: 0.5, y: 0.5 },
+            colors: colors,
+            gravity: 0,
+            scalar: 0.8,
+            drift: 0,
+            ticks: 200,
+            shapes: ['circle'],
+            startVelocity: 8,
+          });
+        }
+      }, 100);
+      
       frame();
     }
   }, [isOpen]);
