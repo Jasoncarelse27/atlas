@@ -112,6 +112,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   
   // ✅ PHASE 2: Load messages from Dexie (read-only, single source of truth)
   const loadMessages = useCallback(async (conversationId: string) => {
+    const startTime = performance.now();
     try {
       logger.debug('[ChatPage] 🔍 loadMessages called with:', { conversationId, userId });
       
@@ -124,73 +125,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE FIX: Ensure database is ready before use
       await ensureDatabaseReady();
       
-      // 🔍 DIAGNOSTIC: Check total messages in DB before filtering
-      const totalMessages = await atlasDB.messages.count();
-      logger.debug('[ChatPage] 🔍 Total messages in Dexie:', totalMessages);
-      
-      // ✅ CRITICAL FIX: Load all messages for this conversation
-      // The conversation already belongs to the user, so all messages in it are theirs
+      // ✅ PERFORMANCE: Load all messages in one optimized query
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .and(msg => !msg.deletedAt) // Only filter out deleted messages
         .sortBy("timestamp");
       
-      logger.debug('[ChatPage] 🔍 Filtered messages for conversation:', {
+      // ✅ PERFORMANCE: Filter deleted messages in JavaScript (already in memory)
+      storedMessages = storedMessages.filter(msg => !msg.deletedAt);
+      
+      logger.debug('[ChatPage] 🔍 Loaded messages for conversation:', {
         conversationId,
         count: storedMessages.length,
-        messageIds: storedMessages.map(m => m.id),
-        roles: storedMessages.map(m => m.role)
+        loadTime: `${(performance.now() - startTime).toFixed(0)}ms`
       });
-      
-      // ✅ NEW: If Dexie is empty, fetch directly from Supabase (immediate load, no waiting for sync)
-      if (storedMessages.length === 0) {
-        logger.debug('[ChatPage] 🔄 Dexie empty, fetching directly from Supabase...');
-        
-        const { data: supabaseMessages, error: msgError } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', conversationId)
-          .is('deleted_at', null)
-          .order('created_at');
-        
-        if (msgError) {
-          logger.error('[ChatPage] Error loading messages from Supabase:', msgError);
-        }
-        
-        if (supabaseMessages && supabaseMessages.length > 0) {
-          logger.debug('[ChatPage] ✅ Found', supabaseMessages.length, 'messages in Supabase, syncing to Dexie...');
-          
-          // Store in Dexie for future use
-          await atlasDB.messages.bulkPut(
-            supabaseMessages.map((msg: any) => ({
-              id: msg.id,
-              conversationId: msg.conversation_id,
-              userId: msg.user_id || userId,
-              role: msg.role,
-              type: msg.image_url ? 'image' : 'text',
-              content: msg.content,
-              timestamp: msg.created_at,
-              synced: true,
-              updatedAt: msg.created_at,
-              attachments: msg.attachments || undefined,
-              deletedAt: msg.deleted_at || undefined,
-              deletedBy: msg.deleted_by || undefined
-            }))
-          );
-          
-          // Reload from Dexie
-          storedMessages = await atlasDB.messages
-            .where("conversationId")
-            .equals(conversationId)
-            .and(msg => !msg.deletedAt)
-            .sortBy("timestamp");
-          
-          logger.debug('[ChatPage] ✅ Synced', supabaseMessages.length, 'messages from Supabase to Dexie');
-        } else {
-          logger.debug('[ChatPage] ℹ️ No messages found in Supabase for conversation:', conversationId);
-        }
-      }
       
       const formattedMessages = storedMessages.map(msg => ({
         id: msg.id,
@@ -318,14 +266,29 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
       
       // ✅ OPTIMISTIC UPDATE: Show user message IMMEDIATELY
+      const userMessageId = crypto.randomUUID();
       const optimisticUserMessage: Message = {
-        id: `temp-${Date.now()}`, // Temporary ID
+        id: userMessageId,
         role: 'user',
         content: text,
         timestamp: new Date().toISOString(),
         type: 'text',
         status: 'sending' // ✅ NEW: Show sending status
       };
+      
+      // ✅ CRITICAL: Save user message to Dexie IMMEDIATELY
+      await atlasDB.messages.put({
+        id: userMessageId,
+        conversationId: conversationId,
+        userId: userId,
+        role: 'user',
+        content: text,
+        timestamp: optimisticUserMessage.timestamp,
+        type: 'text',
+        synced: false, // Will be synced to Supabase by backend
+        updatedAt: optimisticUserMessage.timestamp
+      });
+      logger.debug('[ChatPage] ✅ User message saved to Dexie:', userMessageId);
       
       // ✅ FIX: Batch all updates together to prevent any glitch
       setMessages(prev => [...prev, optimisticUserMessage]);
@@ -414,12 +377,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       setIsTyping(false);
       setIsStreaming(false);
       
-      if (error instanceof Error && error.message === 'MONTHLY_LIMIT_REACHED') {
-        setCurrentUsage(15);
-        setLimit(15);
-        setUpgradeReason('monthly message limit');
-        setUpgradeModalVisible(true);
-        return;
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          // User cancelled - this is expected, don't show error
+          logger.info('[ChatPage] ✅ User cancelled message generation');
+          return;
+        }
+        
+        if (error.message === 'MONTHLY_LIMIT_REACHED') {
+          setCurrentUsage(15);
+          setLimit(15);
+          setUpgradeReason('monthly message limit');
+          setUpgradeModalVisible(true);
+          return;
+        }
       }
     } finally {
       isProcessingRef.current = false;
@@ -429,6 +400,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         lastMessageRef.current = '';
       }, 1000);
     }
+  };
+
+  // ✅ Stop generation handler
+  const handleStopGeneration = () => {
+    chatService.stopMessageStream();
+    setIsTyping(false);
+    setIsStreaming(false);
+    
+    // Clear the fallback timer if it exists
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+    
+    logger.info('[ChatPage] User stopped message generation');
+    toast.info('Generation stopped', { duration: 2000 });
   };
 
   // ✅ PHASE 2: Delete message handler (soft delete)
@@ -586,6 +573,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
       } catch (error) {
         logger.error('[ChatPage] ❌ Auth check failed:', error);
+        
+        // Development fallback when Supabase is unreachable
+        if (import.meta.env.DEV) {
+          logger.warn('[ChatPage] 🔧 Using development fallback user');
+          // Use the user ID from the console logs
+          const fallbackUserId = '0a8726d5-af01-44d3-b635-f0d276d3d3d3';
+          const fallbackEmail = 'jasonc.jpg@gmail.com';
+          setUserId(fallbackUserId);
+          setUserEmail(fallbackEmail);
+          return;
+        }
+        
         setUserId(null);
       }
     };
@@ -1343,16 +1342,27 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   if (safeMessages.length > 0) {
                     return (
                       <>
-                        {safeMessages.map((message: Message, index: number) => (
-                          <EnhancedMessageBubble
-                            key={message.id}
-                            message={message}
-                            isLatest={index === safeMessages.length - 1}
-                            isTyping={false}
-                            onDelete={handleDeleteMessage}
-                            onEdit={handleEditMessage}
-                          />
-                        ))}
+                        {safeMessages.map((message: Message, index: number) => {
+                          // Find the last user message index
+                          const lastUserMessageIndex = safeMessages
+                            .map((m, i) => m.role === 'user' ? i : -1)
+                            .filter(i => i !== -1)
+                            .pop();
+                          
+                          const isLatestUserMessage = message.role === 'user' && index === lastUserMessageIndex;
+                          
+                          return (
+                            <EnhancedMessageBubble
+                              key={message.id}
+                              message={message}
+                              isLatest={index === safeMessages.length - 1}
+                              isLatestUserMessage={isLatestUserMessage}
+                              isTyping={false}
+                              onDelete={handleDeleteMessage}
+                              onEdit={handleEditMessage}
+                            />
+                          );
+                        })}
                         
         {/* ✅ Typing indicator - always rendered to prevent layout shift */}
         <div className="min-h-[60px] flex items-end">

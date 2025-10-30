@@ -1,5 +1,6 @@
 import { useTierAccess } from '@/hooks/useTierAccess';
 import { audioUsageService } from '@/services/audioUsageService';
+import { stopMessageStream } from '@/services/chatService';
 import { voiceService } from '@/services/voiceService';
 import { motion } from 'framer-motion';
 import { Ban, Bot, Check, Copy, Loader2, Pause, Play, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
@@ -20,12 +21,13 @@ import { TypingDots } from './TypingDots';
 interface EnhancedMessageBubbleProps {
   message: Message;
   isLatest?: boolean;
+  isLatestUserMessage?: boolean;
   isTyping?: boolean;
   onDelete?: (messageId: string, deleteForEveryone: boolean) => void;
   onEdit?: (messageId: string, newContent: string) => void;
 }
 
-export default function EnhancedMessageBubble({ message, isLatest = false, isTyping = false, onDelete, onEdit }: EnhancedMessageBubbleProps) {
+export default function EnhancedMessageBubble({ message, isLatest = false, isLatestUserMessage = false, isTyping = false, onDelete, onEdit }: EnhancedMessageBubbleProps) {
   
 
   // ✅ Collect all attachments (check both locations for compatibility)
@@ -39,16 +41,23 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   
-  // Debug logging removed - component working correctly
   // ✅ CRITICAL FIX: Initialize displayedText immediately for user messages
   const [displayedText, setDisplayedText] = useState(() => {
     // Get initial content
     if (!message.content) return '';
     
-    // Handle object format
+    // Handle object format (most common case for user messages from backend)
     if (typeof message.content === 'object' && !Array.isArray(message.content)) {
       const contentObj = message.content as any;
-      return contentObj.text || contentObj.content || contentObj.message || '';
+      
+      // Debug log for object content
+      if (isUser && typeof window !== 'undefined') {
+        console.log('[DEBUG] User message content is object:', contentObj);
+      }
+      
+      // Try multiple fields to extract text
+      const text = contentObj.text || contentObj.content || contentObj.message || '';
+      return String(text); // Ensure it's a string
     }
     
     // Handle array format
@@ -58,6 +67,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     
     // Handle string format
     if (typeof message.content === 'string') {
+      // Check if it's a JSON string that needs parsing
       if (message.content.trim().startsWith('{') && 
           message.content.includes('"type"') && 
           message.content.includes('"text"')) {
@@ -71,8 +81,11 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
       return message.content;
     }
     
+    // Fallback - convert to string
+    console.warn('[DEBUG] Unexpected message content format:', message.content);
     return String(message.content || '');
   });
+
   const [currentIndex, setCurrentIndex] = useState(0);
   
   // TTS state
@@ -114,7 +127,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     if (typeof message.content === 'object' && !Array.isArray(message.content)) {
       const contentObj = message.content as any;
       // ✅ FIX: Try multiple text fields, never show raw JSON
-      return contentObj.text || contentObj.content || contentObj.message || '';
+      const text = contentObj.text || contentObj.content || contentObj.message || '';
+      return String(text); // Ensure it's a string
     }
     
     // Handle array format
@@ -275,8 +289,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
             onEdit={handleEditClick}
             onDelete={handleDeleteClick}
             onCopy={handleCopy}
-            canEdit={isUser && !message.deletedAt}
-            canDelete={isUser}
+            canEdit={isUser && !message.deletedAt && isLatestUserMessage}
+            canDelete={!isUser && !message.deletedAt}
           />
         )}
 
@@ -618,8 +632,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           onEdit={handleEditClick}
           onDelete={handleDeleteClick}
           onCopy={handleCopy}
-          canEdit={isUser && !message.deletedAt}
-          canDelete={isUser}
+          canEdit={isUser && !message.deletedAt && isLatestUserMessage}
+          canDelete={!isUser && !message.deletedAt}
         />
       )}
 
@@ -662,7 +676,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
           }`} 
           style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
         >
-          {(message.status === 'sending' && (!displayedText || displayedText === '...')) || (isTyping && !isUser) ? (
+          {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
               <div className="flex items-center space-x-3">
                 <TypingDots />
               </div>
@@ -696,13 +710,26 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <div className="flex-1 [&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0">
-                  <LegacyMessageRenderer content={displayedText} />
+                <div className="flex-1">
+                  {displayedText ? (
+                    isUser ? (
+                      // Simple rendering for user messages - no markdown  
+                      <span className="block">{displayedText}</span>
+                    ) : (
+                      // Keep markdown for assistant messages
+                      <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0">
+                        <LegacyMessageRenderer content={displayedText} />
+                      </div>
+                    )
+                  ) : (
+                    <span className="text-gray-400 italic">Empty message</span>
+                  )}
                 </div>
                 {message.status === 'sending' && displayedText && !isUser && (
                   <StopButton 
                     onPress={() => {
-                      // Stop generation logic will be implemented
+                      stopMessageStream();
+                      toast.info('Response cancelled - Partial response kept');
                     }}
                     isVisible={true}
                   />
@@ -744,26 +771,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
             </div>
           )}
 
-          {/* ✅ Message Status Indicators (WhatsApp-style checkmarks) */}
-          {isUser && message.status && message.status !== 'uploading' && message.status !== 'sending' && (
-            <div className="flex items-center gap-0.5 mt-1 justify-end">
-              {message.status === 'sent' && (
-                <Check className="w-3 h-3 text-gray-300" />
-              )}
-              {message.status === 'delivered' && (
-                <>
-                  <Check className="w-3 h-3 text-gray-300" />
-                  <Check className="w-3 h-3 text-gray-300 -ml-1.5" />
-                </>
-              )}
-              {message.status === 'read' && (
-                <>
-                  <Check className="w-3 h-3 text-blue-400" />
-                  <Check className="w-3 h-3 text-blue-400 -ml-1.5" />
-                </>
-              )}
-            </div>
-          )}
+          {/* Message Status Indicators removed - cleaner UI */}
           
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
           {!isUser && !showTypingIndicator && message.status !== 'sending' && (

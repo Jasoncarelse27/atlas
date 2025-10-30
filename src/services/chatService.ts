@@ -175,6 +175,9 @@ export const chatService = {
             error.name === 'AbortError' || 
             error.message.includes('MONTHLY_LIMIT_REACHED')
           )) {
+            if (error.name === 'AbortError') {
+              logger.info('[ChatService] ✅ Request aborted by user');
+            }
             throw error;
           }
           
@@ -244,9 +247,13 @@ export const chatService = {
   
   // Stop streaming function
   stopMessageStream: () => {
+    logger.info('[ChatService] 🛑 stopMessageStream called');
     if (abortController) {
+      logger.info('[ChatService] ✅ Aborting active request');
       abortController.abort();
       abortController = null;
+    } else {
+      logger.warn('[ChatService] ⚠️ No active request to abort');
     }
     // Removed useMessageStore.setIsStreaming - using callback pattern instead
   },
