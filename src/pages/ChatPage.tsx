@@ -356,14 +356,45 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         });
       }
       
-      // ✅ IMPROVED: Extended fallback for stable real-time (5 seconds)
-      // Real-time listener will handle message replacement smoothly
+      // ✅ BULLETPROOF FALLBACK: If realtime fails, fetch directly from Supabase after 2s
       fallbackTimerRef.current = setTimeout(async () => {
-        logger.warn('[ChatPage] ⚠️ Real-time event not received after 5s, reloading messages');
+        logger.warn('[ChatPage] ⚠️ Real-time not received after 2s, fetching from Supabase');
+        
+        // Fetch latest 10 messages from Supabase
+        const { data: latestMessages, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && latestMessages && latestMessages.length > 0) {
+          // Save to Dexie immediately
+          await atlasDB.messages.bulkPut(
+            latestMessages.map((msg: any) => ({
+              id: msg.id,
+              conversationId: msg.conversation_id,
+              userId: msg.user_id || userId,
+              role: msg.role,
+              type: 'text',
+              content: msg.content,
+              timestamp: msg.created_at,
+              synced: true,
+              updatedAt: msg.created_at,
+              attachments: msg.attachments || undefined,
+              deletedAt: msg.deleted_at || undefined,
+              deletedBy: msg.deleted_by || undefined
+            }))
+          );
+          logger.debug('[ChatPage] ✅ Fallback: Saved', latestMessages.length, 'messages to Dexie');
+        }
+        
+        // Reload from Dexie to display
         await loadMessages(conversationId);
         setIsTyping(false);
         setIsStreaming(false);
-      }, 5000); // ✅ Longer timeout - trust real-time, only fallback if it fails
+      }, 2000); // ✅ 2-second fallback ensures messages always appear
       
       // Keep typing indicator active until real-time listener receives response
       
