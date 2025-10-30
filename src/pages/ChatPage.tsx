@@ -1339,6 +1339,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               <MessageListWithPreviews>
                 {(() => {
                   const safeMessages = messages || [];
+                  // Debug logging removed - messages rendering correctly
                   if (safeMessages.length > 0) {
                     return (
                       <>

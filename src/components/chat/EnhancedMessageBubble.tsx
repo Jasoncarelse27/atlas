@@ -38,7 +38,41 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
 
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
-  const [displayedText, setDisplayedText] = useState('');
+  
+  // Debug logging removed - component working correctly
+  // ✅ CRITICAL FIX: Initialize displayedText immediately for user messages
+  const [displayedText, setDisplayedText] = useState(() => {
+    // Get initial content
+    if (!message.content) return '';
+    
+    // Handle object format
+    if (typeof message.content === 'object' && !Array.isArray(message.content)) {
+      const contentObj = message.content as any;
+      return contentObj.text || contentObj.content || contentObj.message || '';
+    }
+    
+    // Handle array format
+    if (Array.isArray(message.content)) {
+      return message.content.join(' ');
+    }
+    
+    // Handle string format
+    if (typeof message.content === 'string') {
+      if (message.content.trim().startsWith('{') && 
+          message.content.includes('"type"') && 
+          message.content.includes('"text"')) {
+        try {
+          const parsed = JSON.parse(message.content);
+          return parsed.text || parsed.content || message.content;
+        } catch (e) {
+          return message.content;
+        }
+      }
+      return message.content;
+    }
+    
+    return String(message.content || '');
+  });
   const [currentIndex, setCurrentIndex] = useState(0);
   
   // TTS state
@@ -107,6 +141,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isTyp
     
     return message.content;
   })();
+  
+  // Debug logging removed - displayedText now initializes correctly
 
   // Handler functions need to be defined before use
   const handleDeleteForMe = () => {
