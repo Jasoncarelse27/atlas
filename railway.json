@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install -g pnpm@10.18.3 && pnpm install --frozen-lockfile && pnpm run build",
+    "buildCommand": "npm ci && npm run build",
     "nixpacksPlan": {
       "providers": ["node"],
       "variables": {
@@ -12,7 +12,7 @@
     }
   },
   "deploy": {
-    "startCommand": "pnpm run backend",
+    "startCommand": "npm run backend",
     "healthcheckPath": "/healthz",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
