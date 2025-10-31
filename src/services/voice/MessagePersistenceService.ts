@@ -7,8 +7,8 @@
  * Created: 2025-01-01
  */
 
-import { supabase } from '@/lib/supabaseClient';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabaseClient';
 import type {
   MessagePersistenceService as IMessagePersistenceService,
 } from './interfaces';
@@ -31,7 +31,7 @@ export class MessagePersistenceService implements IMessagePersistenceService {
         content: text,
       };
       
-      const { error } = await supabase.from('messages').insert([messageData]);
+      const { error } = await supabase.from('messages').insert([messageData] as any);
       
       if (!error) {
         logger.debug(`[MessagePersistence] ✅ Saved ${role} voice message`);
@@ -72,7 +72,7 @@ export class MessagePersistenceService implements IMessagePersistenceService {
         },
         timestamp: new Date().toISOString(),
         created_at: new Date().toISOString(),
-      });
+      } as any);
       
       if (!error) {
         logger.info('[MessagePersistence] ✅ Usage logged successfully');
