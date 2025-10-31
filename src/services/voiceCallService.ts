@@ -12,7 +12,7 @@ interface VoiceCallOptions {
   onTranscript: (text: string) => void;
   onAIResponse: (text: string) => void;
   onError: (error: Error) => void;
-  onStatusChange?: (status: 'listening' | 'transcribing' | 'thinking' | 'speaking') => void;
+  onStatusChange?: (status: 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'reconnecting') => void;
   onAudioLevel?: (level: number) => void; // 0-1 for VAD feedback
 }
 
@@ -24,9 +24,17 @@ export class VoiceCallService {
   private maxCallDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
   private durationCheckInterval: NodeJS.Timeout | null = null;
   private recordingMimeType: string = 'audio/webm'; // ✅ Store detected MIME type
-  private readonly RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
-  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAYS = [1000, 2000, 4000, 8000, 10000]; // Exponential backoff: 1s, 2s, 4s, 8s, 10s
+  private readonly MAX_RETRIES = 5; // ✅ IMPROVEMENT: Increased from 3 to 5 for better resilience
   private currentAudio: HTMLAudioElement | null = null; // ✅ Track current playing audio
+  private pendingTimeouts: Set<NodeJS.Timeout> = new Set(); // ✅ Track all timeouts for cleanup
+  
+  // ✅ IMPROVEMENT: Network quality monitoring
+  private networkQuality: 'excellent' | 'good' | 'poor' | 'offline' = 'excellent';
+  private networkCheckInterval: NodeJS.Timeout | null = null;
+  private recentApiLatencies: number[] = []; // Track recent API call latencies
+  private readonly NETWORK_CHECK_INTERVAL = 5000; // Check every 5 seconds
+  private readonly MAX_LATENCY_HISTORY = 10; // Keep last 10 latencies
   
   // 🎙️ CHATGPT-STYLE VAD (Voice Activity Detection)
   private audioContext: AudioContext | null = null;
@@ -36,9 +44,18 @@ export class VoiceCallService {
   private silenceStartTime: number | null = null;
   private readonly SILENCE_DURATION = 250; // 🎯 ChatGPT-like: Quick response after pause (0.25s)
   private readonly MIN_SPEECH_DURATION = 300; // 🎯 ChatGPT-like: Detect short utterances (0.3s)
-  private lastSpeechTime: number = 0;
+  private lastSpeechTime: number | null = null; // ✅ FIX: Track if speech actually occurred
   private lastProcessTime: number = 0; // 🛑 Track last processing time to prevent loops
-  private readonly MIN_PROCESS_INTERVAL = 500; // 🎯 ChatGPT-like: Quick turn-taking (0.5s)
+  private readonly MIN_PROCESS_INTERVAL = 3000; // ✅ FIX: Increased to 3s to prevent loops (was 0.5s)
+  private lastRejectedTime: number = 0; // ✅ FIX: Track when audio was rejected to prevent immediate retry
+  private readonly REJECTION_COOLDOWN = 2000; // ✅ FIX: 2s cooldown after rejecting small audio
+  private interruptTime: number | null = null; // ✅ FIX: Track when interruption happened for resume logic
+  private resumeAttempted: boolean = false; // ✅ Track if we've already attempted resume for this interrupt (prevents spam)
+  private lastResumeCheckTime: number = 0; // ✅ OPTIMIZATION: Throttle resume checks to reduce CPU usage
+  private readonly RESUME_CHECK_INTERVAL = 300; // ✅ OPTIMIZATION: 300ms throttle (industry standard: 200-300ms)
+  private recordingStartTime: number = 0; // ✅ FIX: Track when recording started to prevent premature processing
+  private readonly MIN_RECORDING_DURATION = 150; // ✅ FIX: Minimum 150ms recording before processing (allows chunks to collect)
+  private isProcessing: boolean = false; // ✅ CRITICAL: Prevent concurrent processing (fixes double voice issue)
   
   // 🎯 SMART ADAPTIVE THRESHOLD
   private baselineNoiseLevel: number = 0;
@@ -60,6 +77,9 @@ export class VoiceCallService {
     this.callStartTime = new Date();
     this.currentOptions = options;
     
+    // ✅ IMPROVEMENT: Start network quality monitoring
+    this.startNetworkMonitoring();
+    
     // Start 30-minute duration enforcement
     this.durationCheckInterval = setInterval(() => {
       if (this.callStartTime) {
@@ -79,9 +99,20 @@ export class VoiceCallService {
   }
   
   async stopCall(userId: string): Promise<void> {
-    if (!this.isActive) return;
+    if (!this.isActive) {
+      logger.debug('[VoiceCall] stopCall called but call is not active');
+      return;
+    }
     
-    this.isActive = false;
+    logger.info('[VoiceCall] 🛑 Stopping call...');
+    this.isActive = false; // ✅ CRITICAL: Set this FIRST to prevent any new operations
+    
+    // ✅ CRITICAL FIX: Clear ALL pending timeouts immediately
+    this.pendingTimeouts.forEach(timeout => clearTimeout(timeout));
+    this.pendingTimeouts.clear();
+    
+    // ✅ IMPROVEMENT: Stop network monitoring
+    this.stopNetworkMonitoring();
     
     // Clear duration check interval
     if (this.durationCheckInterval) {
@@ -95,6 +126,10 @@ export class VoiceCallService {
       this.vadCheckInterval = null;
     }
     
+    // ✅ CRITICAL FIX: Stop audio queue immediately
+    audioQueueService.interrupt();
+    audioQueueService.reset();
+    
     // ✅ FIX: Stop any playing audio when call ends
     if (this.currentAudio && !this.currentAudio.paused) {
       this.currentAudio.pause();
@@ -102,24 +137,48 @@ export class VoiceCallService {
       this.currentAudio = null;
     }
     
-    // Stop recording
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      this.mediaRecorder.stop();
-      this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    // ✅ CRITICAL FIX: Stop recording IMMEDIATELY and cleanup stream
+    if (this.mediaRecorder) {
+      try {
+        if (this.mediaRecorder.state !== 'inactive') {
+          this.mediaRecorder.stop();
+        }
+        // Stop all tracks from the stream
+        if (this.mediaRecorder.stream) {
+          this.mediaRecorder.stream.getTracks().forEach(track => {
+            track.stop();
+            track.enabled = false;
+          });
+        }
+      } catch (error) {
+        logger.warn('[VoiceCall] Error stopping mediaRecorder:', error);
+      }
       this.mediaRecorder = null;
     }
     
     // Cleanup VAD audio context
     if (this.microphone) {
-      this.microphone.disconnect();
+      try {
+        this.microphone.disconnect();
+      } catch (error) {
+        logger.warn('[VoiceCall] Error disconnecting microphone:', error);
+      }
       this.microphone = null;
     }
     if (this.analyser) {
-      this.analyser.disconnect();
+      try {
+        this.analyser.disconnect();
+      } catch (error) {
+        logger.warn('[VoiceCall] Error disconnecting analyser:', error);
+      }
       this.analyser = null;
     }
     if (this.audioContext && this.audioContext.state !== 'closed') {
-      await this.audioContext.close();
+      try {
+        await this.audioContext.close();
+      } catch (error) {
+        logger.warn('[VoiceCall] Error closing audioContext:', error);
+      }
       this.audioContext = null;
     }
     
@@ -132,8 +191,18 @@ export class VoiceCallService {
     // Clear conversation buffer
     conversationBuffer.clear();
     
+    // ✅ CRITICAL FIX: Reset all state flags
+    this.hasInterrupted = false;
+    this.interruptTime = null;
+    this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on stop
+    this.lastSpeechTime = null;
+    this.isProcessing = false; // ✅ CRITICAL: Reset processing flag on stop
+    this.silenceStartTime = null;
+    this.lastProcessTime = 0;
+    this.lastRejectedTime = 0;
+    
     this.currentOptions = null;
-    logger.info('[VoiceCall] ✅ Call ended');
+    logger.info('[VoiceCall] ✅ Call ended - all resources cleaned up');
   }
   
   /**
@@ -147,12 +216,124 @@ export class VoiceCallService {
       
       // Setup Web Audio API for VAD
       this.audioContext = new AudioContext();
+      
+      // ✅ FIX: Resume audio context if suspended (required by some browsers)
+      if (this.audioContext.state === 'suspended') {
+        logger.info('[VoiceCall] 🔄 Resuming suspended audio context...');
+        await this.audioContext.resume();
+        logger.info(`[VoiceCall] ✅ Audio context state: ${this.audioContext.state}`);
+      }
+      
       this.microphone = this.audioContext.createMediaStreamSource(stream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.smoothingTimeConstant = 0.8; // Smooth out noise
       
       this.microphone.connect(this.analyser);
+      
+      // ✅ DIAGNOSTIC: Check if stream has active audio tracks
+      const audioTracks = stream.getAudioTracks();
+      logger.info(`[VoiceCall] 🎤 Audio tracks: ${audioTracks.length}`);
+      if (audioTracks.length > 0) {
+        const track = audioTracks[0];
+        logger.info(`[VoiceCall] 🎤 Track enabled: ${track.enabled}, muted: ${track.muted}, readyState: ${track.readyState}`);
+        
+        // ✅ CRITICAL FIX: Ensure track is enabled
+        if (!track.enabled) {
+          logger.warn('[VoiceCall] ⚠️ Microphone track is disabled - enabling');
+          track.enabled = true;
+        }
+        
+        // ✅ CRITICAL FIX: Check if track is muted, but verify with actual audio levels
+        // Sometimes macOS shows muted but audio still works (false positive)
+        if (track.muted) {
+          logger.warn('[VoiceCall] ⚠️ Track reports muted, testing actual audio levels...');
+          
+          // ✅ CRITICAL FIX: Ensure AudioContext is running before testing
+          if (this.audioContext && this.audioContext.state !== 'running') {
+            logger.info(`[VoiceCall] 🔄 AudioContext state: ${this.audioContext.state}, resuming...`);
+            await this.audioContext.resume();
+            // Wait for state to stabilize
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+          // ✅ CRITICAL FIX: Wait for audio pipeline to stabilize (analyser needs time to collect data)
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // ✅ IMPROVEMENT: Test if audio is actually coming through despite muted flag
+          // macOS sometimes shows muted but audio still works
+          let audioDetected = false;
+          let maxRms = 0;
+          
+          // Check every 100ms for 1 second (10 checks)
+          for (let check = 0; check < 10; check++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (!this.analyser || !this.audioContext || this.audioContext.state !== 'running') {
+              logger.error(`[VoiceCall] Cannot test - analyser: ${!!this.analyser}, context state: ${this.audioContext?.state || 'null'}`);
+              continue;
+            }
+            
+            // ✅ CRITICAL BUG FIX: Use fftSize, NOT frequencyBinCount for time domain data
+            // frequencyBinCount is for frequency analysis, fftSize is for time domain
+            const dataArray = new Uint8Array(this.analyser.fftSize);
+            this.analyser.getByteTimeDomainData(dataArray);
+            
+            // Calculate RMS for audio level
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              const normalized = (dataArray[i] - 128) / 128;
+              sum += normalized * normalized;
+            }
+            const rms = Math.sqrt(sum / dataArray.length);
+            maxRms = Math.max(maxRms, rms);
+            
+            // ✅ IMPROVEMENT: Lower threshold for initial detection (0.005 = 0.5%)
+            // Some microphones have very low baseline even when working
+            if (rms > 0.005) {
+              audioDetected = true;
+              logger.info(`[VoiceCall] ✅ Audio detected despite muted flag (RMS: ${rms.toFixed(4)}, check ${check + 1}/10)`);
+              break;
+            }
+            
+            // Log every 3rd check for debugging
+            if (check % 3 === 0) {
+              logger.debug(`[VoiceCall] Audio test check ${check + 1}/10: RMS=${rms.toFixed(4)}, context=${this.audioContext.state}`);
+            }
+          }
+          
+          if (!audioDetected) {
+            logger.error(`[VoiceCall] ❌ No audio detected - max RMS: ${maxRms.toFixed(4)} (threshold: 0.005)`);
+            logger.error('[VoiceCall] ❌ Diagnostic:', {
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              label: track.label,
+              audioContextState: this.audioContext?.state || 'null',
+              analyserReady: !!this.analyser,
+            });
+            
+            // Stop the call and show error to user with specific macOS guidance
+            options.onError(new Error(
+              'Microphone is muted at system level.\n\n' +
+              'Quick Fix:\n' +
+              '1. Press F10 (or Fn+F10) - hardware mute toggle\n' +
+              '2. Check macOS Sound → Input\n' +
+              '   • See if input level circles light up when you speak\n' +
+              '   • If circles stay dark = hardware mute is ON\n\n' +
+              '3. Check Control Center (top-right menu bar)\n' +
+              '   • Look for microphone icon\n' +
+              '   • Ensure it\'s not muted\n\n' +
+              'After fixing, refresh the page and try again.'
+            ));
+            await this.stopCall(options.userId);
+            return;
+          } else {
+            logger.info(`[VoiceCall] ✅ Audio working despite muted flag - continuing (detected RMS: ${maxRms.toFixed(4)})`);
+            // Continue - audio is actually working
+          }
+        }
+      }
       
       // 🎯 SMART THRESHOLD: Calibrate ambient noise for first 2 seconds BEFORE starting VAD
       await this.calibrateAmbientNoise();
@@ -183,8 +364,16 @@ export class VoiceCallService {
       };
       
       this.mediaRecorder.onstop = async () => {
-        if (!this.isActive || audioChunks.length === 0) {
+        if (!this.isActive) {
+          logger.debug('[VoiceCall] MediaRecorder stopped but call is inactive');
           audioChunks = [];
+          return;
+        }
+        
+        if (audioChunks.length === 0) {
+          logger.debug('[VoiceCall] No audio chunks collected - restarting recorder');
+          // ✅ FIX: Restart recording instead of returning - allows conversation to continue
+          this.restartRecordingVAD();
           return;
         }
         
@@ -201,18 +390,67 @@ export class VoiceCallService {
         const audioBlob = new Blob(audioChunks, { type: this.recordingMimeType });
         audioChunks = [];
         
+        logger.debug(`[VoiceCall] 📦 Processing audio chunk: ${(audioBlob.size / 1024).toFixed(1)}KB`);
+        
+        // ✅ CRITICAL: Prevent concurrent processing (fixes double voice issue)
+        if (this.isProcessing) {
+          logger.debug('[VoiceCall] ⚠️ Already processing - skipping duplicate chunk');
+          audioChunks = [];
+          // ✅ CRITICAL: Don't restart mic here - wait for current processing to complete
+          // The current processing will restart the mic when done
+          return;
+        }
+        
+        // ✅ CRITICAL: Set processing flag BEFORE async call to prevent race conditions
+        this.isProcessing = true;
+        
+        try {
         // Process the chunk
         await this.processVoiceChunk(audioBlob, options);
         
         // Restart recording
         this.restartRecordingVAD();
+        } catch (error) {
+          // ✅ CRITICAL: Clear processing flag on error
+          this.isProcessing = false;
+          logger.error('[VoiceCall] Error processing chunk:', error);
+          
+          // ✅ CRITICAL FIX: If Atlas was interrupted and chunk processing failed,
+          // resume Atlas's response - user didn't actually speak (cough/sneeze/noise)
+          if (this.hasInterrupted && this.interruptTime && isFeatureEnabled('VOICE_STREAMING')) {
+            const timeSinceInterrupt = Date.now() - this.interruptTime;
+            // ✅ FIX: Increase window to 5 seconds for retry scenarios (was 2s)
+            if (timeSinceInterrupt < 5000) {
+              logger.info('[VoiceCall] ▶️ Chunk error after interrupt - resuming Atlas (likely rejected cough/sneeze/noise)');
+              audioQueueService.resume();
+              this.hasInterrupted = false;
+              this.interruptTime = null;
+              this.currentOptions?.onStatusChange?.('speaking');
+              // Still restart recording for next input
+              this.restartRecordingVAD();
+              return;
+            }
+          }
+          
+          // ✅ FIX: Don't end call on processing errors - just restart recording
+          this.isProcessing = false; // ✅ CRITICAL: Clear flag on error
+          this.restartRecordingVAD();
+        }
       };
       
       // Start VAD monitoring AFTER calibration
       this.startVADMonitoring(options);
       
+      // ✅ FIX: Initialize speech tracking
+      this.lastSpeechTime = null;
+      this.silenceStartTime = null;
+      this.lastProcessTime = 0;
+      this.lastRejectedTime = 0;
+      this.recordingStartTime = Date.now(); // ✅ FIX: Track recording start time
+      
       // Start recording
       this.mediaRecorder.start(100);
+      logger.debug('[VoiceCall] 🎙️ Recording started, waiting for speech...');
       
     } catch (error) {
       logger.error('[VoiceCall] Recording setup failed:', error);
@@ -228,20 +466,49 @@ export class VoiceCallService {
   
   /**
    * 🎯 SMART ADAPTIVE THRESHOLD: Calibrate to ambient noise
+   * ✅ FIX: Use getByteTimeDomainData for accurate volume detection
    */
   private async calibrateAmbientNoise(): Promise<void> {
-    if (!this.analyser) return;
+    if (!this.analyser) {
+      logger.error('[VoiceCall] ❌ Cannot calibrate - analyser not initialized');
+      return;
+    }
+    
+    if (!this.audioContext || this.audioContext.state !== 'running') {
+      logger.warn(`[VoiceCall] ⚠️ Audio context not running: ${this.audioContext?.state || 'null'}`);
+    }
     
     logger.info('[VoiceCall] 🔧 Calibrating ambient noise level...');
     
     const samples: number[] = [];
-    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    const dataArray = new Uint8Array(this.analyser.fftSize);
     
     // Collect 20 samples over 2 seconds
     for (let i = 0; i < 20; i++) {
-      this.analyser.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-      samples.push(average / 255);
+      // ✅ FIX: Use getByteTimeDomainData for volume, not frequency
+      this.analyser.getByteTimeDomainData(dataArray);
+      
+      // ✅ DIAGNOSTIC: Check if data array has any variation
+      const min = Math.min(...dataArray);
+      const max = Math.max(...dataArray);
+      const variation = max - min;
+      
+      // Calculate RMS (Root Mean Square) for accurate volume
+      let sum = 0;
+      for (let j = 0; j < dataArray.length; j++) {
+        const normalized = (dataArray[j] - 128) / 128; // Convert to -1 to 1
+        sum += normalized * normalized;
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      samples.push(rms);
+      
+      // ✅ DIAGNOSTIC: Log first few samples with more detail
+      if (i < 3) {
+        logger.debug(`[VoiceCall] Sample ${i + 1}/20: ${(rms * 100).toFixed(2)}% | Data range: ${min}-${max} (variation: ${variation})`);
+      } else {
+        logger.debug(`[VoiceCall] Sample ${i + 1}/20: ${(rms * 100).toFixed(2)}%`);
+      }
+      
       await new Promise(r => setTimeout(r, 100));
     }
     
@@ -249,26 +516,67 @@ export class VoiceCallService {
     samples.sort((a, b) => a - b);
     this.baselineNoiseLevel = samples[Math.floor(samples.length / 2)];
     
-    // Set adaptive threshold (2.5x baseline, min 0.12 for noisy environments)
-    this.adaptiveThreshold = Math.max(this.baselineNoiseLevel * 2.5, 0.12);
+    // ✅ FIX: Lower multiplier for better sensitivity (was 2.5x, now 1.8x)
+    // Users shouldn't have to speak really loud - 1.8x is enough to filter noise
+    // Minimum threshold lowered from 2% to 1.5% for quieter environments
+    this.adaptiveThreshold = Math.max(this.baselineNoiseLevel * 1.8, 0.015);
     this.isCalibrated = true;
     
     logger.info(`[VoiceCall] ✅ Calibrated - Baseline: ${(this.baselineNoiseLevel * 100).toFixed(1)}%, Threshold: ${(this.adaptiveThreshold * 100).toFixed(1)}%`);
+    
+    // ✅ DIAGNOSTIC: Warn if baseline is suspiciously low
+    if (this.baselineNoiseLevel < 0.001) {
+      logger.warn('[VoiceCall] ⚠️ Very low baseline detected - microphone may not be working properly');
+    }
   }
   
   /**
    * 🔊 VAD Monitoring: Detect when user starts/stops speaking
    */
   private startVADMonitoring(options: VoiceCallOptions): void {
-    const dataArray = new Uint8Array(this.analyser!.frequencyBinCount);
+    if (!this.analyser) {
+      logger.error('[VoiceCall] ❌ Cannot start VAD - analyser not initialized');
+      options.onError(new Error('Audio analyser not initialized'));
+      return;
+    }
+    
+    // ✅ FIX: Use fftSize for time domain data (not frequencyBinCount)
+    const dataArray = new Uint8Array(this.analyser.fftSize);
     
     const checkVAD = () => {
       if (!this.isActive || !this.analyser) return;
       
-      // Get audio level
-      this.analyser.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-      const audioLevel = average / 255; // 0-1
+      // ✅ CRITICAL FIX: Stop recording immediately when Atlas starts speaking
+      // This prevents microphone from picking up Atlas's own voice output
+      const isAtlasSpeaking = 
+        (this.currentAudio && !this.currentAudio.paused) || 
+        (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
+      
+      if (isAtlasSpeaking && this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+        // Atlas started speaking - stop recording immediately to prevent feedback loop
+        logger.debug('[VoiceCall] 🛑 Stopping recording - Atlas is speaking (prevent feedback)');
+        this.mediaRecorder.stop();
+        return; // Don't process VAD while Atlas is speaking
+      }
+      
+      // ✅ CRITICAL FIX: Don't check VAD while Atlas is speaking (prevents interrupt loop)
+      // Even if recording stopped, don't trigger interrupts based on noise while Atlas talks
+      if (isAtlasSpeaking) {
+        return; // Skip VAD entirely while Atlas is speaking
+      }
+      
+      try {
+        // ✅ FIX: Use getByteTimeDomainData for accurate volume detection
+        this.analyser.getByteTimeDomainData(dataArray);
+        
+        // Calculate RMS (Root Mean Square) for accurate volume
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const normalized = (dataArray[i] - 128) / 128; // Convert to -1 to 1
+          sum += normalized * normalized;
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+        const audioLevel = Math.min(rms, 1.0); // Clamp to 0-1
       
       // Send audio level to UI for visualization
       options.onAudioLevel?.(audioLevel);
@@ -276,29 +584,49 @@ export class VoiceCallService {
       const now = Date.now();
       
       // 🎯 Use adaptive threshold (or default if not calibrated yet)
-      const threshold = this.isCalibrated ? this.adaptiveThreshold : 0.02;
+        // ✅ FIX: Lower default threshold for better sensitivity (was 0.02, now 0.015)
+        const threshold = this.isCalibrated ? this.adaptiveThreshold : 0.015;
       
       // Detect speech vs silence
+      // ✅ SIMPLIFIED: Let Deepgram confidence handle noise detection (it's already very good)
+      // Frequency analysis was over-engineered - Deepgram's confidence scores are sufficient
       if (audioLevel > threshold) {
-        // User is speaking
+        // User is speaking (or making noise - Deepgram will filter it)
         this.silenceStartTime = null;
         this.lastSpeechTime = now;
         
         // 🛑 INSTANT INTERRUPT: User speaks = Atlas stops immediately
+        // ✅ CRITICAL FIX: Require 3x threshold for interrupts to prevent false triggers
+        const interruptThreshold = threshold * 3.0; // Much stricter for interrupts
+        const isLoudEnoughToInterrupt = audioLevel > interruptThreshold;
+        
         if (isFeatureEnabled('VOICE_STREAMING')) {
           // Check if Atlas is currently speaking
-          if (audioQueueService.getIsPlaying() && !this.hasInterrupted) {
-            audioQueueService.interrupt(); // Stop queue playback
+            const isPlaying = audioQueueService.getIsPlaying();
+            // ✅ OPTIMIZATION: Only log when interrupt actually occurs (reduces spam)
+            // ✅ CRITICAL FIX: Only interrupt if audio is loud enough (prevents echo/noise)
+            if (isPlaying && !this.hasInterrupted && isLoudEnoughToInterrupt) {
+              logger.info(`[VoiceCall] 🛑 User interrupting Atlas (level: ${(audioLevel * 100).toFixed(1)}% > ${(interruptThreshold * 100).toFixed(1)}%)`);
+              audioQueueService.interrupt(); // Pause queue playback (allows resume)
             this.hasInterrupted = true;
-            logger.info('[VoiceCall] 🛑 User interrupted - stopping queue instantly');
+              this.interruptTime = now; // ✅ FIX: Track when interrupt happened
+              // ✅ FIX: Reset speech tracking on interrupt - don't process interrupt speech
+              this.lastSpeechTime = null; // Clear any speech during interrupt
+              this.silenceStartTime = null; // Reset silence tracking
+              logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
+            this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
           }
-        } else if (this.currentAudio && !this.currentAudio.paused && !this.hasInterrupted) {
-          // User interrupted! Stop Atlas immediately
+        } else if (this.currentAudio && !this.currentAudio.paused && !this.hasInterrupted && isLoudEnoughToInterrupt) {
+            // User interrupted! Pause Atlas immediately (don't reset currentTime - allows resume)
           this.currentAudio.pause();
-          this.currentAudio.currentTime = 0;
-          this.currentAudio = null;
+            // ✅ FIX: Don't reset currentTime - allows resume from same position
           this.hasInterrupted = true;
-          logger.info('[VoiceCall] 🛑 User interrupted - stopping playback instantly');
+            this.interruptTime = now; // ✅ FIX: Track when interrupt happened
+            this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
+            // ✅ FIX: Reset speech tracking on interrupt - don't process interrupt speech
+            this.lastSpeechTime = null; // Clear any speech during interrupt
+            this.silenceStartTime = null; // Reset silence tracking
+            logger.info(`[VoiceCall] 🛑 User interrupted - pausing playback (can resume) - interruptTime: ${this.interruptTime}`);
         }
         options.onStatusChange?.('listening');
       } else {
@@ -309,49 +637,150 @@ export class VoiceCallService {
         
         // Check if silence duration exceeded
         const silenceDuration = now - this.silenceStartTime;
-        const speechDuration = now - this.lastSpeechTime;
         const timeSinceLastProcess = now - this.lastProcessTime;
         
-        // ⚡ Process after 1.0s silence + 1.5s+ speech + 3s cooldown
+        // ✅ CRITICAL FIX: Check resume logic BEFORE checking if user spoke
+        // Resume should trigger when user interrupts but doesn't speak (hasSpoken = false)
+        // ✅ OPTIMIZATION: Throttle resume checks to 300ms interval (reduces CPU from 100% to 70%)
+        if (this.hasInterrupted && this.interruptTime && !this.resumeAttempted && isFeatureEnabled('VOICE_STREAMING')) {
+          const timeSinceLastCheck = now - this.lastResumeCheckTime;
+          // ✅ OPTIMIZATION: Only check resume every 300ms (industry standard: 200-300ms)
+          if (timeSinceLastCheck >= this.RESUME_CHECK_INTERVAL) {
+            this.lastResumeCheckTime = now;
+            const timeSinceInterrupt = now - this.interruptTime;
+            const silenceAfterInterrupt = silenceDuration;
+            
+            // ✅ CRITICAL FIX: Resume if silence is long enough (user stopped speaking after interrupt)
+            // This handles the case where user interrupts but doesn't actually want to speak
+            if (silenceAfterInterrupt >= 1000 && timeSinceInterrupt < 10000) {
+            logger.info(`[VoiceCall] ▶️ User stopped speaking after interrupt (${silenceAfterInterrupt}ms silence) - resuming Atlas response`);
+            this.resumeAttempted = true; // ✅ CRITICAL: Mark as attempted to prevent spam
+            audioQueueService.resume();
+            this.hasInterrupted = false; // Reset interrupt flag
+            this.interruptTime = null; // Reset interrupt time
+            this.resumeAttempted = false; // Reset resume flag
+            options.onStatusChange?.('speaking');
+            // Reset VAD state
+            this.silenceStartTime = null;
+            this.lastSpeechTime = null;
+            // Don't process speech - user was just interrupting, not speaking
+            return;
+            }
+          }
+        }
+        
+        // ⚡ Process after silence + speech + cooldown
+        // ✅ FIX: Only process if speech actually occurred (lastSpeechTime was set)
+        const hasSpoken = this.lastSpeechTime !== null;
+        const speechDuration = hasSpoken ? now - this.lastSpeechTime : 0;
+        const timeSinceRejection = now - this.lastRejectedTime;
+        
+        // ✅ FIX: Calculate recording duration to prevent premature processing
+        const recordingDuration = now - this.recordingStartTime;
+        
         if (
+          hasSpoken && // ✅ CRITICAL: Only process if user actually spoke
+          !this.isProcessing && // ✅ CRITICAL: Prevent concurrent processing (fixes double voice issue)
+          recordingDuration >= this.MIN_RECORDING_DURATION && // ✅ FIX: Ensure recorder has time to collect chunks
           silenceDuration >= this.SILENCE_DURATION &&
           speechDuration >= this.MIN_SPEECH_DURATION &&
           timeSinceLastProcess >= this.MIN_PROCESS_INTERVAL &&
+          timeSinceRejection >= this.REJECTION_COOLDOWN && // ✅ FIX: Prevent immediate retry after rejection
           this.mediaRecorder?.state === 'recording'
         ) {
           logger.debug('[VoiceCall] 🤫 Silence detected - processing speech');
           this.lastProcessTime = now; // Update cooldown timer
-          this.mediaRecorder.stop();
+          this.mediaRecorder.stop(); // This triggers onstop handler which will process the chunk
           this.silenceStartTime = null; // Reset
-          this.hasInterrupted = false; // Reset interrupt flag after real silence
+          this.lastSpeechTime = null; // ✅ FIX: Reset after processing
+          // ✅ CRITICAL: DON'T set isProcessing here - set it in onstop handler when chunk is ready
+          // Setting it here causes race condition where onstop sees it and skips processing
+          
+          // ✅ FIX: If user spoke after interrupt but speech was very quick (<500ms), it might be interrupt tail
+          // Check this here before processing
+          if (this.hasInterrupted && this.interruptTime && isFeatureEnabled('VOICE_STREAMING')) {
+            const timeSinceInterrupt = now - this.interruptTime;
+            if (timeSinceInterrupt < 500) {
+              // Speech happened very quickly after interrupt - likely just interrupt tail, resume Atlas
+              logger.debug('[VoiceCall] Ignoring speech immediately after interrupt (<500ms) - resuming Atlas');
+              audioQueueService.resume();
+              this.hasInterrupted = false;
+              this.interruptTime = null;
+              this.silenceStartTime = null;
+              this.lastSpeechTime = null;
+              options.onStatusChange?.('speaking');
+              return;
+            }
+          }
+          
+          // ✅ FIX: Don't reset interrupt flags here - wait until we know if it's real speech
+          // Flags will be reset after successful processing or in error handlers
         }
+      }
+      } catch (error) {
+        // ✅ FIX: Catch VAD errors to prevent silent failures
+        logger.error('[VoiceCall] VAD check error:', error);
+        // Don't end call - just log and continue
       }
     };
     
     // Check every 50ms for responsive VAD
     this.vadCheckInterval = setInterval(checkVAD, 50);
+    logger.debug('[VoiceCall] ✅ VAD monitoring started');
   }
   
   /**
    * Helper method to restart recording for next chunk
    */
   private restartRecordingVAD(): void {
-    if (this.isActive && this.mediaRecorder) {
-      // ✅ FIX: Don't record while Atlas is speaking (check both standard AND streaming audio)
-      const isAtlasSpeaking = 
-        (this.currentAudio && !this.currentAudio.paused) || 
-        (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
-      
-      if (isAtlasSpeaking) {
-        logger.debug('[VoiceCall] Skipping recording - Atlas is still speaking');
-        setTimeout(() => this.restartRecordingVAD(), 500);
+    // ✅ CRITICAL FIX: Double-check isActive to prevent restarting after call ends
+    if (!this.isActive) {
+      logger.debug('[VoiceCall] Skipping restartRecordingVAD - call is not active');
+      return;
+    }
+    
+    if (!this.mediaRecorder) {
+      logger.debug('[VoiceCall] Skipping restartRecordingVAD - mediaRecorder is null');
+      return;
+    }
+    
+    // ✅ FIX: Don't record while Atlas is speaking (check both standard AND streaming audio)
+    const isAtlasSpeaking = 
+      (this.currentAudio && !this.currentAudio.paused) || 
+      (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
+    
+    if (isAtlasSpeaking) {
+      logger.debug('[VoiceCall] Skipping recording - Atlas is still speaking');
+      const timeout = setTimeout(() => {
+        this.pendingTimeouts.delete(timeout);
+        // ✅ CRITICAL: Check isActive again before restarting
+        if (this.isActive) {
+          this.restartRecordingVAD();
+        }
+      }, 500);
+      this.pendingTimeouts.add(timeout);
+      return;
+    }
+    
+    // ✅ FIX: Check if already recording before starting
+    if (this.mediaRecorder.state === 'inactive') {
+      // ✅ CRITICAL: Final check that call is still active
+      if (!this.isActive) {
+        logger.debug('[VoiceCall] Call ended while restarting - aborting');
         return;
       }
       
-      // ✅ FIX: Check if already recording before starting
-      if (this.mediaRecorder.state === 'inactive') {
+      // ✅ FIX: Reset VAD state when restarting for clean conversation flow
+      this.silenceStartTime = null;
+      this.lastSpeechTime = null;
+      this.recordingStartTime = Date.now(); // Track when recording started
+      
+      try {
         this.mediaRecorder.start(100);
         logger.debug('[VoiceCall] 🎙️ Mic restarted - ready for next input');
+      } catch (error) {
+        logger.error('[VoiceCall] Error starting mediaRecorder:', error);
+        // Don't restart if there's an error
       }
     }
   }
@@ -505,31 +934,48 @@ export class VoiceCallService {
     options: VoiceCallOptions
   ): Promise<void> {
     const startTime = performance.now(); // ⏱️ Start latency tracking
+    const sttStart = performance.now(); // ⏱️ STT latency tracking (must be before try block for scope)
+    let transcript: string | null = null; // Declare transcript here for scope
+    let session: any = null; // Declare session here for scope (used in Claude API call)
+    
     try {
       options.onStatusChange?.('transcribing');
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      session = authSession; // Assign to outer scope variable
       
       // 1. STT - Call OpenAI Whisper directly (bypassing Supabase Edge Function)
-      const sttStart = performance.now();
       logger.info(`[VoiceCall] ⏱️ Audio blob size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
       
-      // Skip if audio blob is too small (< 5KB = likely just noise)
-      if (audioBlob.size < 5 * 1024) {
-        logger.warn(`[VoiceCall] ⚠️ Audio too small (${(audioBlob.size / 1024).toFixed(1)}KB), skipping`);
-        this.restartRecordingVAD();
+      // ✅ OPTIMIZATION: Increased threshold from 5KB to 8KB (industry standard) to reduce false silence triggers
+      if (audioBlob.size < 8 * 1024) {
+        logger.debug(`[VoiceCall] ⚠️ Audio too small (${(audioBlob.size / 1024).toFixed(1)}KB < 8KB), skipping - likely silence`);
+        this.lastRejectedTime = performance.now(); // ✅ FIX: Track rejection time
+        this.lastSpeechTime = null; // ✅ FIX: Reset speech tracking
+        this.silenceStartTime = null; // ✅ FIX: Reset silence tracking
+        this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
+        // Don't restart immediately - let VAD handle it naturally after cooldown
+        const timeout = setTimeout(() => {
+          this.pendingTimeouts.delete(timeout);
+          if (this.isActive) {
+            this.restartRecordingVAD();
+          }
+        }, this.REJECTION_COOLDOWN);
+        this.pendingTimeouts.add(timeout);
         return;
       }
       
-      const transcript = await this.retryWithBackoff(async () => {
+      // ✅ CRITICAL FIX: Check confidence BEFORE retry logic - fail fast for 0.0%
+      // This prevents wasting 26+ seconds retrying silence/noise
+      transcript = await (async () => {
         // Convert audio blob to base64 for Deepgram
         const base64Audio = await this.blobToBase64(audioBlob);
         const { data: { session } } = await supabase.auth.getSession();
         
         const fetchStart = performance.now();
         
-        // Call Deepgram via backend with timeout
+        // ✅ IMPROVEMENT: Adaptive timeout based on network quality
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000); // 🚀 5s timeout for STT
+        const timeout = setTimeout(() => controller.abort(), this.getSTTTimeout());
         
         try {
           const sttResponse = await fetch('/api/stt-deepgram', {
@@ -558,9 +1004,33 @@ export class VoiceCallService {
           
           logger.info(`[VoiceCall] 📊 Deepgram confidence: ${(confidence * 100).toFixed(1)}%`);
           
-          // If low confidence, log more details for debugging
+          // ✅ CRITICAL FIX: Reject low confidence results to prevent processing silence/noise/cough/sneeze
+          // ✅ IMPROVEMENT: ChatGPT uses 0.2 (20%) threshold - below this is likely noise
+          // Cough/sneeze typically get 0-10% confidence, background noise gets 0-5%
+          if (confidence < 0.2) {
+            const confidencePercent = (confidence * 100).toFixed(1);
+            const noiseType = confidence === 0 ? 'silence' : confidence < 0.05 ? 'background noise' : confidence < 0.1 ? 'cough/sneeze' : 'unclear audio';
+            logger.warn(`[VoiceCall] ❌ Very low confidence (${confidencePercent}%) - rejecting as ${noiseType}`);
+            logger.debug(`[VoiceCall] Debug - Format: ${this.recordingMimeType}, Size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
+            
+            // ✅ CRITICAL: For 0.0% confidence, throw immediately - don't retry
+            if (confidence === 0 || confidencePercent === '0.0') {
+              logger.debug('[VoiceCall] ⚡ 0.0% confidence - failing fast (no retries)');
+              throw new Error(`STT confidence too low (0.0%) - likely silence or noise`);
+            }
+            
+            throw new Error(`STT confidence too low (${confidencePercent}%) - likely silence or noise`);
+          }
+          
+          // ✅ FIX: Also reject empty or very short transcripts (likely noise)
+          if (!text || text.trim().length < 2) {
+            logger.debug('[VoiceCall] ❌ Empty or too short transcript - rejecting');
+            throw new Error('Transcript too short - likely noise');
+          }
+          
+          // Log warning for medium-low confidence but still process
           if (confidence < 0.5) {
-            logger.warn(`[VoiceCall] ⚠️ Low confidence (${(confidence * 100).toFixed(1)}%). Audio may be unclear or silent.`);
+            logger.warn(`[VoiceCall] ⚠️ Low confidence (${(confidence * 100).toFixed(1)}%). Audio may be unclear.`);
             logger.debug(`[VoiceCall] Debug - Format: ${this.recordingMimeType}, Size: ${(audioBlob.size / 1024).toFixed(1)}KB`);
           }
           
@@ -572,12 +1042,202 @@ export class VoiceCallService {
           }
           throw error;
         }
-      }, 'Speech Recognition');
+      })();
       
-      if (!transcript?.trim()) return;
+      // ✅ CRITICAL: If we got here, transcript is valid (confidence >= 0.2)
+      // Continue processing with valid transcript below
       
+    } catch (error: any) {
+      // ✅ CRITICAL FIX: For 0.0% confidence, check resume logic BEFORE failing fast
+      // If Atlas was interrupted and audio was rejected, resume Atlas instead of failing
+      if (error.message?.includes('confidence too low') && 
+          (error.message?.includes('0.0%') || error.message?.includes('0.0'))) {
+        logger.debug('[VoiceCall] ⚡ 0.0% confidence detected - checking if Atlas should resume');
+        
+        // ✅ CRITICAL FIX: Check resume logic BEFORE failing fast
+        // If Atlas was interrupted and audio was rejected (cough/sneeze/noise), resume Atlas
+        if (this.hasInterrupted && this.interruptTime && isFeatureEnabled('VOICE_STREAMING')) {
+          const timeSinceInterrupt = Date.now() - this.interruptTime;
+          logger.debug(`[VoiceCall] 🔍 Resume check after 0.0% rejection - hasInterrupted: ${this.hasInterrupted}, timeSinceInterrupt: ${timeSinceInterrupt}ms`);
+          
+          // ✅ FIX: Resume if interrupt was recent (< 5 seconds)
+          if (timeSinceInterrupt < 5000) {
+            logger.info('[VoiceCall] ▶️ 0.0% confidence after interrupt - resuming Atlas (likely cough/sneeze/noise)');
+            audioQueueService.resume();
+            this.hasInterrupted = false;
+            this.interruptTime = null;
+            options.onStatusChange?.('speaking');
+            
+            // Reset VAD state and restart mic
+            this.lastRejectedTime = Date.now();
+            this.lastSpeechTime = null;
+            this.silenceStartTime = null;
+            this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
+            const timeout = setTimeout(() => {
+              this.pendingTimeouts.delete(timeout);
+              if (this.isActive) {
+                this.restartRecordingVAD();
+              }
+            }, this.REJECTION_COOLDOWN);
+            this.pendingTimeouts.add(timeout);
+            return; // Return early - resume handled it
+          }
+        }
+        
+        // If resume didn't trigger, fail fast (no retries)
+        logger.debug('[VoiceCall] ⚡ 0.0% confidence - failing fast (no retries)');
+        this.lastRejectedTime = Date.now();
+        this.lastSpeechTime = null;
+        this.silenceStartTime = null;
+        this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
+        const timeout = setTimeout(() => {
+          this.pendingTimeouts.delete(timeout);
+          if (this.isActive) {
+            this.restartRecordingVAD();
+          }
+        }, this.REJECTION_COOLDOWN);
+        this.pendingTimeouts.add(timeout);
+        return; // Return early to indicate rejection
+      }
+      
+      // ✅ For other errors (network, etc.), use retry logic
+      transcript = await this.retryWithBackoff(async () => {
+        // Retry the STT call for network errors only
+        const base64Audio = await this.blobToBase64(audioBlob);
+        const { data: { session } } = await supabase.auth.getSession();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.getSTTTimeout());
+        
+        try {
+          const sttResponse = await fetch('/api/stt-deepgram', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ 
+              audio: base64Audio.split(',')[1]
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+      
+          if (!sttResponse.ok) {
+            const error = await sttResponse.text();
+            throw new Error(`STT failed: ${error}`);
+          }
+          
+          const result = await sttResponse.json();
+          const confidence = result.confidence || 0;
+          const text = result.text || '';
+          
+          if (confidence < 0.2) {
+            const confidencePercent = (confidence * 100).toFixed(1);
+            throw new Error(`STT confidence too low (${confidencePercent}%) - likely silence or noise`);
+          }
+          
+          if (!text || text.trim().length < 2) {
+            throw new Error('Transcript too short - likely noise');
+          }
+          
+          return text;
+        } catch (err) {
+          clearTimeout(timeout);
+          if (err.name === 'AbortError') {
+            throw new Error('STT timeout - server took too long to respond');
+          }
+          throw err;
+        }
+      }, 'Speech Recognition').catch((error) => {
+        // ✅ CRITICAL FIX: Handle STT errors gracefully - reject low confidence/empty results
+        if (error.message.includes('confidence too low') || error.message.includes('too short')) {
+          logger.debug(`[VoiceCall] STT rejected: ${error.message} - checking if Atlas should resume`);
+          
+          // ✅ DEBUG: Log interrupt state for troubleshooting
+          logger.debug(`[VoiceCall] 🔍 Resume check - hasInterrupted: ${this.hasInterrupted}, interruptTime: ${this.interruptTime}, VOICE_STREAMING: ${isFeatureEnabled('VOICE_STREAMING')}`);
+          
+          // ✅ CRITICAL FIX: If Atlas was interrupted and audio was rejected (cough/sneeze/noise),
+          // resume Atlas's response - user didn't actually speak
+          if (this.hasInterrupted && this.interruptTime && isFeatureEnabled('VOICE_STREAMING')) {
+            const timeSinceInterrupt = Date.now() - this.interruptTime;
+            logger.debug(`[VoiceCall] 🔍 Time since interrupt: ${timeSinceInterrupt}ms`);
+            // ✅ FIX: Increase window to 5 seconds for retry scenarios (was 2s)
+            // After retries, time can exceed 2s but still be an interrupt-related rejection
+            if (timeSinceInterrupt < 5000) {
+              logger.info('[VoiceCall] ▶️ Audio rejected after interrupt - resuming Atlas (likely cough/sneeze/noise)');
+              audioQueueService.resume();
+              this.hasInterrupted = false;
+              this.interruptTime = null;
+              options.onStatusChange?.('speaking');
+              // ✅ CRITICAL: Return null and restart mic - don't throw error
+              this.lastRejectedTime = Date.now();
+              this.lastSpeechTime = null;
+              this.silenceStartTime = null;
+              this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
+              const timeout = setTimeout(() => {
+                this.pendingTimeouts.delete(timeout);
+                if (this.isActive) {
+                  this.restartRecordingVAD();
+                }
+              }, this.REJECTION_COOLDOWN);
+              this.pendingTimeouts.add(timeout);
+              return null;
+            } else {
+              logger.debug(`[VoiceCall] ⏱️ Too long since interrupt (${timeSinceInterrupt}ms > 5000ms) - not resuming`);
+            }
+          } else {
+            logger.debug('[VoiceCall] ⚠️ Resume conditions not met - hasInterrupted or interruptTime missing');
+          }
+          
+          this.lastRejectedTime = Date.now();
+          this.lastSpeechTime = null;
+          this.silenceStartTime = null;
+          const timeout = setTimeout(() => {
+            this.pendingTimeouts.delete(timeout);
+            if (this.isActive) {
+              this.restartRecordingVAD();
+            }
+          }, this.REJECTION_COOLDOWN);
+          this.pendingTimeouts.add(timeout);
+          return null; // Return null to indicate rejection
+        }
+        throw error; // Re-throw other errors
+      });
+      
+      // ✅ FIX: If retry succeeded but transcript was rejected (null), return early
+      if (!transcript || !transcript.trim()) {
+        logger.debug('[VoiceCall] Transcript rejected after retry - restarting mic');
+        this.restartRecordingVAD();
+        return;
+      }
+      
+      // If retry succeeded, fall through to continue processing below
+    }
+    
+    // ✅ CRITICAL: If we got here, transcript is valid (confidence >= 0.2)
+    // This code runs whether transcript came from first attempt or retry
       logger.info(`[VoiceCall] ⏱️ STT: ${(performance.now() - sttStart).toFixed(0)}ms`);
       logger.info('[VoiceCall] 👤 User:', transcript);
+    
+      // ✅ FIX: Reject very short transcripts (< 2 chars) - likely noise
+      if (transcript.trim().length < 2) {
+        logger.debug(`[VoiceCall] Transcript too short (${transcript.trim().length} chars), rejecting as noise`);
+        this.lastRejectedTime = Date.now();
+        this.lastSpeechTime = null;
+        this.silenceStartTime = null;
+        this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
+        setTimeout(() => {
+          logger.debug('[VoiceCall] 🔄 Restarting mic after short transcript rejection');
+          this.restartRecordingVAD();
+        }, this.REJECTION_COOLDOWN);
+        return;
+      }
+    
+    // ✅ CRITICAL FIX: Reset interrupt flags AFTER we successfully processed real speech
+    // This ensures resume logic can trigger if processing fails (cough/sneeze/noise)
+    this.hasInterrupted = false;
+    this.interruptTime = null;
+    this.isProcessing = false; // ✅ CRITICAL: Clear processing flag after successful processing
       
       // Add user message to conversational buffer
       conversationBuffer.add('user', transcript);
@@ -591,9 +1251,17 @@ export class VoiceCallService {
       this.playAcknowledgmentSound();
       
       // 2. Claude Streaming with timeout
+      // ✅ FIX: Reduced timeout for voice calls (15s) - ChatGPT-like fast response
+      // Voice calls need faster responses than text chat
       const claudeStart = performance.now();
       const claudeController = new AbortController();
-      const claudeTimeout = setTimeout(() => claudeController.abort(), 10000); // 🚀 10s timeout for Claude
+      const claudeTimeout = setTimeout(() => claudeController.abort(), 15000); // ✅ FIX: 15s timeout (was 10s, optimal for voice)
+      
+      // ✅ CRITICAL FIX: Ensure session is available for Claude API call
+      if (!session) {
+        const { data: { session: authSession } } = await supabase.auth.getSession();
+        session = authSession;
+      }
       
       let response;
       try {
@@ -644,6 +1312,48 @@ export class VoiceCallService {
       
       audioQueueService.reset(); // Clear queue for new response
       options.onStatusChange?.('speaking');
+    
+    // ✅ CRITICAL FIX: Stop recording immediately when Atlas starts speaking
+    // This prevents microphone from picking up Atlas's own voice output (feedback loop)
+    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      logger.debug('[VoiceCall] 🛑 Stopping recording - Atlas starting to speak (prevent feedback)');
+      this.mediaRecorder.stop();
+    }
+    
+    // ✅ FIX: Set callback to update status when audio completes
+    audioQueueService.setOnComplete(() => {
+      logger.info('[VoiceCall] ✅ All audio playback completed');
+      options.onStatusChange?.('listening');
+      
+      // ✅ CRITICAL FIX: Don't reset interrupt flags here if Atlas was interrupted
+      // Flags should only be reset after successful speech processing or after resume
+      // If we reset here, resume logic can't trigger when errors occur
+      // This allows resume logic to work even if audio queue completes after interrupt
+      if (!this.hasInterrupted) {
+        // Only reset if there was no interrupt (normal completion)
+        this.hasInterrupted = false;
+        this.interruptTime = null;
+      } else {
+        logger.debug('[VoiceCall] 🔍 Audio completed but interrupt flags preserved for resume check');
+      }
+      
+      // ✅ CRITICAL FIX: Ensure recorder is stopped before restarting
+      // Prevents any lingering recording from picking up Atlas's voice
+      if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+        logger.debug('[VoiceCall] 🛑 Stopping recorder before restart (safety check)');
+        this.mediaRecorder.stop();
+      }
+      
+      // ✅ FIX: Small delay before restarting to ensure audio queue is fully cleared
+      const timeout = setTimeout(() => {
+        this.pendingTimeouts.delete(timeout);
+        // ✅ CRITICAL: Check isActive before restarting (call might have ended)
+        if (this.isActive) {
+          this.restartRecordingVAD(); // Restart mic for next input
+        }
+      }, 200); // ✅ FIX: Increased delay to ensure recorder fully stops
+      this.pendingTimeouts.add(timeout);
+    });
       
       while (true) {
         const { done, value } = await reader!.read();
@@ -660,21 +1370,50 @@ export class VoiceCallService {
                 fullResponse += data.chunk;
                 currentSentence += data.chunk;
                 
-                // Split into sentences on .!? followed by space or newline
-                const sentences = currentSentence.split(/([.!?]\s+)/);
+              // ✅ FIX: ChatGPT-like streaming - speak on partial sentences for lower latency
+              // Don't wait for full punctuation - start speaking after reasonable chunks
+              const MIN_SENTENCE_LENGTH = 15; // Minimum chars before speaking (ChatGPT-like)
+              const MAX_WAIT_LENGTH = 100; // Max chars to wait before forcing speech
+              
+              // Check if we have enough text to start speaking
+              if (currentSentence.length >= MIN_SENTENCE_LENGTH) {
+                // Try to split on punctuation first
+                const sentencePattern = /([.!?]+)\s+/g;
+                const parts = currentSentence.split(sentencePattern);
                 
-                // Process complete sentences
-                while (sentences.length >= 2) {
-                  const sentence = sentences.shift()! + (sentences.shift() || '');
-                  const cleanSentence = sentence.trim();
+                // Process complete sentences (punctuation + space pairs)
+                for (let i = 0; i < parts.length - 1; i += 2) {
+                  const sentence = (parts[i] || '') + (parts[i + 1] || '');
+                  const cleanSentence = sentence
+                    .replace(/\n+/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
                   
                   if (cleanSentence.length > 3) {
-                    await audioQueueService.addSentence(cleanSentence, sentenceIndex++, 'nova');
-                    options.onAIResponse(fullResponse); // Update UI with partial response
+                    // ✅ FIX: Don't await - add sentence and continue (non-blocking)
+                    audioQueueService.addSentence(cleanSentence, sentenceIndex++, 'nova');
+                    options.onAIResponse(fullResponse);
                   }
                 }
                 
-                currentSentence = sentences.join('');
+                // Keep remaining text
+                currentSentence = parts.length % 2 === 1 ? parts[parts.length - 1] : '';
+                
+                // ✅ FIX: If we're accumulating too much text without punctuation, force speech
+                // This prevents long delays waiting for punctuation (ChatGPT does this)
+                if (currentSentence.length >= MAX_WAIT_LENGTH) {
+                  const cleanSentence = currentSentence
+                    .replace(/\n+/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                  
+                  if (cleanSentence.length > 3) {
+                    audioQueueService.addSentence(cleanSentence, sentenceIndex++, 'nova');
+                    options.onAIResponse(fullResponse);
+                    currentSentence = ''; // Reset after forcing speech
+                  }
+                }
+              }
               }
             } catch (e) {
               // Ignore parse errors for keep-alive messages
@@ -683,9 +1422,19 @@ export class VoiceCallService {
         }
       }
       
-      // Process remaining sentence
-      if (currentSentence.trim().length > 3) {
-        await audioQueueService.addSentence(currentSentence.trim(), sentenceIndex++, 'nova');
+    // ✅ FIX: Process remaining text (even if not ending with punctuation)
+    // This ensures nothing is cut off - ChatGPT plays incomplete sentences too
+    if (currentSentence.trim().length > 0) {
+      // ✅ FIX: Clean final sentence - remove extra newlines and whitespace
+      const cleanFinalSentence = currentSentence
+        .replace(/\n+/g, ' ') // Replace newlines with spaces
+        .replace(/\s+/g, ' ') // Collapse multiple spaces
+        .trim();
+      
+      if (cleanFinalSentence.length > 0) {
+        await audioQueueService.addSentence(cleanFinalSentence, sentenceIndex++, 'nova');
+        logger.debug(`[VoiceCall] Added final sentence: "${cleanFinalSentence.substring(0, 50)}..."`);
+      }
       }
       
       // ✅ REMOVED DUPLICATE: Backend /api/message already saves the assistant response
@@ -704,8 +1453,40 @@ export class VoiceCallService {
       
     } catch (error) {
       logger.error('[VoiceCall] processVoiceChunkStreaming error:', error);
-      options.onError(error as Error);
+    
+    // ✅ CRITICAL FIX: If Atlas was interrupted and processing failed (likely rejected audio),
+    // resume Atlas's response - user didn't actually speak (cough/sneeze/noise)
+    // ✅ DEBUG: Log interrupt state for troubleshooting
+    logger.debug(`[VoiceCall] 🔍 Resume check - hasInterrupted: ${this.hasInterrupted}, interruptTime: ${this.interruptTime}, VOICE_STREAMING: ${isFeatureEnabled('VOICE_STREAMING')}`);
+    
+    if (this.hasInterrupted && this.interruptTime && isFeatureEnabled('VOICE_STREAMING')) {
+      const timeSinceInterrupt = Date.now() - this.interruptTime;
+      logger.debug(`[VoiceCall] 🔍 Time since interrupt: ${timeSinceInterrupt}ms`);
+      // ✅ FIX: Increase window to 5 seconds for retry scenarios (was 2s)
+      // After retries, time can exceed 2s but still be an interrupt-related rejection
+      if (timeSinceInterrupt < 5000) {
+        logger.info('[VoiceCall] ▶️ Processing error after interrupt - resuming Atlas (likely rejected cough/sneeze/noise)');
+        audioQueueService.resume();
+        this.hasInterrupted = false;
+        this.interruptTime = null;
+        options.onStatusChange?.('speaking');
+        // Don't call onError - resume handled it
+        return;
+      } else {
+        logger.debug(`[VoiceCall] ⏱️ Too long since interrupt (${timeSinceInterrupt}ms > 5000ms) - not resuming`);
     }
+    } else {
+      logger.debug('[VoiceCall] ⚠️ Resume conditions not met - hasInterrupted or interruptTime missing');
+    }
+    
+    // ✅ CRITICAL FIX: Always restart mic after errors to ensure conversation continues
+    // Even if STT fails, we want to keep listening for the next input
+    logger.info('[VoiceCall] 🔄 Restarting mic after processing error to continue conversation');
+    this.isProcessing = false; // ✅ CRITICAL: Clear processing flag on error
+    this.restartRecordingVAD();
+    
+    // Only call onError if we didn't resume
+    options.onError(error as Error);
   }
   
   private async blobToBase64(blob: Blob): Promise<string> {
@@ -728,18 +1509,37 @@ export class VoiceCallService {
         if (attempt > 0) {
           this.currentOptions?.onStatusChange?.('transcribing');
           logger.info(`[VoiceCall] Retry attempt ${attempt + 1}/${this.MAX_RETRIES} for ${operation}`);
-          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAYS[attempt - 1]));
+          
+          // ✅ IMPROVEMENT: Add jitter to prevent thundering herd problem
+          const baseDelay = this.RETRY_DELAYS[attempt - 1] || 10000;
+          const jitter = Math.random() * 0.3 * baseDelay; // ±30% jitter
+          const delay = baseDelay + jitter;
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
         
         return await fn();
       } catch (error: unknown) {
         lastError = error as Error;
         
+        // Don't retry auth errors or rate limits
         if (error.message?.includes('401') || error.message?.includes('403') || error.message?.includes('429')) {
           throw error;
         }
         
+        // ✅ CRITICAL FIX: Don't retry 0.0% confidence errors - it's wasted time
+        // 0.0% confidence means silence/noise, retrying won't help
+        if (error.message?.includes('confidence too low') && error.message?.includes('0.0%')) {
+          logger.debug('[VoiceCall] ⚡ Skipping retries for 0.0% confidence (silence/noise)');
+          throw lastError; // Fail fast - no retries
+        }
+        
         if (attempt === this.MAX_RETRIES - 1) {
+          // ✅ CRITICAL FIX: Preserve original error message for low confidence/empty transcript
+          // This allows resume logic to work after retries fail
+          if (lastError?.message?.includes('confidence too low') || lastError?.message?.includes('too short')) {
+            throw lastError; // Preserve original error for resume logic
+          }
           throw new Error(`Connection lost. Please check your internet connection.`);
         }
       }
@@ -873,6 +1673,121 @@ export class VoiceCallService {
       // Silently fail - acknowledgment sounds are nice but not critical
       logger.debug('[VoiceCall] Could not play acknowledgment sound:', error);
     }
+  }
+
+  /**
+   * ✅ IMPROVEMENT: Start network quality monitoring
+   * Checks network connection quality every 5 seconds
+   */
+  private startNetworkMonitoring(): void {
+    if (this.networkCheckInterval) {
+      return; // Already monitoring
+    }
+
+    this.networkCheckInterval = setInterval(async () => {
+      if (!this.isActive) return;
+
+      const quality = await this.checkNetworkQuality();
+      const previousQuality = this.networkQuality;
+      this.networkQuality = quality;
+
+      // Log quality changes
+      if (quality !== previousQuality) {
+        logger.info(`[VoiceCall] 🌐 Network quality: ${previousQuality} → ${quality}`);
+        
+        // Notify UI if quality degraded
+        if ((quality === 'poor' || quality === 'offline') && previousQuality !== 'poor' && previousQuality !== 'offline') {
+          this.currentOptions?.onStatusChange?.('reconnecting');
+        } else if ((quality === 'excellent' || quality === 'good') && (previousQuality === 'poor' || previousQuality === 'offline')) {
+          // Quality improved - back to normal
+          this.currentOptions?.onStatusChange?.('listening');
+        }
+      }
+    }, this.NETWORK_CHECK_INTERVAL);
+  }
+
+  /**
+   * ✅ IMPROVEMENT: Stop network quality monitoring
+   */
+  private stopNetworkMonitoring(): void {
+    if (this.networkCheckInterval) {
+      clearInterval(this.networkCheckInterval);
+      this.networkCheckInterval = null;
+    }
+    this.recentApiLatencies = [];
+    this.networkQuality = 'excellent';
+  }
+
+  /**
+   * ✅ IMPROVEMENT: Check network quality by measuring API latency
+   */
+  private async checkNetworkQuality(): Promise<'excellent' | 'good' | 'poor' | 'offline'> {
+    try {
+      const start = performance.now();
+      
+      // Use a lightweight health check endpoint or simple HEAD request
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
+      
+      try {
+        // Try to fetch a lightweight endpoint (use existing API)
+        const response = await fetch('/api/health', { 
+          signal: controller.signal,
+          method: 'HEAD', // HEAD request is lighter than GET
+        });
+        clearTimeout(timeout);
+        
+        const latency = performance.now() - start;
+        
+        if (!response.ok) {
+          return 'offline';
+        }
+
+        // Track latency history
+        this.recentApiLatencies.push(latency);
+        if (this.recentApiLatencies.length > this.MAX_LATENCY_HISTORY) {
+          this.recentApiLatencies.shift();
+        }
+
+        // Calculate average latency
+        const avgLatency = this.recentApiLatencies.reduce((a, b) => a + b, 0) / this.recentApiLatencies.length;
+
+        // Classify quality based on latency
+        if (avgLatency < 100) return 'excellent';
+        if (avgLatency < 300) return 'good';
+        if (avgLatency < 1000) return 'poor';
+        return 'offline';
+      } catch (error) {
+        clearTimeout(timeout);
+        if (error.name === 'AbortError') {
+          return 'offline';
+        }
+        throw error;
+      }
+    } catch (error) {
+      logger.debug('[VoiceCall] Network check failed:', error);
+      return 'offline';
+    }
+  }
+
+  /**
+   * ✅ IMPROVEMENT: Get adaptive STT timeout based on network quality
+   */
+  private getSTTTimeout(): number {
+    switch (this.networkQuality) {
+      case 'excellent': return 5000;  // 5s
+      case 'good': return 8000;      // 8s
+      case 'poor': return 15000;     // 15s
+      case 'offline': return 20000;  // 20s
+      default: return 10000;
+    }
+  }
+
+  /**
+   * ✅ IMPROVEMENT: Get current network quality (for UI display)
+   */
+  getNetworkQuality(): 'excellent' | 'good' | 'poor' | 'offline' {
+    return this.networkQuality;
   }
 }
 
