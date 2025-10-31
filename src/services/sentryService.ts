@@ -278,11 +278,19 @@ function maskPII(str: string): string {
 
 /**
  * Mask PII in an object recursively
+ * ✅ FIX: Prevent infinite recursion on circular references
  */
-function maskPIIInObject(obj: Record<string, unknown>): Record<string, unknown> {
+function maskPIIInObject(obj: Record<string, unknown>, visited = new WeakSet<object>()): Record<string, unknown> {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
+  
+  // ✅ FIX: Detect circular references
+  if (visited.has(obj as object)) {
+    return { '[CIRCULAR_REFERENCE]': true };
+  }
+  
+  visited.add(obj as object);
   
   const masked: Record<string, unknown> = Array.isArray(obj) ? { ...obj as any } : { ...obj };
   
@@ -297,7 +305,7 @@ function maskPIIInObject(obj: Record<string, unknown>): Record<string, unknown> 
     // Recursively mask nested objects
     const value = masked[key];
     if (typeof value === 'object' && value !== null) {
-      masked[key] = maskPIIInObject(value as Record<string, unknown>);
+      masked[key] = maskPIIInObject(value as Record<string, unknown>, visited);
     } else if (typeof value === 'string') {
       masked[key] = maskPII(value);
     }

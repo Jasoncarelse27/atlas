@@ -130,7 +130,7 @@ export interface VoiceCallOptions {
   onDisconnected: () => void;
   onPartialTranscript: (text: string, confidence: number) => void;
   onFinalTranscript: (text: string, confidence: number) => void;
-  onAudioChunk: (audioBase64: string) => void;
+  onAudioChunk: (audioBase64: string, sentenceIndex?: number) => void; // ✅ Added sentenceIndex
   onStatusChange: (status: string) => void;
   onError: (error: Error) => void;
 }

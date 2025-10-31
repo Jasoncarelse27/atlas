@@ -4,6 +4,15 @@ import { conversationBuffer } from '@/utils/conversationBuffer';
 import { isFeatureEnabled } from '../config/featureFlags';
 import { logger } from '../lib/logger';
 import { audioQueueService } from './audioQueueService';
+import { NetworkMonitoringService } from './voice/NetworkMonitoringService';
+import { RetryService } from './voice/RetryService';
+import { MessagePersistenceService } from './voice/MessagePersistenceService';
+import { AudioPlaybackService } from './voice/AudioPlaybackService';
+import { VADService } from './voice/VADService';
+import { STTService } from './voice/STTService';
+import { TTSService } from './voice/TTSService';
+import { CallLifecycleService } from './voice/CallLifecycleService';
+import { TimeoutManagementService } from './voice/TimeoutManagementService';
 
 interface VoiceCallOptions {
   userId: string;
@@ -24,18 +33,40 @@ export class VoiceCallService {
   private maxCallDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
   private durationCheckInterval: NodeJS.Timeout | null = null;
   private recordingMimeType: string = 'audio/webm'; // ✅ Store detected MIME type
+  // EXTRACTION_POINT: RetryService
+  // ✅ EXTRACTED: RetryService (with feature flag fallback)
+  private retryService?: RetryService;
+  
+  // Legacy constants (kept for fallback when feature flag is off)
   private readonly RETRY_DELAYS = [1000, 2000, 4000, 8000, 10000]; // Exponential backoff: 1s, 2s, 4s, 8s, 10s
   private readonly MAX_RETRIES = 5; // ✅ IMPROVEMENT: Increased from 3 to 5 for better resilience
-  private currentAudio: HTMLAudioElement | null = null; // ✅ Track current playing audio
-  private pendingTimeouts: Set<NodeJS.Timeout> = new Set(); // ✅ Track all timeouts for cleanup
+  // EXTRACTION_POINT: AudioPlaybackService
+  // ✅ EXTRACTED: AudioPlaybackService (with feature flag fallback)
+  private audioPlaybackService?: AudioPlaybackService;
   
-  // ✅ IMPROVEMENT: Network quality monitoring
+  // Legacy state (kept for fallback when feature flag is off)
+  private currentAudio: HTMLAudioElement | null = null; // ✅ Track current playing audio
+  // EXTRACTION_POINT: TimeoutManagementService
+  // ✅ EXTRACTED: TimeoutManagementService (with feature flag fallback)
+  private timeoutManagementService?: TimeoutManagementService;
+  private pendingTimeouts: Set<NodeJS.Timeout> = new Set(); // Legacy fallback
+  
+  // EXTRACTION_POINT: NetworkMonitoringService
+  // ✅ EXTRACTED: NetworkMonitoringService (with feature flag fallback)
+  private networkMonitoringService?: NetworkMonitoringService;
+  
+  // Legacy state (kept for fallback when feature flag is off)
   private networkQuality: 'excellent' | 'good' | 'poor' | 'offline' = 'excellent';
   private networkCheckInterval: NodeJS.Timeout | null = null;
   private recentApiLatencies: number[] = []; // Track recent API call latencies
   private readonly NETWORK_CHECK_INTERVAL = 5000; // Check every 5 seconds
   private readonly MAX_LATENCY_HISTORY = 10; // Keep last 10 latencies
   
+  // EXTRACTION_POINT: VADService
+  // ✅ EXTRACTED: VADService (with feature flag fallback)
+  private vadService?: VADService;
+  
+  // Legacy VAD state (kept for fallback when feature flag is off)
   // 🎙️ CHATGPT-STYLE VAD (Voice Activity Detection)
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -63,6 +94,18 @@ export class VoiceCallService {
   private isCalibrated: boolean = false;
   private hasInterrupted: boolean = false; // 🛑 Track if user already interrupted
   
+  // EXTRACTION_POINT: CallLifecycleService
+  // ✅ EXTRACTED: CallLifecycleService (with feature flag fallback)
+  private callLifecycleService?: CallLifecycleService;
+  
+  // EXTRACTION_POINT: STTService
+  // ✅ EXTRACTED: STTService (with feature flag fallback)
+  private sttService?: STTService;
+  
+  // EXTRACTION_POINT: TTSService
+  // ✅ EXTRACTED: TTSService (with feature flag fallback)
+  private ttsService?: TTSService;
+  
   async startCall(options: VoiceCallOptions): Promise<void> {
     if (this.isActive) {
       throw new Error('Call already in progress');
@@ -73,27 +116,129 @@ export class VoiceCallService {
       throw new Error('Voice calls are only available for Studio tier');
     }
     
+    // Initialize timeout management service
+    if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE')) {
+      if (!this.timeoutManagementService) {
+        this.timeoutManagementService = new TimeoutManagementService();
+        this.pendingTimeouts = this.timeoutManagementService.getPendingTimeouts();
+      }
+    }
+    
+    // Initialize call lifecycle service
+    if (isFeatureEnabled('USE_CALL_LIFECYCLE_SERVICE')) {
+      if (!this.callLifecycleService) {
+        this.callLifecycleService = new CallLifecycleService(
+          this.timeoutManagementService || new TimeoutManagementService(),
+          { maxCallDuration: this.maxCallDuration }
+        );
+      }
+      this.callLifecycleService.start({
+        onCallStarted: () => logger.info('[VoiceCall] ✅ Call lifecycle started'),
+        onCallStopped: (duration) => logger.info(`[VoiceCall] ✅ Call lifecycle stopped (${duration.toFixed(1)}s)`),
+        onMaxDurationReached: () => {
+          logger.warn('[VoiceCall] ⏰ Maximum call duration reached');
+          this.stopCall(options.userId);
+          options.onError(new Error('Maximum call duration reached (30 minutes)'));
+        },
+      });
+    }
+    
     this.isActive = true;
     this.callStartTime = new Date();
     this.currentOptions = options;
     
     // ✅ IMPROVEMENT: Start network quality monitoring
-    this.startNetworkMonitoring();
-    
-    // Start 30-minute duration enforcement
-    this.durationCheckInterval = setInterval(() => {
-      if (this.callStartTime) {
-        const elapsed = Date.now() - this.callStartTime.getTime();
-        if (elapsed >= this.maxCallDuration) {
-          logger.warn('[VoiceCall] ⏰ Maximum call duration reached (30 minutes)');
-          this.stopCall(options.userId);
-          options.onError(new Error('Maximum call duration reached (30 minutes)'));
-        }
+    if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE')) {
+      // Use extracted NetworkMonitoringService
+      if (!this.networkMonitoringService) {
+        this.networkMonitoringService = new NetworkMonitoringService({}, this.pendingTimeouts);
       }
-    }, 30000); // Check every 30 seconds
+      this.networkMonitoringService.setActive(true);
+      this.networkMonitoringService.start({
+        onQualityChange: (quality, previousQuality) => {
+          // Map to VoiceCallService status callbacks
+          if ((quality === 'poor' || quality === 'offline') && previousQuality !== 'poor' && previousQuality !== 'offline') {
+            options.onStatusChange?.('reconnecting');
+          } else if ((quality === 'excellent' || quality === 'good') && (previousQuality === 'poor' || previousQuality === 'offline')) {
+            options.onStatusChange?.('listening');
+          }
+        },
+      });
+    } else {
+      // Legacy implementation
+      this.startNetworkMonitoring();
+    }
+    
+    // Start 30-minute duration enforcement (legacy fallback)
+    if (!isFeatureEnabled('USE_CALL_LIFECYCLE_SERVICE')) {
+      this.durationCheckInterval = isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService
+        ? this.timeoutManagementService.setInterval(() => {
+            if (this.callStartTime) {
+              const elapsed = Date.now() - this.callStartTime.getTime();
+              if (elapsed >= this.maxCallDuration) {
+                logger.warn('[VoiceCall] ⏰ Maximum call duration reached (30 minutes)');
+                this.stopCall(options.userId);
+                options.onError(new Error('Maximum call duration reached (30 minutes)'));
+              }
+            }
+          }, 30000)
+        : setInterval(() => {
+            if (this.callStartTime) {
+              const elapsed = Date.now() - this.callStartTime.getTime();
+              if (elapsed >= this.maxCallDuration) {
+                logger.warn('[VoiceCall] ⏰ Maximum call duration reached (30 minutes)');
+                this.stopCall(options.userId);
+                options.onError(new Error('Maximum call duration reached (30 minutes)'));
+              }
+            }
+          }, 30000);
+    }
     
     // Start recording loop with VAD
-    await this.startRecordingWithVAD(options);
+    if (isFeatureEnabled('USE_VAD_SERVICE')) {
+      // Use extracted VADService
+      if (!this.vadService) {
+        this.vadService = new VADService();
+        // Set up shared state callbacks for synchronization
+        this.vadService.setSharedStateCallbacks({
+          onIsProcessingCheck: () => this.isProcessing,
+          onIsActiveCheck: () => this.isActive,
+          onHasInterruptedCheck: () => this.hasInterrupted,
+          onInterruptTimeGet: () => this.interruptTime,
+          onSetHasInterrupted: (value) => { this.hasInterrupted = value; },
+          onSetInterruptTime: (value) => { this.interruptTime = value; },
+          onSetResumeAttempted: (value) => { this.resumeAttempted = value; },
+          onGetResumeAttempted: () => this.resumeAttempted,
+          onSetLastResumeCheckTime: (value) => { this.lastResumeCheckTime = value; },
+          onGetLastResumeCheckTime: () => this.lastResumeCheckTime,
+          onSetLastProcessTime: (value) => { this.lastProcessTime = value; },
+          onGetLastProcessTime: () => this.lastProcessTime,
+          onSetLastRejectedTime: (value) => { this.lastRejectedTime = value; },
+          onGetLastRejectedTime: () => this.lastRejectedTime,
+          onSetIsProcessing: (value) => { this.isProcessing = value; },
+          onGetIsAtlasSpeaking: () => {
+            return (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService?.isPlaying()) ||
+                   (!isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.currentAudio && !this.currentAudio.paused) ||
+                   (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
+          },
+          onStatusChange: options.onStatusChange,
+          onRecordingStopped: async (audioBlob: Blob, mimeType: string) => {
+            this.recordingMimeType = mimeType;
+            await this.processVoiceChunk(audioBlob, options);
+          },
+        });
+      }
+      
+      await this.vadService.startRecording({
+        onAudioLevel: options.onAudioLevel,
+        onRecordingStopped: async (audioBlob: Blob) => {
+          await this.processVoiceChunk(audioBlob, options);
+        },
+      });
+    } else {
+      // Legacy implementation
+      await this.startRecordingWithVAD(options);
+    }
     
     logger.info('[VoiceCall] ✅ Call started with ChatGPT-style VAD');
   }
@@ -107,23 +252,32 @@ export class VoiceCallService {
     logger.info('[VoiceCall] 🛑 Stopping call...');
     this.isActive = false; // ✅ CRITICAL: Set this FIRST to prevent any new operations
     
+    // Stop call lifecycle service
+    if (isFeatureEnabled('USE_CALL_LIFECYCLE_SERVICE') && this.callLifecycleService) {
+      this.callLifecycleService.stop();
+    }
+    
     // ✅ CRITICAL FIX: Clear ALL pending timeouts immediately
     this.pendingTimeouts.forEach(timeout => clearTimeout(timeout));
     this.pendingTimeouts.clear();
     
     // ✅ IMPROVEMENT: Stop network monitoring
-    this.stopNetworkMonitoring();
+    if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE') && this.networkMonitoringService) {
+      this.networkMonitoringService.stop();
+      this.networkMonitoringService.setActive(false);
+    } else {
+      // Legacy implementation
+      this.stopNetworkMonitoring();
+    }
     
     // Clear duration check interval
     if (this.durationCheckInterval) {
-      clearInterval(this.durationCheckInterval);
+      if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
+        this.timeoutManagementService.clearInterval(this.durationCheckInterval);
+      } else {
+        clearInterval(this.durationCheckInterval);
+      }
       this.durationCheckInterval = null;
-    }
-    
-    // Clear VAD check interval
-    if (this.vadCheckInterval) {
-      clearInterval(this.vadCheckInterval);
-      this.vadCheckInterval = null;
     }
     
     // ✅ CRITICAL FIX: Stop audio queue immediately
@@ -131,55 +285,73 @@ export class VoiceCallService {
     audioQueueService.reset();
     
     // ✅ FIX: Stop any playing audio when call ends
-    if (this.currentAudio && !this.currentAudio.paused) {
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
-      this.currentAudio = null;
+    if (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService) {
+      this.audioPlaybackService.stop();
+    } else {
+      // Legacy implementation
+      if (this.currentAudio && !this.currentAudio.paused) {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+        this.currentAudio = null;
+      }
     }
     
-    // ✅ CRITICAL FIX: Stop recording IMMEDIATELY and cleanup stream
-    if (this.mediaRecorder) {
-      try {
-        if (this.mediaRecorder.state !== 'inactive') {
-          this.mediaRecorder.stop();
+    // Stop VAD service or legacy VAD
+    if (isFeatureEnabled('USE_VAD_SERVICE') && this.vadService) {
+      await this.vadService.stop();
+      // VADService manages mediaRecorder internally, no need to access it
+    } else {
+      // Legacy VAD cleanup
+      // Clear VAD check interval
+      if (this.vadCheckInterval) {
+        clearInterval(this.vadCheckInterval);
+        this.vadCheckInterval = null;
+      }
+      
+      // ✅ CRITICAL FIX: Stop recording IMMEDIATELY and cleanup stream
+      if (this.mediaRecorder) {
+        try {
+          if (this.mediaRecorder.state !== 'inactive') {
+            this.mediaRecorder.stop();
+          }
+          // Stop all tracks from the stream
+          if (this.mediaRecorder.stream) {
+            this.mediaRecorder.stream.getTracks().forEach(track => {
+              track.stop();
+              track.enabled = false;
+            });
+          }
+        } catch (error) {
+          logger.warn('[VoiceCall] Error stopping mediaRecorder:', error);
         }
-        // Stop all tracks from the stream
-        if (this.mediaRecorder.stream) {
-          this.mediaRecorder.stream.getTracks().forEach(track => {
-            track.stop();
-            track.enabled = false;
-          });
+        this.mediaRecorder = null;
+      }
+      
+      // Cleanup VAD audio context
+      if (this.microphone) {
+        try {
+          this.microphone.disconnect();
+        } catch (error) {
+          logger.warn('[VoiceCall] Error disconnecting microphone:', error);
         }
-      } catch (error) {
-        logger.warn('[VoiceCall] Error stopping mediaRecorder:', error);
+        this.microphone = null;
       }
-      this.mediaRecorder = null;
-    }
-    
-    // Cleanup VAD audio context
-    if (this.microphone) {
-      try {
-        this.microphone.disconnect();
-      } catch (error) {
-        logger.warn('[VoiceCall] Error disconnecting microphone:', error);
+      if (this.analyser) {
+        try {
+          this.analyser.disconnect();
+        } catch (error) {
+          logger.warn('[VoiceCall] Error disconnecting analyser:', error);
+        }
+        this.analyser = null;
       }
-      this.microphone = null;
-    }
-    if (this.analyser) {
-      try {
-        this.analyser.disconnect();
-      } catch (error) {
-        logger.warn('[VoiceCall] Error disconnecting analyser:', error);
+      if (this.audioContext && this.audioContext.state !== 'closed') {
+        try {
+          await this.audioContext.close();
+        } catch (error) {
+          logger.warn('[VoiceCall] Error closing audioContext:', error);
+        }
+        this.audioContext = null;
       }
-      this.analyser = null;
-    }
-    if (this.audioContext && this.audioContext.state !== 'closed') {
-      try {
-        await this.audioContext.close();
-      } catch (error) {
-        logger.warn('[VoiceCall] Error closing audioContext:', error);
-      }
-      this.audioContext = null;
     }
     
     // Track call in usage logs
@@ -190,6 +362,15 @@ export class VoiceCallService {
     
     // Clear conversation buffer
     conversationBuffer.clear();
+    
+    // Clear all timeouts
+    if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
+      this.timeoutManagementService.clearAll();
+    } else {
+      // Legacy cleanup
+      this.pendingTimeouts.forEach(timeout => clearTimeout(timeout));
+      this.pendingTimeouts.clear();
+    }
     
     // ✅ CRITICAL FIX: Reset all state flags
     this.hasInterrupted = false;
@@ -208,6 +389,8 @@ export class VoiceCallService {
   /**
    * 🚀 CHATGPT-STYLE: Voice Activity Detection Recording
    * Detects when user stops speaking and processes immediately
+   * EXTRACTION_POINT: VADService
+   * TODO: Extract to VADService.startRecording()
    */
   private async startRecordingWithVAD(options: VoiceCallOptions): Promise<void> {
     try {
@@ -467,6 +650,8 @@ export class VoiceCallService {
   /**
    * 🎯 SMART ADAPTIVE THRESHOLD: Calibrate to ambient noise
    * ✅ FIX: Use getByteTimeDomainData for accurate volume detection
+   * EXTRACTION_POINT: VADService
+   * TODO: Extract to VADService.calibrate()
    */
   private async calibrateAmbientNoise(): Promise<void> {
     if (!this.analyser) {
@@ -532,6 +717,8 @@ export class VoiceCallService {
   
   /**
    * 🔊 VAD Monitoring: Detect when user starts/stops speaking
+   * EXTRACTION_POINT: VADService
+   * TODO: Extract to VADService.startMonitoring()
    */
   private startVADMonitoring(options: VoiceCallOptions): void {
     if (!this.analyser) {
@@ -549,7 +736,8 @@ export class VoiceCallService {
       // ✅ CRITICAL FIX: Stop recording immediately when Atlas starts speaking
       // This prevents microphone from picking up Atlas's own voice output
       const isAtlasSpeaking = 
-        (this.currentAudio && !this.currentAudio.paused) || 
+        (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService?.isPlaying()) ||
+        (!isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.currentAudio && !this.currentAudio.paused) || 
         (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
       
       if (isAtlasSpeaking && this.mediaRecorder && this.mediaRecorder.state === 'recording') {
@@ -616,7 +804,13 @@ export class VoiceCallService {
               logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
             this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
           }
-        } else if (this.currentAudio && !this.currentAudio.paused && !this.hasInterrupted && isLoudEnoughToInterrupt) {
+        } else if (
+          !isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && 
+          this.currentAudio && 
+          !this.currentAudio.paused && 
+          !this.hasInterrupted && 
+          isLoudEnoughToInterrupt
+        ) {
             // User interrupted! Pause Atlas immediately (don't reset currentTime - allows resume)
           this.currentAudio.pause();
             // ✅ FIX: Don't reset currentTime - allows resume from same position
@@ -730,9 +924,67 @@ export class VoiceCallService {
   }
   
   /**
+   * Helper: Check if recording is active
+   */
+  private isRecordingActive(): boolean {
+    if (isFeatureEnabled('USE_VAD_SERVICE') && this.vadService) {
+      return this.vadService.isRecording();
+    }
+    return this.mediaRecorder !== null && this.mediaRecorder.state === 'recording';
+  }
+
+  /**
+   * Helper: Stop recording if active
+   */
+  private stopRecordingIfActive(): void {
+    if (isFeatureEnabled('USE_VAD_SERVICE') && this.vadService) {
+      // VADService handles stopping internally via restart()
+      return;
+    }
+    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      this.mediaRecorder.stop();
+    }
+  }
+
+  /**
+   * Helper: Create tracked timeout
+   */
+  private createTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+    if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
+      return this.timeoutManagementService.setTimeout(callback, delay);
+    }
+    const timeout = setTimeout(() => {
+      this.pendingTimeouts.delete(timeout);
+      callback();
+    }, delay);
+    this.pendingTimeouts.add(timeout);
+    return timeout;
+  }
+
+  /**
+   * Helper: Clear tracked timeout
+   */
+  private clearTrackedTimeout(timeout: NodeJS.Timeout): void {
+    if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
+      this.timeoutManagementService.clearTimeout(timeout);
+    } else {
+      clearTimeout(timeout);
+      this.pendingTimeouts.delete(timeout);
+    }
+  }
+
+  /**
    * Helper method to restart recording for next chunk
+   * EXTRACTION_POINT: VADService
+   * ✅ EXTRACTED: Uses VADService.restart() when feature flag enabled
    */
   private restartRecordingVAD(): void {
+    if (isFeatureEnabled('USE_VAD_SERVICE') && this.vadService) {
+      this.vadService.restart();
+      return;
+    }
+    
+    // Legacy implementation
     // ✅ CRITICAL FIX: Double-check isActive to prevent restarting after call ends
     if (!this.isActive) {
       logger.debug('[VoiceCall] Skipping restartRecordingVAD - call is not active');
@@ -746,19 +998,18 @@ export class VoiceCallService {
     
     // ✅ FIX: Don't record while Atlas is speaking (check both standard AND streaming audio)
     const isAtlasSpeaking = 
-      (this.currentAudio && !this.currentAudio.paused) || 
+      (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService?.isPlaying()) ||
+      (!isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.currentAudio && !this.currentAudio.paused) || 
       (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
     
     if (isAtlasSpeaking) {
       logger.debug('[VoiceCall] Skipping recording - Atlas is still speaking');
-      const timeout = setTimeout(() => {
-        this.pendingTimeouts.delete(timeout);
+      this.createTimeout(() => {
         // ✅ CRITICAL: Check isActive again before restarting
         if (this.isActive) {
           this.restartRecordingVAD();
         }
       }, 500);
-      this.pendingTimeouts.add(timeout);
       return;
     }
     
@@ -787,6 +1038,8 @@ export class VoiceCallService {
   
   /**
    * Process a single voice chunk: Route to streaming or standard mode
+   * EXTRACTION_POINT: STTService, TTSService
+   * TODO: Extract STT/TTS logic to respective services
    */
   private async processVoiceChunk(
     audioBlob: Blob,
@@ -802,6 +1055,8 @@ export class VoiceCallService {
 
   /**
    * Standard (non-streaming) voice processing
+   * EXTRACTION_POINT: STTService, TTSService
+   * TODO: Extract STT/TTS logic to respective services
    */
   private async processVoiceChunkStandard(
     audioBlob: Blob,
@@ -894,40 +1149,80 @@ export class VoiceCallService {
       }, 'Text-to-Speech');
       
       // 5. Play audio
-      if (this.currentAudio && !this.currentAudio.paused) {
-        this.currentAudio.pause();
-        this.currentAudio.currentTime = 0;
-        this.currentAudio = null;
-      }
-      
       const audioDataUrl = `data:audio/mp3;base64,${ttsResult.base64Audio}`;
-      const audio = new Audio(audioDataUrl);
-      this.currentAudio = audio;
       
-      (window as any).__atlasAudioElement = audio;
-      
-      audio.onloadeddata = () => logger.debug('[VoiceCall] Audio data loaded');
-      audio.onplay = () => logger.info('[VoiceCall] ✅ Audio playing');
-      audio.onerror = (e) => logger.error('[VoiceCall] Audio error:', e);
-      audio.onended = () => {
-        logger.debug('[VoiceCall] Audio playback ended');
-        options.onStatusChange?.('listening');
-        delete (window as any).__atlasAudioElement;
-        if (this.currentAudio === audio) {
+      if (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE')) {
+        // Use extracted AudioPlaybackService
+        if (!this.audioPlaybackService) {
+          this.audioPlaybackService = new AudioPlaybackService();
+        }
+        
+        await this.audioPlaybackService.play(audioDataUrl, {
+          onPlay: () => logger.info('[VoiceCall] ✅ Audio playing'),
+          onEnded: () => {
+            options.onStatusChange?.('listening');
+          },
+          onError: (error) => {
+            logger.error('[VoiceCall] Audio playback error:', error);
+          },
+        });
+      } else {
+        // Legacy implementation
+        if (this.currentAudio && !this.currentAudio.paused) {
+          this.currentAudio.pause();
+          this.currentAudio.currentTime = 0;
           this.currentAudio = null;
         }
-      };
-      
-      await audio.play();
-      logger.info('[VoiceCall] ✅ TTS audio played successfully');
+        
+        const audio = new Audio(audioDataUrl);
+        this.currentAudio = audio;
+        
+        (window as any).__atlasAudioElement = audio;
+        
+        audio.onloadeddata = () => logger.debug('[VoiceCall] Audio data loaded');
+        audio.onplay = () => logger.info('[VoiceCall] ✅ Audio playing');
+        audio.onerror = (e) => {
+          logger.error('[VoiceCall] Audio error:', e);
+          // ✅ FIX: Cleanup global state on error
+          delete (window as any).__atlasAudioElement;
+          if (this.currentAudio === audio) {
+            this.currentAudio = null;
+          }
+        };
+        audio.onended = () => {
+          logger.debug('[VoiceCall] Audio playback ended');
+          options.onStatusChange?.('listening');
+          delete (window as any).__atlasAudioElement;
+          if (this.currentAudio === audio) {
+            this.currentAudio = null;
+          }
+        };
+        
+        await audio.play();
+        logger.info('[VoiceCall] ✅ TTS audio played successfully');
+      }
       
     } catch (error) {
       logger.error('[VoiceCall] Chunk processing error:', error);
+      // ✅ FIX: Cleanup global state on error
+      if (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService) {
+        this.audioPlaybackService.stop();
+      } else {
+        // Legacy cleanup
+        if ((window as any).__atlasAudioElement) {
+          delete (window as any).__atlasAudioElement;
+        }
+        if (this.currentAudio) {
+          this.currentAudio = null;
+        }
+      }
     }
   }
   
   /**
    * Streaming voice processing: STT → Claude Stream → Progressive TTS
+   * EXTRACTION_POINT: STTService, TTSService
+   * TODO: Extract STT/TTS logic to respective services
    */
   private async processVoiceChunkStreaming(
     audioBlob: Blob,
@@ -954,19 +1249,35 @@ export class VoiceCallService {
         this.silenceStartTime = null; // ✅ FIX: Reset silence tracking
         this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
         // Don't restart immediately - let VAD handle it naturally after cooldown
-        const timeout = setTimeout(() => {
-          this.pendingTimeouts.delete(timeout);
+        this.createTimeout(() => {
           if (this.isActive) {
             this.restartRecordingVAD();
           }
         }, this.REJECTION_COOLDOWN);
-        this.pendingTimeouts.add(timeout);
         return;
       }
       
       // ✅ CRITICAL FIX: Check confidence BEFORE retry logic - fail fast for 0.0%
       // This prevents wasting 26+ seconds retrying silence/noise
       transcript = await (async () => {
+        if (isFeatureEnabled('USE_STT_SERVICE')) {
+          // Use extracted STTService
+          if (!this.sttService) {
+            this.sttService = new STTService({
+              timeout: this.getSTTTimeout(),
+            });
+          }
+          return await this.sttService.transcribe(audioBlob, {
+            onTranscribed: (text, confidence) => {
+              logger.info(`[VoiceCall] ⏱️ STT: ${text.length} chars, ${(confidence * 100).toFixed(1)}% confidence`);
+            },
+            onError: (error) => {
+              logger.error('[VoiceCall] STT error:', error);
+            },
+          });
+        }
+        
+        // Legacy implementation
         // Convert audio blob to base64 for Deepgram
         const base64Audio = await this.blobToBase64(audioBlob);
         const { data: { session } } = await supabase.auth.getSession();
@@ -975,7 +1286,7 @@ export class VoiceCallService {
         
         // ✅ IMPROVEMENT: Adaptive timeout based on network quality
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.getSTTTimeout());
+        const timeoutTimeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout());
         
         try {
           const sttResponse = await fetch('/api/stt-deepgram', {
@@ -985,11 +1296,16 @@ export class VoiceCallService {
               'Authorization': `Bearer ${session?.access_token}`,
             },
             body: JSON.stringify({ 
-              audio: base64Audio.split(',')[1] // Remove data:audio/webm;base64, prefix
+              audio: base64Audio.split(',')[1] // Remove data:audio/webm;codecs=opus, prefix
             }),
             signal: controller.signal,
           });
-          clearTimeout(timeout);
+          if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
+            this.timeoutManagementService.clearTimeout(timeoutTimeout);
+          } else {
+            clearTimeout(timeoutTimeout);
+            this.pendingTimeouts.delete(timeoutTimeout);
+          }
           
           logger.info(`[VoiceCall] ⏱️ STT fetch: ${(performance.now() - fetchStart).toFixed(0)}ms`);
           
@@ -1036,7 +1352,12 @@ export class VoiceCallService {
           
           return text;
         } catch (error) {
-          clearTimeout(timeout);
+          if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
+            this.timeoutManagementService.clearTimeout(timeoutTimeout);
+          } else {
+            clearTimeout(timeoutTimeout);
+            this.pendingTimeouts.delete(timeoutTimeout);
+          }
           if (error.name === 'AbortError') {
             throw new Error('STT timeout - server took too long to respond');
           }
@@ -1073,13 +1394,11 @@ export class VoiceCallService {
             this.lastSpeechTime = null;
             this.silenceStartTime = null;
             this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
-            const timeout = setTimeout(() => {
-              this.pendingTimeouts.delete(timeout);
+            this.createTimeout(() => {
               if (this.isActive) {
                 this.restartRecordingVAD();
               }
             }, this.REJECTION_COOLDOWN);
-            this.pendingTimeouts.add(timeout);
             return; // Return early - resume handled it
           }
         }
@@ -1090,13 +1409,11 @@ export class VoiceCallService {
         this.lastSpeechTime = null;
         this.silenceStartTime = null;
         this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
-        const timeout = setTimeout(() => {
-          this.pendingTimeouts.delete(timeout);
+        this.createTimeout(() => {
           if (this.isActive) {
             this.restartRecordingVAD();
           }
         }, this.REJECTION_COOLDOWN);
-        this.pendingTimeouts.add(timeout);
         return; // Return early to indicate rejection
       }
       
@@ -1106,7 +1423,7 @@ export class VoiceCallService {
         const base64Audio = await this.blobToBase64(audioBlob);
         const { data: { session } } = await supabase.auth.getSession();
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.getSTTTimeout());
+        const timeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout());
         
         try {
           const sttResponse = await fetch('/api/stt-deepgram', {
@@ -1121,6 +1438,7 @@ export class VoiceCallService {
             signal: controller.signal,
           });
           clearTimeout(timeout);
+          this.pendingTimeouts.delete(timeout); // ✅ FIX: Remove from tracking when cleared
       
           if (!sttResponse.ok) {
             const error = await sttResponse.text();
@@ -1143,6 +1461,7 @@ export class VoiceCallService {
           return text;
         } catch (err) {
           clearTimeout(timeout);
+          this.pendingTimeouts.delete(timeout); // ✅ FIX: Remove from tracking when cleared
           if (err.name === 'AbortError') {
             throw new Error('STT timeout - server took too long to respond');
           }
@@ -1174,13 +1493,11 @@ export class VoiceCallService {
               this.lastSpeechTime = null;
               this.silenceStartTime = null;
               this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
-              const timeout = setTimeout(() => {
-                this.pendingTimeouts.delete(timeout);
+              this.createTimeout(() => {
                 if (this.isActive) {
                   this.restartRecordingVAD();
                 }
               }, this.REJECTION_COOLDOWN);
-              this.pendingTimeouts.add(timeout);
               return null;
             } else {
               logger.debug(`[VoiceCall] ⏱️ Too long since interrupt (${timeSinceInterrupt}ms > 5000ms) - not resuming`);
@@ -1192,13 +1509,11 @@ export class VoiceCallService {
           this.lastRejectedTime = Date.now();
           this.lastSpeechTime = null;
           this.silenceStartTime = null;
-          const timeout = setTimeout(() => {
-            this.pendingTimeouts.delete(timeout);
+          this.createTimeout(() => {
             if (this.isActive) {
               this.restartRecordingVAD();
             }
           }, this.REJECTION_COOLDOWN);
-          this.pendingTimeouts.add(timeout);
           return null; // Return null to indicate rejection
         }
         throw error; // Re-throw other errors
@@ -1226,7 +1541,7 @@ export class VoiceCallService {
         this.lastSpeechTime = null;
         this.silenceStartTime = null;
         this.isProcessing = false; // ✅ CRITICAL: Clear processing flag
-        setTimeout(() => {
+        this.createTimeout(() => {
           logger.debug('[VoiceCall] 🔄 Restarting mic after short transcript rejection');
           this.restartRecordingVAD();
         }, this.REJECTION_COOLDOWN);
@@ -1255,7 +1570,7 @@ export class VoiceCallService {
       // Voice calls need faster responses than text chat
       const claudeStart = performance.now();
       const claudeController = new AbortController();
-      const claudeTimeout = setTimeout(() => claudeController.abort(), 15000); // ✅ FIX: 15s timeout (was 10s, optimal for voice)
+      const claudeTimeout = this.createTimeout(() => claudeController.abort(), 15000); // ✅ FIX: 15s timeout (was 10s, optimal for voice)
       
       // ✅ CRITICAL FIX: Ensure session is available for Claude API call
       if (!session) {
@@ -1276,13 +1591,14 @@ export class VoiceCallService {
             message: transcript,
             conversationId: options.conversationId,
             is_voice_call: true,
-            context: conversationBuffer.getRecent(5), // Send last 5 messages for context
+            // ✅ FIX: Don't send context - let backend load full conversation history from database
+            // Frontend buffer only has current session, backend loads last 10 messages for proper memory
           }),
           signal: claudeController.signal,
         });
-        clearTimeout(claudeTimeout);
+        this.clearTrackedTimeout(claudeTimeout);
       } catch (error) {
-        clearTimeout(claudeTimeout);
+        this.clearTrackedTimeout(claudeTimeout);
         if (error.name === 'AbortError') {
           logger.error('[VoiceCall] Claude timeout - took too long to respond');
           options.onError(new Error('Atlas took too long to respond. Please try again.'));
@@ -1315,9 +1631,9 @@ export class VoiceCallService {
     
     // ✅ CRITICAL FIX: Stop recording immediately when Atlas starts speaking
     // This prevents microphone from picking up Atlas's own voice output (feedback loop)
-    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+    if (this.isRecordingActive()) {
       logger.debug('[VoiceCall] 🛑 Stopping recording - Atlas starting to speak (prevent feedback)');
-      this.mediaRecorder.stop();
+      this.stopRecordingIfActive();
     }
     
     // ✅ FIX: Set callback to update status when audio completes
@@ -1339,9 +1655,9 @@ export class VoiceCallService {
       
       // ✅ CRITICAL FIX: Ensure recorder is stopped before restarting
       // Prevents any lingering recording from picking up Atlas's voice
-      if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      if (this.isRecordingActive()) {
         logger.debug('[VoiceCall] 🛑 Stopping recorder before restart (safety check)');
-        this.mediaRecorder.stop();
+        this.stopRecordingIfActive();
       }
       
       // ✅ FIX: Small delay before restarting to ensure audio queue is fully cleared
@@ -1489,6 +1805,8 @@ export class VoiceCallService {
     options.onError(error as Error);
   }
   
+  // EXTRACTION_POINT: STTService
+  // TODO: Extract to STTService.encodeAudio()
   private async blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1498,10 +1816,29 @@ export class VoiceCallService {
     });
   }
   
+  // EXTRACTION_POINT: RetryService
+  // ✅ EXTRACTED: RetryService.withBackoff() (with feature flag fallback)
   private async retryWithBackoff<T>(
     fn: () => Promise<T>,
     operation: string
   ): Promise<T> {
+    if (isFeatureEnabled('USE_RETRY_SERVICE')) {
+      // Use extracted RetryService
+      if (!this.retryService) {
+        this.retryService = new RetryService({
+          maxRetries: this.MAX_RETRIES,
+          retryDelays: this.RETRY_DELAYS,
+        });
+      }
+      
+      return this.retryService.withBackoff(fn, operation, {
+        onRetry: (attempt) => {
+          this.currentOptions?.onStatusChange?.('transcribing');
+        },
+      });
+    }
+    
+    // Legacy implementation
     let lastError: Error | null = null;
     
     for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
@@ -1548,6 +1885,8 @@ export class VoiceCallService {
     throw lastError || new Error(`${operation} failed`);
   }
   
+  // EXTRACTION_POINT: TTSService (part of streaming flow)
+  // TODO: This is part of TTS service in standard mode
   private async getAIResponse(userMessage: string, conversationId: string): Promise<string> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1565,7 +1904,8 @@ export class VoiceCallService {
         body: JSON.stringify({
           message: userMessage,
           conversationId: conversationId,
-          is_voice_call: true
+          is_voice_call: true,
+          // ✅ FIX: Don't send context - let backend load full conversation history from database
         })
       });
       
@@ -1592,7 +1932,31 @@ export class VoiceCallService {
     }
   }
   
+  // EXTRACTION_POINT: MessagePersistenceService
+  // ✅ EXTRACTED: MessagePersistenceService (with feature flag fallback)
+  private messagePersistenceService?: MessagePersistenceService;
+  
   private async trackCallMetering(userId: string, durationSeconds: number): Promise<void> {
+    if (isFeatureEnabled('USE_MESSAGE_PERSISTENCE_SERVICE')) {
+      // Use extracted MessagePersistenceService
+      if (!this.messagePersistenceService) {
+        this.messagePersistenceService = new MessagePersistenceService();
+      }
+      
+      try {
+        await this.messagePersistenceService.trackCallMetering(
+          userId,
+          durationSeconds,
+          this.currentOptions?.tier || 'unknown'
+        );
+      } catch (error) {
+        // Non-critical - log but don't throw
+        logger.error('[VoiceCall] Metering failed:', error);
+      }
+      return;
+    }
+    
+    // Legacy implementation
     try {
       const sttCost = (durationSeconds / 60) * 0.006;
       const estimatedTTSChars = durationSeconds * 25;
@@ -1622,12 +1986,30 @@ export class VoiceCallService {
     }
   }
   
+  // EXTRACTION_POINT: MessagePersistenceService
+  // ✅ EXTRACTED: MessagePersistenceService.save() (with feature flag fallback)
   private async saveVoiceMessage(
     text: string,
     role: 'user' | 'assistant',
     conversationId: string,
     userId: string
   ): Promise<void> {
+    if (isFeatureEnabled('USE_MESSAGE_PERSISTENCE_SERVICE')) {
+      // Use extracted MessagePersistenceService
+      if (!this.messagePersistenceService) {
+        this.messagePersistenceService = new MessagePersistenceService();
+      }
+      
+      try {
+        await this.messagePersistenceService.saveMessage(text, role, conversationId, userId);
+      } catch (error) {
+        // Non-critical - log but don't throw
+        logger.error('[VoiceCall] Error saving message:', error);
+      }
+      return;
+    }
+    
+    // Legacy implementation
     try {
       const messageData = {
         conversation_id: conversationId,
@@ -1648,6 +2030,8 @@ export class VoiceCallService {
 
   /**
    * 🎵 Play subtle acknowledgment sounds for natural conversation flow
+   * EXTRACTION_POINT: TTSService
+   * TODO: Extract to TTSService.playAcknowledgment()
    */
   private playAcknowledgmentSound(): void {
     try {
@@ -1678,6 +2062,8 @@ export class VoiceCallService {
   /**
    * ✅ IMPROVEMENT: Start network quality monitoring
    * Checks network connection quality every 5 seconds
+   * EXTRACTION_POINT: NetworkMonitoringService
+   * TODO: Extract to NetworkMonitoringService.start()
    */
   private startNetworkMonitoring(): void {
     if (this.networkCheckInterval) {
@@ -1708,6 +2094,8 @@ export class VoiceCallService {
 
   /**
    * ✅ IMPROVEMENT: Stop network quality monitoring
+   * EXTRACTION_POINT: NetworkMonitoringService
+   * TODO: Extract to NetworkMonitoringService.stop()
    */
   private stopNetworkMonitoring(): void {
     if (this.networkCheckInterval) {
@@ -1720,6 +2108,8 @@ export class VoiceCallService {
 
   /**
    * ✅ IMPROVEMENT: Check network quality by measuring API latency
+   * EXTRACTION_POINT: NetworkMonitoringService
+   * TODO: Extract to NetworkMonitoringService.checkQuality()
    */
   private async checkNetworkQuality(): Promise<'excellent' | 'good' | 'poor' | 'offline'> {
     try {
@@ -1727,7 +2117,7 @@ export class VoiceCallService {
       
       // Use a lightweight health check endpoint or simple HEAD request
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2000);
+      const timeout = this.createTimeout(() => controller.abort(), 2000);
       
       try {
         // Try to fetch a lightweight endpoint (use existing API)
@@ -1735,7 +2125,7 @@ export class VoiceCallService {
           signal: controller.signal,
           method: 'HEAD', // HEAD request is lighter than GET
         });
-        clearTimeout(timeout);
+        this.clearTrackedTimeout(timeout);
         
         const latency = performance.now() - start;
         
@@ -1758,7 +2148,7 @@ export class VoiceCallService {
         if (avgLatency < 1000) return 'poor';
         return 'offline';
       } catch (error) {
-        clearTimeout(timeout);
+        this.clearTrackedTimeout(timeout);
         if (error.name === 'AbortError') {
           return 'offline';
         }
@@ -1772,8 +2162,15 @@ export class VoiceCallService {
 
   /**
    * ✅ IMPROVEMENT: Get adaptive STT timeout based on network quality
+   * EXTRACTION_POINT: NetworkMonitoringService or STTService
+   * ✅ EXTRACTED: Uses NetworkMonitoringService when feature flag enabled
    */
   private getSTTTimeout(): number {
+    if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE') && this.networkMonitoringService) {
+      return this.networkMonitoringService.getSTTTimeout();
+    }
+    
+    // Legacy implementation
     switch (this.networkQuality) {
       case 'excellent': return 5000;  // 5s
       case 'good': return 8000;      // 8s
@@ -1785,8 +2182,15 @@ export class VoiceCallService {
 
   /**
    * ✅ IMPROVEMENT: Get current network quality (for UI display)
+   * EXTRACTION_POINT: NetworkMonitoringService
+   * ✅ EXTRACTED: Uses NetworkMonitoringService when feature flag enabled (with legacy fallback)
    */
   getNetworkQuality(): 'excellent' | 'good' | 'poor' | 'offline' {
+    if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE') && this.networkMonitoringService) {
+      return this.networkMonitoringService.getQuality();
+    }
+    
+    // Legacy implementation
     return this.networkQuality;
   }
 }

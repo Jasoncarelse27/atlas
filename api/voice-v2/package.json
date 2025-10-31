@@ -1,0 +1,23 @@
+{
+  "name": "atlas-voice-v2-server",
+  "version": "1.0.0",
+  "description": "Voice V2 WebSocket Server for Atlas",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.67.0",
+    "@deepgram/sdk": "^4.11.2",
+    "@supabase/supabase-js": "^2.76.1",
+    "dotenv": "^17.2.3",
+    "openai": "^6.7.0",
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

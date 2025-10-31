@@ -110,17 +110,28 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     setMessages(prev => [...prev, message]);
   }, []);
   
+  // ✅ OPTIMIZATION: Session-scoped cache to prevent redundant message loads (5s window)
+  const messageLoadCache = useRef(new Map<string, { timestamp: number; promise: Promise<Message[]> }>()).current;
+  
   // ✅ PHASE 2: Load messages from Dexie (read-only, single source of truth)
   const loadMessages = useCallback(async (conversationId: string) => {
     const startTime = performance.now();
     try {
-      logger.debug('[ChatPage] 🔍 loadMessages called with:', { conversationId, userId });
-      
       // ✅ MOBILE FIX: Ensure userId is available before loading messages
       if (!userId) {
         logger.debug('[ChatPage] ⚠️ userId not available yet, skipping message load');
         return;
       }
+      
+      // ✅ OPTIMIZATION: Check cache first to prevent redundant loads
+      const cacheKey = `${conversationId}-${userId}`;
+      const cached = messageLoadCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < 5000) {
+        logger.debug(`[ChatPage] ⚡ Using cached messages for ${conversationId} (${Date.now() - cached.timestamp}ms ago)`);
+        return cached.promise;
+      }
+      
+      logger.debug('[ChatPage] 🔍 loadMessages called with:', { conversationId, userId });
       
       // ✅ MOBILE FIX: Ensure database is ready before use
       await ensureDatabaseReady();
@@ -153,6 +164,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Set React state (Dexie is authoritative source)
       setMessages(formattedMessages);
       logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
+      
+      // ✅ OPTIMIZATION: Cache the promise and result
+      const loadPromise = Promise.resolve(formattedMessages);
+      messageLoadCache.set(cacheKey, { timestamp: Date.now(), promise: loadPromise });
+      
+      // Clean up cache after 5s
+      setTimeout(() => {
+        messageLoadCache.delete(cacheKey);
+      }, 5000);
+      
+      return formattedMessages;
     } catch (error) {
       logger.error('[ChatPage] ❌ Failed to load messages:', error);
       logger.error('[ChatPage] ❌ Error details:', {

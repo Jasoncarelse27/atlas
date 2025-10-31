@@ -309,8 +309,10 @@ export class ConversationSyncService {
     let conversationsSynced = 0;
     let messagesSynced = 0;
     
-    logger.debug('[ConversationSync] 🚀 Starting delta sync...');
-    logger.debug('[ConversationSync] ⚡ Optimized: Cursor-based pagination, recent data only');
+    if (import.meta.env.DEV) {
+      logger.debug('[ConversationSync] 🚀 Starting delta sync...');
+      logger.debug('[ConversationSync] ⚡ Optimized: Cursor-based pagination, recent data only');
+    }
     
     try {
       // 1. Get last sync timestamp
@@ -322,7 +324,9 @@ export class ConversationSyncService {
         ? new Date(0).toISOString()  // Epoch = fetch everything
         : syncMeta.lastSyncedAt;
       
-      logger.debug('[ConversationSync] Last synced at:', lastSyncedAt, isFirstSync ? '(FIRST SYNC - fetching all data)' : '(delta sync)');
+      if (import.meta.env.DEV) {
+        logger.debug('[ConversationSync] Last synced at:', lastSyncedAt, isFirstSync ? '(FIRST SYNC - fetching all data)' : '(delta sync)');
+      }
       
       // 2. Fetch ONLY conversations updated since last sync (non-deleted only)
       const { data: updatedConversations, error: convError } = await supabase

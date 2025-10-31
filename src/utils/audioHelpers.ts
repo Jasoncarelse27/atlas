@@ -41,14 +41,15 @@ export async function getSafeUserMedia(constraints: MediaStreamConstraints): Pro
       return await navigator.mediaDevices.getUserMedia(iosConstraints);
     }
     
-    // ✅ FIX: Standard constraints for other browsers (disable aggressive processing)
+    // ✅ FIX: Standard constraints for other browsers
+    // For voice calls, we NEED echo cancellation to prevent feedback loops
     if (constraints.audio === true) {
       // If caller just passed { audio: true }, add detailed constraints
       const enhancedConstraints = {
         audio: {
-          echoCancellation: false,  // ✅ Disable echo cancellation
-          noiseSuppression: false,  // ✅ Disable noise suppression
-          autoGainControl: false,   // ✅ Disable auto gain control
+          echoCancellation: true,   // ✅ CRITICAL: Enable for voice calls (prevents feedback)
+          noiseSuppression: true,   // ✅ Enable noise suppression for cleaner audio
+          autoGainControl: false,   // ✅ FIX: Disable auto gain to prevent Mac input volume resetting
           sampleRate: 48000,        // 48kHz for high quality
           channelCount: 1           // Mono for voice
         }

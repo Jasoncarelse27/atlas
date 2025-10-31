@@ -2,16 +2,17 @@
 // Real-time voice conversation with Atlas AI
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, Mic, MicOff, Phone, PhoneOff, Settings, Volume2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Copy, Mic, MicOff, Phone, PhoneOff, Settings, Volume2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { canUseVoiceEmotion, tierFeatures } from '../../config/featureAccess';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useFeatureAccess } from '../../hooks/useTierAccess';
 import { logger } from '../../lib/logger';
-import { voiceCallService } from '../../services/voiceCallService';
+import { unifiedVoiceCallService } from '../../services/unifiedVoiceCallService';
 import { voiceCallState } from '../../services/voiceCallState';
 import { getSafeUserMedia } from '../../utils/audioHelpers';
+import { isFeatureEnabled } from '../../config/featureFlags';
 
 interface VoiceCallModalProps {
   isOpen: boolean;
@@ -34,11 +35,14 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const [isPushToTalk, setIsPushToTalk] = useState(false); // 🎙️ ChatGPT-style push-to-talk
   const [isSpacePressed, setIsSpacePressed] = useState(false); // Track space key
   const [callDuration, setCallDuration] = useState(0);
+  const [isEndingCall, setIsEndingCall] = useState(false); // ✅ Prevent double-click on end call
   const [audioLevel, setAudioLevel] = useState(0);
-  const [callStatus, setCallStatus] = useState<'listening' | 'transcribing' | 'thinking' | 'speaking'>('listening');
+  const [callStatus, setCallStatus] = useState<'listening' | 'transcribing' | 'thinking' | 'speaking' | 'reconnecting'>('listening');
   const [lastTranscript, setLastTranscript] = useState<string>('');
   const [lastAIResponse, setLastAIResponse] = useState<string>('');
   const [micLevel, setMicLevel] = useState(0); // 0-100 for visual feedback
+  const [networkQuality, setNetworkQuality] = useState<'excellent' | 'good' | 'poor' | 'offline'>('excellent');
+  const transcriptRef = useRef<HTMLDivElement>(null);
   
   // Permission states
   const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied' | 'checking'>('checking');
@@ -71,6 +75,16 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       requestAnimationFrame(monitorAudioLevel);
     }
   }, [isCallActive]);
+
+  // Auto-scroll transcript to bottom when new content arrives (Phase 1 Improvement)
+  useEffect(() => {
+    if (transcriptRef.current && (lastTranscript || lastAIResponse)) {
+      transcriptRef.current.scrollTo({
+        top: transcriptRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [lastTranscript, lastAIResponse]);
 
   // Check microphone permission status
   const checkPermissionStatus = useCallback(async (): Promise<(() => void) | null> => {
@@ -242,6 +256,45 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         audioContext.current = new AudioContext();
         stream.current = await getSafeUserMedia({ audio: true });
         
+        // ✅ CRITICAL FIX: Ensure microphone tracks are enabled and not muted
+        const audioTracks = stream.current.getAudioTracks();
+        for (const track of audioTracks) {
+          if (!track.enabled) {
+            logger.warn('[VoiceCall] Enabling disabled microphone track');
+            track.enabled = true;
+          }
+          
+          // ✅ IMPROVEMENT: Warn if muted but don't block - let voiceCallService test actual audio
+          // Sometimes macOS shows muted but audio still works (false positive)
+          if (track.muted) {
+            logger.warn('[VoiceCall] ⚠️ Track reports muted - will test actual audio levels in service');
+            logger.debug('[VoiceCall] Track diagnostic:', {
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+              label: track.label,
+            });
+            // Don't block here - let voiceCallService.ts test actual audio levels
+            // It will detect if audio is truly muted or just a false flag
+          }
+        }
+        
+        // ✅ CRITICAL: Verify we have audio tracks
+        const finalTracks = stream.current.getAudioTracks();
+        if (finalTracks.length === 0) {
+          logger.error('[VoiceCall] ❌ No audio tracks available');
+          setIsCallActive(false);
+          voiceCallState.setActive(false);
+          modernToast.error('No Microphone Found', 'Please connect a microphone and try again');
+          return;
+        }
+        
+        // ✅ IMPROVEMENT: Don't block on muted flag here - let voiceCallService test actual audio
+        // The service will test audio levels for 1 second and detect if truly muted
+        if (finalTracks[0].muted) {
+          logger.warn('[VoiceCall] ⚠️ Track reports muted - service will test actual audio levels');
+        }
+        
         microphone.current = audioContext.current.createMediaStreamSource(stream.current);
         analyser.current = audioContext.current.createAnalyser();
         analyser.current.fftSize = 256;
@@ -272,9 +325,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         return;
       }
 
-      // Start voice call service
+      // Start voice call service (unified - supports V1 and V2)
       try {
-        await voiceCallService.startCall({
+        const isV2 = isFeatureEnabled('VOICE_V2');
+        logger.info(`[VoiceCall] Starting call with ${isV2 ? 'V2 (WebSocket)' : 'V1 (REST)'}`);
+        
+        await unifiedVoiceCallService.startCall({
           userId,
           conversationId,
           tier: tier as 'studio',
@@ -292,19 +348,62 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               ? 'Microphone not available'
               : error.message.includes('Connection lost')
               ? 'Connection lost, retrying...'
+              : error.message.includes('WebSocket')
+              ? 'Connection issue, retrying...'
               : error.message;
+            
+            // ✅ FIX: Don't auto-end call for recoverable errors
+            // Only end for critical errors (permission denied, etc.)
+            const isCriticalError = 
+              error.message.includes('Permission denied') ||
+              error.message.includes('Microphone access denied') ||
+              error.message.includes('Maximum call duration') ||
+              error.message.includes('Authentication failed');
+            
+            if (isCriticalError) {
             modernToast.error(friendlyMessage);
             endCall();
+            } else {
+              // Non-critical errors - show warning but keep call active
+              modernToast.warning('Voice call issue', friendlyMessage);
+              logger.warn('[VoiceCall] Non-critical error, keeping call active:', error.message);
+            }
           },
           onStatusChange: (status) => {
             setCallStatus(status);
+            // ✅ IMPROVEMENT: Update network quality from service (V1 only)
+            if (!isV2) {
+              const quality = unifiedVoiceCallService.getNetworkQuality();
+              setNetworkQuality(quality);
+            } else {
+              // V2 handles network quality internally via WebSocket
+              setNetworkQuality('excellent'); // Assume good for WebSocket
+            }
           },
           onAudioLevel: (level: number) => {
-            // ✅ CHATGPT-STYLE: Real-time audio level from VAD
+            // ✅ CHATGPT-STYLE: Real-time audio level from VAD (V1 only)
+            // V2 handles audio level internally
+            if (!isV2) {
             setAudioLevel(level);
             setMicLevel(Math.round(level * 100));
+            }
           },
         });
+        
+        // ✅ IMPROVEMENT: Poll network quality every 3 seconds for UI updates (V1 only)
+        if (!isV2) {
+          const networkQualityInterval = setInterval(() => {
+            if (isCallActive) {
+              const quality = unifiedVoiceCallService.getNetworkQuality();
+              setNetworkQuality(quality);
+            } else {
+              clearInterval(networkQualityInterval);
+            }
+          }, 3000);
+          
+          // Store interval for cleanup
+          (window as any).__atlasNetworkQualityInterval = networkQualityInterval;
+        }
         
         modernToast.success('Voice call started!');
       } catch (serviceError) {
@@ -319,48 +418,140 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     }
   };
 
-  // End voice call
-  const endCall = async () => {
-    try {
-      await voiceCallService.stopCall(userId);
-    } catch (error) {
-      logger.error('[VoiceCall] Failed to stop service:', error);
-      // Continue cleanup anyway
+  // End voice call - ✅ BEST PRACTICE: Comprehensive cleanup with error handling
+  const endCall = useCallback(async () => {
+    // ✅ IMPROVEMENT: Clear network quality polling interval
+    if ((window as any).__atlasNetworkQualityInterval) {
+      clearInterval((window as any).__atlasNetworkQualityInterval);
+      delete (window as any).__atlasNetworkQualityInterval;
     }
     
-    // Cleanup audio
+    // ✅ BEST PRACTICE: Prevent double-click/double-call
+    if (isEndingCall) {
+      logger.debug('[VoiceCall] End call already in progress, ignoring duplicate call');
+      return;
+    }
+
+    setIsEndingCall(true);
+    logger.info('[VoiceCall] 🛑 Ending call...');
+
+    try {
+      // ✅ BEST PRACTICE: Stop service first (handles backend cleanup)
+      try {
+        await unifiedVoiceCallService.stopCall(userId);
+        logger.debug('[VoiceCall] ✅ Service stopped successfully');
+      } catch (serviceError) {
+        logger.error('[VoiceCall] Failed to stop service:', serviceError);
+        // Continue cleanup anyway - don't leave resources hanging
+    }
+    
+      // ✅ BEST PRACTICE: Cleanup audio resources (even if service failed)
+      try {
     if (stream.current) {
-      stream.current.getTracks().forEach(track => track.stop());
+          stream.current.getTracks().forEach(track => {
+            try {
+              track.stop();
+              logger.debug('[VoiceCall] ✅ Stopped audio track');
+            } catch (trackError) {
+              logger.warn('[VoiceCall] Failed to stop track:', trackError);
+            }
+          });
       stream.current = null;
     }
+      } catch (streamError) {
+        logger.error('[VoiceCall] Error cleaning up stream:', streamError);
+      }
+
+      // ✅ BEST PRACTICE: Cleanup AudioContext
+      try {
     if (audioContext.current && audioContext.current.state !== 'closed') {
       await audioContext.current.close();
+          logger.debug('[VoiceCall] ✅ AudioContext closed');
       audioContext.current = null;
     }
+      } catch (contextError) {
+        logger.error('[VoiceCall] Error closing AudioContext:', contextError);
+      }
+
+      // ✅ BEST PRACTICE: Cleanup intervals
     if (durationInterval.current) {
       clearInterval(durationInterval.current);
       durationInterval.current = null;
+        logger.debug('[VoiceCall] ✅ Duration interval cleared');
     }
     
+      // ✅ BEST PRACTICE: Reset state
     setIsCallActive(false);
     voiceCallState.setActive(false); // 🚀 Re-enable background operations
     setCallDuration(0);
     callStartTime.current = null;
+      setIsMuted(false); // Reset mute state
     
+      // ✅ BEST PRACTICE: User feedback
     modernToast.success('Voice call ended');
+      
+      // ✅ BEST PRACTICE: Close modal after cleanup
     onClose();
-  };
-
-  // Toggle mute
-  const toggleMute = () => {
-    if (stream.current) {
-      const audioTrack = stream.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
-      }
+      
+      logger.info('[VoiceCall] ✅ Call ended successfully');
+    } catch (error) {
+      logger.error('[VoiceCall] Critical error during call end:', error);
+      // ✅ BEST PRACTICE: Still try to cleanup even on error
+      setIsCallActive(false);
+      voiceCallState.setActive(false);
+      modernToast.error('Error ending call', 'Some resources may not be cleaned up');
+      onClose();
+    } finally {
+      // ✅ BEST PRACTICE: Always reset ending state
+      setIsEndingCall(false);
     }
-  };
+  }, [userId, isEndingCall, onClose]);
+
+  // Toggle mute - ✅ BEST PRACTICE: Comprehensive error handling and user feedback
+  const toggleMute = useCallback(() => {
+    try {
+      // ✅ BEST PRACTICE: Check stream exists
+      if (!stream.current) {
+        logger.warn('[VoiceCall] Cannot toggle mute - stream not available');
+        modernToast.warning('Microphone not available', 'Please restart the call');
+        return;
+      }
+
+      // ✅ BEST PRACTICE: Get audio track safely
+      const audioTracks = stream.current.getAudioTracks();
+      if (audioTracks.length === 0) {
+        logger.warn('[VoiceCall] Cannot toggle mute - no audio tracks');
+        modernToast.warning('Microphone track not found', 'Please restart the call');
+        return;
+      }
+
+      const audioTrack = audioTracks[0];
+      
+      // ✅ BEST PRACTICE: Toggle enabled state
+      const newMutedState = !audioTrack.enabled;
+      audioTrack.enabled = newMutedState;
+      
+      // ✅ BEST PRACTICE: Update state based on actual track state (not stale)
+      setIsMuted(newMutedState);
+      
+      // ✅ BEST PRACTICE: User feedback
+      if (newMutedState) {
+        modernToast.info('Microphone muted');
+        logger.debug('[VoiceCall] 🎤 Microphone muted');
+      } else {
+        modernToast.info('Microphone unmuted');
+        logger.debug('[VoiceCall] 🎤 Microphone unmuted');
+      }
+      
+      // ✅ BEST PRACTICE: Haptic feedback on mobile
+      if ('vibrate' in navigator) {
+        navigator.vibrate(10);
+      }
+    } catch (error) {
+      logger.error('[VoiceCall] Failed to toggle mute:', error);
+      modernToast.error('Failed to toggle mute', 'Please try again');
+    }
+  }, []);
 
   // Format duration
   const formatDuration = (seconds: number) => {
@@ -569,6 +760,24 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
                   <p className="text-[#8B7E74] text-sm mt-2">Unlimited</p>
                 )}
                 
+                {/* ✅ IMPROVEMENT: Connection status indicator */}
+                {isCallActive && (
+                  <div className="flex items-center justify-center gap-2 mt-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      networkQuality === 'excellent' ? 'bg-green-500' :
+                      networkQuality === 'good' ? 'bg-yellow-500' :
+                      networkQuality === 'poor' ? 'bg-orange-500' :
+                      'bg-red-500 animate-pulse'
+                    }`} />
+                    <span className="text-xs text-[#8B7E74]">
+                      {networkQuality === 'excellent' ? 'Excellent connection' :
+                       networkQuality === 'good' ? 'Good connection' :
+                       networkQuality === 'poor' ? 'Poor connection' :
+                       'Reconnecting...'}
+                    </span>
+                  </div>
+                )}
+                
                 {/* Microphone Level Indicator - ChatGPT Style */}
                 {callStatus === 'listening' && (
                   <div className="mt-4 w-full max-w-xs mx-auto">
@@ -624,20 +833,71 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             )}
           </div>
 
-          {/* Transcript Display */}
+          {/* Transcript Display - Phase 1 Improvement (Larger, Auto-scroll, Copy) */}
           {isCallActive && (lastTranscript || lastAIResponse) && (
-            <div className="mb-6 space-y-3 max-h-32 overflow-y-auto">
+            <div className="mb-6 space-y-3">
+              <div 
+                ref={transcriptRef}
+                className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 scroll-smooth"
+                style={{ scrollBehavior: 'smooth' }}
+              >
               {lastTranscript && (
                 <div className="bg-[#C6D4B0]/20 border border-[#C6D4B0]/40 rounded-xl p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
                   <p className="text-[#8FA67E] text-xs font-medium mb-1">You said:</p>
                   <p className="text-[#3B3632] text-sm">{lastTranscript}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(lastTranscript);
+                          modernToast.success('Copied to clipboard');
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-[#C6D4B0]/30 transition-colors"
+                        title="Copy transcript"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-[#8FA67E]" />
+                      </button>
+                    </div>
                 </div>
               )}
               {lastAIResponse && (
                 <div className="bg-[#B8A5D6]/20 border border-[#B8A5D6]/40 rounded-xl p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
                   <p className="text-[#8B7AB8] text-xs font-medium mb-1">Atlas:</p>
                   <p className="text-[#3B3632] text-sm">{lastAIResponse}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(lastAIResponse);
+                          modernToast.success('Copied to clipboard');
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-[#B8A5D6]/30 transition-colors"
+                        title="Copy response"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-[#8B7AB8]" />
+                      </button>
+                    </div>
                 </div>
+                )}
+              </div>
+              {/* Copy Full Transcript Button */}
+              {(lastTranscript || lastAIResponse) && (
+                <button
+                  onClick={() => {
+                    const fullTranscript = [
+                      lastTranscript ? `You: ${lastTranscript}` : '',
+                      lastAIResponse ? `Atlas: ${lastAIResponse}` : ''
+                    ].filter(Boolean).join('\n\n');
+                    navigator.clipboard.writeText(fullTranscript);
+                    modernToast.success('Full transcript copied');
+                  }}
+                  className="w-full px-4 py-2 text-sm rounded-lg bg-[#F0E6DC] hover:bg-[#E8DDD2] text-[#5A524A] transition-colors flex items-center justify-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy Full Transcript
+                </button>
               )}
             </div>
           )}
@@ -646,34 +906,50 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           <div className="flex items-center justify-center gap-4">
             {isCallActive ? (
               <>
-                {/* Mute Button */}
+                {/* Mute Button - ✅ BEST PRACTICE: Accessibility and feedback */}
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={toggleMute}
-                  disabled={isPushToTalk}
+                  disabled={isPushToTalk || !isCallActive}
+                  aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                  aria-pressed={isMuted}
                   className={`p-4 rounded-full transition-colors ${
                     isMuted
                       ? 'bg-[#CF9A96] hover:bg-[#C18A86]'
-                      : isPushToTalk
-                      ? 'bg-[#E8DDD2] cursor-not-allowed'
+                      : isPushToTalk || !isCallActive
+                      ? 'bg-[#E8DDD2] cursor-not-allowed opacity-50'
                       : 'bg-[#F0E6DC] hover:bg-[#E8DDD2]'
                   }`}
-                  title={isPushToTalk ? 'Disabled in push-to-talk mode' : (isMuted ? 'Unmute' : 'Mute')}
+                  title={isPushToTalk ? 'Disabled in push-to-talk mode' : !isCallActive ? 'Call not active' : (isMuted ? 'Unmute microphone' : 'Mute microphone')}
                 >
                   {isMuted ? (
-                    <MicOff className="w-6 h-6 text-white" />
+                    <MicOff className="w-6 h-6 text-white" aria-hidden="true" />
                   ) : (
-                    <Mic className="w-6 h-6 text-[#5A524A]" />
+                    <Mic className="w-6 h-6 text-[#5A524A]" aria-hidden="true" />
                   )}
                 </motion.button>
 
-                {/* End Call Button */}
+                {/* End Call Button - ✅ BEST PRACTICE: Prevent double-click and accessibility */}
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={endCall}
-                  className="p-6 rounded-full bg-[#CF9A96] hover:bg-[#C18A86] transition-colors"
+                  disabled={isEndingCall}
+                  aria-label="End voice call"
+                  className={`p-6 rounded-full bg-[#CF9A96] hover:bg-[#C18A86] transition-colors ${
+                    isEndingCall ? 'opacity-50 cursor-wait' : ''
+                  }`}
+                  title={isEndingCall ? 'Ending call...' : 'End voice call'}
                 >
-                  <PhoneOff className="w-8 h-8 text-white" />
+                  {isEndingCall ? (
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="w-8 h-8 border-2 border-white border-t-transparent rounded-full"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <PhoneOff className="w-8 h-8 text-white" aria-hidden="true" />
+                  )}
                 </motion.button>
 
                 {/* Push-to-Talk Toggle - ChatGPT Style */}

@@ -57,6 +57,7 @@ export default function EnhancedInputToolbar({
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
   const [showVoiceCall, setShowVoiceCall] = useState(false);
+  const [isStartingVoiceCall, setIsStartingVoiceCall] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
@@ -474,7 +475,7 @@ export default function EnhancedInputToolbar({
     }
   };
 
-  const handleStartVoiceCall = () => {
+  const handleStartVoiceCall = async () => {
     if (!user) {
       modernToast.error('Login Required', 'Sign in to start voice calls');
       return;
@@ -489,8 +490,14 @@ export default function EnhancedInputToolbar({
     // Mark voice call as used (remove NEW badge)
     localStorage.setItem('hasUsedVoiceCall', 'true');
     
-    // Open voice call modal
+    // Show loading state
+    setIsStartingVoiceCall(true);
+    
+    // Small delay to show loading state, then open modal
+    setTimeout(() => {
+      setIsStartingVoiceCall(false);
     setShowVoiceCall(true);
+    }, 300);
   };
 
 
@@ -757,7 +764,42 @@ export default function EnhancedInputToolbar({
                 <Mic size={18} />
               </motion.button>
 
-              {/* Dynamic Button: Phone (empty) → Send/Stop (has text) */}
+              {/* Voice Call Button - Always Visible (Phase 1 Improvement) */}
+              <motion.button
+                onClick={() => {
+                  // ✅ Add haptic feedback
+                  if ('vibrate' in navigator) navigator.vibrate(20);
+                  handleStartVoiceCall();
+                }}
+                disabled={disabled || isStartingVoiceCall}
+                title={isStudioTier ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
+                className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
+                  isStudioTier
+                    ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse animate-pulse-subtle'
+                    : 'bg-gray-600 hover:bg-gray-500 opacity-60'
+                } ${isStartingVoiceCall ? 'opacity-50 cursor-wait' : ''}`}
+                style={{ 
+                  WebkitTapHighlightColor: 'transparent',
+                  boxShadow: isStudioTier 
+                    ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
+                    : undefined
+                }}
+              >
+                {isStartingVoiceCall ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                  />
+                ) : (
+                  <Phone className="w-4 h-4 text-white" />
+                )}
+                {isStudioTier && !localStorage.getItem('hasUsedVoiceCall') && !isStartingVoiceCall && (
+                  <span className="voice-call-badge">New</span>
+                )}
+              </motion.button>
+
+              {/* Dynamic Button: Send/Stop (has text or attachments) */}
               {text.trim() || attachmentPreviews.length > 0 ? (
                 // Send/Stop button with progressive animation
                 <motion.button
@@ -807,34 +849,7 @@ export default function EnhancedInputToolbar({
                     )}
                   </AnimatePresence>
                 </motion.button>
-              ) : (
-                // Phone button (when empty - Studio tier only)
-                <motion.button
-                  onClick={() => {
-                    // ✅ Add haptic feedback
-                    if ('vibrate' in navigator) navigator.vibrate(20);
-                    handleStartVoiceCall();
-                  }}
-                  disabled={disabled}
-                  title={isStudioTier ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
-                  className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
-                    isStudioTier
-                      ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse animate-pulse-subtle'
-                      : 'bg-gray-600 hover:bg-gray-500 opacity-60'
-                  }`}
-                  style={{ 
-                    WebkitTapHighlightColor: 'transparent',
-                    boxShadow: isStudioTier 
-                      ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
-                      : undefined
-                  }}
-                >
-                  <Phone className="w-4 h-4 text-white" />
-                  {isStudioTier && !localStorage.getItem('hasUsedVoiceCall') && (
-                    <span className="voice-call-badge">New</span>
-                  )}
-                </motion.button>
-              )}
+              ) : null}
         </div>
       </motion.div>
 

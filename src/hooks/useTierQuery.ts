@@ -46,7 +46,8 @@ async function fetchTier(): Promise<TierData> {
   }
 
   const tier = data?.subscription_tier || 'free';
-  logger.debug(`[useTierQuery] ✅ Tier loaded: ${tier} for user ${userId}`);
+  // Reduce logging verbosity - only log tier changes, not every fetch
+  // (React Query calls this frequently for cache validation)
 
   return {
     tier,
@@ -81,11 +82,21 @@ export function useTierQuery() {
     queryFn: fetchTier,
     staleTime: 5 * 60 * 1000, // Data fresh for 5 minutes
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (formerly cacheTime)
-    refetchOnWindowFocus: true, // Auto-refetch when user returns to tab
+    refetchOnWindowFocus: false, // ✅ FIX: Disable auto-refetch on focus (reduces excessive calls)
     refetchOnReconnect: true, // Auto-refetch on network restore
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
+
+  // Log tier only when it changes (reduce console spam)
+  useEffect(() => {
+    if (query.data?.tier) {
+      const prevTier = queryClient.getQueryData<TierData>(['user-tier'])?.tier;
+      if (prevTier !== query.data.tier) {
+        logger.debug(`[useTierQuery] ✅ Tier: ${query.data.tier} for user ${query.data.userId?.slice(0, 8)}...`);
+      }
+    }
+  }, [query.data?.tier, queryClient]);
 
   // 🔥 Supabase Realtime: Instant tier updates via WebSocket (SINGLETON)
   useEffect(() => {
@@ -108,7 +119,9 @@ export function useTierQuery() {
     }
 
     // Create new subscription
+    if (import.meta.env.DEV) {
     logger.debug(`[useTierQuery] 📡 Starting realtime for user: ${userId.slice(0, 8)}...`);
+    }
     subscribedUserId = userId;
 
     const channel = supabase
@@ -134,7 +147,9 @@ export function useTierQuery() {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
+          if (import.meta.env.DEV) {
           logger.debug('[useTierQuery] ✅ Realtime ready');
+          }
         } else if (status === 'CHANNEL_ERROR') {
           logger.error('[useTierQuery] ❌ Channel error - reconnecting...');
           // Don't immediately reconnect - let it retry naturally
@@ -150,19 +165,15 @@ export function useTierQuery() {
     };
   }, [query.data?.userId, queryClient]);
 
-  // Listen for auth state changes (login/logout) - DEDUPLICATED
+  // Listen for auth state changes (login/logout) - SILENT (no logging to prevent spam)
   useEffect(() => {
     let isSubscribed = true;
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!isSubscribed) return; // Ignore events after unmount
       
-      // ONLY care about actual sign in/out (ignore token refresh spam)
-      if (event === 'SIGNED_IN') {
-        logger.info(`[useTierQuery] 🔐 User signed in`);
-        queryClient.invalidateQueries({ queryKey: ['user-tier'] });
-      } else if (event === 'SIGNED_OUT') {
-        logger.info(`[useTierQuery] 🔐 User signed out`);
+      // ✅ FIX: Invalidate queries silently (no logging - prevents console spam)
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
         queryClient.invalidateQueries({ queryKey: ['user-tier'] });
       }
       // Silently ignore: TOKEN_REFRESHED, INITIAL_SESSION, USER_UPDATED

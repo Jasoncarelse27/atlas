@@ -120,9 +120,13 @@ export class VoiceCallServiceV2 {
     return new Promise((resolve, reject) => {
       try {
         // Determine WebSocket URL
+        // ✅ Use Fly.io URL if configured, otherwise fallback to local/api proxy
+        const flyIoUrl = import.meta.env.VITE_VOICE_V2_URL;
+        const wsUrl = flyIoUrl || (() => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/api/voice-v2`;
+          return `${protocol}//${host}/api/voice-v2`;
+        })();
 
         logger.info(`[VoiceV2] 🔌 Connecting to ${wsUrl}...`);
 
@@ -207,8 +211,9 @@ export class VoiceCallServiceV2 {
           break;
 
         case 'audio_chunk':
-          logger.debug('[VoiceV2] 🔊 Audio chunk received');
-          options.onAudioChunk(message.audio);
+          logger.debug(`[VoiceV2] 🔊 Audio chunk received (index: ${message.sentenceIndex})`);
+          // Pass sentenceIndex to callback for proper ordering
+          options.onAudioChunk(message.audio, message.sentenceIndex);
           break;
 
         case 'status':
@@ -262,7 +267,7 @@ export class VoiceCallServiceV2 {
           channelCount: this.audioConfig.channelCount,
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true,
+          autoGainControl: false, // ✅ FIX: Disable to prevent Mac input volume resetting
         },
       });
 

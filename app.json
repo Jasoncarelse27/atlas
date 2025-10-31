@@ -17,12 +17,15 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.jason-carelse.atlas",
+      "buildNumber": "1",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Atlas needs your microphone to transcribe your voice and provide audio responses."
-      },
-      "bundleIdentifier": "com.jason-carelse.atlas"
+      }
     },
     "android": {
+      "package": "com.jasoncarelse.atlas",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./public/atlas-logo.png",
         "backgroundColor": "#ffffff"
@@ -34,6 +37,16 @@
     },
     "web": {
       "favicon": "./public/favicon.ico"
+    },
+    "privacy": {
+      "permissions": [
+        "Atlas uses your microphone to enable voice conversations with AI."
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
     }
   }
 }

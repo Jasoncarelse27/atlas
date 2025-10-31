@@ -2,14 +2,10 @@ const getBaseUrl = () => {
   // Use environment variable with fallback to relative URLs for mobile compatibility
   const API_URL = import.meta.env.VITE_API_URL || "";
   
-  // Web: use configured API URL
-  if (typeof window !== 'undefined') {
+  // For both web and native: use environment variable or empty string (relative URLs)
+  // Empty string allows the app to use relative URLs, which work across all environments
+  // Mobile builds should have VITE_API_URL set in EAS environment variables
     return API_URL;
-  }
-  
-  // Native: use your LAN IP for Expo/React Native (fallback)
-  const lanIp = '10.46.30.39';
-  return import.meta.env.VITE_API_URL || `http://${lanIp}:3000`;
 };
 
 export default getBaseUrl;
