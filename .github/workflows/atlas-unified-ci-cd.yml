@@ -122,6 +122,9 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: 🔧 Install Redis CLI (for testing)
+        run: sudo apt-get update && sudo apt-get install -y redis-tools
+
       - name: 🔒 Security audit
         run: |
           npm audit --audit-level=high || echo "⚠️ Security vulnerabilities found (non-blocking)"
@@ -143,12 +146,16 @@ jobs:
           curl -f http://localhost:8000/healthz || exit 1
           echo "✅ Backend health check passed"
 
-          # Test Redis connection (optional - Redis may not be available in CI)
+          # Test Redis connection (required in CI - Redis service container is available)
+          echo "⏳ Waiting for Redis connection..."
+          sleep 5  # Give Redis time to connect
           REDIS_STATUS=$(curl -s http://localhost:8000/healthz | jq -r '.redis // false')
           if [ "$REDIS_STATUS" = "true" ]; then
             echo "✅ Redis connection verified"
           else
-            echo "⚠️ Redis not available in CI (this is OK - Redis is optional)"
+            echo "❌ Redis connection failed - checking service..."
+            redis-cli -h localhost ping || echo "⚠️ Redis service not reachable"
+            exit 1
           fi
 
           # Cleanup

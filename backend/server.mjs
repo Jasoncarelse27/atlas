@@ -83,12 +83,19 @@ let serverReady = false;
 // This ensures Railway can reach it even during server initialization
 app.get('/healthz', (req, res) => {
   // Always respond, even if server isn't fully ready
-  res.status(200).json({
+  const health = {
     status: serverReady ? 'ok' : 'starting',
     uptime: process.uptime(),
     timestamp: Date.now(),
     ready: serverReady
-  });
+  };
+  
+  // Include Redis status if available
+  if (redisService) {
+    health.redis = redisService.isConnected;
+  }
+  
+  res.status(200).json(health);
 });
 
 // Initialize Sentry error tracking
