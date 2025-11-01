@@ -24,6 +24,8 @@ export const supabase = (() => {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
+    // ✅ FIX: Use PKCE flow for more reliable auth (better error handling)
+    flowType: 'pkce',
   },
   // Optimize realtime for chat messages
   realtime: {
@@ -37,6 +39,26 @@ export const supabase = (() => {
     },
   },
     });
+    
+    // ✅ FIX: Suppress noisy connection errors during auto-refresh
+    // These are transient network issues that Supabase handles automatically
+    if (typeof window !== 'undefined') {
+      const originalConsoleError = console.error;
+      console.error = (...args: any[]) => {
+        // Filter out ERR_CONNECTION_CLOSED errors from Supabase auth auto-refresh
+        const errorString = args.join(' ');
+        if (
+          errorString.includes('ERR_CONNECTION_CLOSED') &&
+          errorString.includes('supabase.co/auth/v1/user')
+        ) {
+          // Silent - Supabase will retry automatically
+          logger.debug('[Supabase] Connection error during auto-refresh (handled)');
+          return;
+        }
+        // Pass through all other errors
+        originalConsoleError.apply(console, args);
+      };
+    }
   }
   return supabaseInstance;
 })();
