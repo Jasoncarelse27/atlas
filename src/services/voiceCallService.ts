@@ -2028,7 +2028,8 @@ export class VoiceCallService {
               const data = JSON.parse(line.slice(6));
               if (data.chunk) {
                 // ✅ CRITICAL FIX: Filter stage directions from chunk immediately
-                const filteredChunk = data.chunk.replace(/\*[^*]+\*/g, '').replace(/\s+/g, ' ').trim();
+                // DO NOT trim here - preserves whitespace between chunks
+                const filteredChunk = data.chunk.replace(/\*[^*]+\*/g, '').replace(/\s+/g, ' ');
                 fullResponse += filteredChunk;
                 currentSentence += filteredChunk;
                 

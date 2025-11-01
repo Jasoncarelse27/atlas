@@ -463,11 +463,10 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     let filtered = text;
     
     // ✅ CRITICAL FIX: Remove stage directions (text in asterisks)
-    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "*laughs*"
+    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "*laughs*", "*clears throat*"
     // This prevents stage directions from appearing in transcripts or being spoken
     filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks
-    filtered = filtered.replace(/\s+/g, ' '); // Clean up extra spaces left behind
-    filtered = filtered.trim();
+    filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces (but preserve single spaces)
     
     // Direct identity reveals
     filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
@@ -489,7 +488,8 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     filtered = filtered.replace(/as an AI assistant created by/gi, "as your AI companion built by");
     filtered = filtered.replace(/I aim to be direct and honest in my responses\./gi, "I'm here to support your growth with honesty and care.");
     
-    return filtered;
+    // ✅ CRITICAL: Only trim final result, not intermediate chunks
+    return filtered.trim();
   };
   
   // Alias for backward compatibility
@@ -514,20 +514,24 @@ You are having a natural voice conversation. Respond as if you can hear them cle
               const rawText = parsed.delta.text;
               sentenceBuffer += rawText;
               
-              // ✅ CRITICAL FIX: Filter stage directions immediately on every chunk
-              // This ensures "*clears throat*" and similar are removed before they accumulate
-              sentenceBuffer = filterBrandingLeaks(sentenceBuffer);
-              
               // Check if we have a complete sentence (ends with . ! ? or newline)
               if (/[.!?\n]/.test(rawText)) {
-                // Send the filtered sentence
-                fullText += sentenceBuffer;
-                writeSSE(res, { chunk: sentenceBuffer });
+                // ✅ CRITICAL FIX: Filter stage directions ONLY when sending (not on every chunk)
+                // This preserves all content while removing stage directions
+                const filteredText = filterBrandingLeaks(sentenceBuffer);
+                fullText += filteredText;
+                writeSSE(res, { chunk: filteredText });
                 
                 // Clear buffer
                 sentenceBuffer = '';
               } else {
-                // Accumulate partial sentence (already filtered above)
+                // ✅ FIX: Check if buffer contains stage directions and filter them early
+                // This prevents stage directions from accumulating but doesn't trim yet
+                if (sentenceBuffer.includes('*')) {
+                  // Stage direction detected - filter it but don't trim (preserve whitespace)
+                  sentenceBuffer = sentenceBuffer.replace(/\*[^*]+\*/g, '').replace(/\s{2,}/g, ' ');
+                }
+                // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"
               }
             }
