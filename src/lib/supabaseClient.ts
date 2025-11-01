@@ -62,13 +62,15 @@ export const supabase = (() => {
       // Global handler: suppress harmless transient network errors
       window.addEventListener('unhandledrejection', (e) => {
         const msg = e.reason?.message || e.reason?.toString?.() || '';
-        const isSupabaseClosed = msg.includes('ERR_CONNECTION_CLOSED');
-        const isSupabaseFetchAbort = msg.includes('AbortError') && msg.includes('supabase');
+        const isSupabaseClosed = msg.includes('ERR_CONNECTION_CLOSED') && 
+                                 (msg.includes('supabase.co/auth/v1/user') || msg.includes('supabase'));
+        const isSupabaseFetchAbort = msg.includes('AbortError') && 
+                                     (msg.includes('supabase') || msg.includes('auth/v1/user'));
         const isSafeToIgnore = isSupabaseClosed || isSupabaseFetchAbort;
 
         if (isSafeToIgnore) {
           logger.debug('[Supabase] ⚠️ Transient connection issue — auto-retrying silently');
-          e.preventDefault();
+          e.preventDefault(); // Prevent console error
         }
       });
     }
