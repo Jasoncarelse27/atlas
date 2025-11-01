@@ -31,6 +31,7 @@ export class AudioQueueService {
       index,
       audio,
       status: 'ready', // Already generated
+      generation: this.resetGeneration, // ✅ CRITICAL FIX: Track reset generation
     };
     
     // Insert at correct position (maintain order)
