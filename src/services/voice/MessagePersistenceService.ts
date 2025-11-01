@@ -13,6 +13,43 @@ import type {
   MessagePersistenceService as IMessagePersistenceService,
 } from './interfaces';
 
+// 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
+// 🎭 STAGE DIRECTION FILTER: Remove stage directions like "*speaks in a friendly voice*"
+function filterResponse(text: string): string {
+  if (!text) return text;
+  
+  let filtered = text;
+  
+  // ✅ CRITICAL FIX: Remove stage directions (text in asterisks OR square brackets)
+  // Examples: "*speaks in a friendly voice*", "*responds warmly*", "[In a clear, conversational voice]", "*clears voice*", "*clears throat*"
+  // This prevents stage directions from appearing in transcripts or being spoken
+  filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
+  filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
+  filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces (but preserve single spaces)
+  
+  // Direct identity reveals
+  filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
+  filtered = filtered.replace(/I'm Claude/gi, "I'm Atlas");
+  filtered = filtered.replace(/called Claude/gi, "called Atlas");
+  filtered = filtered.replace(/named Claude/gi, "named Atlas");
+  
+  // Company mentions
+  filtered = filtered.replace(/created by Anthropic/gi, "built by the Atlas team");
+  filtered = filtered.replace(/made by Anthropic/gi, "built by the Atlas team");
+  filtered = filtered.replace(/Anthropic/gi, "the Atlas development team");
+  
+  // Model mentions
+  filtered = filtered.replace(/Claude Opus/gi, "Atlas Studio");
+  filtered = filtered.replace(/Claude Sonnet/gi, "Atlas Core");
+  filtered = filtered.replace(/Claude Haiku/gi, "Atlas Free");
+  
+  // Generic AI mentions that reveal architecture
+  filtered = filtered.replace(/as an AI assistant created by/gi, "as your AI companion built by");
+  filtered = filtered.replace(/I aim to be direct and honest in my responses\./gi, "I'm here to support your growth with honesty and care.");
+  
+  return filtered.trim();
+}
+
 export class MessagePersistenceService implements IMessagePersistenceService {
   /**
    * Save voice message to database
@@ -24,11 +61,14 @@ export class MessagePersistenceService implements IMessagePersistenceService {
     userId: string
   ): Promise<void> {
     try {
+      // ✅ CRITICAL FIX: Filter stage directions before saving (especially for assistant messages)
+      const filteredText = role === 'assistant' ? filterResponse(text) : text;
+      
       const messageData = {
         conversation_id: conversationId,
         user_id: userId,
         role: role,
-        content: text,
+        content: filteredText,
       };
       
       const { error } = await supabase.from('messages').insert([messageData] as any);

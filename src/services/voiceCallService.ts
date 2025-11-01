@@ -2351,6 +2351,18 @@ export class VoiceCallService {
     conversationId: string,
     userId: string
   ): Promise<void> {
+    // ✅ CRITICAL FIX: Filter stage directions before saving (frontend save path)
+    const filterResponse = (text: string): string => {
+      if (!text) return text;
+      let filtered = text;
+      filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove asterisk stage directions
+      filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove square bracket stage directions
+      filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces
+      return filtered.trim();
+    };
+    
+    const filteredText = role === 'assistant' ? filterResponse(text) : text;
+    
     if (isFeatureEnabled('USE_MESSAGE_PERSISTENCE_SERVICE')) {
       // Use extracted MessagePersistenceService
       if (!this.messagePersistenceService) {
@@ -2358,7 +2370,7 @@ export class VoiceCallService {
       }
       
       try {
-        await this.messagePersistenceService.saveMessage(text, role, conversationId, userId);
+        await this.messagePersistenceService.saveMessage(filteredText, role, conversationId, userId);
       } catch (error) {
         // Non-critical - log but don't throw
         logger.error('[VoiceCall] Error saving message:', error);
@@ -2372,7 +2384,7 @@ export class VoiceCallService {
         conversation_id: conversationId,
         user_id: userId,
         role: role,
-        content: text,
+        content: filteredText, // ✅ CRITICAL FIX: Use filtered text
       };
       
       const { error } = await supabase.from('messages').insert([messageData]);
