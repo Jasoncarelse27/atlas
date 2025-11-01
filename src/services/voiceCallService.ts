@@ -78,7 +78,11 @@ export class VoiceCallService {
   private readonly MIN_SPEECH_DURATION = 300; // 🎯 ChatGPT-like: Detect short utterances (0.3s)
   private lastSpeechTime: number | null = null; // ✅ FIX: Track if speech actually occurred
   private lastProcessTime: number = 0; // 🛑 Track last processing time to prevent loops
-  private readonly MIN_PROCESS_INTERVAL = 800; // ✅ OPTIMIZED: Reduced to 800ms for ChatGPT-like responsiveness (still prevents loops, faster than 3s)
+  private readonly MIN_PROCESS_INTERVAL = 500; // ✅ PHASE 2: Reduced to 500ms for ChatGPT-like responsiveness (ChatGPT target: < 1s)
+  // ✅ PHASE 2: Natural conversation overlap tolerance
+  private readonly OVERLAP_TOLERANCE = 200; // 200ms overlap is natural in real conversation
+  private readonly YIELD_THRESHOLD = 500; // Yield turn after 500ms of continuous user speech
+  private interruptStartTime: number | null = null; // Track when interrupt started for yield logic
   private lastRejectedTime: number = 0; // ✅ FIX: Track when audio was rejected to prevent immediate retry
   private readonly REJECTION_COOLDOWN = 2000; // ✅ FIX: 2s cooldown after rejecting small audio
   private interruptTime: number | null = null; // ✅ FIX: Track when interruption happened for resume logic
@@ -394,6 +398,7 @@ export class VoiceCallService {
     // ✅ CRITICAL FIX: Reset all state flags
     this.hasInterrupted = false;
     this.interruptTime = null;
+    this.interruptStartTime = null; // ✅ PHASE 2: Reset overlap/yield tracking
     this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on stop
     this.interruptRecordingRestarted = false; // ✅ FIX: Reset interrupt recording flag
     this.lastSpeechTime = null;
@@ -813,7 +818,7 @@ export class VoiceCallService {
         this.silenceStartTime = null;
         this.lastSpeechTime = now;
         
-        // 🛑 INSTANT INTERRUPT: User speaks = Atlas stops immediately
+        // ✅ PHASE 2: Natural conversation interrupt with overlap tolerance
         // ✅ OPTIMIZED: Balanced threshold (2.0x) - prevents false triggers while maintaining fast response
         const interruptThreshold = threshold * 2.0; // Balanced: prevents false triggers, fast response
         const isLoudEnoughToInterrupt = audioLevel > interruptThreshold;
@@ -821,18 +826,40 @@ export class VoiceCallService {
         if (isFeatureEnabled('VOICE_STREAMING')) {
           // Check if Atlas is currently speaking
             const isPlaying = audioQueueService.getIsPlaying();
-            // ✅ OPTIMIZATION: Only log when interrupt actually occurs (reduces spam)
-            // ✅ CRITICAL FIX: Only interrupt if audio is loud enough (prevents echo/noise)
-            if (isPlaying && !this.hasInterrupted && isLoudEnoughToInterrupt) {
-              logger.info(`[VoiceCall] 🛑 User interrupting Atlas (level: ${(audioLevel * 100).toFixed(1)}% > ${(interruptThreshold * 100).toFixed(1)}%)`);
-              audioQueueService.interrupt(); // Pause queue playback (allows resume)
-            this.hasInterrupted = true;
-              this.interruptTime = now; // ✅ FIX: Track when interrupt happened
-              // ✅ FIX: Reset speech tracking on interrupt - don't process interrupt speech
-              this.lastSpeechTime = null; // Clear any speech during interrupt
-              this.silenceStartTime = null; // Reset silence tracking
-              logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
-            this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
+            
+            if (isPlaying && isLoudEnoughToInterrupt) {
+              // ✅ PHASE 2: Natural conversation overlap tolerance
+              if (!this.hasInterrupted) {
+                // First detection - start overlap tolerance window
+                if (!this.interruptStartTime) {
+                  this.interruptStartTime = now;
+                  logger.debug(`[VoiceCall] 🔄 Overlap tolerance started (${this.OVERLAP_TOLERANCE}ms window)`);
+                } else {
+                  // Check if overlap tolerance window has passed
+                  const overlapDuration = now - this.interruptStartTime;
+                  if (overlapDuration >= this.OVERLAP_TOLERANCE) {
+                    // ✅ PHASE 2: Overlap tolerance passed - interrupt now (natural conversation flow)
+                    logger.info(`[VoiceCall] 🛑 User interrupting Atlas after ${overlapDuration.toFixed(0)}ms overlap (level: ${(audioLevel * 100).toFixed(1)}% > ${(interruptThreshold * 100).toFixed(1)}%)`);
+                    audioQueueService.interrupt(); // Pause queue playback (allows resume)
+                    this.hasInterrupted = true;
+                    this.interruptTime = now;
+                    this.lastSpeechTime = null;
+                    this.silenceStartTime = null;
+                    logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
+                    this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
+                    // Keep interruptStartTime for yield tracking
+                  }
+                }
+              } else if (this.hasInterrupted && this.interruptStartTime) {
+                // Already interrupted - check if we should yield (user speaking for >500ms)
+                const interruptDuration = now - this.interruptStartTime;
+                if (interruptDuration >= this.YIELD_THRESHOLD && !this.resumeAttempted) {
+                  // ✅ PHASE 2: User has been speaking for 500ms - yield turn (don't resume)
+                  logger.info(`[VoiceCall] 🛑 User yield threshold reached (${interruptDuration.toFixed(0)}ms) - yielding turn`);
+                  this.resumeAttempted = true; // Prevent resume - user owns the turn
+                  this.interruptStartTime = null; // Reset for next interrupt
+                }
+              }
           }
         } else if (
           !isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && 
@@ -1636,6 +1663,7 @@ export class VoiceCallService {
     // This ensures resume logic can trigger if processing fails (cough/sneeze/noise)
     this.hasInterrupted = false;
     this.interruptTime = null;
+    this.interruptStartTime = null; // ✅ PHASE 2: Reset overlap/yield tracking
     this.isProcessing = false; // ✅ CRITICAL: Clear processing flag after successful processing
       
       // Add user message to conversational buffer
@@ -1646,8 +1674,8 @@ export class VoiceCallService {
       
       options.onStatusChange?.('thinking');
       
-      // 🎵 Play subtle acknowledgment sound for natural conversation flow
-      this.playAcknowledgmentSound();
+      // ✅ PHASE 2: Acknowledgment sound moved to TTFB (immediate feedback)
+      // (Played when Claude TTFB completes, not here)
       
       // 2. Claude Streaming with timeout
       // ✅ FIX: Reduced timeout for voice calls (15s) - ChatGPT-like fast response
@@ -1701,6 +1729,10 @@ export class VoiceCallService {
       
       const claudeConnectTime = performance.now() - claudeStart;
       logger.info(`[VoiceCall] ⏱️ Claude connect (TTFB): ${claudeConnectTime.toFixed(0)}ms`);
+      
+      // ✅ PHASE 2: Play acknowledgment sound when Claude starts thinking (TTFB)
+      // This gives immediate feedback that Atlas is processing
+      this.playAcknowledgmentSound();
       
       // 3. Parse SSE stream
       const streamingStart = performance.now();
