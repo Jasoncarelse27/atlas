@@ -628,9 +628,9 @@ export class VADService implements IVADService {
 
           // ✅ CRITICAL FIX: After rejection, require longer silence to prevent loop
           // If we recently rejected (0.0% confidence), increase silence duration requirement
-          const rejectionCooldown = timeSinceRejection < 5000; // 5 second cooldown after rejection
+          const rejectionCooldown = timeSinceRejection < 10000; // ✅ FIX: 10s cooldown after rejection (was 5s) - prevent rapid loops
           const requiredSilenceDuration = rejectionCooldown 
-            ? Math.max(this.config.silenceDuration * 3, 1000) // 3x longer silence or 1s minimum
+            ? Math.max(this.config.silenceDuration * 5, 2000) // ✅ FIX: 5x longer silence or 2s minimum (was 3x/1s) - prevent loops
             : this.config.silenceDuration;
 
           // ✅ CRITICAL FIX: Don't process speech when Atlas is speaking (prevents feedback loop)
@@ -643,7 +643,7 @@ export class VADService implements IVADService {
             silenceDuration >= requiredSilenceDuration && // ✅ Use adaptive silence duration
             speechDuration >= this.config.minSpeechDuration &&
             timeSinceLastProcess >= this.config.minProcessInterval && // ✅ ChatGPT-like: 0.5s cooldown (was 3s)
-            timeSinceRejection >= 2000 &&
+            timeSinceRejection >= 5000 && // ✅ FIX: 5s cooldown after rejection (was 2s) - prevent loops
             this.mediaRecorder?.state === 'recording'
           ) {
             logger.debug('[VAD] 🤫 Silence detected - processing speech');
