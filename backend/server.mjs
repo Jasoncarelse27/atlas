@@ -562,7 +562,8 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     reader.releaseLock();
   }
   
-  return fullText;
+  // ✅ CRITICAL FIX: Final filter pass before returning (catches any stage directions that slipped through)
+  return filterResponse(fullText);
 }
 
 
