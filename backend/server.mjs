@@ -82,7 +82,7 @@ const PORT = process.env.PORT || process.env.NOVA_BACKEND_PORT || 8000;
 
 // 🔒 SECURITY: Initialize Supabase client - ALWAYS require real credentials
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
 let supabase;
 try {
@@ -92,6 +92,7 @@ try {
   if (!supabaseUrl || !supabaseServiceKey) {
     logger.error('❌ FATAL: Missing Supabase credentials');
     logger.error('   Required: VITE_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY');
+    logger.error('   Add these to Railway environment variables to fix deployment');
     process.exit(1);
   }
   
