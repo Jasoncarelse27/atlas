@@ -2430,6 +2430,10 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.get('*', (req, res) => {
   // Only serve index.html for non-API routes
   if (!req.path.startsWith('/api/') && !req.path.startsWith('/message') && !req.path.startsWith('/healthz')) {
+    // ✅ CRITICAL FIX: Prevent Railway CDN from caching index.html
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
   } else {
     res.status(404).json({ error: 'Route not found' });
