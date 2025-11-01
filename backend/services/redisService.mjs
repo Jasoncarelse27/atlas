@@ -55,31 +55,54 @@ class RedisService {
       }
     };
 
-    // Initialize connection
-    this.connect();
+    // Initialize connection only if REDIS_URL is provided
+    if (process.env.REDIS_URL && process.env.REDIS_URL !== 'redis://localhost:6379') {
+      // Connect in background, don't block startup
+      this.connect().catch(() => {
+        // Silent fail - Redis is optional
+        logger.warn('[Redis] Failed to connect, continuing without Redis cache');
+      });
+    } else {
+      logger.info('[Redis] REDIS_URL not configured, skipping Redis connection');
+    }
   }
 
   async connect() {
     try {
       const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
       
+      // Skip if using default localhost URL (production should have real URL)
+      if (redisUrl === 'redis://localhost:6379' && process.env.NODE_ENV === 'production') {
+        logger.warn('[Redis] Skipping connection - using default localhost URL in production');
+        return;
+      }
+      
       this.client = createClient({
         url: redisUrl,
         socket: {
           reconnectStrategy: (retries) => {
             if (retries > this.maxRetries) {
-              logger.error('[Redis] Maximum reconnection attempts reached');
-              return null;
+              logger.warn('[Redis] Maximum reconnection attempts reached, disabling Redis');
+              return null; // Stop reconnecting
             }
             return Math.min(retries * 100, 3000);
-          }
+          },
+          connectTimeout: 5000 // 5s timeout
         }
       });
 
-      // Event handlers
+      // Event handlers - reduce error spam
+      let errorCount = 0;
       this.client.on('error', (err) => {
-        logger.error('[Redis] Client error:', err);
-        captureException(err, { service: 'redis' });
+        errorCount++;
+        // Only log every 10th error to reduce spam
+        if (errorCount % 10 === 1) {
+          logger.warn(`[Redis] Connection error (${errorCount} errors):`, err.code || err.message);
+        }
+        // Don't send every error to Sentry, only first few
+        if (errorCount <= 3) {
+          captureException(err, { service: 'redis' });
+        }
         this.stats.errors++;
       });
 
@@ -95,10 +118,24 @@ class RedisService {
       });
 
       await this.client.connect();
+      logger.info('[Redis] Connected successfully');
     } catch (error) {
-      logger.error('[Redis] Connection failed:', error);
-      captureException(error, { service: 'redis', action: 'connect' });
+      // Don't log as error - Redis is optional
+      logger.warn('[Redis] Connection failed, continuing without cache:', error.code || error.message);
+      // Only send first error to Sentry
+      if (this.connectionRetries === 0) {
+        captureException(error, { service: 'redis', action: 'connect' });
+      }
       this.isConnected = false;
+      // Destroy client to stop reconnection attempts
+      if (this.client) {
+        try {
+          await this.client.quit();
+        } catch {
+          // Ignore quit errors
+        }
+        this.client = null;
+      }
     }
   }
 
