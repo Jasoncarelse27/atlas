@@ -25,7 +25,10 @@ export default defineConfig(({ mode }) => {
         'react-native',
         'react-native-web'
       ],
-      include: ['react-is'] // ✅ Fix Railway build: Ensure react-is is pre-bundled
+      include: [
+        'react-is', // ✅ Fix Railway build: Ensure react-is is pre-bundled
+        'zustand' // ✅ Fix Railway build: Ensure zustand's create export is resolved
+      ]
     },
     base: process.env.NODE_ENV === 'production' ? '/' : '/',
     build: {
