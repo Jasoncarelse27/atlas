@@ -501,7 +501,7 @@ You are having a natural voice conversation. Respond as if you can hear them cle
   };
   
   // Alias for backward compatibility
-  const filterBrandingLeaks = filterResponse;
+  const filterBrandingLeaks = filterResponse; // Use shared filterResponse function
 
   try {
     while (true) {
@@ -1306,7 +1306,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         conversation_id: finalConversationId,
         user_id: userId,
         role: 'assistant',
-        content: finalText, // ✅ FIX: Send plain string, not object (Supabase stringifies objects)
+        content: filterResponse(finalText), // ✅ CRITICAL FIX: Filter stage directions before saving to database (streaming path)
         created_at: new Date().toISOString()
       };
       
