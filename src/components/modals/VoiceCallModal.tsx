@@ -344,13 +344,38 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           },
           onError: (error: Error) => {
             logger.error('[VoiceCall] Service error:', error);
-            const friendlyMessage = error.message.includes('Microphone')
-              ? 'Microphone not available'
-              : error.message.includes('Connection lost')
-              ? 'Connection lost, retrying...'
-              : error.message.includes('WebSocket')
-              ? 'Connection issue, retrying...'
-              : error.message;
+            
+            // ✅ IMPROVED: Better error messages for microphone issues
+            let friendlyMessage: string;
+            let friendlyDescription: string;
+            
+            if (error.message.includes('Microphone is muted at system level')) {
+              friendlyMessage = 'Microphone Muted';
+              friendlyDescription = 'Unmute your microphone (F10 or Control Center) and try again';
+              modernToast.error(friendlyMessage, friendlyDescription);
+              setIsCallActive(false);
+              voiceCallState.setActive(false);
+              return;
+            } else if (error.message.includes('Microphone') && error.message.includes('muted')) {
+              friendlyMessage = 'Microphone Muted';
+              friendlyDescription = 'Check your system settings and unmute your microphone';
+              modernToast.error(friendlyMessage, friendlyDescription);
+              setIsCallActive(false);
+              voiceCallState.setActive(false);
+              return;
+            } else if (error.message.includes('Microphone')) {
+              friendlyMessage = 'Microphone not available';
+              friendlyDescription = 'Please check your microphone connection';
+            } else if (error.message.includes('Connection lost')) {
+              friendlyMessage = 'Connection lost';
+              friendlyDescription = 'Retrying...';
+            } else if (error.message.includes('WebSocket')) {
+              friendlyMessage = 'Connection issue';
+              friendlyDescription = 'Retrying...';
+            } else {
+              friendlyMessage = error.message.split('\n')[0]; // First line only
+              friendlyDescription = error.message.includes('\n') ? error.message.split('\n').slice(1).join(' ') : '';
+            }
             
             // ✅ FIX: Don't auto-end call for recoverable errors
             // Only end for critical errors (permission denied, etc.)
