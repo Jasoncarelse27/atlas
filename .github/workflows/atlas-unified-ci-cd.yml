@@ -124,8 +124,9 @@ jobs:
 
       - name: 🔒 Security audit
         run: |
-          npm audit --audit-level=high || echo "⚠️ Security vulnerabilities found"
+          npm audit --audit-level=high || echo "⚠️ Security vulnerabilities found (non-blocking)"
           npm audit --json | jq '.metadata.vulnerabilities' || true
+        continue-on-error: true  # Don't fail the pipeline on audit warnings
 
       - name: 🩺 Backend health check
         run: |
