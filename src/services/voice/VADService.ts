@@ -440,14 +440,28 @@ export class VADService implements IVADService {
 
           // ✅ CRITICAL FIX: Use much higher threshold when Atlas is speaking to prevent TTS feedback
           // Atlas's TTS output can be detected as audio, so we need a higher threshold for interrupts
-          const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
-          const interruptThreshold = isAtlasSpeaking 
-            ? threshold * 5.0  // ✅ Much higher threshold when Atlas speaks (prevents TTS feedback)
-            : threshold * 2.0; // Normal threshold when Atlas is silent
+          // Use isPlaying directly (more reliable than callback) to determine threshold
+          let interruptThreshold: number;
+          let isPlaying = false;
+          
+          if (isFeatureEnabled('VOICE_STREAMING')) {
+            isPlaying = audioQueueService.getIsPlaying();
+            // ✅ CRITICAL: Use 8.0x multiplier when Atlas is playing (prevents TTS feedback)
+            // Atlas TTS produces ~8-9% audio levels, so need threshold > 9%
+            interruptThreshold = isPlaying 
+              ? threshold * 8.0  // ✅ Much higher threshold when Atlas speaks (prevents TTS feedback)
+              : threshold * 2.0; // Normal threshold when Atlas is silent
+          } else {
+            // Legacy mode - use callback
+            const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
+            interruptThreshold = isAtlasSpeaking 
+              ? threshold * 8.0  // ✅ Much higher threshold when Atlas speaks
+              : threshold * 2.0; // Normal threshold when Atlas is silent
+          }
+          
           const isLoudEnoughToInterrupt = audioLevel > interruptThreshold;
 
           if (isFeatureEnabled('VOICE_STREAMING')) {
-            const isPlaying = audioQueueService.getIsPlaying();
             if (isPlaying && !this.onHasInterruptedCheck?.() && isLoudEnoughToInterrupt) {
               logger.info(`[VAD] 🛑 User interrupting Atlas (level: ${(audioLevel * 100).toFixed(1)}%, threshold: ${(interruptThreshold * 100).toFixed(1)}%)`);
               audioQueueService.interrupt();
