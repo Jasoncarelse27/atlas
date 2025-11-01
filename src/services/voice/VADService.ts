@@ -400,9 +400,9 @@ export class VADService implements IVADService {
           setTimeout(() => {
             if (this.onIsActiveCheck?.() && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
               try {
-                this.mediaRecorder.start(100);
-                this.lastInterruptRestartTime = Date.now(); // ✅ Track restart time
-                logger.debug('[VAD] 🎙️ Restarted recording for interrupt detection while Atlas speaks');
+          this.mediaRecorder.start(100);
+          this.lastInterruptRestartTime = Date.now(); // ✅ Track restart time
+          // Silent restart for interrupt detection (reduces log noise)
               } catch (error) {
                 logger.warn('[VAD] Failed to restart recording for interrupts:', error);
               }
@@ -558,13 +558,8 @@ export class VADService implements IVADService {
 
     // ✅ FIX: Allow recording to restart even while Atlas is speaking (for interrupt detection)
     // This enables users to interrupt Atlas mid-sentence
-    if (isAtlasSpeaking && this.mediaRecorder?.state === 'recording') {
-      // Already recording - that's fine, keep it going for interrupt detection
-      logger.debug('[VAD] Recording active while Atlas speaks - allowing for interrupt detection');
-    } else if (isAtlasSpeaking && this.mediaRecorder?.state === 'inactive') {
-      // Atlas is speaking but recording stopped - restart it for interrupt detection
-      logger.debug('[VAD] Restarting recording while Atlas speaks for interrupt detection');
-    }
+      // Allow recording while Atlas speaks for interrupt detection (silent operation)
+      // Only log if there's an actual issue
     // Continue to restart logic below (don't return early)
 
     if (this.mediaRecorder.state === 'inactive') {
@@ -579,7 +574,7 @@ export class VADService implements IVADService {
 
       try {
         this.mediaRecorder.start(100);
-        logger.debug('[VAD] 🎙️ Mic restarted - ready for next input');
+        // Silent restart (reduces log noise)
       } catch (error) {
         logger.error('[VAD] Error starting mediaRecorder:', error);
       }
