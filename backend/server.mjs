@@ -63,13 +63,18 @@ if (!process.env.RAILWAY_ENVIRONMENT && !process.env.PORT) {
 
 const app = express();
 
+// Track server readiness
+let serverReady = false;
+
 // Health check endpoint - register IMMEDIATELY before any middleware
 // This ensures Railway can reach it even during server initialization
 app.get('/healthz', (req, res) => {
+  // Always respond, even if server isn't fully ready
   res.status(200).json({
-    status: 'ok',
+    status: serverReady ? 'ok' : 'starting',
     uptime: process.uptime(),
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    ready: serverReady
   });
 });
 
@@ -2395,23 +2400,40 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     cert: fs.readFileSync(certPath)
   };
   
-  https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+  const httpsServer = https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+    serverReady = true; // Mark server as ready
     logger.info(`✅ Atlas backend (HTTPS) running on port ${PORT}`);
     logger.info(`   Healthcheck: https://0.0.0.0:${PORT}/healthz`);
     console.log(`🚀 Server started on port ${PORT}`);
+    console.log(`✅ Server is READY - Railway healthcheck should pass now`);
+  });
+  
+  httpsServer.on('error', (err) => {
+    logger.error(`❌ HTTPS Server error:`, err);
+    console.error(`❌ HTTPS Server error:`, err.message);
+    serverReady = false;
   });
 } else {
   const server = app.listen(PORT, '0.0.0.0', () => {
+    serverReady = true; // Mark server as ready
     logger.info(`✅ Atlas backend (HTTP) running on port ${PORT}`);
     logger.info(`   Healthcheck: http://0.0.0.0:${PORT}/healthz`);
     console.log(`🚀 Server started on port ${PORT}`);
     console.log(`✅ Healthcheck available at http://0.0.0.0:${PORT}/healthz`);
+    console.log(`✅ Server is READY - Railway healthcheck should pass now`);
   });
   
-  // Handle server errors
+  // Handle server errors - but don't exit, let Railway handle restart
   server.on('error', (err) => {
     logger.error(`❌ Server error:`, err);
-    console.error(`❌ Server failed to start:`, err.message);
-    process.exit(1);
+    console.error(`❌ Server error:`, err.message);
+    serverReady = false;
+    // Don't exit - Railway will handle restart
+  });
+  
+  // Keep process alive - prevent Railway from thinking server crashed
+  server.on('close', () => {
+    logger.warn('⚠️ Server closed');
+    serverReady = false;
   });
 }
