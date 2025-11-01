@@ -30,6 +30,8 @@ export class VADService implements IVADService {
   private silenceStartTime: number | null = null;
   private lastSpeechTime: number | null = null;
   private recordingStartTime: number = 0;
+  private lastInterruptRestartTime: number = 0; // ✅ FIX: Track when recording was restarted for interrupts (prevent stop-restart loop)
+  private interruptRestartScheduled: boolean = false; // ✅ FIX: Prevent multiple scheduled restarts
 
   // Threshold calibration
   private baselineNoiseLevel: number = 0;
@@ -353,23 +355,33 @@ export class VADService implements IVADService {
 
       const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
 
-      // ✅ FIX: Allow recording to continue briefly when Atlas starts speaking (for interrupt detection)
-      // Restart recording after 500ms delay to detect user interrupts
+      // ✅ FIX: Allow recording to continue for interrupt detection, but prevent stop-restart loop
+      // Only stop recording once when Atlas starts speaking, then let it run for interrupt detection
       if (isAtlasSpeaking && this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-        logger.debug('[VAD] 🛑 Stopping recording - Atlas is speaking (will restart for interrupts)');
-        this.mediaRecorder.stop();
-        // Schedule restart after delay for interrupt detection
-        setTimeout(() => {
-          if (this.onIsActiveCheck?.() && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
-            try {
-              this.mediaRecorder.start(100);
-              logger.debug('[VAD] 🎙️ Restarted recording for interrupt detection while Atlas speaks');
-            } catch (error) {
-              logger.warn('[VAD] Failed to restart recording for interrupts:', error);
+        // Only stop once when Atlas first starts speaking (prevents infinite stop-restart loop)
+        if (!this.interruptRestartScheduled) {
+          logger.debug('[VAD] 🛑 Stopping recording - Atlas is speaking (will restart for interrupts)');
+          this.mediaRecorder.stop();
+          this.interruptRestartScheduled = true; // ✅ Prevent multiple scheduled restarts
+          
+          // Schedule restart after delay for interrupt detection
+          setTimeout(() => {
+            if (this.onIsActiveCheck?.() && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+              try {
+                this.mediaRecorder.start(100);
+                this.lastInterruptRestartTime = Date.now(); // ✅ Track restart time
+                logger.debug('[VAD] 🎙️ Restarted recording for interrupt detection while Atlas speaks');
+              } catch (error) {
+                logger.warn('[VAD] Failed to restart recording for interrupts:', error);
+              }
             }
-          }
-        }, 500); // 500ms delay to prevent feedback
-        return;
+          }, 500); // 500ms delay to prevent feedback
+        }
+        // Continue VAD checking even if recording was stopped (for interrupt detection)
+        // Don't return early - we need to monitor audio levels
+      } else if (!isAtlasSpeaking) {
+        // ✅ Reset flag when Atlas stops speaking
+        this.interruptRestartScheduled = false;
       }
 
       // ✅ FIX: Continue VAD checking even while Atlas speaks (for interrupt detection)
@@ -547,6 +559,10 @@ export class VADService implements IVADService {
         logger.warn('[VAD] Error stopping mediaRecorder:', error);
       }
     }
+    
+    // ✅ FIX: Reset interrupt restart flags on stop
+    this.interruptRestartScheduled = false;
+    this.lastInterruptRestartTime = 0;
 
     if (this.stream) {
       this.stream.getTracks().forEach(track => {
