@@ -620,11 +620,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint for Railway
 app.get('/healthz', async (req, res) => {
+  // Respond immediately - don't wait for Redis
   const health = {
     status: 'ok',
     uptime: process.uptime(),
     timestamp: Date.now(),
-    ip: LOCAL_IP,
     redis: false
   };
 
@@ -2398,13 +2398,14 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
   };
   
   https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
-    logger.debug(`✅ Atlas backend (HTTPS) running on:`);
-    logger.debug(`   https://localhost:${PORT}`);
-    logger.debug(`   https://192.168.0.10:${PORT}`);
+    logger.info(`✅ Atlas backend (HTTPS) running on port ${PORT}`);
+    logger.info(`   Healthcheck: https://0.0.0.0:${PORT}/healthz`);
+    console.log(`🚀 Server started on port ${PORT}`);
   });
 } else {
   app.listen(PORT, '0.0.0.0', () => {
-    logger.debug(`✅ Atlas backend (HTTP) running on:`);
-    logger.debug(`   http://localhost:${PORT}`);
+    logger.info(`✅ Atlas backend (HTTP) running on port ${PORT}`);
+    logger.info(`   Healthcheck: http://0.0.0.0:${PORT}/healthz`);
+    console.log(`🚀 Server started on port ${PORT}`);
   });
 }
