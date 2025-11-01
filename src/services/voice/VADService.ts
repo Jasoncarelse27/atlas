@@ -247,6 +247,19 @@ export class VADService implements IVADService {
           return;
         }
 
+        // ✅ CRITICAL FIX: Check mute state BEFORE processing audio
+        const isMutedByUI = this.onGetIsMutedCheck?.() ?? false;
+        const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
+          ? !this.stream.getAudioTracks()[0].enabled 
+          : false;
+        
+        if (isMutedByUI || isMutedByTrack) {
+          logger.debug('[VAD] Microphone muted - discarding audio chunk');
+          audioChunks = [];
+          // Don't restart recording when muted - wait for unmute
+          return;
+        }
+
         if (audioChunks.length === 0) {
           logger.debug('[VAD] No audio chunks collected - restarting recorder');
           this.restart();
@@ -527,6 +540,17 @@ export class VADService implements IVADService {
 
     if (!this.mediaRecorder) {
       logger.debug('[VAD] Skipping restart - mediaRecorder is null');
+      return;
+    }
+
+    // ✅ CRITICAL FIX: Don't restart recording when muted
+    const isMutedByUI = this.onGetIsMutedCheck?.() ?? false;
+    const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
+      ? !this.stream.getAudioTracks()[0].enabled 
+      : false;
+    
+    if (isMutedByUI || isMutedByTrack) {
+      logger.debug('[VAD] Skipping restart - microphone is muted');
       return;
     }
 
