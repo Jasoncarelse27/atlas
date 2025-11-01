@@ -1545,7 +1545,7 @@ export class VoiceCallService {
           // Use extracted STTService
           if (!this.sttService) {
             this.sttService = new STTService({
-              timeout: this.getSTTTimeout(),
+              timeout: this.getSTTTimeout(audioBlob.size),
             });
           }
           return await this.sttService.transcribe(audioBlob, {
@@ -1567,7 +1567,7 @@ export class VoiceCallService {
         
         // ✅ IMPROVEMENT: Adaptive timeout based on network quality
         const controller = new AbortController();
-        const timeoutTimeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout());
+        const timeoutTimeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout(audioBlob.size));
         
         try {
           const sttResponse = await fetch('/api/stt-deepgram', {
@@ -1718,7 +1718,7 @@ export class VoiceCallService {
         const base64Audio = await this.blobToBase64(audioBlob);
         const { data: { session } } = await supabase.auth.getSession();
         const controller = new AbortController();
-        const timeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout());
+        const timeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout(audioBlob.size));
         
         try {
           const sttResponse = await fetch('/api/stt-deepgram', {
@@ -2498,19 +2498,36 @@ export class VoiceCallService {
    * EXTRACTION_POINT: NetworkMonitoringService or STTService
    * ✅ EXTRACTED: Uses NetworkMonitoringService when feature flag enabled
    */
-  private getSTTTimeout(): number {
+  private getSTTTimeout(audioBlobSize?: number): number {
     if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE') && this.networkMonitoringService) {
-      return this.networkMonitoringService.getSTTTimeout();
+      return this.networkMonitoringService.getSTTTimeout(audioBlobSize);
     }
     
     // Legacy implementation
+    let baseTimeout: number;
     switch (this.networkQuality) {
-      case 'excellent': return 10000;  // ✅ FIX: 10s (was 8s) - prevent false timeouts on mobile
-      case 'good': return 8000;      // 8s
-      case 'poor': return 15000;     // 15s
-      case 'offline': return 20000;  // 20s
-      default: return 10000;
+      case 'excellent': 
+        baseTimeout = 12000;  // ✅ FIX: 12s (was 10s) - handle large chunks
+        break;
+      case 'good': 
+        baseTimeout = 8000;      // 8s
+        break;
+      case 'poor': 
+        baseTimeout = 15000;     // 15s
+        break;
+      case 'offline': 
+        baseTimeout = 20000;  // 20s
+        break;
+      default: 
+        baseTimeout = 10000;
     }
+    
+    // ✅ FIX: Increase timeout for large chunks (>200KB need more time)
+    if (audioBlobSize && audioBlobSize > 200 * 1024) {
+      return Math.max(baseTimeout, 15000); // At least 15s for large chunks
+    }
+    
+    return baseTimeout;
   }
 
   /**

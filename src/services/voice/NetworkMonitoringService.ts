@@ -146,14 +146,31 @@ export class NetworkMonitoringService implements INetworkMonitoringService {
   /**
    * Get adaptive timeout based on network quality
    */
-  getSTTTimeout(): number {
+  getSTTTimeout(audioBlobSize?: number): number {
+    let baseTimeout: number;
     switch (this.networkQuality) {
-      case 'excellent': return 10000;  // ✅ FIX: 10s (was 8s) - prevent false timeouts on mobile
-      case 'good': return 8000;      // 8s
-      case 'poor': return 15000;     // 15s
-      case 'offline': return 20000;  // 20s
-      default: return 10000;
+      case 'excellent': 
+        baseTimeout = 12000;  // ✅ FIX: 12s (was 10s) - handle large chunks
+        break;
+      case 'good': 
+        baseTimeout = 8000;      // 8s
+        break;
+      case 'poor': 
+        baseTimeout = 15000;     // 15s
+        break;
+      case 'offline': 
+        baseTimeout = 20000;  // 20s
+        break;
+      default: 
+        baseTimeout = 10000;
     }
+    
+    // ✅ FIX: Increase timeout for large chunks (>200KB need more time)
+    if (audioBlobSize && audioBlobSize > 200 * 1024) {
+      return Math.max(baseTimeout, 15000); // At least 15s for large chunks
+    }
+    
+    return baseTimeout;
   }
 
   /**
