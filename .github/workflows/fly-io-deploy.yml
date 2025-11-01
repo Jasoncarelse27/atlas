@@ -41,11 +41,6 @@ jobs:
         run: |
           flyctl auth whoami
 
-      - name: 📦 Build Docker image
-        working-directory: api/voice-v2
-        run: |
-          docker build -t ${{ env.APP_NAME }}:latest .
-
       - name: 🌎 Deploy to US region
         if: github.event.inputs.region == 'both' || github.event.inputs.region == 'iad' || github.event_name == 'push'
         env:
@@ -53,7 +48,13 @@ jobs:
         working-directory: api/voice-v2
         run: |
           echo "Deploying to US region (${{ env.US_REGION }})..."
-          flyctl deploy --app ${{ env.APP_NAME }} --region ${{ env.US_REGION }} --remote-only
+          # Deploy will create machine if app exists but has no machines
+          flyctl deploy --app ${{ env.APP_NAME }} --region ${{ env.US_REGION }} --remote-only || {
+            echo "⚠️ First deployment may need app initialization"
+            # If app doesn't exist, create it first
+            flyctl apps create ${{ env.APP_NAME }} || echo "App may already exist"
+            flyctl deploy --app ${{ env.APP_NAME }} --region ${{ env.US_REGION }} --remote-only
+          }
 
       - name: 🌍 Deploy to EU region
         if: github.event.inputs.region == 'both' || github.event.inputs.region == 'fra' || github.event_name == 'push'
