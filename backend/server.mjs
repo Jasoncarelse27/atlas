@@ -2416,8 +2416,12 @@ app.post('/api/feature-attempts', async (req, res) => {
   }
 });
 
-// Serve built Vite frontend
-app.use(express.static(path.join(__dirname, '..', 'dist')));
+// Serve built Vite frontend with cache-busting headers
+app.use(express.static(path.join(__dirname, '..', 'dist'), {
+  maxAge: 0, // ✅ CRITICAL FIX: Prevent Railway from caching old bundles
+  etag: false,
+  lastModified: false
+}));
 
 // Serve static files (if any)
 app.use(express.static(path.join(__dirname, '..', 'public')));
