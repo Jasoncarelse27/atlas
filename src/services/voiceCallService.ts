@@ -2073,6 +2073,7 @@ export class VoiceCallService {
                 if (currentSentence.length >= MAX_WAIT_LENGTH) {
                   const cleanSentence = currentSentence
                     .replace(/\*[^*]+\*/g, '') // ✅ FIX: Remove stage directions (e.g., "*speaks in a friendly voice*")
+                    .replace(/\[[^\]]+\]/g, '') // ✅ FIX: Remove square bracket stage directions (e.g., "[In a clear voice]")
                     .replace(/\n+/g, ' ')
                     .replace(/\s+/g, ' ')
                     .trim();
@@ -2098,6 +2099,7 @@ export class VoiceCallService {
       // ✅ FIX: Clean final sentence - remove extra newlines and whitespace
       const cleanFinalSentence = currentSentence
         .replace(/\*[^*]+\*/g, '') // ✅ FIX: Remove stage directions (e.g., "*speaks in a friendly voice*")
+        .replace(/\[[^\]]+\]/g, '') // ✅ FIX: Remove square bracket stage directions (e.g., "[In a clear voice]")
         .replace(/\n+/g, ' ') // Replace newlines with spaces
         .replace(/\s+/g, ' ') // Collapse multiple spaces
         .trim();
