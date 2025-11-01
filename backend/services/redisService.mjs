@@ -55,15 +55,22 @@ class RedisService {
       }
     };
 
-    // Initialize connection only if REDIS_URL is provided
-    if (process.env.REDIS_URL && process.env.REDIS_URL !== 'redis://localhost:6379') {
+    // Initialize connection if REDIS_URL is provided
+    // Allow localhost:6379 in test/CI environments, but skip in production (safety check)
+    const redisUrl = process.env.REDIS_URL;
+    const isLocalhost = redisUrl === 'redis://localhost:6379';
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (redisUrl && (!isLocalhost || !isProduction)) {
       // Connect in background, don't block startup
       this.connect().catch(() => {
         // Silent fail - Redis is optional
         logger.warn('[Redis] Failed to connect, continuing without Redis cache');
       });
-    } else {
+    } else if (!redisUrl) {
       logger.info('[Redis] REDIS_URL not configured, skipping Redis connection');
+    } else {
+      logger.warn('[Redis] Skipping localhost Redis in production (use real Redis URL)');
     }
   }
 
