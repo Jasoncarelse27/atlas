@@ -77,7 +77,7 @@ export class VoiceCallService {
   private readonly MIN_SPEECH_DURATION = 300; // 🎯 ChatGPT-like: Detect short utterances (0.3s)
   private lastSpeechTime: number | null = null; // ✅ FIX: Track if speech actually occurred
   private lastProcessTime: number = 0; // 🛑 Track last processing time to prevent loops
-  private readonly MIN_PROCESS_INTERVAL = 3000; // ✅ FIX: Increased to 3s to prevent loops (was 0.5s)
+  private readonly MIN_PROCESS_INTERVAL = 800; // ✅ OPTIMIZED: Reduced to 800ms for ChatGPT-like responsiveness (still prevents loops, faster than 3s)
   private lastRejectedTime: number = 0; // ✅ FIX: Track when audio was rejected to prevent immediate retry
   private readonly REJECTION_COOLDOWN = 2000; // ✅ FIX: 2s cooldown after rejecting small audio
   private interruptTime: number | null = null; // ✅ FIX: Track when interruption happened for resume logic

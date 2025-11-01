@@ -182,9 +182,11 @@ wss.on('connection', (ws, req) => {
               timestamp: new Date().toISOString(),
             }));
 
-            // On final transcript, get AI response + TTS
+            // On final transcript, save user message and get AI response + TTS
             if (isFinal && transcript.trim().length > 0) {
               console.log(`[VoiceV2] 🤖 Sending to Claude: "${transcript}"`);
+              // ✅ MESSAGE PERSISTENCE: Save user message to database
+              await saveUserMessage(sessionId, transcript, confidence);
               await getClaudeResponseWithTTS(sessionId, transcript);
             }
           }
@@ -284,6 +286,29 @@ wss.on('connection', (ws, req) => {
               // Increment session count
               userSessionCounts.set(validatedUserId, currentSessionCount + 1);
               console.log(`[VoiceV2] ✅ User ${validatedUserId} now has ${currentSessionCount + 1} active sessions`);
+
+              // ✅ TIER ENFORCEMENT: Check user tier (Studio only)
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('tier')
+                .eq('id', validatedUserId)
+                .single();
+
+              if (profileError || !profile || profile.tier !== 'studio') {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: 'Voice calls are only available for Studio tier. Upgrade to continue.',
+                  code: 'TIER_REQUIRED',
+                  sessionId,
+                }));
+                ws.close(4003, 'Tier required');
+                // Decrement session count
+                const currentCount = userSessionCounts.get(validatedUserId) || 0;
+                if (currentCount > 0) {
+                  userSessionCounts.set(validatedUserId, currentCount - 1);
+                }
+                return;
+              }
 
               // Update session with authenticated user
               session.userId = validatedUserId;
@@ -505,6 +530,9 @@ Atlas: "That sounds really tough. What's weighing on you most right now?"`,
       }));
     }
 
+    // ✅ MESSAGE PERSISTENCE: Save assistant message to database
+    await saveAssistantMessage(sessionId, fullResponse);
+
     // Send final response
     session.clientWs.send(JSON.stringify({
       type: 'ai_response_complete',
@@ -575,6 +603,118 @@ async function generateTTS(sessionId, text, index) {
   }
 }
 
+// ✅ MESSAGE PERSISTENCE: Save user message to database
+async function saveUserMessage(sessionId, transcript, confidence) {
+  const session = activeSessions.get(sessionId);
+  if (!session || !session.userId || !session.conversationId) return;
+
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Insert user message
+    const { error: userMsgError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: session.conversationId,
+        user_id: session.userId,
+        role: 'user',
+        content: transcript,
+        type: 'text', // Voice transcripts are text
+        metadata: {
+          voice_call: true,
+          confidence: confidence,
+          session_id: sessionId,
+        },
+      });
+
+    if (userMsgError) {
+      console.error(`[VoiceV2] ❌ Failed to save user message:`, userMsgError);
+    } else {
+      console.log(`[VoiceV2] ✅ User message saved`);
+    }
+  } catch (error) {
+    console.error(`[VoiceV2] ❌ Message save error:`, error);
+  }
+}
+
+// ✅ MESSAGE PERSISTENCE: Save assistant message to database
+async function saveAssistantMessage(sessionId, responseText) {
+  const session = activeSessions.get(sessionId);
+  if (!session || !session.userId || !session.conversationId) return;
+
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    const { error: assistantMsgError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: session.conversationId,
+        user_id: session.userId,
+        role: 'assistant',
+        content: responseText,
+        type: 'text',
+        metadata: {
+          voice_call: true,
+          session_id: sessionId,
+        },
+      });
+
+    if (assistantMsgError) {
+      console.error(`[VoiceV2] ❌ Failed to save assistant message:`, assistantMsgError);
+    } else {
+      console.log(`[VoiceV2] ✅ Assistant message saved`);
+    }
+  } catch (error) {
+    console.error(`[VoiceV2] ❌ Assistant message save error:`, error);
+  }
+}
+
+// ✅ USAGE LOGGING: Log to usage_logs table
+async function logUsageToDatabase(sessionId, session, totalCost) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !session.userId) {
+    return;
+  }
+
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Calculate tokens (Claude uses tokens, not characters)
+    const inputTokens = session.metrics.claudeInputTokens || 0;
+    const outputTokens = session.metrics.claudeOutputTokens || 0;
+    const duration = Date.now() - session.startTime.getTime();
+
+    const { error } = await supabase
+      .from('usage_logs')
+      .insert({
+        user_id: session.userId,
+        event: 'voice_call',
+        data: {
+          feature: 'voice_call',
+          session_id: sessionId,
+          conversation_id: session.conversationId,
+          tokens_used: inputTokens + outputTokens,
+          estimated_cost: totalCost,
+          stt_duration_ms: session.metrics.deepgramDurationMs,
+          tts_characters: session.metrics.ttsCharacters,
+          llm_input_tokens: inputTokens,
+          llm_output_tokens: outputTokens,
+          duration_ms: duration,
+        },
+      });
+
+    if (error) {
+      console.error(`[VoiceV2] ❌ Failed to log usage:`, error);
+    } else {
+      console.log(`[VoiceV2] ✅ Usage logged`);
+    }
+  } catch (error) {
+    console.error(`[VoiceV2] ❌ Usage logging error:`, error);
+  }
+}
+
 // Save session to database
 async function saveSessionToDatabase(sessionId, session, duration) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !session.userId) {
@@ -620,6 +760,9 @@ async function saveSessionToDatabase(sessionId, session, duration) {
     } else {
       console.log(`[VoiceV2] ✅ Session saved to database`);
     }
+
+    // ✅ USAGE LOGGING: Log to usage_logs table
+    await logUsageToDatabase(sessionId, session, totalCost);
   } catch (dbError) {
     console.error(`[VoiceV2] ❌ Database save error:`, dbError);
   }

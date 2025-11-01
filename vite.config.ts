@@ -42,7 +42,10 @@ export default defineConfig(({ mode }) => {
           // 🔧 SIMPLIFIED: Use Vite's proven default chunking strategy
           // This fixes atlasDB export issues and follows industry best practices
           // Vite automatically handles optimal chunking for production builds
-        }
+        },
+        // Fix react-is import resolution for recharts
+        // Ensure react-is is bundled, not externalized
+        external: []
       }
     },
     server: {

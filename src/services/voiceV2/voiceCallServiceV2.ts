@@ -120,13 +120,25 @@ export class VoiceCallServiceV2 {
     return new Promise((resolve, reject) => {
       try {
         // Determine WebSocket URL
-        // ✅ Use Fly.io URL if configured, otherwise fallback to local/api proxy
-        const flyIoUrl = import.meta.env.VITE_VOICE_V2_URL;
-        const wsUrl = flyIoUrl || (() => {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
+        // ✅ Multi-region support: Fly.io automatically routes to nearest region
+        const getWebSocketUrl = (): string => {
+          // Use explicit URL if configured
+          const explicitUrl = import.meta.env.VITE_VOICE_V2_URL;
+          if (explicitUrl) return explicitUrl;
+
+          // Production: Use Fly.io domain (routed automatically by Anycast)
+          if (window.location.hostname.includes('vercel.app') || 
+              window.location.hostname.includes('atlas')) {
+            return 'wss://atlas-voice-v2.fly.dev';
+          }
+
+          // Development: Use local proxy
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const host = window.location.host;
           return `${protocol}//${host}/api/voice-v2`;
-        })();
+        };
+
+        const wsUrl = getWebSocketUrl();
 
         logger.info(`[VoiceV2] 🔌 Connecting to ${wsUrl}...`);
 
