@@ -48,12 +48,17 @@ jobs:
         working-directory: api/voice-v2
         run: |
           echo "Deploying to US region (${{ env.US_REGION }})..."
-          # Deploy will create machine if app exists but has no machines
-          flyctl deploy --app ${{ env.APP_NAME }} --region ${{ env.US_REGION }} --remote-only || {
-            echo "⚠️ First deployment may need app initialization"
-            # If app doesn't exist, create it first
-            flyctl apps create ${{ env.APP_NAME }} || echo "App may already exist"
-            flyctl deploy --app ${{ env.APP_NAME }} --region ${{ env.US_REGION }} --remote-only
+          # Use --regions flag (plural) to target specific region
+          # fly.toml already has primary_region = "iad", so this will deploy there
+          flyctl deploy --app ${{ env.APP_NAME }} --regions ${{ env.US_REGION }} --remote-only || {
+            echo "⚠️ Deployment failed, checking if app exists..."
+            # Check if app exists
+            if ! flyctl apps list | grep -q "${{ env.APP_NAME }}"; then
+              echo "Creating app..."
+              flyctl apps create ${{ env.APP_NAME }} --org personal
+            fi
+            # Retry deployment
+            flyctl deploy --app ${{ env.APP_NAME }} --regions ${{ env.US_REGION }} --remote-only
           }
 
       - name: 🌍 Deploy to EU region
@@ -74,11 +79,11 @@ jobs:
               flyctl machine clone $US_MACHINE --region ${{ env.EU_REGION }} --app ${{ env.APP_NAME }}
             else
               echo "No US machine found, deploying fresh to EU..."
-              flyctl deploy --app ${{ env.APP_NAME }} --region ${{ env.EU_REGION }} --remote-only
+              flyctl deploy --app ${{ env.APP_NAME }} --regions ${{ env.EU_REGION }} --remote-only
             fi
           else
             echo "EU machine exists, updating..."
-            flyctl deploy --app ${{ env.APP_NAME }} --region ${{ env.EU_REGION }} --remote-only
+            flyctl deploy --app ${{ env.APP_NAME }} --regions ${{ env.EU_REGION }} --remote-only
           fi
 
       - name: 🔍 Health check
