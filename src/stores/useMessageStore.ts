@@ -1,4 +1,5 @@
-import { create } from "zustand";
+// ✅ CRITICAL FIX: Import directly from zustand/react to avoid re-export issues
+import { create } from "zustand/react";
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";
