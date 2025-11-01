@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
+      dedupe: ['react-is'], // ✅ Fix Railway build: Ensure single react-is instance
     },
     optimizeDeps: {
       exclude: [
@@ -46,11 +47,7 @@ export default defineConfig(({ mode }) => {
         },
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
-        external: [],
-        // ✅ Fix Railway build: Explicitly resolve react-is
-        resolve: {
-          dedupe: ['react-is']
-        }
+        external: []
       }
     },
     server: {
