@@ -558,9 +558,7 @@ export class VADService implements IVADService {
 
     // ✅ FIX: Allow recording to restart even while Atlas is speaking (for interrupt detection)
     // This enables users to interrupt Atlas mid-sentence
-      // Allow recording while Atlas speaks for interrupt detection (silent operation)
-      // Only log if there's an actual issue
-    // Continue to restart logic below (don't return early)
+    // Silent operation - no logging for routine restart operations
 
     if (this.mediaRecorder.state === 'inactive') {
       if (!this.onIsActiveCheck?.()) {
