@@ -502,45 +502,8 @@ You are having a natural voice conversation. Respond as if you can hear them cle
   let fullText = '';
   let sentenceBuffer = ''; // Buffer to check complete sentences before sending
 
-  // 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
-  // 🎭 STAGE DIRECTION FILTER: Remove stage directions like "*speaks in a friendly voice*"
-  const filterResponse = (text) => {
-    // Case-insensitive replacements
-    let filtered = text;
-    
-    // ✅ CRITICAL FIX: Remove stage directions (text in asterisks OR square brackets)
-    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "[In a clear, conversational voice]", "*clears voice*", "*clears throat*"
-    // This prevents stage directions from appearing in transcripts or being spoken
-    filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
-    filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
-    filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces (but preserve single spaces)
-    
-    // Direct identity reveals
-    filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
-    filtered = filtered.replace(/I'm Claude/gi, "I'm Atlas");
-    filtered = filtered.replace(/called Claude/gi, "called Atlas");
-    filtered = filtered.replace(/named Claude/gi, "named Atlas");
-    
-    // Company mentions
-    filtered = filtered.replace(/created by Anthropic/gi, "built by the Atlas team");
-    filtered = filtered.replace(/made by Anthropic/gi, "built by the Atlas team");
-    filtered = filtered.replace(/Anthropic/gi, "the Atlas development team");
-    
-    // Model mentions
-    filtered = filtered.replace(/Claude Opus/gi, "Atlas Studio");
-    filtered = filtered.replace(/Claude Sonnet/gi, "Atlas Core");
-    filtered = filtered.replace(/Claude Haiku/gi, "Atlas Free");
-    
-    // Generic AI mentions that reveal architecture
-    filtered = filtered.replace(/as an AI assistant created by/gi, "as your AI companion built by");
-    filtered = filtered.replace(/I aim to be direct and honest in my responses\./gi, "I'm here to support your growth with honesty and care.");
-    
-    // ✅ CRITICAL: Only trim final result, not intermediate chunks
-    return filtered.trim();
-  };
-  
-  // Alias for backward compatibility
-  const filterBrandingLeaks = filterResponse; // Use shared filterResponse function
+  // Alias for backward compatibility (use top-level filterResponse)
+  const filterBrandingLeaks = filterResponse;
 
   try {
     while (true) {
