@@ -1069,8 +1069,14 @@ export class VoiceCallService {
     options: VoiceCallOptions
   ): Promise<void> {
     // ✅ CRITICAL FIX: Final mute check before processing (safety net)
-    if (this.isMuted) {
-      logger.debug('[VoiceCall] Skipping audio processing - microphone is muted');
+    // Check both service mute state AND MediaStreamTrack state for maximum reliability
+    const isMutedByService = this.isMuted;
+    const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
+      ? !this.stream.getAudioTracks()[0].enabled 
+      : false;
+    
+    if (isMutedByService || isMutedByTrack) {
+      logger.debug(`[VoiceCall] Skipping audio processing - microphone is muted (service: ${isMutedByService}, track: ${isMutedByTrack})`);
       return;
     }
     
