@@ -353,6 +353,19 @@ export class VADService implements IVADService {
     const checkVAD = () => {
       if (!this.onIsActiveCheck?.() || !this.analyser) return;
 
+      // ✅ FIX: Check if microphone track is enabled (respect mute button)
+      if (this.stream) {
+        const audioTracks = this.stream.getAudioTracks();
+        if (audioTracks.length > 0 && !audioTracks[0].enabled) {
+          // Track is muted - stop recording if active and skip VAD checks
+          if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+            logger.debug('[VAD] Microphone muted - stopping recording');
+            this.mediaRecorder.stop();
+          }
+          return; // Skip VAD checking when muted
+        }
+      }
+
       const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
 
       // ✅ FIX: Allow recording to continue for interrupt detection, but prevent stop-restart loop
