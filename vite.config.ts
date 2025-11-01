@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
-      dedupe: ['react-is'], // ✅ Fix Railway build: Ensure single react-is instance
+      dedupe: [
+        'react-is', // ✅ Fix Railway build: Ensure single react-is instance
+        'zustand' // ✅ Fix Railway build: Ensure single zustand instance
+      ],
     },
     optimizeDeps: {
       exclude: [
