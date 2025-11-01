@@ -2416,6 +2416,26 @@ app.post('/api/feature-attempts', async (req, res) => {
   }
 });
 
+// Debug endpoint to check what files Railway actually has
+app.get('/debug/dist-files', (req, res) => {
+  const distPath = path.join(__dirname, '..', 'dist');
+  const assetsPath = path.join(distPath, 'assets');
+  try {
+    const files = fs.readdirSync(assetsPath);
+    const indexFiles = files.filter(f => f.startsWith('index-') && f.endsWith('.js'));
+    res.json({
+      distPath,
+      assetsPath,
+      indexFiles,
+      buildTimestamp: fs.existsSync(path.join(distPath, '.build-timestamp'))
+        ? fs.readFileSync(path.join(distPath, '.build-timestamp'), 'utf8')
+        : 'not found'
+    });
+  } catch (err) {
+    res.json({ error: err.message, distPath, assetsPath: assetsPath });
+  }
+});
+
 // Serve built Vite frontend with cache-busting headers
 app.use(express.static(path.join(__dirname, '..', 'dist'), {
   maxAge: 0, // ✅ CRITICAL FIX: Prevent Railway from caching old bundles
