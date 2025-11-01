@@ -54,6 +54,11 @@ export default defineConfig(({ mode }) => {
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
         external: []
+      },
+      // ✅ CRITICAL FIX: Ensure zustand is properly resolved in production build
+      commonjsOptions: {
+        include: [/zustand/, /node_modules/],
+        transformMixedEsModules: true
       }
     },
     server: {
