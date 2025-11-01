@@ -47,9 +47,14 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          // 🔧 SIMPLIFIED: Use Vite's proven default chunking strategy
-          // This fixes atlasDB export issues and follows industry best practices
-          // Vite automatically handles optimal chunking for production builds
+          // ✅ CRITICAL FIX: Keep zustand in main bundle to preserve exports
+          manualChunks: (id) => {
+            // DON'T chunk zustand separately - keep it in main bundle for proper module resolution
+            // Put other node_modules in vendor chunk
+            if (id.includes('node_modules') && !id.includes('zustand')) {
+              return 'vendor';
+            }
+          },
         },
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
