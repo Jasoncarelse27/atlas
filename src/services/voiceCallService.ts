@@ -2045,6 +2045,7 @@ export class VoiceCallService {
                 for (let i = 0; i < parts.length - 1; i += 2) {
                   const sentence = (parts[i] || '') + (parts[i + 1] || '');
                   const cleanSentence = sentence
+                    .replace(/\*[^*]+\*/g, '') // ✅ FIX: Remove stage directions (e.g., "*speaks in a friendly voice*")
                     .replace(/\n+/g, ' ')
                     .replace(/\s+/g, ' ')
                     .trim();
@@ -2063,6 +2064,7 @@ export class VoiceCallService {
                 // This prevents long delays waiting for punctuation (ChatGPT does this)
                 if (currentSentence.length >= MAX_WAIT_LENGTH) {
                   const cleanSentence = currentSentence
+                    .replace(/\*[^*]+\*/g, '') // ✅ FIX: Remove stage directions (e.g., "*speaks in a friendly voice*")
                     .replace(/\n+/g, ' ')
                     .replace(/\s+/g, ' ')
                     .trim();
@@ -2087,6 +2089,7 @@ export class VoiceCallService {
     if (currentSentence.trim().length > 0) {
       // ✅ FIX: Clean final sentence - remove extra newlines and whitespace
       const cleanFinalSentence = currentSentence
+        .replace(/\*[^*]+\*/g, '') // ✅ FIX: Remove stage directions (e.g., "*speaks in a friendly voice*")
         .replace(/\n+/g, ' ') // Replace newlines with spaces
         .replace(/\s+/g, ' ') // Collapse multiple spaces
         .trim();

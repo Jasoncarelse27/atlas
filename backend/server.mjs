@@ -450,9 +450,17 @@ You are having a natural voice conversation. Respond as if you can hear them cle
   let sentenceBuffer = ''; // Buffer to check complete sentences before sending
 
   // 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
-  const filterBrandingLeaks = (text) => {
+  // 🎭 STAGE DIRECTION FILTER: Remove stage directions like "*speaks in a friendly voice*"
+  const filterResponse = (text) => {
     // Case-insensitive replacements
     let filtered = text;
+    
+    // ✅ CRITICAL FIX: Remove stage directions (text in asterisks)
+    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "*laughs*"
+    // This prevents stage directions from appearing in transcripts or being spoken
+    filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks
+    filtered = filtered.replace(/\s+/g, ' '); // Clean up extra spaces left behind
+    filtered = filtered.trim();
     
     // Direct identity reveals
     filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
@@ -476,6 +484,9 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     
     return filtered;
   };
+  
+  // Alias for backward compatibility
+  const filterBrandingLeaks = filterResponse;
 
   try {
     while (true) {
