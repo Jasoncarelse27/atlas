@@ -1866,11 +1866,11 @@ export class VoiceCallService {
       // (Played when Claude TTFB completes, not here)
       
       // 2. Claude Streaming with timeout
-      // ✅ FIX: 20s timeout for voice calls - buffer for mobile networks
+      // ✅ FIX: 25s timeout for voice calls - buffer for mobile + streaming processing
       // Voice calls need reasonable timeouts to avoid false failures
       const claudeStart = performance.now();
       const claudeController = new AbortController();
-      const claudeTimeout = this.createTimeout(() => claudeController.abort(), 20000); // ✅ FIX: 20s timeout (was 15s) - buffer for mobile networks
+      const claudeTimeout = this.createTimeout(() => claudeController.abort(), 25000); // ✅ FIX: 25s timeout (was 20s) - buffer for mobile + streaming processing
       
       // ✅ CRITICAL FIX: Ensure session is available for Claude API call
       if (!session) {
