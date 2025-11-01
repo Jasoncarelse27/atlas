@@ -57,8 +57,8 @@ export default defineConfig(({ mode }) => {
               return 'vendor';
             }
           },
-          // ✅ CRITICAL FIX: Preserve all exports (not just entry points)
-          preserveModules: false,
+          // ✅ CRITICAL FIX: Prevent Rollup from altering module signatures
+          preserveEntrySignatures: 'strict',
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
         },
