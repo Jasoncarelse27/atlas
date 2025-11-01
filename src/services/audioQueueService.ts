@@ -209,7 +209,7 @@ export class AudioQueueService {
       // ChatGPT starts speaking as soon as first TTS is ready
       // ✅ IMPROVEMENT: Longer timeout when resuming (TTS might still be generating)
       const isResuming = this.isInterrupted === false && this.currentIndex > 0; // Resuming if not interrupted but already started
-      const timeout = isResuming ? 10000 : 5000; // 10s when resuming, 5s for new playback
+      const timeout = isResuming ? 10000 : 15000; // ✅ FIX: 15s for new playback (was 5s) - buffer for mobile networks
       const startWait = Date.now();
       while (item.status !== 'ready' && item.status !== 'error') {
         if (Date.now() - startWait > timeout) {
