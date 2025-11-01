@@ -209,40 +209,59 @@ async function getUserMemory(userId) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [] }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false }) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error('Missing Anthropic API key');
   }
   
-  // Get user memory and personalize the prompt
-  const userMemory = await getUserMemory(userId);
+  // ✅ VOICE CALL FIX: For voice calls, use simple content without text-based instructions
+  let finalUserContent;
+  
+  if (is_voice_call) {
+    // For voice calls: Just use the user's message with memory context (no enhanced instructions)
+    const userMemory = await getUserMemory(userId);
+    if (userMemory.name || userMemory.context) {
+      let contextInfo = 'Context about the user:';
+      if (userMemory.name) {
+        contextInfo += ` The user's name is ${userMemory.name}.`;
+      }
+      if (userMemory.context) {
+        contextInfo += ` Additional context: ${userMemory.context}`;
+      }
+      finalUserContent = `${contextInfo}\n\nUser message: ${content}`;
+    } else {
+      finalUserContent = content;
+    }
+  } else {
+    // For text chat: Use full enhanced content with all instructions
+    const userMemory = await getUserMemory(userId);
     if (process.env.NODE_ENV === 'development') {
       logger.debug('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
     }
-  let personalizedContent = content;
-  
-  // Add memory context if available
-  if (userMemory.name || userMemory.context) {
-    let contextInfo = 'Context about the user:';
-    if (userMemory.name) {
-      contextInfo += ` The user's name is ${userMemory.name}.`;
+    let personalizedContent = content;
+    
+    // Add memory context if available
+    if (userMemory.name || userMemory.context) {
+      let contextInfo = 'Context about the user:';
+      if (userMemory.name) {
+        contextInfo += ` The user's name is ${userMemory.name}.`;
+      }
+      if (userMemory.context) {
+        contextInfo += ` Additional context: ${userMemory.context}`;
+      }
+      contextInfo += ' Use this information to provide personalized responses and acknowledge that you remember the user.';
+      personalizedContent = `${contextInfo}\n\nUser message: ${content}`;
+      if (process.env.NODE_ENV === 'development') {
+        logger.debug('🧠 [Memory] Personalized content:', personalizedContent.substring(0, 200) + '...');
+      }
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        logger.debug('🧠 [Memory] No user memory found for userId:', userId);
+      }
     }
-    if (userMemory.context) {
-      contextInfo += ` Additional context: ${userMemory.context}`;
-    }
-    contextInfo += ' Use this information to provide personalized responses and acknowledge that you remember the user.';
-    personalizedContent = `${contextInfo}\n\nUser message: ${content}`;
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('🧠 [Memory] Personalized content:', personalizedContent.substring(0, 200) + '...');
-    }
-  } else {
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug('🧠 [Memory] No user memory found for userId:', userId);
-    }
-  }
 
-  // Add comprehensive Atlas system prompt with enhanced emotional intelligence
-  const enhancedContent = personalizedContent + `\n\n🎯 SYSTEM ROLE SPECIFICATION - MANDATORY COMPLIANCE:
+    // Add comprehensive Atlas system prompt with enhanced emotional intelligence
+    finalUserContent = personalizedContent + `\n\n🎯 SYSTEM ROLE SPECIFICATION - MANDATORY COMPLIANCE:
 
 You are operating as "Atlas" - a branded AI assistant product. This is your designated role within this application.
 
@@ -371,6 +390,7 @@ User: "I can help with that! Here are three paths forward:
 What feels right to you? ✨"
 
 Remember: You're not just an AI assistant - you're Atlas, an emotionally intelligent companion who understands context, remembers interactions, and responds with genuine care and insight.`;
+  }
 
   // 🧠 MEMORY 100%: Build messages array with conversation history
   const messages = [];
@@ -382,7 +402,10 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
   }
   
   // Add current user message
-  messages.push({ role: 'user', content: enhancedContent });
+  messages.push({ role: 'user', content: finalUserContent });
+
+  // ✅ VOICE CALL FIX: Simple, direct system prompt
+  const systemPrompt = is_voice_call ? `You are Atlas in a VOICE CALL. The user is speaking to you out loud. You CAN hear them speaking. NEVER say you can't hear, can't hear audio, don't have ears, or only read text. You are having a real-time voice conversation. Keep responses brief (1-2 sentences).` : undefined;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -393,9 +416,10 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
       'Accept': 'text/event-stream'
     },
     body: JSON.stringify({
-      model,
-      max_tokens: 2000,
+      model: is_voice_call ? 'claude-3-haiku-20240307' : model, // ✅ Use fast Haiku for voice calls
+      max_tokens: is_voice_call ? 300 : 2000, // ✅ Shorter responses for voice
       stream: true,
+      ...(systemPrompt && { system: systemPrompt }), // ✅ Add system prompt for voice calls
       messages: messages
     })
   });
@@ -1198,11 +1222,11 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         // 🎯 Real AI Model Logic - Use Claude based on tier
         logger.debug(`🔍 ROUTE CHECK: provider=${routedProvider}, hasKey=${!!ANTHROPIC_API_KEY}, model=${selectedModel}`);
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
           logger.debug('✅ Claude streaming completed, final text length:', finalText.length);
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
           logger.debug('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
           // Fallback mock streaming for mobile

@@ -94,6 +94,22 @@ export class VoiceCallService {
   private readonly MIN_RECORDING_DURATION = 150; // ✅ FIX: Minimum 150ms recording before processing (allows chunks to collect)
   private isProcessing: boolean = false; // ✅ CRITICAL: Prevent concurrent processing (fixes double voice issue)
   
+  // ✅ POLISH #5: Interrupt detection debounce
+  private interruptDebounceTimer: NodeJS.Timeout | null = null;
+  private readonly INTERRUPT_DEBOUNCE_MS = 50; // 50ms debounce to prevent false interrupts
+  
+  // ✅ POLISH #3: Call quality metrics tracking
+  private callMetrics = {
+    callDuration: 0,
+    interruptionCount: 0,
+    muteToggleCount: 0,
+    errors: 0,
+    sttLatencies: [] as number[],
+    claudeLatencies: [] as number[],
+    avgAudioLevel: 0,
+    audioLevelSamples: [] as number[]
+  };
+  
   // 🎯 SMART ADAPTIVE THRESHOLD
   private baselineNoiseLevel: number = 0;
   private adaptiveThreshold: number = 0.02; // Starts at 2%, adjusts based on environment
@@ -152,6 +168,18 @@ export class VoiceCallService {
     this.isActive = true;
     this.callStartTime = new Date();
     this.currentOptions = options;
+    
+    // ✅ POLISH #1: Restore mute preference from localStorage
+    try {
+      const savedMuteState = localStorage.getItem('atlas_voice_mute_preference');
+      if (savedMuteState === 'true') {
+        this.toggleMute(true);
+        logger.debug('[VoiceCall] 🔇 Restored mute preference from previous call');
+      }
+    } catch (error) {
+      // Silently fail if localStorage unavailable
+      logger.debug('[VoiceCall] Could not restore mute preference:', error);
+    }
     
     // ✅ IMPROVEMENT: Start network quality monitoring
     if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE')) {
@@ -229,10 +257,26 @@ export class VoiceCallService {
           },
           onGetIsMutedCheck: () => this.isMuted, // ✅ FIX: Pass mute state to VADService
           onStatusChange: options.onStatusChange,
+          onAudioLevel: (level: number) => {
+            // ✅ POLISH #3: Track audio level samples (sample every 10th reading to avoid too much data)
+            if (this.callMetrics.audioLevelSamples.length < 1000) { // Limit to 1000 samples
+              this.callMetrics.audioLevelSamples.push(level);
+            }
+            // Pass to original callback
+            options.onAudioLevel?.(level);
+          },
           onRecordingStopped: async (audioBlob: Blob, mimeType: string) => {
             this.recordingMimeType = mimeType;
             await this.processVoiceChunk(audioBlob, options);
           },
+        });
+        
+        // ✅ POLISH #7: Set network quality callback for adaptive buffer size
+        this.vadService.setNetworkQualityCallback(() => {
+          if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE') && this.networkMonitoringService) {
+            return this.networkMonitoringService.getQuality();
+          }
+          return this.networkQuality;
         });
       }
       
@@ -262,6 +306,18 @@ export class VoiceCallService {
       // Toggle if no desired state provided
       this.isMuted = !this.isMuted;
     }
+    
+    // ✅ POLISH #1: Persist mute preference to localStorage
+    try {
+      localStorage.setItem('atlas_voice_mute_preference', String(this.isMuted));
+    } catch (error) {
+      // Silently fail if localStorage unavailable (e.g., private browsing)
+      logger.debug('[VoiceCall] Could not persist mute preference:', error);
+    }
+    
+    // ✅ POLISH #3: Track mute toggle
+    this.callMetrics.muteToggleCount++;
+    
     logger.debug(`[VoiceCall] Mute toggled: ${this.isMuted ? 'muted' : 'unmuted'}`);
     return this.isMuted;
   }
@@ -283,6 +339,12 @@ export class VoiceCallService {
     // ✅ CRITICAL FIX: Clear ALL pending timeouts immediately
     this.pendingTimeouts.forEach(timeout => clearTimeout(timeout));
     this.pendingTimeouts.clear();
+    
+    // ✅ POLISH #5: Clear interrupt debounce timer
+    if (this.interruptDebounceTimer) {
+      clearTimeout(this.interruptDebounceTimer);
+      this.interruptDebounceTimer = null;
+    }
     
     // ✅ IMPROVEMENT: Stop network monitoring
     if (isFeatureEnabled('USE_NETWORK_MONITORING_SERVICE') && this.networkMonitoringService) {
@@ -381,10 +443,58 @@ export class VoiceCallService {
     if (this.callStartTime) {
       const duration = (Date.now() - this.callStartTime.getTime()) / 1000;
       await this.trackCallMetering(userId, duration);
+      
+      // ✅ POLISH #3: Calculate and send call quality metrics
+      this.callMetrics.callDuration = duration;
+      
+      // Calculate average latencies
+      const avgSTTLatency = this.callMetrics.sttLatencies.length > 0
+        ? this.callMetrics.sttLatencies.reduce((a, b) => a + b, 0) / this.callMetrics.sttLatencies.length
+        : 0;
+      const avgClaudeLatency = this.callMetrics.claudeLatencies.length > 0
+        ? this.callMetrics.claudeLatencies.reduce((a, b) => a + b, 0) / this.callMetrics.claudeLatencies.length
+        : 0;
+      const avgLatency = avgSTTLatency + avgClaudeLatency;
+      
+      // Calculate average audio level
+      const avgAudioLevel = this.callMetrics.audioLevelSamples.length > 0
+        ? this.callMetrics.audioLevelSamples.reduce((a, b) => a + b, 0) / this.callMetrics.audioLevelSamples.length
+        : 0;
+      
+      // Send to analytics
+      const { analytics } = await import('../lib/analytics');
+      analytics.track({
+        name: 'voice_call_quality',
+        properties: {
+          callDuration: duration,
+          averageLatency: avgLatency,
+          avgSTTLatency,
+          avgClaudeLatency,
+          interruptionCount: this.callMetrics.interruptionCount,
+          muteToggleCount: this.callMetrics.muteToggleCount,
+          errors: this.callMetrics.errors,
+          avgAudioLevel,
+          userId
+        }
+      });
+      
+      logger.info(`[VoiceCall] 📊 Call metrics: ${duration.toFixed(1)}s, ${avgLatency.toFixed(0)}ms avg latency, ${this.callMetrics.interruptionCount} interrupts`);
     }
     
     // Clear conversation buffer
     conversationBuffer.clear();
+    
+    // ✅ POLISH #3: Reset metrics for next call
+    this.callMetrics = {
+      callDuration: 0,
+      interruptionCount: 0,
+      muteToggleCount: 0,
+      errors: 0,
+      sttLatencies: [],
+      claudeLatencies: [],
+      avgAudioLevel: 0,
+      audioLevelSamples: []
+    };
     
     // Clear all timeouts
     if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
@@ -828,38 +938,49 @@ export class VoiceCallService {
             const isPlaying = audioQueueService.getIsPlaying();
             
             if (isPlaying && isLoudEnoughToInterrupt) {
-              // ✅ PHASE 2: Natural conversation overlap tolerance
-              if (!this.hasInterrupted) {
-                // First detection - start overlap tolerance window
-                if (!this.interruptStartTime) {
-                  this.interruptStartTime = now;
-                  logger.debug(`[VoiceCall] 🔄 Overlap tolerance started (${this.OVERLAP_TOLERANCE}ms window)`);
-                } else {
-                  // Check if overlap tolerance window has passed
-                  const overlapDuration = now - this.interruptStartTime;
-                  if (overlapDuration >= this.OVERLAP_TOLERANCE) {
-                    // ✅ PHASE 2: Overlap tolerance passed - interrupt now (natural conversation flow)
-                    logger.info(`[VoiceCall] 🛑 User interrupting Atlas after ${overlapDuration.toFixed(0)}ms overlap (level: ${(audioLevel * 100).toFixed(1)}% > ${(interruptThreshold * 100).toFixed(1)}%)`);
-                    audioQueueService.interrupt(); // Pause queue playback (allows resume)
-                    this.hasInterrupted = true;
-                    this.interruptTime = now;
-                    this.lastSpeechTime = null;
-                    this.silenceStartTime = null;
-                    logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
-                    this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
-                    // Keep interruptStartTime for yield tracking
+              // ✅ POLISH #5: Debounce interrupt detection (50ms) to prevent false interrupts
+              if (this.interruptDebounceTimer) {
+                clearTimeout(this.interruptDebounceTimer);
+              }
+              
+              this.interruptDebounceTimer = setTimeout(() => {
+                // ✅ PHASE 2: Natural conversation overlap tolerance
+                if (!this.hasInterrupted) {
+                  // First detection - start overlap tolerance window
+                  if (!this.interruptStartTime) {
+                    this.interruptStartTime = Date.now();
+                    logger.debug(`[VoiceCall] 🔄 Overlap tolerance started (${this.OVERLAP_TOLERANCE}ms window)`);
+                  } else {
+                    // Check if overlap tolerance window has passed
+                    const overlapDuration = Date.now() - this.interruptStartTime;
+                    if (overlapDuration >= this.OVERLAP_TOLERANCE) {
+                      // ✅ PHASE 2: Overlap tolerance passed - interrupt now (natural conversation flow)
+                      logger.info(`[VoiceCall] 🛑 User interrupting Atlas after ${overlapDuration.toFixed(0)}ms overlap (level: ${(audioLevel * 100).toFixed(1)}% > ${(interruptThreshold * 100).toFixed(1)}%)`);
+                      audioQueueService.interrupt(); // Pause queue playback (allows resume)
+                      this.hasInterrupted = true;
+                      this.interruptTime = Date.now();
+                      
+                      // ✅ POLISH #3: Track interruption
+                      this.callMetrics.interruptionCount++;
+                      this.lastSpeechTime = null;
+                      this.silenceStartTime = null;
+                      logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
+                      this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
+                      // Keep interruptStartTime for yield tracking
+                    }
+                  }
+                } else if (this.hasInterrupted && this.interruptStartTime) {
+                  // Already interrupted - check if we should yield (user speaking for >500ms)
+                  const interruptDuration = Date.now() - this.interruptStartTime;
+                  if (interruptDuration >= this.YIELD_THRESHOLD && !this.resumeAttempted) {
+                    // ✅ PHASE 2: User has been speaking for 500ms - yield turn (don't resume)
+                    logger.info(`[VoiceCall] 🛑 User yield threshold reached (${interruptDuration.toFixed(0)}ms) - yielding turn`);
+                    this.resumeAttempted = true; // Prevent resume - user owns the turn
+                    this.interruptStartTime = null; // Reset for next interrupt
                   }
                 }
-              } else if (this.hasInterrupted && this.interruptStartTime) {
-                // Already interrupted - check if we should yield (user speaking for >500ms)
-                const interruptDuration = now - this.interruptStartTime;
-                if (interruptDuration >= this.YIELD_THRESHOLD && !this.resumeAttempted) {
-                  // ✅ PHASE 2: User has been speaking for 500ms - yield turn (don't resume)
-                  logger.info(`[VoiceCall] 🛑 User yield threshold reached (${interruptDuration.toFixed(0)}ms) - yielding turn`);
-                  this.resumeAttempted = true; // Prevent resume - user owns the turn
-                  this.interruptStartTime = null; // Reset for next interrupt
-                }
-              }
+                this.interruptDebounceTimer = null;
+              }, this.INTERRUPT_DEBOUNCE_MS);
           }
         } else if (
           !isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && 
@@ -868,16 +989,27 @@ export class VoiceCallService {
           !this.hasInterrupted && 
           isLoudEnoughToInterrupt
         ) {
-            // User interrupted! Pause Atlas immediately (don't reset currentTime - allows resume)
-          this.currentAudio.pause();
-            // ✅ FIX: Don't reset currentTime - allows resume from same position
-          this.hasInterrupted = true;
-            this.interruptTime = now; // ✅ FIX: Track when interrupt happened
-            this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
-            // ✅ FIX: Reset speech tracking on interrupt - don't process interrupt speech
-            this.lastSpeechTime = null; // Clear any speech during interrupt
-            this.silenceStartTime = null; // Reset silence tracking
-            logger.info(`[VoiceCall] 🛑 User interrupted - pausing playback (can resume) - interruptTime: ${this.interruptTime}`);
+            // ✅ POLISH #5: Debounce interrupt for legacy mode too
+            if (this.interruptDebounceTimer) {
+              clearTimeout(this.interruptDebounceTimer);
+            }
+            
+            this.interruptDebounceTimer = setTimeout(() => {
+              // User interrupted! Pause Atlas immediately (don't reset currentTime - allows resume)
+              this.currentAudio?.pause();
+              // ✅ FIX: Don't reset currentTime - allows resume from same position
+              this.hasInterrupted = true;
+              
+              // ✅ POLISH #3: Track interruption (legacy mode)
+              this.callMetrics.interruptionCount++;
+              
+              this.interruptTime = Date.now();
+              this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
+              // ✅ FIX: Reset speech tracking on interrupt - don't process interrupt speech
+              this.lastSpeechTime = null; // Clear any speech during interrupt
+              this.silenceStartTime = null; // Reset silence tracking
+              this.interruptDebounceTimer = null;
+            }, this.INTERRUPT_DEBOUNCE_MS);
         }
         options.onStatusChange?.('listening');
       } else {
@@ -1144,22 +1276,28 @@ export class VoiceCallService {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
       const transcript = await this.retryWithBackoff(async () => {
-        const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
-        });
-        
-        if (!sttResponse.ok) {
-          const error = await sttResponse.json().catch(() => ({}));
-          throw new Error(`STT failed: ${error.error || sttResponse.statusText}`);
+        try {
+          const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
+          });
+          
+          if (!sttResponse.ok) {
+            const error = await sttResponse.json().catch(() => ({}));
+            throw new Error(`STT failed: ${error.error || sttResponse.statusText}`);
+          }
+          
+          const sttResult = await sttResponse.json();
+          return sttResult.text;
+        } catch (error) {
+          // ✅ POLISH #3: Track errors
+          this.callMetrics.errors++;
+          throw error;
         }
-        
-        const sttResult = await sttResponse.json();
-        return sttResult.text;
       }, 'Speech Recognition');
       
       if (!transcript || transcript.trim().length === 0) {
@@ -1315,6 +1453,10 @@ export class VoiceCallService {
       
     } catch (error) {
       logger.error('[VoiceCall] Chunk processing error:', error);
+      
+      // ✅ POLISH #3: Track errors
+      this.callMetrics.errors++;
+      
       // ✅ FIX: Cleanup global state on error
       if (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService) {
         this.audioPlaybackService.stop();
@@ -1463,6 +1605,9 @@ export class VoiceCallService {
           
           return text;
         } catch (error) {
+          // ✅ POLISH #3: Track errors
+          this.callMetrics.errors++;
+          
           if (isFeatureEnabled('USE_TIMEOUT_MANAGEMENT_SERVICE') && this.timeoutManagementService) {
             this.timeoutManagementService.clearTimeout(timeoutTimeout);
           } else {
@@ -1480,6 +1625,11 @@ export class VoiceCallService {
       // Continue processing with valid transcript below
       
     } catch (error: any) {
+      // ✅ POLISH #3: Track errors (if not already tracked above)
+      if (!error.message?.includes('confidence too low')) {
+        this.callMetrics.errors++;
+      }
+      
       // ✅ CRITICAL FIX: For 0.0% confidence, check resume logic BEFORE failing fast
       // If Atlas was interrupted and audio was rejected, resume Atlas instead of failing
       if (error.message?.includes('confidence too low') && 
@@ -1642,7 +1792,11 @@ export class VoiceCallService {
     
     // ✅ CRITICAL: If we got here, transcript is valid (confidence >= 0.2)
     // This code runs whether transcript came from first attempt or retry
-      logger.info(`[VoiceCall] ⏱️ STT: ${(performance.now() - sttStart).toFixed(0)}ms`);
+      const sttLatency = performance.now() - sttStart;
+      logger.info(`[VoiceCall] ⏱️ STT: ${sttLatency.toFixed(0)}ms`);
+      
+      // ✅ POLISH #3: Track STT latency
+      this.callMetrics.sttLatencies.push(sttLatency);
       logger.info('[VoiceCall] 👤 User:', transcript);
     
       // ✅ FIX: Reject very short transcripts (< 2 chars) - likely noise
@@ -1711,6 +1865,10 @@ export class VoiceCallService {
         this.clearTrackedTimeout(claudeTimeout);
       } catch (error) {
         this.clearTrackedTimeout(claudeTimeout);
+        
+        // ✅ POLISH #3: Track errors
+        this.callMetrics.errors++;
+        
         if (error.name === 'AbortError') {
           logger.error('[VoiceCall] Claude timeout - took too long to respond');
           options.onError(new Error('Atlas took too long to respond. Please try again.'));
@@ -1722,6 +1880,9 @@ export class VoiceCallService {
       }
       
       if (!response.ok) {
+        // ✅ POLISH #3: Track errors
+        this.callMetrics.errors++;
+        
         logger.error(`[VoiceCall] Claude streaming failed: ${response.statusText}`);
         options.onError(new Error(`Claude streaming failed: ${response.statusText}`));
         return;
@@ -1729,6 +1890,9 @@ export class VoiceCallService {
       
       const claudeConnectTime = performance.now() - claudeStart;
       logger.info(`[VoiceCall] ⏱️ Claude connect (TTFB): ${claudeConnectTime.toFixed(0)}ms`);
+      
+      // ✅ POLISH #3: Track Claude TTFB latency
+      this.callMetrics.claudeLatencies.push(claudeConnectTime);
       
       // ✅ PHASE 2: Play acknowledgment sound when Claude starts thinking (TTFB)
       // This gives immediate feedback that Atlas is processing

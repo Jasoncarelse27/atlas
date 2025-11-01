@@ -20,6 +20,9 @@ import type {
 export class VADService implements IVADService {
   // Audio context and nodes
   private audioContext: AudioContext | null = null;
+  
+  // ✅ POLISH #6: Shared AudioContext for reuse across calls
+  private static sharedAudioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private microphone: MediaStreamAudioSourceNode | null = null;
   private vadCheckInterval: NodeJS.Timeout | null = null;
@@ -38,6 +41,17 @@ export class VADService implements IVADService {
   private baselineNoiseLevel: number = 0;
   private adaptiveThreshold: number = 0.02;
   private isCalibrated: boolean = false;
+  
+  // ✅ POLISH #4: Adaptive threshold recalibration
+  private lastCalibrationTime: number = 0;
+  private readonly RECALIBRATION_INTERVAL = 30000; // 30 seconds
+  
+  // ✅ POLISH #2: Audio level smoothing for smoother visualization
+  private smoothedAudioLevel: number = 0;
+  private readonly SMOOTHING_FACTOR = 0.7; // 70% old, 30% new (exponential moving average)
+  
+  // ✅ POLISH #7: Network quality callback for adaptive buffer size
+  private networkQualityCallback?: () => 'excellent' | 'good' | 'poor' | 'offline';
 
   // Configuration
   private config: VADServiceConfig;
@@ -118,6 +132,28 @@ export class VADService implements IVADService {
     this.onStatusChange = callbacks.onStatusChange;
     this.onRecordingStopped = callbacks.onRecordingStopped;
   }
+  
+  /**
+   * ✅ POLISH #7: Set network quality callback for adaptive buffer size
+   */
+  setNetworkQualityCallback(callback: () => 'excellent' | 'good' | 'poor' | 'offline'): void {
+    this.networkQualityCallback = callback;
+  }
+  
+  /**
+   * ✅ POLISH #7: Get optimal chunk size based on network quality
+   */
+  private getOptimalChunkSize(): number {
+    const networkQuality = this.networkQualityCallback?.() ?? 'good';
+    
+    switch (networkQuality) {
+      case 'excellent': return 50;  // Lower latency (50ms chunks)
+      case 'good': return 100;      // Balanced (100ms chunks - current default)
+      case 'poor': return 200;      // More reliable (200ms chunks)
+      case 'offline': return 200;   // Maximum reliability
+      default: return 100;
+    }
+  }
 
   private onRecordingStopped?: (audioBlob: Blob, mimeType: string) => Promise<void>;
 
@@ -133,8 +169,22 @@ export class VADService implements IVADService {
       const stream = await getSafeUserMedia({ audio: true });
       this.stream = stream;
 
-      // Setup Web Audio API for VAD
-      this.audioContext = new AudioContext();
+      // ✅ POLISH #6: Reuse AudioContext across calls (with state checks)
+      if (VADService.sharedAudioContext && 
+          VADService.sharedAudioContext.state !== 'closed') {
+        this.audioContext = VADService.sharedAudioContext;
+        // Resume if suspended
+        if (this.audioContext.state === 'suspended') {
+          logger.info('[VAD] 🔄 Resuming suspended shared audio context...');
+          await this.audioContext.resume();
+        }
+        logger.debug(`[VAD] ✅ Reusing shared AudioContext (state: ${this.audioContext.state})`);
+      } else {
+        // Create new AudioContext if none exists or previous was closed
+        this.audioContext = new AudioContext();
+        VADService.sharedAudioContext = this.audioContext;
+        logger.debug(`[VAD] ✅ Created new shared AudioContext (state: ${this.audioContext.state})`);
+      }
 
       // Resume audio context if suspended
       if (this.audioContext.state === 'suspended') {
@@ -216,6 +266,7 @@ export class VADService implements IVADService {
 
       // Calibrate ambient noise
       await this.calibrate();
+      this.lastCalibrationTime = Date.now(); // ✅ POLISH #4: Track initial calibration time
 
       // Create MediaRecorder
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
@@ -224,6 +275,9 @@ export class VADService implements IVADService {
         ? 'audio/webm'
         : 'audio/ogg;codecs=opus';
 
+      // ✅ POLISH #7: Adaptive chunk size based on network quality (default to 100ms)
+      const chunkSize = this.getOptimalChunkSize();
+      
       this.mediaRecorder = new MediaRecorder(stream, {
         mimeType,
         audioBitsPerSecond: 128000
@@ -320,9 +374,9 @@ export class VADService implements IVADService {
       // Start monitoring
       this.startMonitoring({ onAudioLevel: options.onAudioLevel });
 
-      // Start recording
-      this.mediaRecorder.start(100);
-      logger.debug('[VAD] 🎙️ Recording started, waiting for speech...');
+      // Start recording with adaptive chunk size (reuse chunkSize from line 279)
+      this.mediaRecorder.start(chunkSize);
+      logger.debug(`[VAD] 🎙️ Recording started with ${chunkSize}ms chunks, waiting for speech...`);
 
     } catch (error) {
       logger.error('[VAD] Recording setup failed:', error);
@@ -381,6 +435,16 @@ export class VADService implements IVADService {
     const checkVAD = () => {
       if (!this.onIsActiveCheck?.() || !this.analyser) return;
 
+      // ✅ POLISH #4: Periodic recalibration (every 30 seconds)
+      const now = Date.now();
+      if (now - this.lastCalibrationTime > this.RECALIBRATION_INTERVAL) {
+        logger.debug('[VAD] 🔧 Periodic recalibration...');
+        this.calibrate().catch(error => {
+          logger.warn('[VAD] Recalibration failed:', error);
+        });
+        this.lastCalibrationTime = now;
+      }
+
       // ✅ CRITICAL FIX: Check if microphone is muted (from UI mute button)
       // Check both UI mute state (via callback) and VADService's own stream track
       // This MUST be checked FIRST before any audio processing
@@ -397,7 +461,9 @@ export class VADService implements IVADService {
         if (!isAtlasSpeaking) {
           logger.debug('[VAD] 🎤 Microphone unmuted - restarting recording');
           try {
-            this.mediaRecorder.start(100);
+            const chunkSize = this.getOptimalChunkSize();
+            this.mediaRecorder.start(chunkSize);
+            logger.debug(`[VAD] Using ${chunkSize}ms chunks (network: ${this.networkQualityCallback?.() ?? 'good'})`);
             this.recordingStartTime = Date.now();
             this.silenceStartTime = null;
             this.lastSpeechTime = null;
@@ -465,8 +531,14 @@ export class VADService implements IVADService {
         const rms = Math.sqrt(sum / dataArray.length);
         const audioLevel = Math.min(rms, 1.0);
         this.currentAudioLevel = audioLevel;
+        
+        // ✅ POLISH #2: Apply exponential moving average for smoother visualization
+        this.smoothedAudioLevel = 
+          this.SMOOTHING_FACTOR * this.smoothedAudioLevel + 
+          (1 - this.SMOOTHING_FACTOR) * audioLevel;
 
-        callbacks.onAudioLevel?.(audioLevel);
+        // Pass smoothed value to UI for better visualization
+        callbacks.onAudioLevel?.(this.smoothedAudioLevel);
 
         const now = Date.now();
         const threshold = this.isCalibrated ? this.adaptiveThreshold : 0.015;
@@ -628,7 +700,8 @@ export class VADService implements IVADService {
       this.recordingStartTime = Date.now();
 
       try {
-        this.mediaRecorder.start(100);
+        const chunkSize = this.getOptimalChunkSize();
+        this.mediaRecorder.start(chunkSize);
         // Silent restart (reduces log noise)
       } catch (error) {
         logger.error('[VAD] Error starting mediaRecorder:', error);
@@ -657,6 +730,7 @@ export class VADService implements IVADService {
     this.interruptRestartScheduled = false;
     this.lastInterruptRestartTime = 0;
     this.wasMuted = false; // ✅ Reset mute tracking
+    this.smoothedAudioLevel = 0; // ✅ POLISH #2: Reset smoothed audio level
 
     if (this.stream) {
       this.stream.getTracks().forEach(track => {
@@ -684,7 +758,14 @@ export class VADService implements IVADService {
       this.analyser = null;
     }
 
-    if (this.audioContext && this.audioContext.state !== 'closed') {
+    // ✅ POLISH #6: Don't close shared AudioContext - let it be reused
+    // Only nullify our reference, don't close the shared context
+    if (this.audioContext && this.audioContext === VADService.sharedAudioContext) {
+      // This is the shared context - don't close it, just nullify our reference
+      logger.debug('[VAD] Keeping shared AudioContext alive for reuse');
+      this.audioContext = null;
+    } else if (this.audioContext && this.audioContext.state !== 'closed') {
+      // This is a non-shared context - close it
       try {
         await this.audioContext.close();
       } catch (error) {
