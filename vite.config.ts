@@ -60,6 +60,17 @@ export default defineConfig(({ mode }) => {
         // Ensure react-is is bundled, not externalized
         external: []
       },
+      // ✅ CRITICAL FIX: Mark zustand as having side effects to prevent tree-shaking
+      // This ensures 'create' export is preserved through re-export chains
+      treeshake: {
+        moduleSideEffects: (id) => {
+          // Prevent tree-shaking of zustand to preserve all exports
+          if (id.includes('zustand')) {
+            return true;
+          }
+          return false;
+        }
+      },
       // ✅ CRITICAL FIX: Ensure zustand is properly resolved in production build
       commonjsOptions: {
         include: [/zustand/, /node_modules/],
