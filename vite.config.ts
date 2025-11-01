@@ -18,6 +18,8 @@ export default defineConfig(({ mode }) => {
         'react-is', // ✅ Fix Railway build: Ensure single react-is instance
         'zustand' // ✅ Fix Railway build: Ensure single zustand instance
       ],
+      // ✅ CRITICAL FIX: Force ESM resolution for zustand
+      conditions: ['import', 'module', 'default'],
     },
     optimizeDeps: {
       exclude: [
@@ -46,9 +48,6 @@ export default defineConfig(({ mode }) => {
         }
       },
       rollupOptions: {
-        // ✅ CRITICAL FIX: Preserve entry signatures to maintain named exports
-        // This ensures zustand's 'create' export is preserved through re-export chains
-        preserveEntrySignatures: 'exports-only',
         output: {
           // ✅ CRITICAL FIX: Keep zustand in main bundle to preserve exports
           manualChunks: (id) => {
@@ -58,6 +57,10 @@ export default defineConfig(({ mode }) => {
               return 'vendor';
             }
           },
+          // ✅ CRITICAL FIX: Preserve all exports (not just entry points)
+          preserveModules: false,
+          // ✅ CRITICAL FIX: Ensure exports are preserved
+          exports: 'named',
         },
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
