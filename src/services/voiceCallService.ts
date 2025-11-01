@@ -784,8 +784,8 @@ export class VoiceCallService {
         this.lastSpeechTime = now;
         
         // 🛑 INSTANT INTERRUPT: User speaks = Atlas stops immediately
-        // ✅ CRITICAL FIX: Require 3x threshold for interrupts to prevent false triggers
-        const interruptThreshold = threshold * 3.0; // Much stricter for interrupts
+        // ✅ OPTIMIZED: Balanced threshold (2.0x) - prevents false triggers while maintaining fast response
+        const interruptThreshold = threshold * 2.0; // Balanced: prevents false triggers, fast response
         const isLoudEnoughToInterrupt = audioLevel > interruptThreshold;
         
         if (isFeatureEnabled('VOICE_STREAMING')) {
