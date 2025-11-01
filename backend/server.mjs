@@ -2398,9 +2398,17 @@ if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     console.log(`🚀 Server started on port ${PORT}`);
   });
 } else {
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     logger.info(`✅ Atlas backend (HTTP) running on port ${PORT}`);
     logger.info(`   Healthcheck: http://0.0.0.0:${PORT}/healthz`);
     console.log(`🚀 Server started on port ${PORT}`);
+    console.log(`✅ Healthcheck available at http://0.0.0.0:${PORT}/healthz`);
+  });
+  
+  // Handle server errors
+  server.on('error', (err) => {
+    logger.error(`❌ Server error:`, err);
+    console.error(`❌ Server failed to start:`, err.message);
+    process.exit(1);
   });
 }
