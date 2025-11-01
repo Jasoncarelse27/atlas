@@ -556,16 +556,16 @@ export class VADService implements IVADService {
           
           if (isFeatureEnabled('VOICE_STREAMING')) {
             isPlaying = audioQueueService.getIsPlaying();
-            // ✅ CRITICAL: Use 8.0x multiplier when Atlas is playing (prevents TTS feedback)
+            // ✅ CRITICAL: Use 10.0x multiplier when Atlas is playing (prevents TTS feedback)
             // Atlas TTS produces ~8-9% audio levels, so need threshold > 9%
             interruptThreshold = isPlaying 
-              ? threshold * 8.0  // ✅ Much higher threshold when Atlas speaks (prevents TTS feedback)
+              ? threshold * 10.0  // ✅ Increased from 8.0x to 10.0x (prevents false interrupts from TTS feedback)
               : threshold * 2.0; // Normal threshold when Atlas is silent
           } else {
             // Legacy mode - use callback
             const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
             interruptThreshold = isAtlasSpeaking 
-              ? threshold * 8.0  // ✅ Much higher threshold when Atlas speaks
+              ? threshold * 10.0  // ✅ Increased from 8.0x to 10.0x (prevents false interrupts)
               : threshold * 2.0; // Normal threshold when Atlas is silent
           }
           
@@ -607,7 +607,7 @@ export class VADService implements IVADService {
               this.onSetLastResumeCheckTime?.(now);
               const timeSinceInterrupt = now - (this.onInterruptTimeGet() ?? 0);
 
-              if (silenceDuration >= 1000 && timeSinceInterrupt < 10000) {
+              if (silenceDuration >= 2000 && timeSinceInterrupt < 10000) { // ✅ FIX: 2s silence before resume (was 1s) - prevent rapid interrupt/resume loop
                 logger.info(`[VAD] ▶️ User stopped speaking after interrupt - resuming Atlas`);
                 this.onSetResumeAttempted?.(true);
                 audioQueueService.resume();
