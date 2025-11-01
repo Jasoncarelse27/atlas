@@ -19,6 +19,7 @@ export interface VADServiceConfig {
   minSpeechDuration: number; // Default: 300ms
   minRecordingDuration: number; // Default: 150ms
   resumeCheckInterval: number; // Default: 300ms
+  minProcessInterval: number; // Default: 500ms - ChatGPT-like responsiveness
 }
 
 export interface VADServiceCallbacks {

@@ -85,6 +85,7 @@ export class VADService implements IVADService {
       minSpeechDuration: config.minSpeechDuration ?? 300,
       minRecordingDuration: config.minRecordingDuration ?? 150,
       resumeCheckInterval: config.resumeCheckInterval ?? 300,
+      minProcessInterval: config.minProcessInterval ?? 500, // ✅ ChatGPT-like: 0.5s cooldown (was 3s)
     };
   }
 
@@ -634,7 +635,7 @@ export class VADService implements IVADService {
             recordingDuration >= this.config.minRecordingDuration &&
             silenceDuration >= this.config.silenceDuration &&
             speechDuration >= this.config.minSpeechDuration &&
-            timeSinceLastProcess >= 3000 &&
+            timeSinceLastProcess >= this.config.minProcessInterval && // ✅ ChatGPT-like: 0.5s cooldown (was 3s)
             timeSinceRejection >= 2000 &&
             this.mediaRecorder?.state === 'recording'
           ) {
