@@ -46,6 +46,9 @@ export default defineConfig(({ mode }) => {
         }
       },
       rollupOptions: {
+        // ✅ CRITICAL FIX: Preserve entry signatures to maintain named exports
+        // This ensures zustand's 'create' export is preserved through re-export chains
+        preserveEntrySignatures: 'exports-only',
         output: {
           // ✅ CRITICAL FIX: Keep zustand in main bundle to preserve exports
           manualChunks: (id) => {
