@@ -51,11 +51,14 @@ if (!process.env.ANTHROPIC_API_KEY && !process.env.CLAUDE_API_KEY) {
 }
 
 // ✅ Automatic port cleanup to prevent EADDRINUSE errors
-try {
-  execSync("lsof -ti:8000 | xargs kill -9", { stdio: "ignore" });
-  logger.debug("🧹 Port 8000 cleared successfully ✅");
-} catch (e) {
-  logger.debug("🧹 Port 8000 is already clear ✅");
+// Skip on Railway (PORT is set by Railway, not 8000)
+if (!process.env.RAILWAY_ENVIRONMENT && !process.env.PORT) {
+  try {
+    execSync("lsof -ti:8000 | xargs kill -9", { stdio: "ignore" });
+    logger.debug("🧹 Port 8000 cleared successfully ✅");
+  } catch (e) {
+    logger.debug("🧹 Port 8000 is already clear ✅");
+  }
 }
 
 const app = express();
@@ -79,6 +82,10 @@ const getLocalIPAddress = () => {
 
 const LOCAL_IP = getLocalIPAddress();
 const PORT = process.env.PORT || process.env.NOVA_BACKEND_PORT || 8000;
+
+// Log port immediately for Railway debugging
+console.log(`🔧 Server starting on PORT=${PORT} (from env: ${process.env.PORT || 'not set'})`);
+logger.info(`[Server] Starting on port ${PORT}`);
 
 // 🔒 SECURITY: Initialize Supabase client - ALWAYS require real credentials
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
