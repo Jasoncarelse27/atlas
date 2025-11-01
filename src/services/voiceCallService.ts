@@ -956,9 +956,20 @@ export class VoiceCallService {
         this.silenceStartTime = null;
         this.lastSpeechTime = now;
         
-        // ✅ PHASE 2: Natural conversation interrupt with overlap tolerance
-        // ✅ OPTIMIZED: Balanced threshold (2.0x) - prevents false triggers while maintaining fast response
-        const interruptThreshold = threshold * 2.0; // Balanced: prevents false triggers, fast response
+        // ✅ CRITICAL FIX: Use adaptive interrupt threshold based on Atlas speaking state
+        // When Atlas is speaking, use much higher threshold to prevent speaker bleed feedback
+        const isAtlasSpeaking = 
+          (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService?.isPlaying()) ||
+          (!isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.currentAudio && !this.currentAudio.paused) || 
+          (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
+        
+        // ✅ CRITICAL: Use 10.0x multiplier when Atlas is speaking (prevents TTS feedback)
+        // Atlas TTS from speakers produces ~8-25% audio levels, so need threshold > 25%
+        // User speaking directly into mic while Atlas plays should be > 30-40% (true interrupt)
+        const interruptThreshold = isAtlasSpeaking 
+          ? threshold * 10.0  // High threshold when Atlas speaks (filters speaker bleed)
+          : threshold * 2.0;  // Normal threshold when Atlas is silent (fast response)
+        
         const isLoudEnoughToInterrupt = audioLevel > interruptThreshold;
         
         if (isFeatureEnabled('VOICE_STREAMING')) {
