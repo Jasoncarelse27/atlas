@@ -148,7 +148,7 @@ export class NetworkMonitoringService implements INetworkMonitoringService {
    */
   getSTTTimeout(): number {
     switch (this.networkQuality) {
-      case 'excellent': return 8000;  // ✅ FIX: 8s (was 5s) - prevent false timeouts on mobile
+      case 'excellent': return 10000;  // ✅ FIX: 10s (was 8s) - prevent false timeouts on mobile
       case 'good': return 8000;      // 8s
       case 'poor': return 15000;     // 15s
       case 'offline': return 20000;  // 20s

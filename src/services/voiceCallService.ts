@@ -1866,11 +1866,11 @@ export class VoiceCallService {
       // (Played when Claude TTFB completes, not here)
       
       // 2. Claude Streaming with timeout
-      // ✅ FIX: Reduced timeout for voice calls (15s) - ChatGPT-like fast response
-      // Voice calls need faster responses than text chat
+      // ✅ FIX: 20s timeout for voice calls - buffer for mobile networks
+      // Voice calls need reasonable timeouts to avoid false failures
       const claudeStart = performance.now();
       const claudeController = new AbortController();
-      const claudeTimeout = this.createTimeout(() => claudeController.abort(), 15000); // ✅ FIX: 15s timeout (was 10s, optimal for voice)
+      const claudeTimeout = this.createTimeout(() => claudeController.abort(), 20000); // ✅ FIX: 20s timeout (was 15s) - buffer for mobile networks
       
       // ✅ CRITICAL FIX: Ensure session is available for Claude API call
       if (!session) {
@@ -2505,7 +2505,7 @@ export class VoiceCallService {
     
     // Legacy implementation
     switch (this.networkQuality) {
-      case 'excellent': return 8000;  // ✅ FIX: 8s (was 5s) - prevent false timeouts on mobile
+      case 'excellent': return 10000;  // ✅ FIX: 10s (was 8s) - prevent false timeouts on mobile
       case 'good': return 8000;      // 8s
       case 'poor': return 15000;     // 15s
       case 'offline': return 20000;  // 20s
