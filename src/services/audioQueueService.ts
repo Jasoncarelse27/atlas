@@ -55,6 +55,7 @@ export class AudioQueueService {
       index,
       audio: null,
       status: 'pending',
+      generation: this.resetGeneration, // ✅ CRITICAL FIX: Track reset generation
     };
     
     this.queue.push(item);
@@ -62,7 +63,12 @@ export class AudioQueueService {
     
     // ✅ IMPROVEMENT: Generate TTS with retry logic
     this.generateTTSWithRetry(item, voice).catch(err => {
-      logger.error(`[AudioQueue] TTS generation failed for sentence ${index} after retries:`, err);
+      // ✅ CRITICAL FIX: Don't log error if item was cancelled due to reset
+      if (item.generation !== this.resetGeneration) {
+        logger.debug(`[AudioQueue] TTS cancelled for sentence ${item.index} (queue was reset)`);
+        return;
+      }
+      logger.error(`[AudioQueue] TTS generation failed for sentence ${item.index} after retries:`, err);
       item.status = 'error';
     });
     
