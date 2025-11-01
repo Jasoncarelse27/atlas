@@ -85,6 +85,7 @@ export class VoiceCallService {
   private lastResumeCheckTime: number = 0; // ✅ OPTIMIZATION: Throttle resume checks to reduce CPU usage
   private readonly RESUME_CHECK_INTERVAL = 300; // ✅ OPTIMIZATION: 300ms throttle (industry standard: 200-300ms)
   private recordingStartTime: number = 0; // ✅ FIX: Track when recording started to prevent premature processing
+  private interruptRecordingRestarted: boolean = false; // ✅ FIX: Track if recording was restarted for interrupt detection
   private readonly MIN_RECORDING_DURATION = 150; // ✅ FIX: Minimum 150ms recording before processing (allows chunks to collect)
   private isProcessing: boolean = false; // ✅ CRITICAL: Prevent concurrent processing (fixes double voice issue)
   
@@ -376,6 +377,7 @@ export class VoiceCallService {
     this.hasInterrupted = false;
     this.interruptTime = null;
     this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on stop
+    this.interruptRecordingRestarted = false; // ✅ FIX: Reset interrupt recording flag
     this.lastSpeechTime = null;
     this.isProcessing = false; // ✅ CRITICAL: Reset processing flag on stop
     this.silenceStartTime = null;
@@ -733,24 +735,33 @@ export class VoiceCallService {
     const checkVAD = () => {
       if (!this.isActive || !this.analyser) return;
       
-      // ✅ CRITICAL FIX: Stop recording immediately when Atlas starts speaking
-      // This prevents microphone from picking up Atlas's own voice output
+      // ✅ CRITICAL FIX: Allow interrupts while Atlas is speaking
+      // Check if Atlas is speaking but keep monitoring for user interrupts
       const isAtlasSpeaking = 
         (isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.audioPlaybackService?.isPlaying()) ||
         (!isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.currentAudio && !this.currentAudio.paused) || 
         (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
       
-      if (isAtlasSpeaking && this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-        // Atlas started speaking - stop recording immediately to prevent feedback loop
-        logger.debug('[VoiceCall] 🛑 Stopping recording - Atlas is speaking (prevent feedback)');
-        this.mediaRecorder.stop();
-        return; // Don't process VAD while Atlas is speaking
-      }
-      
-      // ✅ CRITICAL FIX: Don't check VAD while Atlas is speaking (prevents interrupt loop)
-      // Even if recording stopped, don't trigger interrupts based on noise while Atlas talks
-      if (isAtlasSpeaking) {
-        return; // Skip VAD entirely while Atlas is speaking
+      // ✅ FIX: Restart recording after Atlas starts speaking (with delay to prevent feedback)
+      // This allows detection of user interrupts while Atlas is speaking
+      if (isAtlasSpeaking && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+        // Atlas is speaking but recording stopped - restart after brief delay for interrupt detection
+        if (!this.interruptRecordingRestarted) {
+          this.interruptRecordingRestarted = true;
+          this.createTimeout(() => {
+            if (this.isActive && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+              try {
+                this.mediaRecorder.start(100);
+                logger.debug('[VoiceCall] 🎙️ Restarted recording for interrupt detection while Atlas speaks');
+              } catch (error) {
+                logger.warn('[VoiceCall] Failed to restart recording for interrupts:', error);
+              }
+            }
+          }, 500); // 500ms delay to prevent feedback from Atlas's voice
+        }
+      } else if (!isAtlasSpeaking) {
+        // Reset flag when Atlas stops speaking
+        this.interruptRecordingRestarted = false;
       }
       
       try {
