@@ -559,9 +559,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       // ✅ BEST PRACTICE: Update state based on actual track state (not stale)
       setIsMuted(newMutedState);
       
-      // ✅ FIX: Also update voiceCallService mute state (so VADService respects it)
+      // ✅ FIX: Sync voiceCallService mute state with actual track state (so VADService respects it)
       if (isCallActive) {
-        unifiedVoiceCallService.toggleMute().catch(err => {
+        unifiedVoiceCallService.toggleMute(newMutedState).catch(err => {
           logger.warn('[VoiceCall] Failed to update service mute state:', err);
         });
       }
@@ -621,6 +621,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         if (audioTrack) {
           audioTrack.enabled = false;
           setIsMuted(true);
+          // ✅ FIX: Sync service mute state
+          if (isCallActive) {
+            unifiedVoiceCallService.toggleMute(true).catch(err => {
+              logger.warn('[VoiceCall] Failed to sync mute state:', err);
+            });
+          }
         }
       }
     } else {
@@ -631,6 +637,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         if (audioTrack) {
           audioTrack.enabled = true;
           setIsMuted(false);
+          // ✅ FIX: Sync service mute state
+          if (isCallActive) {
+            unifiedVoiceCallService.toggleMute(false).catch(err => {
+              logger.warn('[VoiceCall] Failed to sync mute state:', err);
+            });
+          }
         }
       }
     }

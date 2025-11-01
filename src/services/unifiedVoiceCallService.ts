@@ -226,15 +226,16 @@ class UnifiedVoiceCallService {
 
   /**
    * Toggle mute (V1 only - V2 handles this via WebSocket messages)
+   * @param desiredState Optional desired mute state. If not provided, toggles current state.
    */
-  async toggleMute(): Promise<boolean> {
+  async toggleMute(desiredState?: boolean): Promise<boolean> {
     if (this.isV2Active && this.v2Service) {
       // V2 mute is handled via WebSocket control messages
       // This would need to be implemented in VoiceCallServiceV2
       logger.warn('[UnifiedVoice] V2 mute not yet implemented');
       return false;
     }
-    return voiceCallService.toggleMute();
+    return voiceCallService.toggleMute(desiredState);
   }
 
   /**

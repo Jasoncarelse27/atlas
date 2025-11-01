@@ -248,9 +248,16 @@ export class VoiceCallService {
   
   /**
    * Toggle mute state
+   * @param desiredState Optional desired mute state. If not provided, toggles current state.
    */
-  toggleMute(): boolean {
-    this.isMuted = !this.isMuted;
+  toggleMute(desiredState?: boolean): boolean {
+    if (desiredState !== undefined) {
+      // ✅ FIX: Sync with desired state (from UI track state)
+      this.isMuted = desiredState;
+    } else {
+      // Toggle if no desired state provided
+      this.isMuted = !this.isMuted;
+    }
     logger.debug(`[VoiceCall] Mute toggled: ${this.isMuted ? 'muted' : 'unmuted'}`);
     return this.isMuted;
   }
