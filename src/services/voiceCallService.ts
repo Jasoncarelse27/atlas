@@ -2027,8 +2027,10 @@ export class VoiceCallService {
             try {
               const data = JSON.parse(line.slice(6));
               if (data.chunk) {
-                fullResponse += data.chunk;
-                currentSentence += data.chunk;
+                // ✅ CRITICAL FIX: Filter stage directions from chunk immediately
+                const filteredChunk = data.chunk.replace(/\*[^*]+\*/g, '').replace(/\s+/g, ' ').trim();
+                fullResponse += filteredChunk;
+                currentSentence += filteredChunk;
                 
               // ✅ FIX: ChatGPT-like streaming - speak on partial sentences for lower latency
               // Don't wait for full punctuation - start speaking after reasonable chunks
