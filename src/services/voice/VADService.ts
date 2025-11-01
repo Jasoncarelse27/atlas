@@ -418,6 +418,18 @@ export class VADService implements IVADService {
       // }
 
       try {
+        // ✅ CRITICAL FIX: Check mute state BEFORE processing audio levels
+        // Prevents interrupt detection and audio processing when muted
+        const isMutedByUI = this.onGetIsMutedCheck?.() ?? false;
+        const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
+          ? !this.stream.getAudioTracks()[0].enabled 
+          : false;
+        
+        if (isMutedByUI || isMutedByTrack) {
+          // Microphone is muted - skip all audio processing (interrupts, speech detection, etc.)
+          return;
+        }
+
         this.analyser.getByteTimeDomainData(dataArray);
 
         let sum = 0;
