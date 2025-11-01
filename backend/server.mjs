@@ -400,8 +400,14 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
   if (!is_voice_call && conversationHistory && conversationHistory.length > 0) {
     messages.push(...conversationHistory);
     logger.debug(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
+  } else if (is_voice_call && conversationHistory && conversationHistory.length > 0) {
+    // ✅ CRITICAL FIX: Enable conversation memory for voice calls (last 5 messages)
+    // This allows Atlas to remember context within the same voice call session
+    const voiceHistory = conversationHistory.slice(-5); // Last 5 messages for voice context
+    messages.push(...voiceHistory);
+    logger.debug(`🧠 [VoiceCall] Added ${voiceHistory.length} messages for voice context`);
   } else if (is_voice_call) {
-    logger.debug(`🧠 [VoiceCall] Skipping conversation history for clean voice context`);
+    logger.debug(`🧠 [VoiceCall] No conversation history available`);
   }
   
   // Add current user message
@@ -464,9 +470,9 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     let filtered = text;
     
     // ✅ CRITICAL FIX: Remove stage directions (text in asterisks OR square brackets)
-    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "[In a clear, conversational voice]"
+    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "[In a clear, conversational voice]", "*clears voice*", "*clears throat*"
     // This prevents stage directions from appearing in transcripts or being spoken
-    filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks
+    filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
     filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
     filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces (but preserve single spaces)
     
@@ -1456,7 +1462,7 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
       conversation_id: finalConversationId,
       user_id: userId,
       role: 'assistant',
-      content: finalText, // ✅ FIX: Send plain string, not object (Supabase stringifies objects)
+      content: filterResponse(finalText), // ✅ CRITICAL FIX: Filter stage directions before saving to database
       created_at: new Date().toISOString()
     };
     
