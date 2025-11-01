@@ -71,55 +71,109 @@ export class AudioQueueService {
   
   /**
    * Generate TTS for a single sentence with retry logic
-   * ✅ IMPROVEMENT: Retries failed TTS generation with exponential backoff
+   * ✅ PRODUCTION-GRADE: Smart retry with error-aware backoff and fallback model
    */
   private async generateTTSWithRetry(item: AudioQueueItem, voice: string, retries = 3): Promise<void> {
+    let model = 'tts-1-hd'; // Start with HD model
+    let lastError: Error | null = null;
+    
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        await this.generateTTS(item, voice);
+        await this.generateTTS(item, voice, model);
         return; // Success
       } catch (error) {
-        if (attempt === retries - 1) {
-          // Final attempt failed
-          logger.error(`[AudioQueue] TTS failed after ${retries} attempts for sentence ${item.index}:`, error);
-          item.status = 'error';
-          throw error;
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message;
+        
+        // ✅ Fallback to standard model on timeout/HD errors
+        if (model === 'tts-1-hd' && (errorMessage.includes('timeout') || errorMessage.includes('504'))) {
+          logger.warn(`[AudioQueue] HD model failed (${errorMessage}), falling back to standard model`);
+          model = 'tts-1';
+          continue; // Retry immediately with fallback model
         }
         
-        // Exponential backoff: 1s, 2s, 4s
-        const delay = 1000 * Math.pow(2, attempt);
-        logger.warn(`[AudioQueue] TTS attempt ${attempt + 1}/${retries} failed, retrying in ${delay}ms...`);
+        // ✅ Don't retry on auth errors (401/403)
+        if (errorMessage.includes('401') || errorMessage.includes('403')) {
+          logger.error(`[AudioQueue] TTS auth error - not retrying: ${errorMessage}`);
+          item.status = 'error';
+          throw lastError;
+        }
+        
+        // ✅ Don't retry on client errors (400/422)
+        if (errorMessage.includes('400') || errorMessage.includes('422')) {
+          logger.error(`[AudioQueue] TTS client error - not retrying: ${errorMessage}`);
+          item.status = 'error';
+          throw lastError;
+        }
+        
+        if (attempt === retries - 1) {
+          // Final attempt failed
+          logger.error(`[AudioQueue] TTS failed after ${retries} attempts for sentence ${item.index}:`, lastError);
+          item.status = 'error';
+          throw lastError;
+        }
+        
+        // ✅ Smart retry delay based on error type
+        let delay: number;
+        if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+          delay = 60000; // Wait 1 minute for rate limits
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('504')) {
+          delay = 2000; // Quick retry for timeouts (2s)
+        } else {
+          delay = 1000 * Math.pow(2, attempt); // Exponential backoff: 1s, 2s, 4s
+        }
+        
+        logger.warn(`[AudioQueue] TTS attempt ${attempt + 1}/${retries} failed (${errorMessage}), retrying in ${delay}ms...`);
         await new Promise(r => setTimeout(r, delay));
       }
     }
+    
+    // Should never reach here, but TypeScript needs it
+    if (lastError) throw lastError;
   }
   
   /**
    * Generate TTS for a single sentence
+   * ✅ PRODUCTION-GRADE: Request ID tracking, enhanced error handling
    */
-  private async generateTTS(item: AudioQueueItem, voice: string): Promise<void> {
+  private async generateTTS(item: AudioQueueItem, voice: string, model: string = 'tts-1-hd'): Promise<void> {
     item.status = 'generating';
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const requestId = crypto.randomUUID(); // ✅ Track requests for debugging
       
       const response = await fetch(`${supabaseUrl}/functions/v1/tts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
+          'X-Request-ID': requestId, // ✅ Request tracking
         },
         body: JSON.stringify({
           text: item.text,
           voice,
-          model: 'tts-1-hd',
+          model,
           speed: 1.05, // 🎯 Slightly faster for more natural conversation pace
         }),
       });
       
       if (!response.ok) {
-        throw new Error(`TTS failed: ${response.statusText}`);
+        let errorDetails: any;
+        try {
+          errorDetails = await response.json();
+        } catch {
+          errorDetails = { error: response.statusText };
+        }
+        
+        // ✅ Enhanced error with details from server
+        const errorMessage = errorDetails.details || errorDetails.error || response.statusText;
+        const error = new Error(`TTS failed: ${errorMessage}`);
+        (error as any).code = response.status;
+        (error as any).retryable = errorDetails.retryable !== false; // Default to retryable unless explicitly false
+        (error as any).requestId = errorDetails.requestId || requestId;
+        throw error;
       }
       
       const result = await response.json();
@@ -129,9 +183,11 @@ export class AudioQueueService {
       item.audio = audio;
       item.status = 'ready';
       
-      logger.debug(`[AudioQueue] TTS ready for sentence ${item.index}`);
+      // ✅ Log model used (may differ if fallback occurred)
+      const actualModel = result.model || model;
+      logger.debug(`[AudioQueue] TTS ready for sentence ${item.index} (model: ${actualModel}, requestId: ${result.requestId || requestId})`);
     } catch (error) {
-      logger.error(`[AudioQueue] TTS generation error:`, error);
+      logger.error(`[AudioQueue] TTS generation error for sentence ${item.index}:`, error);
       item.status = 'error';
       throw error;
     }
