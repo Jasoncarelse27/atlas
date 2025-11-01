@@ -32,6 +32,7 @@ export class VADService implements IVADService {
   private recordingStartTime: number = 0;
   private lastInterruptRestartTime: number = 0; // ✅ FIX: Track when recording was restarted for interrupts (prevent stop-restart loop)
   private interruptRestartScheduled: boolean = false; // ✅ FIX: Prevent multiple scheduled restarts
+  private wasMuted: boolean = false; // ✅ FIX: Track previous mute state to detect unmute
 
   // Threshold calibration
   private baselineNoiseLevel: number = 0;
@@ -314,6 +315,7 @@ export class VADService implements IVADService {
       this.onSetLastProcessTime?.(0);
       this.onSetLastRejectedTime?.(0);
       this.recordingStartTime = Date.now();
+      this.wasMuted = false; // ✅ Initialize mute tracking
 
       // Start monitoring
       this.startMonitoring({ onAudioLevel: options.onAudioLevel });
@@ -386,8 +388,25 @@ export class VADService implements IVADService {
       const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
         ? !this.stream.getAudioTracks()[0].enabled 
         : false;
+      const isMuted = isMutedByUI || isMutedByTrack;
       
-      if (isMutedByUI || isMutedByTrack) {
+      // ✅ CRITICAL FIX: Detect unmute transition and restart recording
+      if (this.wasMuted && !isMuted && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+        logger.debug('[VAD] 🎤 Microphone unmuted - restarting recording');
+        try {
+          this.mediaRecorder.start(100);
+          this.recordingStartTime = Date.now();
+          this.silenceStartTime = null;
+          this.lastSpeechTime = null;
+        } catch (error) {
+          logger.warn('[VAD] Failed to restart recording after unmute:', error);
+        }
+      }
+      
+      // Update mute state tracking
+      this.wasMuted = isMuted;
+      
+      if (isMuted) {
         // Microphone is muted - stop recording if active and skip ALL VAD checks
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
           logger.debug('[VAD] 🔇 Microphone muted - stopping recording');
@@ -631,6 +650,7 @@ export class VADService implements IVADService {
     // ✅ FIX: Reset interrupt restart flags on stop
     this.interruptRestartScheduled = false;
     this.lastInterruptRestartTime = 0;
+    this.wasMuted = false; // ✅ Reset mute tracking
 
     if (this.stream) {
       this.stream.getTracks().forEach(track => {
