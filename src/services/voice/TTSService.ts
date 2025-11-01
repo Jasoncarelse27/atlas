@@ -44,22 +44,67 @@ export class TTSService implements ITTSService {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
     try {
+      const requestId = crypto.randomUUID(); // ✅ Track requests for debugging
+      let model = this.config.model || 'tts-1';
+      
       const response = await fetch(`${supabaseUrl}/functions/v1/tts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
+          'X-Request-ID': requestId, // ✅ Request tracking
         },
         body: JSON.stringify({
           text: text.trim(),
           voice: this.config.voice,
-          model: this.config.model,
+          model: model,
           speed: this.config.speed,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`TTS failed: ${response.statusText}`);
+        let errorDetails: any;
+        try {
+          errorDetails = await response.json();
+        } catch {
+          errorDetails = { error: response.statusText };
+        }
+        
+        // ✅ Fallback to standard model on timeout
+        if (model === 'tts-1-hd' && (response.status === 504 || errorDetails.error?.includes('timeout'))) {
+          logger.warn(`[TTSService] HD model timeout, falling back to standard model`);
+          model = 'tts-1';
+          
+          // Retry with standard model
+          const fallbackResponse = await fetch(`${supabaseUrl}/functions/v1/tts`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+              'X-Request-ID': requestId,
+            },
+            body: JSON.stringify({
+              text: text.trim(),
+              voice: this.config.voice,
+              model: 'tts-1',
+              speed: this.config.speed,
+            }),
+          });
+          
+          if (!fallbackResponse.ok) {
+            const fallbackError = await fallbackResponse.json().catch(() => ({}));
+            throw new Error(`TTS failed: ${fallbackError.details || fallbackError.error || fallbackResponse.statusText}`);
+          }
+          
+          const fallbackResult = await fallbackResponse.json();
+          const audioDataUrl = `data:audio/mp3;base64,${fallbackResult.base64Audio}`;
+          callbacks?.onSynthesized?.(audioDataUrl);
+          return audioDataUrl;
+        }
+        
+        // ✅ Enhanced error with details from server
+        const errorMessage = errorDetails.details || errorDetails.error || response.statusText;
+        throw new Error(`TTS failed: ${errorMessage}`);
       }
 
       const result = await response.json();

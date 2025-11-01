@@ -1125,24 +1125,66 @@ export class VoiceCallService {
       options.onStatusChange?.('speaking');
       
       // 4. Call TTS Edge Function
+      // ✅ PRODUCTION-GRADE: Request ID tracking, enhanced error handling, fallback model
       const ttsResult = await this.retryWithBackoff(async () => {
+        const requestId = crypto.randomUUID(); // ✅ Track requests for debugging
+        let model = 'tts-1-hd'; // Start with HD model
+        
         const ttsResponse = await fetch(`${supabaseUrl}/functions/v1/tts`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session?.access_token}`,
+            'X-Request-ID': requestId, // ✅ Request tracking
           },
           body: JSON.stringify({ 
             text: aiResponse, 
             voice: 'nova',
-            model: 'tts-1-hd',
+            model: model,
             speed: 1.05, // 🎯 Natural conversation pace
           }),
         });
         
         if (!ttsResponse.ok) {
-          const error = await ttsResponse.json().catch(() => ({}));
-          throw new Error(`TTS failed: ${error.error || ttsResponse.statusText}`);
+          let errorDetails: any;
+          try {
+            errorDetails = await ttsResponse.json();
+          } catch {
+            errorDetails = { error: ttsResponse.statusText };
+          }
+          
+          // ✅ Fallback to standard model on timeout
+          if (model === 'tts-1-hd' && (ttsResponse.status === 504 || errorDetails.error?.includes('timeout'))) {
+            logger.warn(`[VoiceCall] HD model timeout, falling back to standard model`);
+            model = 'tts-1';
+            
+            // Retry with standard model
+            const fallbackResponse = await fetch(`${supabaseUrl}/functions/v1/tts`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`,
+                'X-Request-ID': requestId,
+              },
+              body: JSON.stringify({ 
+                text: aiResponse, 
+                voice: 'nova',
+                model: 'tts-1',
+                speed: 1.05,
+              }),
+            });
+            
+            if (!fallbackResponse.ok) {
+              const fallbackError = await fallbackResponse.json().catch(() => ({}));
+              throw new Error(`TTS failed: ${fallbackError.details || fallbackError.error || fallbackResponse.statusText}`);
+            }
+            
+            return await fallbackResponse.json();
+          }
+          
+          // ✅ Enhanced error with details from server
+          const errorMessage = errorDetails.details || errorDetails.error || ttsResponse.statusText;
+          throw new Error(`TTS failed: ${errorMessage}`);
         }
         
         return await ttsResponse.json();
