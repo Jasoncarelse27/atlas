@@ -514,19 +514,20 @@ You are having a natural voice conversation. Respond as if you can hear them cle
               const rawText = parsed.delta.text;
               sentenceBuffer += rawText;
               
+              // ✅ CRITICAL FIX: Filter stage directions immediately on every chunk
+              // This ensures "*clears throat*" and similar are removed before they accumulate
+              sentenceBuffer = filterBrandingLeaks(sentenceBuffer);
+              
               // Check if we have a complete sentence (ends with . ! ? or newline)
               if (/[.!?\n]/.test(rawText)) {
-                // Filter the complete sentence
-                const filteredText = filterBrandingLeaks(sentenceBuffer);
-                fullText += filteredText;
-                
-                // Send filtered chunk to client
-                writeSSE(res, { chunk: filteredText });
+                // Send the filtered sentence
+                fullText += sentenceBuffer;
+                writeSSE(res, { chunk: sentenceBuffer });
                 
                 // Clear buffer
                 sentenceBuffer = '';
               } else {
-                // Accumulate partial sentence (don't send yet)
+                // Accumulate partial sentence (already filtered above)
                 // This prevents sending "I am Clau" before we can filter "Claude"
               }
             }
