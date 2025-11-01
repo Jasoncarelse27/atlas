@@ -379,20 +379,22 @@ export class VADService implements IVADService {
     const checkVAD = () => {
       if (!this.onIsActiveCheck?.() || !this.analyser) return;
 
-      // ✅ FIX: Check if microphone is muted (from UI mute button)
+      // ✅ CRITICAL FIX: Check if microphone is muted (from UI mute button)
       // Check both UI mute state (via callback) and VADService's own stream track
+      // This MUST be checked FIRST before any audio processing
       const isMutedByUI = this.onGetIsMutedCheck?.() ?? false;
       const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
         ? !this.stream.getAudioTracks()[0].enabled 
         : false;
       
       if (isMutedByUI || isMutedByTrack) {
-        // Microphone is muted - stop recording if active and skip VAD checks
+        // Microphone is muted - stop recording if active and skip ALL VAD checks
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-          logger.debug('[VAD] Microphone muted - stopping recording');
+          logger.debug('[VAD] 🔇 Microphone muted - stopping recording');
           this.mediaRecorder.stop();
         }
-        return; // Skip VAD checking when muted
+        // ✅ CRITICAL: Return early to skip ALL audio processing (prevents interrupts)
+        return;
       }
 
       const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
@@ -418,16 +420,14 @@ export class VADService implements IVADService {
       // }
 
       try {
-        // ✅ CRITICAL FIX: Check mute state BEFORE processing audio levels
-        // Prevents interrupt detection and audio processing when muted
-        const isMutedByUI = this.onGetIsMutedCheck?.() ?? false;
-        const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
+        // ✅ DEFENSIVE: Double-check mute state before processing audio (prevents race conditions)
+        // Primary check is above (line 384-398), but this ensures no audio processing if mute state changes
+        const isMutedCheck = this.onGetIsMutedCheck?.() ?? false;
+        const isMutedByTrackCheck = this.stream && this.stream.getAudioTracks().length > 0 
           ? !this.stream.getAudioTracks()[0].enabled 
           : false;
-        
-        if (isMutedByUI || isMutedByTrack) {
-          // Microphone is muted - skip all audio processing (interrupts, speech detection, etc.)
-          return;
+        if (isMutedCheck || isMutedByTrackCheck) {
+          return; // Skip audio processing if muted (defensive check)
         }
 
         this.analyser.getByteTimeDomainData(dataArray);
