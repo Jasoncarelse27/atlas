@@ -6,7 +6,7 @@
 import { atlasDB } from '@/database/atlasDB';
 import { logger } from '@/lib/logger';
 // ✅ CRITICAL FIX: Import directly from zustand/react to avoid re-export issues
-import { create } from 'zustand/esm';
+import { create } from 'zustand';
 import { ritualService } from '../services/ritualService';
 import type { Ritual, RitualLog } from '../types/rituals';
 
