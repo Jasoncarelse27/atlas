@@ -13,6 +13,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import OpenAI from 'openai';
 import os from 'os';
+
+// ✅ CRITICAL: Handle uncaught exceptions and rejections
+// This prevents Railway from killing the container on unhandled errors
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // Don't exit - let Railway handle it, but log the error
+  // Exiting here causes Railway to see container as crashed
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - let Railway handle it, but log the error
+});
 import { v4 as uuidv4 } from 'uuid';
 import { flushSentry, getSentryMiddleware, initSentry } from './lib/sentryService.mjs';
 import { logger } from './lib/simpleLogger.mjs';
