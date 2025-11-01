@@ -666,6 +666,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               if (audioTrack) {
                 audioTrack.enabled = true;
                 setIsMuted(false);
+                // ✅ FIX: Sync service mute state
+                if (isCallActive) {
+                  unifiedVoiceCallService.toggleMute(false).catch(err => {
+                    logger.warn('[VoiceCall] Failed to sync mute state:', err);
+                  });
+                }
               }
             }
           }
@@ -695,6 +701,12 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           if (audioTrack) {
             audioTrack.enabled = false;
             setIsMuted(true);
+            // ✅ FIX: Sync service mute state
+            if (isCallActive) {
+              unifiedVoiceCallService.toggleMute(true).catch(err => {
+                logger.warn('[VoiceCall] Failed to sync mute state:', err);
+              });
+            }
           }
         }
       }
