@@ -2029,7 +2029,11 @@ export class VoiceCallService {
               if (data.chunk) {
                 // ✅ CRITICAL FIX: Filter stage directions from chunk immediately
                 // DO NOT trim here - preserves whitespace between chunks
-                const filteredChunk = data.chunk.replace(/\*[^*]+\*/g, '').replace(/\s+/g, ' ');
+                // Handle both asterisks (*stage direction*) and square brackets ([stage direction])
+                const filteredChunk = data.chunk
+                  .replace(/\*[^*]+\*/g, '') // Remove asterisk stage directions
+                  .replace(/\[[^\]]+\]/g, '') // Remove square bracket stage directions
+                  .replace(/\s+/g, ' ');
                 fullResponse += filteredChunk;
                 currentSentence += filteredChunk;
                 
@@ -2049,6 +2053,7 @@ export class VoiceCallService {
                   const sentence = (parts[i] || '') + (parts[i + 1] || '');
                   const cleanSentence = sentence
                     .replace(/\*[^*]+\*/g, '') // ✅ FIX: Remove stage directions (e.g., "*speaks in a friendly voice*")
+                    .replace(/\[[^\]]+\]/g, '') // ✅ FIX: Remove square bracket stage directions (e.g., "[In a clear voice]")
                     .replace(/\n+/g, ' ')
                     .replace(/\s+/g, ' ')
                     .trim();

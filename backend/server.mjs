@@ -462,10 +462,11 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     // Case-insensitive replacements
     let filtered = text;
     
-    // ✅ CRITICAL FIX: Remove stage directions (text in asterisks)
-    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "*laughs*", "*clears throat*"
+    // ✅ CRITICAL FIX: Remove stage directions (text in asterisks OR square brackets)
+    // Examples: "*speaks in a friendly voice*", "*responds warmly*", "[In a clear, conversational voice]"
     // This prevents stage directions from appearing in transcripts or being spoken
     filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks
+    filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
     filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces (but preserve single spaces)
     
     // Direct identity reveals
@@ -527,9 +528,9 @@ You are having a natural voice conversation. Respond as if you can hear them cle
               } else {
                 // ✅ FIX: Check if buffer contains stage directions and filter them early
                 // This prevents stage directions from accumulating but doesn't trim yet
-                if (sentenceBuffer.includes('*')) {
+                if (sentenceBuffer.includes('*') || sentenceBuffer.includes('[')) {
                   // Stage direction detected - filter it but don't trim (preserve whitespace)
-                  sentenceBuffer = sentenceBuffer.replace(/\*[^*]+\*/g, '').replace(/\s{2,}/g, ' ');
+                  sentenceBuffer = sentenceBuffer.replace(/\*[^*]+\*/g, '').replace(/\[[^\]]+\]/g, '').replace(/\s{2,}/g, ' ');
                 }
                 // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"
