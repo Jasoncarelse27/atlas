@@ -63,6 +63,16 @@ if (!process.env.RAILWAY_ENVIRONMENT && !process.env.PORT) {
 
 const app = express();
 
+// Health check endpoint - register IMMEDIATELY before any middleware
+// This ensures Railway can reach it even during server initialization
+app.get('/healthz', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: Date.now()
+  });
+});
+
 // Initialize Sentry error tracking
 initSentry(app);
 
@@ -625,15 +635,8 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check endpoint for Railway - MUST be fast and simple
-app.get('/healthz', (req, res) => {
-  // Respond immediately - don't wait for Redis or any async operations
-  res.status(200).json({
-    status: 'ok',
-    uptime: process.uptime(),
-    timestamp: Date.now()
-  });
-});
+// Health check endpoint already registered above (before middleware)
+// This is a duplicate route that will never be reached, but kept for reference
 
 // Health check at /api (for consistency)
 app.get('/api/healthz', (req, res) => {
