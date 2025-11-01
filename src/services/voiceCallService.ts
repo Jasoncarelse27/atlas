@@ -2505,7 +2505,7 @@ export class VoiceCallService {
     
     // Legacy implementation
     switch (this.networkQuality) {
-      case 'excellent': return 5000;  // 5s
+      case 'excellent': return 8000;  // ✅ FIX: 8s (was 5s) - prevent false timeouts on mobile
       case 'good': return 8000;      // 8s
       case 'poor': return 15000;     // 15s
       case 'offline': return 20000;  // 20s
