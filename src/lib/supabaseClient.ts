@@ -40,24 +40,37 @@ export const supabase = (() => {
   },
     });
     
-    // ✅ FIX: Suppress noisy connection errors during auto-refresh
-    // These are transient network issues that Supabase handles automatically
+    // ✅ FIX: Graceful Supabase Auth Handling - Clean Implementation
+    // Listen for auth state changes for traceability
     if (typeof window !== 'undefined') {
-      const originalConsoleError = console.error;
-      console.error = (...args: any[]) => {
-        // Filter out ERR_CONNECTION_CLOSED errors from Supabase auth auto-refresh
-        const errorString = args.join(' ');
-        if (
-          errorString.includes('ERR_CONNECTION_CLOSED') &&
-          errorString.includes('supabase.co/auth/v1/user')
-        ) {
-          // Silent - Supabase will retry automatically
-          logger.debug('[Supabase] Connection error during auto-refresh (handled)');
-          return;
+      supabaseInstance.auth.onAuthStateChange((event, session) => {
+        switch (event) {
+          case 'TOKEN_REFRESHED':
+            logger.debug('[Supabase] 🔄 Token refreshed successfully');
+            break;
+          case 'SIGNED_OUT':
+            logger.warn('[Supabase] 🚪 Signed out');
+            break;
+          case 'USER_UPDATED':
+            logger.debug('[Supabase] 👤 User updated');
+            break;
+          default:
+            break;
         }
-        // Pass through all other errors
-        originalConsoleError.apply(console, args);
-      };
+      });
+
+      // Global handler: suppress harmless transient network errors
+      window.addEventListener('unhandledrejection', (e) => {
+        const msg = e.reason?.message || e.reason?.toString?.() || '';
+        const isSupabaseClosed = msg.includes('ERR_CONNECTION_CLOSED');
+        const isSupabaseFetchAbort = msg.includes('AbortError') && msg.includes('supabase');
+        const isSafeToIgnore = isSupabaseClosed || isSupabaseFetchAbort;
+
+        if (isSafeToIgnore) {
+          logger.debug('[Supabase] ⚠️ Transient connection issue — auto-retrying silently');
+          e.preventDefault();
+        }
+      });
     }
   }
   return supabaseInstance;
