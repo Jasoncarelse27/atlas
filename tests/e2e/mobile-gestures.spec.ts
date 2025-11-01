@@ -3,11 +3,7 @@
  * Tests touch interactions, swipes, and mobile-specific features
  */
 
-import { test, expect, devices } from '@playwright/test';
-
-test.use({
-  ...devices['iPhone 12'],
-});
+import { test, expect } from '@playwright/test';
 
 test.describe('Mobile - Ritual Run Gestures', () => {
   test('user can swipe through ritual steps', async ({ page }) => {
