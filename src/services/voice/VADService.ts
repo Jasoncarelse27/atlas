@@ -392,14 +392,20 @@ export class VADService implements IVADService {
       
       // ✅ CRITICAL FIX: Detect unmute transition and restart recording
       if (this.wasMuted && !isMuted && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
-        logger.debug('[VAD] 🎤 Microphone unmuted - restarting recording');
-        try {
-          this.mediaRecorder.start(100);
-          this.recordingStartTime = Date.now();
-          this.silenceStartTime = null;
-          this.lastSpeechTime = null;
-        } catch (error) {
-          logger.warn('[VAD] Failed to restart recording after unmute:', error);
+        // ✅ Don't restart if Atlas is speaking (will restart when Atlas finishes)
+        const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
+        if (!isAtlasSpeaking) {
+          logger.debug('[VAD] 🎤 Microphone unmuted - restarting recording');
+          try {
+            this.mediaRecorder.start(100);
+            this.recordingStartTime = Date.now();
+            this.silenceStartTime = null;
+            this.lastSpeechTime = null;
+          } catch (error) {
+            logger.warn('[VAD] Failed to restart recording after unmute:', error);
+          }
+        } else {
+          logger.debug('[VAD] 🎤 Microphone unmuted but Atlas is speaking - will restart when Atlas finishes');
         }
       }
       
