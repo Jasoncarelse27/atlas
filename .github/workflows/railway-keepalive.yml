@@ -1,0 +1,39 @@
+name: 🔄 Railway Keepalive
+
+on:
+  schedule:
+    # Run every 5 minutes to prevent Railway cold starts
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  keepalive:
+    name: Ping Railway Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    
+    steps:
+      - name: 🔄 Ping Railway Health Endpoint
+        run: |
+          # Get Railway URL from secrets (falls back to default if not set)
+          RAILWAY_URL="${RAILWAY_URL:-https://atlas-production-2123.up.railway.app}"
+          
+          echo "🔄 Pinging Railway health endpoint: $RAILWAY_URL/healthz"
+          
+          # Ping health endpoint with timeout
+          response=$(curl -s -w "\n%{http_code}" --max-time 10 "$RAILWAY_URL/healthz" || echo -e "\n000")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          if [ "$http_code" = "200" ]; then
+            echo "✅ Railway is alive and healthy"
+            echo "Response: $body"
+          else
+            echo "⚠️ Railway health check returned HTTP $http_code"
+            echo "Response: $body"
+            # Don't fail the workflow - this is just a keepalive ping
+          fi
+        env:
+          RAILWAY_URL: ${{ secrets.RAILWAY_URL }}
+
