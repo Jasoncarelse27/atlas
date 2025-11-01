@@ -353,15 +353,30 @@ export class VADService implements IVADService {
 
       const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
 
+      // ✅ FIX: Allow recording to continue briefly when Atlas starts speaking (for interrupt detection)
+      // Restart recording after 500ms delay to detect user interrupts
       if (isAtlasSpeaking && this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-        logger.debug('[VAD] 🛑 Stopping recording - Atlas is speaking');
+        logger.debug('[VAD] 🛑 Stopping recording - Atlas is speaking (will restart for interrupts)');
         this.mediaRecorder.stop();
+        // Schedule restart after delay for interrupt detection
+        setTimeout(() => {
+          if (this.onIsActiveCheck?.() && this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+            try {
+              this.mediaRecorder.start(100);
+              logger.debug('[VAD] 🎙️ Restarted recording for interrupt detection while Atlas speaks');
+            } catch (error) {
+              logger.warn('[VAD] Failed to restart recording for interrupts:', error);
+            }
+          }
+        }, 500); // 500ms delay to prevent feedback
         return;
       }
 
-      if (isAtlasSpeaking) {
-        return;
-      }
+      // ✅ FIX: Continue VAD checking even while Atlas speaks (for interrupt detection)
+      // Don't return early - we need to monitor audio levels to detect user interrupts
+      // if (isAtlasSpeaking) {
+      //   return; // REMOVED: This was blocking interrupt detection
+      // }
 
       try {
         this.analyser.getByteTimeDomainData(dataArray);
@@ -384,7 +399,8 @@ export class VADService implements IVADService {
           this.silenceStartTime = null;
           this.lastSpeechTime = now;
 
-          const interruptThreshold = threshold * 3.0;
+          // ✅ OPTIMIZED: Balanced threshold (2.0x) - prevents false triggers while maintaining fast response
+          const interruptThreshold = threshold * 2.0; // Balanced: prevents false triggers, fast response
           const isLoudEnoughToInterrupt = audioLevel > interruptThreshold;
 
           if (isFeatureEnabled('VOICE_STREAMING')) {
@@ -485,11 +501,16 @@ export class VADService implements IVADService {
 
     const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;
 
-    if (isAtlasSpeaking) {
-      logger.debug('[VAD] Skipping recording - Atlas is still speaking');
-      // Schedule retry (handled by VoiceCallService timeout management)
-      return;
+    // ✅ FIX: Allow recording to restart even while Atlas is speaking (for interrupt detection)
+    // This enables users to interrupt Atlas mid-sentence
+    if (isAtlasSpeaking && this.mediaRecorder?.state === 'recording') {
+      // Already recording - that's fine, keep it going for interrupt detection
+      logger.debug('[VAD] Recording active while Atlas speaks - allowing for interrupt detection');
+    } else if (isAtlasSpeaking && this.mediaRecorder?.state === 'inactive') {
+      // Atlas is speaking but recording stopped - restart it for interrupt detection
+      logger.debug('[VAD] Restarting recording while Atlas speaks for interrupt detection');
     }
+    // Continue to restart logic below (don't return early)
 
     if (this.mediaRecorder.state === 'inactive') {
       if (!this.onIsActiveCheck?.()) {
