@@ -395,17 +395,27 @@ Remember: You're not just an AI assistant - you're Atlas, an emotionally intelli
   // 🧠 MEMORY 100%: Build messages array with conversation history
   const messages = [];
   
-  // Add conversation history (last 10 messages for context)
-  if (conversationHistory && conversationHistory.length > 0) {
+  // ✅ VOICE CALL FIX: Skip conversation history for voice calls to prevent confusion
+  // Voice calls should be fresh conversations without old "can't hear" messages polluting context
+  if (!is_voice_call && conversationHistory && conversationHistory.length > 0) {
     messages.push(...conversationHistory);
     logger.debug(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
+  } else if (is_voice_call) {
+    logger.debug(`🧠 [VoiceCall] Skipping conversation history for clean voice context`);
   }
   
   // Add current user message
   messages.push({ role: 'user', content: finalUserContent });
 
-  // ✅ VOICE CALL FIX: Simple, direct system prompt
-  const systemPrompt = is_voice_call ? `You are Atlas in a VOICE CALL. The user is speaking to you out loud. You CAN hear them speaking. NEVER say you can't hear, can't hear audio, don't have ears, or only read text. You are having a real-time voice conversation. Keep responses brief (1-2 sentences).` : undefined;
+  // ✅ VOICE CALL FIX: Strong system prompt - override any conversation history confusion
+  const systemPrompt = is_voice_call ? `You are Atlas in a VOICE CALL - a real-time voice conversation. The user speaks out loud and you respond with voice. 
+
+CRITICAL: You CAN hear them. NEVER mention:
+- "I can't hear" / "can't hear audio" / "don't have ears"
+- "I only read text" / "text-based" / "metaphorically speaking"
+- Any disclaimers about not hearing
+
+You are having a natural voice conversation. Respond as if you can hear them clearly. Keep responses brief (1-2 sentences).` : undefined;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

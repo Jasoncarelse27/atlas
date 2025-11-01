@@ -3,6 +3,7 @@ import { getSafeUserMedia } from '@/utils/audioHelpers';
 import { conversationBuffer } from '@/utils/conversationBuffer';
 import { isFeatureEnabled } from '../config/featureFlags';
 import { logger } from '../lib/logger';
+import { captureException } from './sentryService';
 import { audioQueueService } from './audioQueueService';
 import { NetworkMonitoringService } from './voice/NetworkMonitoringService';
 import { RetryService } from './voice/RetryService';
@@ -159,8 +160,14 @@ export class VoiceCallService {
         onCallStopped: (duration) => logger.info(`[VoiceCall] ✅ Call lifecycle stopped (${duration.toFixed(1)}s)`),
         onMaxDurationReached: () => {
           logger.warn('[VoiceCall] ⏰ Maximum call duration reached');
+          const error = new Error('Maximum call duration reached (30 minutes)');
+          captureException(error, { 
+            feature: 'voice_call',
+            error_type: 'max_duration',
+            call_duration: this.callStartTime ? Date.now() - this.callStartTime.getTime() : 0
+          });
           this.stopCall(options.userId);
-          options.onError(new Error('Maximum call duration reached (30 minutes)'));
+          options.onError(error);
         },
       });
     }
@@ -456,6 +463,25 @@ export class VoiceCallService {
         : 0;
       const avgLatency = avgSTTLatency + avgClaudeLatency;
       
+      // ✅ Error rate tracking (target: < 2%)
+      const totalInteractions = this.callMetrics.sttLatencies.length;
+      const errorRate = totalInteractions > 0 
+        ? (this.callMetrics.errors / totalInteractions) * 100 
+        : 0;
+      
+      // Log error rate warning if above target
+      if (errorRate > 2) {
+        logger.warn(`[VoiceCall] ⚠️ Error rate above target: ${errorRate.toFixed(1)}% (target: < 2%)`);
+        captureException(new Error(`Voice call error rate above target: ${errorRate.toFixed(1)}%`), {
+          feature: 'voice_call',
+          error_type: 'high_error_rate',
+          error_rate: errorRate,
+          total_interactions: totalInteractions,
+          total_errors: this.callMetrics.errors,
+          call_duration: duration
+        });
+      }
+      
       // Calculate average audio level
       const avgAudioLevel = this.callMetrics.audioLevelSamples.length > 0
         ? this.callMetrics.audioLevelSamples.reduce((a, b) => a + b, 0) / this.callMetrics.audioLevelSamples.length
@@ -470,6 +496,8 @@ export class VoiceCallService {
           averageLatency: avgLatency,
           avgSTTLatency,
           avgClaudeLatency,
+          errorRate: errorRate.toFixed(1) + '%',
+          totalInteractions,
           interruptionCount: this.callMetrics.interruptionCount,
           muteToggleCount: this.callMetrics.muteToggleCount,
           errors: this.callMetrics.errors,
@@ -1628,6 +1656,12 @@ export class VoiceCallService {
       // ✅ POLISH #3: Track errors (if not already tracked above)
       if (!error.message?.includes('confidence too low')) {
         this.callMetrics.errors++;
+        // Track STT errors to Sentry
+        captureException(error, {
+          feature: 'voice_call',
+          error_type: 'stt_error',
+          latency: performance.now() - sttStart
+        });
       }
       
       // ✅ CRITICAL FIX: For 0.0% confidence, check resume logic BEFORE failing fast
@@ -1871,9 +1905,20 @@ export class VoiceCallService {
         
         if (error.name === 'AbortError') {
           logger.error('[VoiceCall] Claude timeout - took too long to respond');
-          options.onError(new Error('Atlas took too long to respond. Please try again.'));
+          const timeoutError = new Error('Atlas took too long to respond. Please try again.');
+          captureException(timeoutError, {
+            feature: 'voice_call',
+            error_type: 'claude_timeout',
+            latency: performance.now() - claudeStart
+          });
+          options.onError(timeoutError);
         } else {
           logger.error('[VoiceCall] Claude connection error:', error);
+          captureException(error as Error, {
+            feature: 'voice_call',
+            error_type: 'claude_connection',
+            latency: performance.now() - claudeStart
+          });
           options.onError(error as Error);
         }
         return;
@@ -1883,8 +1928,16 @@ export class VoiceCallService {
         // ✅ POLISH #3: Track errors
         this.callMetrics.errors++;
         
+        const error = new Error(`Claude streaming failed: ${response.statusText}`);
         logger.error(`[VoiceCall] Claude streaming failed: ${response.statusText}`);
-        options.onError(new Error(`Claude streaming failed: ${response.statusText}`));
+        captureException(error, {
+          feature: 'voice_call',
+          error_type: 'claude_streaming_failed',
+          status: response.status,
+          statusText: response.statusText,
+          latency: performance.now() - claudeStart
+        });
+        options.onError(error);
         return;
       }
       
