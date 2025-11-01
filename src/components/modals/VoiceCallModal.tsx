@@ -559,6 +559,13 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       // ✅ BEST PRACTICE: Update state based on actual track state (not stale)
       setIsMuted(newMutedState);
       
+      // ✅ FIX: Also update voiceCallService mute state (so VADService respects it)
+      if (isCallActive) {
+        unifiedVoiceCallService.toggleMute().catch(err => {
+          logger.warn('[VoiceCall] Failed to update service mute state:', err);
+        });
+      }
+      
       // ✅ BEST PRACTICE: User feedback
       if (newMutedState) {
         modernToast.info('Microphone muted');

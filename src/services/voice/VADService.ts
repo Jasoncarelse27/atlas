@@ -60,6 +60,7 @@ export class VADService implements IVADService {
   private onGetLastRejectedTime?: () => number;
   private onSetIsProcessing?: (value: boolean) => void;
   private onGetIsAtlasSpeaking?: () => boolean;
+  private onGetIsMutedCheck?: () => boolean; // ✅ FIX: Check if microphone is muted (from UI)
   private onStatusChange?: (status: 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'reconnecting') => void;
   private recordingMimeType: string = 'audio/webm';
 
@@ -111,6 +112,7 @@ export class VADService implements IVADService {
     this.onGetLastRejectedTime = callbacks.onGetLastRejectedTime;
     this.onSetIsProcessing = callbacks.onSetIsProcessing;
     this.onGetIsAtlasSpeaking = callbacks.onGetIsAtlasSpeaking;
+    this.onGetIsMutedCheck = callbacks.onGetIsMutedCheck; // ✅ FIX: Store mute check callback
     this.onStatusChange = callbacks.onStatusChange;
     this.onRecordingStopped = callbacks.onRecordingStopped;
   }
@@ -353,17 +355,20 @@ export class VADService implements IVADService {
     const checkVAD = () => {
       if (!this.onIsActiveCheck?.() || !this.analyser) return;
 
-      // ✅ FIX: Check if microphone track is enabled (respect mute button)
-      if (this.stream) {
-        const audioTracks = this.stream.getAudioTracks();
-        if (audioTracks.length > 0 && !audioTracks[0].enabled) {
-          // Track is muted - stop recording if active and skip VAD checks
-          if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-            logger.debug('[VAD] Microphone muted - stopping recording');
-            this.mediaRecorder.stop();
-          }
-          return; // Skip VAD checking when muted
+      // ✅ FIX: Check if microphone is muted (from UI mute button)
+      // Check both UI mute state (via callback) and VADService's own stream track
+      const isMutedByUI = this.onGetIsMutedCheck?.() ?? false;
+      const isMutedByTrack = this.stream && this.stream.getAudioTracks().length > 0 
+        ? !this.stream.getAudioTracks()[0].enabled 
+        : false;
+      
+      if (isMutedByUI || isMutedByTrack) {
+        // Microphone is muted - stop recording if active and skip VAD checks
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          logger.debug('[VAD] Microphone muted - stopping recording');
+          this.mediaRecorder.stop();
         }
+        return; // Skip VAD checking when muted
       }
 
       const isAtlasSpeaking = this.onGetIsAtlasSpeaking?.() ?? false;

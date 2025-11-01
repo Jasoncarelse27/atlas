@@ -27,6 +27,7 @@ interface VoiceCallOptions {
 
 export class VoiceCallService {
   private isActive = false;
+  private isMuted: boolean = false; // ✅ FIX: Track mute state for VADService
   private mediaRecorder: MediaRecorder | null = null;
   private callStartTime: Date | null = null;
   private currentOptions: VoiceCallOptions | null = null;
@@ -222,6 +223,7 @@ export class VoiceCallService {
                    (!isFeatureEnabled('USE_AUDIO_PLAYBACK_SERVICE') && this.currentAudio && !this.currentAudio.paused) ||
                    (isFeatureEnabled('VOICE_STREAMING') && audioQueueService.getIsPlaying());
           },
+          onGetIsMutedCheck: () => this.isMuted, // ✅ FIX: Pass mute state to VADService
           onStatusChange: options.onStatusChange,
           onRecordingStopped: async (audioBlob: Blob, mimeType: string) => {
             this.recordingMimeType = mimeType;
@@ -244,6 +246,15 @@ export class VoiceCallService {
     logger.info('[VoiceCall] ✅ Call started with ChatGPT-style VAD');
   }
   
+  /**
+   * Toggle mute state
+   */
+  toggleMute(): boolean {
+    this.isMuted = !this.isMuted;
+    logger.debug(`[VoiceCall] Mute toggled: ${this.isMuted ? 'muted' : 'unmuted'}`);
+    return this.isMuted;
+  }
+
   async stopCall(userId: string): Promise<void> {
     if (!this.isActive) {
       logger.debug('[VoiceCall] stopCall called but call is not active');
