@@ -1068,6 +1068,12 @@ export class VoiceCallService {
     audioBlob: Blob,
     options: VoiceCallOptions
   ): Promise<void> {
+    // ✅ CRITICAL FIX: Final mute check before processing (safety net)
+    if (this.isMuted) {
+      logger.debug('[VoiceCall] Skipping audio processing - microphone is muted');
+      return;
+    }
+    
     // Route to streaming or standard based on feature flag
     if (isFeatureEnabled('VOICE_STREAMING')) {
       return this.processVoiceChunkStreaming(audioBlob, options);
