@@ -23,7 +23,8 @@ export default defineConfig(({ mode }) => {
         'expo-image-manipulator',
         'react-native',
         'react-native-web'
-      ]
+      ],
+      include: ['react-is'] // ✅ Fix Railway build: Ensure react-is is pre-bundled
     },
     base: process.env.NODE_ENV === 'production' ? '/' : '/',
     build: {
@@ -45,7 +46,11 @@ export default defineConfig(({ mode }) => {
         },
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
-        external: []
+        external: [],
+        // ✅ Fix Railway build: Explicitly resolve react-is
+        resolve: {
+          dedupe: ['react-is']
+        }
       }
     },
     server: {
