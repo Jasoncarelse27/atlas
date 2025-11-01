@@ -139,6 +139,13 @@ export class AudioQueueService {
    * ✅ PRODUCTION-GRADE: Request ID tracking, enhanced error handling
    */
   private async generateTTS(item: AudioQueueItem, voice: string, model: string = 'tts-1-hd'): Promise<void> {
+    // ✅ CRITICAL FIX: Check if item was cancelled due to reset before generating
+    if (item.generation !== this.resetGeneration) {
+      logger.debug(`[AudioQueue] Skipping TTS generation for sentence ${item.index} - queue was reset`);
+      item.status = 'error';
+      return;
+    }
+    
     item.status = 'generating';
     
     try {
@@ -161,6 +168,13 @@ export class AudioQueueService {
         }),
       });
       
+      // ✅ CRITICAL FIX: Check again after fetch completes (reset might have happened during fetch)
+      if (item.generation !== this.resetGeneration) {
+        logger.debug(`[AudioQueue] TTS completed but cancelled for sentence ${item.index} - queue was reset`);
+        item.status = 'error';
+        return;
+      }
+      
       if (!response.ok) {
         let errorDetails: any;
         try {
@@ -179,6 +193,14 @@ export class AudioQueueService {
       }
       
       const result = await response.json();
+      
+      // ✅ CRITICAL FIX: Final check before adding audio (reset might have happened during JSON parse)
+      if (item.generation !== this.resetGeneration) {
+        logger.debug(`[AudioQueue] TTS audio ready but cancelled for sentence ${item.index} - queue was reset`);
+        item.status = 'error';
+        return;
+      }
+      
       const audioDataUrl = `data:audio/mp3;base64,${result.base64Audio}`;
       
       const audio = new Audio(audioDataUrl);
@@ -189,6 +211,12 @@ export class AudioQueueService {
       const actualModel = result.model || model;
       logger.debug(`[AudioQueue] TTS ready for sentence ${item.index} (model: ${actualModel}, requestId: ${result.requestId || requestId})`);
     } catch (error) {
+      // ✅ CRITICAL FIX: Don't log error if item was cancelled due to reset
+      if (item.generation !== this.resetGeneration) {
+        logger.debug(`[AudioQueue] TTS error cancelled for sentence ${item.index} - queue was reset`);
+        item.status = 'error';
+        return;
+      }
       logger.error(`[AudioQueue] TTS generation error for sentence ${item.index}:`, error);
       item.status = 'error';
       throw error;
@@ -207,6 +235,13 @@ export class AudioQueueService {
     while (this.currentIndex < this.queue.length && !this.isInterrupted) {
       const item = this.queue[this.currentIndex];
       
+      // ✅ CRITICAL FIX: Skip items from old generations (they were cancelled)
+      if (item.generation !== this.resetGeneration) {
+        logger.debug(`[AudioQueue] Skipping sentence ${item.index} from old generation (${item.generation} vs ${this.resetGeneration})`);
+        this.currentIndex++;
+        continue;
+      }
+      
       // ✅ FIX: Wait for TTS with shorter timeout (voice calls need low latency)
       // ChatGPT starts speaking as soon as first TTS is ready
       // ✅ IMPROVEMENT: Longer timeout when resuming (TTS might still be generating)
@@ -214,6 +249,11 @@ export class AudioQueueService {
       const timeout = isResuming ? 10000 : 15000; // ✅ FIX: 15s for new playback (was 5s) - buffer for mobile networks
       const startWait = Date.now();
       while (item.status !== 'ready' && item.status !== 'error') {
+        // ✅ CRITICAL FIX: Also check if item was cancelled during wait
+        if (item.generation !== this.resetGeneration) {
+          logger.debug(`[AudioQueue] Sentence ${item.index} cancelled during wait - queue was reset`);
+          break;
+        }
         if (Date.now() - startWait > timeout) {
           logger.error(`[AudioQueue] Timeout waiting for sentence ${item.index} after ${timeout/1000}s (${isResuming ? 'resuming' : 'new playback'})`);
           item.status = 'error';
@@ -222,9 +262,13 @@ export class AudioQueueService {
         await new Promise(r => setTimeout(r, 50)); // ✅ FIX: Check every 50ms (was 100ms) for faster start
       }
       
-      // Skip if error
-      if (item.status === 'error' || !item.audio) {
-        logger.warn(`[AudioQueue] Skipping sentence ${item.index} (error)`);
+      // Skip if error or cancelled
+      if (item.status === 'error' || !item.audio || item.generation !== this.resetGeneration) {
+        if (item.generation !== this.resetGeneration) {
+          logger.debug(`[AudioQueue] Skipping cancelled sentence ${item.index}`);
+        } else {
+          logger.warn(`[AudioQueue] Skipping sentence ${item.index} (error)`);
+        }
         this.currentIndex++;
         continue;
       }
