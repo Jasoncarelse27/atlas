@@ -391,6 +391,7 @@ export class VoiceCallService {
     this.interruptRecordingRestarted = false; // ✅ FIX: Reset interrupt recording flag
     this.lastSpeechTime = null;
     this.isProcessing = false; // ✅ CRITICAL: Reset processing flag on stop
+    this.isMuted = false; // ✅ FIX: Reset mute state on stop
     this.silenceStartTime = null;
     this.lastProcessTime = 0;
     this.lastRejectedTime = 0;

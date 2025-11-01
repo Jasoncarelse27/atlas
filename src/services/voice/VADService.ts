@@ -93,6 +93,7 @@ export class VADService implements IVADService {
     onGetLastRejectedTime?: () => number;
     onSetIsProcessing?: (value: boolean) => void;
     onGetIsAtlasSpeaking?: () => boolean;
+    onGetIsMutedCheck?: () => boolean; // ✅ FIX: Check if microphone is muted (from UI)
     onStatusChange?: (status: 'listening' | 'transcribing' | 'thinking' | 'speaking' | 'reconnecting') => void;
     onRecordingStopped: (audioBlob: Blob, mimeType: string) => Promise<void>;
   }): void {
