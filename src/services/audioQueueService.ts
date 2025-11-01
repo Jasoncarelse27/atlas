@@ -11,6 +11,7 @@ interface AudioQueueItem {
   index: number;
   audio: HTMLAudioElement | null;
   status: 'pending' | 'generating' | 'ready' | 'playing' | 'played' | 'error';
+  generation: number; // ✅ CRITICAL FIX: Track which reset generation this item belongs to
 }
 
 export class AudioQueueService {
@@ -19,6 +20,7 @@ export class AudioQueueService {
   private currentIndex: number = 0;
   private isInterrupted: boolean = false;
   private onCompleteCallback?: () => void; // ✅ FIX: Callback when all audio completes
+  private resetGeneration: number = 0; // ✅ CRITICAL FIX: Track reset generation to cancel in-flight TTS
   
   /**
    * Add pre-generated audio directly to queue (for V2 WebSocket streaming)
@@ -336,6 +338,10 @@ export class AudioQueueService {
    */
   reset(): void {
     logger.info('[AudioQueue] 🔄 Resetting queue for new conversation');
+    
+    // ✅ CRITICAL FIX: Increment generation counter to cancel all in-flight TTS requests
+    this.resetGeneration++;
+    
     this.isInterrupted = true;
     this.isPlaying = false;
     
