@@ -1352,6 +1352,17 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       writeSSE(res, { event: 'init', status: 'connecting' });
       logger.debug('[Server] ✅ SSE headers flushed, initial heartbeat sent');
 
+      // ✅ PRODUCTION-SAFE: Periodic heartbeat to keep connection alive during long AI responses
+      // Prevents Railway/proxy timeouts on streams > 10 seconds
+      const heartbeatInterval = setInterval(() => {
+        try {
+          writeSSE(res, { event: 'ping', timestamp: Date.now() });
+        } catch (err) {
+          // If write fails, connection is likely closed - clear interval
+          clearInterval(heartbeatInterval);
+        }
+      }, 10000); // Every 10 seconds
+
       let finalText = '';
       try {
         logger.debug(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
@@ -1383,6 +1394,9 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           finalText = mockChunks.join('');
         }
       } catch (streamErr) {
+        // ✅ CRITICAL: Stop heartbeat on error
+        clearInterval(heartbeatInterval);
+        
         // ✅ CRITICAL: Log and send structured error to frontend
         logger.error('[Server] ❌ Claude streaming error:', streamErr);
         logger.error('[Server] Error details:', {
@@ -1398,7 +1412,11 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           chunk: 'Sorry, I hit an error generating the response.'
         });
         finalText = 'Sorry, I hit an error generating the response.';
+        return; // Exit early on error - heartbeat already cleared
       }
+      
+      // ✅ CRITICAL: Stop heartbeat when stream completes successfully
+      clearInterval(heartbeatInterval);
 
       // Persist assistant message after stream completes - skip in development mode
       const aiResponse = {
@@ -1428,6 +1446,9 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           logger.error('[Server] Error storing assistant message:', error.message || error);
         }
       }
+      
+      // ✅ CRITICAL: Stop heartbeat before sending completion
+      clearInterval(heartbeatInterval);
       
       // Send completion signal
       writeSSE(res, { done: true, response: storedResponse, conversationId: messageData.conversation_id });
