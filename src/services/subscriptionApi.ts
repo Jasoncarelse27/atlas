@@ -4,6 +4,7 @@
 
 import { isPaidTier } from '../config/featureAccess';
 import { logger } from '../lib/logger';
+import { getApiEndpoint } from '../utils/apiClient';
 import { perfMonitor } from '../utils/performanceMonitor';
 import { safeToast } from './toastService';
 
@@ -71,8 +72,8 @@ class SubscriptionApiService {
   }
 
   constructor() {
-    // Use relative URL to leverage Vite proxy for mobile compatibility
-    // This ensures mobile devices use the proxy instead of direct localhost calls
+    // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+    // baseUrl is now handled by getApiEndpoint() - kept for backward compatibility
     this.baseUrl = '';
     
     // Check if we're in mock mode (no real FastSpring credentials)
@@ -115,7 +116,9 @@ class SubscriptionApiService {
     try {
       perfMonitor.start('tier-fetch');
       
-      const profile = await safeFetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
+      // ✅ CRITICAL FIX: This is a Supabase REST endpoint, use full Supabase URL
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const profile = await safeFetch(`${supabaseUrl}/rest/v1/user_profiles?id=eq.${userId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -383,7 +386,8 @@ class SubscriptionApiService {
   async getUserStats(userId: string): Promise<any> {
     try {
       
-      const response = await fetch(`${this.baseUrl}/api/subscriptions/stats/${userId}`, {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint(`/api/subscriptions/stats/${userId}`), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
