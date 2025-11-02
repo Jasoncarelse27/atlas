@@ -120,6 +120,14 @@ export const chatService = {
       // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
       const messageEndpoint = getApiEndpoint('/api/message?stream=1');
       
+      // ✅ CRITICAL DEBUG: Log endpoint URL to diagnose missing requests
+      logger.error('[ChatService] 🔍 API Endpoint:', {
+        endpoint: messageEndpoint,
+        baseUrl: import.meta.env.VITE_API_URL || 'NOT SET',
+        isProd: import.meta.env.PROD,
+        fullUrl: messageEndpoint
+      });
+      
       // ✅ ENHANCED ERROR HANDLING: Retry with exponential backoff
       let lastError: Error | null = null;
       let response: Response | null = null;
@@ -127,6 +135,7 @@ export const chatService = {
       
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
+          logger.error(`[ChatService] 🔍 Attempt ${attempt + 1}: Fetching from ${messageEndpoint}`);
           response = await fetch(messageEndpoint, {
             method: "POST",
             headers: { 
