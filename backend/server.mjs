@@ -261,8 +261,11 @@ function filterResponse(text) {
 // Stream Anthropic response with proper SSE handling
 async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false }) {
   if (!ANTHROPIC_API_KEY) {
-    throw new Error('Missing Anthropic API key');
+    logger.error('[streamAnthropicResponse] ❌ ANTHROPIC_API_KEY is missing or empty');
+    throw new Error('Missing Anthropic API key - check Railway environment variables');
   }
+  
+  logger.debug('[streamAnthropicResponse] ✅ API key found, length:', ANTHROPIC_API_KEY.length);
   
   // ✅ VOICE CALL FIX: For voice calls, use simple content without text-based instructions
   let finalUserContent;
@@ -520,7 +523,9 @@ You are having a natural voice conversation. Respond as if you can hear them cle
 
   if (!response.ok) {
     const errText = await response.text().catch(() => 'Anthropic request failed');
-    logger.error(`[streamAnthropicResponse] ❌ Anthropic API error: ${response.status} ${errText}`);
+    logger.error(`[streamAnthropicResponse] ❌ Anthropic API error: ${response.status}`);
+    logger.error(`[streamAnthropicResponse] ❌ Error details:`, errText);
+    logger.error(`[streamAnthropicResponse] ❌ Model used: ${model}, hasKey: ${!!ANTHROPIC_API_KEY}`);
     throw new Error(`Anthropic API Error (${response.status}): ${errText}`);
   }
   
