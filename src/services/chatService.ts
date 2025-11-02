@@ -144,7 +144,13 @@ export const chatService = {
             logger.error(`[ChatService] ⏱️ Fetch timeout after 30s on attempt ${attempt + 1}`);
           }, 30000); // 30 second timeout
           
-          // Use timeout signal (user abort handled separately via abortController)
+          // Combine abort signals: timeout OR user abort will cancel the request
+          const combinedController = new AbortController();
+          if (abortController) {
+            abortController.signal.addEventListener('abort', () => combinedController.abort());
+          }
+          timeoutController.signal.addEventListener('abort', () => combinedController.abort());
+          
           response = await fetch(messageEndpoint, {
             method: "POST",
             headers: { 
@@ -157,7 +163,7 @@ export const chatService = {
               conversationId: conversationId || null // ✅ Backend now gets userId from auth token
               // userId removed - backend uses req.user.id from auth middleware
             }),
-            signal: abortController?.signal || timeoutController.signal,
+            signal: combinedController.signal,
           });
           
           clearTimeout(timeoutId);
