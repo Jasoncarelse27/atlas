@@ -679,16 +679,37 @@ app.use(compression({
 }));
 app.use(morgan('combined'));
 // ✅ Allow LAN devices to connect (same Wi-Fi)
+// ✅ CRITICAL FIX: Support Vercel deployments (production + preview)
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.ALLOWED_ORIGINS?.split(',') || [
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (process.env.NODE_ENV === 'production') {
+      // Check ALLOWED_ORIGINS env var first
+      const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
         'https://atlas-ai.app',
         'https://www.atlas-ai.app',
         'https://atlas.vercel.app',
-        'https://atlas-frontend.fly.dev'
-      ]
-    : [
-        // Vite dev server ports
+        'https://atlas-frontend.fly.dev',
+        'https://atlas-frontend.vercel.app'
+      ];
+      
+      // Allow exact matches
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      // Allow all Vercel preview deployments (*.vercel.app)
+      if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        return callback(null, true);
+      }
+      
+      // Reject unknown origins
+      return callback(new Error('Not allowed by CORS'));
+    } else {
+      // Development: allow all localhost and LAN IPs
+      const allowedDevOrigins = [
         process.env.FRONTEND_URL || 'http://localhost:5173',
         'http://localhost:5174', 
         'http://localhost:5175',
@@ -699,28 +720,19 @@ app.use(cors({
         'http://localhost:5180',
         'http://localhost:5181',
         'http://localhost:5182',
-        // Mobile + desktop dev site (HTTP)
         `http://${LOCAL_IP}:5174`,
         `http://${LOCAL_IP}:5178`,
         `http://${LOCAL_IP}:5179`,
         `http://${LOCAL_IP}:5180`,
-        // Mobile + desktop dev site (HTTPS - self-signed cert)
-        `https://${LOCAL_IP}:5174`,
-        `https://${LOCAL_IP}:5178`,
-        'https://localhost:5174',
-        'https://localhost:5178',
-        // Backend port
-        'http://localhost:8000',
-        // Expo/React Native ports
-        'http://localhost:8081',
-        'http://localhost:19006',
-        'exp://127.0.0.1:19000',
-        'exp://10.46.30.39:8081',
-        'exp://10.46.30.39:8083',
-        // Legacy ports
-        'http://127.0.0.1:8081',
-        'http://localhost:8083'
-      ],
+      ];
+      
+      if (allowedDevOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.startsWith(`http://${LOCAL_IP}:`)) {
+        return callback(null, true);
+      }
+      
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'Accept']
