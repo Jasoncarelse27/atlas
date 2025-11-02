@@ -1364,6 +1364,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       }, 10000); // Every 10 seconds
 
       let finalText = '';
+      let streamCompleted = false;
       try {
         logger.debug(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
         
@@ -1371,10 +1372,12 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         logger.debug(`🔍 ROUTE CHECK: provider=${routedProvider}, hasKey=${!!ANTHROPIC_API_KEY}, model=${selectedModel}`);
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
+          streamCompleted = true;
           logger.debug('✅ Claude streaming completed, final text length:', finalText.length);
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
+          streamCompleted = true;
           logger.debug('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
           // Fallback mock streaming for mobile
@@ -1392,6 +1395,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
             await new Promise(r => setTimeout(r, 200));
           }
           finalText = mockChunks.join('');
+          streamCompleted = true;
         }
       } catch (streamErr) {
         // ✅ CRITICAL: Stop heartbeat on error
@@ -1402,7 +1406,9 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         logger.error('[Server] Error details:', {
           message: streamErr.message,
           stack: streamErr.stack,
-          name: streamErr.name
+          name: streamErr.name,
+          userId,
+          conversationId: finalConversationId
         });
         
         // ✅ Send structured error as SSE chunk (frontend can parse and display)
@@ -1412,7 +1418,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           chunk: 'Sorry, I hit an error generating the response.'
         });
         finalText = 'Sorry, I hit an error generating the response.';
-        return; // Exit early on error - heartbeat already cleared
+        streamCompleted = true; // Mark as completed so we save error message to DB
+      }
+      
+      // ✅ CRITICAL: Ensure stream completed before saving
+      if (!streamCompleted) {
+        logger.error('[Server] ❌ Stream did not complete - finalText may be empty');
+        finalText = finalText || 'Sorry, I hit an error generating the response.';
       }
       
       // ✅ CRITICAL: Stop heartbeat when stream completes successfully
