@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { getSafeUserMedia } from '@/utils/audioHelpers';
 import { conversationBuffer } from '@/utils/conversationBuffer';
+import { getApiEndpoint } from '@/utils/apiClient';
 import { isFeatureEnabled } from '../config/featureFlags';
 import { logger } from '../lib/logger';
 import { audioQueueService } from './audioQueueService';
@@ -307,7 +308,8 @@ export class VoiceCallServiceSimplified {
     const base64Audio = await this.blobToBase64(audioBlob);
     const { data: { session } } = await supabase.auth.getSession();
     
-    const response = await fetch('/api/stt-deepgram', {
+    // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+    const response = await fetch(getApiEndpoint('/api/stt-deepgram'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -329,7 +331,8 @@ export class VoiceCallServiceSimplified {
   private async getAIResponse(transcript: string, options: VoiceCallOptions): Promise<string> {
     const { data: { session } } = await supabase.auth.getSession();
     
-    const response = await fetch('/api/message?stream=1', {
+    // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+    const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

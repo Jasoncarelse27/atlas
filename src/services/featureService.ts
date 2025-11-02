@@ -2,6 +2,7 @@
 import { toast } from "react-hot-toast"
 import { useNavigate } from "react-router-dom"
 import { logger } from '../lib/logger';
+import { getApiEndpoint } from '../utils/apiClient';
 
 // Map which features belong to which tiers
 const tierFeatures: Record<string, string[]> = {
@@ -41,8 +42,8 @@ export function useFeatureService() {
 
   const logFeatureAttempt = async (userId: string, feature: string, tier: string) => {
     try {
-      // Use relative URL to leverage Vite proxy for mobile compatibility
-      const response = await fetch('/api/feature-attempts', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/feature-attempts'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -78,8 +79,8 @@ export class FeatureService {
     tier: string
   ): Promise<void> {
     try {
-      // Use relative URL to leverage Vite proxy for mobile compatibility
-      const response = await fetch('/api/feature-attempts', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/feature-attempts'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -4,6 +4,7 @@
 import { FASTSPRING_CONFIG, isPaidTier } from '../config/featureAccess';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
+import { getApiEndpoint } from '../utils/apiClient';
 import type { Tier } from '../types/tier';
 import { subscriptionApi } from './subscriptionApi';
 
@@ -216,8 +217,8 @@ class FastSpringService {
     }
 
     try {
-      // Call FastSpring API to create checkout session
-      const response = await fetch('/api/fastspring/create-checkout', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/fastspring/create-checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { getSafeUserMedia } from '@/utils/audioHelpers';
 import { conversationBuffer } from '@/utils/conversationBuffer';
+import { getApiEndpoint } from '@/utils/apiClient';
 import { isFeatureEnabled } from '../config/featureFlags';
 import { logger } from '../lib/logger';
 import { captureException } from './sentryService';
@@ -1581,7 +1582,8 @@ export class VoiceCallService {
         const timeoutTimeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout(audioBlob.size));
         
         try {
-          const sttResponse = await fetch('/api/stt-deepgram', {
+          // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+          const sttResponse = await fetch(getApiEndpoint('/api/stt-deepgram'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1732,7 +1734,8 @@ export class VoiceCallService {
         const timeout = this.createTimeout(() => controller.abort(), this.getSTTTimeout(audioBlob.size));
         
         try {
-          const sttResponse = await fetch('/api/stt-deepgram', {
+          // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+          const sttResponse = await fetch(getApiEndpoint('/api/stt-deepgram'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1891,7 +1894,8 @@ export class VoiceCallService {
       
       let response;
       try {
-        response = await fetch('/api/message?stream=1', {
+        // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+        response = await fetch(getApiEndpoint('/api/message?stream=1'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2251,7 +2255,8 @@ export class VoiceCallService {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch('/api/message?stream=1', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2490,7 +2495,8 @@ export class VoiceCallService {
       
       try {
         // Try to fetch a lightweight endpoint (use existing API)
-        const response = await fetch('/api/health', { 
+        // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+        const response = await fetch(getApiEndpoint('/api/health'), { 
           signal: controller.signal,
           method: 'HEAD', // HEAD request is lighter than GET
         });

@@ -1,5 +1,6 @@
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
+import { getApiEndpoint } from '../utils/apiClient';
 import { compressImage, createThumbnail, validateImageFile } from '../utils/imageCompression';
 
 // Event logging helper
@@ -127,9 +128,8 @@ export const imageService = {
     // Get the public URL for the image
     const imageUrl = this.getPublicUrl(filePath);
 
-    // Call our backend image analysis endpoint
-    // ✅ FIX: Use relative URL for proper proxy routing (like chatService.ts does)
-    const res = await fetch('/api/image-analysis', {
+    // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+    const res = await fetch(getApiEndpoint('/api/image-analysis'), {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",

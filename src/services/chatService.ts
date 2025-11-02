@@ -5,6 +5,7 @@ import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
 import { enhancedResponseCacheService } from "./enhancedResponseCacheService";
 import { subscriptionApi } from "./subscriptionApi";
+import { getApiEndpoint } from "../utils/apiClient";
 
 // Global abort controller for message streaming
 let abortController: AbortController | null = null;
@@ -25,9 +26,8 @@ export async function sendAttachmentMessage(
   // Get user's tier for the request
   const currentTier = await subscriptionApi.getUserTier(userId, token);
   
-  // Send to backend - use relative URL for mobile compatibility
-  // This ensures mobile devices use the Vite proxy instead of direct localhost calls
-  const messageEndpoint = '/api/message?stream=1';
+  // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+  const messageEndpoint = getApiEndpoint('/api/message?stream=1');
   
   const response = await fetch(messageEndpoint, {
     method: "POST",
@@ -117,10 +117,8 @@ export const chatService = {
       // Memory extraction is handled by the component layer
       // This keeps the service layer clean and avoids circular dependencies
 
-      // Get response from backend (JSON response, not streaming)
-      // Use relative URL to leverage Vite proxy for mobile compatibility
-      // This ensures mobile devices use the proxy instead of direct localhost calls
-      const messageEndpoint = '/api/message?stream=1';
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const messageEndpoint = getApiEndpoint('/api/message?stream=1');
       
       // ✅ ENHANCED ERROR HANDLING: Retry with exponential backoff
       let lastError: Error | null = null;
@@ -274,8 +272,8 @@ export const chatService = {
       // Get user's tier for the request
       const imageTier = await subscriptionApi.getUserTier(actualUserId, token);
       
-      // Send multi-attachment analysis request to backend
-      const response = await fetch('/api/message?stream=1', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -323,7 +321,8 @@ export const chatService = {
           imageUrl: imageUrl // Send image URL for analysis
         };
         
-        const response = await fetch(`/api/message?stream=1`, {
+        // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+        const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
@@ -420,7 +419,8 @@ export async function sendMessageWithAttachments(
         throw new Error('No image attachment found');
       }
 
-      const response = await fetch('/api/image-analysis', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/image-analysis'), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

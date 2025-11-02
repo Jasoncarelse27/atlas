@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
+import { getApiEndpoint } from '../utils/apiClient';
 import { useSupabaseAuth } from './useSupabaseAuth';
 import { useTierAccess } from './useTierAccess';
 
@@ -44,13 +45,14 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
     setIsLoading(true);
     
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || '';  // Use relative URLs
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const apiEndpoint = getApiEndpoint('/message');
       
       // Get Supabase session token for authentication
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const response = await fetch(`${baseUrl}/message`, {
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

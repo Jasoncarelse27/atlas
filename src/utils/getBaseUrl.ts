@@ -1,11 +1,12 @@
+/**
+ * @deprecated Use getApiUrl() or getApiEndpoint() from '@/utils/apiClient' instead
+ * This function is kept for backward compatibility but redirects to the new API client
+ */
+import { getApiUrl } from './apiClient';
+
 const getBaseUrl = () => {
-  // Use environment variable with fallback to relative URLs for mobile compatibility
-  const API_URL = import.meta.env.VITE_API_URL || "";
-  
-  // For both web and native: use environment variable or empty string (relative URLs)
-  // Empty string allows the app to use relative URLs, which work across all environments
-  // Mobile builds should have VITE_API_URL set in EAS environment variables
-    return API_URL;
+  // ✅ CRITICAL FIX: Redirect to centralized API client
+  return getApiUrl();
 };
 
 export default getBaseUrl;

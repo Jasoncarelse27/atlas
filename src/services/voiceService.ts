@@ -2,6 +2,7 @@ import { canUseAudio } from '@/config/featureAccess';
 import { createChatError } from '../features/chat/lib/errorHandler';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
+import { getApiEndpoint } from '../utils/apiClient';
 import { generateUUID } from "../utils/uuid";
 
 export interface TranscriptionResult {
@@ -117,7 +118,8 @@ class VoiceService {
         throw new Error('Authentication required');
       }
 
-      const response = await fetch('/api/transcribe', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/transcribe'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +169,8 @@ class VoiceService {
 
       logger.debug('[VoiceService] Making TTS API call to /api/synthesize with token:', token ? 'present' : 'missing');
       
-      const response = await fetch('/api/synthesize', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/synthesize'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

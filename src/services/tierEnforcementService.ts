@@ -1,5 +1,6 @@
 import { canUseAudio, canUseVoiceEmotion } from '../config/featureAccess';
 import { logger } from '../lib/logger';
+import { getApiEndpoint } from '../utils/apiClient';
 
 // Atlas V1 Tier Enforcement Service
 // Handles server-side tier enforcement API calls with middleware integration
@@ -56,10 +57,10 @@ interface FeatureCheckResponse {
 }
 
 class TierEnforcementService {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || '';  // Use relative URLs for mobile compatibility
+  // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+  // baseUrl is kept for backward compatibility but uses getApiEndpoint internally
+  private get baseUrl(): string {
+    return import.meta.env.VITE_API_URL || '';  // Use relative URLs for mobile compatibility
   }
 
   /**
@@ -67,7 +68,8 @@ class TierEnforcementService {
    */
   async getUserTierInfo(userId: string): Promise<TierInfo> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/user/tier-info?userId=${userId}`);
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint(`/api/user/tier-info?userId=${userId}`));
       
       if (!response.ok) {
         throw new Error(`Failed to get tier info: ${response.status}`);
@@ -97,7 +99,8 @@ class TierEnforcementService {
    * Send message with server-side tier enforcement and middleware
    */
   async sendMessage(userId: string, message: string, tier: string = 'free', conversationId?: string, promptType?: string): Promise<MessageResponse> {
-    const response = await fetch(`${this.baseUrl}/api/message?stream=1`, {
+    // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+    const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -184,7 +187,8 @@ class TierEnforcementService {
    */
   async checkFeatureAccess(userId: string, feature: string): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/feature/check`, {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/feature/check'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +237,8 @@ class TierEnforcementService {
    */
   async getTierAnalytics(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/admin/tier-analytics`);
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/admin/tier-analytics'));
       
       if (!response.ok) {
         throw new Error(`Failed to get analytics: ${response.status}`);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getApiEndpoint } from '../utils/apiClient';
 
 export interface NetworkStatus {
   isOnline: boolean;
@@ -41,7 +42,8 @@ export function useNetworkStatus(options: NetworkStatusOptions = {}): NetworkSta
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       const startTime = Date.now();
-      const response = await fetch('/api/health', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/health'), {
         method: 'HEAD',
         signal: controller.signal,
         cache: 'no-cache',

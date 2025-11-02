@@ -9,6 +9,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { logger } from '@/lib/logger';
+import { getApiEndpoint } from '@/utils/apiClient';
 import type { ISTTService, STTServiceConfig } from './interfaces';
 import { RetryService } from './RetryService';
 import { isFeatureEnabled } from '@/config/featureFlags';
@@ -55,7 +56,8 @@ export class STTService implements ISTTService {
     const timeout = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
-      const sttResponse = await fetch('/api/stt-deepgram', {
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const sttResponse = await fetch(getApiEndpoint('/api/stt-deepgram'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
