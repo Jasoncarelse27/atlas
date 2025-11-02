@@ -136,6 +136,15 @@ export const chatService = {
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
           logger.error(`[ChatService] 🔍 Attempt ${attempt + 1}: Fetching from ${messageEndpoint}`);
+          
+          // ✅ CRITICAL FIX: Add timeout to prevent hanging requests
+          const timeoutController = new AbortController();
+          const timeoutId = setTimeout(() => {
+            timeoutController.abort();
+            logger.error(`[ChatService] ⏱️ Fetch timeout after 30s on attempt ${attempt + 1}`);
+          }, 30000); // 30 second timeout
+          
+          // Use timeout signal (user abort handled separately via abortController)
           response = await fetch(messageEndpoint, {
             method: "POST",
             headers: { 
@@ -148,11 +157,24 @@ export const chatService = {
               conversationId: conversationId || null // ✅ Backend now gets userId from auth token
               // userId removed - backend uses req.user.id from auth middleware
             }),
-            signal: abortController?.signal, // Add abort signal for cancellation (with null check)
+            signal: abortController?.signal || timeoutController.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          // ✅ CRITICAL DEBUG: Log response immediately
+          logger.error(`[ChatService] 📡 Response received:`, {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            headers: Object.fromEntries(response.headers.entries())
           });
           
           // Break on success
-          if (response.ok) break;
+          if (response.ok) {
+            logger.error(`[ChatService] ✅ Request successful (${response.status})`);
+            break;
+          }
           
           // Handle errors
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -177,6 +199,14 @@ export const chatService = {
         } catch (error) {
           lastError = error as Error;
           
+          // ✅ CRITICAL DEBUG: Log ALL errors with full details
+          logger.error(`[ChatService] ❌ Fetch error on attempt ${attempt + 1}:`, {
+            name: error instanceof Error ? error.name : 'Unknown',
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            type: error instanceof TypeError ? 'TypeError' : error instanceof Error ? error.constructor.name : 'Unknown'
+          });
+          
           // Don't retry on abort or specific errors
           if (error instanceof Error && (
             error.name === 'AbortError' || 
@@ -188,10 +218,17 @@ export const chatService = {
             throw error;
           }
           
-          // Retry on network errors
+          // ✅ CRITICAL: Check for network/CORS errors
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            logger.error(`[ChatService] 🚫 Network/CORS error detected: ${error.message}`);
+            // Don't retry network errors - they won't resolve with retries
+            throw new Error(`Network error: ${error.message}. Check CORS and backend connectivity.`);
+          }
+          
+          // Retry on other errors
           if (attempt < MAX_RETRIES - 1) {
             const delay = Math.pow(2, attempt) * 1000;
-            logger.warn(`[ChatService] Network error, retrying in ${delay}ms...`);
+            logger.warn(`[ChatService] Error on attempt ${attempt + 1}, retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           }
