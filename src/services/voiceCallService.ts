@@ -329,7 +329,7 @@ export class VoiceCallService {
     logger.debug(`[VoiceCall] Mute toggled: ${this.isMuted ? 'muted' : 'unmuted'}`);
     return this.isMuted;
   }
-
+  
   async stopCall(userId: string): Promise<void> {
     if (!this.isActive) {
       logger.debug('[VoiceCall] stopCall called but call is not active');
@@ -996,16 +996,16 @@ export class VoiceCallService {
                     if (overlapDuration >= this.OVERLAP_TOLERANCE) {
                       // ✅ PHASE 2: Overlap tolerance passed - interrupt now (natural conversation flow)
                       logger.info(`[VoiceCall] 🛑 User interrupting Atlas after ${overlapDuration.toFixed(0)}ms overlap (level: ${(audioLevel * 100).toFixed(1)}% > ${(interruptThreshold * 100).toFixed(1)}%)`);
-                      audioQueueService.interrupt(); // Pause queue playback (allows resume)
-                      this.hasInterrupted = true;
+              audioQueueService.interrupt(); // Pause queue playback (allows resume)
+            this.hasInterrupted = true;
                       this.interruptTime = Date.now();
                       
                       // ✅ POLISH #3: Track interruption
                       this.callMetrics.interruptionCount++;
                       this.lastSpeechTime = null;
                       this.silenceStartTime = null;
-                      logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
-                      this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
+              logger.info(`[VoiceCall] 🛑 User interrupted - pausing queue (can resume) - interruptTime: ${this.interruptTime}`);
+            this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
                       // Keep interruptStartTime for yield tracking
                     }
                   }
@@ -1035,19 +1035,19 @@ export class VoiceCallService {
             }
             
             this.interruptDebounceTimer = setTimeout(() => {
-              // User interrupted! Pause Atlas immediately (don't reset currentTime - allows resume)
+            // User interrupted! Pause Atlas immediately (don't reset currentTime - allows resume)
               this.currentAudio?.pause();
-              // ✅ FIX: Don't reset currentTime - allows resume from same position
-              this.hasInterrupted = true;
+            // ✅ FIX: Don't reset currentTime - allows resume from same position
+          this.hasInterrupted = true;
               
               // ✅ POLISH #3: Track interruption (legacy mode)
               this.callMetrics.interruptionCount++;
               
               this.interruptTime = Date.now();
-              this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
-              // ✅ FIX: Reset speech tracking on interrupt - don't process interrupt speech
-              this.lastSpeechTime = null; // Clear any speech during interrupt
-              this.silenceStartTime = null; // Reset silence tracking
+            this.resumeAttempted = false; // ✅ CRITICAL: Reset resume flag on new interrupt
+            // ✅ FIX: Reset speech tracking on interrupt - don't process interrupt speech
+            this.lastSpeechTime = null; // Clear any speech during interrupt
+            this.silenceStartTime = null; // Reset silence tracking
               this.interruptDebounceTimer = null;
             }, this.INTERRUPT_DEBOUNCE_MS);
         }
@@ -1317,22 +1317,22 @@ export class VoiceCallService {
       
       const transcript = await this.retryWithBackoff(async () => {
         try {
-          const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
-            },
-            body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
-          });
-          
-          if (!sttResponse.ok) {
-            const error = await sttResponse.json().catch(() => ({}));
-            throw new Error(`STT failed: ${error.error || sttResponse.statusText}`);
-          }
-          
-          const sttResult = await sttResponse.json();
-          return sttResult.text;
+        const sttResponse = await fetch(`${supabaseUrl}/functions/v1/stt`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ audio: base64Audio.split(',')[1] }),
+        });
+        
+        if (!sttResponse.ok) {
+          const error = await sttResponse.json().catch(() => ({}));
+          throw new Error(`STT failed: ${error.error || sttResponse.statusText}`);
+        }
+        
+        const sttResult = await sttResponse.json();
+        return sttResult.text;
         } catch (error) {
           // ✅ POLISH #3: Track errors
           this.callMetrics.errors++;
