@@ -261,6 +261,7 @@ export class ConversationSyncService {
       const unsyncedMessages = allMessages.filter(msg => !msg.synced);
 
       for (const msg of unsyncedMessages) {
+        // ✅ CRITICAL FIX: Handle 409 conflicts gracefully (backend may have already created the message)
         const { error } = await supabase
           .from('messages')
           .upsert({
@@ -274,14 +275,23 @@ export class ConversationSyncService {
               text: msg.content
             },
             created_at: msg.timestamp
-          } as any);
+          } as any, {
+            onConflict: 'id' // ✅ Handle duplicate IDs gracefully
+          });
 
-        if (error) {
-          logger.error('[ConversationSync] Failed to sync message:', msg.id, error);
-        } else {
+        if (!error) {
           // Mark as synced
           await atlasDB.messages.update(msg.id, { synced: true });
           logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
+        } else {
+          // ✅ CRITICAL FIX: Handle 409 conflicts - message already exists (backend created it)
+          if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('409')) {
+            // Message already exists (likely created by backend), mark as synced
+            await atlasDB.messages.update(msg.id, { synced: true });
+            logger.debug('[ConversationSync] ✅ Message already exists (backend created), marked as synced:', msg.id);
+          } else {
+            logger.error('[ConversationSync] Failed to sync message:', msg.id, error);
+          }
         }
       }
 
@@ -480,6 +490,7 @@ export class ConversationSyncService {
         }
         
         // ✅ CRITICAL FIX: Send content as string, not object
+        // ✅ CRITICAL FIX: Handle 409 conflicts gracefully (backend may have already created the message)
         const { error } = await supabase
           .from('messages')
           .upsert({
@@ -489,13 +500,22 @@ export class ConversationSyncService {
             role: msg.role,
             content: msg.content, // ✅ Send as string directly
             created_at: msg.timestamp
-          } as any);
+          } as any, {
+            onConflict: 'id' // ✅ Handle duplicate IDs gracefully
+          });
         
         if (!error) {
           await atlasDB.messages.update(msg.id, { synced: true });
           logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
         } else {
-          logger.error('[ConversationSync] ❌ Failed to sync message:', msg.id, error);
+          // ✅ CRITICAL FIX: Handle 409 conflicts - message already exists (backend created it)
+          if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('409')) {
+            // Message already exists (likely created by backend), mark as synced
+            await atlasDB.messages.update(msg.id, { synced: true });
+            logger.debug('[ConversationSync] ✅ Message already exists (backend created), marked as synced:', msg.id);
+          } else {
+            logger.error('[ConversationSync] ❌ Failed to sync message:', msg.id, error);
+          }
         }
       }
       
