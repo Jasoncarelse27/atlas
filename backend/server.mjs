@@ -1167,15 +1167,13 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     }
 
     // Store message in Supabase - skip in development mode
+    // ✅ CRITICAL FIX: Supabase expects content as TEXT (string), not JSON object
     const messageData = {
       id: uuidv4(),
       conversation_id: finalConversationId,
       user_id: userId,
       role: 'user',
-      content: {
-        type: 'text',
-        text: message.trim()
-      },
+      content: message.trim(), // ✅ Send as string, not object
       model: model,
       timestamp: new Date().toISOString(),
       created_at: new Date().toISOString()
