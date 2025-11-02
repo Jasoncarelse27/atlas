@@ -191,7 +191,13 @@ export const chatService = {
       
       // If we exhausted retries, throw last error
       if (!response || !response.ok) {
-        throw lastError || new Error('Failed after max retries');
+        const errorMsg = lastError?.message || `Failed after max retries (status: ${response?.status || 'no response'})`;
+        logger.error('[ChatService] ❌ Final error after retries:', errorMsg, {
+          status: response?.status,
+          statusText: response?.statusText,
+          url: messageEndpoint
+        });
+        throw lastError || new Error(errorMsg);
       }
 
       // ✅ SUCCESS: Backend saves messages to DB immediately
