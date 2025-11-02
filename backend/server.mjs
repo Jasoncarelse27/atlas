@@ -570,8 +570,21 @@ You are having a natural voice conversation. Respond as if you can hear them cle
 // 🔒 SECURITY: Enhanced JWT verification middleware - ALWAYS verify with Supabase
 const verifyJWT = async (req, res, next) => {
   try {
+    // ✅ CRITICAL DEBUG: Log all incoming requests
+    logger.debug('[verifyJWT] 🔍 Request received:', {
+      method: req.method,
+      path: req.path,
+      origin: req.headers.origin,
+      hasAuth: !!req.headers.authorization,
+      authLength: req.headers.authorization?.length || 0
+    });
+    
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.error('[verifyJWT] ❌ Missing or invalid auth header:', {
+        hasHeader: !!authHeader,
+        headerStart: authHeader?.substring(0, 20) || 'none'
+      });
       return res.status(401).json({ 
         error: 'Missing or invalid authorization header',
         details: 'Please ensure you are logged in and try again'
@@ -1024,6 +1037,14 @@ app.post('/message',
 
 // Legacy endpoint for backward compatibility
 app.post('/api/message', verifyJWT, async (req, res) => {
+  // ✅ CRITICAL DEBUG: Log request arrival
+  logger.debug('[POST /api/message] 📨 Request received:', {
+    userId: req.user?.id,
+    hasMessage: !!req.body.message,
+    conversationId: req.body.conversationId,
+    stream: req.query.stream
+  });
+  
   try {
     const { message, conversationId, model = 'claude', is_voice_call, context } = req.body;
     const userId = req.user.id;
