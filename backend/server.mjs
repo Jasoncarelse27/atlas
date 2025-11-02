@@ -178,11 +178,22 @@ const _mapTierToAnthropicModel = (tier) => {
   return 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL (old retired Oct 29!)
 };
 
-// Stream helper: write SSE data chunk
+// ✅ PRODUCTION-SAFE: Stream helper with forced flush for Railway/proxy compatibility
 const writeSSE = (res, payload) => {
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
-  // Force flush for Safari/iOS compatibility
-  if (res.flush) res.flush();
+  try {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    // ✅ CRITICAL: Force flush to prevent Railway/proxy buffering
+    if (res.flush) {
+      res.flush();
+    }
+    // Also try flushHeaders if available (Node.js 18+)
+    if (res.flushHeaders) {
+      res.flushHeaders();
+    }
+  } catch (flushError) {
+    // If flush fails, log but don't throw (stream may still work)
+    logger.debug('[writeSSE] ⚠️ Flush error (non-critical):', flushError.message);
+  }
 };
 
 // Get user memory for personalized responses
@@ -470,37 +481,60 @@ PROFESSIONAL RESPONSE GUIDELINES:
 
 You are having a natural voice conversation. Respond as if you can hear them clearly. Keep responses brief (1-2 sentences).` : undefined;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Accept': 'text/event-stream'
-    },
-    body: JSON.stringify({
-      model: is_voice_call ? 'claude-3-haiku-20240307' : model, // ✅ Use fast Haiku for voice calls
-      max_tokens: is_voice_call ? 300 : 2000, // ✅ Shorter responses for voice
-      stream: true,
-      ...(systemPrompt && { system: systemPrompt }), // ✅ Add system prompt for voice calls
-      messages: messages
-    })
-  });
+  // ✅ PRODUCTION-SAFE: Add timeout to Anthropic API call (50 seconds)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+    logger.error('[streamAnthropicResponse] ⏱️ Anthropic API timeout after 50s');
+  }, 50000);
+
+  let response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Accept': 'text/event-stream'
+      },
+      body: JSON.stringify({
+        model: is_voice_call ? 'claude-3-haiku-20240307' : model, // ✅ Use fast Haiku for voice calls
+        max_tokens: is_voice_call ? 300 : 2000, // ✅ Shorter responses for voice
+        stream: true,
+        ...(systemPrompt && { system: systemPrompt }), // ✅ Add system prompt for voice calls
+        messages: messages
+      }),
+      signal: controller.signal,
+      agent: httpsAgent // ✅ Use custom agent for Node.js fetch
+    });
+  } catch (fetchError) {
+    clearTimeout(timeoutId);
+    if (fetchError.name === 'AbortError') {
+      throw new Error('Anthropic API request timed out after 50 seconds');
+    }
+    throw new Error(`Anthropic API network error: ${fetchError.message}`);
+  }
+  
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errText = await response.text().catch(() => 'Anthropic request failed');
-    throw new Error(`Anthropic API Error: ${errText}`);
+    logger.error(`[streamAnthropicResponse] ❌ Anthropic API error: ${response.status} ${errText}`);
+    throw new Error(`Anthropic API Error (${response.status}): ${errText}`);
   }
   
   if (!response.body) {
+    logger.error('[streamAnthropicResponse] ❌ No response body from Anthropic API');
     throw new Error('No response body from Anthropic API');
   }
 
-  // Proper SSE streaming with chunk processing
+  // ✅ PRODUCTION-SAFE: Proper SSE streaming with chunk processing
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullText = '';
   let sentenceBuffer = ''; // Buffer to check complete sentences before sending
+  let hasReceivedData = false; // Track if we've received any data chunks
 
   // Alias for backward compatibility (use top-level filterResponse)
   const filterBrandingLeaks = filterResponse;
@@ -508,8 +542,12 @@ You are having a natural voice conversation. Respond as if you can hear them cle
   try {
     while (true) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) {
+        logger.debug(`[streamAnthropicResponse] ✅ Stream complete, received data: ${hasReceivedData}`);
+        break;
+      }
       
+      hasReceivedData = true;
       const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n');
       
@@ -544,12 +582,25 @@ You are having a natural voice conversation. Respond as if you can hear them cle
                 // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"
               }
+            } else if (parsed.type === 'error') {
+              // ✅ Handle Anthropic API errors in stream
+              logger.error(`[streamAnthropicResponse] ❌ Anthropic stream error:`, parsed);
+              throw new Error(parsed.error?.message || 'Anthropic API stream error');
             }
           } catch (e) {
-            // Skip invalid JSON
+            // Skip invalid JSON (but log in debug mode)
+            if (process.env.NODE_ENV === 'development') {
+              logger.debug(`[streamAnthropicResponse] ⚠️ Skipped invalid JSON line: ${line.substring(0, 50)}`);
+            }
           }
         }
       }
+    }
+    
+    // ✅ CRITICAL: If no data was received, throw error
+    if (!hasReceivedData) {
+      logger.error('[streamAnthropicResponse] ❌ Stream completed but no data chunks received');
+      throw new Error('Anthropic API stream completed without sending any data chunks');
     }
     
     // Send any remaining buffered text
@@ -558,6 +609,10 @@ You are having a natural voice conversation. Respond as if you can hear them cle
       fullText += filteredText;
       writeSSE(res, { chunk: filteredText });
     }
+  } catch (streamError) {
+    // ✅ CRITICAL: Log and rethrow so parent can send error to frontend
+    logger.error('[streamAnthropicResponse] ❌ Stream processing error:', streamError);
+    throw streamError;
   } finally {
     reader.releaseLock();
   }
@@ -1276,7 +1331,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     const wantsStream = req.query.stream === '1' || (req.headers.accept || '').includes('text/event-stream');
 
     if (wantsStream) {
-      // Set proper headers for streaming with writeHead
+      // ✅ PRODUCTION-SAFE SSE: Set headers and flush immediately to prevent Railway buffering
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1286,9 +1341,16 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         'Transfer-Encoding': 'chunked',
         'X-Accel-Buffering': 'no' // Disable nginx buffering
       });
+      
+      // ✅ CRITICAL: Flush headers immediately to prevent proxy buffering
+      if (res.flushHeaders) {
+        res.flushHeaders();
+      }
 
-      // Send initial keep-alive
-      res.write(': keep-alive\n\n');
+      // ✅ CRITICAL: Send initial heartbeat/data before starting AI call
+      // This prevents frontend timeout while waiting for first chunk
+      writeSSE(res, { event: 'init', status: 'connecting' });
+      logger.debug('[Server] ✅ SSE headers flushed, initial heartbeat sent');
 
       let finalText = '';
       try {
@@ -1321,7 +1383,7 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           finalText = mockChunks.join('');
         }
       } catch (streamErr) {
-        // Log the actual error for debugging
+        // ✅ CRITICAL: Log and send structured error to frontend
         logger.error('[Server] ❌ Claude streaming error:', streamErr);
         logger.error('[Server] Error details:', {
           message: streamErr.message,
@@ -1329,8 +1391,12 @@ app.post('/api/message', verifyJWT, async (req, res) => {
           name: streamErr.name
         });
         
-        // Send error as SSE chunk
-        writeSSE(res, { chunk: 'Sorry, I hit an error generating the response.' });
+        // ✅ Send structured error as SSE chunk (frontend can parse and display)
+        writeSSE(res, { 
+          error: true,
+          message: streamErr.message || 'Unknown error occurred',
+          chunk: 'Sorry, I hit an error generating the response.'
+        });
         finalText = 'Sorry, I hit an error generating the response.';
       }
 
