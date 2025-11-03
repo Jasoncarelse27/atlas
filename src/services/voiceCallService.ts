@@ -2296,11 +2296,15 @@ export class VoiceCallService {
         buffer = lines.pop() || ''; // Keep incomplete line in buffer
         
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6); // Remove "data: " prefix
-              if (jsonStr.trim() === '[DONE]') continue;
-              const data = JSON.parse(jsonStr);
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          
+          try {
+            // ✅ ROBUST: Handle "data: " or "data:" (with/without space)
+            const jsonStr = trimmed.replace(/^data:\s*/, '');
+            if (!jsonStr || jsonStr === '[DONE]') continue;
+            
+            const data = JSON.parse(jsonStr);
               
               // Extract text from SSE data (backend sends { chunk: "text" } format)
               if (data.chunk) {
@@ -2326,11 +2330,14 @@ export class VoiceCallService {
       if (buffer) {
         const lines = buffer.split('\n');
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6);
-              if (jsonStr.trim() === '[DONE]') continue;
-              const data = JSON.parse(jsonStr);
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          
+          try {
+            const jsonStr = trimmed.replace(/^data:\s*/, '');
+            if (!jsonStr || jsonStr === '[DONE]') continue;
+            
+            const data = JSON.parse(jsonStr);
               if (data.chunk) {
                 fullResponse += data.chunk;
               } else if (data.type === 'content_block_delta' && data.delta?.text) {

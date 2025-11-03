@@ -37,13 +37,25 @@ export class VoiceCallServiceV2 {
   private readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
   private readonly PONG_TIMEOUT = 10000; // 10 seconds
 
-  // Audio configuration
-  private readonly audioConfig: AudioConfig = {
-    sampleRate: 16000,
-    channelCount: 1,
-    encoding: 'linear16',
-    chunkSize: 1024, // ✅ FIXED v1.1: 64ms at 16kHz (power of 2 required: 256, 512, 1024, 2048, 4096, 8192, 16384) - was 1600 (invalid)
-  };
+  /**
+   * Get optimal buffer size based on device (mobile = lower latency, desktop = better quality)
+   * Must be power of 2: 256, 512, 1024, 2048, 4096, 8192, 16384
+   */
+  private getOptimalBufferSize(): number {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // Mobile: 1024 (64ms) for lower latency, Desktop: 2048 (128ms) for better quality
+    return isMobile ? 1024 : 2048;
+  }
+  
+  // Audio configuration (chunkSize computed dynamically for device optimization)
+  private get audioConfig(): AudioConfig {
+    return {
+      sampleRate: 16000,
+      channelCount: 1,
+      encoding: 'linear16',
+      chunkSize: this.getOptimalBufferSize(), // ✅ FIXED v1.1: Adaptive buffer size (power of 2 required)
+    };
+  }
 
   /**
    * Start voice call
