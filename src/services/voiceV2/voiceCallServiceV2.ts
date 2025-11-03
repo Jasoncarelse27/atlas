@@ -129,13 +129,16 @@ export class VoiceCallServiceV2 {
       // 4. ✅ CRITICAL FIX: Wait for session_started confirmation before starting audio
       await authPromise;
 
+      // ✅ CRITICAL FIX: Set isActive BEFORE starting audio capture
+      // This ensures audio processor guard (line 391) works correctly
+      this.isActive = true;
+
       // 5. Start audio capture AFTER authentication succeeds
       await this.startAudioCapture(options);
 
       // ✅ HEARTBEAT: Start keep-alive pings
       this.startHeartbeat();
 
-      this.isActive = true;
       logger.info('[VoiceV2] ✅ Voice call started');
     } catch (error) {
       logger.error('[VoiceV2] ❌ Failed to start call:', error);
