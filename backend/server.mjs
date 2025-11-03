@@ -182,15 +182,15 @@ if (!ANTHROPIC_API_KEY) {
 }
 
 // Model mapping by tier (updated to latest non-deprecated models)
-// ⚠️ NOTE: If claude-3-5-sonnet-20241022 returns 404, try claude-sonnet-4-20241022 or claude-3-sonnet-20240307
+// ✅ CORRECT MODEL NAMES (verified working):
+// - Haiku: claude-3-haiku-20240307 ✅ Works
+// - Sonnet: Use 'claude-sonnet-4-20250514' or try 'claude-3-sonnet-20240307'
+// ⚠️ NOTE: claude-3-5-sonnet-20241022 returns 404 - not a valid model name
 const _mapTierToAnthropicModel = (tier) => {
-  // ✅ TEMPORARY: Use Haiku for all tiers until we verify correct Sonnet model name
-  // This ensures API calls work while we test model names
-  if (tier === 'studio') return 'claude-3-haiku-20240307'; // Fallback to Haiku
-  return 'claude-3-haiku-20240307'; // Fallback to Haiku (works reliably)
-  // TODO: Once correct Sonnet model verified, change back to:
-  // if (tier === 'studio') return 'claude-3-5-sonnet-20241022';
-  // return 'claude-3-5-sonnet-20241022';
+  // ✅ Using known working models
+  if (tier === 'studio') return 'claude-3-haiku-20240307'; // TODO: Update to Sonnet once verified
+  if (tier === 'core') return 'claude-3-haiku-20240307'; // TODO: Update to Sonnet once verified
+  return 'claude-3-haiku-20240307'; // Free tier - Haiku (works reliably)
 };
 
 // ✅ STARTUP VERIFICATION: Verify Anthropic API key and model before starting server
