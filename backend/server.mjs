@@ -1378,14 +1378,15 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     }
 
     // 🎯 Dynamic model selection based on user tier
-    let selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
+    // ✅ Using _mapTierToAnthropicModel() which returns Haiku (working model)
+    let selectedModel = _mapTierToAnthropicModel(effectiveTier);
     let routedProvider = 'claude';
     
     if (effectiveTier === 'studio') {
-      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
+      selectedModel = _mapTierToAnthropicModel('studio'); // Uses Haiku temporarily
       routedProvider = 'claude';
     } else if (effectiveTier === 'core') {
-      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
+      selectedModel = _mapTierToAnthropicModel('core'); // Uses Haiku temporarily
       routedProvider = 'claude';
     } else {
       // Free tier - use Claude Haiku
