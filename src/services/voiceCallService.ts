@@ -2297,11 +2297,12 @@ export class VoiceCallService {
         
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed.startsWith('data:')) continue;
+          // ✅ CRITICAL FIX: Robust SSE line detection (handle "data: " or "data:")
+          if (!trimmed || !trimmed.startsWith('data')) continue;
           
           try {
-            // ✅ ROBUST: Handle "data: " or "data:" (with/without space)
-            const jsonStr = trimmed.replace(/^data:\s*/, '');
+            // ✅ ROBUST: Extract JSON after "data:" prefix (handles "data: " or "data:")
+            const jsonStr = trimmed.replace(/^data:\s*/, '').trim();
             if (!jsonStr || jsonStr === '[DONE]') continue;
             
             const data = JSON.parse(jsonStr);

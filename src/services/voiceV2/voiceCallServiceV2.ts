@@ -303,8 +303,11 @@ export class VoiceCallServiceV2 {
       const source = this.audioContext.createMediaStreamSource(this.stream);
 
       // Create processor to capture audio chunks
+      // ✅ CRITICAL FIX: Use optimal buffer size (power of 2, device-aware)
+      const bufferSize = this.getOptimalBufferSize();
+      logger.debug(`[VoiceV2] Using bufferSize=${bufferSize} (device: ${navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'})`);
       this.processor = this.audioContext.createScriptProcessor(
-        this.audioConfig.chunkSize,
+        bufferSize,
         this.audioConfig.channelCount,
         this.audioConfig.channelCount
       );
