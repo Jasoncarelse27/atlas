@@ -2331,10 +2331,12 @@ export class VoiceCallService {
         const lines = buffer.split('\n');
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed.startsWith('data:')) continue;
+          // ✅ CRITICAL FIX: Robust SSE line detection (consistent with main loop)
+          if (!trimmed || !trimmed.startsWith('data')) continue;
           
           try {
-            const jsonStr = trimmed.replace(/^data:\s*/, '');
+            // ✅ ROBUST: Extract JSON after "data:" prefix (handles "data: " or "data:")
+            const jsonStr = trimmed.replace(/^data:\s*/, '').trim();
             if (!jsonStr || jsonStr === '[DONE]') continue;
             
             const data = JSON.parse(jsonStr);
