@@ -61,6 +61,8 @@ export default defineConfig(({ mode }) => {
           entryFileNames: 'assets/[name]-[hash].js',
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',
+          // ✅ CRITICAL FIX: Preserve zustand exports in bundle
+          format: 'es',
         },
         // ✅ CRITICAL FIX: Preserve Zustand from tree-shaking but allow normal tree-shaking for others
         treeshake: {
@@ -76,6 +78,8 @@ export default defineConfig(({ mode }) => {
             // Default: let Rollup decide (allows normal tree-shaking for other node_modules)
             return false;
           },
+          // ✅ CRITICAL FIX: Disable tree-shaking for zustand to preserve all exports
+          preset: false,
         },
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
