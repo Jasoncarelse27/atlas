@@ -190,15 +190,47 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(textToCopy);
       } else {
+        // ✅ FIX: Mobile Safari-safe fallback copy method
+        // Use a more reliable approach that doesn't rely on Range API
         const textArea = document.createElement('textarea');
         textArea.value = textToCopy;
         textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
         textArea.style.left = '-999999px';
+        textArea.setAttribute('readonly', '');
+        textArea.setAttribute('aria-hidden', 'true');
+        
+        // Ensure body exists and is in DOM
+        if (!document.body) {
+          throw new Error('Document body not available');
+        }
+        
         document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
+        
+        // ✅ CRITICAL: Check if node still has parent before selection
+        // Mobile Safari can remove nodes during selection, causing Range error
+        if (textArea.parentNode && document.body.contains(textArea)) {
+          // Use setSelectionRange instead of select() to avoid Range API issues
+          textArea.focus();
+          textArea.setSelectionRange(0, textToCopy.length);
+          
+          // Verify node is still in DOM before execCommand
+          if (textArea.parentNode && document.body.contains(textArea)) {
+            const success = document.execCommand('copy');
+            if (!success) {
+              throw new Error('execCommand copy failed');
+            }
+          } else {
+            throw new Error('Textarea removed from DOM during copy');
+          }
+        } else {
+          throw new Error('Textarea not properly attached to DOM');
+        }
+        
+        // ✅ SAFE REMOVAL: Only remove if still in DOM
+        if (textArea.parentNode) {
+          document.body.removeChild(textArea);
+        }
       }
       setIsCopied(true);
       toast.success('Copied to clipboard');
@@ -206,6 +238,17 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     } catch (error) {
       logger.error('[Copy] Failed to copy:', error);
       toast.error('Failed to copy to clipboard');
+      // ✅ FALLBACK: Try modern clipboard API as last resort
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(displayedText || messageContent);
+          setIsCopied(true);
+          toast.success('Copied to clipboard');
+          setTimeout(() => setIsCopied(false), 2000);
+        }
+      } catch (fallbackError) {
+        logger.error('[Copy] Fallback also failed:', fallbackError);
+      }
     }
     setShowContextMenu(false);
   };
