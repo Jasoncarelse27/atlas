@@ -2276,18 +2276,73 @@ export class VoiceCallService {
         throw new Error(error.error || `Backend error: ${response.status}`);
       }
       
-      const data = await response.json();
+      // ✅ CRITICAL FIX: Parse SSE stream correctly (not JSON)
+      // SSE format: "data: {...}\n\n" - need to extract and parse data lines
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      let buffer = '';
       
-      let responseText = '';
-      if (data.response?.content?.text) {
-        responseText = data.response.content.text;
-      } else if (typeof data.response === 'string') {
-        responseText = data.response;
-      } else {
-        responseText = 'I apologize, I had trouble processing that response.';
+      if (!reader) {
+        throw new Error('Response body is not readable');
       }
       
-      return responseText;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6); // Remove "data: " prefix
+              if (jsonStr.trim() === '[DONE]') continue;
+              const data = JSON.parse(jsonStr);
+              
+              // Extract text from SSE data
+              if (data.type === 'content_block_delta' && data.delta?.text) {
+                fullResponse += data.delta.text;
+              } else if (data.type === 'message_stop') {
+                // Stream complete
+                break;
+              } else if (data.error) {
+                throw new Error(data.error.message || 'AI response error');
+              }
+            } catch (e) {
+              // Skip malformed lines, continue parsing
+              logger.debug('[VoiceCall] Skipping malformed SSE line:', line);
+            }
+          }
+        }
+      }
+      
+      // Decode remaining buffer
+      if (buffer) {
+        const lines = buffer.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6);
+              if (jsonStr.trim() === '[DONE]') continue;
+              const data = JSON.parse(jsonStr);
+              if (data.type === 'content_block_delta' && data.delta?.text) {
+                fullResponse += data.delta.text;
+              }
+            } catch (e) {
+              // Skip malformed lines
+            }
+          }
+        }
+      }
+      
+      if (!fullResponse) {
+        throw new Error('No response received from AI');
+      }
+      
+      return fullResponse;
     } catch (error) {
       logger.error('[VoiceCall] AI response error:', error);
       return 'I apologize, I encountered an error. Please try again.';
