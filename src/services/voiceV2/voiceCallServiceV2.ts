@@ -83,16 +83,45 @@ export class VoiceCallServiceV2 {
       // 1. Connect WebSocket
       await this.connectWebSocket(options);
 
-      // 2. Start audio capture
-      await this.startAudioCapture(options);
-
-      // 3. Send session start message
+      // 2. ✅ CRITICAL FIX: Send session_start FIRST (before audio capture)
+      // Server requires authentication before accepting audio data
       this.sendControlMessage({
         type: 'session_start',
         userId: options.userId,
         conversationId: options.conversationId,
         authToken: options.authToken,
       });
+
+      // 3. ✅ CRITICAL FIX: Wait for session_started confirmation before starting audio
+      // This prevents "Session not authenticated" errors when audio arrives before auth completes
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Session authentication timeout'));
+        }, 5000); // 5 second timeout
+
+        const messageHandler = (event: MessageEvent) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === 'session_started') {
+              clearTimeout(timeout);
+              this.ws?.removeEventListener('message', messageHandler);
+              logger.info('[VoiceV2] ✅ Session authenticated, starting audio capture...');
+              resolve();
+            } else if (message.type === 'error' && (message.code === 'AUTH_REQUIRED' || message.code === 'AUTH_INVALID' || message.code === 'AUTH_ERROR')) {
+              clearTimeout(timeout);
+              this.ws?.removeEventListener('message', messageHandler);
+              reject(new Error(message.message || 'Authentication failed'));
+            }
+          } catch (e) {
+            // Ignore parse errors, continue waiting
+          }
+        };
+
+        this.ws?.addEventListener('message', messageHandler);
+      });
+
+      // 4. Start audio capture AFTER authentication succeeds
+      await this.startAudioCapture(options);
 
       // ✅ HEARTBEAT: Start keep-alive pings
       this.startHeartbeat();

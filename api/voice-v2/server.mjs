@@ -280,9 +280,12 @@ wss.on('connection', (ws, req) => {
             try {
               const { createClient } = await import('@supabase/supabase-js');
               const supabaseUrl = SUPABASE_URL || '';
-              const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+              // ✅ CRITICAL FIX: Use ANON_KEY for JWT verification (service role key can also verify but anon is correct)
+              // Try SUPABASE_ANON_KEY first, fallback to SUPABASE_SERVICE_ROLE_KEY if needed
+              const supabaseKey = process.env.SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY || '';
               
               if (!supabaseUrl || !supabaseKey) {
+                console.error(`[VoiceV2] ❌ Supabase config missing: URL=${!!supabaseUrl}, KEY=${!!supabaseKey}`);
                 throw new Error('Supabase configuration missing');
               }
 
