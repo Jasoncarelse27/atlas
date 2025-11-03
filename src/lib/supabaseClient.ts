@@ -6,8 +6,27 @@ import { logger } from './logger';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
+// ✅ CRITICAL FIX: Defer error check to allow React to render error boundary
+// Log visible error for debugging, but don't throw immediately
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing required environment variables");
+  const errorMsg = `Missing required environment variables: VITE_SUPABASE_URL=${!!supabaseUrl}, VITE_SUPABASE_ANON_KEY=${!!supabaseAnonKey}`;
+  console.error('❌ [Supabase]', errorMsg);
+  console.error('❌ [Supabase] Check Vercel Environment Variables are set for Production');
+  // Show visible error in DOM if React hasn't loaded yet
+  if (typeof document !== 'undefined') {
+    document.body.innerHTML = `
+      <div style="font-family: system-ui; padding: 2rem; max-width: 600px; margin: 2rem auto;">
+        <h1 style="color: #ef4444;">⚠️ Configuration Error</h1>
+        <p><strong>Missing Supabase environment variables</strong></p>
+        <p>${errorMsg}</p>
+        <p>Please check Vercel → Settings → Environment Variables</p>
+        <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+          Required: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+        </p>
+      </div>
+    `;
+  }
+  throw new Error(errorMsg);
 }
 
 // Mobile-safe Supabase client configuration
