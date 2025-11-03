@@ -64,23 +64,9 @@ export default defineConfig(({ mode }) => {
           // ✅ CRITICAL FIX: Preserve zustand exports in bundle
           format: 'es',
         },
-        // ✅ CRITICAL FIX: Preserve Zustand from tree-shaking but allow normal tree-shaking for others
-        treeshake: {
-          moduleSideEffects: (id) => {
-            // Always preserve Zustand - critical for exports
-            if (id.includes('zustand')) {
-              return true;
-            }
-            // Preserve all source files to prevent app code removal
-            if (!id.includes('node_modules')) {
-              return true;
-            }
-            // Default: let Rollup decide (allows normal tree-shaking for other node_modules)
-            return false;
-          },
-          // ✅ CRITICAL FIX: Disable tree-shaking for zustand to preserve all exports
-          preset: false,
-        },
+        // ✅ CRITICAL FIX: Disable tree-shaking entirely to preserve all exports (including zustand)
+        // This is necessary because zustand's ESM exports are being stripped by Rollup
+        treeshake: false,
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
         external: []
