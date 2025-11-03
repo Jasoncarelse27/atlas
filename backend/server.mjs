@@ -154,12 +154,20 @@ try {
 
 // External AI API keys
 // ✅ CRITICAL FIX: Trim whitespace and validate API key format
-const ANTHROPIC_API_KEY = (process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY)?.trim();
+let ANTHROPIC_API_KEY = (process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY)?.trim();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+// ✅ CRITICAL FIX: Validate API key format
+if (ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+  logger.error(`[Server] ⚠️ ANTHROPIC_API_KEY format invalid - should start with 'sk-ant-' but starts with '${ANTHROPIC_API_KEY.substring(0, 8)}...'`);
+  logger.error(`[Server] ⚠️ Full key length: ${ANTHROPIC_API_KEY.length} characters`);
+  // Don't fail hard - let it try and log the error from API
+}
 
 // 🔍 DEBUG: Log API key status
 logger.info('[Server] API Keys loaded:', {
   ANTHROPIC_API_KEY: ANTHROPIC_API_KEY ? `✅ Set (${ANTHROPIC_API_KEY.substring(0, 8)}...)` : '❌ Missing',
+  ANTHROPIC_API_KEY_LENGTH: ANTHROPIC_API_KEY?.length || 0,
   OPENAI_API_KEY: OPENAI_API_KEY ? `✅ Set (${OPENAI_API_KEY.substring(0, 8)}...)` : '❌ Missing'
 });
 
