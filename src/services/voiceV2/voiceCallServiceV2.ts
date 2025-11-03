@@ -40,11 +40,24 @@ export class VoiceCallServiceV2 {
   /**
    * Get optimal buffer size based on device (mobile = lower latency, desktop = better quality)
    * Must be power of 2: 256, 512, 1024, 2048, 4096, 8192, 16384
+   * 
+   * ✅ BEST PRACTICE: Web Audio API requires power-of-2 buffer sizes
+   * ✅ CRITICAL: Never use 1600 (not a power of 2) - causes IndexSizeError
+   * ✅ Industry Standard: 1024-2048 for real-time audio (64-128ms latency)
    */
   private getOptimalBufferSize(): number {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // ✅ CRITICAL: Must be power of 2 - 1600 will cause IndexSizeError
     // Mobile: 1024 (64ms) for lower latency, Desktop: 2048 (128ms) for better quality
-    return isMobile ? 1024 : 2048;
+    const bufferSize = isMobile ? 1024 : 2048;
+    
+    // ✅ SAFETY CHECK: Ensure power of 2 (defensive programming)
+    if ((bufferSize & (bufferSize - 1)) !== 0) {
+      logger.error(`[VoiceV2] ❌ Invalid buffer size: ${bufferSize} (not power of 2)`);
+      return 1024; // Fallback to safe default
+    }
+    
+    return bufferSize;
   }
   
   // Audio configuration (chunkSize computed dynamically for device optimization)

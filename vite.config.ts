@@ -52,10 +52,15 @@ export default defineConfig(({ mode }) => {
           drop_debugger: true
         }
       },
+      // ✅ CRITICAL FIX: Merge rollupOptions - cache-busting + exports + tree-shaking
       rollupOptions: {
         output: {
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
+          // ✅ CRITICAL FIX: Enable cache-busting filenames with content hash
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
         },
         // ✅ CRITICAL FIX: Preserve Zustand from tree-shaking but allow normal tree-shaking for others
         treeshake: {
