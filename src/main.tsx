@@ -8,6 +8,8 @@ import { initSentry, SentryErrorBoundary } from './services/sentryService'
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || 'dev';
 const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();
 console.log(`[Atlas] Build: ${buildVersion} | Deployed: ${deployTime}`);
+console.log(`[Atlas] 🔄 Cache Check: If you see this, new bundle loaded!`);
+console.log(`[Atlas] 🔍 VoiceV2 Auth Fix: Active (waiting for session_started before audio)`);
 
 // Initialize Sentry before rendering app
 initSentry()
