@@ -183,8 +183,8 @@ if (!ANTHROPIC_API_KEY) {
 
 // Model mapping by tier (updated to latest non-deprecated models)
 const _mapTierToAnthropicModel = (tier) => {
-  if (tier === 'studio') return 'claude-3.5-sonnet-20240620'; // ✅ FIXED: Use stable model version
-  return 'claude-3.5-sonnet-20240620'; // ✅ FIXED: Use stable model version
+  if (tier === 'studio') return 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
+  return 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
 };
 
 // ✅ PRODUCTION-SAFE: Stream helper with forced flush for Railway/proxy compatibility
@@ -1025,7 +1025,7 @@ app.post('/message',
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: 'claude-3.5-sonnet-20240620', // ✅ FIXED: Correct model name
+              model: 'claude-3-5-sonnet-20241022', // ✅ FIXED: Correct model name
               max_tokens: 2000,
               messages: [
                 {
@@ -1060,7 +1060,7 @@ app.post('/message',
 
           res.json({
             success: true,
-            model: 'claude-3.5-sonnet-20240620', // ✅ FIXED: Correct model name
+            model: 'claude-3-5-sonnet-20241022', // ✅ FIXED: Correct model name
             tier: userTier || 'free',
             reply: analysis,
             conversationId: conversationId,
@@ -1290,14 +1290,14 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     }
 
     // 🎯 Dynamic model selection based on user tier
-    let selectedModel = 'claude-3.5-sonnet-20240620'; // ✅ FIXED: Use stable model version
+    let selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
     let routedProvider = 'claude';
     
     if (effectiveTier === 'studio') {
-      selectedModel = 'claude-3.5-sonnet-20240620'; // ✅ FIXED: Use stable model version
+      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
       routedProvider = 'claude';
     } else if (effectiveTier === 'core') {
-      selectedModel = 'claude-3.5-sonnet-20240620'; // ✅ FIXED: Use stable model version
+      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
       routedProvider = 'claude';
     } else {
       // Free tier - use Claude Haiku
@@ -1672,7 +1672,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-3.5-sonnet-20240620', // ✅ FIXED: Correct model name
+            model: 'claude-3-5-sonnet-20241022', // ✅ FIXED: Correct model name
             max_tokens: 2000,
             messages: [
               {
