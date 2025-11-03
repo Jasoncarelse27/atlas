@@ -205,19 +205,28 @@ class UnifiedVoiceCallService {
    * Stop voice call
    */
   async stopCall(userId: string): Promise<void> {
-    if (this.isV2Active && this.v2Service) {
-      logger.info('[UnifiedVoice] Stopping V2 call');
-      await this.v2Service.endCall();
-      this.isV2Active = false;
-      this.v2AudioChunkIndex = 0; // Reset audio chunk counter
-      audioQueueService.reset(); // Clear audio queue
-    } else {
-      logger.info('[UnifiedVoice] Stopping V1 call');
-      if (isFeatureEnabled('VOICE_SIMPLIFIED')) {
-        await voiceCallServiceSimplified.stopCall(userId);
+    try {
+      if (this.isV2Active && this.v2Service) {
+        logger.info('[UnifiedVoice] Stopping V2 call');
+        await this.v2Service.endCall();
+        this.isV2Active = false;
+        this.v2AudioChunkIndex = 0; // Reset audio chunk counter
+        audioQueueService.reset(); // Clear audio queue
       } else {
-        await voiceCallService.stopCall(userId);
+        logger.info('[UnifiedVoice] Stopping V1 call');
+        if (isFeatureEnabled('VOICE_SIMPLIFIED')) {
+          await voiceCallServiceSimplified.stopCall(userId);
+        } else {
+          await voiceCallService.stopCall(userId);
+        }
       }
+    } catch (error) {
+      logger.error('[UnifiedVoice] Error stopping call:', error);
+      // ✅ CRITICAL FIX: Ensure state is reset even if stop fails
+      this.isV2Active = false;
+      this.v2AudioChunkIndex = 0;
+      audioQueueService.reset();
+      throw error;
     }
   }
 

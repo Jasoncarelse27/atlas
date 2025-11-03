@@ -355,6 +355,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               modernToast.error(friendlyMessage, friendlyDescription);
               setIsCallActive(false);
               voiceCallState.setActive(false);
+              // ✅ CRITICAL FIX: Ensure cleanup even if call never fully started
+              endCall().catch(err => logger.error('[VoiceCall] Error during error cleanup:', err));
               return;
             } else if (error.message.includes('Microphone') && error.message.includes('muted')) {
               friendlyMessage = 'Microphone Muted';
@@ -362,6 +364,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               modernToast.error(friendlyMessage, friendlyDescription);
               setIsCallActive(false);
               voiceCallState.setActive(false);
+              // ✅ CRITICAL FIX: Ensure cleanup even if call never fully started
+              endCall().catch(err => logger.error('[VoiceCall] Error during error cleanup:', err));
               return;
             } else if (error.message.includes('Microphone')) {
               friendlyMessage = 'Microphone not available';
@@ -383,11 +387,14 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
               error.message.includes('Permission denied') ||
               error.message.includes('Microphone access denied') ||
               error.message.includes('Maximum call duration') ||
-              error.message.includes('Authentication failed');
+              error.message.includes('Authentication failed') ||
+              error.message.includes('WebSocket connection') ||
+              error.message.includes('connection timeout');
             
             if (isCriticalError) {
             modernToast.error(friendlyMessage);
-            endCall();
+            // ✅ CRITICAL FIX: Always cleanup on critical errors, even if call didn't fully start
+            endCall().catch(err => logger.error('[VoiceCall] Error during critical error cleanup:', err));
             } else {
               // Non-critical errors - show warning but keep call active
               modernToast.warning('Voice call issue', friendlyMessage);
@@ -433,13 +440,70 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         modernToast.success('Voice call started!');
       } catch (serviceError) {
         logger.error('[VoiceCall] Service failed to start:', serviceError);
-        // Continue with UI active even if backend fails (graceful degradation)
-        modernToast.warning('Voice call active', 'Backend unavailable');
+        // ✅ CRITICAL FIX: If service fails to start, ensure cleanup happens
+        setIsCallActive(false);
+        voiceCallState.setActive(false);
+        
+        // ✅ CRITICAL FIX: Clean up any partial resources (recording, streams, etc.)
+        try {
+          // Stop any active audio tracks
+          if (stream.current) {
+            stream.current.getTracks().forEach(track => {
+              try {
+                track.stop();
+                logger.debug('[VoiceCall] ✅ Stopped audio track after failed start');
+              } catch (trackError) {
+                logger.warn('[VoiceCall] Failed to stop track after failed start:', trackError);
+              }
+            });
+            stream.current = null;
+          }
+          
+          // Close AudioContext if opened
+          if (audioContext.current && audioContext.current.state !== 'closed') {
+            await audioContext.current.close();
+            audioContext.current = null;
+            logger.debug('[VoiceCall] ✅ Closed AudioContext after failed start');
+          }
+        } catch (cleanupError) {
+          logger.error('[VoiceCall] Error cleaning up after failed start:', cleanupError);
+        }
+        
+        // Try to stop the service (may not be initialized, but try anyway)
+        try {
+          await unifiedVoiceCallService.stopCall(userId);
+        } catch (stopError) {
+          logger.debug('[VoiceCall] Service stop failed (may not have started):', stopError);
+        }
+        
+        modernToast.error('Failed to start voice call', serviceError instanceof Error ? serviceError.message : 'Unknown error');
       }
     } catch (error) {
       logger.error('[VoiceCall] Failed to proceed with call:', error);
       modernToast.error('Failed to start voice call');
       setIsCallActive(false);
+      voiceCallState.setActive(false);
+      
+      // ✅ CRITICAL FIX: Clean up any partial resources
+      try {
+        if (stream.current) {
+          stream.current.getTracks().forEach(track => {
+            try {
+              track.stop();
+            } catch (trackError) {
+              logger.warn('[VoiceCall] Failed to stop track:', trackError);
+            }
+          });
+          stream.current = null;
+        }
+        
+        if (audioContext.current && audioContext.current.state !== 'closed') {
+          await audioContext.current.close();
+          audioContext.current = null;
+        }
+      } catch (cleanupError) {
+        logger.error('[VoiceCall] Error cleaning up:', cleanupError);
+      }
     }
   };
 

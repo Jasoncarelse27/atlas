@@ -88,6 +88,26 @@ export class VoiceCallServiceV2 {
       logger.info('[VoiceV2] ✅ Voice call started');
     } catch (error) {
       logger.error('[VoiceV2] ❌ Failed to start call:', error);
+      
+      // ✅ CRITICAL FIX: Clean up resources if start fails
+      // Prevents recording icon from staying on
+      try {
+        this.stopAudioCapture();
+      } catch (cleanupError) {
+        logger.warn('[VoiceV2] Error during cleanup after failed start:', cleanupError);
+      }
+      
+      // Close WebSocket if it was opened
+      if (this.ws) {
+        try {
+          this.ws.close();
+          this.ws = null;
+        } catch (wsError) {
+          logger.warn('[VoiceV2] Error closing WebSocket after failed start:', wsError);
+        }
+      }
+      
+      this.isActive = false;
       options.onError(error as Error);
       throw error;
     }
