@@ -218,9 +218,11 @@ async function verifyAnthropicConfig() {
     logger.info('[Server] 🔍 Verifying Anthropic API configuration...');
     
     // ✅ Use Haiku for verification (known working model)
-    const model = 'claude-3-haiku-20240307'; // ✅ Verified working - Sonnet returns 404
+    const model = 'claude-3-haiku-20240307'; // ✅ Verified working
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
+    logger.debug(`[Server] 🔍 Testing model: ${model}`);
     
     const testResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -244,7 +246,6 @@ async function verifyAnthropicConfig() {
       const errorText = await testResponse.text().catch(() => 'Unknown error');
       logger.warn(`[Server] ⚠️  Model ${model} failed: ${testResponse.status} - ${errorText}`);
       logger.warn(`[Server] ⚠️  Verification continuing - server will start but API calls may fail`);
-      // Don't fail verification - let server start and log the issue
       return false;
     }
     
@@ -256,7 +257,6 @@ async function verifyAnthropicConfig() {
     } else {
       logger.warn(`[Server] ⚠️  Anthropic verification error (non-blocking): ${error.message}`);
     }
-    // Don't fail verification - let server start
     return false;
   }
 }
@@ -599,13 +599,27 @@ You are having a natural voice conversation. Respond as if you can hear them cle
         'anthropic-version': '2023-06-01',
         'Accept': 'text/event-stream'
       },
-      body: JSON.stringify({
+      const requestBody = {
         model: is_voice_call ? 'claude-3-haiku-20240307' : model, // ✅ Use fast Haiku for voice calls
         max_tokens: is_voice_call ? 300 : 2000, // ✅ Shorter responses for voice
         stream: true,
         ...(systemPrompt && { system: systemPrompt }), // ✅ Add system prompt for voice calls
         messages: messages
-      }),
+      };
+      
+      // ✅ CRITICAL DEBUG: Log exact model being sent to Anthropic
+      logger.info(`[streamAnthropicResponse] 🚀 Sending request to Anthropic API with model: ${requestBody.model}`);
+      logger.debug(`[streamAnthropicResponse] Request body model: ${requestBody.model}, messages count: ${messages.length}`);
+      
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'Accept': 'text/event-stream'
+        },
+        body: JSON.stringify(requestBody),
       signal: controller.signal,
       agent: httpsAgent // ✅ Use custom agent for Node.js fetch
     });
@@ -1473,11 +1487,19 @@ app.post('/api/message', verifyJWT, async (req, res) => {
         logger.debug(`🧠 Atlas model routing: user ${userId} has tier '${effectiveTier}' → model '${selectedModel}' (provider: ${routedProvider})`);
         
         // 🎯 Real AI Model Logic - Use Claude based on tier
-        logger.debug(`🔍 ROUTE CHECK: provider=${routedProvider}, hasKey=${!!ANTHROPIC_API_KEY}, model=${selectedModel}`);
+        logger.info(`🔍 [API CALL] Route check: provider=${routedProvider}, hasKey=${!!ANTHROPIC_API_KEY}, model=${selectedModel}, tier=${effectiveTier}`);
+        logger.info(`🔍 [API CALL] About to call streamAnthropicResponse with model: ${selectedModel}`);
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
-          streamCompleted = true;
-          logger.debug('✅ Claude streaming completed, final text length:', finalText.length);
+          try {
+            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
+            streamCompleted = true;
+            logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
+          } catch (apiError) {
+            logger.error(`❌ [API CALL] streamAnthropicResponse threw error:`, apiError);
+            logger.error(`❌ [API CALL] Error message: ${apiError.message}`);
+            logger.error(`❌ [API CALL] Error stack: ${apiError.stack}`);
+            throw apiError; // Re-throw to be caught by outer catch block
+          }
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
