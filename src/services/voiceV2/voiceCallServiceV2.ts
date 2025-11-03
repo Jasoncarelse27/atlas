@@ -162,6 +162,10 @@ export class VoiceCallServiceV2 {
       }
       
       this.isActive = false;
+      
+      // ✅ CRITICAL FIX: Stop heartbeat if it was started (defensive cleanup)
+      this.stopHeartbeat();
+      
       options.onError(error as Error);
       throw error;
     }
@@ -554,6 +558,7 @@ export class VoiceCallServiceV2 {
         // ✅ CRITICAL: Wait for session_started before resuming audio
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => {
+            this.ws?.removeEventListener('message', messageHandler);
             reject(new Error('Reconnection authentication timeout'));
           }, 5000);
 
@@ -563,6 +568,14 @@ export class VoiceCallServiceV2 {
               if (message.type === 'session_started') {
                 clearTimeout(timeout);
                 this.ws?.removeEventListener('message', messageHandler);
+                
+                // ✅ CRITICAL FIX: Set sessionId and isActive after reconnect auth
+                this.sessionId = message.sessionId || this.sessionId;
+                this.isActive = true;
+                
+                // ✅ CRITICAL FIX: Reset lastPongTime to prevent false timeout detection
+                this.lastPongTime = Date.now();
+                
                 logger.info('[VoiceV2] ✅ Reconnected and authenticated');
                 resolve();
               } else if (message.type === 'error' && (message.code === 'AUTH_REQUIRED' || message.code === 'AUTH_INVALID' || message.code === 'AUTH_ERROR')) {
@@ -583,10 +596,15 @@ export class VoiceCallServiceV2 {
           await this.startAudioCapture(this.lastOptions);
         }
 
+        // ✅ CRITICAL FIX: Restart heartbeat after successful reconnect
+        this.startHeartbeat();
+
         logger.info('[VoiceV2] ✅ Reconnected successfully');
         options.onStatusChange?.('listening');
       } catch (error) {
         logger.error('[VoiceV2] ❌ Reconnection failed:', error);
+        // ✅ CRITICAL FIX: Stop heartbeat and clean up on reconnect failure
+        this.stopHeartbeat();
         // Don't retry - we've hit the 1 attempt limit
         this.endCall();
       }
@@ -612,8 +630,12 @@ export class VoiceCallServiceV2 {
       const timeSinceLastPong = Date.now() - this.lastPongTime;
       if (timeSinceLastPong > this.HEARTBEAT_INTERVAL + this.PONG_TIMEOUT) {
         logger.warn('[VoiceV2] ⚠️ Heartbeat timeout - connection may be dead');
-        if (this.lastOptions) {
+        // ✅ CRITICAL FIX: Only attempt reconnect if not already reconnecting (prevent loops)
+        if (this.lastOptions && this.reconnectAttempts < 1) {
           this.attemptReconnect(this.lastOptions);
+        } else {
+          logger.warn('[VoiceV2] ⚠️ Reconnect already attempted or in progress - ending call');
+          this.endCall();
         }
         return;
       }
