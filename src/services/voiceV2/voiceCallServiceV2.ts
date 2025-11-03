@@ -94,7 +94,7 @@ export class VoiceCallServiceV2 {
         const messageHandler = (event: MessageEvent) => {
           try {
             const message = JSON.parse(event.data);
-            logger.debug(`[VoiceV2] 🔐 Auth wait: received ${message.type}`);
+            logger.info(`[VoiceV2] 🔐 Auth wait: received ${message.type}`); // ✅ Changed to info for production visibility
             
             if (message.type === 'session_started') {
               clearTimeout(timeout);
@@ -118,7 +118,7 @@ export class VoiceCallServiceV2 {
       });
 
       // 3. Send session_start message
-      logger.debug('[VoiceV2] 📤 Sending session_start message...');
+      logger.info('[VoiceV2] 📤 Sending session_start message...'); // ✅ Changed to info for production visibility
       this.sendControlMessage({
         type: 'session_start',
         userId: options.userId,
