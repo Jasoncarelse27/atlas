@@ -2344,8 +2344,8 @@ export class VoiceCallService {
               fullResponse += data.delta.text;
             }
           } catch (e) {
-              // Skip malformed lines
-            }
+            // Skip malformed lines
+            logger.debug('[VoiceCall] Skipped malformed SSE line in buffer:', trimmed.substring(0, 100));
           }
         }
       }
