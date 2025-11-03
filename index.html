@@ -2,13 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- ✅ CRITICAL FIX: Prevent browser caching of HTML -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="icon" type="image/png" href="/atlas-logo.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/atlas-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Atlas AI - Your AI-Powered Emotional Intelligence Companion</title>
     <meta name="description" content="Atlas AI - Intelligent conversations with emotional intelligence, secure and private." />
-    <!-- 🔧 Force HTML rebuild to fix bundle references -->
+    <!-- 🔧 Force HTML rebuild to fix bundle references - Cache-bust: 2025-11-03-v2 -->
   </head>
   <body>
     <div id="root"></div>
