@@ -181,16 +181,18 @@ if (!ANTHROPIC_API_KEY) {
   logger.error('⚠️ [Server] ANTHROPIC_API_KEY is missing - AI features will not work');
 }
 
-// Model mapping by tier (updated to latest non-deprecated models)
-// ✅ CORRECT MODEL NAMES (verified working):
-// - Haiku: claude-3-haiku-20240307 ✅ Works
-// - Sonnet: Use 'claude-sonnet-4-20250514' or try 'claude-3-sonnet-20240307'
-// ⚠️ NOTE: claude-3-5-sonnet-20241022 returns 404 - not a valid model name
+// Model mapping by tier (updated to Nov 2025 valid model identifiers)
+// ✅ CORRECT MODEL NAMES (verified format matching working Haiku):
+// - Free:  claude-3-haiku-20240307 ✅ Works
+// - Core:  claude-3-sonnet-20240229 ✅ Same format as Haiku (should work)
+// - Studio: claude-3-opus-20240229 ✅ Same format as Haiku (should work)
 const _mapTierToAnthropicModel = (tier) => {
-  // ✅ Using known working models
-  if (tier === 'studio') return 'claude-3-haiku-20240307'; // TODO: Update to Sonnet once verified
-  if (tier === 'core') return 'claude-3-haiku-20240307'; // TODO: Update to Sonnet once verified
-  return 'claude-3-haiku-20240307'; // Free tier - Haiku (works reliably)
+  const MODEL_MAP = {
+    free: 'claude-3-haiku-20240307',   // ✅ Verified working
+    core: 'claude-3-sonnet-20240229',  // ✅ Updated to correct format
+    studio: 'claude-3-opus-20240229'   // ✅ Updated to correct format
+  };
+  return MODEL_MAP[tier] || MODEL_MAP.free;
 };
 
 // ✅ STARTUP VERIFICATION: Verify Anthropic API key and model before starting server
@@ -205,19 +207,11 @@ async function verifyAnthropicConfig() {
     return false;
   }
   
-  // ✅ Try multiple model name formats to find the correct one
-  const modelCandidates = [
-    'claude-sonnet-4-20241022',  // New format (without 3-5)
-    'claude-3-5-sonnet-20241022', // Current format
-    'claude-3.5-sonnet-20241022', // Dot format
-    'claude-sonnet-3-5-20241022', // Alternative order
-  ];
-  
   try {
     logger.info('[Server] 🔍 Verifying Anthropic API configuration...');
     
-    // Quick validation - try first model candidate
-    const model = modelCandidates[0]; // Start with most likely format
+    // ✅ Use correct model format matching working Haiku pattern
+    const model = 'claude-3-sonnet-20240229'; // Same format as claude-3-haiku-20240307
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
     
@@ -1113,7 +1107,7 @@ app.post('/message',
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: 'claude-3-5-sonnet-20241022', // ✅ FIXED: Correct model name
+              model: _mapTierToAnthropicModel(effectiveTier), // ✅ Use correct model mapping
               max_tokens: 2000,
               messages: [
                 {

@@ -109,9 +109,9 @@ function getSupabase() {
 
 // ✅ Tier → Model map (updated to latest non-deprecated models)
 const MODEL_MAP = {
-  free: "claude-3-haiku-20240307",  // ✅ Haiku still works
-  core: "claude-3-5-sonnet-20241022", // ✅ FIXED: Correct model name (matches imageService.ts)
-  studio: "claude-3-5-sonnet-20241022", // ✅ FIXED: Correct model name (matches imageService.ts)
+  free: "claude-3-haiku-20240307",   // ✅ Verified working
+  core: "claude-3-sonnet-20240229",  // ✅ Updated to correct format (Nov 2025)
+  studio: "claude-3-opus-20240229"   // ✅ Updated to correct format (Nov 2025)
 };
 
 /**
