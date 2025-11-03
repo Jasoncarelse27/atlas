@@ -153,7 +153,8 @@ try {
 }
 
 // External AI API keys
-const ANTHROPIC_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY;
+// ✅ CRITICAL FIX: Trim whitespace and validate API key format
+const ANTHROPIC_API_KEY = (process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY)?.trim();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // 🔍 DEBUG: Log API key status
