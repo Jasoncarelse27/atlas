@@ -114,7 +114,7 @@ export interface AudioConfig {
   sampleRate: 16000; // 16 kHz for Deepgram
   channelCount: 1; // Mono
   encoding: 'linear16'; // PCM 16-bit
-  chunkSize: 4096; // Samples per chunk (256ms at 16kHz)
+  chunkSize: number; // ✅ DYNAMIC: Computed via getOptimalBufferSize() (1024 mobile, 2048 desktop) - must be power of 2
 }
 
 /**

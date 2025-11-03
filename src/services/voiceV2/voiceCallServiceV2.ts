@@ -366,18 +366,42 @@ export class VoiceCallServiceV2 {
    * Stop audio capture
    */
   private stopAudioCapture(): void {
+    // ✅ CRITICAL FIX: Safe cleanup with error handling
     if (this.processor) {
-      this.processor.disconnect();
+      try {
+        this.processor.disconnect();
+      } catch (error) {
+        logger.warn('[VoiceV2] Error disconnecting processor:', error);
+      }
       this.processor = null;
     }
 
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      try {
+        this.stream.getTracks().forEach(track => {
+          try {
+            track.stop();
+          } catch (error) {
+            logger.warn('[VoiceV2] Error stopping track:', error);
+          }
+        });
+      } catch (error) {
+        logger.warn('[VoiceV2] Error accessing stream tracks:', error);
+      }
       this.stream = null;
     }
 
     if (this.audioContext) {
-      this.audioContext.close();
+      try {
+        // ✅ CRITICAL FIX: Check state before closing (prevents "InvalidStateError")
+        if (this.audioContext.state !== 'closed') {
+          this.audioContext.close().catch(error => {
+            logger.warn('[VoiceV2] Error closing AudioContext:', error);
+          });
+        }
+      } catch (error) {
+        logger.warn('[VoiceV2] Error closing AudioContext:', error);
+      }
       this.audioContext = null;
     }
 
