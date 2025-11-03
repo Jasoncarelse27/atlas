@@ -86,7 +86,14 @@ export class ConversationSyncService {
         .limit(30) as { data: SupabaseConversation[] | null; error: any }; // ✅ FIX: Reduced from 50 to 30
 
       if (error) {
-        logger.error('[ConversationSync] Failed to fetch remote conversations:', error);
+        // ✅ BETTER ERROR LOGGING: Capture full error details
+        logger.error('[ConversationSync] Failed to fetch remote conversations:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId: userId.slice(0, 8) + '...'
+        });
         return;
       }
 
@@ -147,7 +154,14 @@ export class ConversationSyncService {
         .order('created_at', { ascending: true }) as { data: SupabaseMessage[] | null; error: any };
 
       if (error) {
-        logger.error('[ConversationSync] Failed to fetch remote messages:', error);
+        // ✅ BETTER ERROR LOGGING: Capture full error details
+        logger.error('[ConversationSync] Failed to fetch remote messages:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          conversationId: conversationId.slice(0, 8) + '...'
+        });
         return;
       }
 

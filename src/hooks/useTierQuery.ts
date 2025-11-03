@@ -25,34 +25,65 @@ let subscribedUserId: string | null = null;
  * @returns TierData with tier and userId
  */
 async function fetchTier(): Promise<TierData> {
-  // Get cached session first (faster than getUser)
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session?.user) {
+  try {
+    // Get cached session first (faster than getUser)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      logger.error('[useTierQuery] Session error:', {
+        code: sessionError.code,
+        message: sessionError.message,
+        details: sessionError.details,
+        hint: sessionError.hint
+      });
+      return { tier: 'free', userId: null };
+    }
+    
+    if (!session?.user) {
+      return { tier: 'free', userId: null };
+    }
+
+    const userId = session.user.id;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single<{ subscription_tier: Tier }>();
+
+    if (error) {
+      // ✅ BETTER ERROR LOGGING: Capture full error details
+      logger.error('[useTierQuery] Supabase query error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        userId: userId.slice(0, 8) + '...'
+      });
+      return { tier: 'free', userId };
+    }
+
+    const tier = data?.subscription_tier || 'free';
+    // Reduce logging verbosity - only log tier changes, not every fetch
+    // (React Query calls this frequently for cache validation)
+
+    return {
+      tier,
+      userId,
+    };
+  } catch (fetchError) {
+    // ✅ CATCH NETWORK ERRORS: Better diagnostics for "Failed to fetch"
+    logger.error('[useTierQuery] Network/fetch error:', {
+      message: fetchError instanceof Error ? fetchError.message : 'Unknown error',
+      type: fetchError instanceof TypeError ? 'TypeError' : fetchError?.constructor?.name || 'Unknown',
+      stack: fetchError instanceof Error ? fetchError.stack : undefined,
+      // Check if Supabase URL/key are available
+      hasSupabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
+      hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+      supabaseUrlPreview: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...' || 'NOT SET'
+    });
     return { tier: 'free', userId: null };
   }
-
-  const userId = session.user.id;
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('subscription_tier')
-    .eq('id', userId)
-    .single<{ subscription_tier: Tier }>();
-
-  if (error) {
-    logger.error('[useTierQuery] Error fetching tier:', error);
-    return { tier: 'free', userId };
-  }
-
-  const tier = data?.subscription_tier || 'free';
-  // Reduce logging verbosity - only log tier changes, not every fetch
-  // (React Query calls this frequently for cache validation)
-
-  return {
-    tier,
-    userId,
-  };
 }
 
 /**
