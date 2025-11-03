@@ -2571,29 +2571,41 @@ app.get('/debug/dist-files', (req, res) => {
   }
 });
 
-// Serve built Vite frontend with cache-busting headers
-app.use(express.static(path.join(__dirname, '..', 'dist'), {
-  maxAge: 0, // ✅ CRITICAL FIX: Prevent Railway from caching old bundles
-  etag: false,
-  lastModified: false
-}));
-
-// Serve static files (if any)
-app.use(express.static(path.join(__dirname, '..', 'public')));
-
-// Fallback route - serve the frontend app (catch all routes)
-app.get('*', (req, res) => {
-  // Only serve index.html for non-API routes
-  if (!req.path.startsWith('/api/') && !req.path.startsWith('/message') && !req.path.startsWith('/healthz')) {
-    // ✅ CRITICAL FIX: Prevent Railway CDN from caching index.html
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  } else {
-    res.status(404).json({ error: 'Route not found' });
-  }
-});
+// ✅ CRITICAL FIX: Railway backend should ONLY serve API endpoints, not frontend static files
+// Frontend is deployed separately on Vercel (atlas-xi-tawny.vercel.app)
+// Only serve static files in local development (not on Railway)
+if (!process.env.RAILWAY_ENVIRONMENT && process.env.NODE_ENV !== 'production') {
+  // Local development: serve frontend for convenience
+  app.use(express.static(path.join(__dirname, '..', 'dist'), {
+    maxAge: 0,
+    etag: false,
+    lastModified: false
+  }));
+  app.use(express.static(path.join(__dirname, '..', 'public')));
+  
+  // Fallback route for local dev only
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api/') && !req.path.startsWith('/message') && !req.path.startsWith('/healthz')) {
+      res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    } else {
+      res.status(404).json({ error: 'Route not found' });
+    }
+  });
+} else {
+  // Production (Railway): Only serve API endpoints - return 404 for frontend routes
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/message') || req.path.startsWith('/healthz')) {
+      res.status(404).json({ error: 'API route not found' });
+    } else {
+      // Frontend routes should go to Vercel, not Railway
+      res.status(404).json({ 
+        error: 'Frontend not served from Railway',
+        message: 'Please access the frontend at https://atlas-xi-tawny.vercel.app',
+        backendApi: 'https://atlas-production-2123.up.railway.app/api'
+      });
+    }
+  });
+}
 
 // Sentry error handler must be after all other middleware and routes
 app.use(sentryMiddleware.errorHandler);
