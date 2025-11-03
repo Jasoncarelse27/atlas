@@ -33,7 +33,12 @@ export default defineConfig(({ mode }) => {
       include: [
         'react-is', // ✅ Fix Railway build: Ensure react-is is pre-bundled
         'zustand' // ✅ Fix Railway build: Ensure zustand's create export is resolved
-      ]
+      ],
+      // ✅ CRITICAL FIX: Force ESM resolution for zustand during dev pre-bundling
+      esbuildOptions: {
+        // Don't transform zustand - keep it as ESM
+        target: 'esnext',
+      }
     },
     base: process.env.NODE_ENV === 'production' ? '/' : '/',
     build: {
@@ -52,18 +57,18 @@ export default defineConfig(({ mode }) => {
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
         },
-        // ✅ CRITICAL FIX: Preserve Zustand and all source files from tree-shaking
+        // ✅ CRITICAL FIX: Preserve Zustand from tree-shaking but allow normal tree-shaking for others
         treeshake: {
           moduleSideEffects: (id) => {
-            // Always preserve Zustand - it has sideEffects: false but we need its exports
+            // Always preserve Zustand - critical for exports
             if (id.includes('zustand')) {
               return true;
             }
-            // Preserve all source files (not node_modules) to avoid removing app code
+            // Preserve all source files to prevent app code removal
             if (!id.includes('node_modules')) {
               return true;
             }
-            // Default: let Rollup decide for other node_modules (allows normal tree-shaking)
+            // Default: let Rollup decide (allows normal tree-shaking for other node_modules)
             return false;
           },
         },
@@ -74,7 +79,9 @@ export default defineConfig(({ mode }) => {
       // ✅ CRITICAL FIX: Ensure zustand is properly resolved in production build
       commonjsOptions: {
         include: [/zustand/, /node_modules/],
-        transformMixedEsModules: true
+        transformMixedEsModules: true,
+        // ✅ Force proper module resolution for zustand
+        requireReturnsDefault: 'auto',
       }
     },
     server: {
