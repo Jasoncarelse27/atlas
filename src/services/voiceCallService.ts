@@ -2305,20 +2305,20 @@ export class VoiceCallService {
             if (!jsonStr || jsonStr === '[DONE]') continue;
             
             const data = JSON.parse(jsonStr);
-              
-              // Extract text from SSE data (backend sends { chunk: "text" } format)
-              if (data.chunk) {
-                fullResponse += data.chunk;
-              } else if (data.type === 'content_block_delta' && data.delta?.text) {
-                // Alternative format from Anthropic
-                fullResponse += data.delta.text;
-              } else if (data.type === 'message_stop' || data.type === 'message_end') {
-                // Stream complete
-                break;
-              } else if (data.error) {
-                throw new Error(data.error.message || 'AI response error');
-              }
-            } catch (e) {
+            
+            // Extract text from SSE data (backend sends { chunk: "text" } format)
+            if (data.chunk) {
+              fullResponse += data.chunk;
+            } else if (data.type === 'content_block_delta' && data.delta?.text) {
+              // Alternative format from Anthropic
+              fullResponse += data.delta.text;
+            } else if (data.type === 'message_stop' || data.type === 'message_end') {
+              // Stream complete
+              break;
+            } else if (data.error) {
+              throw new Error(data.error.message || 'AI response error');
+            }
+          } catch (e) {
               // Skip malformed lines, continue parsing
               logger.debug('[VoiceCall] Skipping malformed SSE line:', line);
             }
@@ -2338,12 +2338,12 @@ export class VoiceCallService {
             if (!jsonStr || jsonStr === '[DONE]') continue;
             
             const data = JSON.parse(jsonStr);
-              if (data.chunk) {
-                fullResponse += data.chunk;
-              } else if (data.type === 'content_block_delta' && data.delta?.text) {
-                fullResponse += data.delta.text;
-              }
-            } catch (e) {
+            if (data.chunk) {
+              fullResponse += data.chunk;
+            } else if (data.type === 'content_block_delta' && data.delta?.text) {
+              fullResponse += data.delta.text;
+            }
+          } catch (e) {
               // Skip malformed lines
             }
           }
