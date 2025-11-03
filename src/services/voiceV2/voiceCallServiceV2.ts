@@ -249,9 +249,9 @@ export class VoiceCallServiceV2 {
         this.ws.onclose = (event) => {
           logger.info(`[VoiceV2] 🔴 WebSocket closed (code: ${event.code}, reason: ${event.reason})`);
           
-          // ✅ RECONNECTION: Attempt to reconnect if not intentionally closed
-          if (this.isActive && event.code !== 1000) {
-            logger.warn('[VoiceV2] ⚠️  Unexpected disconnection, attempting reconnect...');
+          // ✅ BEST PRACTICE: Attempt to reconnect if not intentionally closed (limit to 1 attempt)
+          if (this.isActive && event.code !== 1000 && this.reconnectAttempts < 1) {
+            logger.warn('[VoiceV2] ⚠️ Unexpected disconnection, attempting reconnect...');
             this.attemptReconnect(options);
           } else {
             options.onDisconnected();
@@ -342,9 +342,9 @@ export class VoiceCallServiceV2 {
         }
 
         case 'pong':
-          logger.debug('[VoiceV2] 🏓 Pong received');
-          // ✅ HEARTBEAT: Update last pong time
+          // ✅ BEST PRACTICE: Update last pong time on receipt
           this.lastPongTime = Date.now();
+          logger.debug('[VoiceV2] 🩵 Heartbeat acknowledged');
           break;
 
         default:
@@ -391,7 +391,14 @@ export class VoiceCallServiceV2 {
       );
 
       this.processor.onaudioprocess = (e) => {
+        // ✅ BEST PRACTICE: Validate connection state and authentication before sending audio
         if (!this.isActive || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+        
+        // ✅ CRITICAL: Ensure authentication complete (sessionId exists)
+        if (!this.sessionId) {
+          logger.debug('[VoiceV2] ⚠️ Skipping audio - session not authenticated');
           return;
         }
 
@@ -500,21 +507,25 @@ export class VoiceCallServiceV2 {
   }
 
   /**
-   * ✅ RECONNECTION: Attempt to reconnect with exponential backoff
+   * ✅ RECONNECTION: Attempt to reconnect with exponential backoff (best practice: limit to 1 attempt)
    */
   private attemptReconnect(options: VoiceCallOptions): void {
-    if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-      logger.error('[VoiceV2] ❌ Max reconnection attempts reached');
-      options.onError(new Error('Max reconnection attempts reached'));
+    // ✅ BEST PRACTICE: Limit to 1 reconnect attempt for voice calls (user requirement)
+    if (this.reconnectAttempts >= 1) {
+      logger.error('[VoiceV2] ❌ Max reconnection attempts reached (1 attempt limit)');
+      options.onError(new Error('Connection lost. Please try again.'));
       this.endCall();
       return;
     }
 
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s (max 30s)
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    // ✅ BEST PRACTICE: Exponential backoff (1s for first attempt)
+    const delay = 1000 * Math.pow(2, this.reconnectAttempts); // 1s for first attempt
     this.reconnectAttempts++;
 
-    logger.info(`[VoiceV2] 🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
+    logger.info(`[VoiceV2] 🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/1)...`);
+    
+    // ✅ BEST PRACTICE: Show user notification during reconnect
+    options.onStatusChange?.('reconnecting');
 
     this.reconnectTimer = window.setTimeout(async () => {
       if (!this.isActive || !this.lastOptions) {
@@ -528,15 +539,43 @@ export class VoiceCallServiceV2 {
           this.ws = null;
         }
 
-        // Reconnect
+        // ✅ BEST PRACTICE: Reconnect WebSocket
         await this.connectWebSocket(this.lastOptions);
 
-        // Resend session start
+        // ✅ BEST PRACTICE: Preserve authentication state - resend session_start
+        logger.debug('[VoiceV2] 📤 Resending session_start after reconnect...');
         this.sendControlMessage({
           type: 'session_start',
           userId: this.lastOptions.userId,
           conversationId: this.lastOptions.conversationId,
           authToken: this.lastOptions.authToken,
+        });
+
+        // ✅ CRITICAL: Wait for session_started before resuming audio
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Reconnection authentication timeout'));
+          }, 5000);
+
+          const messageHandler = (event: MessageEvent) => {
+            try {
+              const message = JSON.parse(event.data);
+              if (message.type === 'session_started') {
+                clearTimeout(timeout);
+                this.ws?.removeEventListener('message', messageHandler);
+                logger.info('[VoiceV2] ✅ Reconnected and authenticated');
+                resolve();
+              } else if (message.type === 'error' && (message.code === 'AUTH_REQUIRED' || message.code === 'AUTH_INVALID' || message.code === 'AUTH_ERROR')) {
+                clearTimeout(timeout);
+                this.ws?.removeEventListener('message', messageHandler);
+                reject(new Error(message.message || 'Reconnection authentication failed'));
+              }
+            } catch (e) {
+              // Ignore parse errors
+            }
+          };
+
+          this.ws?.addEventListener('message', messageHandler);
         });
 
         // Resume audio capture if needed
@@ -545,15 +584,17 @@ export class VoiceCallServiceV2 {
         }
 
         logger.info('[VoiceV2] ✅ Reconnected successfully');
+        options.onStatusChange?.('listening');
       } catch (error) {
         logger.error('[VoiceV2] ❌ Reconnection failed:', error);
-        this.attemptReconnect(this.lastOptions);
+        // Don't retry - we've hit the 1 attempt limit
+        this.endCall();
       }
     }, delay);
   }
 
   /**
-   * ✅ HEARTBEAT: Start sending keep-alive pings
+   * ✅ HEARTBEAT: Start keep-alive pings (best practice: 30s interval)
    */
   private startHeartbeat(): void {
     this.stopHeartbeat(); // Clear any existing interval
@@ -561,18 +602,25 @@ export class VoiceCallServiceV2 {
     this.lastPongTime = Date.now();
 
     this.heartbeatInterval = window.setInterval(() => {
-      // Check if pong was received recently
+      // ✅ BEST PRACTICE: Check connection state before sending
+      if (!this.isActive || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        logger.debug('[VoiceV2] ⚠️ Skipping heartbeat - connection not active');
+        return;
+      }
+
+      // ✅ BEST PRACTICE: Check if pong was received recently (detect silent disconnections)
       const timeSinceLastPong = Date.now() - this.lastPongTime;
       if (timeSinceLastPong > this.HEARTBEAT_INTERVAL + this.PONG_TIMEOUT) {
-        logger.warn('[VoiceV2] ⚠️  Heartbeat timeout - connection may be dead');
+        logger.warn('[VoiceV2] ⚠️ Heartbeat timeout - connection may be dead');
         if (this.lastOptions) {
           this.attemptReconnect(this.lastOptions);
         }
         return;
       }
 
-      // Send ping
+      // ✅ BEST PRACTICE: Send ping and log for debugging
       this.ping();
+      logger.debug('[VoiceV2] 🔄 Heartbeat ping sent');
     }, this.HEARTBEAT_INTERVAL);
   }
 

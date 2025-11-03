@@ -4,6 +4,11 @@ import AtlasApp from './App'
 import './index.css'
 import { initSentry, SentryErrorBoundary } from './services/sentryService'
 
+// ✅ DEPLOYMENT VERIFICATION: Log build version to verify deployment
+const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || 'dev';
+const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();
+console.log(`[Atlas] Build: ${buildVersion} | Deployed: ${deployTime}`);
+
 // Initialize Sentry before rendering app
 initSentry()
 
