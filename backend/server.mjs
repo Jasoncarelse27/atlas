@@ -589,6 +589,18 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     logger.error('[streamAnthropicResponse] ⏱️ Anthropic API timeout after 50s');
   }, 50000);
 
+  // ✅ CRITICAL DEBUG: Log exact model being sent to Anthropic
+  const requestBody = {
+    model: is_voice_call ? 'claude-3-haiku-20240307' : model, // ✅ Use fast Haiku for voice calls
+    max_tokens: is_voice_call ? 300 : 2000, // ✅ Shorter responses for voice
+    stream: true,
+    ...(systemPrompt && { system: systemPrompt }), // ✅ Add system prompt for voice calls
+    messages: messages
+  };
+  
+  logger.info(`[streamAnthropicResponse] 🚀 Sending request to Anthropic API with model: ${requestBody.model}`);
+  logger.debug(`[streamAnthropicResponse] Request body model: ${requestBody.model}, messages count: ${messages.length}`);
+  
   let response;
   try {
     response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -599,27 +611,7 @@ You are having a natural voice conversation. Respond as if you can hear them cle
         'anthropic-version': '2023-06-01',
         'Accept': 'text/event-stream'
       },
-      const requestBody = {
-        model: is_voice_call ? 'claude-3-haiku-20240307' : model, // ✅ Use fast Haiku for voice calls
-        max_tokens: is_voice_call ? 300 : 2000, // ✅ Shorter responses for voice
-        stream: true,
-        ...(systemPrompt && { system: systemPrompt }), // ✅ Add system prompt for voice calls
-        messages: messages
-      };
-      
-      // ✅ CRITICAL DEBUG: Log exact model being sent to Anthropic
-      logger.info(`[streamAnthropicResponse] 🚀 Sending request to Anthropic API with model: ${requestBody.model}`);
-      logger.debug(`[streamAnthropicResponse] Request body model: ${requestBody.model}, messages count: ${messages.length}`);
-      
-      response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'Accept': 'text/event-stream'
-        },
-        body: JSON.stringify(requestBody),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
       agent: httpsAgent // ✅ Use custom agent for Node.js fetch
     });
