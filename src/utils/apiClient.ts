@@ -16,7 +16,22 @@
  * @returns Base URL for API requests (includes protocol + domain, or empty string for relative)
  */
 export function getApiUrl(): string {
-  const apiUrl = import.meta.env.VITE_API_URL || '';
+  let apiUrl = import.meta.env.VITE_API_URL || '';
+  
+  // ✅ CRITICAL FIX: Mixed content prevention - HTTPS frontend requires HTTPS backend
+  if (apiUrl && typeof window !== 'undefined') {
+    const isFrontendHttps = window.location.protocol === 'https:';
+    const isBackendHttp = apiUrl.startsWith('http://');
+    
+    // If frontend is HTTPS but backend URL is HTTP, upgrade to HTTPS
+    if (isFrontendHttps && isBackendHttp) {
+      console.warn(
+        '[API Client] ⚠️ Mixed content detected: Frontend HTTPS but backend HTTP. ' +
+        'Upgrading backend URL to HTTPS automatically.'
+      );
+      apiUrl = apiUrl.replace('http://', 'https://');
+    }
+  }
   
   // Production check: If we're not in development and VITE_API_URL is not set, warn
   if (import.meta.env.PROD && !apiUrl) {
