@@ -2302,10 +2302,13 @@ export class VoiceCallService {
               if (jsonStr.trim() === '[DONE]') continue;
               const data = JSON.parse(jsonStr);
               
-              // Extract text from SSE data
-              if (data.type === 'content_block_delta' && data.delta?.text) {
+              // Extract text from SSE data (backend sends { chunk: "text" } format)
+              if (data.chunk) {
+                fullResponse += data.chunk;
+              } else if (data.type === 'content_block_delta' && data.delta?.text) {
+                // Alternative format from Anthropic
                 fullResponse += data.delta.text;
-              } else if (data.type === 'message_stop') {
+              } else if (data.type === 'message_stop' || data.type === 'message_end') {
                 // Stream complete
                 break;
               } else if (data.error) {
@@ -2328,7 +2331,9 @@ export class VoiceCallService {
               const jsonStr = line.slice(6);
               if (jsonStr.trim() === '[DONE]') continue;
               const data = JSON.parse(jsonStr);
-              if (data.type === 'content_block_delta' && data.delta?.text) {
+              if (data.chunk) {
+                fullResponse += data.chunk;
+              } else if (data.type === 'content_block_delta' && data.delta?.text) {
                 fullResponse += data.delta.text;
               }
             } catch (e) {
