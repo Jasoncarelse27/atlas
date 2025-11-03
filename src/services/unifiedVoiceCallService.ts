@@ -131,6 +131,18 @@ class UnifiedVoiceCallService {
       this.isV2Active = true;
     } catch (error) {
       logger.error('[UnifiedVoice] V2 start failed, falling back to V1:', error);
+      // ✅ CRITICAL FIX: Clean up V2 state before falling back to V1
+      // Prevents "Call already in progress" error
+      if (this.v2Service) {
+        try {
+          await this.v2Service.endCall();
+        } catch (cleanupError) {
+          logger.debug('[UnifiedVoice] V2 cleanup error (non-critical):', cleanupError);
+        }
+      }
+      this.isV2Active = false;
+      this.v2AudioChunkIndex = 0;
+      
       // Fallback to V1 if V2 fails
       await this.startCallV1(options);
     }
