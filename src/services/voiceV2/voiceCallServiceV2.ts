@@ -42,7 +42,7 @@ export class VoiceCallServiceV2 {
     sampleRate: 16000,
     channelCount: 1,
     encoding: 'linear16',
-    chunkSize: 1024, // ✅ 64ms at 16kHz (power of 2 required by createScriptProcessor: 256, 512, 1024, 2048, 4096, 8192, 16384)
+    chunkSize: 1024, // ✅ FIXED v1.1: 64ms at 16kHz (power of 2 required: 256, 512, 1024, 2048, 4096, 8192, 16384) - was 1600 (invalid)
   };
 
   /**
