@@ -1107,7 +1107,7 @@ app.post('/message',
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: _mapTierToAnthropicModel(effectiveTier), // ✅ Use correct model mapping
+              model: _mapTierToAnthropicModel(userTier || 'free'), // ✅ Use correct model mapping
               max_tokens: 2000,
               messages: [
                 {
