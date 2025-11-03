@@ -182,17 +182,24 @@ if (!ANTHROPIC_API_KEY) {
 }
 
 // Model mapping by tier (updated to Nov 2025 valid model identifiers)
-// ✅ CORRECT MODEL NAMES (verified format matching working Haiku):
-// - Free:  claude-3-haiku-20240307 ✅ Works
-// - Core:  claude-3-sonnet-20240229 ✅ Same format as Haiku (should work)
-// - Studio: claude-3-opus-20240229 ✅ Same format as Haiku (should work)
+// ⚠️ NOTE: Sonnet model names return 404 - using Haiku temporarily until verified
+// ✅ CORRECT MODEL NAMES:
+// - Free:  claude-3-haiku-20240307 ✅ Verified working
+// - Core:  claude-3-haiku-20240307 ✅ Temporarily using Haiku (Sonnet returns 404)
+// - Studio: claude-3-haiku-20240307 ✅ Temporarily using Haiku (Opus returns 404)
+// TODO: Verify correct Sonnet/Opus model names via Anthropic API or docs
 const _mapTierToAnthropicModel = (tier) => {
-  const MODEL_MAP = {
-    free: 'claude-3-haiku-20240307',   // ✅ Verified working
-    core: 'claude-3-sonnet-20240229',  // ✅ Updated to correct format
-    studio: 'claude-3-opus-20240229'   // ✅ Updated to correct format
-  };
-  return MODEL_MAP[tier] || MODEL_MAP.free;
+  // ✅ TEMPORARY: Use Haiku for all tiers until Sonnet/Opus model names verified
+  // This ensures Atlas works while we verify correct model names
+  return 'claude-3-haiku-20240307'; // ✅ Verified working for all tiers
+  
+  // Uncomment once correct model names verified:
+  // const MODEL_MAP = {
+  //   free: 'claude-3-haiku-20240307',
+  //   core: 'claude-3-sonnet-20240229',  // ⚠️ Returns 404 - needs verification
+  //   studio: 'claude-3-opus-20240229'   // ⚠️ Returns 404 - needs verification
+  // };
+  // return MODEL_MAP[tier] || MODEL_MAP.free;
 };
 
 // ✅ STARTUP VERIFICATION: Verify Anthropic API key and model before starting server
@@ -210,8 +217,8 @@ async function verifyAnthropicConfig() {
   try {
     logger.info('[Server] 🔍 Verifying Anthropic API configuration...');
     
-    // ✅ Use correct model format matching working Haiku pattern
-    const model = 'claude-3-sonnet-20240229'; // Same format as claude-3-haiku-20240307
+    // ✅ Use Haiku for verification (known working model)
+    const model = 'claude-3-haiku-20240307'; // ✅ Verified working - Sonnet returns 404
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
     
