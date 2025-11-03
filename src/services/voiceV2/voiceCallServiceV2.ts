@@ -129,7 +129,7 @@ export class VoiceCallServiceV2 {
       // 4. ✅ CRITICAL FIX: Wait for session_started confirmation before starting audio
       await authPromise;
 
-      // 4. Start audio capture AFTER authentication succeeds
+      // 5. Start audio capture AFTER authentication succeeds
       await this.startAudioCapture(options);
 
       // ✅ HEARTBEAT: Start keep-alive pings
