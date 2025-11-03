@@ -174,8 +174,8 @@ if (!ANTHROPIC_API_KEY) {
 
 // Model mapping by tier (updated to latest non-deprecated models)
 const _mapTierToAnthropicModel = (tier) => {
-  if (tier === 'studio') return 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL (old retired Oct 29!)
-  return 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL (old retired Oct 29!)
+  if (tier === 'studio') return 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Correct model name
+  return 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Correct model name
 };
 
 // ✅ PRODUCTION-SAFE: Stream helper with forced flush for Railway/proxy compatibility
@@ -1016,7 +1016,7 @@ app.post('/message',
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL
+              model: 'claude-3-5-sonnet-20241022', // ✅ FIXED: Correct model name
               max_tokens: 2000,
               messages: [
                 {
@@ -1051,7 +1051,7 @@ app.post('/message',
 
           res.json({
             success: true,
-            model: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL
+            model: 'claude-3-5-sonnet-20241022', // ✅ FIXED: Correct model name
             tier: userTier || 'free',
             reply: analysis,
             conversationId: conversationId,
@@ -1281,14 +1281,14 @@ app.post('/api/message', verifyJWT, async (req, res) => {
     }
 
     // 🎯 Dynamic model selection based on user tier
-    let selectedModel = 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL
+    let selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Correct model name
     let routedProvider = 'claude';
     
     if (effectiveTier === 'studio') {
-      selectedModel = 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL
+      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Correct model name
       routedProvider = 'claude';
     } else if (effectiveTier === 'core') {
-      selectedModel = 'claude-sonnet-4-5-20250929'; // ✅ NEW MODEL
+      selectedModel = 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Correct model name
       routedProvider = 'claude';
     } else {
       // Free tier - use Claude Haiku
@@ -1663,7 +1663,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5-20250929', // ✅ NEW MODEL
+            model: 'claude-3-5-sonnet-20241022', // ✅ FIXED: Correct model name
             max_tokens: 2000,
             messages: [
               {
