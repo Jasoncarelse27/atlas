@@ -759,8 +759,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                       // Simple rendering for user messages - no markdown  
                       <span className="block">{displayedText}</span>
                     ) : (
-                      // Keep markdown for assistant messages
-                      <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0">
+                      // Keep markdown for assistant messages with enhanced spacing
+                      <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0 [&_.prose_table]:my-6 [&_.prose_p]:mb-4 [&_.prose_p:last-child]:mb-0 [&_.prose_ul]:my-4 [&_.prose_ol]:my-4 [&_.prose_blockquote]:my-4">
                         <LegacyMessageRenderer content={displayedText} />
                       </div>
                     )

@@ -297,7 +297,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             );
           },
           p({ children }) {
-            return <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>;
+            return <p className="mb-4 last:mb-0 leading-relaxed text-gray-200">{children}</p>;
           },
           h1({ children }) {
             return <h1 className="text-xl font-bold mb-3 text-white">{children}</h1>;
@@ -309,13 +309,13 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             return <h3 className="text-base font-medium mb-2 text-white">{children}</h3>;
           },
           ul({ children }) {
-            return <ul className="list-disc ml-5 mb-4 space-y-2.5 text-gray-800">{children}</ul>;
+            return <ul className="list-disc ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal ml-5 mb-4 space-y-2.5 text-gray-800">{children}</ol>;
+            return <ol className="list-decimal ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ol>;
           },
           li({ children }) {
-            return <li className="text-gray-800 pl-1.5 leading-relaxed">{children}</li>;
+            return <li className="text-gray-200 pl-1.5 leading-relaxed">{children}</li>;
           },
           blockquote({ children }) {
             return (
@@ -342,35 +342,35 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
           em({ children }) {
             return <em className="italic text-gray-600">{children}</em>;
           },
-          // Tables (GitHub Flavored Markdown)
+          // Tables (GitHub Flavored Markdown) - Enhanced with dark mode and better spacing
           table({ children }) {
             return (
-              <div className="overflow-x-auto my-4">
-                <table className="min-w-full border-collapse border border-gray-300">
+              <div className="overflow-x-auto my-6 -mx-2 sm:mx-0">
+                <table className="min-w-full border-collapse border border-gray-600/50 rounded-lg overflow-hidden shadow-lg">
                   {children}
                 </table>
               </div>
             );
           },
           thead({ children }) {
-            return <thead className="bg-gray-100">{children}</thead>;
+            return <thead className="bg-gray-700/80 border-b-2 border-gray-600">{children}</thead>;
           },
           tbody({ children }) {
-            return <tbody className="bg-white">{children}</tbody>;
+            return <tbody className="bg-gray-800/40 divide-y divide-gray-700/50">{children}</tbody>;
           },
           tr({ children }) {
-            return <tr className="border-b border-gray-200">{children}</tr>;
+            return <tr className="hover:bg-gray-700/30 transition-colors duration-150">{children}</tr>;
           },
           th({ children }) {
             return (
-              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-100 border-r border-gray-600/50 last:border-r-0">
                 {children}
               </th>
             );
           },
           td({ children }) {
             return (
-              <td className="px-4 py-2 text-sm text-gray-800 border border-gray-300">
+              <td className="px-4 py-3 text-sm text-gray-200 border-r border-gray-600/30 last:border-r-0 leading-relaxed">
                 {children}
               </td>
             );
@@ -479,7 +479,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             );
           },
           p({ children }) {
-            return <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>;
+            return <p className="mb-4 last:mb-0 leading-relaxed text-gray-200">{children}</p>;
           },
           h1({ children }) {
             return <h1 className="text-xl font-bold mb-3 text-white">{children}</h1>;
@@ -491,13 +491,13 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             return <h3 className="text-base font-medium mb-2 text-white">{children}</h3>;
           },
           ul({ children }) {
-            return <ul className="list-disc ml-5 mb-4 space-y-2.5 text-gray-800">{children}</ul>;
+            return <ul className="list-disc ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal ml-5 mb-4 space-y-2.5 text-gray-800">{children}</ol>;
+            return <ol className="list-decimal ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ol>;
           },
           li({ children }) {
-            return <li className="text-gray-800 pl-1.5 leading-relaxed">{children}</li>;
+            return <li className="text-gray-200 pl-1.5 leading-relaxed">{children}</li>;
           },
           blockquote({ children }) {
             return (
@@ -524,35 +524,35 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
           em({ children }) {
             return <em className="italic text-gray-600">{children}</em>;
           },
-          // Tables (GitHub Flavored Markdown)
+          // Tables (GitHub Flavored Markdown) - Enhanced with dark mode and better spacing
           table({ children }) {
             return (
-              <div className="overflow-x-auto my-4">
-                <table className="min-w-full border-collapse border border-gray-300">
+              <div className="overflow-x-auto my-6 -mx-2 sm:mx-0">
+                <table className="min-w-full border-collapse border border-gray-600/50 rounded-lg overflow-hidden shadow-lg">
                   {children}
                 </table>
               </div>
             );
           },
           thead({ children }) {
-            return <thead className="bg-gray-100">{children}</thead>;
+            return <thead className="bg-gray-700/80 border-b-2 border-gray-600">{children}</thead>;
           },
           tbody({ children }) {
-            return <tbody className="bg-white">{children}</tbody>;
+            return <tbody className="bg-gray-800/40 divide-y divide-gray-700/50">{children}</tbody>;
           },
           tr({ children }) {
-            return <tr className="border-b border-gray-200">{children}</tr>;
+            return <tr className="hover:bg-gray-700/30 transition-colors duration-150">{children}</tr>;
           },
           th({ children }) {
             return (
-              <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-100 border-r border-gray-600/50 last:border-r-0">
                 {children}
               </th>
             );
           },
           td({ children }) {
             return (
-              <td className="px-4 py-2 text-sm text-gray-800 border border-gray-300">
+              <td className="px-4 py-3 text-sm text-gray-200 border-r border-gray-600/30 last:border-r-0 leading-relaxed">
                 {children}
               </td>
             );
