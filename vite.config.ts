@@ -49,31 +49,19 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          // ✅ CRITICAL FIX: Keep zustand in main bundle to preserve exports
-          manualChunks: (id) => {
-            // DON'T chunk zustand separately - keep it in main bundle for proper module resolution
-            // Explicitly return undefined (not null) for zustand
-            if (id.includes('zustand')) {
-              return undefined; // Force to main bundle
-            }
-            // Put other node_modules in vendor chunk
-            if (id.includes('node_modules')) {
-              return 'vendor';
-            }
-          },
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
         },
-        // ✅ BEST PRACTICE: Preserve zustand from tree-shaking (despite sideEffects: false)
-        treeshake: {
-          moduleSideEffects: (id) => {
-            // Zustand v5.0.8 has sideEffects: false, but we need to preserve it
-            if (id.includes('zustand')) {
-              return true; // Force preserve all zustand exports
-            }
-            return false; // Default tree-shaking for others
-          },
-        },
+        // ✅ TEMPORARILY DISABLE: Aggressive tree-shaking might be removing all code
+        // Re-enable with proper config once build works
+        // treeshake: {
+        //   moduleSideEffects: (id) => {
+        //     if (id.includes('zustand')) {
+        //       return true;
+        //     }
+        //     return false;
+        //   },
+        // },
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
         external: []
