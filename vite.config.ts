@@ -52,16 +52,21 @@ export default defineConfig(({ mode }) => {
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
         },
-        // ✅ TEMPORARILY DISABLE: Aggressive tree-shaking might be removing all code
-        // Re-enable with proper config once build works
-        // treeshake: {
-        //   moduleSideEffects: (id) => {
-        //     if (id.includes('zustand')) {
-        //       return true;
-        //     }
-        //     return false;
-        //   },
-        // },
+        // ✅ CRITICAL FIX: Preserve Zustand and all source files from tree-shaking
+        treeshake: {
+          moduleSideEffects: (id) => {
+            // Always preserve Zustand - it has sideEffects: false but we need its exports
+            if (id.includes('zustand')) {
+              return true;
+            }
+            // Preserve all source files (not node_modules) to avoid removing app code
+            if (!id.includes('node_modules')) {
+              return true;
+            }
+            // Default: let Rollup decide for other node_modules (allows normal tree-shaking)
+            return false;
+          },
+        },
         // Fix react-is import resolution for recharts
         // Ensure react-is is bundled, not externalized
         external: []
