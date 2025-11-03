@@ -2738,16 +2738,16 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // ✅ STARTUP: Verify Anthropic config before starting server
 async function startServer() {
-  // Verify Anthropic configuration (only in production or if explicitly enabled)
+  // ✅ NON-BLOCKING: Start verification in background, don't block server startup
+  // Server will start even if verification fails (allows healthcheck to work)
   if (process.env.RAILWAY_ENVIRONMENT || process.env.VERIFY_ANTHROPIC !== 'false') {
-    const verified = await verifyAnthropicConfig();
-    if (!verified) {
-      logger.error('[Server] 🚫 Startup aborted - Anthropic configuration invalid');
-      logger.error('[Server] ⚠️  Server will not start until Anthropic API key and model are valid');
-      // Don't exit immediately - allow healthcheck to respond with error status
-      // Railway will restart if healthcheck fails
-      return;
-    }
+    verifyAnthropicConfig().then((verified) => {
+      if (!verified) {
+        logger.error('[Server] ⚠️  Anthropic configuration verification failed - server running but API calls may fail');
+      }
+    }).catch((error) => {
+      logger.error('[Server] ⚠️  Anthropic verification error (non-blocking):', error.message);
+    });
   }
   
   // Start keep-alive ping to prevent Railway idle stops
