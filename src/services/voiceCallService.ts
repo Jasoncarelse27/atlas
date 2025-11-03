@@ -2320,9 +2320,8 @@ export class VoiceCallService {
               throw new Error(data.error.message || 'AI response error');
             }
           } catch (e) {
-              // Skip malformed lines, continue parsing
-              logger.debug('[VoiceCall] Skipping malformed SSE line:', line);
-            }
+            // Skip malformed lines, continue parsing
+            logger.debug('[VoiceCall] Skipping malformed SSE line:', trimmed.substring(0, 100));
           }
         }
       }
