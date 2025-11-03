@@ -83,25 +83,19 @@ export class VoiceCallServiceV2 {
       // 1. Connect WebSocket
       await this.connectWebSocket(options);
 
-      // 2. ✅ CRITICAL FIX: Send session_start FIRST (before audio capture)
-      // Server requires authentication before accepting audio data
-      this.sendControlMessage({
-        type: 'session_start',
-        userId: options.userId,
-        conversationId: options.conversationId,
-        authToken: options.authToken,
-      });
-
-      // 3. ✅ CRITICAL FIX: Wait for session_started confirmation before starting audio
-      // This prevents "Session not authenticated" errors when audio arrives before auth completes
-      await new Promise<void>((resolve, reject) => {
+      // 2. ✅ CRITICAL FIX: Set up auth promise handler BEFORE sending session_start
+      // This ensures we catch session_started even if it arrives immediately
+      const authPromise = new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
+          this.ws?.removeEventListener('message', messageHandler);
           reject(new Error('Session authentication timeout'));
         }, 5000); // 5 second timeout
 
         const messageHandler = (event: MessageEvent) => {
           try {
             const message = JSON.parse(event.data);
+            logger.debug(`[VoiceV2] 🔐 Auth wait: received ${message.type}`);
+            
             if (message.type === 'session_started') {
               clearTimeout(timeout);
               this.ws?.removeEventListener('message', messageHandler);
@@ -112,13 +106,28 @@ export class VoiceCallServiceV2 {
               this.ws?.removeEventListener('message', messageHandler);
               reject(new Error(message.message || 'Authentication failed'));
             }
+            // ✅ CRITICAL FIX: Let other message types pass through to handleServerMessage
+            // Don't stop processing other messages during auth wait
           } catch (e) {
             // Ignore parse errors, continue waiting
           }
         };
 
+        // ✅ CRITICAL FIX: Add listener BEFORE sending session_start to catch immediate response
         this.ws?.addEventListener('message', messageHandler);
       });
+
+      // 3. Send session_start message
+      logger.debug('[VoiceV2] 📤 Sending session_start message...');
+      this.sendControlMessage({
+        type: 'session_start',
+        userId: options.userId,
+        conversationId: options.conversationId,
+        authToken: options.authToken,
+      });
+
+      // 4. ✅ CRITICAL FIX: Wait for session_started confirmation before starting audio
+      await authPromise;
 
       // 4. Start audio capture AFTER authentication succeeds
       await this.startAudioCapture(options);
@@ -227,9 +236,11 @@ export class VoiceCallServiceV2 {
         };
 
         // Message received
-        this.ws.onmessage = (event) => {
+        // ✅ CRITICAL FIX: Use addEventListener instead of onmessage to allow multiple handlers
+        // This allows auth promise handler to catch session_started without conflict
+        this.ws.addEventListener('message', (event) => {
           this.handleServerMessage(event.data, options);
-        };
+        });
 
         // Connection closed
         this.ws.onclose = (event) => {
@@ -279,7 +290,9 @@ export class VoiceCallServiceV2 {
           break;
 
         case 'session_started':
-          logger.info('[VoiceV2] ✅ Session started');
+          // ✅ CRITICAL FIX: Don't handle here - let promise handler resolve
+          // This prevents race condition where handleServerMessage processes it first
+          logger.info('[VoiceV2] ✅ Session started (handled by auth promise)');
           break;
 
         case 'audio_received':
