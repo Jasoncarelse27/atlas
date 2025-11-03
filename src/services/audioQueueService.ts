@@ -249,11 +249,11 @@ export class AudioQueueService {
         continue;
       }
       
-      // ✅ FIX: Wait for TTS with shorter timeout (voice calls need low latency)
+      // ✅ FIX: Wait for TTS with reasonable timeout (voice calls need low latency)
       // ChatGPT starts speaking as soon as first TTS is ready
-      // ✅ IMPROVEMENT: Longer timeout when resuming (TTS might still be generating)
+      // ✅ PRODUCTION FIX: Increased timeout to 30s for production-grade reliability (mobile networks, TTS generation delays)
       const isResuming = this.isInterrupted === false && this.currentIndex > 0; // Resuming if not interrupted but already started
-      const timeout = isResuming ? 10000 : 15000; // ✅ FIX: 15s for new playback (was 5s) - buffer for mobile networks
+      const timeout = isResuming ? 15000 : 30000; // ✅ PRODUCTION: 30s for new playback (was 15s) - buffer for mobile networks + TTS generation
       const startWait = Date.now();
       while (item.status !== 'ready' && item.status !== 'error') {
         // ✅ CRITICAL FIX: Also check if item was cancelled during wait

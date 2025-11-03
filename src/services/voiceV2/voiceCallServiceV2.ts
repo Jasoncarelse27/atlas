@@ -42,7 +42,7 @@ export class VoiceCallServiceV2 {
     sampleRate: 16000,
     channelCount: 1,
     encoding: 'linear16',
-    chunkSize: 1600, // ✅ 100ms at 16kHz (optimized from 256ms for lower latency)
+    chunkSize: 1024, // ✅ 64ms at 16kHz (power of 2 required by createScriptProcessor: 256, 512, 1024, 2048, 4096, 8192, 16384)
   };
 
   /**

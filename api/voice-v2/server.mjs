@@ -105,6 +105,8 @@ wss.on('connection', (ws, req) => {
     userId: null,
     conversationId: null,
     authenticated: false,
+    llmFired: false, // ✅ PARALLEL LLM: Track if LLM already fired for this utterance
+    stablePartialTracker: { text: '', lastUpdate: 0, confidence: 0 }, // ✅ PARALLEL LLM: Track stable partials
     metrics: {
       deepgramDurationMs: 0,
       claudeInputTokens: 0,
@@ -182,12 +184,43 @@ wss.on('connection', (ws, req) => {
               timestamp: new Date().toISOString(),
             }));
 
-            // On final transcript, save user message and get AI response + TTS
-            if (isFinal && transcript.trim().length > 0) {
+            // ✅ PARALLEL LLM: Fire LLM on stable partial (300ms unchanged) for sub-2s latency
+            if (!isFinal && !session.llmFired && transcript.trim().length > 3) {
+              const now = Date.now();
+              const tracker = session.stablePartialTracker;
+              
+              // Check if partial is stable (same text for 300ms)
+              if (transcript === tracker.text) {
+                const stableDuration = now - tracker.lastUpdate;
+                if (stableDuration >= 300 && confidence >= 0.3) { // ✅ Minimum 30% confidence for stability
+                  console.log(`[VoiceV2] ⚡ Stable partial detected (${stableDuration}ms stable, ${(confidence * 100).toFixed(1)}% confidence) - firing LLM early`);
+                  session.llmFired = true;
+                  
+                  // Fire LLM on stable partial (don't wait for final)
+                  await saveUserMessage(sessionId, transcript, confidence);
+                  await getClaudeResponseWithTTS(sessionId, transcript, { isPartial: true });
+                  return; // Skip final transcript processing
+                }
+              } else {
+                // Update tracker with new partial
+                tracker.text = transcript;
+                tracker.lastUpdate = now;
+                tracker.confidence = confidence;
+              }
+            }
+
+            // On final transcript, save user message and get AI response + TTS (if not already fired)
+            if (isFinal && transcript.trim().length > 0 && !session.llmFired) {
               console.log(`[VoiceV2] 🤖 Sending to Claude: "${transcript}"`);
               // ✅ MESSAGE PERSISTENCE: Save user message to database
               await saveUserMessage(sessionId, transcript, confidence);
               await getClaudeResponseWithTTS(sessionId, transcript);
+            } else if (isFinal && session.llmFired) {
+              // Final transcript arrived but LLM already fired on stable partial
+              console.log(`[VoiceV2] ✅ Final transcript received (LLM already fired on stable partial)`);
+              // Update message in DB with final transcript if needed
+              await saveUserMessage(sessionId, transcript, confidence);
+              // Note: Tracker will be reset when LLM completes processing
             }
           }
         });
@@ -393,11 +426,12 @@ wss.on('connection', (ws, req) => {
 });
 
 // Claude Streaming Response + TTS
-async function getClaudeResponseWithTTS(sessionId, userMessage) {
+async function getClaudeResponseWithTTS(sessionId, userMessage, options = {}) {
   const session = activeSessions.get(sessionId);
   if (!session) return;
 
   const startTime = Date.now();
+  const { isPartial = false } = options;
 
   try {
     // Add user message to history
@@ -542,6 +576,10 @@ Atlas: "That sounds really tough. What's weighing on you most right now?"`,
       timestamp: new Date().toISOString(),
     }));
 
+    // ✅ PARALLEL LLM: Reset tracker for next utterance
+    session.llmFired = false;
+    session.stablePartialTracker = { text: '', lastUpdate: 0, confidence: 0 };
+
   } catch (error) {
     console.error(`[VoiceV2] ❌ Claude error:`, error);
     session.clientWs.send(JSON.stringify({
@@ -550,6 +588,9 @@ Atlas: "That sounds really tough. What's weighing on you most right now?"`,
       sessionId,
       timestamp: new Date().toISOString(),
     }));
+    // ✅ PARALLEL LLM: Reset tracker even on error so next utterance can proceed
+    session.llmFired = false;
+    session.stablePartialTracker = { text: '', lastUpdate: 0, confidence: 0 };
   }
 }
 
