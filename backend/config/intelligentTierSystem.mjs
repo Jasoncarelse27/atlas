@@ -20,7 +20,7 @@ export const MODEL_COSTS = {
   'claude-3-5-sonnet-20241022': { input: 0.003,   output: 0.015   }, // ✅ FIXED: Correct model name (matches imageService.ts)
   // Legacy model names for backward compatibility
   'claude-sonnet-4-5-20250929': { input: 0.003,   output: 0.015   }, // Legacy (keep for compatibility)
-  'claude-3.5-sonnet-20240620': { input: 0.003,   output: 0.015   },
+  // ✅ REMOVED: claude-3.5-sonnet-20240620 (wrong format, returns 404)
   'claude-3-opus-20240229':   { input: 0.015,   output: 0.075   },
   'claude-3-haiku':  { input: 0.00025, output: 0.00125 },
   'claude-3-sonnet': { input: 0.003,   output: 0.015   },

@@ -187,6 +187,78 @@ const _mapTierToAnthropicModel = (tier) => {
   return 'claude-3-5-sonnet-20241022'; // ✅ FIXED: Use stable model version
 };
 
+// ✅ STARTUP VERIFICATION: Verify Anthropic API key and model before starting server
+async function verifyAnthropicConfig() {
+  if (!ANTHROPIC_API_KEY) {
+    logger.error('[Server] ❌ ANTHROPIC_API_KEY is missing - cannot verify');
+    return false;
+  }
+  
+  if (!ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+    logger.error('[Server] ❌ Invalid Anthropic API key format');
+    return false;
+  }
+  
+  const model = 'claude-3-5-sonnet-20241022';
+  
+  try {
+    logger.info('[Server] 🔍 Verifying Anthropic API configuration...');
+    
+    // Quick validation - minimal token request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
+    const testResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 1,
+        messages: [{ role: 'user', content: 'ping' }]
+      }),
+      signal: controller.signal,
+      agent: httpsAgent
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!testResponse.ok) {
+      const errorText = await testResponse.text().catch(() => 'Unknown error');
+      logger.error(`[Server] ❌ Anthropic verification failed: ${testResponse.status} - ${errorText}`);
+      return false;
+    }
+    
+    logger.info(`[Server] ✅ Anthropic model verified: ${model}`);
+    return true;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      logger.error('[Server] ❌ Anthropic verification timed out after 10s');
+    } else {
+      logger.error(`[Server] ❌ Anthropic verification error: ${error.message}`);
+    }
+    return false;
+  }
+}
+
+// ✅ KEEP-ALIVE: Prevent Railway idle stops
+let keepAliveInterval;
+function startKeepAlive() {
+  keepAliveInterval = setInterval(() => {
+    logger.debug('[Server] 🩵 Keep-alive ping');
+  }, 60000); // Every 60 seconds
+}
+
+function stopKeepAlive() {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
+  }
+}
+
 // ✅ PRODUCTION-SAFE: Stream helper with forced flush for Railway/proxy compatibility
 const writeSSE = (res, payload) => {
   try {
@@ -2645,6 +2717,9 @@ const gracefulShutdown = async (signal) => {
   logger.info(`Received ${signal}, shutting down gracefully...`);
   
   try {
+    // Stop keep-alive ping
+    stopKeepAlive();
+    
     // Flush Sentry before exit
     await flushSentry();
     
@@ -2661,51 +2736,75 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Start server - bind to all interfaces for mobile access
-// ✅ Support HTTPS if certs exist (for camera/audio testing)
-const certPath = path.join(__dirname, '..', 'localhost+1.pem');
-const keyPath = path.join(__dirname, '..', 'localhost+1-key.pem');
+// ✅ STARTUP: Verify Anthropic config before starting server
+async function startServer() {
+  // Verify Anthropic configuration (only in production or if explicitly enabled)
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.VERIFY_ANTHROPIC !== 'false') {
+    const verified = await verifyAnthropicConfig();
+    if (!verified) {
+      logger.error('[Server] 🚫 Startup aborted - Anthropic configuration invalid');
+      logger.error('[Server] ⚠️  Server will not start until Anthropic API key and model are valid');
+      // Don't exit immediately - allow healthcheck to respond with error status
+      // Railway will restart if healthcheck fails
+      return;
+    }
+  }
+  
+  // Start keep-alive ping to prevent Railway idle stops
+  startKeepAlive();
+  
+  // Start server - bind to all interfaces for mobile access
+  // ✅ Support HTTPS if certs exist (for camera/audio testing)
+  const certPath = path.join(__dirname, '..', 'localhost+1.pem');
+  const keyPath = path.join(__dirname, '..', 'localhost+1-key.pem');
 
-if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
-  const httpsOptions = {
-    key: fs.readFileSync(keyPath),
-    cert: fs.readFileSync(certPath)
-  };
-  
-  const httpsServer = https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
-    serverReady = true; // Mark server as ready
-    logger.info(`✅ Atlas backend (HTTPS) running on port ${PORT}`);
-    logger.info(`   Healthcheck: https://0.0.0.0:${PORT}/healthz`);
-    console.log(`🚀 Server started on port ${PORT}`);
-    console.log(`✅ Server is READY - Railway healthcheck should pass now`);
-  });
-  
-  httpsServer.on('error', (err) => {
-    logger.error(`❌ HTTPS Server error:`, err);
-    console.error(`❌ HTTPS Server error:`, err.message);
-    serverReady = false;
-  });
-} else {
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    serverReady = true; // Mark server as ready
-    logger.info(`✅ Atlas backend (HTTP) running on port ${PORT}`);
-    logger.info(`   Healthcheck: http://0.0.0.0:${PORT}/healthz`);
-    console.log(`🚀 Server started on port ${PORT}`);
-    console.log(`✅ Healthcheck available at http://0.0.0.0:${PORT}/healthz`);
-    console.log(`✅ Server is READY - Railway healthcheck should pass now`);
-  });
-  
-  // Handle server errors - but don't exit, let Railway handle restart
-  server.on('error', (err) => {
-    logger.error(`❌ Server error:`, err);
-    console.error(`❌ Server error:`, err.message);
-    serverReady = false;
-    // Don't exit - Railway will handle restart
-  });
-  
-  // Keep process alive - prevent Railway from thinking server crashed
-  server.on('close', () => {
-    logger.warn('⚠️ Server closed');
-    serverReady = false;
-  });
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    const httpsOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath)
+    };
+    
+    const httpsServer = https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+      serverReady = true; // Mark server as ready
+      logger.info(`✅ Atlas backend (HTTPS) running on port ${PORT}`);
+      logger.info(`   Healthcheck: https://0.0.0.0:${PORT}/healthz`);
+      console.log(`🚀 Server started on port ${PORT}`);
+      console.log(`✅ Server is READY - Railway healthcheck should pass now`);
+    });
+    
+    httpsServer.on('error', (err) => {
+      logger.error(`❌ HTTPS Server error:`, err);
+      console.error(`❌ HTTPS Server error:`, err.message);
+      serverReady = false;
+    });
+  } else {
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      serverReady = true; // Mark server as ready
+      logger.info(`✅ Atlas backend (HTTP) running on port ${PORT}`);
+      logger.info(`   Healthcheck: http://0.0.0.0:${PORT}/healthz`);
+      console.log(`🚀 Server started on port ${PORT}`);
+      console.log(`✅ Healthcheck available at http://0.0.0.0:${PORT}/healthz`);
+      console.log(`✅ Server is READY - Railway healthcheck should pass now`);
+    });
+    
+    // Handle server errors - but don't exit, let Railway handle restart
+    server.on('error', (err) => {
+      logger.error(`❌ Server error:`, err);
+      console.error(`❌ Server error:`, err.message);
+      serverReady = false;
+      // Don't exit - Railway will handle restart
+    });
+    
+    // Keep process alive - prevent Railway from thinking server crashed
+    server.on('close', () => {
+      logger.warn('⚠️ Server closed');
+      serverReady = false;
+    });
+  }
 }
+
+// Start server with verification
+startServer().catch((error) => {
+  logger.error('[Server] ❌ Failed to start server:', error);
+  process.exit(1);
+});
