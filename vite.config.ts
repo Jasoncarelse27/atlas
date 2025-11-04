@@ -45,6 +45,8 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       emptyOutDir: true, // 🔧 Force clean build to prevent cache issues
+      // ✅ CRITICAL FIX: Disable tree-shaking at build level to preserve zustand exports
+      treeshake: false,
       minify: 'terser',
       terserOptions: {
         compress: {
@@ -52,8 +54,12 @@ export default defineConfig(({ mode }) => {
           drop_debugger: true
         }
       },
-      // ✅ CRITICAL FIX: Merge rollupOptions - cache-busting + exports + tree-shaking
+      // ✅ CRITICAL FIX: Rollup options - preserve all exports
       rollupOptions: {
+        // ✅ CRITICAL FIX: Preserve entry signatures to keep exports (must be at root level)
+        preserveEntrySignatures: 'strict',
+        // ✅ CRITICAL FIX: Ensure zustand is bundled, not externalized
+        external: [],
         output: {
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
@@ -64,12 +70,6 @@ export default defineConfig(({ mode }) => {
           // ✅ CRITICAL FIX: Preserve zustand exports in bundle
           format: 'es',
         },
-        // ✅ CRITICAL FIX: Disable tree-shaking entirely to preserve all exports (including zustand)
-        // This is necessary because zustand's ESM exports are being stripped by Rollup
-        treeshake: false,
-        // Fix react-is import resolution for recharts
-        // Ensure react-is is bundled, not externalized
-        external: []
       },
       // ✅ CRITICAL FIX: Ensure zustand is properly resolved in production build
       commonjsOptions: {
