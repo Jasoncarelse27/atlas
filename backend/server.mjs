@@ -1930,8 +1930,13 @@ app.post('/api/stt-deepgram', verifyJWT, async (req, res) => {
     // Check Deepgram API key
     const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
     if (!DEEPGRAM_API_KEY) {
-      logger.error('[Deepgram] API key not configured');
-      return res.status(500).json({ error: 'STT service not configured' });
+      logger.error('[Deepgram] ⚠️ API key not configured - STT service unavailable');
+      logger.error('[Deepgram] Add DEEPGRAM_API_KEY to Railway environment variables');
+      return res.status(503).json({ 
+        error: 'STT service not configured',
+        message: 'Speech-to-text service is temporarily unavailable. Please contact support.',
+        requiresConfiguration: true
+      });
     }
     
     // Convert base64 to buffer

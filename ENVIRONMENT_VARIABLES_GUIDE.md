@@ -53,6 +53,9 @@ ANTHROPIC_API_KEY=your-anthropic-key  # Alternative to CLAUDE_API_KEY
 OPENAI_API_KEY=your-openai-key  # For embeddings
 GROQ_API_KEY=your-groq-key  # Optional alternative AI
 
+# Speech-to-Text (Deepgram) - Required for voice calls
+DEEPGRAM_API_KEY=your-deepgram-api-key  # Get from https://console.deepgram.com/
+
 # FastSpring Backend Configuration
 FASTSPRING_API_KEY=your-api-key
 FASTSPRING_WEBHOOK_SECRET=your-webhook-secret

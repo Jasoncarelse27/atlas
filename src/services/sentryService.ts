@@ -157,6 +157,10 @@ export function initSentry() {
       // Performance sampling
       tracesSampleRate: isProduction ? 0.1 : 1.0, // 10% in production, 100% in dev
       
+      // ✅ FIX: Session replay sampling rates (required to enable replay)
+      replaysSessionSampleRate: isProduction ? 0.1 : 1.0, // 10% of sessions in production
+      replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors
+      
       // Release tracking
       release: import.meta.env.VITE_APP_VERSION || '1.0.0',
       
