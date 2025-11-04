@@ -143,7 +143,10 @@
     "vitest": "^1.2.1"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
+  },
+  "overrides": {
+    "zustand": "5.0.8"
   },
   "keywords": [
     "ai",
