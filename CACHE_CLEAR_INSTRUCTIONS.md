@@ -1,100 +1,81 @@
-# 🔄 Cache Clear Instructions - Mac & iPhone
+# 🧹 Cache Clear Instructions - Deployment Live
 
-## **The Problem**
-Your browser (Safari/Chrome) has cached the old HTML file that references `ChatPage-CTVt6vUd.js`. Even though Vercel will deploy a new bundle with a different hash, your browser won't load it until the cache is cleared.
-
----
-
-## **Mac Safari**
-1. **Safari → Settings → Advanced**
-2. ✅ Check "Show Develop menu in menu bar"
-3. **Develop → Empty Caches** (or `Cmd+Option+E`)
-4. **Hard refresh:** `Cmd+Shift+R` on the Atlas page
-
-**OR:**
-
-1. Open Safari
-2. `Cmd+Option+E` (Empty Caches)
-3. Close Safari completely
-4. Reopen and visit Atlas
+**Status:** ✅ Deployment `96e774a` is LIVE and "Current"  
+**Issue:** Browser/Vercel cache serving old bundle `Clh4X9iX`  
+**Solution:** Clear caches and verify new bundle
 
 ---
 
-## **Mac Chrome**
-1. **Chrome → Settings → Privacy and Security → Clear browsing data**
-2. Select "Cached images and files"
-3. Time range: "Last hour"
-4. Click "Clear data"
-5. **Hard refresh:** `Cmd+Shift+R` on the Atlas page
+## ✅ **Deployment Confirmed**
 
-**OR (Faster):**
-1. Open Atlas in Chrome
-2. `Cmd+Shift+Delete` → Clear cached images/files
-3. `Cmd+Shift+R` to hard refresh
+- **Commit:** `96e774a` - "fix: switch to direct zustand import"
+- **Status:** Ready, Current (deployed 1m ago)
+- **Fix:** Zustand imports changed from `zustand/react` → `zustand`
 
 ---
 
-## **iPhone Safari**
-1. **Settings → Safari → Clear History and Website Data**
-2. **OR** Long-press the refresh button → "Reload Without Content Blockers"
-3. **OR** Close Safari completely (swipe up in app switcher, swipe Safari away)
-4. Reopen Safari and visit Atlas
+## 🧹 **Cache Clearing Steps**
 
-**Faster method:**
-1. Open Atlas in Safari
-2. Tap address bar
-3. Long-press the refresh button (bottom right)
-4. Select "Reload Without Content Blockers"
+### **Step 1: Hard Refresh Browser**
+**Mac:**
+- `Cmd + Shift + R` (hard refresh)
+- Or: `Cmd + Option + R` (clear cache and reload)
 
----
+**Windows/Linux:**
+- `Ctrl + Shift + R` (hard refresh)
+- Or: `Ctrl + F5` (force reload)
 
-## **After Clearing Cache**
+### **Step 2: Clear Browser Cache Completely**
+1. Open DevTools (`F12` or `Cmd+Option+I`)
+2. Right-click the refresh button
+3. Select **"Empty Cache and Hard Reload"**
 
-### **What to Look For:**
-1. ✅ New bundle filename in Network tab (should be different from `CTVt6vUd`)
-2. ✅ Console shows: `[Atlas] Build: dev | Deployed: ...`
-3. ✅ Auth logs appear: `📤 Sending session_start message...`
-4. ✅ Voice call starts AFTER authentication completes
+### **Step 3: Test in Incognito/Private Window**
+**Mac:** `Cmd + Shift + N`  
+**Windows:** `Ctrl + Shift + N`
 
-### **Expected Log Sequence:**
-```
-[VoiceV2] ✅ WebSocket connected
-[VoiceV2] 📤 Sending session_start message...        ← NEW LOG
-[VoiceV2] 🔐 Auth wait: received session_started      ← NEW LOG
-[VoiceV2] ✅ Session authenticated, starting audio capture...  ← NEW LOG
-[VoiceV2] 🎤 Starting audio capture...
-[VoiceV2] ✅ Audio capture started
-```
+Open: `https://atlas-xi-tawny.vercel.app/chat`
 
 ---
 
-## **If Cache Clear Doesn't Work**
+## 🔍 **Verification**
 
-### **Option 1: Query Parameter (Nuclear Option)**
-Add `?v=2025-11-03-v4` to the URL:
-```
-https://atlas-xi-tawny.vercel.app/chat?v=2025-11-03-v4
-```
+After clearing cache, check:
 
-### **Option 2: Wait for Vercel CDN TTL**
-Vercel's CDN may cache HTML for 1-2 minutes. Wait 2-3 minutes after deployment, then hard refresh.
+1. **Console should show:**
+   - ✅ No `Export 'create' is not defined` error
+   - ✅ New bundle hash (NOT `Clh4X9iX`)
 
-### **Option 3: Check Vercel Deployment**
-1. Go to https://vercel.com/dashboard
-2. Check if latest commit `3ecd87e` is deployed
-3. If not, wait for deployment to complete
-4. Then clear cache and test
+2. **App should:**
+   - ✅ Load without white screen
+   - ✅ Show chat UI with input field
+   - ✅ Allow typing messages
 
 ---
 
-## **Verification Checklist**
-- [ ] Cleared browser cache (Mac/iPhone)
-- [ ] Hard refreshed page (`Cmd+Shift+R` or long-press refresh)
-- [ ] New bundle filename appears in Network tab
-- [ ] Auth logs (`📤`, `🔐`) appear in console
-- [ ] Voice call waits for authentication before starting audio
+## ⚠️ **If Still Shows Old Bundle**
+
+### **Option A: Wait 5-10 Minutes**
+Vercel edge cache TTL may be longer. Wait and try again.
+
+### **Option B: Force Vercel Cache Purge**
+1. Go to Vercel Dashboard
+2. Settings → Deployment Protection
+3. Look for "Purge Cache" option
+4. Or: Redeploy with cache disabled
+
+### **Option C: Add Query Parameter**
+Try: `https://atlas-xi-tawny.vercel.app/chat?v=nov4`
 
 ---
 
-**After clearing cache, test voice call and share console logs if issues persist.**
+## 🎯 **Expected Result**
 
+After cache clear:
+- **New bundle hash** (e.g., `index-Bj0NKf0W.js` or similar)
+- **No Zustand errors**
+- **App loads correctly**
+
+---
+
+**Try Step 1 (hard refresh) first - that usually fixes it!**

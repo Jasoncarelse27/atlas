@@ -5,7 +5,14 @@ type ThemeMode = 'light' | 'dark' | 'auto';
 
 export const useThemeMode = () => {
   const { customization, updateCustomization, saveCustomization } = useCustomization();
-  const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
+  // ✅ Default to dark theme (was showing light before)
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    // Check localStorage first
+    const saved = localStorage.getItem('atlas:theme');
+    if (saved === 'dark' || saved === 'light') return saved as ThemeMode;
+    // Default to dark
+    return 'dark';
+  });
   const [systemPrefersDark, setSystemPrefersDark] = useState(
     window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   );

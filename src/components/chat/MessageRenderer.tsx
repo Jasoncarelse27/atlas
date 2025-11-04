@@ -7,6 +7,7 @@ import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import { logger } from '../../lib/logger';
 import { useMessageStore } from '../../stores/useMessageStore';
+import { useThemeMode } from '../../hooks/useThemeMode';
 import type { Attachment, Message } from '../../types/chat';
 import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { AudioMessageBubble } from './AudioMessageBubble';
@@ -231,9 +232,12 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
 
   // Handle text content (default)
   const content = Array.isArray(message.content) ? message.content.join(' ') : message.content;
+  
+  // ✅ Theme-aware prose styling
+  const { isDarkMode } = useThemeMode();
 
   return (
-    <div className={`prose prose-invert max-w-none ${className}`}>
+    <div className={`prose ${isDarkMode ? 'prose-invert' : ''} max-w-none ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
@@ -289,7 +293,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
 
             return (
               <code 
-                className="bg-gray-800/50 px-1.5 py-0.5 rounded text-sm font-mono text-gray-200" 
+                className={`${isDarkMode ? 'bg-gray-800/50 text-gray-200' : 'bg-gray-100 text-gray-800'} px-1.5 py-0.5 rounded text-sm font-mono`} 
                 {...props}
               >
                 {children}
@@ -297,29 +301,29 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             );
           },
           p({ children }) {
-            return <p className="mb-4 last:mb-0 leading-relaxed text-gray-200">{children}</p>;
+            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</p>;
           },
           h1({ children }) {
-            return <h1 className="text-xl font-bold mb-3 text-white">{children}</h1>;
+            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h1>;
           },
           h2({ children }) {
-            return <h2 className="text-lg font-semibold mb-2 text-white">{children}</h2>;
+            return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h2>;
           },
           h3({ children }) {
-            return <h3 className="text-base font-medium mb-2 text-white">{children}</h3>;
+            return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h3>;
           },
           ul({ children }) {
-            return <ul className="list-disc ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ul>;
+            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ol>;
+            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ol>;
           },
           li({ children }) {
-            return <li className="text-gray-200 pl-1.5 leading-relaxed">{children}</li>;
+            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-800'} pl-1.5 leading-relaxed`}>{children}</li>;
           },
           blockquote({ children }) {
             return (
-              <blockquote className="border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 bg-gray-800/30 rounded-r">
+              <blockquote className={`border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100'} rounded-r`}>
                 {children}
               </blockquote>
             );
@@ -337,40 +341,40 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             );
           },
           strong({ children }) {
-            return <strong className="font-semibold text-gray-900">{children}</strong>;
+            return <strong className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</strong>;
           },
           em({ children }) {
-            return <em className="italic text-gray-600">{children}</em>;
+            return <em className={`italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{children}</em>;
           },
-          // Tables (GitHub Flavored Markdown) - Enhanced with dark mode and better spacing
+          // Tables (GitHub Flavored Markdown) - Enhanced with theme-aware styling
           table({ children }) {
             return (
               <div className="overflow-x-auto my-6 -mx-2 sm:mx-0">
-                <table className="min-w-full border-collapse border border-gray-600/50 rounded-lg overflow-hidden shadow-lg">
+                <table className={`min-w-full border-collapse border ${isDarkMode ? 'border-gray-600/50' : 'border-gray-300'} rounded-lg overflow-hidden shadow-lg`}>
                   {children}
                 </table>
               </div>
             );
           },
           thead({ children }) {
-            return <thead className="bg-gray-700/80 border-b-2 border-gray-600">{children}</thead>;
+            return <thead className={`${isDarkMode ? 'bg-gray-700/80 border-gray-600' : 'bg-gray-100 border-gray-300'} border-b-2`}>{children}</thead>;
           },
           tbody({ children }) {
-            return <tbody className="bg-gray-800/40 divide-y divide-gray-700/50">{children}</tbody>;
+            return <tbody className={`${isDarkMode ? 'bg-gray-800/40 divide-gray-700/50' : 'bg-white divide-gray-200'} divide-y`}>{children}</tbody>;
           },
           tr({ children }) {
-            return <tr className="hover:bg-gray-700/30 transition-colors duration-150">{children}</tr>;
+            return <tr className={`${isDarkMode ? 'hover:bg-gray-700/30' : 'hover:bg-gray-50'} transition-colors duration-150`}>{children}</tr>;
           },
           th({ children }) {
             return (
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-100 border-r border-gray-600/50 last:border-r-0">
+              <th className={`px-4 py-3 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-100 border-gray-600/50' : 'text-gray-900 border-gray-300'} border-r last:border-r-0`}>
                 {children}
               </th>
             );
           },
           td({ children }) {
             return (
-              <td className="px-4 py-3 text-sm text-gray-200 border-r border-gray-600/30 last:border-r-0 leading-relaxed">
+              <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-200 border-gray-600/30' : 'text-gray-800 border-gray-200'} border-r last:border-r-0 leading-relaxed`}>
                 {children}
               </td>
             );
@@ -401,6 +405,9 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
 // Legacy component for backward compatibility
 export function LegacyMessageRenderer({ content, className = '' }: LegacyMessageRendererProps) {
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
+  
+  // ✅ Theme-aware prose styling
+  const { isDarkMode } = useThemeMode();
 
   const handleCopy = async (codeContent: string, codeId: string) => {
     try {
@@ -415,7 +422,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
   };
 
   return (
-    <div className={`prose prose-invert max-w-none ${className}`}>
+    <div className={`prose ${isDarkMode ? 'prose-invert' : ''} max-w-none ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
@@ -471,7 +478,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
 
             return (
               <code 
-                className="bg-gray-800/50 px-1.5 py-0.5 rounded text-sm font-mono text-gray-200" 
+                className={`${isDarkMode ? 'bg-gray-800/50 text-gray-200' : 'bg-gray-100 text-gray-800'} px-1.5 py-0.5 rounded text-sm font-mono`} 
                 {...props}
               >
                 {children}
@@ -479,29 +486,29 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             );
           },
           p({ children }) {
-            return <p className="mb-4 last:mb-0 leading-relaxed text-gray-200">{children}</p>;
+            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</p>;
           },
           h1({ children }) {
-            return <h1 className="text-xl font-bold mb-3 text-white">{children}</h1>;
+            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h1>;
           },
           h2({ children }) {
-            return <h2 className="text-lg font-semibold mb-2 text-white">{children}</h2>;
+            return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h2>;
           },
           h3({ children }) {
-            return <h3 className="text-base font-medium mb-2 text-white">{children}</h3>;
+            return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h3>;
           },
           ul({ children }) {
-            return <ul className="list-disc ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ul>;
+            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="list-decimal ml-5 mb-5 space-y-2.5 text-gray-200">{children}</ol>;
+            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ol>;
           },
           li({ children }) {
-            return <li className="text-gray-200 pl-1.5 leading-relaxed">{children}</li>;
+            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-800'} pl-1.5 leading-relaxed`}>{children}</li>;
           },
           blockquote({ children }) {
             return (
-              <blockquote className="border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 bg-gray-800/30 rounded-r">
+              <blockquote className={`border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100'} rounded-r`}>
                 {children}
               </blockquote>
             );
@@ -519,40 +526,40 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             );
           },
           strong({ children }) {
-            return <strong className="font-semibold text-gray-900">{children}</strong>;
+            return <strong className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</strong>;
           },
           em({ children }) {
-            return <em className="italic text-gray-600">{children}</em>;
+            return <em className={`italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{children}</em>;
           },
-          // Tables (GitHub Flavored Markdown) - Enhanced with dark mode and better spacing
+          // Tables (GitHub Flavored Markdown) - Enhanced with theme-aware styling
           table({ children }) {
             return (
               <div className="overflow-x-auto my-6 -mx-2 sm:mx-0">
-                <table className="min-w-full border-collapse border border-gray-600/50 rounded-lg overflow-hidden shadow-lg">
+                <table className={`min-w-full border-collapse border ${isDarkMode ? 'border-gray-600/50' : 'border-gray-300'} rounded-lg overflow-hidden shadow-lg`}>
                   {children}
                 </table>
               </div>
             );
           },
           thead({ children }) {
-            return <thead className="bg-gray-700/80 border-b-2 border-gray-600">{children}</thead>;
+            return <thead className={`${isDarkMode ? 'bg-gray-700/80 border-gray-600' : 'bg-gray-100 border-gray-300'} border-b-2`}>{children}</thead>;
           },
           tbody({ children }) {
-            return <tbody className="bg-gray-800/40 divide-y divide-gray-700/50">{children}</tbody>;
+            return <tbody className={`${isDarkMode ? 'bg-gray-800/40 divide-gray-700/50' : 'bg-white divide-gray-200'} divide-y`}>{children}</tbody>;
           },
           tr({ children }) {
-            return <tr className="hover:bg-gray-700/30 transition-colors duration-150">{children}</tr>;
+            return <tr className={`${isDarkMode ? 'hover:bg-gray-700/30' : 'hover:bg-gray-50'} transition-colors duration-150`}>{children}</tr>;
           },
           th({ children }) {
             return (
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-100 border-r border-gray-600/50 last:border-r-0">
+              <th className={`px-4 py-3 text-left text-sm font-semibold ${isDarkMode ? 'text-gray-100 border-gray-600/50' : 'text-gray-900 border-gray-300'} border-r last:border-r-0`}>
                 {children}
               </th>
             );
           },
           td({ children }) {
             return (
-              <td className="px-4 py-3 text-sm text-gray-200 border-r border-gray-600/30 last:border-r-0 leading-relaxed">
+              <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-200 border-gray-600/30' : 'text-gray-800 border-gray-200'} border-r last:border-r-0 leading-relaxed`}>
                 {children}
               </td>
             );

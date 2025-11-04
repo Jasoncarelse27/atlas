@@ -20,6 +20,7 @@ import { messageService } from '../features/chat/services/messageService';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
 import { useTierQuery } from '../hooks/useTierQuery'; // 🔥 Use modern tier hook
+import { useThemeMode } from '../hooks/useThemeMode'; // ✅ Theme support
 import { logger } from '../lib/logger';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
@@ -86,6 +87,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // 🔥 Modern tier management with React Query + Realtime
   const { tier } = useTierQuery();
+  
+  // ✅ Theme support
+  const { isDarkMode } = useThemeMode();
 
   // ✅ ENTERPRISE: Real-time conversation deletion listener (clean, reliable)
   useRealtimeConversations(userId || undefined);
@@ -1064,9 +1068,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
-        <div className="bg-white/50 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-30">
+        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} backdrop-blur-sm border-b sticky top-0 z-30`}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -1092,7 +1096,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         </div>
 
         {/* Input Skeleton */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+        <div className={`fixed bottom-0 left-0 right-0 p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-t`}>
           <div className="max-w-4xl mx-auto">
             <Skeleton height={50} borderRadius={25} />
           </div>
@@ -1192,9 +1196,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-white text-gray-900">
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
         {/* Header with Menu Button */}
-        <div className="bg-white/50 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-30">
+        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} backdrop-blur-sm border-b sticky top-0 z-30`}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -1205,8 +1209,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <Menu className="w-5 h-5 text-atlas-stone" />
                 </button>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Atlas AI</h1>
-                  <p className="text-gray-600 text-sm sm:text-base hidden sm:block">Your emotionally intelligent AI assistant</p>
+                  <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Atlas AI</h1>
+                  <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm sm:text-base hidden sm:block`}>Your emotionally intelligent AI assistant</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
