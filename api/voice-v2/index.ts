@@ -6,10 +6,8 @@ export const config = {
   runtime: 'edge',
 };
 
-// Use process.env for Vercel Edge compatibility (works in both Deno and Node contexts)
-const FLY_IO_WS_URL = (typeof process !== 'undefined' && process.env?.VITE_VOICE_V2_URL) || 
-                       (typeof Deno !== 'undefined' && Deno.env?.get('VITE_VOICE_V2_URL')) ||
-                       'wss://atlas-voice-v2.fly.dev';
+// Vercel Edge Functions use process.env (not Deno.env)
+const FLY_IO_WS_URL = process.env.VITE_VOICE_V2_URL || 'wss://atlas-voice-v2.fly.dev';
 
 /**
  * 🎙️ Voice V2 - WebSocket Proxy
