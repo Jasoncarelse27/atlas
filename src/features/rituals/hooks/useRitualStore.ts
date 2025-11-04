@@ -5,8 +5,8 @@
 
 import { atlasDB } from '@/database/atlasDB';
 import { logger } from '@/lib/logger';
-// ✅ BEST PRACTICE: Direct import (Zustand v5 compatible, avoids bundling issues)
-import { create } from 'zustand';
+// ✅ CRITICAL FIX: Import from zustand/react to bypass re-export chain (fixes Vercel bundling)
+import { create } from 'zustand/react';
 import { ritualService } from '../services/ritualService';
 import type { Ritual, RitualLog } from '../types/rituals';
 

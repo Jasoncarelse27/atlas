@@ -1,5 +1,5 @@
-// ✅ BEST PRACTICE: Direct import (Zustand v5 compatible, avoids bundling issues)
-import { create } from "zustand";
+// ✅ CRITICAL FIX: Import from zustand/react to bypass re-export chain (fixes Vercel bundling)
+import { create } from "zustand/react";
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";

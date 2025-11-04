@@ -1,5 +1,5 @@
-// ✅ BEST PRACTICE: Direct import (Zustand v5 compatible, avoids bundling issues)
-import { create } from 'zustand';
+// ✅ CRITICAL FIX: Import from zustand/react to bypass re-export chain (fixes Vercel bundling)
+import { create } from 'zustand/react';
 
 interface SettingsState {
   theme: 'dark' | 'light';
