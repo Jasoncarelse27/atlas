@@ -1,12 +1,15 @@
 // Edge Function for Voice V2 - Proxy to Fly.io
-// Runtime: Vercel Edge (Deno)
+// Runtime: Vercel Edge (Deno-compatible)
 // This proxies WebSocket connections to the Fly.io server
 
 export const config = {
   runtime: 'edge',
 };
 
-const FLY_IO_WS_URL = Deno.env.get('VITE_VOICE_V2_URL') || 'wss://atlas-voice-v2.fly.dev';
+// Use process.env for Vercel Edge compatibility (works in both Deno and Node contexts)
+const FLY_IO_WS_URL = (typeof process !== 'undefined' && process.env?.VITE_VOICE_V2_URL) || 
+                       (typeof Deno !== 'undefined' && Deno.env?.get('VITE_VOICE_V2_URL')) ||
+                       'wss://atlas-voice-v2.fly.dev';
 
 /**
  * 🎙️ Voice V2 - WebSocket Proxy
