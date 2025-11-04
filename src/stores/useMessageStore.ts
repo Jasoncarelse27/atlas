@@ -1,5 +1,5 @@
-// ✅ CRITICAL FIX: Import directly from zustand/react to avoid re-export issues
-import { create } from "zustand/react";
+// ✅ BEST PRACTICE: Direct import (Zustand v5 compatible, avoids bundling issues)
+import { create } from "zustand";
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";

@@ -189,7 +189,7 @@ export default function EnhancedUpgradeModal({ isOpen, onClose, feature, current
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-white">Studio</h3>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-white">$189.99</div>
+                      <div className="text-2xl font-bold text-white">$149.99</div> {/* ✅ CORRECTED */}
                       <div className="text-sm text-gray-400">/month</div>
                     </div>
                   </div>

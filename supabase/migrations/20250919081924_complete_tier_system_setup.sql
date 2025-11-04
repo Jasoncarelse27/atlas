@@ -289,7 +289,7 @@ select
   sum(case when status = 'active' then 
     case 
       when tier = 'core' then 19.99
-      when tier = 'studio' then 189.99
+      when tier = 'studio' then 149.99 -- ✅ CORRECTED: Updated from $189.99
       else 0
     end
   else 0 end) as monthly_revenue,

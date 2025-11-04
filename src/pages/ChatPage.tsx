@@ -1032,6 +1032,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       if (fallbackTimerRef.current) {
         clearTimeout(fallbackTimerRef.current);
       }
+      // ✅ FIX: Cleanup resendService online listener
+      import('../services/resendService').then(({ cleanupResendListeners }) => {
+        cleanupResendListeners();
+      });
     };
   }, []);
   

@@ -534,7 +534,7 @@ export const RitualLibrary: React.FC = () => {
                 className="w-full py-4 bg-[#3B3632] text-white rounded-xl font-semibold text-lg
                   active:scale-95 transition-transform shadow-lg min-h-[56px]"
               >
-                Upgrade to {selectedLockedRitual.tierRequired === 'core' ? 'Core ($19.99/mo)' : 'Studio ($189.99/mo)'}
+                Upgrade to {selectedLockedRitual.tierRequired === 'core' ? 'Core ($19.99/mo)' : 'Studio ($149.99/mo)'} {/* ✅ CORRECTED */}
               </button>
 
               <p className="text-center text-xs text-gray-500 mt-4">

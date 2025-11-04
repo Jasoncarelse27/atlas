@@ -186,7 +186,7 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = React.memo(({
       {isLocked && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500 text-left">
-            Upgrade to {ritual.tierRequired === 'core' ? 'Core ($19.99)' : 'Studio ($189.99)'} to
+            Upgrade to {ritual.tierRequired === 'core' ? 'Core ($19.99)' : 'Studio ($149.99)'} to {/* ✅ CORRECTED */}
             unlock
           </p>
         </div>

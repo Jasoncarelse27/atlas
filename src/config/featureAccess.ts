@@ -2,6 +2,7 @@
 // Atlas Usage Management System - Revenue Protection & Cost Control
 
 import type { Tier } from '../types/tier';
+import { TIER_PRICING } from './pricing'; // ✅ BEST PRACTICE: Import centralized pricing
 
 // Runtime tier values (for runtime usage)
 export const TIER_VALUES = ['free', 'core', 'studio'] as const;
@@ -88,7 +89,7 @@ export const tierFeatures = {
     maxContextWindow: 8000,  // tokens
     maxConversationLength: -1,  // Unlimited
     // Pricing & Model
-    monthlyPrice: 189.99,
+    monthlyPrice: TIER_PRICING.studio.monthlyPrice, // ✅ BEST PRACTICE: Use centralized pricing
     model: 'claude-3-opus',
     // Features
     emotionalAnalysis: 'advanced',  // Enhanced emotional intelligence reporting
@@ -187,7 +188,7 @@ export const FASTSPRING_CONFIG = {
     },
     studio: {
       productId: import.meta.env.VITE_FASTSPRING_STUDIO_PRODUCT_ID || 'atlas-studio-monthly',
-      price: 189.99
+      price: TIER_PRICING.studio.monthlyPrice // ✅ BEST PRACTICE: Use centralized pricing
     }
   },
   // Subscription status cache duration (5 minutes)

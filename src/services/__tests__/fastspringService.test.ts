@@ -75,15 +75,15 @@ describe('FastSpring Analytics Service', () => {
       const mockSubscriptions = [
         { tier: 'core', status: 'active' },      // $19.99
         { tier: 'core', status: 'active' },      // $19.99
-        { tier: 'studio', status: 'active' },    // $189.99
+        { tier: 'studio', status: 'active' },    // $149.99 ✅ CORRECTED
         { tier: 'core', status: 'cancelled' },   // $0 (not active)
       ];
       setMockData(mockSubscriptions);
 
       const analytics = await fastspringService.getSubscriptionAnalytics();
 
-      // MRR = 2 * $19.99 + 1 * $189.99 = $229.97
-      expect(analytics.monthlyRecurringRevenue).toBeCloseTo(229.97, 2);
+      // MRR = 2 * $19.99 + 1 * $149.99 = $189.97 ✅ CORRECTED
+      expect(analytics.monthlyRecurringRevenue).toBeCloseTo(189.97, 2);
     });
 
     it('should calculate churn rate correctly', async () => {
@@ -147,14 +147,14 @@ describe('FastSpring Analytics Service', () => {
       const mockSubscriptions = [
         { tier: 'core', status: 'active' },       // $19.99
         { tier: 'invalid', status: 'active' },    // $0 (invalid tier)
-        { tier: 'studio', status: 'active' },     // $189.99
+        { tier: 'studio', status: 'active' },     // $149.99 ✅ CORRECTED
       ];
       setMockData(mockSubscriptions);
 
       const analytics = await fastspringService.getSubscriptionAnalytics();
 
-      // MRR = $19.99 + $0 + $189.99 = $209.98
-      expect(analytics.monthlyRecurringRevenue).toBeCloseTo(209.98, 2);
+      // MRR = $19.99 + $0 + $149.99 = $169.98 ✅ CORRECTED
+      expect(analytics.monthlyRecurringRevenue).toBeCloseTo(169.98, 2);
     });
   });
 

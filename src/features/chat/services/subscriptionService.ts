@@ -398,7 +398,7 @@ class SubscriptionService {
           dailyMessages: -1, // Unlimited
           monthlyMessages: -1, // Unlimited
           features: ['Unlimited AI responses', 'All features', 'Priority support', 'Claude Opus'],
-          price: 189.99,
+          price: 149.99, // ✅ CORRECTED: Updated from $189.99
         };
       default:
         return {

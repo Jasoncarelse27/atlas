@@ -367,7 +367,12 @@ class FastSpringService {
           
           if (sub.status === 'active') {
             // ✅ Calculate MRR based on tier using centralized config
-            const tierPrices = { core: 19.99, studio: 189.99 };
+            // ✅ BEST PRACTICE: Import from centralized pricing config
+            const { TIER_PRICING } = await import('../config/pricing');
+            const tierPrices = { 
+              core: TIER_PRICING.core.monthlyPrice, 
+              studio: TIER_PRICING.studio.monthlyPrice 
+            };
             analytics.monthlyRecurringRevenue += tierPrices[tier] || 0;
           }
         }
