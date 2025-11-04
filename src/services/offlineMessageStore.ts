@@ -1,9 +1,6 @@
 // Minimal stub for offlineMessageStore to unblock build
 // TODO: Implement full offline message storage functionality
 
-import { atlasDB } from '../database/atlasDB';
-import { logger } from '../lib/logger';
-
 interface FailedMessage {
   id: string;
   content: string;
