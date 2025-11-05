@@ -11,6 +11,11 @@
 
 import * as zustand from 'zustand';
 
+// ✅ CRITICAL: Store reference in global to prevent tree-shaking
+if (typeof window !== 'undefined') {
+  (window as any).__ATLAS_ZUSTAND_REF__ = zustand;
+}
+
 // ✅ Handle all export formats (ESM / CJS / nested) - bundlers can't optimize this
 const createFn =
   (zustand as any).create ||
@@ -18,13 +23,18 @@ const createFn =
   (zustand as any).default ||
   zustand;
 
+// ✅ CRITICAL: Export as both named and default - multiple exports prevent optimization
 export const create = createFn;
 export default createFn;
+
+// ✅ CRITICAL: Side-effect export that forces module to be included
+export const __FORCE_INCLUDE__ = 'z' + (Math.random() * 1000).toString(36);
 
 // ✅ PRODUCTION VERIFICATION: Log wrapper initialization
 if (typeof window !== 'undefined') {
   console.log('[Atlas] ✅ Zustand wrapper initialized - create() preserved');
   console.log('[Atlas] 🔍 Build verification: wrapper active, production-safe');
   console.log('[Atlas] 🚀 Cache bust timestamp:', new Date().toISOString());
+  console.log('[Atlas] 🔗 Zustand reference:', typeof createFn);
 }
 
