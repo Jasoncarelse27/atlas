@@ -45,12 +45,12 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       emptyOutDir: true, // 🔧 Force clean build to prevent cache issues
-      // ✅ PERMANENT FIX: Preserve zustand/react module side effects
-      // Zustand v5 requires its exports to be preserved during tree-shaking
+      // ✅ CRITICAL FIX: Disable tree-shaking for Zustand (Vercel builds still tree-shake it)
+      // Mark entire zustand package as having side effects
       treeshake: {
         moduleSideEffects: (id) => {
-          // ✅ Preserve zustand/react module - never tree-shake it
-          if (id.includes('zustand/react') || id.includes('zustand/vanilla')) {
+          // ✅ Preserve ALL zustand modules - never tree-shake anything from zustand
+          if (id.includes('zustand') || id.includes('node_modules/zustand')) {
             return true;
           }
           return false;
@@ -69,6 +69,8 @@ export default defineConfig(({ mode }) => {
         preserveEntrySignatures: 'strict',
         // ✅ CRITICAL FIX: Ensure zustand is bundled, not externalized
         external: [],
+        // ✅ CRITICAL FIX: Mark zustand as external to prevent any tree-shaking
+        treeshake: false, // Disable tree-shaking at Rollup level for Zustand safety
         output: {
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
