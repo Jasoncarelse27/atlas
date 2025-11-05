@@ -6,7 +6,7 @@
  * This wrapper cannot be tree-shaken by Rollup/Vercel builds.
  * 
  * Verified: 2025-11-05 - CDN cache purge rebuild
- * Cache bust: 2025-11-05-20:58 - Force Vercel rebuild to clear edge cache
+ * Cache bust: 2025-11-05-21:30 - Force Vercel rebuild + CDN purge
  */
 
 import * as zustand from 'zustand';
