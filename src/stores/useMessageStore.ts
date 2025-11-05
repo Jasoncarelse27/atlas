@@ -1,5 +1,6 @@
-// ✅ CRITICAL FIX: Import from wrapper module to ensure production bundling works correctly
-import { create } from "@/lib/zustand";
+// ✅ PERMANENT FIX: Import directly from zustand/react (Zustand v5 best practice)
+// This is the official recommended approach - avoids wrapper re-export issues
+import { create } from 'zustand/react';
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";

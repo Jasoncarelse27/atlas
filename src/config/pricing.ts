@@ -67,3 +67,4 @@ export function getCreditMultiplier(tier: 'free' | 'core' | 'studio'): number {
   return TIER_PRICING[tier].creditMultiplier;
 }
 
+

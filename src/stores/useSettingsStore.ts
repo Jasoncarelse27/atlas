@@ -1,5 +1,6 @@
-// ✅ CRITICAL FIX: Import from wrapper module to ensure production bundling works correctly
-import { create } from '@/lib/zustand';
+// ✅ PERMANENT FIX: Import directly from zustand/react (Zustand v5 best practice)
+// This avoids wrapper module re-export issues that Rollup can tree-shake
+import { create } from 'zustand/react';
 
 interface SettingsState {
   theme: 'dark' | 'light';

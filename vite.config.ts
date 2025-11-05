@@ -45,11 +45,12 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       emptyOutDir: true, // 🔧 Force clean build to prevent cache issues
-      // ✅ CRITICAL FIX: Enable selective tree-shaking but preserve zustand wrapper
+      // ✅ PERMANENT FIX: Preserve zustand/react module side effects
+      // Zustand v5 requires its exports to be preserved during tree-shaking
       treeshake: {
         moduleSideEffects: (id) => {
-          // ✅ Preserve zustand wrapper module - never tree-shake it
-          if (id.includes('zustand') || id.includes('lib/zustand')) {
+          // ✅ Preserve zustand/react module - never tree-shake it
+          if (id.includes('zustand/react') || id.includes('zustand/vanilla')) {
             return true;
           }
           return false;

@@ -5,8 +5,8 @@
 
 import { atlasDB } from '@/database/atlasDB';
 import { logger } from '@/lib/logger';
-// ✅ CRITICAL FIX: Import from wrapper module to ensure production bundling works correctly
-import { create } from '@/lib/zustand';
+// ✅ PERMANENT FIX: Import directly from zustand/react (Zustand v5 best practice)
+import { create } from 'zustand/react';
 import { ritualService } from '../services/ritualService';
 import type { Ritual, RitualLog } from '../types/rituals';
 
