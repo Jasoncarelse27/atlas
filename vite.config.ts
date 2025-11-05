@@ -69,8 +69,6 @@ export default defineConfig(({ mode }) => {
         preserveEntrySignatures: 'strict',
         // ✅ CRITICAL FIX: Ensure zustand is bundled, not externalized
         external: [],
-        // ✅ CRITICAL FIX: Mark zustand as external to prevent any tree-shaking
-        treeshake: false, // Disable tree-shaking at Rollup level for Zustand safety
         output: {
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',
