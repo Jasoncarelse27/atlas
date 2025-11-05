@@ -6,6 +6,7 @@
  * This wrapper cannot be tree-shaken by Rollup/Vercel builds.
  * 
  * Verified: 2025-11-05 - CDN cache purge rebuild
+ * Cache bust: 2025-11-XX - Force Vercel rebuild to clear edge cache
  */
 
 import * as zustand from 'zustand';
@@ -24,5 +25,6 @@ export default createFn;
 if (typeof window !== 'undefined') {
   console.log('[Atlas] ✅ Zustand wrapper initialized - create() preserved');
   console.log('[Atlas] 🔍 Build verification: wrapper active, production-safe');
+  console.log('[Atlas] 🚀 Cache bust timestamp:', new Date().toISOString());
 }
 
