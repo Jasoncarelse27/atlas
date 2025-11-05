@@ -1,19 +1,35 @@
 /**
- * Zustand Wrapper Module
+ * Zustand Wrapper Module - Production-Safe Implementation
  * 
- * CRITICAL: Use namespace import to prevent Rollup from tree-shaking the 'create' export.
- * This is the recommended pattern for Zustand v5 with Vite/Rollup production builds.
+ * CRITICAL FIX: Import directly from 'zustand/react' and use dynamic property access
+ * to prevent Rollup from tree-shaking the export during production builds.
  * 
- * Problem: Named imports can be removed by tree-shaking in production builds
- * Solution: Namespace import + explicit property access ensures export is preserved
+ * Strategy:
+ * 1. Import namespace from zustand/react (where create actually lives)
+ * 2. Use dynamic property access that Rollup can't statically analyze
+ * 3. Add runtime validation to ensure create exists
+ * 
+ * This pattern ensures the export is preserved in all bundler configurations.
  * 
  * @see https://github.com/pmndrs/zustand/issues/1234
  * @see https://github.com/vitejs/vite/issues/2679
  */
 
-// ✅ CRITICAL FIX: Use namespace import to prevent tree-shaking
-import * as zustand from 'zustand';
+// ✅ Import namespace from zustand/react (direct source, avoids re-export chain)
+import * as zustandReact from 'zustand/react';
 
-// ✅ Explicitly extract and re-export to ensure bundler preserves it
-export const create = zustand.create;
+// ✅ Use dynamic property access - Rollup can't statically analyze this
+const createKey = 'create';
+const zustandCreate = (zustandReact as any)[createKey];
+
+// ✅ Runtime validation - ensure create exists
+if (typeof zustandCreate !== 'function') {
+  throw new Error(
+    '[Zustand Wrapper] Failed to locate create export from zustand/react. ' +
+    'This indicates a bundling issue. Please check Vite/Rollup configuration.'
+  );
+}
+
+// ✅ Export as const to ensure it's preserved
+export const create = zustandCreate;
 

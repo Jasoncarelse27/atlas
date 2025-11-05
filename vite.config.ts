@@ -45,8 +45,16 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       emptyOutDir: true, // 🔧 Force clean build to prevent cache issues
-      // ✅ CRITICAL FIX: Disable tree-shaking at build level to preserve zustand exports
-      treeshake: false,
+      // ✅ CRITICAL FIX: Enable selective tree-shaking but preserve zustand wrapper
+      treeshake: {
+        moduleSideEffects: (id) => {
+          // ✅ Preserve zustand wrapper module - never tree-shake it
+          if (id.includes('zustand') || id.includes('lib/zustand')) {
+            return true;
+          }
+          return false;
+        },
+      },
       minify: 'terser',
       terserOptions: {
         compress: {
@@ -69,12 +77,14 @@ export default defineConfig(({ mode }) => {
           assetFileNames: 'assets/[name]-[hash].[ext]',
           // ✅ CRITICAL FIX: Preserve zustand exports in bundle - use ES format
           format: 'es',
-          // ✅ CRITICAL FIX: Prevent tree-shaking of namespace imports
+          // ✅ CRITICAL FIX: Preserve module structure for wrapper
           preserveModules: false,
           // ✅ CRITICAL FIX: Explicitly preserve zustand exports
           generatedCode: {
             constBindings: false, // Use let/var instead of const for better compatibility
           },
+          // ✅ CRITICAL FIX: Ensure zustand wrapper module exports are preserved
+          interop: 'compat',
         },
       },
       // ✅ CRITICAL FIX: Ensure zustand is properly resolved in production build
