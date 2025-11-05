@@ -79,8 +79,8 @@ body {
   display: flex;
   align-items: center;
   padding: 0.5rem;
-  background: #0f172a; /* Atlas dark theme */
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--atlas-pearl); /* Atlas pearl background */
+  border-top: 1px solid rgba(151, 134, 113, 0.2); /* Atlas stone border */
 }
 
 .chat-input-bar input {
@@ -128,8 +128,8 @@ body {
 
 /* Dark mode adjustments */
 .dark .chat-input-bar {
-  background: #111827;
-  border-top-color: rgba(255, 255, 255, 0.1);
+  background: #1a1a1a; /* Dark mode - neutral dark */
+  border-top-color: rgba(151, 134, 113, 0.3); /* Atlas stone border */
 }
 
 /* Smart scroll system animations */
