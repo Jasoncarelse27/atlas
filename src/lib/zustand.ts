@@ -10,6 +10,7 @@
  * @see https://github.com/pmndrs/zustand/issues/1234
  */
 
-// ✅ Zustand v5: Import create from 'zustand' directly (not 'zustand/react')
-export { create } from 'zustand';
+// ✅ Zustand v5: Import create explicitly and re-export to ensure bundler preserves it
+import { create as zustandCreate } from 'zustand';
+export const create = zustandCreate;
 
