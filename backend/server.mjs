@@ -2200,14 +2200,33 @@ app.post('/api/mailerlite/event', async (req, res) => {
 // MailerLite subscriber sync route
 app.post('/api/mailerlite/subscriber', async (req, res) => {
   try {
-    const { email, name, tier, conversations_today, total_conversations } = req.body;
+    const { email, name, conversations_today, total_conversations } = req.body;
     
-    if (!email || !tier) {
+    if (!email) {
       return res.status(400).json({ 
-        error: 'Missing required fields: email and tier' 
+        error: 'Missing required fields: email' 
       });
     }
 
+    // ✅ SECURITY: Fetch tier from database (never trust client-sent tier)
+    let tier = 'free'; // Default
+    if (req.user?.id) {
+      // If authenticated, use verified tier from authMiddleware
+      tier = req.user.tier || 'free';
+    } else {
+      // If not authenticated, fetch tier by email from database
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('email', email)
+          .single();
+        tier = profile?.subscription_tier || 'free';
+      } catch (dbError) {
+        logger.debug('[MailerLite] Could not fetch tier for email:', email);
+        tier = 'free'; // Fail closed
+      }
+    }
 
     const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
     
@@ -2424,10 +2443,33 @@ app.post('/v1/user_profiles', verifyJWT, async (req, res) => {
 // FastSpring checkout creation endpoint
 app.post('/api/fastspring/create-checkout', async (req, res) => {
   try {
-    const { userId, tier, email, productId, successUrl, cancelUrl } = req.body;
+    const { userId, tier: requestedTier, email, productId, successUrl, cancelUrl } = req.body;
 
-    if (!userId || !tier || !email || !productId) {
+    if (!userId || !requestedTier || !email || !productId) {
       return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    // ✅ SECURITY: Validate tier exists and fetch actual tier from database
+    const validTiers = ['free', 'core', 'studio'];
+    if (!validTiers.includes(requestedTier)) {
+      return res.status(400).json({ error: 'Invalid tier specified' });
+    }
+
+    // Fetch actual tier from database (single source of truth)
+    let tier = requestedTier; // Default to requested tier
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
+      
+      // Use actual tier if available, otherwise use requested tier (for new signups)
+      tier = profile?.subscription_tier || requestedTier;
+    } catch (dbError) {
+      logger.debug('[FastSpring] Could not fetch tier for userId:', userId);
+      // Use requested tier as fallback (this is OK for checkout creation)
+      tier = requestedTier;
     }
 
     const FASTSPRING_API_USERNAME = process.env.FASTSPRING_API_USERNAME;
@@ -2521,13 +2563,33 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
 // 📊 Feature attempts tracking endpoint
 app.post('/api/feature-attempts', async (req, res) => {
   try {
-    const { userId, feature, tier } = req.body;
+    const { userId, feature } = req.body;
 
     // Validate required fields
-    if (!userId || !feature || !tier) {
+    if (!userId || !feature) {
       return res.status(400).json({ 
-        error: "Missing required fields: userId, feature, tier" 
+        error: "Missing required fields: userId, feature" 
       });
+    }
+
+    // ✅ SECURITY: Fetch tier from database (never trust client-sent tier)
+    let tier = 'free'; // Default
+    if (req.user?.id && req.user.id === userId) {
+      // If authenticated and userId matches, use verified tier from authMiddleware
+      tier = req.user.tier || 'free';
+    } else {
+      // If not authenticated or userId mismatch, fetch tier from database
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single();
+        tier = profile?.subscription_tier || 'free';
+      } catch (dbError) {
+        logger.debug('[FeatureAttempts] Could not fetch tier for userId:', userId);
+        tier = 'free'; // Fail closed
+      }
     }
 
     // Skip logging in development if table doesn't exist

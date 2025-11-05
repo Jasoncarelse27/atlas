@@ -5,13 +5,33 @@ const router = Router();
 
 // POST /api/feature-attempts - Log a feature attempt
 router.post("/", async (req, res) => {
-  const { userId, feature, tier } = req.body;
+  const { userId, feature } = req.body;
 
   // Validate required fields
-  if (!userId || !feature || !tier) {
+  if (!userId || !feature) {
     return res.status(400).json({ 
-      error: "Missing required fields: userId, feature, tier" 
+      error: "Missing required fields: userId, feature" 
     });
+  }
+
+  // ✅ SECURITY: Fetch tier from database (never trust client-sent tier)
+  let tier = 'free'; // Default
+  if (req.user?.id && req.user.id === userId) {
+    // If authenticated and userId matches, use verified tier from authMiddleware
+    tier = req.user.tier || 'free';
+  } else {
+    // If not authenticated or userId mismatch, fetch tier from database
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
+      tier = profile?.subscription_tier || 'free';
+    } catch (dbError) {
+      console.debug('[FeatureAttempts] Could not fetch tier for userId:', userId);
+      tier = 'free'; // Fail closed
+    }
   }
 
   try {
