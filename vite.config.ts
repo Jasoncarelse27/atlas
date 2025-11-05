@@ -2,6 +2,21 @@ import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
 import { defineConfig, loadEnv } from 'vite'
+import type { Plugin } from 'vite'
+
+// ✅ Zustand Rollup safeguard plugin
+function preserveZustand(): Plugin {
+  return {
+    name: 'preserve-zustand-export',
+    resolveId(source) {
+      if (source.includes('zustand')) {
+        // Force Vite to treat Zustand as an external ESM module
+        return { id: source, external: false }
+      }
+      return null
+    },
+  }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -9,7 +24,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
   return {
-    plugins: [react()],
+    plugins: [react(), preserveZustand()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -28,11 +43,11 @@ export default defineConfig(({ mode }) => {
         'expo-image-picker',
         'expo-image-manipulator',
         'react-native',
-        'react-native-web'
+        'react-native-web',
+        'zustand' // ✅ CRITICAL: Exclude Zustand from pre-bundling to prevent export stripping
       ],
       include: [
-        'react-is', // ✅ Fix Railway build: Ensure react-is is pre-bundled
-        'zustand' // ✅ Fix Railway build: Ensure zustand's create export is resolved
+        'react-is' // ✅ Fix Railway build: Ensure react-is is pre-bundled
       ],
       // ✅ CRITICAL FIX: Force ESM resolution for zustand during dev pre-bundling
       esbuildOptions: {
@@ -53,8 +68,12 @@ export default defineConfig(({ mode }) => {
           if (id.includes('zustand-wrapper') || id.includes('lib/zustand-wrapper')) {
             return true;
           }
+          // ✅ CRITICAL: Never tree-shake Zustand (fix for Vercel/production)
+          if (/node_modules\/zustand/.test(id)) {
+            return true;
+          }
           // ✅ Preserve ALL zustand modules - never tree-shake anything from zustand
-          if (id.includes('zustand') || id.includes('node_modules/zustand')) {
+          if (id.includes('zustand')) {
             return true;
           }
           return false;
@@ -69,6 +88,7 @@ export default defineConfig(({ mode }) => {
       },
       // ✅ CRITICAL FIX: Rollup options - preserve all exports
       rollupOptions: {
+        plugins: [preserveZustand()], // ✅ Apply safeguard plugin
         // ✅ CRITICAL FIX: Preserve entry signatures to keep exports (must be at root level)
         preserveEntrySignatures: 'strict',
         // ✅ CRITICAL FIX: Ensure zustand is bundled, not externalized
