@@ -78,13 +78,13 @@ export default defineConfig(({ mode }) => {
           assetFileNames: 'assets/[name]-[hash].[ext]',
           // ✅ CRITICAL FIX: Preserve zustand exports in bundle - use ES format
           format: 'es',
-          // ✅ CRITICAL FIX: Preserve module structure for wrapper
+          // ✅ CRITICAL FIX: Preserve module structure (direct imports from zustand/react)
           preserveModules: false,
           // ✅ CRITICAL FIX: Explicitly preserve zustand exports
           generatedCode: {
             constBindings: false, // Use let/var instead of const for better compatibility
           },
-          // ✅ CRITICAL FIX: Ensure zustand wrapper module exports are preserved
+          // ✅ CRITICAL FIX: Ensure zustand/react exports are preserved
           interop: 'compat',
         },
       },
