@@ -45,10 +45,14 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       emptyOutDir: true, // 🔧 Force clean build to prevent cache issues
-      // ✅ CRITICAL FIX: Disable tree-shaking for Zustand (Vercel builds still tree-shake it)
-      // Mark entire zustand package as having side effects
+      // ✅ CRITICAL FIX: Preserve Zustand wrapper and all zustand modules
+      // Prevents Vercel/Rollup from tree-shaking the create export
       treeshake: {
         moduleSideEffects: (id) => {
+          // ✅ Preserve wrapper module - critical for Zustand create export
+          if (id.includes('zustand-wrapper') || id.includes('lib/zustand-wrapper')) {
+            return true;
+          }
           // ✅ Preserve ALL zustand modules - never tree-shake anything from zustand
           if (id.includes('zustand') || id.includes('node_modules/zustand')) {
             return true;

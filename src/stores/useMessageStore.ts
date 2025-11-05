@@ -1,6 +1,5 @@
-// ✅ PERMANENT FIX: Import directly from zustand/react (Zustand v5 best practice)
-// This is the official recommended approach - avoids wrapper re-export issues
-import { create } from 'zustand/react';
+// ✅ PRODUCTION-SAFE: Import from wrapper to prevent Vercel bundling issues
+import { create } from '@/lib/zustand-wrapper';
 import { logger } from '../lib/logger';
 import { supabase } from "../lib/supabaseClient";
 import type { Message } from "../types/chat";

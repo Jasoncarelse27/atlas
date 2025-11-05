@@ -1,6 +1,5 @@
-// ✅ PERMANENT FIX: Import directly from zustand/react (Zustand v5 best practice)
-// This avoids wrapper module re-export issues that Rollup can tree-shake
-import { create } from 'zustand/react';
+// ✅ PRODUCTION-SAFE: Import from wrapper to prevent Vercel bundling issues
+import { create } from '@/lib/zustand-wrapper';
 
 interface SettingsState {
   theme: 'dark' | 'light';

@@ -5,8 +5,8 @@
 
 import { atlasDB } from '@/database/atlasDB';
 import { logger } from '@/lib/logger';
-// ✅ PERMANENT FIX: Import directly from zustand/react (Zustand v5 best practice)
-import { create } from 'zustand/react';
+// ✅ PRODUCTION-SAFE: Import from wrapper to prevent Vercel bundling issues
+import { create } from '@/lib/zustand-wrapper';
 import { ritualService } from '../services/ritualService';
 import type { Ritual, RitualLog } from '../types/rituals';
 
