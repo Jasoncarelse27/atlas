@@ -1,5 +1,5 @@
-// ✅ CRITICAL FIX: Import from zustand/react to bypass re-export chain (fixes Vercel bundling)
-import { create } from 'zustand/react';
+// ✅ CRITICAL FIX: Import from wrapper module to ensure production bundling works correctly
+import { create } from '@/lib/zustand';
 
 interface SettingsState {
   theme: 'dark' | 'light';
