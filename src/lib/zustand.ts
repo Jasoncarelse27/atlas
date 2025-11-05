@@ -10,5 +10,6 @@
  * @see https://github.com/pmndrs/zustand/issues/1234
  */
 
-export { create } from 'zustand/react';
+// ✅ Zustand v5: Import create from 'zustand' directly (not 'zustand/react')
+export { create } from 'zustand';
 
