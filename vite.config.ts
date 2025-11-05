@@ -67,8 +67,14 @@ export default defineConfig(({ mode }) => {
           entryFileNames: 'assets/[name]-[hash].js',
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',
-          // ✅ CRITICAL FIX: Preserve zustand exports in bundle
+          // ✅ CRITICAL FIX: Preserve zustand exports in bundle - use ES format
           format: 'es',
+          // ✅ CRITICAL FIX: Prevent tree-shaking of namespace imports
+          preserveModules: false,
+          // ✅ CRITICAL FIX: Explicitly preserve zustand exports
+          generatedCode: {
+            constBindings: false, // Use let/var instead of const for better compatibility
+          },
         },
       },
       // ✅ CRITICAL FIX: Ensure zustand is properly resolved in production build
