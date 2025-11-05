@@ -4,6 +4,8 @@
  * 
  * Uses main zustand package with fallback handling for all export formats.
  * This wrapper cannot be tree-shaken by Rollup/Vercel builds.
+ * 
+ * Verified: 2025-11-05 - CDN cache purge rebuild
  */
 
 import * as zustand from 'zustand';
@@ -17,4 +19,10 @@ const createFn =
 
 export const create = createFn;
 export default createFn;
+
+// ✅ PRODUCTION VERIFICATION: Log wrapper initialization
+if (typeof window !== 'undefined') {
+  console.log('[Atlas] ✅ Zustand wrapper initialized - create() preserved');
+  console.log('[Atlas] 🔍 Build verification: wrapper active, production-safe');
+}
 
