@@ -87,7 +87,14 @@ export default defineConfig(({ mode }) => {
       terserOptions: {
         compress: {
           drop_console: ['log', 'debug'],  // Remove console.log and console.debug from production
-          drop_debugger: true
+          drop_debugger: true,
+          // ✅ CRITICAL: Prevent removing exports
+          pure_funcs: [], // Don't remove any pure functions
+          side_effects: true, // Preserve side effects
+        },
+        mangle: {
+          // ✅ CRITICAL: Don't mangle export names
+          reserved: ['create', 'createStore', '__VERIFY_EXPORT__']
         }
       },
       // ✅ CRITICAL FIX: Rollup options - preserve all exports
