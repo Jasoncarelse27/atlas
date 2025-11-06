@@ -70,7 +70,7 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onRetry }) =
             href={message.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center space-x-2 text-atlas-sage hover:text-blue-300 underline"
+            className="inline-flex items-center space-x-2 text-atlas-sage hover:text-atlas-sage/80 underline"
           >
             <span>📎</span>
             <span>{message.metadata?.filename || 'Download file'}</span>

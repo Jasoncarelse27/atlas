@@ -1068,7 +1068,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-[#F9F6F3]'}`}>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-atlas-pearl'}`}>
         {/* Header Skeleton */}
         <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} backdrop-blur-sm border-b sticky top-0 z-30`}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1196,7 +1196,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-[#F9F6F3] text-gray-900'}`}>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-atlas-pearl text-gray-900'}`}>
         {/* Header with Menu Button */}
         <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} backdrop-blur-sm border-b sticky top-0 z-30`}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1250,29 +1250,29 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 h-full w-80 bg-[#F9F6F3] border-r border-[#E8DDD2] z-50 overflow-y-auto shadow-xl"
+                className="fixed left-0 top-0 h-full w-80 bg-atlas-pearl border-r border-atlas-border z-50 overflow-y-auto shadow-xl"
               >
                 <div className="p-4 space-y-6">
                   {/* Header with Profile and Close Buttons */}
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-[#3B3632]">Menu</h2>
+                    <h2 className="text-lg font-semibold text-atlas-text-dark">Menu</h2>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setShowProfile(true)}
-                        className="p-2 rounded-xl bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+                        className="p-2 rounded-xl bg-atlas-button hover:bg-atlas-button-hover transition-colors"
                         aria-label="Open profile settings"
                         title="Profile Settings"
                       >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center text-sm font-semibold text-gray-900">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-atlas-gradient-start to-atlas-gradient-end flex items-center justify-center text-sm font-semibold text-gray-900">
                           {userEmail?.[0]?.toUpperCase() || '?'}
                         </div>
                       </button>
                       <button
                         onClick={() => setSidebarOpen(false)}
-                        className="p-2 rounded-xl bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+                        className="p-2 rounded-xl bg-atlas-button hover:bg-atlas-button-hover transition-colors"
                         aria-label="Close menu"
                       >
-                        <X className="w-5 h-5 text-[#5A524A]" />
+                        <X className="w-5 h-5 text-atlas-text-medium" />
                       </button>
                     </div>
                   </div>
@@ -1288,33 +1288,33 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       navigate('/rituals');
                       setSidebarOpen(false); // Close sidebar after navigation
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-atlas-text-medium bg-atlas-button hover:bg-atlas-button-hover transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#C8956A]/30 flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-[#C8956A]" />
+                    <div className="w-8 h-8 rounded-full bg-atlas-accent-1/30 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-atlas-accent-1" />
                     </div>
                     <div className="text-left flex-1">
                       <span className="font-medium text-sm">Rituals</span>
-                      <p className="text-[#8B7E74] text-xs">Mindfulness & Focus</p>
+                      <p className="text-atlas-text-muted text-xs">Mindfulness & Focus</p>
                     </div>
                   </button>
                   
                   <PrivacyToggle />
                   
                   {/* Divider */}
-                  <div className="my-4 border-t border-[#E8DDD2]/50"></div>
+                  <div className="my-4 border-t border-atlas-border/50"></div>
                   
                   {/* Logout Button */}
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-atlas-text-medium bg-atlas-button hover:bg-atlas-button-hover transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#CF9A96]/30 flex items-center justify-center">
-                      <LogOut className="w-4 h-4 text-[#A67571]" />
+                    <div className="w-8 h-8 rounded-full bg-atlas-accent-2/30 flex items-center justify-center">
+                      <LogOut className="w-4 h-4 text-atlas-accent-3" />
                     </div>
                     <div className="text-left flex-1">
                       <span className="font-medium text-sm">Sign Out</span>
-                      <p className="text-[#8B7E74] text-xs">End your session</p>
+                      <p className="text-atlas-text-muted text-xs">End your session</p>
                     </div>
                   </button>
                 </div>
@@ -1326,7 +1326,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {/* ✅ WCAG AA: Skip link for keyboard navigation */}
         <a 
           href="#main-chat"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#CF9A96] focus:text-white focus:rounded-lg focus:shadow-lg"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-atlas-accent-2 focus:text-white focus:rounded-lg focus:shadow-lg"
         >
           Skip to main chat
         </a>

@@ -154,7 +154,7 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
             disabled={!message.trim() || isProcessing || isListening}
             className={`p-2 mr-2 rounded-full transition-colors focus:outline-none focus:ring-0 ${
               message.trim() && !isProcessing && !isListening  
-                ? 'dark:text-atlas-sage text-atlas-sage dark:hover:text-blue-300 hover:text-atlas-sage dark:hover:bg-gray-800/50 hover:bg-gray-200/50'
+                ? 'dark:text-atlas-sage text-atlas-sage dark:hover:text-atlas-sage/80 hover:text-atlas-sage dark:hover:bg-gray-800/50 hover:bg-gray-200/50'
                 : 'dark:text-gray-600 text-gray-400'
             }`}
             aria-label="Send message"

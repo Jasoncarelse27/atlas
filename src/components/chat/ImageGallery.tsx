@@ -218,7 +218,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
                 key={idx}
                 className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
                   isUser 
-                    ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' 
+                    ? 'bg-atlas-pearl border-atlas-border hover:bg-atlas-peach' 
                     : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                 }`}
                 onClick={() => handleFileClick(att.url)}

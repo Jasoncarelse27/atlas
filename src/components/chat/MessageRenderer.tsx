@@ -169,7 +169,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
         {/* File attachments */}
         {files.map((f, idx) => (
           <div key={idx} className="relative border rounded p-1">
-            <a href={f.url} target="_blank" rel="noreferrer" className="text-atlas-sage hover:text-blue-300">
+            <a href={f.url} target="_blank" rel="noreferrer" className="text-atlas-sage hover:text-atlas-sage/80">
               📄 Download file
             </a>
             

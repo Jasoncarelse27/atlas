@@ -32,10 +32,10 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
       <nav className="w-full bg-[#10141C] text-white px-4 py-3 flex items-center justify-between shadow-md border-b border-gray-700">
         {/* Left: Logo */}
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-atlas-stone rounded-lg flex items-center justify-center">
             <Brain className="h-5 w-5 text-white" />
           </div>
-          <span className="font-bold text-lg bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <span className="font-bold text-lg bg-gradient-to-r from-atlas-sage to-atlas-stone bg-clip-text text-transparent">
             Atlas AI
           </span>
         </div>

@@ -194,7 +194,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({ onAction, className = '' })
             onClick={() => setSelectedCategory(category.id as 'development' | 'debugging' | 'deployment' | 'utilities')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
               selectedCategory === category.id
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-atlas-sage dark:text-atlas-sage border-b-2 border-atlas-sage'
+                ? 'bg-atlas-pearl dark:bg-atlas-stone/20 text-atlas-sage dark:text-atlas-sage border-b-2 border-atlas-sage'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
@@ -213,7 +213,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({ onAction, className = '' })
               onClick={action.action}
               className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left group"
             >
-              <div className="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/40 transition-colors">
+              <div className="flex-shrink-0 p-2 bg-atlas-pearl dark:bg-atlas-stone/20 rounded-lg group-hover:bg-atlas-peach dark:group-hover:bg-atlas-stone/40 transition-colors">
                 {action.icon}
               </div>
               <div className="flex-1 min-w-0">

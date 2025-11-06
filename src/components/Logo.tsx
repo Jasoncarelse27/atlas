@@ -15,13 +15,13 @@ const Logo: React.FC<LogoProps> = ({ className = '' }) => {
         <div className="font-bold flex items-center">
           <Star className={`w-6 h-6 mr-1 ${
             isDarkMode 
-              ? 'fill-blue-400 stroke-blue-400' 
-              : 'fill-blue-500 stroke-blue-500'
+              ? 'fill-atlas-sage stroke-atlas-sage' 
+              : 'fill-atlas-sage stroke-atlas-sage'
           }`} />
           <span className={`text-xl tracking-wide text-transparent bg-clip-text ${
             isDarkMode
-              ? 'bg-gradient-to-r from-blue-100 to-blue-400'
-              : 'bg-gradient-to-r from-atlas-sage to-blue-800'
+              ? 'bg-gradient-to-r from-atlas-sage to-atlas-stone'
+              : 'bg-gradient-to-r from-atlas-sage to-atlas-stone'
           }`}>
             Atlas 2.0
           </span>

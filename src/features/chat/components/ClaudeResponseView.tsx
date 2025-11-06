@@ -16,7 +16,7 @@ export default function ClaudeResponseView({ response }: ClaudeResponseViewProps
           <div className={`px-2 py-1 rounded-full text-xs font-medium ${
             canUseVoiceEmotion(modelInfo.tier)
               ? 'bg-purple-100 text-purple-800' 
-              : 'bg-blue-100 text-blue-800'
+              : 'bg-atlas-pearl text-atlas-text-dark'
           }`}>
             {modelInfo.tier.toUpperCase()}
           </div>

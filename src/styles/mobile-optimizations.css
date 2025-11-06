@@ -71,7 +71,7 @@ a,
 
 /* Better focus states for mobile */
 :focus-visible {
-  outline: 2px solid rgb(59, 130, 246);
+  outline: 2px solid rgb(211, 220, 171); /* Atlas sage */
   outline-offset: 2px;
 }
 

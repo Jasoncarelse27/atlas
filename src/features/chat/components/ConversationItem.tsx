@@ -178,7 +178,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
       <div 
         className={`group p-2 rounded-lg transition-colors flex items-center gap-2 ${
           isCurrent
-            ? 'neumorphic-inner bg-blue-50 text-blue-700'
+            ? 'neumorphic-inner bg-atlas-pearl text-atlas-text-dark'
             : 'neumorphic-flat hover:bg-gray-100'
         }`}
         onContextMenu={handleContextMenu}
@@ -221,7 +221,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
             {/* Conversation Icon */}
             <div className={`p-1.5 rounded-lg ${
               isCurrent
-                ? 'bg-blue-200 text-blue-700'
+                ? 'bg-atlas-peach text-atlas-text-dark'
                 : 'bg-gray-200 text-gray-700'
             }`}>
               <MessageSquare className="w-3.5 h-3.5" />
@@ -270,7 +270,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
               <Tooltip content={conversation.pinned ? "Unpin" : "Pin"}>
                 <button
                   onClick={handleTogglePin}
-                  className="neumorphic-button p-1 text-gray-500 hover:text-atlas-sage hover:bg-blue-50 rounded-md transition-colors"
+                  className="neumorphic-button p-1 text-gray-500 hover:text-atlas-sage hover:bg-atlas-pearl rounded-md transition-colors"
                 >
                   <Pin className="w-3 h-3" />
                 </button>

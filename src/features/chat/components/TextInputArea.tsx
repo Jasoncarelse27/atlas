@@ -125,7 +125,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
                 onClick={() => handleSuggestionClick(suggestion.text)}
                 className={`px-2 py-1 sm:px-2.5 sm:py-1.5 text-gray-300 rounded-full text-2xs sm:text-xs flex items-center gap-1 shadow-sm border border-gray-700 ${
                   showEnhancedUI 
-                    ? 'dark:bg-gradient-to-r dark:from-gray-800 dark:to-gray-700 dark:hover:from-blue-900 dark:hover:to-blue-800 bg-gradient-to-r from-gray-200 to-gray-100 hover:from-blue-100 hover:to-blue-50 dark:text-gray-300 text-gray-700 dark:border-gray-700 border-gray-300' 
+                    ? 'dark:bg-gradient-to-r dark:from-gray-800 dark:to-gray-700 dark:hover:from-atlas-stone/20 dark:hover:to-atlas-stone/10 bg-gradient-to-r from-gray-200 to-gray-100 hover:from-atlas-pearl hover:to-atlas-pearl dark:text-gray-300 text-gray-700 dark:border-gray-700 border-gray-300' 
                     : 'dark:bg-gray-800 dark:hover:bg-gray-700 bg-gray-200 hover:bg-gray-100 dark:text-gray-300 text-gray-700 dark:border-gray-700 border-gray-300'
                 }`}
               >
@@ -177,7 +177,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
               <button
                 type="button"
                 className={`p-1 hover:bg-gray-700 rounded-full transition-colors ${
-                  showEnhancedUI ? 'dark:text-atlas-sage dark:hover:text-blue-300 text-atlas-sage hover:text-atlas-sage dark:hover:bg-gray-700 hover:bg-gray-200' : 'dark:text-gray-400 dark:hover:text-gray-300 text-gray-600 hover:text-gray-700 dark:hover:bg-gray-700 hover:bg-gray-200'
+                  showEnhancedUI ? 'dark:text-atlas-sage dark:hover:text-atlas-sage/80 text-atlas-sage hover:text-atlas-sage dark:hover:bg-gray-700 hover:bg-gray-200' : 'dark:text-gray-400 dark:hover:text-gray-300 text-gray-600 hover:text-gray-700 dark:hover:bg-gray-700 hover:bg-gray-200'
                 }`}
                 disabled={isProcessing}
                 onClick={() => onSoundPlay?.('click')}

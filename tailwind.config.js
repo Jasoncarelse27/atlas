@@ -9,9 +9,23 @@ export default {
         // Atlas Professional Color Palette
         'atlas-sage': '#D3DCAB',      // Primary: Main CTAs, highlights
         'atlas-sand': '#CEC1B8',      // Secondary: Cards, backgrounds
-        'atlas-pearl': '#F4E8E1',     // Background: Lightest surfaces
+        'atlas-pearl': '#F9F6F3',     // Background: Main background (restored original)
         'atlas-peach': '#F3D3B8',     // Accent: Warm highlights, hover states
         'atlas-stone': '#978671',     // Tertiary: Muted elements
+        
+        // Atlas UI Colors (from actual usage)
+        'atlas-bg': '#F9F6F3',        // Main background (same as pearl)
+        'atlas-border': '#E8DDD2',     // Borders, dividers
+        'atlas-text-dark': '#3B3632',  // Dark text
+        'atlas-text-medium': '#5A524A', // Medium text
+        'atlas-text-muted': '#8B7E74',  // Muted text
+        'atlas-button': '#F0E6DC',      // Button backgrounds
+        'atlas-button-hover': '#E8DDD2', // Button hover states
+        'atlas-accent-1': '#C8956A',     // Accent color 1
+        'atlas-accent-2': '#CF9A96',     // Accent color 2
+        'atlas-accent-3': '#A67571',     // Accent color 3
+        'atlas-gradient-start': '#B2BDA3', // Gradient start
+        'atlas-gradient-end': '#F4E5D9',   // Gradient end
         
         // Semantic Colors (Accessibility)
         'atlas-success': '#A7C080',   // Muted sage green
