@@ -7,6 +7,9 @@ import { TIER_PRICING } from './pricing'; // ✅ BEST PRACTICE: Import centraliz
 // Runtime tier values (for runtime usage)
 export const TIER_VALUES = ['free', 'core', 'studio'] as const;
 
+// 🚀 SOFT LAUNCH FLAGS - Feature gating for gradual rollout
+export const VOICE_CALLS_SOFT_LAUNCH = true; // Set to false when ready to enable voice calls
+
 // 🎯 ATLAS SUBSCRIPTION TIERS - Updated Pricing Structure
 export const tierFeatures = {
   free: { 
@@ -109,7 +112,7 @@ export const tierFeatures = {
     ttsPricePerChar: 0.030 / 1000,   // $0.030 per 1K chars
     voiceNotesEnabled: true,
     voiceNoteMaxDuration: 5,          // 5 minutes max per note
-    voiceCallsEnabled: true,          // Voice calls ONLY for Studio
+    voiceCallsEnabled: VOICE_CALLS_SOFT_LAUNCH ? false : true,  // ✅ Soft launch: disabled until ready
     voiceCallMaxDuration: -1,         // Unlimited for Studio
     dailyAudioCap: -1,                // No daily cap
     intelligentMetering: true         // Track costs in real-time
@@ -294,4 +297,14 @@ export function isPaidTier(tier: Tier): boolean {
 // Cloud sync capability check
 export function canSyncCloud(tier: Tier): boolean {
   return tierFeatures[tier].cloudSync;
+}
+
+// ✅ SOFT LAUNCH: Check if voice calls are coming soon
+export function isVoiceCallComingSoon(): boolean {
+  return VOICE_CALLS_SOFT_LAUNCH;
+}
+
+// ✅ Helper: Check if voice calls are enabled (respects soft launch)
+export function canUseVoiceCalls(tier: Tier): boolean {
+  return !VOICE_CALLS_SOFT_LAUNCH && (tierFeatures[tier]?.voiceCallsEnabled || false);
 }

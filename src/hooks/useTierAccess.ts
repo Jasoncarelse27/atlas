@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { getClaudeModelName, tierFeatures } from '../config/featureAccess';
+import { getClaudeModelName, tierFeatures, isVoiceCallComingSoon } from '../config/featureAccess';
 import { useTierQuery } from './useTierQuery';
 
 type Tier = "free" | "core" | "studio";
@@ -51,8 +51,9 @@ export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice"
   const { tier, loading, userId } = useTierAccess();
   
   // ✅ Use tier config instead of hardcoded checks
+  // ✅ SOFT LAUNCH: Respect soft launch flag for voice calls
   const canUse = feature === 'voice' 
-    ? tierFeatures[tier]?.voiceCallsEnabled || false
+    ? !isVoiceCallComingSoon() && (tierFeatures[tier]?.voiceCallsEnabled || false)
     : tierFeatures[tier]?.[feature] || false;
   
   const attemptFeature = useCallback(async () => {
@@ -61,6 +62,12 @@ export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice"
     // Tier-specific upgrade messages (skip for voice - handled by custom modal)
     if (feature !== 'voice') {
       toast.error(`${feature} requires Core or Studio tier`);
+    } else if (isVoiceCallComingSoon()) {
+      // ✅ SOFT LAUNCH: Show "coming soon" message for voice calls
+      toast.info('🎙️ Voice calls coming soon!', { 
+        icon: '🔜',
+        duration: 3000,
+      });
     }
     // No toast for voice - components trigger custom VoiceUpgradeModal
     return false;

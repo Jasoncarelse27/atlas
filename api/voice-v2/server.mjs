@@ -262,6 +262,22 @@ wss.on('connection', (ws, req) => {
         
         switch (message.type) {
           case 'session_start': {
+            // ✅ SOFT LAUNCH: Check if voice calls are coming soon
+            const VOICE_CALLS_SOFT_LAUNCH = process.env.VOICE_CALLS_SOFT_LAUNCH === 'true' || process.env.VOICE_CALLS_SOFT_LAUNCH === '1';
+            
+            if (VOICE_CALLS_SOFT_LAUNCH) {
+              console.log('[VoiceV2] Soft launch active - rejecting voice call session');
+              ws.send(JSON.stringify({
+                type: 'error',
+                error: 'Voice calls are coming soon!',
+                comingSoon: true,
+                feature: 'voice_calls',
+                sessionId,
+              }));
+              ws.close(4003, 'Feature coming soon');
+              return;
+            }
+            
             // ✅ SECURITY: Validate authentication token
             const authToken = message.authToken;
             

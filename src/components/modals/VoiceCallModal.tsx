@@ -4,7 +4,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Copy, Mic, MicOff, Phone, PhoneOff, Settings, Volume2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { canUseVoiceEmotion, tierFeatures } from '../../config/featureAccess';
+import { canUseVoiceEmotion, tierFeatures, isVoiceCallComingSoon } from '../../config/featureAccess';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useFeatureAccess } from '../../hooks/useTierAccess';
@@ -189,6 +189,16 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   // Start voice call
   const startCall = async () => {
     try {
+      // ✅ SOFT LAUNCH: Check if voice calls are coming soon
+      if (isVoiceCallComingSoon()) {
+        modernToast.info('🎙️ Voice Calls Coming Soon', 'This feature will be available soon!', {
+          duration: 4000,
+          icon: '🔜',
+        });
+        onClose();
+        return;
+      }
+
       // Check tier access using centralized hook
       if (!canUse) {
         onClose();

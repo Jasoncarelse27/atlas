@@ -1121,8 +1121,20 @@ app.post('/api/message', verifyJWT, async (req, res) => {
       return res.status(400).json({ error: 'Message content is required' });
     }
     
-    // Log if this is a voice call for debugging
+    // ✅ SOFT LAUNCH: Reject voice calls if soft launch is active
     if (is_voice_call) {
+      // Check soft launch flag (environment variable for backend)
+      const VOICE_CALLS_SOFT_LAUNCH = process.env.VOICE_CALLS_SOFT_LAUNCH === 'true' || process.env.VOICE_CALLS_SOFT_LAUNCH === '1';
+      
+      if (VOICE_CALLS_SOFT_LAUNCH) {
+        logger.info('[VoiceCall] Soft launch active - rejecting voice call request');
+        return res.status(503).json({ 
+          error: 'Voice calls are coming soon!',
+          comingSoon: true,
+          feature: 'voice_calls'
+        });
+      }
+      
       logger.debug('[VoiceCall] Processing voice message');
       if (context && Array.isArray(context)) {
         logger.debug(`[VoiceCall] Received context: ${context.length} messages`);

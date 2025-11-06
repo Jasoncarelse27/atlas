@@ -160,23 +160,31 @@ body {
 }
 
 /* ✅ CRITICAL FIX: Override any blue link colors in chat messages */
-/* Target all links within message content areas - comprehensive coverage */
+/* Comprehensive coverage - target ALL possible link locations */
 .prose a,
 .prose-invert a,
 [class*="prose"] a,
 div[class*="message"] a,
 div[class*="Message"] a,
-/* Target links within EnhancedMessageBubble content */
 [id^="message-"] a,
-/* Target links in message renderer components */
 [class*="MessageRenderer"] a,
 [class*="message-renderer"] a,
-/* Target links in chat content areas */
 main[aria-label*="chat"] a,
 main[aria-label*="Chat"] a,
-div[role="log"] a {
-  color: #B2BDA3 !important; /* Atlas sage green - override any blue */
-  text-decoration: underline;
+div[role="log"] a,
+/* Target links in EnhancedMessageBubble specifically */
+div[class*="EnhancedMessageBubble"] a,
+div[class*="enhanced-message-bubble"] a,
+/* Target links in any chat container */
+div[class*="chat"] a,
+section[class*="chat"] a,
+/* Target links in markdown content */
+.markdown a,
+[class*="markdown"] a,
+/* Target any link with blue color that might slip through */
+a[href]:not([class*="button"]):not([class*="btn"]) {
+  color: #B2BDA3 !important; /* Atlas sage green - override ANY blue */
+  text-decoration: underline !important;
 }
 
 .prose a:hover,
@@ -189,6 +197,23 @@ div[class*="Message"] a:hover,
 [class*="message-renderer"] a:hover,
 main[aria-label*="chat"] a:hover,
 main[aria-label*="Chat"] a:hover,
-div[role="log"] a:hover {
+div[role="log"] a:hover,
+div[class*="EnhancedMessageBubble"] a:hover,
+div[class*="enhanced-message-bubble"] a:hover,
+div[class*="chat"] a:hover,
+section[class*="chat"] a:hover,
+.markdown a:hover,
+[class*="markdown"] a:hover,
+a[href]:not([class*="button"]):not([class*="btn"]):hover {
   color: #A3B295 !important; /* Darker sage on hover */
+  text-decoration: underline !important;
+}
+
+/* ✅ Additional fix: Override Tailwind's default prose link colors */
+.prose a:not([class*="button"]):not([class*="btn"]) {
+  color: #B2BDA3 !important;
+}
+
+.prose-invert a:not([class*="button"]):not([class*="btn"]) {
+  color: #B2BDA3 !important;
 }

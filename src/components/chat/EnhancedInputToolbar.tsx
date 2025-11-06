@@ -14,6 +14,7 @@ import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
 import { VoiceCallModal } from '../modals/VoiceCallModal';
 import AttachmentMenu from './AttachmentMenu';
+import { isVoiceCallComingSoon } from '../../config/featureAccess';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -481,6 +482,15 @@ export default function EnhancedInputToolbar({
       return;
     }
 
+    // ✅ SOFT LAUNCH: Check if voice calls are coming soon
+    if (isVoiceCallComingSoon()) {
+      modernToast.info('🎙️ Voice Calls Coming Soon', 'This feature will be available soon!', {
+        duration: 4000,
+        icon: '🔜',
+      });
+      return;
+    }
+
     if (!canUseVoice) {
       // ✅ Show upgrade modal with voice_calls feature (triggers Studio tier)
       showGenericUpgrade('voice_calls');
@@ -764,25 +774,43 @@ export default function EnhancedInputToolbar({
                 <Mic size={18} />
               </motion.button>
 
-              {/* Voice Call Button - Always Visible (Phase 1 Improvement) */}
+              {/* Voice Call Button - Coming Soon (Soft Launch) */}
               <motion.button
                 onClick={() => {
+                  // ✅ SOFT LAUNCH: Show "coming soon" message
+                  if (isVoiceCallComingSoon()) {
+                    modernToast.info('🎙️ Voice Calls Coming Soon', 'This feature will be available soon!', {
+                      duration: 4000,
+                      icon: '🔜',
+                    });
+                    return;
+                  }
                   // ✅ Add haptic feedback
                   if ('vibrate' in navigator) navigator.vibrate(20);
                   handleStartVoiceCall();
                 }}
-                disabled={disabled || isStartingVoiceCall}
-                title={isStudioTier ? "Start voice call (Studio)" : "Voice calls available in Studio tier - Upgrade now"}
+                disabled={disabled || isStartingVoiceCall || isVoiceCallComingSoon()}
+                title={
+                  isVoiceCallComingSoon()
+                    ? "Voice calls coming soon!"
+                    : isStudioTier 
+                      ? "Start voice call (Studio)" 
+                      : "Voice calls available in Studio tier - Upgrade now"
+                }
                 className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
-                  isStudioTier
-                    ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse animate-pulse-subtle'
-                    : 'bg-gray-600 hover:bg-gray-500 opacity-60'
+                  isVoiceCallComingSoon()
+                    ? 'bg-gray-500 hover:bg-gray-500 opacity-60 cursor-not-allowed'
+                    : isStudioTier
+                      ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse animate-pulse-subtle'
+                      : 'bg-gray-600 hover:bg-gray-500 opacity-60'
                 } ${isStartingVoiceCall ? 'opacity-50 cursor-wait' : ''}`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
-                  boxShadow: isStudioTier 
-                    ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
-                    : undefined
+                  boxShadow: isVoiceCallComingSoon()
+                    ? undefined
+                    : isStudioTier 
+                      ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
+                      : undefined
                 }}
               >
                 {isStartingVoiceCall ? (
@@ -792,9 +820,16 @@ export default function EnhancedInputToolbar({
                     className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                   />
                 ) : (
-                  <Phone className="w-4 h-4 text-white" />
+                  <>
+                    <Phone className="w-4 h-4 text-white" />
+                    {isVoiceCallComingSoon() && isStudioTier && (
+                      <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-medium bg-[#8FA67E]/20 text-[#8FA67E] rounded-full border border-[#8FA67E]/30">
+                        Soon
+                      </span>
+                    )}
+                  </>
                 )}
-                {isStudioTier && !localStorage.getItem('hasUsedVoiceCall') && !isStartingVoiceCall && (
+                {!isVoiceCallComingSoon() && isStudioTier && !localStorage.getItem('hasUsedVoiceCall') && !isStartingVoiceCall && (
                   <span className="voice-call-badge">New</span>
                 )}
               </motion.button>
