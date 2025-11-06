@@ -93,8 +93,16 @@ export default defineConfig(({ mode }) => {
           side_effects: true, // Preserve side effects
         },
         mangle: {
-          // ✅ CRITICAL: Don't mangle export names
-          reserved: ['create', 'createStore', '__VERIFY_EXPORT__']
+          // ✅ CRITICAL: Don't mangle ANY export names - this prevents 'create' from becoming 'e'
+          properties: false, // Don't mangle property names
+          reserved: ['create', 'createStore', '__VERIFY_EXPORT__', 'default'],
+          // ✅ CRITICAL: Don't mangle top-level exports
+          toplevel: false, // Don't mangle top-level variable names (which includes exports)
+        },
+        // ✅ CRITICAL: Preserve export names
+        format: {
+          preserve_annotations: true,
+          comments: false,
         }
       },
       // ✅ CRITICAL FIX: Rollup options - preserve all exports
