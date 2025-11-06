@@ -13,6 +13,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import OpenAI from 'openai';
 import os from 'os';
+import { v4 as uuidv4 } from 'uuid';
+import { flushSentry, getSentryMiddleware, initSentry } from './lib/sentryService.mjs';
+import { logger } from './lib/simpleLogger.mjs';
+import authMiddleware from './middleware/authMiddleware.mjs';
+import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
+import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
+import { processMessage } from './services/messageService.js';
+import { redisService } from './services/redisService.mjs';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -26,14 +34,6 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
   // Don't exit - let Railway handle it, but log the error
 });
-import { v4 as uuidv4 } from 'uuid';
-import { flushSentry, getSentryMiddleware, initSentry } from './lib/sentryService.mjs';
-import { logger } from './lib/simpleLogger.mjs';
-import authMiddleware from './middleware/authMiddleware.mjs';
-import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
-import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
-import { processMessage } from './services/messageService.js';
-import { redisService } from './services/redisService.mjs';
 
 // Force use of http/https Agent to fix fetch issues
 const httpAgent = new http.Agent({ 
