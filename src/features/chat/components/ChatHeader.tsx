@@ -23,10 +23,10 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-atlas-stone rounded-lg flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-gradient-to-r from-atlas-sage to-atlas-stone bg-clip-text text-transparent">
               Atlas AI
             </span>
           </div>
@@ -59,7 +59,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <div className="flex items-center space-x-4">
             {user && (
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-atlas-sage to-atlas-stone rounded-full flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-sm font-medium">{user.email}</span>

@@ -146,13 +146,13 @@ const ConversationView: React.FC<ConversationViewProps> = ({
             {/* Avatar */}
             <div className={`p-2 rounded-full flex-shrink-0 ${
               message.role === 'user' 
-                ? 'bg-blue-800/80' 
-                : 'bg-purple-800/80'
+                ? 'bg-atlas-sage' 
+                : 'bg-atlas-stone/80'
             }`}>
               {message.role === 'user' ? (
-                <User className="w-4 h-4 text-blue-200" />
+                <User className="w-4 h-4 text-white" />
               ) : (
-                <Bot className="w-4 h-4 text-purple-200" />
+                <Bot className="w-4 h-4 text-white" />
               )}
             </div>
             
