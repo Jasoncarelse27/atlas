@@ -5,6 +5,12 @@
     "buildCommand": "rm -rf dist node_modules/.vite && npm install --legacy-peer-deps && npm run build && echo '=== BUILD VERIFICATION ===' && ls -la dist/assets/index-*.js && echo '=== BUNDLE CREATED ===' && cat dist/index.html | grep -o 'index-[^.]*\\.js' | head -1",
     "nixpacksPlan": {
       "providers": ["node"],
+      "phases": {
+        "setup": {
+          "nixPkgs": ["nodejs_22", "npm-9_x"],
+          "cmds": []
+        }
+      },
       "variables": {
         "NODE_VERSION": "22.12.0",
         "NPM_CONFIG_PRODUCTION": "false",
