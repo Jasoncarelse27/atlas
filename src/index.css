@@ -245,3 +245,42 @@ a[href]:not([class*="button"]):not([class*="btn"]):hover {
 .prose-invert a:not([class*="button"]):not([class*="btn"]) {
   color: #B2BDA3 !important;
 }
+
+/* ✅ NUCLEAR OPTION: Target ALL links everywhere in the app with maximum specificity */
+/* This must be at the END of the CSS file to ensure it loads last */
+html body .prose a,
+html body .prose-invert a,
+html body [class*="prose"] a,
+html body div[class*="message"] a,
+html body div[class*="Message"] a,
+html body [id^="message-"] a,
+html body [class*="MessageRenderer"] a,
+html body [class*="message-renderer"] a,
+html body main[aria-label*="chat"] a,
+html body main[aria-label*="Chat"] a,
+html body div[role="log"] a,
+html body div[class*="EnhancedMessageBubble"] a,
+html body div[class*="enhanced-message-bubble"] a,
+html body div[class*="chat"] a,
+html body section[class*="chat"] a,
+html body .markdown a,
+html body [class*="markdown"] a,
+html body a[href]:not([class*="button"]):not([class*="btn"]):not([class*="nav"]):not([class*="menu"]) {
+  color: #B2BDA3 !important;
+  text-decoration-color: #B2BDA3 !important;
+  -webkit-text-decoration-color: #B2BDA3 !important;
+}
+
+html body .prose a:visited,
+html body .prose-invert a:visited,
+html body [class*="prose"] a:visited {
+  color: #B2BDA3 !important;
+}
+
+html body .prose a:hover,
+html body .prose-invert a:hover,
+html body [class*="prose"] a:hover {
+  color: #A3B295 !important;
+  text-decoration-color: #A3B295 !important;
+  -webkit-text-decoration-color: #A3B295 !important;
+}
