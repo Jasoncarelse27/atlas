@@ -10,14 +10,26 @@
  */
 
 // ✅ Build signature timestamp - changes on every deployment
-export const BUILD_SIGNATURE = "atlas-rebuild-1762459200000";
+export const BUILD_SIGNATURE = "atlas-rebuild-1762464000000";
 
-// ✅ CRITICAL: Export wrapper verification to ensure it's bundled
-// Re-export creates import chain that prevents tree-shaking
-export { create, createStore, __FORCE_INCLUDE__ } from './zustand-wrapper';
+// ✅ CRITICAL: Import and immediately use to prevent tree-shaking
+import { create, createStore, __VERIFY_EXPORT__ } from './zustand-wrapper';
 
-// ✅ Side-effect: Log to console to ensure this module is executed
+// ✅ CRITICAL: Re-export creates import chain that prevents tree-shaking
+export { create, createStore, __VERIFY_EXPORT__ };
+
+// ✅ CRITICAL: Side-effect that uses the imports - forces module execution
+// This cannot be optimized away because it has observable side effects
 if (typeof window !== 'undefined') {
-  console.log('[Atlas] 🚀 Vercel rebuild module loaded - BUILD_SIGNATURE:', BUILD_SIGNATURE);
+  // Verify exports exist
+  const exportsExist = typeof create === 'function' && typeof createStore === 'function';
+  console.log('[Atlas] 🚀 Vercel rebuild module loaded');
+  console.log('[Atlas] 📦 BUILD_SIGNATURE:', BUILD_SIGNATURE);
+  console.log('[Atlas] ✅ Exports verified:', exportsExist);
+  console.log('[Atlas] 🔗 Create function:', typeof create);
+  
+  // Store in global to prevent optimization
+  (window as any).__ATLAS_REBUILD_SIGNATURE__ = BUILD_SIGNATURE;
+  (window as any).__ATLAS_CREATE_EXPORT__ = create;
 }
 

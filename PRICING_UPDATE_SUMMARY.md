@@ -154,3 +154,6 @@ const price = TIER_PRICING.studio.monthlyPrice;
 All pricing updated. Best practices implemented. Ready for deployment.
 
 
+
+
+

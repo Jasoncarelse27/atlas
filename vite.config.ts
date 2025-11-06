@@ -64,9 +64,13 @@ export default defineConfig(({ mode }) => {
       // Prevents Vercel/Rollup from tree-shaking the create export
       treeshake: {
         moduleSideEffects: (id) => {
-          // ✅ Preserve wrapper module - critical for Zustand create export
+          // ✅ CRITICAL: Preserve wrapper module - critical for Zustand create export
           if (id.includes('zustand-wrapper') || id.includes('lib/zustand-wrapper')) {
-            return true;
+            return true; // Has side effects - cannot be tree-shaken
+          }
+          // ✅ CRITICAL: Preserve vercel-rebuild module - ensures export chain is included
+          if (id.includes('vercel-rebuild') || id.includes('lib/vercel-rebuild')) {
+            return true; // Has side effects - cannot be tree-shaken
           }
           // ✅ CRITICAL: Never tree-shake Zustand (fix for Vercel/production)
           if (/node_modules\/zustand/.test(id)) {

@@ -173,3 +173,6 @@ const price = TIER_PRICING.studio.monthlyPrice;
 All critical pricing references updated. Best practices implemented with centralized config.
 
 
+
+
+
