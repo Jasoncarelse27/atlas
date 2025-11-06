@@ -63,7 +63,7 @@ export function EnhancedMessageBubble({
           {onRetry && (
             <button
               onClick={handleRetry}
-              className="text-atlas-sage hover:text-blue-300 underline"
+              className="text-atlas-sage hover:text-atlas-sage/80 underline"
             >
               Retry
             </button>
@@ -91,7 +91,7 @@ export function EnhancedMessageBubble({
         return (
           <div className="space-y-2">
             {/* Voice Player */}
-            <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-center space-x-3 p-3 bg-atlas-pearl rounded-lg">
               <button
                 onClick={handleAudioToggle}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
@@ -127,7 +127,7 @@ export function EnhancedMessageBubble({
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div
                     key={i}
-                    className={`w-1 bg-blue-400 rounded-full transition-all duration-200 ${
+                    className={`w-1 bg-atlas-sage rounded-full transition-all duration-200 ${
                       isPlayingAudio ? 'h-6' : 'h-3'
                     }`}
                     style={{
@@ -141,7 +141,7 @@ export function EnhancedMessageBubble({
             
             {/* Transcript */}
             {message.metadata?.transcript && (
-              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded border-l-4 border-blue-400">
+              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded border-l-4 border-atlas-sage">
                 <div className="font-medium text-gray-700 mb-1">Transcript:</div>
                 {message.metadata.transcript}
               </div>
