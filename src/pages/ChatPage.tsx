@@ -1209,7 +1209,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <Menu className="w-5 h-5 text-atlas-stone" />
                 </button>
                 <div>
-                  <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-950'}`}>Atlas AI</h1>
+                  <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`} style={{ color: '#111827' }}>Atlas AI</h1>
                   <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm sm:text-base hidden sm:block`}>Your emotionally intelligent AI assistant</p>
                 </div>
               </div>
