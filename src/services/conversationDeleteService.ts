@@ -45,6 +45,13 @@ export async function deleteConversation(
     
     logger.debug('[ConversationDelete] ✅ Deleted from local Dexie');
     
+    // ✅ CRITICAL FIX: Dispatch event for UI refresh
+    window.dispatchEvent(new CustomEvent('conversationDeleted', {
+      detail: { conversationId }
+    }));
+    
+    logger.debug('[ConversationDelete] ✅ Dispatched deletion event for UI refresh');
+    
     return {
       success: true,
       message: 'Conversation deleted permanently'

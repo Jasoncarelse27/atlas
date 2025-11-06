@@ -332,7 +332,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       logger.debug('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
       
-      // ✅ AUTO TITLE GENERATION: Generate title for first user message
+      // ✅ AUTO TITLE GENERATION: Generate title for first user message OR if conversation has generic title
       if (isFirstMessage) {
         // This is the first message in the conversation, generate title
         autoGenerateTitle({
@@ -343,6 +343,35 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }).catch(err => {
           logger.warn('[ChatPage] Title generation failed (non-blocking):', err);
         });
+      } else {
+        // ✅ FIX: Also check if conversation has generic title and regenerate it
+        try {
+          const conversation = await atlasDB.conversations.get(conversationId);
+          const genericTitles = [
+            'New Conversation',
+            'Default Conversation',
+            'Untitled',
+            'New conversation',
+            'Chat',
+            'hi' // Common generic title
+          ];
+          
+          if (conversation && genericTitles.some(generic => 
+            conversation.title?.toLowerCase().startsWith(generic.toLowerCase())
+          )) {
+            logger.debug('[ChatPage] 🔄 Regenerating generic title:', conversation.title);
+            autoGenerateTitle({
+              message: text,
+              tier: tier || 'free',
+              conversationId,
+              userId
+            }).catch(err => {
+              logger.warn('[ChatPage] Title regeneration failed (non-blocking):', err);
+            });
+          }
+        } catch (err) {
+          logger.debug('[ChatPage] Could not check conversation title (non-blocking):', err);
+        }
       }
       
       // ✅ BULLETPROOF FALLBACK: If realtime fails, fetch directly from Supabase after 2s
