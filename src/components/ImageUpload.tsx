@@ -46,6 +46,14 @@ export function ImageUpload({ onImageProcessed, userId, className = '' }: ImageU
       onImageProcessed(result);
       
     } catch (error) {
+      // ✅ Silent fail for service unavailable - don't spam console or show toast
+      if (error instanceof Error && error.message === 'IMAGE_SERVICE_UNAVAILABLE') {
+        logger.debug('[ImageUpload] Service unavailable - silently failing');
+        return; // Exit silently, don't show error
+      }
+      
+      // Only show errors for other cases
+      logger.error('[ImageUpload] Error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to process image');
     } finally {
       setIsProcessing(false);

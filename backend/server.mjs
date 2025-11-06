@@ -1735,10 +1735,22 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     }
 
     if (!response || !response.ok) {
+      // ✅ Better error handling - check if it's an API key issue
+      const isAuthError = lastError?.includes('authentication') || lastError?.includes('401') || lastError?.includes('403');
+      const isNetworkError = lastError?.includes('fetch') || lastError?.includes('network') || lastError?.includes('timeout');
+      
+      logger.warn('[Image Analysis] Failed after 3 attempts:', {
+        lastError,
+        isAuthError,
+        isNetworkError
+      });
+      
       return res.status(500).json({ 
         error: 'Image analysis failed after 3 attempts',
-        details: lastError,
-        suggestion: 'This appears to be a temporary network issue. Please try again in a few minutes.'
+        details: isAuthError ? 'Service configuration issue' : (isNetworkError ? 'Network error' : 'Unknown error'),
+        suggestion: isAuthError 
+          ? 'Image analysis service is not configured. Please contact support.'
+          : 'This appears to be a temporary network issue. Please try again in a few minutes.'
       });
     }
 

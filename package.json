@@ -30,7 +30,11 @@
     "cache:clear": "node -e \"import('./src/services/redisCacheService.js').then(m => m.redisCacheService.shutdown())\"",
     "health:check": "npm run typecheck && npm run build && npm test",
     "db:types": "npx supabase gen types typescript --project-id rbwabemtucdkytvvpzvk > src/types/database.types.ts",
-    "fresh": "rm -rf node_modules && npm install"
+    "fresh": "rm -rf node_modules && npm install",
+    "deploy": "vercel --prod --force",
+    "deploy:preview": "vercel",
+    "deploy:check": "vercel ls",
+    "deploy:help": "echo '🚀 Fast Vercel Deployment Commands:\n  npm run deploy         - Deploy to production (~30 sec)\n  npm run deploy:preview  - Create preview deployment\n  npm run deploy:check   - List recent deployments\n\nFirst time? Run: npm install -g vercel && vercel login'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.67.0",

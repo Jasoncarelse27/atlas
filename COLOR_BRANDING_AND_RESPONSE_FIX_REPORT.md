@@ -163,3 +163,5 @@
 **Safe to update:** Sidebar colors, background colors  
 **Keep as-is:** Component-specific accent colors, mood emoji colors
 
+
+

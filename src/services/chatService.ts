@@ -529,7 +529,14 @@ export async function sendMessageWithAttachments(
       return { success: true };
       
   } catch (aiError) {
+    // ✅ Silent fail for service unavailable - don't spam console
+    if (aiError instanceof Error && aiError.message === 'IMAGE_SERVICE_UNAVAILABLE') {
+      logger.debug('[chatService] Image service unavailable - silently failing');
+      return { success: true }; // Still return success - user message was saved
+    }
+    
     // Don't throw - user message is still saved, just no AI response
+    logger.debug('[chatService] Image analysis error (non-critical):', aiError);
     return { success: true }; // Still return success - user message was saved
   }
 }// Force Vercel rebuild Sat Sep 27 16:47:24 SAST 2025

@@ -535,17 +535,26 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       setIsPlayingTTS(true);
       
     } catch (error) {
-      logger.error('[TTS] Full error:', error);
+      // ✅ Silent fail for service unavailable - don't spam console or show toast
+      if (error instanceof Error && error.message === 'TTS_SERVICE_UNAVAILABLE') {
+        logger.debug('[TTS] Service unavailable - silently failing');
+        return; // Exit silently, don't show error
+      }
       
+      // Only log/show errors for other cases
       if (error instanceof Error) {
         if (error.message.includes('requires Core or Studio')) {
           toast.error('Audio features require Core or Studio tier');
-        } else if (error.message.includes('503')) {
-          toast.error('Audio service temporarily unavailable');
+        } else if (error.message.includes('503') || error.message.includes('TTS_SERVICE_UNAVAILABLE')) {
+          // Silent - service unavailable is expected if OpenAI not configured
+          logger.debug('[TTS] Service unavailable - skipping');
+          return;
         } else {
+          logger.error('[TTS] Error:', error);
           toast.error('Audio generation failed: ' + error.message);
         }
       } else {
+        logger.error('[TTS] Unknown error:', error);
         toast.error('Audio playback failed');
       }
     } finally {

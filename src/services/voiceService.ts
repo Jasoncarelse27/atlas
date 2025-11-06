@@ -186,15 +186,24 @@ class VoiceService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
-        logger.error('[VoiceService] TTS API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        });
+        // ✅ Silent fail for service unavailable (503) - don't spam console
+        if (response.status === 503) {
+          logger.debug('[VoiceService] TTS service unavailable (503) - silently failing');
+          throw new Error('TTS_SERVICE_UNAVAILABLE'); // Special error code for silent handling
+        }
         
         // Handle tier restriction errors
         if (response.status === 403 && errorData.upgradeRequired) {
           throw new Error('Text-to-speech requires Core or Studio tier. Please upgrade to continue.');
+        }
+        
+        // Only log non-503 errors
+        if (response.status !== 503) {
+          logger.error('[VoiceService] TTS API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData
+          });
         }
         
         throw new Error(errorData.error || `Speech synthesis failed: ${response.statusText}`);

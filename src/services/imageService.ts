@@ -147,6 +147,16 @@ export const imageService = {
       const errorData = await res.json().catch(() => ({}));
       const errorMessage = errorData.details || errorData.error || "Image analysis failed";
       
+      // ✅ Silent fail for service configuration issues - don't spam console
+      const isServiceConfigError = errorMessage.includes('Service configuration issue') || 
+                                   errorMessage.includes('not configured') ||
+                                   res.status === 500 && errorMessage.includes('Image analysis failed after 3 attempts');
+      
+      if (isServiceConfigError) {
+        logger.debug('[ImageService] Service not configured - silently failing');
+        throw new Error('IMAGE_SERVICE_UNAVAILABLE'); // Special error code for silent handling
+      }
+      
       logEvent("image_scan_fail", { error: errorMessage });
       // @ts-expect-error - image_events table type not generated
       await supabase.from("image_events").insert({
