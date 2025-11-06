@@ -1070,7 +1070,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
-        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} backdrop-blur-sm border-b sticky top-0 z-30`}>
+        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/95 border-gray-200'} backdrop-blur-md border-b sticky top-0 z-30 shadow-sm`}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
