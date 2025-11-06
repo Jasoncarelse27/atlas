@@ -724,7 +724,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           className={`relative ${
             isUser 
               ? 'px-4 py-2 rounded-2xl bg-atlas-sage text-white shadow-md text-[15px] leading-relaxed' 
-              : 'px-5 py-3 text-gray-900 max-w-none text-[16px] leading-relaxed'
+              : 'px-5 py-3 text-gray-950 max-w-none text-[16px] leading-relaxed'
           }`} 
           style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
         >
