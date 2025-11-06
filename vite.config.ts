@@ -60,6 +60,11 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       emptyOutDir: true, // 🔧 Force clean build to prevent cache issues
+      // ✅ Automatic cache busting - inject build timestamp
+      define: {
+        'import.meta.env.VITE_BUILD_TIME': JSON.stringify(Date.now().toString()),
+        'import.meta.env.VITE_BUILD_VERSION': JSON.stringify(process.env.VITE_BUILD_VERSION || Date.now().toString()),
+      },
       // ✅ CRITICAL FIX: Preserve Zustand wrapper and all zustand modules
       // Prevents Vercel/Rollup from tree-shaking the create export
       treeshake: {

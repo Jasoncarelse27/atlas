@@ -8,7 +8,9 @@
  */
 
 // ✅ Unique timestamp that changes on every deployment
-export const CACHE_BUSTER = `atlas-cache-bust-${Date.now()}`;
+// Use build-time timestamp for consistent cache busting
+const BUILD_TIME = import.meta.env.VITE_BUILD_TIME || Date.now().toString();
+export const CACHE_BUSTER = `atlas-cache-bust-${BUILD_TIME}`;
 
 // ✅ Side effect that cannot be optimized away
 if (typeof window !== 'undefined') {
