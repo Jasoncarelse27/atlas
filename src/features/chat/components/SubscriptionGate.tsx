@@ -28,7 +28,7 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({
   if (hasReachedLimit) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center">
-        <div className="mb-4 p-4 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full">
+        <div className="mb-4 p-4 bg-gradient-to-r from-atlas-peach to-atlas-pearl rounded-full">
           <Lock className="w-8 h-8 text-purple-600" />
         </div>
         
@@ -41,7 +41,7 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({
         </p>
         
         <div className="space-y-4 w-full max-w-sm">
-          <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+          <div className="p-4 bg-gradient-to-r from-atlas-pearl to-atlas-peach border border-atlas-border rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-5 h-5 text-purple-600" />
               <span className="font-semibold text-purple-900">Atlas Pro Benefits</span>
@@ -56,7 +56,7 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({
           
           <button
             onClick={onUpgrade}
-            className="w-full bg-gradient-to-r from-purple-600 to-atlas-sage hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-atlas-stone to-atlas-sage hover:from-atlas-stone/90 hover:to-atlas-sage/90 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
           >
             <div className="flex items-center justify-center gap-2">
               <Sparkles className="w-5 h-5" />

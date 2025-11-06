@@ -205,7 +205,7 @@ const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
 
   const getVisualizerGlow = () => {
     if (isMuted) return '';
-    if (isProcessing) return 'shadow-lg shadow-blue-500/40';
+    if (isProcessing) return 'shadow-lg shadow-atlas-sage/40';
     if (isListening) return 'shadow-lg shadow-green-500/40';
     return '';
   };

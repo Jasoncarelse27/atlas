@@ -40,7 +40,7 @@ const QuickStartSuggestions: React.FC<QuickStartSuggestionsProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+    <div className="p-6 bg-gradient-to-br from-atlas-pearl to-atlas-peach rounded-xl border border-atlas-border">
       <div className="text-center mb-6">
         <div className="inline-flex items-center gap-2 p-2 bg-white rounded-full shadow-sm mb-3">
           <Sparkles className="w-5 h-5 text-purple-600" />
@@ -58,14 +58,14 @@ const QuickStartSuggestions: React.FC<QuickStartSuggestionsProps> = ({
           <button
             key={index}
             onClick={() => onSuggestionClick(suggestion.prompt)}
-            className="group p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 text-left"
+            className="group p-4 bg-white rounded-lg border border-gray-200 hover:border-atlas-sage hover:shadow-md transition-all duration-200 text-left"
           >
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 p-2 bg-blue-100 group-hover:bg-blue-200 rounded-lg transition-colors">
+              <div className="flex-shrink-0 p-2 bg-atlas-pearl group-hover:bg-atlas-peach rounded-lg transition-colors">
                 {suggestion.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors">
+                <h4 className="font-medium text-gray-900 group-hover:text-atlas-text-dark transition-colors">
                   {suggestion.title}
                 </h4>
                 <p className="text-sm text-gray-600 mt-1">
@@ -77,16 +77,16 @@ const QuickStartSuggestions: React.FC<QuickStartSuggestionsProps> = ({
         ))}
       </div>
 
-      <div className="mt-6 p-4 bg-blue-100 rounded-lg">
+      <div className="mt-6 p-4 bg-atlas-pearl rounded-lg">
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 p-2 bg-blue-200 rounded-lg">
-            <MessageSquare className="w-4 h-4 text-blue-700" />
+          <div className="flex-shrink-0 p-2 bg-atlas-peach rounded-lg">
+            <MessageSquare className="w-4 h-4 text-atlas-text-dark" />
           </div>
           <div>
-            <h4 className="font-medium text-blue-900 mb-1">
+            <h4 className="font-medium text-atlas-text-dark mb-1">
               Pro Tip
             </h4>
-            <p className="text-sm text-blue-800">
+            <p className="text-sm text-atlas-text-medium">
               You can also upload images, use voice input, or ask Atlas to help with any task. 
               The more specific you are, the better the results!
             </p>

@@ -276,7 +276,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                         <div 
                           className={`group flex items-center w-full px-3 py-2 sm:px-4 sm:py-3 mx-2 rounded-xl text-left backdrop-blur-sm transition-all duration-200 ${
                             conversation.id === currentConversationId
-                              ? 'bg-atlas-sage/20 border border-blue-400/40 shadow-lg'
+                              ? 'bg-atlas-sage/20 border border-atlas-sage/40 shadow-lg'
                               : 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20'
                           }`}
                           onContextMenu={(e) => {
@@ -392,7 +392,7 @@ const ConversationHistoryPanel: React.FC<ConversationHistoryPanelProps> = ({
                                 <Tooltip content={conversation.pinned ? "Unpin" : "Pin"}>
                                   <button
                                     onClick={() => handleTogglePin(conversation.id, !!conversation.pinned)}
-                                    className="p-2.5 bg-atlas-sage/20 hover:bg-atlas-sage/30 text-blue-300 hover:text-blue-200 rounded-lg transition-all duration-200 border border-blue-400/40"
+                                    className="p-2.5 bg-atlas-sage/20 hover:bg-atlas-sage/30 text-atlas-sage hover:text-atlas-sage/80 rounded-lg transition-all duration-200 border border-atlas-sage/40"
                                   >
                                     <Pin className="w-4 h-4" />
                                   </button>

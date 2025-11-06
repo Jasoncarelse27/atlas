@@ -54,7 +54,7 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
       label: 'Total Messages',
       value: formatNumber(insights.totalMessages),
       color: 'text-atlas-sage',
-      bgColor: 'bg-blue-100'
+      bgColor: 'bg-atlas-pearl'
     },
     {
       icon: <BarChart3 className="w-5 h-5" />,
@@ -139,7 +139,7 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {weeklyStats.map((week, index) => (
-                <div key={index} className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                <div key={index} className="p-4 bg-gradient-to-r from-atlas-pearl to-atlas-peach rounded-xl border border-atlas-border">
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-medium text-gray-900">{week.label}</span>
                     <Activity className="w-4 h-4 text-atlas-sage" />
@@ -183,7 +183,7 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
           </div>
 
           {/* Performance Trend */}
-          <div className="mt-8 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
+          <div className="mt-8 p-4 bg-gradient-to-r from-atlas-pearl to-atlas-peach rounded-xl border border-atlas-border">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-5 h-5 text-green-600" />
               <h4 className="font-medium text-gray-900">Performance Insights</h4>
