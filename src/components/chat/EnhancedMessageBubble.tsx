@@ -702,6 +702,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       <div
         id={`message-${message.id}`}
         className={`flex items-start ${isUser ? 'flex-row-reverse' : ''}`}
+        style={{ marginBottom: '32px' }}
         onContextMenu={handleContextMenu} // ✅ Right-click handler (desktop)
         onTouchStart={handleTouchStart}   // ✅ Long-press start (mobile)
         onTouchMove={handleTouchMove}     // ✅ Long-press move detection (mobile)

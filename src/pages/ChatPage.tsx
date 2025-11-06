@@ -1363,7 +1363,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               }
             }}
           >
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               
               <MessageListWithPreviews>
                 {(() => {
