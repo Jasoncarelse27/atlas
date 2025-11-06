@@ -336,11 +336,11 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
                 rel="noopener noreferrer"
                 className="text-[#B2BDA3] hover:text-[#A3B295] underline transition-colors"
                 style={{ 
-                  color: '#B2BDA3 !important',
+                  color: '#B2BDA3',
                   textDecoration: 'underline',
                   WebkitTextDecorationColor: '#B2BDA3',
                   textDecorationColor: '#B2BDA3'
-                } as React.CSSProperties}
+                }}
               >
                 {children}
               </a>
@@ -527,11 +527,11 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
                 rel="noopener noreferrer"
                 className="text-[#B2BDA3] hover:text-[#A3B295] underline transition-colors"
                 style={{ 
-                  color: '#B2BDA3 !important',
+                  color: '#B2BDA3',
                   textDecoration: 'underline',
                   WebkitTextDecorationColor: '#B2BDA3',
                   textDecorationColor: '#B2BDA3'
-                } as React.CSSProperties}
+                }}
               >
                 {children}
               </a>
