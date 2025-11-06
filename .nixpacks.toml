@@ -1,3 +1,7 @@
+# ✅ CRITICAL: Force Node.js runtime (Railway was detecting Deno)
+[providers]
+node = "22"
+
 [phases.setup]
 nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
 
@@ -5,7 +9,7 @@ nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
 cmds = ["npm install --legacy-peer-deps"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["rm -rf dist node_modules/.vite && npm install --legacy-peer-deps && npm run build && echo '=== BUILD VERIFICATION ===' && ls -la dist/assets/index-*.js && echo '=== BUNDLE CREATED ===' && cat dist/index.html | grep -o 'index-[^.]*\\.js' | head -1"]
 
 [start]
 cmd = "npm run backend"
