@@ -323,7 +323,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
           },
           blockquote({ children }) {
             return (
-              <blockquote className={`border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100'} rounded-r`}>
+              <blockquote className={`border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100'} rounded-r`} style={!isDarkMode ? { color: '#000000' } : undefined}>
                 {children}
               </blockquote>
             );
@@ -350,7 +350,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             return <strong className={`font-semibold ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#000000' } : undefined}>{children}</strong>;
           },
           em({ children }) {
-            return <em className={`italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{children}</em>;
+            return <em className={`italic ${isDarkMode ? 'text-gray-300' : ''}`} style={!isDarkMode ? { color: '#000000' } : undefined}>{children}</em>;
           },
           // Tables (GitHub Flavored Markdown) - Enhanced with theme-aware styling
           table({ children }) {
@@ -514,7 +514,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
           },
           blockquote({ children }) {
             return (
-              <blockquote className={`border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100'} rounded-r`}>
+              <blockquote className={`border-l-4 border-[#B2BDA3] pl-4 py-2 my-3 ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100'} rounded-r`} style={!isDarkMode ? { color: '#000000' } : undefined}>
                 {children}
               </blockquote>
             );
@@ -541,7 +541,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             return <strong className={`font-semibold ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#000000' } : undefined}>{children}</strong>;
           },
           em({ children }) {
-            return <em className={`italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{children}</em>;
+            return <em className={`italic ${isDarkMode ? 'text-gray-300' : ''}`} style={!isDarkMode ? { color: '#000000' } : undefined}>{children}</em>;
           },
           // Tables (GitHub Flavored Markdown) - Enhanced with theme-aware styling
           table({ children }) {

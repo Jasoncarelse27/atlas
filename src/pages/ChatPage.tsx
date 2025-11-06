@@ -1070,7 +1070,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
-        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/95'} backdrop-blur-md sticky top-0 z-30 shadow-sm`}>
+        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/95'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -1198,7 +1198,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
         {/* Header with Menu Button - White with glass effect */}
-        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/95'} backdrop-blur-md sticky top-0 z-30 shadow-sm`}>
+        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/95'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -1209,7 +1209,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <Menu className="w-5 h-5 text-atlas-stone" />
                 </button>
                 <div>
-                  <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`} style={{ color: '#000000' }}>Atlas AI</h1>
+                  <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`} style={{ color: '#000000', fontWeight: 700 }}>Atlas AI</h1>
                   <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm sm:text-base hidden sm:block`}>Your emotionally intelligent AI assistant</p>
                 </div>
               </div>

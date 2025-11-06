@@ -285,6 +285,28 @@ html body [class*="prose"] a:hover {
   -webkit-text-decoration-color: #A3B295 !important;
 }
 
+/* ✅ CRITICAL: Force black text for maximum legibility - highest specificity */
+html body div[class*="EnhancedMessageBubble"] div[style*="color"] {
+  color: #000000 !important;
+}
+
+html body div[class*="message"] div[style*="color"] {
+  color: #000000 !important;
+}
+
+html body .prose p,
+html body .prose h1,
+html body .prose h2,
+html body .prose h3,
+html body .prose ul,
+html body .prose ol,
+html body .prose li,
+html body .prose strong,
+html body .prose blockquote,
+html body .prose em {
+  color: #000000 !important;
+}
+
 /* ✅ CRITICAL: Override ANY blue colors in header and footer */
 header a,
 footer a,
@@ -307,6 +329,7 @@ div[class*="Header"] button {
 main[id="main-chat"] ~ div[class*="fixed"][class*="bottom"],
 div[class*="fixed"][class*="bottom"][class*="z-30"],
 /* Target header in ChatPage */
+div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"],
 div[class*="backdrop-blur-md"][class*="sticky"][class*="top-0"] {
   background-color: white !important;
   background: white !important;

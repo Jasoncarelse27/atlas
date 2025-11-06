@@ -90,8 +90,8 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       
       logger.debug(`[QuickActions] 📊 Found ${conversations.length} conversations in IndexedDB`);
       
-      // ✅ FIX: If IndexedDB is empty (common on mobile/fresh browser), sync from Supabase
-      if (conversations.length === 0 && !forceRefresh) {
+      // ✅ FIX: If IndexedDB is empty (common on mobile/fresh browser), sync from Supabase FIRST
+      if (conversations.length === 0) {
         logger.debug('[QuickActions] 📡 IndexedDB empty, syncing from Supabase...');
         try {
           const { conversationSyncService } = await import('../../services/conversationSyncService');
