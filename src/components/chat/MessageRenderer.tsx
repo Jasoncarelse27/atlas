@@ -301,25 +301,25 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             );
           },
           p({ children }) {
-            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</p>;
+            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</p>;
           },
           h1({ children }) {
-            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h1>;
+            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</h1>;
           },
           h2({ children }) {
-            return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h2>;
+            return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</h2>;
           },
           h3({ children }) {
-            return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h3>;
+            return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</h3>;
           },
           ul({ children }) {
-            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</ul>;
+            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</ul>;
           },
           ol({ children }) {
-            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</ol>;
+            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</ol>;
           },
           li({ children }) {
-            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-950'} pl-1.5 leading-relaxed`}>{children}</li>;
+            return <li className={`${isDarkMode ? 'text-gray-200' : ''} pl-1.5 leading-relaxed`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</li>;
           },
           blockquote({ children }) {
             return (
@@ -347,7 +347,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             );
           },
           strong({ children }) {
-            return <strong className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</strong>;
+            return <strong className={`font-semibold ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</strong>;
           },
           em({ children }) {
             return <em className={`italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{children}</em>;
@@ -492,25 +492,25 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             );
           },
           p({ children }) {
-            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</p>;
+            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</p>;
           },
           h1({ children }) {
-            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h1>;
+            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</h1>;
           },
           h2({ children }) {
-            return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h2>;
+            return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</h2>;
           },
           h3({ children }) {
-            return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h3>;
+            return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</h3>;
           },
           ul({ children }) {
-            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</ul>;
+            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</ul>;
           },
           ol({ children }) {
-            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</ol>;
+            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</ol>;
           },
           li({ children }) {
-            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-950'} pl-1.5 leading-relaxed`}>{children}</li>;
+            return <li className={`${isDarkMode ? 'text-gray-200' : ''} pl-1.5 leading-relaxed`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</li>;
           },
           blockquote({ children }) {
             return (
@@ -538,7 +538,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             );
           },
           strong({ children }) {
-            return <strong className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</strong>;
+            return <strong className={`font-semibold ${isDarkMode ? 'text-white' : ''}`} style={!isDarkMode ? { color: '#111827' } : undefined}>{children}</strong>;
           },
           em({ children }) {
             return <em className={`italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{children}</em>;
