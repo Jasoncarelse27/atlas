@@ -301,7 +301,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             );
           },
           p({ children }) {
-            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</p>;
+            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{children}</p>;
           },
           h1({ children }) {
             return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h1>;
@@ -313,13 +313,13 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h3>;
           },
           ul({ children }) {
-            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ul>;
+            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{children}</ul>;
           },
           ol({ children }) {
-            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ol>;
+            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{children}</ol>;
           },
           li({ children }) {
-            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-800'} pl-1.5 leading-relaxed`}>{children}</li>;
+            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-900'} pl-1.5 leading-relaxed`}>{children}</li>;
           },
           blockquote({ children }) {
             return (
@@ -492,7 +492,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             );
           },
           p({ children }) {
-            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</p>;
+            return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{children}</p>;
           },
           h1({ children }) {
             return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h1>;
@@ -504,13 +504,13 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             return <h3 className={`text-base font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h3>;
           },
           ul({ children }) {
-            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ul>;
+            return <ul className={`list-disc ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{children}</ul>;
           },
           ol({ children }) {
-            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{children}</ol>;
+            return <ol className={`list-decimal ml-5 mb-5 space-y-2.5 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{children}</ol>;
           },
           li({ children }) {
-            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-800'} pl-1.5 leading-relaxed`}>{children}</li>;
+            return <li className={`${isDarkMode ? 'text-gray-200' : 'text-gray-900'} pl-1.5 leading-relaxed`}>{children}</li>;
           },
           blockquote({ children }) {
             return (
