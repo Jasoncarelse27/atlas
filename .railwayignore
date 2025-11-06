@@ -1,0 +1,4 @@
+# Exclude Supabase functions from Railway builds
+# Railway was detecting deno.json and using Deno instead of Node.js
+supabase/functions/
+
