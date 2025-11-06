@@ -302,13 +302,12 @@ div[class*="Header"] button {
   color: inherit !important;
 }
 
-/* ✅ Force white background on header and footer - no blue bleed */
-header,
-footer,
-[class*="header"]:not([class*="message"]),
-[class*="Header"]:not([class*="Message"]),
-nav,
-[class*="nav"]:not([class*="navigation"]) {
+/* ✅ Force white background on ChatPage header and footer - no blue bleed */
+/* Target ChatPage header specifically */
+main[id="main-chat"] ~ div[class*="fixed"][class*="bottom"],
+div[class*="fixed"][class*="bottom"][class*="z-30"],
+/* Target header in ChatPage */
+div[class*="backdrop-blur-md"][class*="sticky"][class*="top-0"] {
   background-color: white !important;
   background: white !important;
 }
