@@ -83,27 +83,10 @@ export default defineConfig(({ mode }) => {
           return false;
         },
       },
-      // ❌ TEMPORARY: Disable minification for debugging export issue
-      // If export works without minification, we know Terser is the problem
-      minify: false,
-      // terserOptions commented out since minify is disabled
-      // terserOptions: {
-      //   compress: {
-      //     drop_console: ['log', 'debug'],
-      //     drop_debugger: true,
-      //     pure_funcs: [],
-      //     side_effects: true,
-      //   },
-      //   mangle: {
-      //     properties: false,
-      //     reserved: ['create', 'createStore', '__VERIFY_EXPORT__', 'default'],
-      //     toplevel: false,
-      //   },
-      //   format: {
-      //     preserve_annotations: true,
-      //     comments: false,
-      //   }
-      // },
+      // ✅ Use esbuild minifier (less aggressive than Terser, preserves exports better)
+      // esbuild doesn't mangle export names, which fixes the 'create' export issue
+      minify: 'esbuild',
+      // Note: esbuild doesn't support terserOptions, but it's safer for exports
       // ✅ CRITICAL FIX: Rollup options - preserve all exports
       rollupOptions: {
         plugins: [preserveZustand()], // ✅ Apply safeguard plugin
