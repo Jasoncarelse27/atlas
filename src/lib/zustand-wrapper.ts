@@ -10,10 +10,10 @@
 
 import { create as zustandCreate } from 'zustand';
 
-// ✅ CRITICAL: Direct assignment - no intermediate variables that can be optimized
-// This pattern cannot be tree-shaken because the export is immediately assigned
-// Terser config prevents mangling with toplevel: false
-export const create = zustandCreate;
+// ✅ CRITICAL: Direct assignment - simplest pattern that Rollup can't break
+// Using Object.assign to create a non-optimizable reference
+const createRef = Object.assign(zustandCreate, { __ATLAS_EXPORT: true });
+export const create = createRef;
 
 // ✅ CRITICAL: Multiple named exports prevent single-export optimization
 export const createStore = zustandCreate;
