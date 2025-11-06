@@ -160,7 +160,7 @@ body {
 }
 
 /* ✅ CRITICAL FIX: Override any blue link colors in chat messages */
-/* Comprehensive coverage - target ALL possible link locations */
+/* Comprehensive coverage - target ALL possible link locations with maximum specificity */
 .prose a,
 .prose-invert a,
 [class*="prose"] a,
@@ -182,9 +182,37 @@ section[class*="chat"] a,
 .markdown a,
 [class*="markdown"] a,
 /* Target any link with blue color that might slip through */
-a[href]:not([class*="button"]):not([class*="btn"]) {
+a[href]:not([class*="button"]):not([class*="btn"]),
+/* Nuclear option - target ALL links in prose containers */
+.prose a[href],
+.prose-invert a[href],
+.prose p a,
+.prose-invert p a,
+.prose li a,
+.prose-invert li a,
+.prose div a,
+.prose-invert div a {
   color: #B2BDA3 !important; /* Atlas sage green - override ANY blue */
   text-decoration: underline !important;
+  text-decoration-color: #B2BDA3 !important;
+  -webkit-text-decoration-color: #B2BDA3 !important;
+}
+
+/* Force override visited and active link colors */
+.prose a:visited,
+.prose-invert a:visited,
+[class*="prose"] a:visited,
+.prose a[href]:visited,
+.prose-invert a[href]:visited {
+  color: #B2BDA3 !important;
+}
+
+.prose a:active,
+.prose-invert a:active,
+[class*="prose"] a:active,
+.prose a[href]:active,
+.prose-invert a[href]:active {
+  color: #A3B295 !important;
 }
 
 .prose a:hover,
