@@ -1068,7 +1068,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-atlas-pearl'}`}>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
         <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} backdrop-blur-sm border-b sticky top-0 z-30`}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1196,7 +1196,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-atlas-pearl text-gray-900'}`}>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
         {/* Header with Menu Button */}
         <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/50 border-gray-200'} backdrop-blur-sm border-b sticky top-0 z-30`}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1352,7 +1352,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           {/* Messages */}
           <div 
             ref={messagesContainerRef} 
-            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32"
+            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-white"
             role="log"
             aria-live="polite"
             aria-label="Message list"
