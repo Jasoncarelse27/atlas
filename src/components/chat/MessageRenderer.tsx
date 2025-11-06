@@ -304,7 +304,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</p>;
           },
           h1({ children }) {
-            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h1>;
+            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h1>;
           },
           h2({ children }) {
             return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h2>;
@@ -495,7 +495,7 @@ export function LegacyMessageRenderer({ content, className = '' }: LegacyMessage
             return <p className={`mb-4 last:mb-0 leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-950'}`}>{children}</p>;
           },
           h1({ children }) {
-            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{children}</h1>;
+            return <h1 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h1>;
           },
           h2({ children }) {
             return <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{children}</h2>;
