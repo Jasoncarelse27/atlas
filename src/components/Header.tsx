@@ -828,7 +828,7 @@ const Header: React.FC<HeaderProps> = ({
 
                     <button
                       onClick={handleShowControlCenter}
-                      className="w-full px-4 py-3 neumorphic-button bg-blue-100 hover:bg-blue-200 border border-blue-200 text-blue-700 rounded-lg transition-colors flex items-center gap-3"
+                      className="w-full px-4 py-3 neumorphic-button bg-atlas-sage/10 hover:bg-atlas-sage/20 border border-atlas-sage/30 text-atlas-stone rounded-lg transition-colors flex items-center gap-3"
                     >
                       <SlidersIcon className="w-4 h-4" />
                       <span className="font-medium">Control Center</span>
@@ -852,7 +852,7 @@ const Header: React.FC<HeaderProps> = ({
                     
                     <button
                       onClick={handleShowSpeedTest}
-                      className="w-full px-4 py-3 neumorphic-button bg-blue-100 hover:bg-blue-200 border border-blue-200 text-blue-700 rounded-lg transition-colors flex items-center gap-3"
+                      className="w-full px-4 py-3 neumorphic-button bg-atlas-sage/10 hover:bg-atlas-sage/20 border border-atlas-sage/30 text-atlas-stone rounded-lg transition-colors flex items-center gap-3"
                     >
                       {connectionStatus === 'online' ? (
                         <Wifi className="w-4 h-4" />
