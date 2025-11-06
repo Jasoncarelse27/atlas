@@ -1,9 +1,11 @@
 # ✅ CRITICAL: Force Node.js runtime (Railway was detecting Deno)
-[providers]
-node = "22"
+# Railway auto-detects Deno from supabase/functions/tts/deno.json
+# This config explicitly forces Node.js instead
 
 [phases.setup]
 nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
+# Explicitly install Node.js and npm to PATH
+cmds = ["export PATH=$PATH:/nix/var/nix/profiles/default/bin"]
 
 [phases.install]
 cmds = ["npm install --legacy-peer-deps"]
