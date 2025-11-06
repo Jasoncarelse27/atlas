@@ -284,3 +284,47 @@ html body [class*="prose"] a:hover {
   text-decoration-color: #A3B295 !important;
   -webkit-text-decoration-color: #A3B295 !important;
 }
+
+/* ✅ CRITICAL: Override ANY blue colors in header and footer */
+header a,
+footer a,
+[class*="header"] a,
+[class*="Header"] a,
+[class*="footer"] a,
+[class*="Footer"] a,
+nav a,
+[class*="nav"] a,
+[class*="Nav"] a,
+button[class*="header"],
+button[class*="Header"],
+div[class*="header"] button,
+div[class*="Header"] button {
+  color: inherit !important;
+}
+
+/* ✅ Force white background on header and footer - no blue bleed */
+header,
+footer,
+[class*="header"]:not([class*="message"]),
+[class*="Header"]:not([class*="Message"]),
+nav,
+[class*="nav"]:not([class*="navigation"]) {
+  background-color: white !important;
+  background: white !important;
+}
+
+/* ✅ Override any blue backgrounds */
+.bg-blue-50,
+.bg-blue-100,
+.bg-blue-200,
+.bg-blue-300,
+.bg-blue-400,
+.bg-blue-500,
+.bg-blue-600,
+.bg-blue-700,
+.bg-blue-800,
+.bg-blue-900,
+[class*="bg-blue"] {
+  background-color: white !important;
+  background: white !important;
+}
