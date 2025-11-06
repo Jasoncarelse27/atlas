@@ -83,28 +83,27 @@ export default defineConfig(({ mode }) => {
           return false;
         },
       },
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: ['log', 'debug'],  // Remove console.log and console.debug from production
-          drop_debugger: true,
-          // ✅ CRITICAL: Prevent removing exports
-          pure_funcs: [], // Don't remove any pure functions
-          side_effects: true, // Preserve side effects
-        },
-        mangle: {
-          // ✅ CRITICAL: Don't mangle ANY export names - this prevents 'create' from becoming 'e'
-          properties: false, // Don't mangle property names
-          reserved: ['create', 'createStore', '__VERIFY_EXPORT__', 'default'],
-          // ✅ CRITICAL: Don't mangle top-level exports
-          toplevel: false, // Don't mangle top-level variable names (which includes exports)
-        },
-        // ✅ CRITICAL: Preserve export names
-        format: {
-          preserve_annotations: true,
-          comments: false,
-        }
-      },
+      // ❌ TEMPORARY: Disable minification for debugging export issue
+      // If export works without minification, we know Terser is the problem
+      minify: false,
+      // terserOptions commented out since minify is disabled
+      // terserOptions: {
+      //   compress: {
+      //     drop_console: ['log', 'debug'],
+      //     drop_debugger: true,
+      //     pure_funcs: [],
+      //     side_effects: true,
+      //   },
+      //   mangle: {
+      //     properties: false,
+      //     reserved: ['create', 'createStore', '__VERIFY_EXPORT__', 'default'],
+      //     toplevel: false,
+      //   },
+      //   format: {
+      //     preserve_annotations: true,
+      //     comments: false,
+      //   }
+      // },
       // ✅ CRITICAL FIX: Rollup options - preserve all exports
       rollupOptions: {
         plugins: [preserveZustand()], // ✅ Apply safeguard plugin
