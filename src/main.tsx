@@ -4,6 +4,10 @@ import AtlasApp from './App'
 import './index.css'
 import { initSentry, SentryErrorBoundary } from './services/sentryService'
 
+// ✅ CRITICAL: Force include zustand-wrapper export chain to prevent tree-shaking
+// This ensures 'create' export is never stripped by Vercel/Rollup build
+import './lib/vercel-rebuild'
+
 // ✅ DEPLOYMENT VERIFICATION: Log build version to verify deployment
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || 'dev';
 const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();
