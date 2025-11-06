@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
   inputContainer: { flexDirection: 'row', gap: 10 },
   input: { flex: 1, borderColor: '#ccc', borderWidth: 1, padding: 10, borderRadius: 4 },
   userText: { alignSelf: 'flex-end', marginVertical: 4, color: '#333' },
-  assistantText: { alignSelf: 'flex-start', marginVertical: 4, color: '#007AFF' },
+  assistantText: { alignSelf: 'flex-start', marginVertical: 4, color: '#B2BDA3' }, // ✅ FIX: Changed from blue (#007AFF) to Atlas sage green
 });

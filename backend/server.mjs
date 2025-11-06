@@ -749,7 +749,20 @@ app.use(morgan('combined'));
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      logger.debug('[CORS] No origin header, allowing request');
+      return callback(null, true);
+    }
+    
+    logger.debug(`[CORS] Checking origin: ${origin}, NODE_ENV: ${process.env.NODE_ENV}`);
+    
+    // ✅ CRITICAL FIX: Always check Vercel domains regardless of NODE_ENV
+    // This handles Railway production deployments that might not have NODE_ENV=production
+    const isVercelDomain = origin.match(/^https:\/\/.*\.vercel\.app$/);
+    if (isVercelDomain) {
+      logger.debug(`[CORS] ✅ Allowing Vercel domain: ${origin}`);
+      return callback(null, true);
+    }
     
     if (process.env.NODE_ENV === 'production') {
       // Check ALLOWED_ORIGINS env var first
@@ -758,20 +771,18 @@ app.use(cors({
         'https://www.atlas-ai.app',
         'https://atlas.vercel.app',
         'https://atlas-frontend.fly.dev',
-        'https://atlas-frontend.vercel.app'
+        'https://atlas-frontend.vercel.app',
+        'https://atlas-xi-tawny.vercel.app' // ✅ Explicitly add current Vercel deployment
       ];
       
       // Allow exact matches
       if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
-      // Allow all Vercel preview deployments (*.vercel.app)
-      if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        logger.debug(`[CORS] ✅ Allowing exact match: ${origin}`);
         return callback(null, true);
       }
       
       // Reject unknown origins
+      logger.warn(`[CORS] ❌ Rejecting origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     } else {
       // Development: allow all localhost and LAN IPs
@@ -793,15 +804,19 @@ app.use(cors({
       ];
       
       if (allowedDevOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.startsWith(`http://${LOCAL_IP}:`)) {
+        logger.debug(`[CORS] ✅ Allowing dev origin: ${origin}`);
         return callback(null, true);
       }
       
+      logger.warn(`[CORS] ❌ Rejecting dev origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'Accept']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'Accept', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400 // 24 hours
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

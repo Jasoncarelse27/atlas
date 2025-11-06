@@ -158,3 +158,37 @@ body {
   --atlas-warning: #e8c88e;
   --atlas-error: #d89090;
 }
+
+/* ✅ CRITICAL FIX: Override any blue link colors in chat messages */
+/* Target all links within message content areas - comprehensive coverage */
+.prose a,
+.prose-invert a,
+[class*="prose"] a,
+div[class*="message"] a,
+div[class*="Message"] a,
+/* Target links within EnhancedMessageBubble content */
+[id^="message-"] a,
+/* Target links in message renderer components */
+[class*="MessageRenderer"] a,
+[class*="message-renderer"] a,
+/* Target links in chat content areas */
+main[aria-label*="chat"] a,
+main[aria-label*="Chat"] a,
+div[role="log"] a {
+  color: #B2BDA3 !important; /* Atlas sage green - override any blue */
+  text-decoration: underline;
+}
+
+.prose a:hover,
+.prose-invert a:hover,
+[class*="prose"] a:hover,
+div[class*="message"] a:hover,
+div[class*="Message"] a:hover,
+[id^="message-"] a:hover,
+[class*="MessageRenderer"] a:hover,
+[class*="message-renderer"] a:hover,
+main[aria-label*="chat"] a:hover,
+main[aria-label*="Chat"] a:hover,
+div[role="log"] a:hover {
+  color: #A3B295 !important; /* Darker sage on hover */
+}
