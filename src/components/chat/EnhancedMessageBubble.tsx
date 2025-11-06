@@ -729,7 +729,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           style={{ 
             wordBreak: "break-word", 
             overflowWrap: "anywhere",
-            color: isUser ? undefined : '#111827' // Dark grey for assistant messages
+            color: isUser ? undefined : '#000000' // Pure black for maximum visibility
           }}
         >
           {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
