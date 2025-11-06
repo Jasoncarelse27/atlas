@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Atlas - Emotionally Intelligent AI Assistant",
   "type": "module",
+  "sideEffects": [
+    "src/lib/zustand-wrapper.ts",
+    "src/lib/vercel-rebuild.ts",
+    "src/lib/cache-buster.ts"
+  ],
   "scripts": {
     "dev": "NODE_ENV=development USE_MOCK_MAILER=true vite",
     "build": "vite build",
