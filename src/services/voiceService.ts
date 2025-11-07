@@ -155,36 +155,122 @@ class VoiceService {
 
   /**
    * Synthesize speech from text using OpenAI TTS
+   * ✅ BEST PRACTICE: Uses centralized authFetch utility for consistent 401 handling
    */
   async synthesizeSpeech(text: string): Promise<string> {
     try {
-      // Get JWT token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const apiEndpoint = getApiEndpoint('/api/synthesize');
+      logger.debug('[VoiceService] Making TTS API call:', {
+        endpoint: apiEndpoint,
+        textLength: text.length
+      });
       
-      if (!token) {
-        throw new Error('Authentication required');
+      // ✅ CRITICAL FIX: Force token refresh before TTS request to prevent 401 errors
+      // This ensures we always have a fresh, valid token
+      const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+      let token: string;
+      
+      try {
+        // Force refresh to get the latest token
+        token = await getAuthTokenOrThrow('Authentication required for text-to-speech');
+        logger.info('[VoiceService] ✅ Got fresh auth token for TTS request', {
+          tokenLength: token.length,
+          tokenPrefix: token.substring(0, 20) + '...',
+          endpoint: apiEndpoint
+        });
+      } catch (authError) {
+        logger.error('[VoiceService] ❌ Failed to get auth token:', authError);
+        throw new Error('Authentication required - please sign in again');
       }
-
-
-      logger.debug('[VoiceService] Making TTS API call to /api/synthesize with token:', token ? 'present' : 'missing');
       
-      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-      const response = await fetch(getApiEndpoint('/api/synthesize'), {
+      // ✅ CRITICAL FIX: Use direct fetch with fresh token instead of fetchWithAuth
+      // This ensures we use the freshly refreshed token and avoid 401 errors
+      logger.info('[VoiceService] 📡 Making TTS request with token:', {
+        endpoint: apiEndpoint,
+        hasToken: !!token,
+        tokenLength: token?.length || 0
+      });
+      
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          text,
-        }),
+        body: JSON.stringify({ text }),
       });
       
-      logger.debug('[VoiceService] TTS API response status:', response.status);
+      logger.info('[VoiceService] TTS API response status:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorText = await response.text().catch(() => '');
+        let errorData: any = {};
+        
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Unknown error' };
+        }
+        
+        // ✅ Enhanced error logging with full details
+        const errorDetails = {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          endpoint: apiEndpoint,
+          hasToken: !!token,
+          tokenLength: token?.length || 0,
+          sessionExpired: response.status === 401
+        };
+        
+        // ✅ CRITICAL FIX: If 401, try one more time with a fresh token refresh
+        if (response.status === 401) {
+          logger.warn('[VoiceService] ⚠️ Got 401, attempting one more refresh...');
+          
+          try {
+            // Force a fresh refresh
+            const { getAuthToken } = await import('../utils/getAuthToken');
+            const refreshedToken = await getAuthToken(true);
+            
+            if (refreshedToken && refreshedToken !== token) {
+              logger.debug('[VoiceService] ✅ Got new token, retrying TTS request...');
+              
+              // Retry with fresh token
+              const retryResponse = await fetch(apiEndpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${refreshedToken}`,
+                },
+                body: JSON.stringify({ text }),
+              });
+              
+              if (retryResponse.ok) {
+                logger.debug('[VoiceService] ✅ Retry successful after token refresh');
+                const result = await retryResponse.json();
+                const audioDataUrl = `data:audio/mp3;base64,${result.audio}`;
+                logger.debug(`✅ [VoiceService] Speech synthesized: ${result.size} bytes`);
+                return audioDataUrl;
+              } else {
+                logger.error('[VoiceService] ❌ Retry still failed:', {
+                  status: retryResponse.status,
+                  statusText: retryResponse.statusText
+                });
+              }
+            } else {
+              logger.error('[VoiceService] ❌ Token refresh did not produce new token');
+            }
+          } catch (retryError) {
+            logger.error('[VoiceService] ❌ Error during retry:', retryError);
+          }
+          
+          logger.error('[VoiceService] Authentication failed (401):', errorDetails);
+          throw new Error('Authentication failed - please sign in again');
+        }
         
         // ✅ Silent fail for service unavailable (503) - don't spam console
         if (response.status === 503) {
@@ -197,16 +283,12 @@ class VoiceService {
           throw new Error('Text-to-speech requires Core or Studio tier. Please upgrade to continue.');
         }
         
-        // Only log non-503 errors
+        // Only log non-503 errors with full details
         if (response.status !== 503) {
-          logger.error('[VoiceService] TTS API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            errorData
-          });
+          logger.error('[VoiceService] TTS API error:', errorDetails);
         }
         
-        throw new Error(errorData.error || `Speech synthesis failed: ${response.statusText}`);
+        throw new Error(errorData.error || errorData.message || `Speech synthesis failed: ${response.statusText}`);
       }
 
       const result = await response.json();

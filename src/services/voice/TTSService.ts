@@ -40,7 +40,19 @@ export class TTSService implements ITTSService {
     text: string,
     callbacks?: TTSServiceCallbacks
   ): Promise<string> {
-    const { data: { session } } = await supabase.auth.getSession();
+    // ✅ CRITICAL FIX: Force token refresh before TTS request to prevent 401 errors
+    const { getAuthTokenOrThrow } = await import('@/utils/getAuthToken');
+    let token: string;
+    
+    try {
+      token = await getAuthTokenOrThrow('Authentication required for text-to-speech');
+      logger.debug('[TTSService] ✅ Got fresh auth token for TTS request');
+    } catch (authError) {
+      logger.error('[TTSService] ❌ Failed to get auth token:', authError);
+      callbacks?.onError?.(authError as Error);
+      throw new Error('Authentication required - please sign in again');
+    }
+    
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
     try {
@@ -51,7 +63,7 @@ export class TTSService implements ITTSService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Request-ID': requestId, // ✅ Request tracking
         },
         body: JSON.stringify({
@@ -75,12 +87,12 @@ export class TTSService implements ITTSService {
           logger.warn(`[TTSService] HD model timeout, falling back to standard model`);
           model = 'tts-1';
           
-          // Retry with standard model
+          // Retry with standard model (use same fresh token)
           const fallbackResponse = await fetch(`${supabaseUrl}/functions/v1/tts`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
+              'Authorization': `Bearer ${token}`,
               'X-Request-ID': requestId,
             },
             body: JSON.stringify({

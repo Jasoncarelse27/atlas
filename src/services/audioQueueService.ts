@@ -156,7 +156,19 @@ export class AudioQueueService {
     item.status = 'generating';
     
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // ✅ CRITICAL FIX: Force token refresh before TTS request to prevent 401 errors
+      const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+      let token: string;
+      
+      try {
+        token = await getAuthTokenOrThrow('Authentication required for text-to-speech');
+        logger.debug('[AudioQueue] ✅ Got fresh auth token for TTS request');
+      } catch (authError) {
+        logger.error('[AudioQueue] ❌ Failed to get auth token:', authError);
+        item.status = 'error';
+        throw new Error('Authentication required - please sign in again');
+      }
+      
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const requestId = crypto.randomUUID(); // ✅ Track requests for debugging
       
@@ -164,7 +176,7 @@ export class AudioQueueService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Request-ID': requestId, // ✅ Request tracking
         },
         body: JSON.stringify({

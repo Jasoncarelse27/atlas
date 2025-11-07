@@ -781,20 +781,22 @@ You are having a natural voice conversation. Respond as if you can hear them cle
 // 🔒 SECURITY: Enhanced JWT verification middleware - ALWAYS verify with Supabase
 const verifyJWT = async (req, res, next) => {
   try {
-    // ✅ CRITICAL DEBUG: Log all incoming requests
-    logger.debug('[verifyJWT] 🔍 Request received:', {
+    // ✅ CRITICAL DEBUG: Log all incoming requests (use INFO so it shows in Railway logs)
+    logger.info('[verifyJWT] 🔍 Request received:', {
       method: req.method,
       path: req.path,
       origin: req.headers.origin,
       hasAuth: !!req.headers.authorization,
-      authLength: req.headers.authorization?.length || 0
+      authLength: req.headers.authorization?.length || 0,
+      authHeaderPreview: req.headers.authorization?.substring(0, 30) || 'none'
     });
     
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       logger.error('[verifyJWT] ❌ Missing or invalid auth header:', {
         hasHeader: !!authHeader,
-        headerStart: authHeader?.substring(0, 20) || 'none'
+        headerStart: authHeader?.substring(0, 20) || 'none',
+        allHeaders: Object.keys(req.headers).filter(h => h.toLowerCase().includes('auth'))
       });
       return res.status(401).json({ 
         error: 'Missing or invalid authorization header',
@@ -807,10 +809,26 @@ const verifyJWT = async (req, res, next) => {
     // ✅ SECURITY FIX: Removed mock token bypass - ALWAYS verify with Supabase (even in development)
     // This prevents authentication bypass vulnerabilities in production
     
+    // ✅ BEST PRACTICE: Use ANON_KEY client for JWT verification (not SERVICE_ROLE_KEY)
+    // SERVICE_ROLE_KEY bypasses RLS and might not properly verify user JWTs
+    // Import supabasePublic which uses ANON_KEY for proper JWT verification
+    const { supabasePublic } = await import('./config/supabaseClient.mjs');
+    
     // Enhanced Supabase JWT verification with better error handling
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await supabasePublic.auth.getUser(token);
     
     if (error) {
+      // ✅ IMPROVED: Enhanced error logging for debugging Vercel/Railway issues
+      logger.error('[verifyJWT] ❌ Token verification failed:', {
+        errorMessage: error.message,
+        errorStatus: error.status,
+        errorName: error.name,
+        tokenLength: token.length,
+        tokenPreview: token.substring(0, 20) + '...',
+        origin: req.headers.origin,
+        path: req.path
+      });
+      
       return res.status(401).json({ 
         error: 'Invalid or expired token',
         details: error.message,
@@ -819,12 +837,25 @@ const verifyJWT = async (req, res, next) => {
     }
     
     if (!user) {
+      logger.error('[verifyJWT] ❌ No user found in token:', {
+        tokenLength: token.length,
+        tokenPreview: token.substring(0, 20) + '...',
+        origin: req.headers.origin,
+        path: req.path
+      });
+      
       return res.status(401).json({ 
         error: 'No user found in token',
         details: 'Token may be expired or invalid',
         code: 'NO_USER_IN_TOKEN'
       });
     }
+    
+    logger.info('[verifyJWT] ✅ Token verified successfully:', {
+      userId: user.id,
+      email: user.email,
+      path: req.path
+    });
 
     req.user = user;
     next();
