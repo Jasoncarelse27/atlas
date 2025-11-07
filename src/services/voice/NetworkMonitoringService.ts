@@ -83,6 +83,7 @@ export class NetworkMonitoringService implements INetworkMonitoringService {
 
   /**
    * Check current network quality by measuring API latency
+   * ✅ FIX: Updates internal state when called directly (not just from interval)
    */
   async checkQuality(): Promise<NetworkQuality> {
     try {
@@ -105,7 +106,14 @@ export class NetworkMonitoringService implements INetworkMonitoringService {
         const latency = performance.now() - start;
         
         if (!response.ok) {
-          return 'offline';
+          const quality = 'offline';
+          const previousQuality = this.networkQuality;
+          this.networkQuality = quality;
+          // Notify callbacks if quality changed (when called directly)
+          if (quality !== previousQuality && this.callbacks) {
+            this.callbacks.onQualityChange?.(quality, previousQuality);
+          }
+          return quality;
         }
 
         // Track latency history
@@ -118,21 +126,46 @@ export class NetworkMonitoringService implements INetworkMonitoringService {
         const avgLatency = this.recentApiLatencies.reduce((a, b) => a + b, 0) / this.recentApiLatencies.length;
 
         // Classify quality based on latency
-        if (avgLatency < 100) return 'excellent';
-        if (avgLatency < 300) return 'good';
-        if (avgLatency < 1000) return 'poor';
-        return 'offline';
+        let quality: NetworkQuality;
+        if (avgLatency < 100) quality = 'excellent';
+        else if (avgLatency < 300) quality = 'good';
+        else if (avgLatency < 1000) quality = 'poor';
+        else quality = 'offline';
+
+        // ✅ FIX: Update internal state when called directly
+        const previousQuality = this.networkQuality;
+        this.networkQuality = quality;
+        // Notify callbacks if quality changed (when called directly)
+        if (quality !== previousQuality && this.callbacks) {
+          this.callbacks.onQualityChange?.(quality, previousQuality);
+        }
+
+        return quality;
       } catch (error) {
         clearTimeout(timeout);
         this.pendingTimeouts.delete(timeout); // Remove from tracking when cleared
         if ((error as any).name === 'AbortError') {
-          return 'offline';
+          const quality = 'offline';
+          const previousQuality = this.networkQuality;
+          this.networkQuality = quality;
+          // Notify callbacks if quality changed (when called directly)
+          if (quality !== previousQuality && this.callbacks) {
+            this.callbacks.onQualityChange?.(quality, previousQuality);
+          }
+          return quality;
         }
         throw error;
       }
     } catch (error) {
       logger.debug('[NetworkMonitoring] Network check failed:', error);
-      return 'offline';
+      const quality = 'offline';
+      const previousQuality = this.networkQuality;
+      this.networkQuality = quality;
+      // Notify callbacks if quality changed (when called directly)
+      if (quality !== previousQuality && this.callbacks) {
+        this.callbacks.onQualityChange?.(quality, previousQuality);
+      }
+      return quality;
     }
   }
 

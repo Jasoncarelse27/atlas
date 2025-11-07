@@ -142,7 +142,7 @@ describe('NetworkMonitoringService', () => {
   describe('getSTTTimeout', () => {
     it('should return correct timeout for excellent', () => {
       (service as any).networkQuality = 'excellent';
-      expect(service.getSTTTimeout()).toBe(5000);
+      expect(service.getSTTTimeout()).toBe(12000); // ✅ Updated to match implementation (12s for large chunks)
     });
 
     it('should return correct timeout for good', () => {

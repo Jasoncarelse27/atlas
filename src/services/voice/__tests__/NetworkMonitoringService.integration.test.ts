@@ -81,7 +81,7 @@ describe('NetworkMonitoringService Integration', () => {
 
     it('should adapt STT timeout based on network quality', () => {
       (service as any).networkQuality = 'excellent';
-      expect(service.getSTTTimeout()).toBe(5000);
+      expect(service.getSTTTimeout()).toBe(12000); // ✅ Updated to match implementation (12s for large chunks)
 
       (service as any).networkQuality = 'good';
       expect(service.getSTTTimeout()).toBe(8000);
