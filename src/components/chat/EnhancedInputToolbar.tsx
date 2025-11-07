@@ -514,7 +514,7 @@ export default function EnhancedInputToolbar({
   // Click outside detection is handled by AttachmentMenu component
 
   return (
-    <div className="px-2 sm:px-4 pb-0 bg-transparent">
+    <div className="px-2 sm:px-4 pb-0" style={{ backgroundColor: '#F9F6F3' }}> {/* ✅ FIX: Atlas pearl background - removes black block */}
       {/* Message Limit Warning - Temporarily disabled */}
       {/* {false && (
         <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded-lg max-w-4xl mx-auto">
