@@ -1506,19 +1506,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           </div>
 
         {/* Footer - ✅ WHITE GRADIENT TRANSPARENT APPROACH (restored) */}
-        {/* ✅ FIX: Minimal spacing - textbox sits very close to bottom */}
+        {/* ✅ PROFESSIONAL FINISH: Minimal breathing room at bottom with polished spacing */}
         <div
           className={`fixed bottom-0 left-0 right-0 z-30`}
           style={{
-            paddingBottom: `calc(5px + env(safe-area-inset-bottom, 0px))`, // ✅ Minimal 5px - very close to bottom
-            paddingTop: '10px', // ✅ Reduced for tighter spacing
-            // ✅ WHITE GRADIENT TRANSPARENT: Fade from solid white at bottom to transparent at top
-            background: 'linear-gradient(to top, rgba(249, 246, 243, 1) 0%, rgba(249, 246, 243, 0.95) 30%, rgba(249, 246, 243, 0.85) 60%, rgba(249, 246, 243, 0.7) 80%, rgba(249, 246, 243, 0) 100%)',
+            paddingBottom: `calc(8px + env(safe-area-inset-bottom, 0px))`, // ✅ Professional 8px breathing room
+            paddingTop: '12px', // ✅ Balanced top spacing
+            // ✅ WHITE GRADIENT TRANSPARENT: Smooth fade from solid at bottom to transparent at top
+            background: 'linear-gradient(to top, rgba(249, 246, 243, 1) 0%, rgba(249, 246, 243, 0.95) 25%, rgba(249, 246, 243, 0.85) 50%, rgba(249, 246, 243, 0.7) 75%, rgba(249, 246, 243, 0) 100%)',
             backgroundColor: 'rgba(249, 246, 243, 0)', // ✅ Transparent base for gradient overlay
-            backdropFilter: 'blur(10px)', // ✅ Subtle blur for depth
-            WebkitBackdropFilter: 'blur(10px)',
+            backdropFilter: 'blur(12px)', // ✅ Professional subtle blur for depth
+            WebkitBackdropFilter: 'blur(12px)',
             borderTop: 'none',
-            // ✅ Removed minHeight - let content determine height naturally
           }}
         >
             <div className="max-w-4xl mx-auto">
