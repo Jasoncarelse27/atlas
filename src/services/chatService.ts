@@ -469,12 +469,18 @@ export async function sendMessageWithAttachments(
 
   // ✅ NEW: Send to backend for AI analysis
   try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // ✅ CRITICAL FIX: Get session and refresh if needed
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      // ✅ CRITICAL FIX: Don't use mock token - require real authentication
+      // If no session or expired token, try to refresh
       if (!session?.access_token) {
-        logger.error('[chatService] ❌ No session found - user must be logged in');
-        throw new Error('You must be logged in to analyze images. Please sign in and try again.');
+        logger.debug('[chatService] No session found, attempting refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshedSession?.access_token) {
+          logger.error('[chatService] ❌ No valid session - user must be logged in');
+          throw new Error('You must be logged in to analyze images. Please sign in and try again.');
+        }
+        session = refreshedSession;
       }
       
       const token = session.access_token;
