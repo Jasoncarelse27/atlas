@@ -463,8 +463,15 @@ export async function sendMessageWithAttachments(
 
   // ✅ NEW: Send to backend for AI analysis
   try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || 'mock-token-for-development';
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      // ✅ CRITICAL FIX: Don't use mock token - require real authentication
+      if (!session?.access_token) {
+        logger.error('[chatService] ❌ No session found - user must be logged in');
+        throw new Error('You must be logged in to analyze images. Please sign in and try again.');
+      }
+      
+      const token = session.access_token;
       
       // Get user's tier for the request (not needed for image analysis endpoint)
       // const currentTier = await getUserTier();
