@@ -24,12 +24,17 @@ import { logger } from '../lib/logger';
 /**
  * Get a valid Supabase authentication token with automatic refresh
  * 
+ * ✅ PRODUCTION BEST PRACTICE:
+ * - Supabase handles auto-refresh automatically (autoRefreshToken: true)
+ * - We only need to check if token exists and is valid
+ * - Manual refresh only needed if Supabase's auto-refresh fails
+ * 
  * @param forceRefresh - If true, always attempt to refresh the session
  * @returns Promise<string | null> - The access token, or null if not authenticated
  */
 export async function getAuthToken(forceRefresh = false): Promise<string | null> {
   try {
-    // Get current session
+    // Get current session (Supabase auto-refreshes expired tokens automatically)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
@@ -37,27 +42,17 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
       return null;
     }
     
-    // Check if token is expired (with 60s buffer for clock skew)
-    const isExpired = session?.expires_at 
-      ? (session.expires_at * 1000) < (Date.now() + 60000)
-      : false;
-    
-    // If we have a valid, non-expired token, return it
-    if (session?.access_token && !isExpired && !forceRefresh) {
-      logger.debug('[getAuthToken] ✅ Using valid token');
+    // ✅ PRODUCTION FIX: Supabase handles auto-refresh, so we just check if token exists
+    // Only manually refresh if explicitly requested (for edge cases)
+    if (session?.access_token && !forceRefresh) {
+      // Token exists - Supabase will auto-refresh if expired
       return session.access_token;
     }
     
-    // Token expired or force refresh requested - refresh the session
-    if (session || forceRefresh) {
-      logger.debug('[getAuthToken] Token expired or refresh requested, refreshing...', {
-        hasSession: !!session,
-        expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown',
-        isExpired,
-        forceRefresh
-      });
+    // Force refresh requested or no token - attempt manual refresh
+    if (forceRefresh && session) {
+      logger.debug('[getAuthToken] Force refresh requested, refreshing...');
       
-      // ✅ CRITICAL FIX: refreshSession() works without parameters if session exists in storage
       const { data: { session: refreshedSession }, error: refreshError } = 
         await supabase.auth.refreshSession();
       
@@ -70,14 +65,14 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
         logger.debug('[getAuthToken] ✅ Token refreshed successfully');
         return refreshedSession.access_token;
       }
-      
-      logger.warn('[getAuthToken] ⚠️ Refresh succeeded but no token returned');
-      return null;
     }
     
-    // No session available
-    logger.warn('[getAuthToken] ⚠️ No session found');
-    return null;
+    // No session or token available
+    if (!session) {
+      logger.debug('[getAuthToken] ⚠️ No session found');
+    }
+    
+    return session?.access_token || null;
   } catch (error) {
     logger.error('[getAuthToken] ❌ Unexpected error:', error);
     return null;

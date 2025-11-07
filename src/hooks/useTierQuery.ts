@@ -267,6 +267,16 @@ export function useTierQuery() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (!isSubscribed) return; // Ignore events after unmount
       
+      // ✅ PRODUCTION FIX: Clear localStorage cache on logout (security best practice)
+      if (event === 'SIGNED_OUT') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+          logger.debug('[useTierQuery] 🧹 Cleared tier cache on logout');
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
+      
       // ✅ FIX: Invalidate queries silently (no logging - prevents console spam)
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
         queryClient.invalidateQueries({ queryKey: ['user-tier'] });

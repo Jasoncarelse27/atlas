@@ -525,6 +525,41 @@ export async function sendMessageWithAttachments(
           fullErrorData: errorData
         });
         
+        // ✅ PRODUCTION FIX: Handle 401 with retry (token might have expired)
+        if (response.status === 401) {
+          logger.warn('[chatService] 401 Unauthorized - attempting token refresh and retry...');
+          
+          // Try refreshing token and retrying once
+          try {
+            const refreshedToken = await getAuthTokenOrThrow('Your session expired. Please sign in again.');
+            
+            const retryResponse = await fetch(apiEndpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${refreshedToken}`
+              },
+              body: JSON.stringify({
+                imageUrl: imageAttachment.url,
+                userId: userId,
+                conversationId: conversationId,
+                prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
+              }),
+            });
+            
+            if (retryResponse.ok) {
+              logger.debug('[chatService] ✅ Retry successful after token refresh');
+              const retryData = await retryResponse.json();
+              if (retryData.success && retryData.analysis) {
+                return { success: true };
+              }
+            }
+          } catch (retryError) {
+            logger.error('[chatService] Retry failed:', retryError);
+            throw new Error('Authentication failed. Please sign in and try again.');
+          }
+        }
+        
         // ✅ Handle tier gating response (403 with upgradeRequired)
         if (response.status === 403 && errorData.upgradeRequired) {
           logger.debug('[chatService] Image analysis requires upgrade:', errorData);
@@ -545,11 +580,22 @@ export async function sendMessageWithAttachments(
           return;
         }
         
-        // Handle other errors - throw so frontend can show error
-        const errorMessage = errorData.details || errorData.error || `Image analysis failed (${response.status})`;
+        // ✅ PRODUCTION FIX: User-friendly error messages for paying users
+        let userMessage = 'Image analysis failed. Please try again.';
+        if (response.status === 500) {
+          userMessage = 'Server error. Our team has been notified. Please try again in a moment.';
+        } else if (response.status === 503) {
+          userMessage = 'Service temporarily unavailable. Please try again in a few moments.';
+        } else if (response.status === 429) {
+          userMessage = 'Too many requests. Please wait a moment and try again.';
+        } else if (errorData.details) {
+          userMessage = errorData.details;
+        } else if (errorData.error) {
+          userMessage = errorData.error;
+        }
         
         // Throw error so frontend can handle it
-        throw new Error(errorMessage);
+        throw new Error(userMessage);
       }
 
       const data = await response.json();
