@@ -649,16 +649,13 @@ export default function EnhancedInputToolbar({
         </motion.div>
       )}
       
-          {/* Main Input Container - Floating glass effect */}
+          {/* Main Input Container - Standalone white floating card */}
           <motion.div 
             data-input-area
-            className="flex items-end w-full max-w-4xl mx-auto px-3 py-2"
+            className="flex items-end w-full max-w-4xl mx-auto px-3 py-2 rounded-2xl mb-6"
             style={{
-              background: 'rgba(255, 255, 255, 0.6)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              borderRadius: '2rem',
+              background: '#ffffff',
+              border: '1px solid rgba(0, 0, 0, 0.08)',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)'
             }}
           >

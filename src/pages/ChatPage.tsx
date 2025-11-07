@@ -1100,12 +1100,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300`}
+          className={`sticky top-0 z-30 transition-all duration-300 shadow-sm`}
           style={{ 
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            background: 'rgba(255, 255, 255, 0.15)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+            background: '#ffffff',
+            backdropFilter: 'none',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1240,14 +1239,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
-        {/* Header - Elegant glassmorphism effect */}
+        {/* Header - Clean white matching chat background */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300`}
+          className={`sticky top-0 z-30 transition-all duration-300 shadow-sm`}
           style={{ 
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            background: isDarkMode ? 'rgba(31, 41, 55, 0.15)' : 'rgba(255, 255, 255, 0.15)',
-            borderBottom: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+            background: '#ffffff',
+            backdropFilter: 'none',
+            borderBottom: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
