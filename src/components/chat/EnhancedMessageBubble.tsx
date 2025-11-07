@@ -299,13 +299,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     };
   }, []);
 
-  // Debug: Log userId availability (only when there's an issue)
-  useEffect(() => {
-    // Only log if userId is null AND we're not still loading (indicates real timing issue)
-    if (!userId && tier && !loading) {
-      logger.warn('[EnhancedMessageBubble] ⚠️ userId not yet available, tier:', tier);
-    }
-  }, [userId, tier, loading]);
+  // ✅ FIX: Removed noisy warning - userId can be null during initial load, which is normal
+  // The tier will still work correctly (defaults to 'free' when userId is null)
+  // No need to log this for every message bubble (was causing 102+ warnings)
 
 
   // Handle system messages

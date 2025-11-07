@@ -328,7 +328,8 @@ export class ConversationSyncService {
    */
   async deltaSync(userId: string): Promise<void> {
     perfMonitor.start('conversation-sync');
-    const startTime = Date.now();
+      const startTime = Date.now();
+      perfMonitor.start('conversation-sync'); // ✅ FIX: Start performance monitor
     let queriesExecuted = 0;
     let conversationsSynced = 0;
     let messagesSynced = 0;
@@ -351,6 +352,9 @@ export class ConversationSyncService {
       if (import.meta.env.DEV) {
         logger.debug('[ConversationSync] Last synced at:', lastSyncedAt, isFirstSync ? '(FIRST SYNC - fetching all data)' : '(delta sync)');
       }
+      
+      // ✅ FIX: Start performance monitor at the beginning of sync
+      perfMonitor.start('conversation-sync');
       
       // 2. Fetch ONLY conversations updated since last sync (non-deleted only)
       const { data: updatedConversations, error: convError } = await supabase
