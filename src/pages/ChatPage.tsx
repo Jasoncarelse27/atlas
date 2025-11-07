@@ -1098,14 +1098,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   if (!userId) {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-        {/* Header Skeleton */}
+        {/* Header Skeleton - White gradient effect */}
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: 'transparent',
-            backgroundColor: 'transparent',
-            backdropFilter: 'none',
-            borderBottom: 'none'
+            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.95))',
+            backgroundColor: '#ffffff',
+            backdropFilter: 'none !important',
+            WebkitBackdropFilter: 'none !important',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1240,14 +1242,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
-        {/* Header - Fully transparent like footer */}
+        {/* Header - White gradient effect */}
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: 'transparent',
-            backgroundColor: 'transparent',
-            backdropFilter: 'none',
-            borderBottom: 'none'
+            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.95))',
+            backgroundColor: '#ffffff',
+            backdropFilter: 'none !important',
+            WebkitBackdropFilter: 'none !important',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1495,14 +1499,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Footer - No background, fully transparent */}
+          {/* Footer - White gradient effect */}
           <div 
             className={`fixed bottom-0 left-0 right-0 p-4 z-30`}
             style={{ 
               paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-              background: 'transparent',
-              borderTop: 'none',
-              backgroundColor: 'transparent'
+              background: 'linear-gradient(to top, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.95))',
+              backgroundColor: 'transparent',
+              backdropFilter: 'none !important',
+              WebkitBackdropFilter: 'none !important',
+              borderTop: 'none'
             }}
           >
             <div className="max-w-4xl mx-auto">
