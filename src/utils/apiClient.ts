@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 /**
  * Centralized API Client Utility
  * 
@@ -25,7 +27,7 @@ export function getApiUrl(): string {
     
     // If frontend is HTTPS but backend URL is HTTP, upgrade to HTTPS
     if (isFrontendHttps && isBackendHttp) {
-      console.warn(
+      logger.warn(
         '[API Client] ⚠️ Mixed content detected: Frontend HTTPS but backend HTTP. ' +
         'Upgrading backend URL to HTTPS automatically.'
       );
@@ -35,7 +37,7 @@ export function getApiUrl(): string {
   
   // Production check: If we're not in development and VITE_API_URL is not set, warn
   if (import.meta.env.PROD && !apiUrl) {
-    console.error(
+    logger.error(
       '[API Client] ⚠️ VITE_API_URL is not set in production! ' +
       'API calls will fail. Set VITE_API_URL in your environment variables.'
     );

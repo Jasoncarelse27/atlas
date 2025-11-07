@@ -52,7 +52,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       
       // Debug log for object content
       if (isUser && typeof window !== 'undefined') {
-        console.log('[DEBUG] User message content is object:', contentObj);
+        logger.debug('[DEBUG] User message content is object:', contentObj);
       }
       
       // Try multiple fields to extract text
@@ -82,7 +82,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     }
     
     // Fallback - convert to string
-    console.warn('[DEBUG] Unexpected message content format:', message.content);
+    logger.debug('[DEBUG] Unexpected message content format:', message.content);
     return String(message.content || '');
   });
 

@@ -158,6 +158,16 @@ try {
 
 // External AI API keys
 // ✅ CRITICAL FIX: Trim whitespace and validate API key format
+// ✅ RAILWAY FIX: Check all possible variable names and log what's available
+logger.info('[Server] 🔍 Environment variable check:', {
+  'process.env.ANTHROPIC_API_KEY': !!process.env.ANTHROPIC_API_KEY,
+  'process.env.CLAUDE_API_KEY': !!process.env.CLAUDE_API_KEY,
+  'process.env.VITE_CLAUDE_API_KEY': !!process.env.VITE_CLAUDE_API_KEY,
+  'process.env keys count': Object.keys(process.env).length,
+  'sample env keys': Object.keys(process.env).filter(k => k.includes('ANTHROPIC') || k.includes('CLAUDE')).join(', ') || 'none',
+  'all env keys (first 20)': Object.keys(process.env).slice(0, 20).join(', ')
+});
+
 let ANTHROPIC_API_KEY = (process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.VITE_CLAUDE_API_KEY)?.trim();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -1010,9 +1020,33 @@ app.post('/message',
       const imageAttachments = attachments.filter(att => att.type === 'image' && att.url);
       if (imageAttachments.length > 0) {
         
+        // 🎯 TIER ENFORCEMENT: Check if user has image analysis access (Core/Studio only)
+        if (userTier === 'free') {
+          logger.warn(`[Message] Image analysis denied for free tier user: ${userId}`);
+          return res.status(403).json({
+            success: false,
+            error: 'Image analysis requires Core or Studio tier',
+            upgradeRequired: true,
+            feature: 'image_analysis',
+            tier: 'free',
+            message: 'Upgrade to Core tier ($19.99/month) to unlock image analysis and other advanced features.'
+          });
+        }
+        
         // Use the first image for analysis (can be extended for multiple images)
         const imageUrl = imageAttachments[0].url;
         const analysisPrompt = messageText || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand.";
+        
+        // ✅ CRITICAL: Check if ANTHROPIC_API_KEY is configured
+        if (!ANTHROPIC_API_KEY) {
+          logger.error('[Message] ❌ ANTHROPIC_API_KEY is missing - image analysis unavailable');
+          return res.status(503).json({
+            success: false,
+            error: 'Image analysis service is not configured',
+            details: 'ANTHROPIC_API_KEY is missing. Please contact support.',
+            requiresConfiguration: true
+          });
+        }
         
         try {
           // Call Claude Vision API for image analysis
@@ -1049,7 +1083,30 @@ app.post('/message',
 
           if (!response.ok) {
             const errorText = await response.text().catch(() => 'Claude Vision API error');
-            throw new Error(`Image analysis failed: ${errorText}`);
+            let errorJson = null;
+            try {
+              errorJson = JSON.parse(errorText);
+            } catch (e) {
+              // Not JSON, use text as-is
+            }
+            
+            // Log detailed error for debugging
+            logger.error('[Message] Image analysis API error:', {
+              userId,
+              tier: userTier,
+              status: response.status,
+              error: errorText,
+              imageUrl: imageUrl?.substring(0, 50) + '...'
+            });
+            
+            // Provide user-friendly error message
+            if (response.status === 401 || response.status === 403) {
+              throw new Error('Image analysis service configuration error. Please contact support.');
+            } else if (response.status === 429) {
+              throw new Error('Image analysis rate limit exceeded. Please try again in a few minutes.');
+            } else {
+              throw new Error(`Image analysis failed: ${errorJson?.error?.message || errorText}`);
+            }
           }
 
           const result = await response.json();
@@ -1666,24 +1723,121 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
 
 // Image analysis endpoint using Claude Vision
 app.post('/api/image-analysis', verifyJWT, async (req, res) => {
+  // ✅ CRITICAL: Generate requestId at the very top for complete error tracing
+  const requestId = uuidv4();
+  
   try {
+    logger.debug('[Image Analysis] Request received:', {
+      requestId,
+      hasBody: !!req.body,
+      hasUser: !!req.user,
+      userId: req.user?.id,
+      imageUrl: req.body?.imageUrl?.substring(0, 50) + '...'
+    });
+    
     const { imageUrl, userId, prompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand." } = req.body;
+    const authenticatedUserId = req.user?.id;
     
     if (!imageUrl) {
+      logger.warn('[Image Analysis] Missing imageUrl in request');
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    logger.debug('[Image Analysis] 🚀 Starting analysis with URL-based approach (no download needed)');
+    if (!authenticatedUserId) {
+      logger.error('[Image Analysis] ❌ No authenticated user ID found');
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'User ID not found in request'
+      });
+    }
+
+    // 🎯 TIER ENFORCEMENT: Check if user has image analysis access (Core/Studio only)
+    let tier = 'free';
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', authenticatedUserId)
+        .single();
+      
+      if (profileError) {
+        logger.warn(`[Image Analysis] Could not fetch tier for user ${authenticatedUserId}:`, profileError.message);
+        // Fail closed - default to free tier
+        tier = 'free';
+      } else {
+        tier = profile?.subscription_tier || 'free';
+      }
+    } catch (dbError) {
+      logger.error('[Image Analysis] Database error fetching tier:', dbError.message);
+      // Fail closed - default to free tier
+      tier = 'free';
+    }
+    
+    // Free tier doesn't have image analysis access
+    if (tier === 'free') {
+      logger.warn(`[Image Analysis] Access denied for free tier user: ${authenticatedUserId}`);
+      return res.status(403).json({ 
+        error: 'Image analysis requires Core or Studio tier',
+        upgradeRequired: true,
+        feature: 'image_analysis',
+        tier: 'free',
+        message: 'Upgrade to Core tier ($19.99/month) to unlock image analysis and other advanced features.'
+      });
+    }
+
+    // ✅ BEST PRACTICE: Validate image URL format
+    try {
+      const urlObj = new URL(imageUrl);
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        return res.status(400).json({ 
+          error: 'Invalid image URL',
+          details: 'Image URL must use HTTP or HTTPS protocol'
+        });
+      }
+    } catch (urlError) {
+      logger.warn('[Image Analysis] Invalid URL format:', imageUrl?.substring(0, 50));
+      return res.status(400).json({ 
+        error: 'Invalid image URL format',
+        details: 'Please provide a valid HTTP/HTTPS URL'
+      });
+    }
+
+    logger.debug(`[Image Analysis] 🚀 Starting analysis for tier ${tier} user ${authenticatedUserId} with URL-based approach (no download needed)`);
+
+    // ✅ CRITICAL: Check if ANTHROPIC_API_KEY is configured
+    if (!ANTHROPIC_API_KEY || (typeof ANTHROPIC_API_KEY === 'string' && ANTHROPIC_API_KEY.trim() === '')) {
+      logger.error('[Image Analysis] ❌ ANTHROPIC_API_KEY is missing - image analysis unavailable', {
+        hasKey: !!ANTHROPIC_API_KEY,
+        keyType: typeof ANTHROPIC_API_KEY
+      });
+      return res.status(503).json({ 
+        error: 'Image analysis service is not configured',
+        details: 'ANTHROPIC_API_KEY is missing. Please add it to Railway environment variables.',
+        requiresConfiguration: true
+      });
+    }
+
+    // ✅ Request ID already generated at top of endpoint
+    logger.debug(`[Image Analysis] Processing request (Request ID: ${requestId})`);
 
     // ✅ PERFORMANCE FIX: Use URL directly instead of downloading and converting to base64
     // This saves memory, bandwidth, and processing time (33% payload reduction)
     
-    // Call Claude Vision API with URL (with retry logic)
+    // ✅ BEST PRACTICE: Call Claude Vision API with timeout, retry logic, and exponential backoff
     let response;
     let lastError;
+    const MAX_RETRIES = 3;
+    const TIMEOUT_MS = 30000; // 30 seconds timeout per attempt
     
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      let timeoutId = null; // ✅ FIX: Declare outside try block for proper cleanup
       try {
+        // ✅ BEST PRACTICE: Use AbortController for timeout handling
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        
+        logger.debug(`[Image Analysis] Attempt ${attempt}/${MAX_RETRIES} (Request ID: ${requestId})`);
+        
         response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -1712,50 +1866,184 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
                 ]
               }
             ]
-          })
+          }),
+          signal: controller.signal,
+          agent: httpsAgent // ✅ Use custom agent for better connection handling
         });
+        
+        if (timeoutId) clearTimeout(timeoutId);
 
         if (response.ok) {
-          logger.debug(`✅ [Image Analysis] Claude Vision API call successful on attempt ${attempt} (URL-based)`);
+          logger.debug(`✅ [Image Analysis] Claude Vision API call successful on attempt ${attempt} (Request ID: ${requestId})`);
           break; // Success, exit retry loop
         } else {
-          lastError = await response.text().catch(() => 'Claude Vision API error');
+          const errorText = await response.text().catch(() => 'Claude Vision API error');
+          lastError = { status: response.status, message: errorText };
           
-          if (attempt < 3) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+          // ✅ BEST PRACTICE: Don't retry on 4xx errors (client errors)
+          if (response.status >= 400 && response.status < 500) {
+            logger.warn(`[Image Analysis] Client error (${response.status}), not retrying`);
+            break;
+          }
+          
+          // ✅ BEST PRACTICE: Exponential backoff for retries
+          if (attempt < MAX_RETRIES) {
+            const backoffMs = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+            logger.debug(`[Image Analysis] Retrying in ${backoffMs}ms...`);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
           }
         }
       } catch (fetchError) {
-        lastError = fetchError.message;
+        if (timeoutId) clearTimeout(timeoutId);
         
-        if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        if (fetchError.name === 'AbortError') {
+          lastError = { status: 0, message: `Request timeout after ${TIMEOUT_MS}ms` };
+          logger.warn(`[Image Analysis] Request timeout on attempt ${attempt}`);
+        } else {
+          lastError = { status: 0, message: fetchError.message };
+        }
+        
+        // ✅ BEST PRACTICE: Exponential backoff for retries
+        if (attempt < MAX_RETRIES) {
+          const backoffMs = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+          logger.debug(`[Image Analysis] Network error, retrying in ${backoffMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
         }
       }
     }
 
     if (!response || !response.ok) {
-      // ✅ Better error handling - check if it's an API key issue
-      const isAuthError = lastError?.includes('authentication') || lastError?.includes('401') || lastError?.includes('403');
-      const isNetworkError = lastError?.includes('fetch') || lastError?.includes('network') || lastError?.includes('timeout');
+      // ✅ BEST PRACTICE: Structured error handling with proper categorization
+      const errorStatus = response?.status || (lastError?.status ?? 0);
+      const errorMessage = lastError?.message || (typeof lastError === 'string' ? lastError : JSON.stringify(lastError)) || 'Unknown error';
+      const errorText = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
       
-      logger.warn('[Image Analysis] Failed after 3 attempts:', {
-        lastError,
+      // ✅ BEST PRACTICE: Categorize errors for proper HTTP status codes
+      const isAuthError = errorStatus === 401 || errorStatus === 403 || 
+                         errorText?.toLowerCase().includes('authentication') || 
+                         errorText?.toLowerCase().includes('invalid_api_key') ||
+                         errorText?.toLowerCase().includes('unauthorized');
+      const isRateLimit = errorStatus === 429 || errorText?.toLowerCase().includes('rate_limit');
+      const isTimeout = errorStatus === 0 || errorText?.toLowerCase().includes('timeout') || errorText?.toLowerCase().includes('abort');
+      const isNetworkError = !response || errorText?.toLowerCase().includes('fetch') || 
+                            errorText?.toLowerCase().includes('network') || 
+                            errorText?.toLowerCase().includes('econnrefused') ||
+                            errorText?.toLowerCase().includes('enotfound');
+      const isClientError = errorStatus >= 400 && errorStatus < 500;
+      
+      logger.error('[Image Analysis] Failed after retries:', {
+        requestId,
+        userId: authenticatedUserId,
+        tier,
+        attempt: MAX_RETRIES,
+        errorStatus,
+        errorMessage: errorText.substring(0, 200),
+        imageUrl: imageUrl?.substring(0, 50) + '...',
         isAuthError,
-        isNetworkError
+        isRateLimit,
+        isTimeout,
+        isNetworkError,
+        isClientError
       });
       
+      // ✅ BEST PRACTICE: Return appropriate HTTP status codes based on error type
+      if (isAuthError) {
+        return res.status(503).json({ 
+          error: 'Image analysis service configuration error',
+          details: 'The image analysis service is not properly configured. Please contact support.',
+          requiresConfiguration: true,
+          requestId
+        });
+      }
+      
+      if (isRateLimit) {
+        return res.status(429).json({ 
+          error: 'Image analysis rate limit exceeded',
+          details: 'Too many image analysis requests. Please try again in a few minutes.',
+          retryAfter: 60,
+          requestId
+        });
+      }
+      
+      if (isTimeout) {
+        return res.status(504).json({ 
+          error: 'Image analysis request timeout',
+          details: 'The image analysis request took too long. Please try again with a smaller image.',
+          requestId
+        });
+      }
+      
+      if (isNetworkError) {
+        return res.status(503).json({ 
+          error: 'Image analysis service temporarily unavailable',
+          details: 'Network error connecting to image analysis service. Please try again in a few minutes.',
+          requestId
+        });
+      }
+      
+      if (isClientError) {
+        return res.status(errorStatus).json({ 
+          error: 'Image analysis request failed',
+          details: errorText || 'Invalid request to image analysis service',
+          requestId
+        });
+      }
+      
       return res.status(500).json({ 
-        error: 'Image analysis failed after 3 attempts',
-        details: isAuthError ? 'Service configuration issue' : (isNetworkError ? 'Network error' : 'Unknown error'),
-        suggestion: isAuthError 
-          ? 'Image analysis service is not configured. Please contact support.'
-          : 'This appears to be a temporary network issue. Please try again in a few minutes.'
+        error: 'Image analysis failed',
+        details: errorText || 'Unknown error occurred during image analysis',
+        requestId
       });
     }
 
-    const result = await response.json();
-    const analysis = result.content[0].text;
+    // ✅ SAFE: Parse response with error handling
+    let result;
+    try {
+      const responseText = await response.text();
+      result = JSON.parse(responseText);
+    } catch (jsonError) {
+      logger.error('[Image Analysis] Failed to parse Claude API response as JSON:', {
+        error: jsonError.message,
+        status: response.status,
+        statusText: response.statusText,
+        requestId
+      });
+      return res.status(500).json({
+        error: 'Invalid response from image analysis service',
+        details: 'The service returned an invalid response format',
+        requestId
+      });
+    }
+    
+    // ✅ SAFE: Extract analysis with proper error handling
+    let analysis;
+    try {
+      if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+        analysis = result.content[0].text || result.content[0]?.text || '';
+      } else {
+        throw new Error('Invalid response structure from Claude API');
+      }
+    } catch (parseError) {
+      logger.error('[Image Analysis] Failed to extract analysis from Claude response:', {
+        error: parseError.message,
+        result: JSON.stringify(result).substring(0, 500),
+        requestId
+      });
+      return res.status(500).json({
+        error: 'Failed to extract image analysis',
+        details: 'The service returned an unexpected response format',
+        requestId
+      });
+    }
+    
+    if (!analysis || !analysis.trim()) {
+      logger.error('[Image Analysis] Empty analysis result from Claude', { requestId });
+      return res.status(500).json({
+        error: 'Empty analysis result',
+        details: 'The image analysis service returned an empty result',
+        requestId
+      });
+    }
 
     logger.debug('✅ [Image Analysis] Analysis complete');
 
@@ -1763,13 +2051,13 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     const conversationId = req.body.conversationId || null;
 
     // ✅ SAFETY: Check for empty string conversationId
-    if (conversationId && conversationId.trim() && userId && supabaseUrl !== 'https://your-project.supabase.co') {
+    if (conversationId && conversationId.trim() && authenticatedUserId && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
         // Save user's image message
         const { error: userMsgError } = await supabase
           .from('messages')
           .insert({
-            user_id: userId,
+            user_id: authenticatedUserId,
             conversation_id: conversationId,
             role: 'user',
             content: prompt,
@@ -1788,7 +2076,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
         const { error: aiMsgError } = await supabase
           .from('messages')
           .insert({
-            user_id: userId,
+            user_id: authenticatedUserId,
             conversation_id: conversationId,
             role: 'assistant',
             content: analysis,
@@ -1810,7 +2098,7 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
     if (supabaseUrl !== 'https://your-project.supabase.co') {
       try {
         await supabase.from('image_analyses').insert({
-          user_id: userId,
+          user_id: authenticatedUserId,
           image_url: imageUrl,
           analysis: analysis,
           prompt: prompt,
@@ -1825,14 +2113,43 @@ app.post('/api/image-analysis', verifyJWT, async (req, res) => {
       success: true,
       analysis: analysis,
       imageUrl: imageUrl,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      requestId // ✅ BEST PRACTICE: Include request ID for tracing
     });
 
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message
-    });
+    // ✅ CRITICAL: Ensure we always send a response, even if error handling fails
+    const errorDetails = {
+      requestId, // ✅ Use requestId from top of function
+      error: error?.message || 'Unknown error',
+      stack: error?.stack,
+      name: error?.name,
+      userId: req.user?.id,
+      imageUrl: req.body?.imageUrl?.substring(0, 50) + '...',
+      body: req.body ? JSON.stringify(req.body).substring(0, 200) : 'no body'
+    };
+    
+    logger.error('[Image Analysis] Unexpected error:', errorDetails);
+    
+    // ✅ BEST PRACTICE: Always send a response, even if something goes wrong
+    try {
+      res.status(500).json({ 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'production' 
+          ? 'An error occurred processing your image. Please try again.' 
+          : error?.message || 'Unknown error occurred',
+        requestId: requestId || 'unknown'
+      });
+    } catch (sendError) {
+      // If we can't send JSON, try to send plain text
+      logger.error('[Image Analysis] Failed to send error response:', sendError);
+      try {
+        res.status(500).send('Internal server error');
+      } catch (finalError) {
+        // Last resort - connection might be closed
+        logger.error('[Image Analysis] Failed to send any response:', finalError);
+      }
+    }
   }
 });
 

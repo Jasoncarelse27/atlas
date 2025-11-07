@@ -493,17 +493,36 @@ export async function sendMessageWithAttachments(
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        // ✅ CRITICAL: Capture full error response for debugging
+        let errorData: any = {};
+        try {
+          const errorText = await response.text();
+          errorData = errorText ? JSON.parse(errorText) : {};
+        } catch (parseError) {
+          logger.error('[chatService] Failed to parse error response:', parseError);
+          errorData = { error: `Server error (${response.status})` };
+        }
         
-        // ✅ Handle tier gating response
-        if (response.status === 403 && errorData.upgrade) {
+        // ✅ Log full error details for debugging
+        logger.error('[chatService] Image analysis failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData.error,
+          details: errorData.details,
+          requestId: errorData.requestId,
+          fullErrorData: errorData
+        });
+        
+        // ✅ Handle tier gating response (403 with upgradeRequired)
+        if (response.status === 403 && errorData.upgradeRequired) {
+          logger.debug('[chatService] Image analysis requires upgrade:', errorData);
           
           // Add upgrade message to chat
           const upgradeMessage: Message = {
             id: generateUUID(),
             conversationId,
             role: "assistant",
-            content: errorData.message,
+            content: errorData.message || 'Image analysis requires Core or Studio tier. Upgrade to unlock this feature!',
             timestamp: new Date().toISOString(),
             createdAt: new Date().toISOString(),
           };
@@ -511,8 +530,14 @@ export async function sendMessageWithAttachments(
           addMessage(upgradeMessage);
           
           // ✅ Backend will handle saving upgrade message if needed
+          return;
         }
-        return;
+        
+        // Handle other errors - throw so frontend can show error
+        const errorMessage = errorData.details || errorData.error || `Image analysis failed (${response.status})`;
+        
+        // Throw error so frontend can handle it
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -535,8 +560,8 @@ export async function sendMessageWithAttachments(
       return { success: true }; // Still return success - user message was saved
     }
     
-    // Don't throw - user message is still saved, just no AI response
-    logger.debug('[chatService] Image analysis error (non-critical):', aiError);
-    return { success: true }; // Still return success - user message was saved
+    // Re-throw other errors so frontend can show them
+    logger.error('[chatService] Image analysis error:', aiError);
+    throw aiError; // Let frontend handle the error display
   }
 }// Force Vercel rebuild Sat Sep 27 16:47:24 SAST 2025

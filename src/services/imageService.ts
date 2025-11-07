@@ -147,6 +147,12 @@ export const imageService = {
       const errorData = await res.json().catch(() => ({}));
       const errorMessage = errorData.details || errorData.error || "Image analysis failed";
       
+      // ✅ Handle tier gating (403 with upgradeRequired)
+      if (res.status === 403 && errorData.upgradeRequired) {
+        logger.debug('[ImageService] Image analysis requires upgrade');
+        throw new Error(errorData.message || 'Image analysis requires Core or Studio tier');
+      }
+      
       // ✅ Silent fail for service configuration issues - don't spam console
       const isServiceConfigError = errorMessage.includes('Service configuration issue') || 
                                    errorMessage.includes('not configured') ||
