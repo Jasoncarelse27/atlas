@@ -1099,7 +1099,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
-        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/30 border border-white/20'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
+        <div className={`${isDarkMode ? 'bg-gray-800/30 border-gray-700/50' : 'bg-white/20 border border-white/30'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -1125,7 +1125,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         </div>
 
         {/* Input Skeleton */}
-        <div className={`fixed bottom-0 left-0 right-0 p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-t`}>
+        <div className={`fixed bottom-0 left-0 right-0 p-4 ${isDarkMode ? 'bg-gray-900/20 border-gray-700/30' : 'bg-white/10 border-white/20'} backdrop-blur-xl border-t`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
           <div className="max-w-4xl mx-auto">
             <Skeleton height={50} borderRadius={25} />
           </div>
@@ -1227,7 +1227,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
         {/* Header with Menu Button - White with glass effect */}
-        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/30 border border-white/20'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
+        <div className={`${isDarkMode ? 'bg-gray-800/30 border-gray-700/50' : 'bg-white/20 border border-white/30'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -1473,10 +1473,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Input Toolbar - Static (no spring animation to prevent bounce) */}
+          {/* Input Toolbar - Floating with glass effect (no white background) */}
           <div 
-            className="fixed bottom-0 left-0 right-0 p-4 z-30 bg-white"
-            style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
+            className={`fixed bottom-0 left-0 right-0 p-4 z-30 ${isDarkMode ? 'bg-gray-900/20' : 'bg-white/10'} backdrop-blur-xl border-t ${isDarkMode ? 'border-gray-700/30' : 'border-white/20'}`}
+            style={{ 
+              paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+              WebkitBackdropFilter: 'blur(24px)',
+              backdropFilter: 'blur(24px)'
+            }}
           >
             <div className="max-w-4xl mx-auto">
               <EnhancedInputToolbar
