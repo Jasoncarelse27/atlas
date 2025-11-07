@@ -324,15 +324,22 @@ div[class*="Header"] button {
   color: inherit !important;
 }
 
-/* ✅ Force white background on ChatPage header and footer - no blue bleed */
-/* Target ChatPage header specifically */
-main[id="main-chat"] ~ div[class*="fixed"][class*="bottom"],
-div[class*="fixed"][class*="bottom"][class*="z-30"],
-/* Target header in ChatPage */
+/* ✅ CRITICAL: Ensure header and footer use white-tinted glass, not blue */
+/* Target header and footer specifically - force white-tinted transparent background */
 div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"],
-div[class*="backdrop-blur-md"][class*="sticky"][class*="top-0"] {
-  background-color: white !important;
-  background: white !important;
+div[class*="backdrop-blur-md"][class*="sticky"][class*="top-0"],
+div[class*="fixed"][class*="bottom"][class*="z-30"] {
+  /* Force white-tinted transparent background (not blue) */
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ✅ Prevent any blue links/buttons in header/footer */
+div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"] a,
+div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"] button,
+div[class*="fixed"][class*="bottom"][class*="z-30"] a,
+div[class*="fixed"][class*="bottom"][class*="z-30"] button {
+  color: inherit !important;
 }
 
 /* ✅ Override any blue backgrounds */
