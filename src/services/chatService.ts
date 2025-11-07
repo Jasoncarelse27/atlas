@@ -487,6 +487,7 @@ export async function sendMessageWithAttachments(
 
       const apiEndpoint = getApiEndpoint('/api/image-analysis');
       logger.debug("[chatService] 📡 Calling image analysis endpoint:", apiEndpoint);
+      logger.debug("[chatService] 🔐 Token preview:", token.substring(0, 20) + '...' + token.substring(token.length - 10));
 
       // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
       const response = await fetch(apiEndpoint, {

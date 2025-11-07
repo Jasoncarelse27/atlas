@@ -20,8 +20,46 @@ interface TierData {
 let realtimeChannelRef: ReturnType<typeof supabase.channel> | null = null;
 let subscribedUserId: string | null = null;
 
+// ✅ PERFORMANCE: Cache tier in localStorage for instant loading
+const TIER_CACHE_KEY = 'atlas:tier_cache';
+const TIER_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
+function getCachedTier(userId: string | null): TierData | null {
+  if (!userId || typeof window === 'undefined') return null;
+  
+  try {
+    const cached = localStorage.getItem(TIER_CACHE_KEY);
+    if (!cached) return null;
+    
+    const { tier, cachedUserId, timestamp } = JSON.parse(cached);
+    
+    // Check if cache is for this user and still valid
+    if (cachedUserId === userId && Date.now() - timestamp < TIER_CACHE_EXPIRY) {
+      return { tier, userId };
+    }
+  } catch (e) {
+    // Invalid cache, ignore
+  }
+  
+  return null;
+}
+
+function setCachedTier(data: TierData): void {
+  if (!data.userId || typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(TIER_CACHE_KEY, JSON.stringify({
+      tier: data.tier,
+      cachedUserId: data.userId,
+      timestamp: Date.now()
+    }));
+  } catch (e) {
+    // localStorage full or disabled, ignore
+  }
+}
+
 /**
- * Fetch user tier from Supabase (optimized for speed)
+ * Fetch user tier from Supabase (optimized for speed with localStorage cache)
  * @returns TierData with tier and userId
  */
 async function fetchTier(): Promise<TierData> {
@@ -44,6 +82,13 @@ async function fetchTier(): Promise<TierData> {
     }
 
     const userId = session.user.id;
+    
+    // ✅ PERFORMANCE FIX: Check localStorage cache first for instant loading
+    const cached = getCachedTier(userId);
+    if (cached) {
+      logger.debug('[useTierQuery] ✅ Using cached tier:', cached.tier);
+      return cached;
+    }
 
     const { data, error } = await supabase
       .from('profiles')
@@ -64,13 +109,16 @@ async function fetchTier(): Promise<TierData> {
     }
 
     const tier = data?.subscription_tier || 'free';
-    // Reduce logging verbosity - only log tier changes, not every fetch
-    // (React Query calls this frequently for cache validation)
-
-    return {
+    
+    const result = {
       tier,
       userId,
     };
+    
+    // ✅ PERFORMANCE FIX: Cache result for instant future loads
+    setCachedTier(result);
+    
+    return result;
   } catch (fetchError) {
     // ✅ CATCH NETWORK ERRORS: Better diagnostics for "Failed to fetch"
     logger.error('[useTierQuery] Network/fetch error:', {
@@ -119,10 +167,33 @@ export function useTierQuery() {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     // ✅ PERFORMANCE FIX: Show 'free' tier immediately while loading (prevents slow drawer)
     placeholderData: { tier: 'free' as Tier, userId: null },
-    // ✅ PERFORMANCE FIX: Use cached data immediately if available
+    // ✅ PERFORMANCE FIX: Use cached data immediately if available (localStorage + React Query cache)
     initialData: () => {
+      // First check React Query cache
       const cached = queryClient.getQueryData<TierData>(['user-tier']);
-      return cached || { tier: 'free' as Tier, userId: null };
+      if (cached) return cached;
+      
+      // Then check localStorage cache for instant loading
+      if (typeof window !== 'undefined') {
+        try {
+          const session = localStorage.getItem('sb-' + import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token');
+          if (session) {
+            const parsed = JSON.parse(session);
+            const userId = parsed?.user?.id;
+            if (userId) {
+              const localStorageCached = getCachedTier(userId);
+              if (localStorageCached) {
+                logger.debug('[useTierQuery] ✅ Using localStorage cache for instant load');
+                return localStorageCached;
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
+      
+      return { tier: 'free' as Tier, userId: null };
     },
   });
 
@@ -177,10 +248,14 @@ export function useTierQuery() {
           logger.info(`[useTierQuery] ✨ Tier updated: ${newTier.toUpperCase()}`);
           
           // Instantly update cache with new tier (no API call needed!)
-          queryClient.setQueryData<TierData>(['user-tier'], (_old) => ({
+          const updatedData: TierData = {
             tier: newTier,
             userId: userId,
-          }));
+          };
+          queryClient.setQueryData<TierData>(['user-tier'], updatedData);
+          
+          // ✅ PERFORMANCE FIX: Update localStorage cache too
+          setCachedTier(updatedData);
         }
       )
       .subscribe((status) => {
