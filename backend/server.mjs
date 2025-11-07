@@ -341,7 +341,15 @@ const _mapTierToAnthropicModel = (tier) => {
 // ✅ STARTUP VERIFICATION: Verify Anthropic API key and model before starting server
 async function verifyAnthropicConfig() {
   // ✅ CI FIX: Skip verification in test/CI environments with mock keys
-  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+  // GitHub Actions sets CI=true automatically, and workflow sets NODE_ENV=test
+  const isTestEnv = process.env.NODE_ENV === 'test' || 
+                    process.env.CI === 'true' || 
+                    process.env.CI === true ||
+                    process.env.GITHUB_ACTIONS === 'true' || 
+                    process.env.GITHUB_ACTIONS === true;
+  
+  // ✅ DEBUG: Log environment detection
+  logger.debug(`[verifyAnthropicConfig] Environment check: NODE_ENV=${process.env.NODE_ENV}, CI=${process.env.CI}, GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}, isTestEnv=${isTestEnv}`);
   
   if (!ANTHROPIC_API_KEY) {
     logger.error('[Server] ❌ ANTHROPIC_API_KEY is missing - cannot verify');
