@@ -341,7 +341,15 @@ export class ConversationSyncService {
     try {
       // 1. Get last sync timestamp
       const syncMeta = await atlasDB.syncMetadata.get(userId);
-      const isFirstSync = !syncMeta;
+      
+      // ✅ CRITICAL FIX: Check if IndexedDB is actually empty (even if syncMetadata exists)
+      // This handles cases where IndexedDB was cleared but syncMetadata wasn't
+      const localConversationCount = await atlasDB.conversations
+        .where('userId')
+        .equals(userId)
+        .count();
+      
+      const isFirstSync = !syncMeta || localConversationCount === 0;
       
       // ✅ CRITICAL FIX: On first sync (empty Dexie), fetch ALL data, not just last 30 days
       let lastSyncedAt = isFirstSync 
@@ -350,6 +358,7 @@ export class ConversationSyncService {
       
       if (import.meta.env.DEV) {
         logger.debug('[ConversationSync] Last synced at:', lastSyncedAt, isFirstSync ? '(FIRST SYNC - fetching all data)' : '(delta sync)');
+        logger.debug('[ConversationSync] Local conversation count:', localConversationCount);
       }
       
       // 2. Fetch ONLY conversations updated since last sync (non-deleted only)
@@ -370,6 +379,32 @@ export class ConversationSyncService {
       }
       
       conversationsSynced = updatedConversations?.length || 0;
+      
+      // ✅ DIAGNOSTIC: Log sync details for troubleshooting
+      logger.info(`[ConversationSync] 📊 Sync results:`, {
+        found: conversationsSynced,
+        userId: userId.slice(0, 8) + '...',
+        lastSyncedAt,
+        isFirstSync,
+        localCount: localConversationCount
+      });
+      
+      // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all
+      if (conversationsSynced === 0 && isFirstSync) {
+        logger.warn('[ConversationSync] ⚠️ No conversations found on first sync. Checking if any exist...');
+        const { data: allConversations, error: checkError } = await supabase
+          .from('conversations')
+          .select('id, title, updated_at, deleted_at')
+          .eq('user_id', userId)
+          .limit(5);
+        
+        if (!checkError && allConversations) {
+          logger.info(`[ConversationSync] 📋 Found ${allConversations.length} total conversations (including deleted):`, 
+            allConversations.map(c => ({ id: c.id, title: c.title, deleted: !!c.deleted_at }))
+          );
+        }
+      }
+      
       logger.debug(`[ConversationSync] ✅ Found ${conversationsSynced} updated conversations`);
       logger.debug('[ConversationSync] 📥 Syncing conversations...');
       
