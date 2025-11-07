@@ -1102,10 +1102,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: 'transparent',
-            backgroundColor: 'transparent',
-            backdropFilter: 'none',
-            borderBottom: 'none'
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1240,14 +1241,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
-        {/* Header - Fully transparent like footer */}
+        {/* Header - Clean white with gloss effect */}
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: 'transparent',
-            backgroundColor: 'transparent',
-            backdropFilter: 'none',
-            borderBottom: 'none'
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
