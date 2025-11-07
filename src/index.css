@@ -1,5 +1,7 @@
 /* ✅ Mobile optimizations - MUST be first */
 @import './features/rituals/styles/mobile.css';
+/* ✅ Android optimizations - Material Design & Android-specific fixes */
+@import './styles/android-optimizations.css';
 
 @tailwind base;
 @tailwind components;

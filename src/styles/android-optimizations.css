@@ -1,0 +1,163 @@
+/**
+ * ✅ ANDROID BEST PRACTICE: Android-specific optimizations
+ * 
+ * Material Design 3 compliance and Android Chrome-specific fixes
+ */
+
+/* ============================================
+   Material Design Ripple Effect
+   ============================================ */
+
+/* Android-specific touch optimizations */
+@media (pointer: coarse) and (hover: none) {
+  /* Material Design ripple effect for buttons */
+  button,
+  a[role="button"],
+  [role="button"],
+  .material-button {
+    position: relative;
+    overflow: hidden;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Ripple effect on tap */
+  button::after,
+  a[role="button"]::after,
+  [role="button"]::after,
+  .material-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  button:active::after,
+  a[role="button"]:active::after,
+  [role="button"]:active::after,
+  .material-button:active::after {
+    width: 300px;
+    height: 300px;
+    opacity: 1;
+  }
+
+  /* Material Design elevation on press */
+  button:active,
+  a[role="button"]:active,
+  [role="button"]:active,
+  .material-button:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* ============================================
+   Android Chrome Performance Optimizations
+   ============================================ */
+
+@media (pointer: coarse) and (hover: none) {
+  /* Force GPU acceleration for smooth scrolling */
+  .scroll-container,
+  .mobile-scroll {
+    will-change: scroll-position;
+    transform: translateZ(0);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimize animations for Android */
+  @media (prefers-reduced-motion: no-preference) {
+    * {
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); /* Material Design easing */
+    }
+  }
+
+  /* Reduce repaints during scroll */
+  .chat-message-list,
+  .conversation-list {
+    contain: layout style paint;
+  }
+}
+
+/* ============================================
+   Android Keyboard Adjustments
+   ============================================ */
+
+/* Adjust viewport when keyboard is open */
+@media (pointer: coarse) and (hover: none) {
+  .keyboard-adjust {
+    /* Will be dynamically adjusted by useAndroidKeyboard hook */
+    transition: padding-bottom 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* ============================================
+   Android-Specific Touch Improvements
+   ============================================ */
+
+/* Better touch feedback for Android */
+@media (pointer: coarse) and (hover: none) {
+  /* Remove tap highlight (we use ripple instead) */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Improve touch target spacing */
+  button + button,
+  .touch-target + .touch-target {
+    margin-left: 8px; /* Material Design spacing */
+  }
+
+  /* Card touch feedback */
+  .card,
+  [role="button"].card {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card:active,
+  [role="button"].card:active {
+    transform: scale(0.98);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* ============================================
+   Android Chrome Viewport Fixes
+   ============================================ */
+
+/* Fix for Android Chrome address bar */
+@media (pointer: coarse) and (hover: none) {
+  html {
+    /* Use dynamic viewport height */
+    height: 100dvh;
+    height: -webkit-fill-available;
+  }
+
+  body {
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* ============================================
+   Material Design Typography
+   ============================================ */
+
+/* Android-specific font rendering */
+@media (pointer: coarse) and (hover: none) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+

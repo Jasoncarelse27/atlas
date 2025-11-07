@@ -9,7 +9,10 @@
     <link rel="icon" type="image/png" href="/atlas-logo.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/atlas-logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- ✅ ANDROID BEST PRACTICE: Viewport meta with Android support -->
+    <!-- iOS: viewport-fit=cover for notch support -->
+    <!-- Android: maximum-scale=5.0 for accessibility (allows zoom) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes" />
     <title>Atlas AI - Your AI-Powered Emotional Intelligence Companion</title>
     <!-- Force Vercel HTML rebuild: 2025-11-04-18:35 -->
     <meta name="description" content="Atlas AI - Intelligent conversations with emotional intelligence, secure and private." />

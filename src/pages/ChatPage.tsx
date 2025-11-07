@@ -38,12 +38,17 @@ import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
+import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
+import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
 
 interface ChatPageProps {
   user?: { id: string; email?: string };
 }
 
 const ChatPage: React.FC<ChatPageProps> = () => {
+  // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
+  useAndroidBackButton();
+  const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
   const navigate = useNavigate();
   const {
     voiceModalVisible,
