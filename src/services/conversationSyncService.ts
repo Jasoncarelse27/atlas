@@ -380,7 +380,14 @@ export class ConversationSyncService {
       
       conversationsSynced = updatedConversations?.length || 0;
       
-      // ✅ DIAGNOSTIC: Log sync details for troubleshooting
+      // ✅ DIAGNOSTIC: Log sync details for troubleshooting (use console.log for visibility)
+      console.log(`[ConversationSync] 📊 Sync results:`, {
+        found: conversationsSynced,
+        userId: userId.slice(0, 8) + '...',
+        lastSyncedAt,
+        isFirstSync,
+        localCount: localConversationCount
+      });
       logger.info(`[ConversationSync] 📊 Sync results:`, {
         found: conversationsSynced,
         userId: userId.slice(0, 8) + '...',
@@ -391,17 +398,28 @@ export class ConversationSyncService {
       
       // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all
       if (conversationsSynced === 0 && isFirstSync) {
+        console.warn('[ConversationSync] ⚠️ No conversations found on first sync. Checking if any exist...');
         logger.warn('[ConversationSync] ⚠️ No conversations found on first sync. Checking if any exist...');
+        
         const { data: allConversations, error: checkError } = await supabase
           .from('conversations')
           .select('id, title, updated_at, deleted_at')
           .eq('user_id', userId)
           .limit(5);
         
-        if (!checkError && allConversations) {
+        if (checkError) {
+          console.error('[ConversationSync] ❌ Error checking conversations:', checkError);
+          logger.error('[ConversationSync] ❌ Error checking conversations:', checkError);
+        } else if (allConversations) {
+          console.log(`[ConversationSync] 📋 Found ${allConversations.length} total conversations (including deleted):`, 
+            allConversations.map(c => ({ id: c.id, title: c.title, deleted: !!c.deleted_at }))
+          );
           logger.info(`[ConversationSync] 📋 Found ${allConversations.length} total conversations (including deleted):`, 
             allConversations.map(c => ({ id: c.id, title: c.title, deleted: !!c.deleted_at }))
           );
+        } else {
+          console.log('[ConversationSync] 📋 No conversations found in Supabase at all');
+          logger.info('[ConversationSync] 📋 No conversations found in Supabase at all');
         }
       }
       
