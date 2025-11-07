@@ -82,7 +82,22 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
 
   const copyToClipboard = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      // ✅ MOBILE FIX: Use native clipboard API with fallback for mobile Safari
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Mobile Safari fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        textArea.style.left = '-999999px';
+        textArea.setAttribute('readonly', '');
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       if (onSoundPlay) {
         onSoundPlay('click');
@@ -90,6 +105,7 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       // Clipboard operation failure is non-critical
+      logger.debug('[Copy] Failed to copy:', err);
     }
   };
 
