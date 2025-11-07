@@ -139,12 +139,21 @@ app.get('/healthz', async (req, res) => {
         })(),
         // Redis check (with timeout)
         (async () => {
-          if (!redisService) return false;
+          if (!redisService) {
+            logger.debug('[HealthCheck] Redis service not initialized');
+            return false;
+          }
           try {
-            return await Promise.race([
+            // ✅ CI FIX: Wait for Redis connection with longer timeout (Redis might need time to connect)
+            const redisHealthy = await Promise.race([
               redisService.healthCheck(),
-              new Promise((resolve) => setTimeout(() => resolve(false), 3000)) // 3s timeout for CI
+              new Promise((resolve) => setTimeout(() => {
+                logger.debug('[HealthCheck] Redis check timeout after 5s');
+                resolve(false);
+              }, 5000)) // 5s timeout for CI
             ]);
+            logger.debug(`[HealthCheck] Redis check result: ${redisHealthy}`);
+            return redisHealthy;
           } catch (error) {
             logger.debug('[HealthCheck] Redis check failed:', error.message);
             return false;
