@@ -1134,12 +1134,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         {/* Input Skeleton */}
         <div 
-          className={`fixed bottom-0 left-0 right-0 p-4 ${isDarkMode ? 'bg-gray-900/20 border-gray-700/30' : 'bg-white/10 border-white/20'} backdrop-blur-lg border-t`}
+          className={`fixed bottom-0 left-0 right-0 p-4 backdrop-blur-lg`}
           style={{ 
             WebkitBackdropFilter: 'blur(16px) saturate(180%)',
             backdropFilter: 'blur(16px) saturate(180%)',
             boxShadow: '0 -8px 32px 0 rgba(0, 0, 0, 0.1)',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)'
+            backgroundColor: 'transparent'
           }}
         >
           <div className="max-w-4xl mx-auto">
@@ -1498,16 +1498,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Input Toolbar - Glassmorphism best practices */}
+          {/* Input Toolbar - Floating with glass effect, no border, no background */}
           <div 
-            className={`fixed bottom-0 left-0 right-0 p-4 z-30 ${isDarkMode ? 'bg-gray-900/20 border-gray-700/30' : 'bg-white/10 border-white/20'} backdrop-blur-lg border-t`}
+            className={`fixed bottom-0 left-0 right-0 p-4 z-30 backdrop-blur-lg`}
             style={{ 
               paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
               WebkitBackdropFilter: 'blur(16px) saturate(180%)',
               backdropFilter: 'blur(16px) saturate(180%)',
               boxShadow: '0 -8px 32px 0 rgba(0, 0, 0, 0.1)',
-              // Fallback for browsers without backdrop-filter support
-              backgroundColor: isDarkMode ? 'rgba(17, 24, 39, 0.8)' : 'rgba(255, 255, 255, 0.8)'
+              backgroundColor: 'transparent' // Fully transparent - let glass effect show through
             }}
           >
             <div className="max-w-4xl mx-auto">

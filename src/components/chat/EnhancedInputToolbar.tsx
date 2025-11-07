@@ -652,9 +652,9 @@ export default function EnhancedInputToolbar({
           {/* Main Input Container - Professional Atlas Style */}
           <motion.div 
             data-input-area
-            className="flex items-end w-full max-w-4xl mx-auto px-3 py-2 bg-gradient-to-r from-[#F4E8E1] via-[#F3D3B8] to-[#F4E8E1] rounded-3xl shadow-2xl"
+            className="flex items-end w-full max-w-4xl mx-auto px-3 py-2 bg-transparent rounded-3xl"
             style={{
-              boxShadow: '0 8px 32px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
               borderRadius: '28px' // Extra rounded for polish
             }}
           >
@@ -742,7 +742,7 @@ export default function EnhancedInputToolbar({
                   ? (window.innerWidth < 640 ? "Add a caption..." : "Add a caption (optional)...")
                   : placeholder
               }
-              className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D3DCAB] border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
+              className="flex-1 mx-2 sm:mx-3 bg-white/90 backdrop-blur-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D3DCAB] border border-white/30 rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
               style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
               disabled={isProcessing || disabled}
               autoComplete="off"

@@ -326,14 +326,12 @@ div[class*="Header"] button {
 
 /* ✅ GLASSMORPHISM BEST PRACTICES: Header and footer glass effect */
 /* Following 2024 best practices: opacity 0.1-0.2, blur 16px, saturate for richness */
+/* Note: Background colors are handled by inline styles in components for proper fallback */
 div[class*="backdrop-blur-lg"][class*="sticky"][class*="top-0"],
 div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"],
 div[class*="backdrop-blur-md"][class*="sticky"][class*="top-0"],
 div[class*="fixed"][class*="bottom"][class*="z-30"] {
-  /* Ensure white-tinted glass (not blue) - opacity 0.1 for subtle effect */
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-  /* Enhance glass effect with saturation */
+  /* Enhance glass effect with saturation - let inline styles handle background color */
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
 }
