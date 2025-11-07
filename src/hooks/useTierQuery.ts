@@ -167,32 +167,14 @@ export function useTierQuery() {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     // ✅ PERFORMANCE FIX: Show 'free' tier immediately while loading (prevents slow drawer)
     placeholderData: { tier: 'free' as Tier, userId: null },
-    // ✅ PERFORMANCE FIX: Use cached data immediately if available (localStorage + React Query cache)
+    // ✅ PERFORMANCE FIX: Use cached data immediately if available
+    // Note: localStorage cache check happens in fetchTier() for async session access
     initialData: () => {
-      // First check React Query cache
+      // Check React Query cache first (fastest)
       const cached = queryClient.getQueryData<TierData>(['user-tier']);
       if (cached) return cached;
       
-      // Then check localStorage cache for instant loading
-      if (typeof window !== 'undefined') {
-        try {
-          const session = localStorage.getItem('sb-' + import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token');
-          if (session) {
-            const parsed = JSON.parse(session);
-            const userId = parsed?.user?.id;
-            if (userId) {
-              const localStorageCached = getCachedTier(userId);
-              if (localStorageCached) {
-                logger.debug('[useTierQuery] ✅ Using localStorage cache for instant load');
-                return localStorageCached;
-              }
-            }
-          }
-        } catch (e) {
-          // Ignore localStorage errors
-        }
-      }
-      
+      // Fall back to placeholder (will be replaced by fetchTier's localStorage cache)
       return { tier: 'free' as Tier, userId: null };
     },
   });
