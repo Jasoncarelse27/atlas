@@ -19,6 +19,7 @@ import { logger } from './lib/simpleLogger.mjs';
 import authMiddleware from './middleware/authMiddleware.mjs';
 import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
 import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
+import { messageRateLimit, imageAnalysisRateLimit } from './middleware/rateLimitMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';

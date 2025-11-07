@@ -205,7 +205,7 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     };
     
     let currentInterval = getSyncInterval();
-    syncInterval = setInterval(() => {
+    const syncFunction = () => {
       // 🚀 Skip sync if voice call is active
       if (voiceCallState.getActive()) {
         logger.debug("[SYNC] Skipping sync - voice call active");
@@ -219,13 +219,15 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
         currentInterval = newInterval;
         // Restart interval with new timing
         clearInterval(syncInterval);
-        syncInterval = setInterval(arguments.callee, newInterval);
+        syncInterval = setInterval(syncFunction, newInterval);
       }
       
       conversationSyncService.deltaSync(userId).catch(error => {
         logger.error("[SYNC] Background delta sync failed:", error);
       });
-    }, currentInterval);
+    };
+    
+    syncInterval = setInterval(syncFunction, currentInterval);
   }
 
   // Also sync when app regains focus (Web + React Native)
