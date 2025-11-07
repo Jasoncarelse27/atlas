@@ -1506,12 +1506,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           </div>
 
         {/* Footer - ✅ WHITE GRADIENT TRANSPARENT APPROACH (restored) */}
-        {/* ✅ FIX: Proper spacing with gradient fade - closer to bottom */}
+        {/* ✅ FIX: Minimal spacing - textbox sits very close to bottom */}
         <div
           className={`fixed bottom-0 left-0 right-0 z-30`}
           style={{
-            paddingBottom: `calc(10px + env(safe-area-inset-bottom, 0px))`, // ✅ Reduced to 10px - closer to bottom
-            paddingTop: '12px', // ✅ Reduced from 16px for tighter spacing
+            paddingBottom: `calc(5px + env(safe-area-inset-bottom, 0px))`, // ✅ Minimal 5px - very close to bottom
+            paddingTop: '10px', // ✅ Reduced for tighter spacing
             // ✅ WHITE GRADIENT TRANSPARENT: Fade from solid white at bottom to transparent at top
             background: 'linear-gradient(to top, rgba(249, 246, 243, 1) 0%, rgba(249, 246, 243, 0.95) 30%, rgba(249, 246, 243, 0.85) 60%, rgba(249, 246, 243, 0.7) 80%, rgba(249, 246, 243, 0) 100%)',
             backgroundColor: 'rgba(249, 246, 243, 0)', // ✅ Transparent base for gradient overlay
