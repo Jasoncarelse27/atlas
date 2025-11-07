@@ -1098,11 +1098,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   if (!userId) {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-        {/* Header Skeleton - White gradient effect */}
+        {/* Header Skeleton - White gradient effect (visible fade) */}
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.95))',
+            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
             backgroundColor: '#ffffff',
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
@@ -1242,11 +1242,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
-        {/* Header - White gradient effect */}
+        {/* Header - White gradient effect (visible fade) */}
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.95))',
+            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
             backgroundColor: '#ffffff',
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
@@ -1499,12 +1499,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Footer - White gradient effect */}
+          {/* Footer - White gradient effect (visible fade) */}
           <div 
             className={`fixed bottom-0 left-0 right-0 p-4 z-30`}
             style={{ 
               paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-              background: 'linear-gradient(to top, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.95))',
+              background: 'linear-gradient(to top, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
               backgroundColor: 'transparent',
               backdropFilter: 'none !important',
               WebkitBackdropFilter: 'none !important',
