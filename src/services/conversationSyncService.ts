@@ -358,19 +358,18 @@ export class ConversationSyncService {
       
       // ✅ ALWAYS log diagnostic info (even in production) for troubleshooting
       // ✅ CRITICAL DIAGNOSTIC: Always log sync state (logger.info shows in production)
-      logger.info('[ConversationSync] 🔍 Sync state:', {
+      const syncState = {
         isFirstSync,
         localCount: localConversationCount,
         lastSyncedAt,
         hasSyncMeta: !!syncMeta,
         userId: userId.slice(0, 8) + '...'
-      });
-      console.log('[ConversationSync] 🔍 Sync state:', {
-        isFirstSync,
-        localCount: localConversationCount,
-        lastSyncedAt,
-        hasSyncMeta: !!syncMeta
-      });
+      };
+      
+      // ✅ VISIBLE DIAGNOSTIC: Use console.error so it's NEVER filtered
+      console.error('[ConversationSync] 🔍 SYNC STATE:', syncState);
+      logger.info('[ConversationSync] 🔍 Sync state:', syncState);
+      console.log('[ConversationSync] 🔍 Sync state:', syncState);
       
       // 2. Fetch conversations - use different query for first sync vs delta sync
       let updatedConversations: any[] | null = null;
@@ -420,22 +419,19 @@ export class ConversationSyncService {
       // ✅ DIAGNOSTIC: Log sync details for troubleshooting (ALWAYS log, even in production)
       // ✅ CRITICAL: Log sync results with query type
       const queryType = isFirstSync ? 'FIRST_SYNC (all conversations)' : 'DELTA_SYNC (updated only)';
-      logger.info(`[ConversationSync] 📊 Sync results:`, {
+      const syncResults = {
         found: conversationsSynced,
         userId: userId.slice(0, 8) + '...',
         lastSyncedAt,
         isFirstSync,
         localCount: localConversationCount,
         queryType
-      });
-      console.log(`[ConversationSync] 📊 Sync results:`, {
-        found: conversationsSynced,
-        userId: userId.slice(0, 8) + '...',
-        lastSyncedAt,
-        isFirstSync,
-        localCount: localConversationCount,
-        queryType
-      });
+      };
+      
+      // ✅ VISIBLE DIAGNOSTIC: Use console.error so it's NEVER filtered
+      console.error('[ConversationSync] 📊 SYNC RESULTS:', syncResults);
+      logger.info(`[ConversationSync] 📊 Sync results:`, syncResults);
+      console.log(`[ConversationSync] 📊 Sync results:`, syncResults);
       
       // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all
       if (conversationsSynced === 0 && isFirstSync) {

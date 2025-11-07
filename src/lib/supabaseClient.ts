@@ -97,10 +97,15 @@ export const supabase = (() => {
   return supabaseInstance;
 })();
 
-// Dev-only: expose for console debugging (only if not already exposed)
-if (import.meta.env.DEV && typeof window !== 'undefined') {
+// ✅ TEMPORARY: Expose for console debugging in production (for troubleshooting)
+// TODO: Remove after conversation sync issue is resolved
+if (typeof window !== 'undefined') {
   if (!(window as any).supabase) {
     (window as any).supabase = supabase;
+  }
+  // Also expose for easy access
+  if (!(window as any).atlasSupabase) {
+    (window as any).atlasSupabase = supabase;
   }
 }
 
