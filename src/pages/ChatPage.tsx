@@ -1099,7 +1099,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
-        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/95'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
+        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/30 border border-white/20'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">
@@ -1227,7 +1227,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
         {/* Header with Menu Button - White with glass effect */}
-        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/95'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
+        <div className={`${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white/30 border border-white/20'} backdrop-blur-xl sticky top-0 z-30 shadow-sm`} style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)' }}>
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 sm:space-x-4">

@@ -799,7 +799,7 @@ export default function EnhancedInputToolbar({
                 }
                 className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
                   isVoiceCallComingSoon()
-                    ? 'bg-gray-500 hover:bg-gray-500 opacity-60 cursor-not-allowed'
+                    ? 'bg-[#8FA67E]/50 hover:bg-[#8FA67E]/50 opacity-70 cursor-not-allowed'
                     : isStudioTier
                       ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse animate-pulse-subtle'
                       : 'bg-gray-600 hover:bg-gray-500 opacity-60'
