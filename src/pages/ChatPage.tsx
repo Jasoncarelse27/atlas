@@ -1505,21 +1505,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Footer - Clean white background (no black block) */}
-          {/* ✅ FIX: Extended padding to cover browser chrome area */}
-          <div 
-            className={`fixed bottom-0 left-0 right-0 z-30`}
-            style={{ 
-              paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', // ✅ Increased to cover browser chrome
-              paddingTop: '16px',
-              backgroundColor: '#F9F6F3', // ✅ Atlas pearl background - matches body
-              background: '#F9F6F3', // ✅ Ensure solid background (no gradient causing black)
-              backdropFilter: 'none !important',
-              WebkitBackdropFilter: 'none !important',
-              borderTop: 'none',
-              minHeight: '120px' // ✅ Ensure footer covers browser chrome area
-            }}
-          >
+        {/* Footer - ✅ WHITE GRADIENT TRANSPARENT APPROACH (restored) */}
+        {/* ✅ FIX: Proper spacing with gradient fade */}
+        <div
+          className={`fixed bottom-0 left-0 right-0 z-30`}
+          style={{
+            paddingBottom: `calc(20px + env(safe-area-inset-bottom, 0px))`, // ✅ Reduced from 80px - proper spacing
+            paddingTop: '16px',
+            // ✅ WHITE GRADIENT TRANSPARENT: Fade from solid white at bottom to transparent at top
+            background: 'linear-gradient(to top, rgba(249, 246, 243, 1) 0%, rgba(249, 246, 243, 0.95) 30%, rgba(249, 246, 243, 0.85) 60%, rgba(249, 246, 243, 0.7) 80%, rgba(249, 246, 243, 0) 100%)',
+            backgroundColor: 'rgba(249, 246, 243, 0)', // ✅ Transparent base for gradient overlay
+            backdropFilter: 'blur(10px)', // ✅ Subtle blur for depth
+            WebkitBackdropFilter: 'blur(10px)',
+            borderTop: 'none',
+            // ✅ Removed minHeight - let content determine height naturally
+          }}
+        >
             <div className="max-w-4xl mx-auto">
               <EnhancedInputToolbar
                 onSendMessage={handleTextMessage}
