@@ -5,15 +5,18 @@
 
 import pkg from 'express-rate-limit';
 const rateLimit = pkg.default || pkg;
+import { ipKeyGenerator as expressIpKeyGenerator } from 'express-rate-limit';
 import { logger } from '../lib/simpleLogger.mjs';
 import { redisService } from '../services/redisService.mjs';
 
 // ✅ SECURITY FIX: Use proper IPv6 handling for rate limiting
 // Prevents IPv6 users from bypassing rate limits
-const ipKeyGenerator = rateLimit.ipKeyGenerator || ((req) => {
-  // Fallback if ipKeyGenerator not available
-  return req.ip || req.connection?.remoteAddress || 'unknown';
-});
+// ipKeyGenerator handles IPv6 subnets correctly (prevents bypass)
+const ipKeyGenerator = (req) => {
+  const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
+  // Use express-rate-limit's ipKeyGenerator for proper IPv6 handling
+  return expressIpKeyGenerator(ip);
+};
 
 /**
  * Create rate limiter with Redis store (if available) or memory store
@@ -91,7 +94,7 @@ export const imageAnalysisRateLimit = createRateLimiter({
     const tier = req.user?.tier || 'free';
     return tier === 'free' ? 5 : 30; // 5/min free, 30/min paid
   },
-  keyGenerator: (req) => req.user?.id || req.ip,
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling
   message: 'Too many image analysis requests. Free tier: 5/min, Paid: 30/min. Please slow down.',
 });
 
@@ -105,7 +108,7 @@ export const generalApiRateLimit = createRateLimiter({
     const tier = req.user?.tier || 'free';
     return tier === 'free' ? 60 : 200; // 60/min free, 200/min paid
   },
-  keyGenerator: (req) => req.user?.id || req.ip,
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling
   message: 'Too many requests. Please slow down.',
 });
 
