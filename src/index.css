@@ -324,14 +324,18 @@ div[class*="Header"] button {
   color: inherit !important;
 }
 
-/* ✅ CRITICAL: Ensure header and footer use white-tinted glass, not blue */
-/* Target header and footer specifically - force white-tinted transparent background */
+/* ✅ GLASSMORPHISM BEST PRACTICES: Header and footer glass effect */
+/* Following 2024 best practices: opacity 0.1-0.2, blur 16px, saturate for richness */
+div[class*="backdrop-blur-lg"][class*="sticky"][class*="top-0"],
 div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"],
 div[class*="backdrop-blur-md"][class*="sticky"][class*="top-0"],
 div[class*="fixed"][class*="bottom"][class*="z-30"] {
-  /* Force white-tinted transparent background (not blue) */
-  background-color: rgba(255, 255, 255, 0.2) !important;
-  background: rgba(255, 255, 255, 0.2) !important;
+  /* Ensure white-tinted glass (not blue) - opacity 0.1 for subtle effect */
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  /* Enhance glass effect with saturation */
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
 }
 
 /* ✅ Prevent any blue links/buttons in header/footer */
