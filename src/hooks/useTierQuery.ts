@@ -62,7 +62,7 @@ function setCachedTier(data: TierData): void {
  * Fetch user tier from Supabase (optimized for speed with localStorage cache)
  * @returns TierData with tier and userId
  */
-async function fetchTier(): Promise<TierData> {
+async function fetchTier(forceRefresh = false): Promise<TierData> {
   try {
     // Get cached session first (faster than getUser)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -74,22 +74,53 @@ async function fetchTier(): Promise<TierData> {
         details: sessionError.details,
         hint: sessionError.hint
       });
+      // ✅ MOBILE FIX: Clear stale cache on session error
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
       return { tier: 'free', userId: null };
     }
     
     if (!session?.user) {
+      // ✅ MOBILE FIX: Clear stale cache when not logged in
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
       return { tier: 'free', userId: null };
     }
 
     const userId = session.user.id;
     
-    // ✅ PERFORMANCE FIX: Check localStorage cache first for instant loading
-    const cached = getCachedTier(userId);
-    if (cached) {
-      logger.debug('[useTierQuery] ✅ Using cached tier:', cached.tier);
-      return cached;
+    // ✅ MOBILE FIX: Skip cache if forceRefresh is true (for manual refresh)
+    if (!forceRefresh) {
+      // ✅ PERFORMANCE FIX: Check localStorage cache first for instant loading
+      const cached = getCachedTier(userId);
+      if (cached) {
+        logger.debug('[useTierQuery] ✅ Using cached tier:', cached.tier);
+        return cached;
+      }
+    } else {
+      // ✅ MOBILE FIX: Clear cache when forcing refresh
+      logger.debug('[useTierQuery] 🔄 Force refresh - clearing cache');
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
     }
 
+    // ✅ MOBILE FIX: Always fetch fresh from database (don't trust cache)
+    logger.debug(`[useTierQuery] 📡 Fetching tier from database for user: ${userId.slice(0, 8)}...`);
     const { data, error } = await supabase
       .from('profiles')
       .select('subscription_tier')
@@ -105,10 +136,36 @@ async function fetchTier(): Promise<TierData> {
         hint: error.hint,
         userId: userId.slice(0, 8) + '...'
       });
+      
+      // ✅ MOBILE FIX: If profile doesn't exist, try to create it
+      if (error.code === 'PGRST116') {
+        logger.debug('[useTierQuery] Profile not found, attempting to create...');
+        try {
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              email: session.user.email,
+              subscription_tier: 'free'
+            });
+          
+          if (insertError) {
+            logger.error('[useTierQuery] Failed to create profile:', insertError.message);
+          } else {
+            logger.debug('[useTierQuery] ✅ Profile created with free tier');
+          }
+        } catch (createError) {
+          logger.error('[useTierQuery] Error creating profile:', createError);
+        }
+      }
+      
       return { tier: 'free', userId };
     }
 
     const tier = data?.subscription_tier || 'free';
+    
+    // ✅ MOBILE FIX: Log tier fetch for debugging
+    logger.info(`[useTierQuery] ✅ Fetched tier from database: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
     
     const result = {
       tier,
@@ -130,6 +187,16 @@ async function fetchTier(): Promise<TierData> {
       hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
       supabaseUrlPreview: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...' || 'NOT SET'
     });
+    
+    // ✅ MOBILE FIX: Clear stale cache on network error
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(TIER_CACHE_KEY);
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+    
     return { tier: 'free', userId: null };
   }
 }
@@ -161,7 +228,7 @@ export function useTierQuery() {
     queryFn: fetchTier,
     staleTime: 5 * 60 * 1000, // Data fresh for 5 minutes
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (formerly cacheTime)
-    refetchOnWindowFocus: false, // ✅ FIX: Disable auto-refetch on focus (reduces excessive calls)
+    refetchOnWindowFocus: true, // ✅ MOBILE FIX: Re-enable refetch on focus to catch tier changes
     refetchOnReconnect: true, // Auto-refetch on network restore
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
@@ -290,6 +357,23 @@ export function useTierQuery() {
     };
   }, [queryClient]);
 
+  // ✅ MOBILE FIX: Enhanced refetch that clears cache and forces fresh fetch
+  const forceRefreshTier = async () => {
+    logger.debug('[useTierQuery] 🔄 Force refreshing tier...');
+    // Clear localStorage cache
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(TIER_CACHE_KEY);
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+    // Clear React Query cache
+    queryClient.removeQueries({ queryKey: ['user-tier'] });
+    // Force refetch with fresh data
+    return query.refetch();
+  };
+
   return {
     tier: query.data?.tier || 'free',
     userId: query.data?.userId || null,
@@ -297,6 +381,7 @@ export function useTierQuery() {
     isError: query.isError,
     error: query.error,
     refetch: query.refetch, // Manual refetch (rarely needed - realtime handles updates)
+    forceRefresh: forceRefreshTier, // ✅ MOBILE FIX: Force refresh with cache clear
   };
 }
 
