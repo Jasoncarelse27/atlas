@@ -128,12 +128,16 @@ export const imageService = {
     // Get the public URL for the image
     const imageUrl = this.getPublicUrl(filePath);
 
+    // ✅ BEST PRACTICE: Use centralized auth helper
+    const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+    const token = await getAuthTokenOrThrow('You must be logged in to analyze images. Please sign in and try again.');
+    
     // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
     const res = await fetch(getApiEndpoint('/api/image-analysis'), {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        "Authorization": `Bearer ${token}`,
         "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY
       },
       body: JSON.stringify({ 

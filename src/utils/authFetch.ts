@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { logger } from '../lib/logger';
+import { getAuthToken as getAuthTokenHelper } from './getAuthToken';
 
 // Environment variable safety check
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
@@ -121,42 +122,13 @@ export async function fetchWithAuth(
 
 /**
  * Get authentication token based on environment
+ * 
+ * ✅ BEST PRACTICE: Uses the centralized getAuthToken from utils/getAuthToken.ts
+ * This function is kept for backward compatibility with authFetch utility
  */
 async function getAuthToken(forceRefresh = false): Promise<string | null> {
-  try {
-    // Check if we're in browser environment
-    if (typeof window === 'undefined') {
-      // Server-side: use service role key if available
-      return process.env.SUPABASE_SERVICE_ROLE_KEY || null;
-    }
-
-    // Client-side: get session from Supabase
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      return null;
-    }
-
-    if (!session?.access_token) {
-      if (forceRefresh) {
-        // Try to refresh the session
-        const { data: { session: refreshedSession }, error: refreshError } = 
-          await supabase.auth.refreshSession();
-        
-        if (refreshError) {
-          return null;
-        }
-        
-        return refreshedSession?.access_token || null;
-      }
-      
-      return null;
-    }
-
-    return session.access_token;
-  } catch (error) {
-    return null;
-  }
+  // ✅ BEST PRACTICE: Use centralized helper
+  return getAuthTokenHelper(forceRefresh);
 }
 
 /**

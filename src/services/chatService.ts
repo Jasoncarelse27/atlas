@@ -6,6 +6,7 @@ import { generateUUID } from "../utils/uuid";
 import { enhancedResponseCacheService } from "./enhancedResponseCacheService";
 import { subscriptionApi } from "./subscriptionApi";
 import { getApiEndpoint } from "../utils/apiClient";
+import { getAuthTokenOrThrow } from "../utils/getAuthToken";
 
 // Global abort controller for message streaming
 let abortController: AbortController | null = null;
@@ -19,12 +20,8 @@ export async function sendAttachmentMessage(
   userId: string,
   attachments: Array<{ type: string; url?: string; text?: string }>
 ) {
-  // Get JWT token for authentication
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error('You must be logged in to send messages. Please sign in and try again.');
-  }
-  const token = session.access_token;
+  // ✅ BEST PRACTICE: Use centralized auth helper
+  const token = await getAuthTokenOrThrow('You must be logged in to send messages. Please sign in and try again.');
 
   // Get user's tier for the request
   const currentTier = await subscriptionApi.getUserTier(userId, token);
@@ -72,14 +69,11 @@ export const chatService = {
     abortController = new AbortController();
 
     try {
-      // ✅ PERFORMANCE: Get JWT token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('You must be logged in to send messages. Please sign in and try again.');
-      }
-      const token = session.access_token;
+      // ✅ BEST PRACTICE: Use centralized auth helper
+      const token = await getAuthTokenOrThrow('You must be logged in to send messages. Please sign in and try again.');
       
       // Get user ID from session if not provided
+      const { data: { session } } = await supabase.auth.getSession();
       const actualUserId = userId || session?.user?.id;
       
       // ✅ CRITICAL: Log the exact userId being used
@@ -326,11 +320,11 @@ export const chatService = {
     // Handle messages with attachments (new multi-attachment support)
     if (message.attachments && message.attachments.length > 0) {
       
-      // Get user info for the request
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || 'mock-token-for-development';
+      // ✅ BEST PRACTICE: Use centralized auth helper
+      const token = await getAuthTokenOrThrow('You must be logged in to analyze images. Please sign in and try again.');
       
       // Get user ID from session
+      const { data: { session } } = await supabase.auth.getSession();
       const actualUserId = session?.user?.id || 'anonymous';
       
       // Get user's tier for the request
@@ -368,11 +362,11 @@ export const chatService = {
       
       if (imageUrl) {
         
-        // Get user info for the request
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token || 'mock-token-for-development';
+        // ✅ BEST PRACTICE: Use centralized auth helper
+        const token = await getAuthTokenOrThrow('You must be logged in to analyze images. Please sign in and try again.');
         
         // Get user ID from session
+        const { data: { session } } = await supabase.auth.getSession();
         const actualUserId = session?.user?.id || 'anonymous';
         
         // Get user's tier for the request
@@ -469,21 +463,8 @@ export async function sendMessageWithAttachments(
 
   // ✅ NEW: Send to backend for AI analysis
   try {
-      // ✅ CRITICAL FIX: Get session and refresh if needed
-      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      // If no session or expired token, try to refresh
-      if (!session?.access_token) {
-        logger.debug('[chatService] No session found, attempting refresh...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshedSession?.access_token) {
-          logger.error('[chatService] ❌ No valid session - user must be logged in');
-          throw new Error('You must be logged in to analyze images. Please sign in and try again.');
-        }
-        session = refreshedSession;
-      }
-      
-      const token = session.access_token;
+      // ✅ BEST PRACTICE: Use centralized auth helper with automatic refresh
+      const token = await getAuthTokenOrThrow('You must be logged in to analyze images. Please sign in and try again.');
       
       // Get user's tier for the request (not needed for image analysis endpoint)
       // const currentTier = await getUserTier();
