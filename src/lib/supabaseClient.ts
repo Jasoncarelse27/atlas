@@ -97,21 +97,8 @@ export const supabase = (() => {
   return supabaseInstance;
 })();
 
-// ✅ TEMPORARY: Expose for console debugging in production (for troubleshooting)
-// TODO: Remove after conversation sync issue is resolved
-if (typeof window !== 'undefined') {
-  // Force exposure - multiple ways to access
-  (window as any).supabase = supabase;
-  (window as any).atlasSupabase = supabase;
-  (window as any).__atlasSupabase = supabase;
-  
-  // Also expose via globalThis for maximum compatibility
-  if (typeof globalThis !== 'undefined') {
-    (globalThis as any).supabase = supabase;
-  }
-  
-  console.log('[Supabase] ✅ Exposed to window.supabase, window.atlasSupabase, window.__atlasSupabase');
-}
+// ✅ REMOVED: Window exposure hacks - use proper backend API instead
+// Use GET /api/debug/conversations for diagnostics
 
 // Health-check helper with mobile fallback
 export async function checkSupabaseHealth() {

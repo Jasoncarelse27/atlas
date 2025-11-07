@@ -2631,6 +2631,48 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
 });
 
 // Get conversation messages
+// ✅ DIAGNOSTIC: Check conversations for a user (best practice - backend API, not window hacks)
+app.get('/api/debug/conversations', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { supabasePublic } = await import('./config/supabaseClient.mjs');
+    
+    // Check conversations in Supabase
+    const { data: conversations, error } = await supabasePublic
+      .from('conversations')
+      .select('id, title, updated_at, deleted_at, created_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+    
+    if (error) {
+      logger.error('[Debug] Failed to fetch conversations:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    const active = conversations?.filter(c => !c.deleted_at) || [];
+    const deleted = conversations?.filter(c => c.deleted_at) || [];
+    
+    logger.info(`[Debug] User ${userId.slice(0, 8)}: ${active.length} active, ${deleted.length} deleted conversations`);
+    
+    return res.json({
+      userId: userId.slice(0, 8) + '...',
+      total: conversations?.length || 0,
+      active: active.length,
+      deleted: deleted.length,
+      conversations: active.map(c => ({
+        id: c.id,
+        title: c.title,
+        updated_at: c.updated_at,
+        created_at: c.created_at
+      }))
+    });
+  } catch (error) {
+    logger.error('[Debug] Error checking conversations:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/conversations/:conversationId/messages', 
   verifyJWT, 
   cacheTierMiddleware,

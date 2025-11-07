@@ -327,18 +327,7 @@ export class ConversationSyncService {
    * - Tracks data volume synced
    */
   async deltaSync(userId: string): Promise<void> {
-    // ✅ CRITICAL DIAGNOSTIC: Multiple logging methods to ensure visibility
-    const diagnosticMsg = `[ConversationSync] 🚀 FUNCTION CALLED - deltaSync started for user: ${userId.slice(0, 8)}...`;
-    console.error(diagnosticMsg);
-    console.warn(diagnosticMsg);
-    console.log(diagnosticMsg);
-    // Force visibility - this will ALWAYS show
-    if (typeof window !== 'undefined') {
-      (window as any).__atlasSyncDebug = (window as any).__atlasSyncDebug || [];
-      (window as any).__atlasSyncDebug.push({ type: 'function_called', userId: userId.slice(0, 8), timestamp: Date.now() });
-    }
-    
-    perfMonitor.start('conversation-sync'); // ✅ FIX: Start performance monitor
+    perfMonitor.start('conversation-sync');
     const startTime = Date.now();
     let queriesExecuted = 0;
     let conversationsSynced = 0;
@@ -367,20 +356,14 @@ export class ConversationSyncService {
         ? new Date(0).toISOString()  // Epoch = fetch everything
         : syncMeta.lastSyncedAt;
       
-      // ✅ ALWAYS log diagnostic info (even in production) for troubleshooting
-      // ✅ CRITICAL DIAGNOSTIC: Always log sync state (logger.info shows in production)
-      const syncState = {
+      // ✅ Structured logging for diagnostics
+      logger.info('[ConversationSync] Sync state', {
         isFirstSync,
         localCount: localConversationCount,
         lastSyncedAt,
         hasSyncMeta: !!syncMeta,
         userId: userId.slice(0, 8) + '...'
-      };
-      
-      // ✅ VISIBLE DIAGNOSTIC: Use console.error so it's NEVER filtered
-      console.error('[ConversationSync] 🔍 SYNC STATE:', syncState);
-      logger.info('[ConversationSync] 🔍 Sync state:', syncState);
-      console.log('[ConversationSync] 🔍 Sync state:', syncState);
+      });
       
       // 2. Fetch conversations - use different query for first sync vs delta sync
       let updatedConversations: any[] | null = null;
@@ -388,9 +371,7 @@ export class ConversationSyncService {
       
       if (isFirstSync) {
         // ✅ FIRST SYNC: Fetch ALL conversations (no date filter, just non-deleted)
-        console.error('[ConversationSync] 📡 FIRST SYNC MODE - fetching ALL conversations (no date filter)');
-        logger.info('[ConversationSync] 📡 First sync - fetching ALL conversations (no date filter)');
-        console.log('[ConversationSync] 📡 First sync - fetching ALL conversations...');
+        logger.info('[ConversationSync] First sync mode - fetching all conversations');
         const result = await supabase
           .from('conversations')
           .select('*')
@@ -403,9 +384,7 @@ export class ConversationSyncService {
         convError = result.error;
       } else {
         // ✅ DELTA SYNC: Only fetch conversations updated since last sync
-        console.error('[ConversationSync] 📡 DELTA SYNC MODE - fetching updated conversations since:', lastSyncedAt);
-        logger.info('[ConversationSync] 📡 Delta sync - fetching updated conversations since:', lastSyncedAt);
-        console.log('[ConversationSync] 📡 Delta sync - fetching updated conversations since:', lastSyncedAt);
+        logger.info('[ConversationSync] Delta sync mode', { lastSyncedAt });
         const result = await supabase
           .from('conversations')
           .select('*')
@@ -429,22 +408,15 @@ export class ConversationSyncService {
       
       conversationsSynced = updatedConversations?.length || 0;
       
-      // ✅ DIAGNOSTIC: Log sync details for troubleshooting (ALWAYS log, even in production)
-      // ✅ CRITICAL: Log sync results with query type
-      const queryType = isFirstSync ? 'FIRST_SYNC (all conversations)' : 'DELTA_SYNC (updated only)';
-      const syncResults = {
+      // ✅ Structured logging for sync results
+      logger.info('[ConversationSync] Sync results', {
         found: conversationsSynced,
         userId: userId.slice(0, 8) + '...',
         lastSyncedAt,
         isFirstSync,
         localCount: localConversationCount,
-        queryType
-      };
-      
-      // ✅ VISIBLE DIAGNOSTIC: Use console.error so it's NEVER filtered
-      console.error('[ConversationSync] 📊 SYNC RESULTS:', syncResults);
-      logger.info(`[ConversationSync] 📊 Sync results:`, syncResults);
-      console.log(`[ConversationSync] 📊 Sync results:`, syncResults);
+        queryType: isFirstSync ? 'FIRST_SYNC' : 'DELTA_SYNC'
+      });
       
       // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all
       if (conversationsSynced === 0 && isFirstSync) {
