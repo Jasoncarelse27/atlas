@@ -20,7 +20,10 @@ export class PerformanceMonitor {
   end(label: string): number | null {
     const startTime = this.metrics.get(label);
     if (!startTime) {
-      logger.warn(`[PerformanceMonitor] No start time found for: ${label}`);
+      // ✅ FIX: Only log in dev mode - this is often a timing issue, not an error
+      if (import.meta.env.DEV) {
+        logger.debug(`[PerformanceMonitor] No start time found for: ${label} (may be timing issue)`);
+      }
       return null;
     }
     
