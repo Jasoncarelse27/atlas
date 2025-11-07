@@ -106,7 +106,12 @@ app.get('/healthz', async (req, res) => {
   // Check database connection
   try {
     const { supabase } = await import('./config/supabaseClient.mjs');
-    const { error } = await supabase.from('profiles').select('id').limit(1);
+    const querySignal = createQueryTimeout(3000); // 3s timeout for health check
+    const { error } = await supabase
+      .from('profiles')
+      .select('id')
+      .abortSignal(querySignal)
+      .limit(1);
     health.checks.database = !error;
   } catch (error) {
     health.checks.database = false;
