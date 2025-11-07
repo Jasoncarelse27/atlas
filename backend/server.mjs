@@ -1777,10 +1777,14 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
     // 🎯 TIER ENFORCEMENT: Check if user has image analysis access (Core/Studio only)
     let tier = 'free';
     try {
+      // ✅ SCALABILITY FIX: Add query timeout to prevent blocking
+      const querySignal = createQueryTimeout(5000); // 5s timeout
+      
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('subscription_tier')
         .eq('id', authenticatedUserId)
+        .abortSignal(querySignal)
         .single();
       
       if (profileError) {
