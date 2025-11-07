@@ -89,7 +89,15 @@ let serverReady = false;
 // ✅ CI FIX: Synchronous checks in CI/test environments for validation
 app.get('/healthz', async (req, res) => {
   // ✅ CI FIX: Detect CI/test environment - wait synchronously for checks
-  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.NODE_ENV === 'test';
+  // Check multiple ways CI can be detected (GitHub Actions sets CI=true automatically)
+  const isCI = process.env.CI === 'true' || process.env.CI === true || 
+               process.env.GITHUB_ACTIONS === 'true' || process.env.GITHUB_ACTIONS === true ||
+               process.env.NODE_ENV === 'test';
+  
+  // ✅ DEBUG: Log environment detection for troubleshooting
+  if (isCI) {
+    logger.debug(`[HealthCheck] CI environment detected: CI=${process.env.CI}, GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}, NODE_ENV=${process.env.NODE_ENV}`);
+  }
   
   const health = {
     status: serverReady ? 'ok' : 'starting',
@@ -281,13 +289,15 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // ✅ CRITICAL FIX: Validate API key format
 // ✅ CI FIX: Allow mock keys in test/CI environments
-const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-if (ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.startsWith('sk-ant-') && !isTestEnv) {
-  logger.error(`[Server] ⚠️ ANTHROPIC_API_KEY format invalid - should start with 'sk-ant-' but starts with '${ANTHROPIC_API_KEY.substring(0, 8)}...'`);
-  logger.error(`[Server] ⚠️ Full key length: ${ANTHROPIC_API_KEY.length} characters`);
-  // Don't fail hard - let it try and log the error from API
-} else if (isTestEnv && ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
-  logger.debug(`[Server] ✅ Test environment - allowing mock API key`);
+const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.CI === true;
+if (ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+  if (isTestEnv) {
+    logger.debug(`[Server] ✅ Test environment detected (NODE_ENV=${process.env.NODE_ENV}, CI=${process.env.CI}, GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}) - allowing mock API key`);
+  } else {
+    logger.error(`[Server] ⚠️ ANTHROPIC_API_KEY format invalid - should start with 'sk-ant-' but starts with '${ANTHROPIC_API_KEY.substring(0, 8)}...'`);
+    logger.error(`[Server] ⚠️ Full key length: ${ANTHROPIC_API_KEY.length} characters`);
+    // Don't fail hard - let it try and log the error from API
+  }
 }
 
 // 🔍 DEBUG: Log API key status
