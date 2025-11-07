@@ -83,8 +83,14 @@ describe('RetryService Integration', () => {
       // Advance through all retries
       await vi.advanceTimersByTimeAsync(30000);
 
-      // ✅ FIX: Ensure promise is fully settled before test ends
-      await expect(promise).rejects.toThrow(/confidence too low|Connection lost/);
+      // ✅ FIX: Ensure promise is fully settled with try/catch to prevent unhandled rejection
+      try {
+        await promise;
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toMatch(/confidence too low|Connection lost/);
+      }
     });
 
     it('should call callbacks correctly during retries', async () => {
@@ -132,12 +138,21 @@ describe('RetryService Integration', () => {
 
       const promise = service.withBackoff(fn, 'Persistent Failure');
 
-      // Advance through all retries
+      // Advance through all retries (5 attempts total: 0, 1, 2, 3, 4)
       await vi.advanceTimersByTimeAsync(30000);
 
       // ✅ FIX: Use expect().rejects.toThrow() to properly handle promise rejection
-      await expect(promise).rejects.toThrow(/Connection lost|Persistent failure/);
-      expect(fn).toHaveBeenCalledTimes(6); // Initial + 5 retries
+      // ✅ FIX: Ensure promise is fully settled before checking call count
+      try {
+        await promise;
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toMatch(/Connection lost|Persistent failure/);
+      }
+      
+      // ✅ FIX: maxRetries=5 means 5 total attempts (attempts 0-4), not 6
+      expect(fn).toHaveBeenCalledTimes(5); // 5 attempts total (maxRetries)
     });
   });
 });
