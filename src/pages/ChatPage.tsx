@@ -1505,16 +1505,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           </div>
 
           {/* Footer - Clean white background (no black block) */}
+          {/* ✅ FIX: Extended padding to cover browser chrome area */}
           <div 
             className={`fixed bottom-0 left-0 right-0 z-30`}
             style={{ 
-              paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', // ✅ Increased to cover browser chrome
               paddingTop: '16px',
               backgroundColor: '#F9F6F3', // ✅ Atlas pearl background - matches body
               background: '#F9F6F3', // ✅ Ensure solid background (no gradient causing black)
               backdropFilter: 'none !important',
               WebkitBackdropFilter: 'none !important',
-              borderTop: 'none'
+              borderTop: 'none',
+              minHeight: '120px' // ✅ Ensure footer covers browser chrome area
             }}
           >
             <div className="max-w-4xl mx-auto">
