@@ -1100,11 +1100,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300 shadow-sm`}
+          className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: '#ffffff',
+            background: 'transparent',
+            backgroundColor: 'transparent',
             backdropFilter: 'none',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.05)'
+            borderBottom: 'none'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1239,13 +1240,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
-        {/* Header - Clean white matching chat background */}
+        {/* Header - Fully transparent like footer */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300 shadow-sm`}
+          className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            background: '#ffffff',
+            background: 'transparent',
+            backgroundColor: 'transparent',
             backdropFilter: 'none',
-            borderBottom: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)'
+            borderBottom: 'none'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
