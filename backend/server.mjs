@@ -89,15 +89,16 @@ let serverReady = false;
 // ✅ CI FIX: Synchronous checks in CI/test environments for validation
 app.get('/healthz', async (req, res) => {
   // ✅ CI FIX: Detect CI/test environment - wait synchronously for checks
-  // Check multiple ways CI can be detected (GitHub Actions sets CI=true automatically)
-  const isCI = process.env.CI === 'true' || process.env.CI === true || 
-               process.env.GITHUB_ACTIONS === 'true' || process.env.GITHUB_ACTIONS === true ||
-               process.env.NODE_ENV === 'test';
+  // GitHub Actions automatically sets CI=true, and workflow sets NODE_ENV=test
+  // Check for any CI indicator (more lenient detection)
+  const isCI = !!process.env.CI || 
+               !!process.env.GITHUB_ACTIONS ||
+               process.env.NODE_ENV === 'test' ||
+               process.env.CI === 'true' ||
+               process.env.GITHUB_ACTIONS === 'true';
   
-  // ✅ DEBUG: Log environment detection for troubleshooting
-  if (isCI) {
-    logger.debug(`[HealthCheck] CI environment detected: CI=${process.env.CI}, GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}, NODE_ENV=${process.env.NODE_ENV}`);
-  }
+  // ✅ DEBUG: Always log environment detection for troubleshooting
+  logger.debug(`[HealthCheck] Environment check: CI=${process.env.CI}, GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}, NODE_ENV=${process.env.NODE_ENV}, isCI=${isCI}`);
   
   const health = {
     status: serverReady ? 'ok' : 'starting',
