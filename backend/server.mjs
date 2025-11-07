@@ -86,9 +86,11 @@ let serverReady = false;
 // This ensures Railway can reach it even during server initialization
 // ✅ SCALABILITY FIX: Enhanced health check for monitoring at scale
 // ✅ RAILWAY FIX: Fast health check - respond immediately, check DB/Redis in parallel
+// ✅ CI FIX: Synchronous checks in CI/test environments for validation
 app.get('/healthz', async (req, res) => {
-  // ✅ RAILWAY FIX: Respond immediately with server status
-  // Don't block on database/Redis checks - Railway needs fast response
+  // ✅ CI FIX: Detect CI/test environment - wait synchronously for checks
+  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true' || process.env.NODE_ENV === 'test';
+  
   const health = {
     status: serverReady ? 'ok' : 'starting',
     timestamp: Date.now(),
@@ -96,7 +98,7 @@ app.get('/healthz', async (req, res) => {
     ready: serverReady,
     serverState: serverReady ? 'ready' : 'starting',
     checks: {
-      database: 'pending', // Will be updated asynchronously
+      database: 'pending',
       redis: 'pending',
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
@@ -106,53 +108,106 @@ app.get('/healthz', async (req, res) => {
     },
   };
 
-  // ✅ RAILWAY FIX: Check database/Redis in parallel without blocking response
-  // Railway needs fast response (< 1s), so we check async and return immediately
-  Promise.all([
-    // Database check (with timeout)
-    (async () => {
-      try {
-        const { supabase } = await import('./config/supabaseClient.mjs');
-        const querySignal = createQueryTimeout(2000); // 2s timeout (faster for Railway)
-        const { error } = await supabase
-          .from('profiles')
-          .select('id')
-          .abortSignal(querySignal)
-          .limit(1);
-        return !error;
-      } catch (error) {
-        logger.debug('[HealthCheck] Database check failed:', error.message);
-        return false;
-      }
-    })(),
-    // Redis check (with timeout)
-    (async () => {
-      if (!redisService) return false;
-      try {
-        // Add timeout to Redis check
-        return await Promise.race([
-          redisService.healthCheck(),
-          new Promise((resolve) => setTimeout(() => resolve(false), 1000)) // 1s timeout
-        ]);
-      } catch (error) {
-        logger.debug('[HealthCheck] Redis check failed:', error.message);
-        return false;
-      }
-    })()
-  ]).then(([dbHealthy, redisHealthy]) => {
-    // Update health object (for monitoring, but response already sent)
-    health.checks.database = dbHealthy;
-    health.checks.redis = redisHealthy;
-  }).catch(() => {
-    // Ignore errors - health check already responded
-  });
+  // ✅ CI FIX: In CI/test, wait synchronously for checks (max 5s)
+  if (isCI) {
+    try {
+      const [dbHealthy, redisHealthy] = await Promise.all([
+        // Database check (with timeout)
+        (async () => {
+          try {
+            const { supabase } = await import('./config/supabaseClient.mjs');
+            const querySignal = createQueryTimeout(3000); // 3s timeout for CI
+            const { error } = await supabase
+              .from('profiles')
+              .select('id')
+              .abortSignal(querySignal)
+              .limit(1);
+            return !error;
+          } catch (error) {
+            logger.debug('[HealthCheck] Database check failed:', error.message);
+            return false;
+          }
+        })(),
+        // Redis check (with timeout)
+        (async () => {
+          if (!redisService) return false;
+          try {
+            return await Promise.race([
+              redisService.healthCheck(),
+              new Promise((resolve) => setTimeout(() => resolve(false), 3000)) // 3s timeout for CI
+            ]);
+          } catch (error) {
+            logger.debug('[HealthCheck] Redis check failed:', error.message);
+            return false;
+          }
+        })()
+      ]);
 
-  // ✅ RAILWAY FIX: Return 200 immediately if server is ready
-  // Don't wait for database/Redis - Railway needs fast response for deployment
-  // Database/Redis checks are async and won't block deployment
-  const isHealthy = serverReady; // Only check if server is ready (fast)
-  
-  res.status(isHealthy ? 200 : 503).json(health);
+      health.checks.database = dbHealthy;
+      health.checks.redis = redisHealthy;
+      
+      // ✅ CI FIX: Return boolean values for CI script parsing
+      const isHealthy = serverReady && (dbHealthy || process.env.NODE_ENV === 'test'); // DB optional in test
+      
+      res.status(isHealthy ? 200 : 503).json({
+        ...health,
+        // ✅ CI FIX: Add boolean fields for CI script compatibility
+        database: dbHealthy,
+        redis: redisHealthy,
+      });
+    } catch (error) {
+      logger.debug('[HealthCheck] CI check error:', error.message);
+      res.status(503).json({
+        ...health,
+        database: false,
+        redis: false,
+        error: error.message,
+      });
+    }
+  } else {
+    // ✅ RAILWAY FIX: Production - async checks, respond immediately
+    Promise.all([
+      // Database check (with timeout)
+      (async () => {
+        try {
+          const { supabase } = await import('./config/supabaseClient.mjs');
+          const querySignal = createQueryTimeout(2000); // 2s timeout (faster for Railway)
+          const { error } = await supabase
+            .from('profiles')
+            .select('id')
+            .abortSignal(querySignal)
+            .limit(1);
+          return !error;
+        } catch (error) {
+          logger.debug('[HealthCheck] Database check failed:', error.message);
+          return false;
+        }
+      })(),
+      // Redis check (with timeout)
+      (async () => {
+        if (!redisService) return false;
+        try {
+          return await Promise.race([
+            redisService.healthCheck(),
+            new Promise((resolve) => setTimeout(() => resolve(false), 1000)) // 1s timeout
+          ]);
+        } catch (error) {
+          logger.debug('[HealthCheck] Redis check failed:', error.message);
+          return false;
+        }
+      })()
+    ]).then(([dbHealthy, redisHealthy]) => {
+      // Update health object (for monitoring, but response already sent)
+      health.checks.database = dbHealthy;
+      health.checks.redis = redisHealthy;
+    }).catch(() => {
+      // Ignore errors - health check already responded
+    });
+
+    // ✅ RAILWAY FIX: Return 200 immediately if server is ready
+    const isHealthy = serverReady;
+    res.status(isHealthy ? 200 : 503).json(health);
+  }
 });
 
 // Initialize Sentry error tracking
@@ -225,10 +280,14 @@ let ANTHROPIC_API_KEY = (process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // ✅ CRITICAL FIX: Validate API key format
-if (ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+// ✅ CI FIX: Allow mock keys in test/CI environments
+const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+if (ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.startsWith('sk-ant-') && !isTestEnv) {
   logger.error(`[Server] ⚠️ ANTHROPIC_API_KEY format invalid - should start with 'sk-ant-' but starts with '${ANTHROPIC_API_KEY.substring(0, 8)}...'`);
   logger.error(`[Server] ⚠️ Full key length: ${ANTHROPIC_API_KEY.length} characters`);
   // Don't fail hard - let it try and log the error from API
+} else if (isTestEnv && ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+  logger.debug(`[Server] ✅ Test environment - allowing mock API key`);
 }
 
 // 🔍 DEBUG: Log API key status
@@ -271,12 +330,20 @@ const _mapTierToAnthropicModel = (tier) => {
 
 // ✅ STARTUP VERIFICATION: Verify Anthropic API key and model before starting server
 async function verifyAnthropicConfig() {
+  // ✅ CI FIX: Skip verification in test/CI environments with mock keys
+  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+  
   if (!ANTHROPIC_API_KEY) {
     logger.error('[Server] ❌ ANTHROPIC_API_KEY is missing - cannot verify');
     return false;
   }
   
+  // ✅ CI FIX: Allow mock keys in test environments
   if (!ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+    if (isTestEnv) {
+      logger.debug('[Server] ✅ Test environment - skipping API key verification (mock key allowed)');
+      return true; // Allow mock keys in test
+    }
     logger.error('[Server] ❌ Invalid Anthropic API key format');
     return false;
   }

@@ -149,12 +149,16 @@ jobs:
           # Test Redis connection (required in CI - Redis service container is available)
           echo "⏳ Waiting for Redis connection..."
           sleep 5  # Give Redis time to connect
-          REDIS_STATUS=$(curl -s http://localhost:8000/healthz | jq -r '.redis // false')
-          if [ "$REDIS_STATUS" = "true" ]; then
+          # ✅ FIX: Check both .redis and .checks.redis (CI returns boolean, Railway returns string)
+          REDIS_STATUS=$(curl -s http://localhost:8000/healthz | jq -r '.redis // .checks.redis // false')
+          if [ "$REDIS_STATUS" = "true" ] || [ "$REDIS_STATUS" = "1" ]; then
             echo "✅ Redis connection verified"
           else
             echo "❌ Redis connection failed - checking service..."
             redis-cli -h localhost ping || echo "⚠️ Redis service not reachable"
+            # ✅ CI FIX: Show actual health check response for debugging
+            echo "Health check response:"
+            curl -s http://localhost:8000/healthz | jq '.'
             exit 1
           fi
 
