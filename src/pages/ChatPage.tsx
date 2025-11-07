@@ -40,6 +40,7 @@ import UsageCounter from '../components/sidebar/UsageCounter';
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
+import { PWAInstallPrompt } from '../components/PWAInstallPrompt'; // ✅ PWA: Install prompt for mobile users
 
 interface ChatPageProps {
   user?: { id: string; email?: string };
@@ -1578,6 +1579,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           onClose={() => setShowProfile(false)}
           onSignOut={handleLogout}
         />
+
+        {/* ✅ PWA Install Prompt - Shows on mobile for better UX */}
+        <PWAInstallPrompt />
         
       </div>
     </ErrorBoundary>

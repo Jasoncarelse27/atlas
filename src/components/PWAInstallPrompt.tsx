@@ -1,0 +1,198 @@
+/**
+ * ✅ PWA INSTALL PROMPT: Professional install banner for mobile users
+ * 
+ * Shows install instructions for iOS and install button for Android
+ * Only displays on mobile devices that haven't installed yet
+ */
+
+import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useMobileOptimization } from '../hooks/useMobileOptimization';
+import { logger } from '../lib/logger';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+export function PWAInstallPrompt() {
+  const { isMobile, isPWA, canInstall } = useMobileOptimization();
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // Don't show if already installed as PWA
+    if (isPWA) {
+      logger.debug('[PWAInstallPrompt] Already installed as PWA, hiding prompt');
+      return;
+    }
+
+    // Don't show on desktop
+    if (!isMobile) {
+      return;
+    }
+
+    // Check if user dismissed before
+    const dismissed = localStorage.getItem('pwa-install-dismissed');
+    const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
+    const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
+
+    // Show again after 7 days if dismissed
+    if (dismissed && daysSinceDismissed < 7) {
+      logger.debug('[PWAInstallPrompt] User dismissed, will show again in 7 days');
+      return;
+    }
+
+    // Detect iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+
+    // Android: Listen for beforeinstallprompt event
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      const promptEvent = e as BeforeInstallPromptEvent;
+      setDeferredPrompt(promptEvent);
+      setShowPrompt(true);
+      logger.debug('[PWAInstallPrompt] Android install prompt available');
+    };
+
+    // iOS: Show instructions after a delay (iOS doesn't have beforeinstallprompt)
+    if (isIOSDevice) {
+      const timer = setTimeout(() => {
+        setShowPrompt(true);
+        logger.debug('[PWAInstallPrompt] Showing iOS install instructions');
+      }, 3000); // Show after 3 seconds
+      return () => clearTimeout(timer);
+    }
+
+    // Android: Listen for install prompt
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, [isMobile, isPWA]);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) {
+      // iOS - just show instructions (already visible)
+      return;
+    }
+
+    try {
+      // Show install prompt
+      await deferredPrompt.prompt();
+      
+      // Wait for user response
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        logger.info('[PWAInstallPrompt] ✅ User installed PWA');
+        setShowPrompt(false);
+        setDeferredPrompt(null);
+      } else {
+        logger.debug('[PWAInstallPrompt] User dismissed install prompt');
+      }
+    } catch (error) {
+      logger.error('[PWAInstallPrompt] Install error:', error);
+    }
+  };
+
+  const handleDismiss = () => {
+    setShowPrompt(false);
+    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    logger.debug('[PWAInstallPrompt] User dismissed, will show again in 7 days');
+  };
+
+  if (!showPrompt || isPWA) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-[#F9F6F3] via-[#F9F6F3] to-transparent">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-2xl border border-[#E8DDD2] p-4 flex items-start gap-3">
+          {/* Icon */}
+          <div className="flex-shrink-0 w-12 h-12 bg-[#D3DCAB] rounded-xl flex items-center justify-center">
+            <svg
+              className="w-6 h-6 text-[#978671]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 mb-1">
+              Install Atlas for a Better Experience
+            </h3>
+            <p className="text-sm text-gray-600 mb-3">
+              {isIOS ? (
+                <>
+                  Tap <span className="font-semibold">Share</span> then{' '}
+                  <span className="font-semibold">Add to Home Screen</span> to remove the browser bar
+                </>
+              ) : (
+                'Get full-screen experience and faster access'
+              )}
+            </p>
+
+            {/* iOS Instructions */}
+            {isIOS && (
+              <div className="bg-[#F9F6F3] rounded-lg p-3 mb-3 text-xs text-gray-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-semibold">1.</span>
+                  <span>Tap the Share button</span>
+                  <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                  </svg>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">2.</span>
+                  <span>Select "Add to Home Screen"</span>
+                </div>
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex items-center gap-2">
+              {!isIOS && deferredPrompt && (
+                <button
+                  onClick={handleInstall}
+                  className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
+                >
+                  Install Now
+                </button>
+              )}
+              <button
+                onClick={handleDismiss}
+                className="px-4 py-2.5 text-gray-600 hover:text-gray-800 font-medium rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+
+          {/* Close Button */}
+          <button
+            onClick={handleDismiss}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg transition-colors touch-manipulation"
+            aria-label="Dismiss"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
