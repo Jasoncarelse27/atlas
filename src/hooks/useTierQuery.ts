@@ -24,7 +24,7 @@ let subscribedUserId: string | null = null;
 const TIER_CACHE_KEY = 'atlas:tier_cache';
 const TIER_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
-function getCachedTier(userId: string | null): TierData | null {
+function getCachedTier(userId: string | null): TierData & { timestamp?: number } | null {
   if (!userId || typeof window === 'undefined') return null;
   
   try {
@@ -35,7 +35,7 @@ function getCachedTier(userId: string | null): TierData | null {
     
     // Check if cache is for this user and still valid
     if (cachedUserId === userId && Date.now() - timestamp < TIER_CACHE_EXPIRY) {
-      return { tier, userId };
+      return { tier, userId, timestamp }; // Include timestamp for age checking
     }
   } catch (e) {
     // Invalid cache, ignore
@@ -100,14 +100,7 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
     const userId = session.user.id;
     
     // ✅ MOBILE FIX: Skip cache if forceRefresh is true (for manual refresh)
-    if (!forceRefresh) {
-      // ✅ PERFORMANCE FIX: Check localStorage cache first for instant loading
-      const cached = getCachedTier(userId);
-      if (cached) {
-        logger.debug('[useTierQuery] ✅ Using cached tier:', cached.tier);
-        return cached;
-      }
-    } else {
+    if (forceRefresh) {
       // ✅ MOBILE FIX: Clear cache when forcing refresh
       logger.debug('[useTierQuery] 🔄 Force refresh - clearing cache');
       if (typeof window !== 'undefined') {
@@ -115,6 +108,21 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
           localStorage.removeItem(TIER_CACHE_KEY);
         } catch (e) {
           // Ignore localStorage errors
+        }
+      }
+    } else {
+      // ✅ PERFORMANCE FIX: Check localStorage cache first for instant loading
+      // ✅ MOBILE FIX: But always verify with database if cache is older than 1 minute
+      const cached = getCachedTier(userId);
+      if (cached) {
+        // Check cache age - if older than 1 minute, verify with database
+        const cacheAge = Date.now() - (cached as any).timestamp;
+        if (cacheAge < 60 * 1000) { // Less than 1 minute old
+          logger.debug('[useTierQuery] ✅ Using cached tier:', cached.tier);
+          return cached;
+        } else {
+          // Cache is stale (1+ minutes old) - verify with database
+          logger.debug(`[useTierQuery] ⚠️ Cache is ${Math.round(cacheAge / 1000)}s old, verifying with database...`);
         }
       }
     }
@@ -222,11 +230,11 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 export function useTierQuery() {
   const queryClient = useQueryClient();
 
-  // React Query hook with production-grade configuration
+    // React Query hook with production-grade configuration
   const query = useQuery({
     queryKey: ['user-tier'],
     queryFn: fetchTier,
-    staleTime: 5 * 60 * 1000, // Data fresh for 5 minutes
+    staleTime: 1 * 60 * 1000, // ✅ MOBILE FIX: Reduce stale time to 1 minute (was 5 minutes) - catch tier changes faster
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (formerly cacheTime)
     refetchOnWindowFocus: true, // ✅ MOBILE FIX: Re-enable refetch on focus to catch tier changes
     refetchOnReconnect: true, // Auto-refetch on network restore
