@@ -649,7 +649,7 @@ export default function EnhancedInputToolbar({
         </motion.div>
       )}
       
-          {/* Main Input Container - Floating white card, no blue */}
+          {/* Main Input Container - Floating white card, no borders */}
           <motion.div 
             data-input-area
             className="flex items-end w-full max-w-4xl mx-auto px-3 py-2 rounded-2xl mb-6"
@@ -658,7 +658,7 @@ export default function EnhancedInputToolbar({
               backgroundColor: '#ffffff !important',
               backdropFilter: 'none !important',
               WebkitBackdropFilter: 'none !important',
-              border: '1px solid rgba(0, 0, 0, 0.08)',
+              border: 'none',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)'
             }}
           >
@@ -746,7 +746,7 @@ export default function EnhancedInputToolbar({
                   ? (window.innerWidth < 640 ? "Add a caption..." : "Add a caption (optional)...")
                   : placeholder
               }
-              className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
+              className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
               style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
               disabled={isProcessing || disabled}
               autoComplete="off"
