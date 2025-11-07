@@ -464,7 +464,15 @@ export async function sendMessageWithAttachments(
   // ✅ NEW: Send to backend for AI analysis
   try {
       // ✅ BEST PRACTICE: Use centralized auth helper with automatic refresh
+      logger.debug("[chatService] 🔐 Getting auth token for image analysis...");
       const token = await getAuthTokenOrThrow('You must be logged in to analyze images. Please sign in and try again.');
+      
+      if (!token) {
+        logger.error("[chatService] ❌ No token available after getAuthTokenOrThrow");
+        throw new Error('Authentication failed. Please sign in and try again.');
+      }
+      
+      logger.debug("[chatService] ✅ Token obtained, length:", token.length);
       
       // Get user's tier for the request (not needed for image analysis endpoint)
       // const currentTier = await getUserTier();
@@ -477,8 +485,11 @@ export async function sendMessageWithAttachments(
         throw new Error('No image attachment found');
       }
 
+      const apiEndpoint = getApiEndpoint('/api/image-analysis');
+      logger.debug("[chatService] 📡 Calling image analysis endpoint:", apiEndpoint);
+
       // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-      const response = await fetch(getApiEndpoint('/api/image-analysis'), {
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

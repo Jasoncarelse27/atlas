@@ -33,23 +33,36 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
-      logger.debug('[getAuthToken] Session error:', sessionError.message);
+      logger.warn('[getAuthToken] Session error:', sessionError.message);
       return null;
     }
     
-    // If we have a valid token, return it
-    if (session?.access_token) {
+    // Check if token is expired (with 60s buffer for clock skew)
+    const isExpired = session?.expires_at 
+      ? (session.expires_at * 1000) < (Date.now() + 60000)
+      : false;
+    
+    // If we have a valid, non-expired token, return it
+    if (session?.access_token && !isExpired && !forceRefresh) {
+      logger.debug('[getAuthToken] ✅ Using valid token');
       return session.access_token;
     }
     
-    // No token found - try to refresh if requested
-    if (forceRefresh || !session) {
-      logger.debug('[getAuthToken] No token found, attempting refresh...');
+    // Token expired or force refresh requested - refresh the session
+    if (session || forceRefresh) {
+      logger.debug('[getAuthToken] Token expired or refresh requested, refreshing...', {
+        hasSession: !!session,
+        expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown',
+        isExpired,
+        forceRefresh
+      });
+      
+      // ✅ CRITICAL FIX: refreshSession() works without parameters if session exists in storage
       const { data: { session: refreshedSession }, error: refreshError } = 
         await supabase.auth.refreshSession();
       
       if (refreshError) {
-        logger.debug('[getAuthToken] Refresh error:', refreshError.message);
+        logger.error('[getAuthToken] ❌ Refresh error:', refreshError.message);
         return null;
       }
       
@@ -57,12 +70,16 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
         logger.debug('[getAuthToken] ✅ Token refreshed successfully');
         return refreshedSession.access_token;
       }
+      
+      logger.warn('[getAuthToken] ⚠️ Refresh succeeded but no token returned');
+      return null;
     }
     
-    // No token available
+    // No session available
+    logger.warn('[getAuthToken] ⚠️ No session found');
     return null;
   } catch (error) {
-    logger.error('[getAuthToken] Unexpected error:', error);
+    logger.error('[getAuthToken] ❌ Unexpected error:', error);
     return null;
   }
 }
