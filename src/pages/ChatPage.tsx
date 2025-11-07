@@ -918,16 +918,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
         
         // Load existing messages immediately (through registry)
-        await loadMessages(id);
+        const initialMessages = await loadMessages(id);
         
-        // Sync to get latest messages from backend (only once, don't reload after)
+        // Sync to get latest messages from backend
         try {
           const { conversationSyncService } = await import('../services/conversationSyncService');
           // ✅ OPTIMIZED: Delta sync already handles both conversations AND messages
           await conversationSyncService.deltaSync(userId);
           
-          // DON'T call loadMessages again - real-time listener will handle new messages
-          logger.debug('[ChatPage] ✅ Initial sync complete, real-time listener active');
+          // ✅ CRITICAL FIX: Reload messages after sync if IndexedDB was empty
+          // Real-time listener only handles NEW messages, not existing ones that were just synced
+          if (initialMessages.length === 0) {
+            logger.debug('[ChatPage] 🔄 IndexedDB was empty, reloading messages after sync...');
+            await loadMessages(id);
+          } else {
+            logger.debug('[ChatPage] ✅ Initial sync complete, real-time listener active');
+          }
         } catch (error) {
           logger.error('[ChatPage] Initial sync failed:', error);
         }
