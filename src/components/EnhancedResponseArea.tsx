@@ -6,6 +6,7 @@ import AudioPlayer from './AudioPlayer';
 import TypingIndicator from './TypingIndicator';
 import ContextualSuggestions from './ContextualSuggestions';
 import StatusIndicator from './StatusIndicator';
+import { logger } from '../lib/logger';
 import type { SoundType } from '../hooks/useSoundEffects';
 
 interface EnhancedResponseAreaProps {
@@ -313,8 +314,16 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
               <div className="flex items-center gap-1">
                 <Tooltip content={copied ? "Copied!" : "Copy response"} position="left">
                   <button
-                    onClick={() => copyToClipboard(response)}
-                    className="neumorphic-button p-1.5 text-gray-500 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-100"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      copyToClipboard(response);
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="neumorphic-button min-w-[44px] min-h-[44px] p-2 text-gray-500 hover:text-gray-700 active:text-gray-800 transition-colors rounded-lg hover:bg-gray-100 active:bg-gray-200 touch-manipulation"
+                    style={{ touchAction: 'manipulation' }}
                     aria-label="Copy response"
                   >
                     {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -323,10 +332,18 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
                 
                 <Tooltip content={isBookmarked ? "Remove bookmark" : "Bookmark this response"} position="left">
                   <button
-                    onClick={handleBookmark}
-                    className={`neumorphic-button p-1.5 transition-colors rounded-lg hover:bg-gray-100 ${
-                      isBookmarked ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-500 hover:text-gray-700'
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleBookmark();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className={`neumorphic-button min-w-[44px] min-h-[44px] p-2 transition-colors rounded-lg hover:bg-gray-100 active:bg-gray-200 touch-manipulation ${
+                      isBookmarked ? 'text-yellow-500 hover:text-yellow-600 active:text-yellow-700' : 'text-gray-500 hover:text-gray-700 active:text-gray-800'
                     }`}
+                    style={{ touchAction: 'manipulation' }}
                     aria-label={isBookmarked ? "Remove bookmark" : "Bookmark this response"}
                   >
                     <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-yellow-500' : ''}`} />
@@ -335,8 +352,16 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
                 
                 <Tooltip content="Share response" position="left">
                   <button
-                    onClick={handleShare}
-                    className="neumorphic-button p-1.5 text-gray-500 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-100"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleShare();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="neumorphic-button min-w-[44px] min-h-[44px] p-2 text-gray-500 hover:text-gray-700 active:text-gray-800 transition-colors rounded-lg hover:bg-gray-100 active:bg-gray-200 touch-manipulation"
+                    style={{ touchAction: 'manipulation' }}
                     aria-label="Share response"
                   >
                     <Share2 className="w-3.5 h-3.5" />

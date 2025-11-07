@@ -833,10 +833,18 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
           {!isUser && !showTypingIndicator && message.status !== 'sending' && (
             <div className="flex items-center gap-2 mt-2">
-              {/* Copy Button */}
+              {/* Copy Button - ✅ MOBILE FIX: Proper touch targets and event handling */}
               <button
-                onClick={handleCopy}
-                className="flex items-center justify-center p-1 text-[#FF9933] hover:text-[#FF7700] transition-colors duration-200"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 text-[#FF9933] hover:text-[#FF7700] active:text-[#FF6600] transition-colors duration-200 touch-manipulation"
+                style={{ touchAction: 'manipulation' }}
                 aria-label="Copy message"
                 title={isCopied ? 'Copied!' : 'Copy message'}
               >
@@ -847,46 +855,106 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                 )}
               </button>
 
-              {/* Thumbs Up */}
+              {/* Share Button - ✅ MOBILE FIX: Native share API support */}
               <button
-                onClick={() => {
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  try {
+                    const textToShare = displayedText || messageContent;
+                    if (navigator.share) {
+                      await navigator.share({
+                        title: 'Atlas AI Response',
+                        text: textToShare,
+                        url: window.location.href
+                      });
+                      toast.success('Shared!');
+                    } else {
+                      // Fallback to copy
+                      await handleCopy();
+                    }
+                  } catch (error: any) {
+                    // User cancelled or error - don't show error for cancellation
+                    if (error.name !== 'AbortError') {
+                      logger.debug('[Share] Share failed:', error);
+                      // Fallback to copy
+                      await handleCopy();
+                    }
+                  }
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 text-[#FF9933] hover:text-[#FF7700] active:text-[#FF6600] transition-colors duration-200 touch-manipulation"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="Share message"
+                title="Share message"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+
+              {/* Thumbs Up - ✅ MOBILE FIX: Proper touch targets */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setFeedback(feedback === 'positive' ? null : 'positive');
                   toast.success('Thanks for your feedback!');
                 }}
-                className={`flex items-center justify-center p-1 transition-colors duration-200 ${
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                className={`flex items-center justify-center min-w-[44px] min-h-[44px] p-2 transition-colors duration-200 touch-manipulation ${
                   feedback === 'positive' 
                     ? 'text-[#FF9933]' 
-                    : 'text-[#FF9933] hover:text-[#FF7700]'
+                    : 'text-[#FF9933] hover:text-[#FF7700] active:text-[#FF6600]'
                 }`}
+                style={{ touchAction: 'manipulation' }}
                 aria-label="Good response"
                 title="Good response"
               >
                 <ThumbsUp className="w-4 h-4" />
               </button>
 
-              {/* Thumbs Down */}
+              {/* Thumbs Down - ✅ MOBILE FIX: Proper touch targets */}
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setFeedback(feedback === 'negative' ? null : 'negative');
                   toast.error('Feedback noted. We\'ll improve!');
                 }}
-                className={`flex items-center justify-center p-1 transition-colors duration-200 ${
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                className={`flex items-center justify-center min-w-[44px] min-h-[44px] p-2 transition-colors duration-200 touch-manipulation ${
                   feedback === 'negative' 
                     ? 'text-[#FF9933]' 
-                    : 'text-[#FF9933] hover:text-[#FF7700]'
+                    : 'text-[#FF9933] hover:text-[#FF7700] active:text-[#FF6600]'
                 }`}
+                style={{ touchAction: 'manipulation' }}
                 aria-label="Bad response"
                 title="Bad response"
               >
                 <ThumbsDown className="w-4 h-4" />
               </button>
 
-              {/* Audio Controls */}
+              {/* Audio Controls - ✅ MOBILE FIX: Proper touch targets */}
               {!audioUrl ? (
                 <button
-                  onClick={handlePlayTTS}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePlayTTS();
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                  }}
                   disabled={isLoadingAudio}
-                  className="flex items-center justify-center p-1 text-[#FF9933] hover:text-[#FF7700] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 text-[#FF9933] hover:text-[#FF7700] active:text-[#FF6600] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                  style={{ touchAction: 'manipulation' }}
                   aria-label="Listen to message"
                   title="Listen to message"
                 >
@@ -898,13 +966,21 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                 </button>
               ) : (
                 <div className="flex items-center gap-1">
-                  {/* Play/Pause Button */}
+                  {/* Play/Pause Button - ✅ MOBILE FIX: Proper touch targets */}
                   <button
-                    onClick={toggleAudioPlayback}
-                    className="flex items-center justify-center w-7 h-7 rounded-md 
-                               bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleAudioPlayback();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 rounded-md 
+                               bg-gray-700/30 hover:bg-gray-600/50 active:bg-gray-600/70 text-gray-300 hover:text-white active:text-white
                                border border-gray-600/20 hover:border-gray-500/40
-                               transition-all duration-200"
+                               transition-all duration-200 touch-manipulation"
+                    style={{ touchAction: 'manipulation' }}
                     aria-label={isPlayingTTS ? 'Pause' : 'Play'}
                     title={isPlayingTTS ? 'Pause' : 'Play'}
                   >
@@ -922,13 +998,21 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                     <span>{formatTime(audioDuration)}</span>
                   </div>
 
-                  {/* Stop Button */}
+                  {/* Stop Button - ✅ MOBILE FIX: Proper touch targets */}
                   <button
-                    onClick={stopAudio}
-                    className="flex items-center justify-center w-7 h-7 rounded-md 
-                               bg-gray-700/30 hover:bg-gray-600/50 text-gray-300 hover:text-white
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      stopAudio();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 rounded-md 
+                               bg-gray-700/30 hover:bg-gray-600/50 active:bg-gray-600/70 text-gray-300 hover:text-white active:text-white
                                border border-gray-600/20 hover:border-gray-500/40
-                               transition-all duration-200"
+                               transition-all duration-200 touch-manipulation"
+                    style={{ touchAction: 'manipulation' }}
                     aria-label="Stop"
                     title="Stop and close player"
                   >
