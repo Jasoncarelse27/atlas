@@ -3,12 +3,20 @@
  * 
  * Shows install instructions for iOS and install button for Android
  * Only displays on mobile devices that haven't installed yet
+ * 
+ * Features:
+ * - Analytics tracking (impressions/completions)
+ * - Accessibility (aria-live for screen readers)
+ * - Desktop support (optional tooltip)
+ * - Smooth fade-in animation
  */
 
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useMobileOptimization } from '../hooks/useMobileOptimization';
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -20,16 +28,37 @@ export function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [hasTrackedImpression, setHasTrackedImpression] = useState(false);
+
+  // ✅ ANALYTICS: Track PWA install prompt impressions
+  const trackPWAEvent = async (eventType: 'pwa_install_prompt_shown' | 'pwa_installed' | 'pwa_install_dismissed') => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'anonymous';
+
+      await supabase
+        .from('usage_logs')
+        .insert({
+          event: eventType,
+          data: {
+            platform: isIOS ? 'ios' : 'android',
+            is_mobile: isMobile,
+            timestamp: new Date().toISOString(),
+          },
+          timestamp: new Date().toISOString()
+        });
+
+      logger.debug(`[PWAInstallPrompt] ✅ Tracked ${eventType} for user ${userId}`);
+    } catch (error) {
+      // Don't break user flow if analytics fails
+      logger.debug(`[PWAInstallPrompt] Analytics tracking failed (non-blocking):`, error);
+    }
+  };
 
   useEffect(() => {
     // Don't show if already installed as PWA
     if (isPWA) {
       logger.debug('[PWAInstallPrompt] Already installed as PWA, hiding prompt');
-      return;
-    }
-
-    // Don't show on desktop
-    if (!isMobile) {
       return;
     }
 
@@ -55,6 +84,12 @@ export function PWAInstallPrompt() {
       setDeferredPrompt(promptEvent);
       setShowPrompt(true);
       logger.debug('[PWAInstallPrompt] Android install prompt available');
+      
+      // ✅ ANALYTICS: Track impression when prompt is shown
+      if (!hasTrackedImpression) {
+        trackPWAEvent('pwa_install_prompt_shown');
+        setHasTrackedImpression(true);
+      }
     };
 
     // iOS: Show instructions after a delay (iOS doesn't have beforeinstallprompt)
@@ -62,6 +97,12 @@ export function PWAInstallPrompt() {
       const timer = setTimeout(() => {
         setShowPrompt(true);
         logger.debug('[PWAInstallPrompt] Showing iOS install instructions');
+        
+        // ✅ ANALYTICS: Track impression when prompt is shown
+        if (!hasTrackedImpression) {
+          trackPWAEvent('pwa_install_prompt_shown');
+          setHasTrackedImpression(true);
+        }
       }, 3000); // Show after 3 seconds
       return () => clearTimeout(timer);
     }
@@ -72,7 +113,7 @@ export function PWAInstallPrompt() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [isMobile, isPWA]);
+  }, [isMobile, isPWA, hasTrackedImpression]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
@@ -89,10 +130,14 @@ export function PWAInstallPrompt() {
       
       if (outcome === 'accepted') {
         logger.info('[PWAInstallPrompt] ✅ User installed PWA');
+        // ✅ ANALYTICS: Track successful installation
+        trackPWAEvent('pwa_installed');
         setShowPrompt(false);
         setDeferredPrompt(null);
       } else {
         logger.debug('[PWAInstallPrompt] User dismissed install prompt');
+        // ✅ ANALYTICS: Track dismissal
+        trackPWAEvent('pwa_install_dismissed');
       }
     } catch (error) {
       logger.error('[PWAInstallPrompt] Install error:', error);
@@ -102,17 +147,55 @@ export function PWAInstallPrompt() {
   const handleDismiss = () => {
     setShowPrompt(false);
     localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    // ✅ ANALYTICS: Track dismissal
+    trackPWAEvent('pwa_install_dismissed');
     logger.debug('[PWAInstallPrompt] User dismissed, will show again in 7 days');
   };
 
-  if (!showPrompt || isPWA) {
+  // ✅ DESKTOP: Show smaller tooltip on desktop browsers that support PWA install
+  const isDesktop = !isMobile && canInstall;
+  
+  if (isPWA) {
+    return null;
+  }
+
+  // Desktop: Show subtle tooltip
+  if (isDesktop && !showPrompt) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="fixed bottom-4 right-4 z-50"
+      >
+        <button
+          onClick={() => setShowPrompt(true)}
+          className="bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 text-sm font-medium py-2 px-4 rounded-lg shadow-lg transition-colors"
+          aria-label="Install Atlas for a full-screen experience"
+        >
+          Install Atlas
+        </button>
+      </motion.div>
+    );
+  }
+
+  if (!showPrompt) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-[#F9F6F3] via-[#F9F6F3] to-transparent">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl border border-[#E8DDD2] p-4 flex items-start gap-3">
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 100 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 100 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-[#F9F6F3] via-[#F9F6F3] to-transparent"
+        aria-live="polite"
+        role="status"
+      >
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#E8DDD2] p-4 flex items-start gap-3">
           {/* Icon */}
           <div className="flex-shrink-0 w-12 h-12 bg-[#D3DCAB] rounded-xl flex items-center justify-center">
             <svg
@@ -192,7 +275,8 @@ export function PWAInstallPrompt() {
           </button>
         </div>
       </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
