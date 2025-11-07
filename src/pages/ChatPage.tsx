@@ -1100,12 +1100,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Header Skeleton */}
         <div 
-          className={`${isDarkMode ? 'bg-gray-800/20 border-gray-700/30' : 'bg-white/10 border border-white/20'} backdrop-blur-lg sticky top-0 z-30`}
+          className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)'
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            background: 'rgba(255, 255, 255, 0.15)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1134,12 +1134,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         {/* Input Skeleton */}
         <div 
-          className={`fixed bottom-0 left-0 right-0 p-4 backdrop-blur-lg`}
+          className={`fixed bottom-0 left-0 right-0 p-4`}
           style={{ 
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            boxShadow: '0 -8px 32px 0 rgba(0, 0, 0, 0.1)',
-            backgroundColor: 'transparent'
+            background: 'transparent',
+            borderTop: 'none'
           }}
         >
           <div className="max-w-4xl mx-auto">
@@ -1242,15 +1240,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
-        {/* Header with Menu Button - Glassmorphism best practices */}
+        {/* Header - Elegant glassmorphism effect */}
         <div 
-          className={`${isDarkMode ? 'bg-gray-800/20 border-gray-700/30' : 'bg-white/10 border border-white/20'} backdrop-blur-lg sticky top-0 z-30`}
+          className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)',
-            // Fallback for browsers without backdrop-filter support
-            backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.8)' : 'rgba(255, 255, 255, 0.8)'
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            background: isDarkMode ? 'rgba(31, 41, 55, 0.15)' : 'rgba(255, 255, 255, 0.15)',
+            borderBottom: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1498,15 +1495,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Input Toolbar - Floating with glass effect, no border, no background */}
+          {/* Footer - Fully transparent wrapper */}
           <div 
-            className={`fixed bottom-0 left-0 right-0 p-4 z-30 backdrop-blur-lg`}
+            className={`fixed bottom-0 left-0 right-0 p-4 z-30`}
             style={{ 
               paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-              backdropFilter: 'blur(16px) saturate(180%)',
-              boxShadow: '0 -8px 32px 0 rgba(0, 0, 0, 0.1)',
-              backgroundColor: 'transparent' // Fully transparent - let glass effect show through
+              background: 'transparent',
+              borderTop: 'none'
             }}
           >
             <div className="max-w-4xl mx-auto">
