@@ -8,6 +8,13 @@ const rateLimit = pkg.default || pkg;
 import { logger } from '../lib/simpleLogger.mjs';
 import { redisService } from '../services/redisService.mjs';
 
+// ✅ SECURITY FIX: Use proper IPv6 handling for rate limiting
+// Prevents IPv6 users from bypassing rate limits
+const ipKeyGenerator = rateLimit.ipKeyGenerator || ((req) => {
+  // Fallback if ipKeyGenerator not available
+  return req.ip || req.connection?.remoteAddress || 'unknown';
+});
+
 /**
  * Create rate limiter with Redis store (if available) or memory store
  */
@@ -70,7 +77,7 @@ export const messageRateLimit = createRateLimiter({
     const tier = req.user?.tier || 'free';
     return tier === 'free' ? 20 : 100; // 20/min free, 100/min paid
   },
-  keyGenerator: (req) => req.user?.id || req.ip, // Per-user or per-IP
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling
   message: 'Too many messages. Free tier: 20/min, Paid: 100/min. Please slow down.',
 });
 
@@ -109,7 +116,7 @@ export const generalApiRateLimit = createRateLimiter({
 export const authRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 attempts per 15 minutes
-  keyGenerator: (req) => req.ip, // Per IP (no user ID yet)
+  keyGenerator: (req) => ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling (no user ID yet)
   message: 'Too many authentication attempts. Please try again in 15 minutes.',
   skipSuccessfulRequests: true, // Don't count successful logins
 });
