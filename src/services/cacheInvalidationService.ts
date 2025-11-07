@@ -132,24 +132,35 @@ class CacheInvalidationService {
 
   /**
    * Clear browser localStorage and sessionStorage
+   * ✅ UNIFIED: Clears ALL tier-related cache keys including useTierQuery cache
    */
   private async clearBrowserStorage(userId: string): Promise<void> {
     if (typeof window === 'undefined') return;
     
     try {
-      // Clear tier-related keys
+      // Clear tier-related keys (including useTierQuery cache)
       const keysToRemove = [
         `tier_${userId}`,
         `subscription_${userId}`,
         `profile_${userId}`,
         'cachedTier',
-        'lastTierFetch'
+        'lastTierFetch',
+        'atlas:tier_cache', // ✅ CRITICAL: useTierQuery localStorage cache
       ];
       
       keysToRemove.forEach(key => {
         localStorage.removeItem(key);
         sessionStorage.removeItem(key);
       });
+      
+      // ✅ Also clear React Query cache via event (useTierQuery listens for this)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tier-cache-invalidated', {
+          detail: { userId }
+        }));
+      }
+      
+      logger.debug(`[CacheInvalidation] ✅ Cleared browser storage for user ${userId}`);
     } catch (error) {
       logger.warn('[CacheInvalidation] Could not clear browser storage:', error);
     }

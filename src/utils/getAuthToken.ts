@@ -53,17 +53,37 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
     if (forceRefresh && session) {
       logger.debug('[getAuthToken] Force refresh requested, refreshing...');
       
-      const { data: { session: refreshedSession }, error: refreshError } = 
-        await supabase.auth.refreshSession();
-      
-      if (refreshError) {
-        logger.error('[getAuthToken] ❌ Refresh error:', refreshError.message);
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = 
+          await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          logger.error('[getAuthToken] ❌ Refresh error:', {
+            message: refreshError.message,
+            status: refreshError.status,
+            name: refreshError.name
+          });
+          
+          // ✅ IMPROVED: If refresh token is expired, user needs to sign in again
+          if (refreshError.message?.includes('refresh_token') || refreshError.message?.includes('expired')) {
+            logger.warn('[getAuthToken] ⚠️ Refresh token expired - user needs to sign in again');
+          }
+          
+          return null;
+        }
+        
+        if (refreshedSession?.access_token) {
+          logger.debug('[getAuthToken] ✅ Token refreshed successfully', {
+            tokenLength: refreshedSession.access_token.length,
+            expiresAt: refreshedSession.expires_at ? new Date(refreshedSession.expires_at * 1000).toISOString() : 'unknown'
+          });
+          return refreshedSession.access_token;
+        } else {
+          logger.warn('[getAuthToken] ⚠️ Refresh succeeded but no access token in response');
+        }
+      } catch (refreshException) {
+        logger.error('[getAuthToken] ❌ Exception during refresh:', refreshException);
         return null;
-      }
-      
-      if (refreshedSession?.access_token) {
-        logger.debug('[getAuthToken] ✅ Token refreshed successfully');
-        return refreshedSession.access_token;
       }
     }
     

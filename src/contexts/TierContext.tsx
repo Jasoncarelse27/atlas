@@ -107,6 +107,17 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
     // Initial fetch
     fetchTierGlobal();
 
+    // ✅ UNIFIED: Listen for centralized cache invalidation events
+    const handleTierChanged = (event: CustomEvent) => {
+      const { userId, newTier } = event.detail;
+      // Force refresh tier when cache is invalidated
+      globalTierState.lastFetch = 0; // Force refresh
+      fetchTierGlobal();
+    };
+    
+    window.addEventListener('tier-changed', handleTierChanged as EventListener);
+    window.addEventListener('tier-cache-invalidated', handleTierChanged as EventListener);
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       fetchTierGlobal();
@@ -115,6 +126,8 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
     return () => {
       listeners.delete(listener);
       subscription.unsubscribe();
+      window.removeEventListener('tier-changed', handleTierChanged as EventListener);
+      window.removeEventListener('tier-cache-invalidated', handleTierChanged as EventListener);
     };
   }, []);
 

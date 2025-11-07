@@ -10,6 +10,7 @@ if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KE
 interface AuthFetchOptions extends RequestInit {
   retryOn401?: boolean;
   showErrorToast?: boolean;
+  preventRedirect?: boolean; // ✅ NEW: Prevent redirect to login on 401 (for silent failures)
 }
 
 interface ApiError {
@@ -28,7 +29,7 @@ export async function fetchWithAuth(
   url: string, 
   options: AuthFetchOptions = {}
 ): Promise<Response> {
-  const { retryOn401 = true, showErrorToast = true, ...fetchOptions } = options;
+  const { retryOn401 = true, showErrorToast = true, preventRedirect = false, ...fetchOptions } = options;
   
   // Get the appropriate token based on environment
   const token = await getAuthToken();
@@ -66,9 +67,20 @@ export async function fetchWithAuth(
     // Handle 401 Unauthorized
     if (response.status === 401) {
       if (retryOn401) {
-        // Refresh token and retry once
+        logger.debug('[AuthFetch] 401 received, attempting token refresh...');
+        
+        // ✅ IMPROVED: Try to refresh token
         const newToken = await getAuthToken(true);
-        if (newToken && newToken !== token) {
+        
+        if (newToken) {
+          logger.debug('[AuthFetch] ✅ Token available, retrying request...', {
+            tokenChanged: newToken !== token,
+            originalTokenLength: token?.length || 0,
+            newTokenLength: newToken.length
+          });
+          
+          // ✅ IMPROVED: Retry with new token (even if same - Supabase may have refreshed it)
+          // The backend might accept it now if Supabase refreshed it internally
           const retryHeaders = {
             ...headers,
             'Authorization': `Bearer ${newToken}`,
@@ -79,9 +91,21 @@ export async function fetchWithAuth(
             headers: retryHeaders,
           });
           
+          logger.debug('[AuthFetch] Retry response status:', retryResponse.status);
+          
           if (retryResponse.status !== 401) {
+            logger.debug('[AuthFetch] ✅ Retry successful');
             return retryResponse;
+          } else {
+            // Get error details for better diagnostics
+            const errorText = await retryResponse.text().catch(() => '');
+            logger.error('[AuthFetch] ❌ Retry still returned 401:', {
+              errorText: errorText.substring(0, 200), // First 200 chars
+              tokenPreview: newToken.substring(0, 20) + '...'
+            });
           }
+        } else {
+          logger.error('[AuthFetch] ❌ Token refresh failed - no new token available');
         }
       }
       
@@ -90,10 +114,13 @@ export async function fetchWithAuth(
         showToast('⚠️ Session expired. Please log in again.', 'error');
       }
       
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+      // ✅ NEW: Only redirect if not prevented (for silent failures like TTS)
+      if (!preventRedirect) {
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      }
       
       const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
       throw new Error(JSON.stringify(errorData));

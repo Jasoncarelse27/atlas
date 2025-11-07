@@ -46,15 +46,22 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
 
       logger.debug('✅ Backend tier updated');
 
-      // 2. Clear Dexie cache (force next read to pull from backend)
+      // ✅ UNIFIED: Trigger centralized cache invalidation (clears all caches)
       try {
-        // Clear any cached profile data
-        if (window.db?.profiles) {
-          await window.db.profiles.clear();
-          logger.debug('✅ Dexie cache cleared');
+        const { cacheInvalidationService } = await import('../services/cacheInvalidationService');
+        await cacheInvalidationService.onTierChange(user.id, newTier as any, 'dev-tool');
+        logger.debug('✅ Centralized cache invalidation triggered');
+      } catch (err) {
+        logger.warn('[DevTierSwitcher] Could not trigger cache invalidation:', err);
+        // Fallback: Clear Dexie cache manually
+        try {
+          if (window.db?.profiles) {
+            await window.db.profiles.clear();
+            logger.debug('✅ Dexie cache cleared (fallback)');
+          }
+        } catch (dexieError) {
+          // Intentionally empty - error handling not required
         }
-      } catch (dexieError) {
-      // Intentionally empty - error handling not required
       }
 
       // 3. Refresh React state (re-fetch profile from backend)

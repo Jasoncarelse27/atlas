@@ -357,13 +357,15 @@ export class ConversationSyncService {
         : syncMeta.lastSyncedAt;
       
       // ✅ ALWAYS log diagnostic info (even in production) for troubleshooting
-      console.log('[ConversationSync] 🔍 Sync state:', {
+      // ✅ CRITICAL DIAGNOSTIC: Always log sync state (logger.info shows in production)
+      logger.info('[ConversationSync] 🔍 Sync state:', {
         isFirstSync,
         localCount: localConversationCount,
         lastSyncedAt,
-        hasSyncMeta: !!syncMeta
+        hasSyncMeta: !!syncMeta,
+        userId: userId.slice(0, 8) + '...'
       });
-      logger.info('[ConversationSync] 🔍 Sync state:', {
+      console.log('[ConversationSync] 🔍 Sync state:', {
         isFirstSync,
         localCount: localConversationCount,
         lastSyncedAt,
@@ -376,6 +378,7 @@ export class ConversationSyncService {
       
       if (isFirstSync) {
         // ✅ FIRST SYNC: Fetch ALL conversations (no date filter, just non-deleted)
+        logger.info('[ConversationSync] 📡 First sync - fetching ALL conversations (no date filter)');
         console.log('[ConversationSync] 📡 First sync - fetching ALL conversations...');
         const result = await supabase
           .from('conversations')
@@ -389,6 +392,7 @@ export class ConversationSyncService {
         convError = result.error;
       } else {
         // ✅ DELTA SYNC: Only fetch conversations updated since last sync
+        logger.info('[ConversationSync] 📡 Delta sync - fetching updated conversations since:', lastSyncedAt);
         console.log('[ConversationSync] 📡 Delta sync - fetching updated conversations since:', lastSyncedAt);
         const result = await supabase
           .from('conversations')
@@ -414,20 +418,23 @@ export class ConversationSyncService {
       conversationsSynced = updatedConversations?.length || 0;
       
       // ✅ DIAGNOSTIC: Log sync details for troubleshooting (ALWAYS log, even in production)
+      // ✅ CRITICAL: Log sync results with query type
+      const queryType = isFirstSync ? 'FIRST_SYNC (all conversations)' : 'DELTA_SYNC (updated only)';
+      logger.info(`[ConversationSync] 📊 Sync results:`, {
+        found: conversationsSynced,
+        userId: userId.slice(0, 8) + '...',
+        lastSyncedAt,
+        isFirstSync,
+        localCount: localConversationCount,
+        queryType
+      });
       console.log(`[ConversationSync] 📊 Sync results:`, {
         found: conversationsSynced,
         userId: userId.slice(0, 8) + '...',
         lastSyncedAt,
         isFirstSync,
         localCount: localConversationCount,
-        queryType: isFirstSync ? 'FIRST_SYNC (all conversations)' : 'DELTA_SYNC (updated only)'
-      });
-      logger.info(`[ConversationSync] 📊 Sync results:`, {
-        found: conversationsSynced,
-        userId: userId.slice(0, 8) + '...',
-        lastSyncedAt,
-        isFirstSync,
-        localCount: localConversationCount
+        queryType
       });
       
       // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all

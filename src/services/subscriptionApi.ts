@@ -281,8 +281,17 @@ class SubscriptionApiService {
 
     const updatedProfile = await response.json();
     
-    // Clear cache since tier was updated
+    // ✅ UNIFIED: Clear cache and trigger centralized invalidation
     this.clearProfileCache(userId);
+    
+    // Trigger centralized cache invalidation for all caches (mobile + web)
+    try {
+      const { cacheInvalidationService } = await import('./cacheInvalidationService');
+      await cacheInvalidationService.onTierChange(userId, newTier, 'api');
+    } catch (err) {
+      logger.warn('[SubscriptionAPI] Could not trigger cache invalidation:', err);
+      // Continue anyway - Realtime will catch the update
+    }
     
     return updatedProfile;
   }

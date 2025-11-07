@@ -306,12 +306,22 @@ export function useTierQuery() {
           
           logger.info(`[useTierQuery] ✨ Tier updated via Realtime: ${oldTier?.toUpperCase() || 'UNKNOWN'} → ${newTier.toUpperCase()}`);
           
-          // ✅ MOBILE FIX: Clear old cache before updating (prevents stale cache)
+          // ✅ UNIFIED: Trigger centralized cache invalidation (clears all caches)
           if (typeof window !== 'undefined') {
             try {
-              localStorage.removeItem(TIER_CACHE_KEY);
+              // Import and trigger centralized invalidation service
+              import('../services/cacheInvalidationService').then(({ cacheInvalidationService }) => {
+                cacheInvalidationService.onTierChange(userId, newTier, 'realtime');
+              }).catch(err => {
+                logger.warn('[useTierQuery] Could not trigger cache invalidation:', err);
+              });
             } catch (e) {
-              // Ignore localStorage errors
+              // Fallback: Clear local cache if service unavailable
+              try {
+                localStorage.removeItem(TIER_CACHE_KEY);
+              } catch (e2) {
+                // Ignore localStorage errors
+              }
             }
           }
           
@@ -349,6 +359,44 @@ export function useTierQuery() {
     };
   }, [query.data?.userId, queryClient]);
 
+  // ✅ UNIFIED: Listen for centralized cache invalidation events
+  useEffect(() => {
+    const handleCacheInvalidation = (event: CustomEvent) => {
+      const { userId: invalidatedUserId } = event.detail;
+      const currentUserId = query.data?.userId;
+      
+      // Only invalidate if it's for the current user
+      if (currentUserId && invalidatedUserId === currentUserId) {
+        logger.debug('[useTierQuery] 🔄 Received cache invalidation event, refreshing tier...');
+        queryClient.removeQueries({ queryKey: ['user-tier'] });
+        query.refetch();
+      }
+    };
+    
+    const handleTierChanged = (event: CustomEvent) => {
+      const { userId: changedUserId, newTier } = event.detail;
+      const currentUserId = query.data?.userId;
+      
+      // Update immediately if it's for the current user
+      if (currentUserId && changedUserId === currentUserId) {
+        logger.debug(`[useTierQuery] 🔄 Received tier change event: ${newTier}`);
+        queryClient.setQueryData<TierData>(['user-tier'], {
+          tier: newTier,
+          userId: currentUserId
+        });
+        setCachedTier({ tier: newTier, userId: currentUserId });
+      }
+    };
+    
+    window.addEventListener('tier-cache-invalidated', handleCacheInvalidation as EventListener);
+    window.addEventListener('tier-changed', handleTierChanged as EventListener);
+    
+    return () => {
+      window.removeEventListener('tier-cache-invalidated', handleCacheInvalidation as EventListener);
+      window.removeEventListener('tier-changed', handleTierChanged as EventListener);
+    };
+  }, [query.data?.userId, queryClient, query]);
+
   // Listen for auth state changes (login/logout) - SILENT (no logging to prevent spam)
   useEffect(() => {
     let isSubscribed = true;
@@ -379,17 +427,29 @@ export function useTierQuery() {
     };
   }, [queryClient]);
 
-  // ✅ MOBILE FIX: Enhanced refetch that clears cache and forces fresh fetch
+  // ✅ UNIFIED: Enhanced refetch that uses centralized cache invalidation
   const forceRefreshTier = async () => {
     logger.debug('[useTierQuery] 🔄 Force refreshing tier...');
-    // Clear localStorage cache
-    if (typeof window !== 'undefined') {
+    
+    const userId = query.data?.userId;
+    if (userId) {
+      // Use centralized cache invalidation service
       try {
-        localStorage.removeItem(TIER_CACHE_KEY);
-      } catch (e) {
-        // Ignore localStorage errors
+        const { cacheInvalidationService } = await import('../services/cacheInvalidationService');
+        await cacheInvalidationService.invalidateUserTier(userId);
+      } catch (err) {
+        logger.warn('[useTierQuery] Could not use cache invalidation service, using fallback:', err);
+        // Fallback: Clear local cache
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem(TIER_CACHE_KEY);
+          } catch (e) {
+            // Ignore localStorage errors
+          }
+        }
       }
     }
+    
     // Clear React Query cache
     queryClient.removeQueries({ queryKey: ['user-tier'] });
     // Force refetch with fresh data

@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { canUseAudio } from '../../config/featureAccess';
 import { logger } from '../../lib/logger';
+import { supabase } from '../../lib/supabaseClient';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
 import { DeleteMessageModal } from '../modals/DeleteMessageModal';
@@ -472,9 +473,12 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
   
   // ✅ IMPROVED TTS handler with audio controls
   const handlePlayTTS = async () => {
-    // Wait for auth to complete
-    if (loading) {
-      logger.warn('[TTS] Waiting for authentication...');
+    // ✅ IMPROVED: Check actual session, not just loading state
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.access_token) {
+      logger.warn('[TTS] No active session - waiting for authentication...');
+      toast.error('Please sign in to use text-to-speech');
       return;
     }
     
