@@ -83,15 +83,8 @@ describe('RetryService Integration', () => {
       // Advance through all retries
       await vi.advanceTimersByTimeAsync(30000);
 
-      try {
-        await promise;
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error);
-        // Should preserve original error message or connection lost message
-        const message = (error as Error).message;
-        expect(message).toMatch(/confidence too low|Connection lost/);
-      }
+      // ✅ FIX: Ensure promise is fully settled before test ends
+      await expect(promise).rejects.toThrow(/confidence too low|Connection lost/);
     });
 
     it('should call callbacks correctly during retries', async () => {
@@ -142,14 +135,8 @@ describe('RetryService Integration', () => {
       // Advance through all retries
       await vi.advanceTimersByTimeAsync(30000);
 
-      try {
-        await promise;
-        expect.fail('Should have thrown');
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error);
-        const message = (error as Error).message;
-        expect(message).toMatch(/Connection lost|Persistent failure/);
-      }
+      // ✅ FIX: Use expect().rejects.toThrow() to properly handle promise rejection
+      await expect(promise).rejects.toThrow(/Connection lost|Persistent failure/);
       expect(fn).toHaveBeenCalledTimes(6); // Initial + 5 retries
     });
   });
