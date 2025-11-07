@@ -62,6 +62,12 @@ export function PWAInstallPrompt() {
       return;
     }
 
+    // ✅ DESKTOP: Desktop tooltip is handled separately in render
+    // Mobile prompt logic below only runs on mobile devices
+    if (!isMobile) {
+      return;
+    }
+
     // Check if user dismissed before
     const dismissed = localStorage.getItem('pwa-install-dismissed');
     const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
@@ -113,7 +119,7 @@ export function PWAInstallPrompt() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [isMobile, isPWA, hasTrackedImpression]);
+  }, [isMobile, isPWA]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
