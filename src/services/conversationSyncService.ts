@@ -327,6 +327,9 @@ export class ConversationSyncService {
    * - Tracks data volume synced
    */
   async deltaSync(userId: string): Promise<void> {
+    // ✅ CRITICAL DIAGNOSTIC: Log at function entry (NEVER filtered)
+    console.error('[ConversationSync] 🚀 FUNCTION CALLED - deltaSync started for user:', userId.slice(0, 8) + '...');
+    
     perfMonitor.start('conversation-sync'); // ✅ FIX: Start performance monitor
     const startTime = Date.now();
     let queriesExecuted = 0;
@@ -391,6 +394,7 @@ export class ConversationSyncService {
         convError = result.error;
       } else {
         // ✅ DELTA SYNC: Only fetch conversations updated since last sync
+        console.error('[ConversationSync] 📡 DELTA SYNC MODE - fetching updated conversations since:', lastSyncedAt);
         logger.info('[ConversationSync] 📡 Delta sync - fetching updated conversations since:', lastSyncedAt);
         console.log('[ConversationSync] 📡 Delta sync - fetching updated conversations since:', lastSyncedAt);
         const result = await supabase
