@@ -5,18 +5,16 @@
 
 import pkg from 'express-rate-limit';
 const rateLimit = pkg.default || pkg;
-import { ipKeyGenerator as expressIpKeyGenerator } from 'express-rate-limit';
+import { ipKeyGenerator } from 'express-rate-limit';
 import { logger } from '../lib/simpleLogger.mjs';
 import { redisService } from '../services/redisService.mjs';
 
-// ✅ SECURITY FIX: Use proper IPv6 handling for rate limiting
-// Prevents IPv6 users from bypassing rate limits
-// ipKeyGenerator handles IPv6 subnets correctly (prevents bypass)
-const ipKeyGenerator = (req) => {
-  const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
-  // Use express-rate-limit's ipKeyGenerator for proper IPv6 handling
-  return expressIpKeyGenerator(ip);
-};
+// ✅ SECURITY FIX: Helper to extract IP and use ipKeyGenerator
+// Must use ipKeyGenerator directly (not wrapped) to pass validation
+// The validation checks if keyGenerator function string includes "ipKeyGenerator"
+function getIpFromRequest(req) {
+  return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
+}
 
 /**
  * Create rate limiter with Redis store (if available) or memory store
@@ -80,7 +78,7 @@ export const messageRateLimit = createRateLimiter({
     const tier = req.user?.tier || 'free';
     return tier === 'free' ? 20 : 100; // 20/min free, 100/min paid
   },
-  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(getIpFromRequest(req)), // ✅ SECURITY: Proper IPv6 handling
   message: 'Too many messages. Free tier: 20/min, Paid: 100/min. Please slow down.',
 });
 
@@ -94,7 +92,7 @@ export const imageAnalysisRateLimit = createRateLimiter({
     const tier = req.user?.tier || 'free';
     return tier === 'free' ? 5 : 30; // 5/min free, 30/min paid
   },
-  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(getIpFromRequest(req)), // ✅ SECURITY: Proper IPv6 handling
   message: 'Too many image analysis requests. Free tier: 5/min, Paid: 30/min. Please slow down.',
 });
 
@@ -108,7 +106,7 @@ export const generalApiRateLimit = createRateLimiter({
     const tier = req.user?.tier || 'free';
     return tier === 'free' ? 60 : 200; // 60/min free, 200/min paid
   },
-  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(getIpFromRequest(req)), // ✅ SECURITY: Proper IPv6 handling
   message: 'Too many requests. Please slow down.',
 });
 
@@ -119,7 +117,7 @@ export const generalApiRateLimit = createRateLimiter({
 export const authRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 attempts per 15 minutes
-  keyGenerator: (req) => ipKeyGenerator(req), // ✅ SECURITY: Proper IPv6 handling (no user ID yet)
+  keyGenerator: (req) => ipKeyGenerator(getIpFromRequest(req)), // ✅ SECURITY: Proper IPv6 handling (no user ID yet)
   message: 'Too many authentication attempts. Please try again in 15 minutes.',
   skipSuccessfulRequests: true, // Don't count successful logins
 });

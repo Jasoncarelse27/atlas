@@ -125,7 +125,15 @@ app.get('/healthz', async (req, res) => {
 
   // ✅ CI/CD FIX: Don't fail health check in test environments
   // In CI/test, database might not be configured - that's OK for health check
-  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
+  // Check multiple CI indicators (GitHub Actions, GitLab CI, etc.)
+  const isTestEnv = process.env.NODE_ENV === 'test' 
+    || process.env.CI === 'true' 
+    || process.env.GITHUB_ACTIONS === 'true'
+    || process.env.GITLAB_CI === 'true'
+    || process.env.CIRCLECI === 'true';
+  
+  // In test/CI: only check if server is ready (database optional)
+  // In prod: require both database AND server to be ready
   const isHealthy = isTestEnv 
     ? serverReady // In test: only check if server is ready
     : (health.checks.database && serverReady); // In prod: check database + server
