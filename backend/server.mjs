@@ -21,6 +21,7 @@ import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } fr
 import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
+import { createQueryTimeout } from './utils/queryTimeout.mjs';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -35,17 +36,18 @@ process.on('unhandledRejection', (reason, promise) => {
   // Don't exit - let Railway handle it, but log the error
 });
 
-// Force use of http/https Agent to fix fetch issues
+// ✅ SCALABILITY FIX: Increased connection pool for 10k+ users
+// At 10k users: 200 connections × 2 req/sec = 400 req/sec capacity (20% headroom)
 const httpAgent = new http.Agent({ 
   keepAlive: true,
-  maxSockets: 50, // 🚀 Increase connection pool
-  maxFreeSockets: 10,
+  maxSockets: 200, // ✅ Increased from 50 to handle 10k concurrent users
+  maxFreeSockets: 50, // ✅ Increased from 10 for better connection reuse
   timeout: 30000 // 30s timeout
 });
 const httpsAgent = new https.Agent({ 
   keepAlive: true,
-  maxSockets: 50, // 🚀 Increase connection pool for faster API calls
-  maxFreeSockets: 10,
+  maxSockets: 200, // ✅ Increased from 50 to handle 10k concurrent users
+  maxFreeSockets: 50, // ✅ Increased from 10 for better connection reuse
   timeout: 30000 // 30s timeout
 });
 
@@ -81,25 +83,45 @@ let serverReady = false;
 
 // Health check endpoint - register IMMEDIATELY before any middleware
 // This ensures Railway can reach it even during server initialization
-app.get('/healthz', (req, res) => {
-  // ✅ CRITICAL FIX: Always return 'ok' for Railway healthcheck
-  // Railway expects status: 'ok' to pass healthcheck, not 'starting'
-  // This prevents Railway from killing the container during startup
+// ✅ SCALABILITY FIX: Enhanced health check for monitoring at scale
+app.get('/healthz', async (req, res) => {
   const health = {
-    status: 'ok', // ✅ Always 'ok' for Railway (server is listening)
-    uptime: process.uptime(),
+    status: 'ok',
     timestamp: Date.now(),
-    ready: serverReady, // Internal status tracking
-    serverState: serverReady ? 'ready' : 'starting' // More detailed status
+    uptime: process.uptime(),
+    ready: serverReady,
+    serverState: serverReady ? 'ready' : 'starting',
+    checks: {
+      database: false,
+      redis: false,
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        limit: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      },
+    },
   };
-  
-  // Include Redis status if available
-  if (redisService) {
-    health.redis = redisService.isConnected;
+
+  // Check database connection
+  try {
+    const { supabase } = await import('./config/supabaseClient.mjs');
+    const { error } = await supabase.from('profiles').select('id').limit(1);
+    health.checks.database = !error;
+  } catch (error) {
+    health.checks.database = false;
+    logger.warn('[HealthCheck] Database check failed:', error.message);
   }
+
+  // Check Redis connection
+  if (redisService) {
+    health.checks.redis = await redisService.healthCheck();
+  }
+
+  // Determine overall health
+  const isHealthy = health.checks.database && serverReady;
   
-  // ✅ CRITICAL: Always return 200 OK - Railway kills container on non-200
-  res.status(200).json(health);
+  // Return 503 if unhealthy (but still return JSON for monitoring)
+  res.status(isHealthy ? 200 : 503).json(health);
 });
 
 // Initialize Sentry error tracking
@@ -1161,7 +1183,7 @@ app.post('/message',
 });
 
 // Legacy endpoint for backward compatibility
-app.post('/api/message', verifyJWT, async (req, res) => {
+app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
   // ✅ CRITICAL DEBUG: Log request arrival
   logger.debug('[POST /api/message] 📨 Request received:', {
     userId: req.user?.id,
@@ -1722,7 +1744,7 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
 });
 
 // Image analysis endpoint using Claude Vision
-app.post('/api/image-analysis', verifyJWT, async (req, res) => {
+app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, res) => {
   // ✅ CRITICAL: Generate requestId at the very top for complete error tracing
   const requestId = uuidv4();
   
