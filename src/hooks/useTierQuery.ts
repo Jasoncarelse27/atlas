@@ -117,6 +117,13 @@ export function useTierQuery() {
     refetchOnReconnect: true, // Auto-refetch on network restore
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    // ✅ PERFORMANCE FIX: Show 'free' tier immediately while loading (prevents slow drawer)
+    placeholderData: { tier: 'free' as Tier, userId: null },
+    // ✅ PERFORMANCE FIX: Use cached data immediately if available
+    initialData: () => {
+      const cached = queryClient.getQueryData<TierData>(['user-tier']);
+      return cached || { tier: 'free' as Tier, userId: null };
+    },
   });
 
   // Log tier only when it changes (reduce console spam)

@@ -11,15 +11,9 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
   // 🚀 Modern tier management with React Query + Realtime
   const { tier, isLoading } = useTierQuery();
 
-  // Show shimmer skeleton while loading
-  if (isLoading) {
-    return (
-      <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm animate-pulse">
-        <div className="h-4 bg-[#E8DDD2] rounded w-24 mb-2"></div>
-        <div className="h-6 bg-[#E8DDD2] rounded w-32"></div>
-      </div>
-    );
-  }
+  // ✅ PERFORMANCE FIX: Don't show loading state - use placeholderData instead
+  // This prevents slow drawer opening. Tier will update instantly when loaded.
+  // The placeholderData ensures we always have a tier value (defaults to 'free')
   
   // ✅ Usage tracking: Shows 0 until usage API is implemented
   // This is a display-only component; actual enforcement happens in useTierAccess
