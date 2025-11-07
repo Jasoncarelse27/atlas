@@ -302,7 +302,18 @@ export function useTierQuery() {
         },
         (payload) => {
           const newTier = (payload.new as any).subscription_tier as Tier || 'free';
-          logger.info(`[useTierQuery] ✨ Tier updated: ${newTier.toUpperCase()}`);
+          const oldTier = queryClient.getQueryData<TierData>(['user-tier'])?.tier;
+          
+          logger.info(`[useTierQuery] ✨ Tier updated via Realtime: ${oldTier?.toUpperCase() || 'UNKNOWN'} → ${newTier.toUpperCase()}`);
+          
+          // ✅ MOBILE FIX: Clear old cache before updating (prevents stale cache)
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.removeItem(TIER_CACHE_KEY);
+            } catch (e) {
+              // Ignore localStorage errors
+            }
+          }
           
           // Instantly update cache with new tier (no API call needed!)
           const updatedData: TierData = {
@@ -311,8 +322,11 @@ export function useTierQuery() {
           };
           queryClient.setQueryData<TierData>(['user-tier'], updatedData);
           
-          // ✅ PERFORMANCE FIX: Update localStorage cache too
+          // ✅ PERFORMANCE FIX: Update localStorage cache with fresh timestamp
           setCachedTier(updatedData);
+          
+          // ✅ MOBILE FIX: Log cache update for debugging
+          logger.debug(`[useTierQuery] ✅ Cache updated: ${newTier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
         }
       )
       .subscribe((status) => {
