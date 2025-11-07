@@ -100,13 +100,17 @@ export const supabase = (() => {
 // ✅ TEMPORARY: Expose for console debugging in production (for troubleshooting)
 // TODO: Remove after conversation sync issue is resolved
 if (typeof window !== 'undefined') {
-  if (!(window as any).supabase) {
-    (window as any).supabase = supabase;
+  // Force exposure - multiple ways to access
+  (window as any).supabase = supabase;
+  (window as any).atlasSupabase = supabase;
+  (window as any).__atlasSupabase = supabase;
+  
+  // Also expose via globalThis for maximum compatibility
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as any).supabase = supabase;
   }
-  // Also expose for easy access
-  if (!(window as any).atlasSupabase) {
-    (window as any).atlasSupabase = supabase;
-  }
+  
+  console.log('[Supabase] ✅ Exposed to window.supabase, window.atlasSupabase, window.__atlasSupabase');
 }
 
 // Health-check helper with mobile fallback

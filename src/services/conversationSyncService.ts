@@ -327,8 +327,16 @@ export class ConversationSyncService {
    * - Tracks data volume synced
    */
   async deltaSync(userId: string): Promise<void> {
-    // ✅ CRITICAL DIAGNOSTIC: Log at function entry (NEVER filtered)
-    console.error('[ConversationSync] 🚀 FUNCTION CALLED - deltaSync started for user:', userId.slice(0, 8) + '...');
+    // ✅ CRITICAL DIAGNOSTIC: Multiple logging methods to ensure visibility
+    const diagnosticMsg = `[ConversationSync] 🚀 FUNCTION CALLED - deltaSync started for user: ${userId.slice(0, 8)}...`;
+    console.error(diagnosticMsg);
+    console.warn(diagnosticMsg);
+    console.log(diagnosticMsg);
+    // Force visibility - this will ALWAYS show
+    if (typeof window !== 'undefined') {
+      (window as any).__atlasSyncDebug = (window as any).__atlasSyncDebug || [];
+      (window as any).__atlasSyncDebug.push({ type: 'function_called', userId: userId.slice(0, 8), timestamp: Date.now() });
+    }
     
     perfMonitor.start('conversation-sync'); // ✅ FIX: Start performance monitor
     const startTime = Date.now();
