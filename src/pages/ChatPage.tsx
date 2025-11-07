@@ -1504,13 +1504,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-          {/* Footer - White gradient effect (visible fade) */}
+          {/* Footer - Clean white background (no black block) */}
           <div 
-            className={`fixed bottom-0 left-0 right-0 p-4 z-30`}
+            className={`fixed bottom-0 left-0 right-0 z-30`}
             style={{ 
               paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-              background: 'linear-gradient(to top, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
-              backgroundColor: 'transparent',
+              paddingTop: '16px',
+              backgroundColor: '#F9F6F3', // ✅ Atlas pearl background - matches body
+              background: '#F9F6F3', // ✅ Ensure solid background (no gradient causing black)
               backdropFilter: 'none !important',
               WebkitBackdropFilter: 'none !important',
               borderTop: 'none'

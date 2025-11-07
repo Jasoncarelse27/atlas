@@ -650,9 +650,10 @@ export default function EnhancedInputToolbar({
       )}
       
           {/* Main Input Container - Floating white card, no borders */}
+          {/* ✅ MOBILE BEST PRACTICE: items-center for proper vertical alignment on iOS/Android */}
           <motion.div 
             data-input-area
-            className="flex items-end w-full max-w-4xl mx-auto px-3 py-2 rounded-2xl mb-6"
+            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 rounded-2xl mb-6"
             style={{
               background: '#ffffff !important',
               backgroundColor: '#ffffff !important',
@@ -691,7 +692,7 @@ export default function EnhancedInputToolbar({
                   setMenuOpen(!menuOpen)
                 }}
                 disabled={disabled}
-                className={`p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl touch-manipulation ${
+                className={`min-h-[44px] min-w-[44px] p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl touch-manipulation flex items-center justify-center ${
                   menuOpen 
                     ? 'bg-[#D3DCAB] text-gray-800' 
                     : 'bg-[#F3D3B8] hover:bg-[#D3DCAB] text-gray-800'
@@ -756,13 +757,13 @@ export default function EnhancedInputToolbar({
               rows={1}
             />
 
-        {/* Action Buttons - Aligned to bottom */}
-        <div className="flex items-end space-x-2 pb-1">
+        {/* Action Buttons - ✅ MOBILE BEST PRACTICE: Vertically centered for iOS/Android */}
+        <div className="flex items-center space-x-2">
               {/* Mic Button */}
               <motion.button
                 onClick={handleMicPress}
                 disabled={isProcessing || disabled}
-                className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md touch-manipulation ${
+                className={`min-h-[44px] min-w-[44px] p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md touch-manipulation flex items-center justify-center ${
                   isListening
                     ? 'bg-red-500/80 hover:bg-red-600/90 text-white'
                     : 'bg-[#CEC1B8] hover:bg-[#978671] text-gray-700'
@@ -801,7 +802,7 @@ export default function EnhancedInputToolbar({
                       ? "Start voice call (Studio)" 
                       : "Voice calls available in Studio tier - Upgrade now"
                 }
-                className={`relative ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
+                className={`relative ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
                   isVoiceCallComingSoon()
                     ? 'bg-[#8FA67E]/50 hover:bg-[#8FA67E]/50 opacity-70 cursor-not-allowed'
                     : isStudioTier
@@ -852,7 +853,7 @@ export default function EnhancedInputToolbar({
                   disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
                   title={isStreaming ? "Stop Generation" : (attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message")}
                   whileTap={{ scale: 0.95 }}
-                  className={`ml-2 rounded-full flex items-center justify-center w-9 h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation ${
+                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-9 h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation ${
                     isStreaming 
                       ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
