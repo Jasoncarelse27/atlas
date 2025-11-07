@@ -356,37 +356,71 @@ export class ConversationSyncService {
         ? new Date(0).toISOString()  // Epoch = fetch everything
         : syncMeta.lastSyncedAt;
       
-      if (import.meta.env.DEV) {
-        logger.debug('[ConversationSync] Last synced at:', lastSyncedAt, isFirstSync ? '(FIRST SYNC - fetching all data)' : '(delta sync)');
-        logger.debug('[ConversationSync] Local conversation count:', localConversationCount);
-      }
+      // ✅ ALWAYS log diagnostic info (even in production) for troubleshooting
+      console.log('[ConversationSync] 🔍 Sync state:', {
+        isFirstSync,
+        localCount: localConversationCount,
+        lastSyncedAt,
+        hasSyncMeta: !!syncMeta
+      });
+      logger.info('[ConversationSync] 🔍 Sync state:', {
+        isFirstSync,
+        localCount: localConversationCount,
+        lastSyncedAt,
+        hasSyncMeta: !!syncMeta
+      });
       
-      // 2. Fetch ONLY conversations updated since last sync (non-deleted only)
-      const { data: updatedConversations, error: convError } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', userId)
-        .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
-        .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
-        .order('updated_at', { ascending: false })
-        .limit(30) as { data: any[] | null; error: any };
+      // 2. Fetch conversations - use different query for first sync vs delta sync
+      let updatedConversations: any[] | null = null;
+      let convError: any = null;
+      
+      if (isFirstSync) {
+        // ✅ FIRST SYNC: Fetch ALL conversations (no date filter, just non-deleted)
+        console.log('[ConversationSync] 📡 First sync - fetching ALL conversations...');
+        const result = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('user_id', userId)
+          .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
+          .order('updated_at', { ascending: false })
+          .limit(50) as { data: any[] | null; error: any }; // ✅ Increased limit for first sync
+        
+        updatedConversations = result.data;
+        convError = result.error;
+      } else {
+        // ✅ DELTA SYNC: Only fetch conversations updated since last sync
+        console.log('[ConversationSync] 📡 Delta sync - fetching updated conversations since:', lastSyncedAt);
+        const result = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('user_id', userId)
+          .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
+          .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
+          .order('updated_at', { ascending: false })
+          .limit(30) as { data: any[] | null; error: any };
+        
+        updatedConversations = result.data;
+        convError = result.error;
+      }
       
       queriesExecuted++; // Track query count
       
       if (convError) {
+        console.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
         logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
         return;
       }
       
       conversationsSynced = updatedConversations?.length || 0;
       
-      // ✅ DIAGNOSTIC: Log sync details for troubleshooting (use console.log for visibility)
+      // ✅ DIAGNOSTIC: Log sync details for troubleshooting (ALWAYS log, even in production)
       console.log(`[ConversationSync] 📊 Sync results:`, {
         found: conversationsSynced,
         userId: userId.slice(0, 8) + '...',
         lastSyncedAt,
         isFirstSync,
-        localCount: localConversationCount
+        localCount: localConversationCount,
+        queryType: isFirstSync ? 'FIRST_SYNC (all conversations)' : 'DELTA_SYNC (updated only)'
       });
       logger.info(`[ConversationSync] 📊 Sync results:`, {
         found: conversationsSynced,
