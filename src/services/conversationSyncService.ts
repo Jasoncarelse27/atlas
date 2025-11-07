@@ -380,6 +380,7 @@ export class ConversationSyncService {
       
       if (isFirstSync) {
         // ✅ FIRST SYNC: Fetch ALL conversations (no date filter, just non-deleted)
+        console.error('[ConversationSync] 📡 FIRST SYNC MODE - fetching ALL conversations (no date filter)');
         logger.info('[ConversationSync] 📡 First sync - fetching ALL conversations (no date filter)');
         console.log('[ConversationSync] 📡 First sync - fetching ALL conversations...');
         const result = await supabase
