@@ -21,7 +21,10 @@ export async function sendAttachmentMessage(
 ) {
   // Get JWT token for authentication
   const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token || 'mock-token-for-development';
+  if (!session?.access_token) {
+    throw new Error('You must be logged in to send messages. Please sign in and try again.');
+  }
+  const token = session.access_token;
 
   // Get user's tier for the request
   const currentTier = await subscriptionApi.getUserTier(userId, token);
@@ -71,7 +74,10 @@ export const chatService = {
     try {
       // ✅ PERFORMANCE: Get JWT token for authentication
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || 'mock-token-for-development';
+      if (!session?.access_token) {
+        throw new Error('You must be logged in to send messages. Please sign in and try again.');
+      }
+      const token = session.access_token;
       
       // Get user ID from session if not provided
       const actualUserId = userId || session?.user?.id;
