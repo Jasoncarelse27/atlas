@@ -1186,6 +1186,75 @@ app.get('/api/auth/status', async (req, res) => {
   });
 });
 
+// ✅ CRITICAL: Test endpoint to verify Supabase connectivity
+app.get('/api/test-supabase', async (req, res) => {
+  const tests = {
+    envVars: {
+      url: process.env.SUPABASE_URL?.substring(0, 40) || 'NOT SET',
+      urlLength: process.env.SUPABASE_URL?.length || 0,
+      hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    },
+    connectivity: {}
+  };
+
+  // Test 1: Can we reach Supabase URL?
+  try {
+    const testUrl = `${process.env.SUPABASE_URL}/rest/v1/`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: { 'apikey': 'test' },
+      signal: controller.signal,
+      agent: httpsAgent
+    });
+    
+    clearTimeout(timeoutId);
+    tests.connectivity.supabaseReachable = true;
+    tests.connectivity.httpStatus = response.status;
+  } catch (error) {
+    tests.connectivity.supabaseReachable = false;
+    tests.connectivity.error = error.message;
+    tests.connectivity.errorName = error.name;
+  }
+
+  // Test 2: Can we initialize Supabase client?
+  try {
+    const { supabase, supabasePublic } = await import('./config/supabaseClient.mjs');
+    tests.supabaseClient = {
+      initialized: true,
+      hasSupabase: !!supabase,
+      hasSupabasePublic: !!supabasePublic
+    };
+  } catch (error) {
+    tests.supabaseClient = {
+      initialized: false,
+      error: error.message
+    };
+  }
+
+  // Test 3: Can we make a simple query?
+  if (tests.supabaseClient?.initialized) {
+    try {
+      const { supabase } = await import('./config/supabaseClient.mjs');
+      const { error } = await supabase.from('profiles').select('id').limit(1);
+      tests.databaseQuery = {
+        success: !error,
+        error: error?.message || null
+      };
+    } catch (error) {
+      tests.databaseQuery = {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  res.json(tests);
+});
+
 // ✅ Clean message endpoint with secure Supabase tier routing + conversation history + image analysis
 app.post('/message', 
   authMiddleware,
