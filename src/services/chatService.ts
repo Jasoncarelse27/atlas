@@ -135,7 +135,15 @@ export const chatService = {
       
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-          logger.error(`[ChatService] 🔍 Attempt ${attempt + 1}: Fetching from ${messageEndpoint}`);
+          // ✅ CRITICAL FIX: Refresh token on each retry attempt (token might expire during retries)
+          const freshToken = attempt > 0 
+            ? await getAuthTokenOrThrow('Session expired. Please refresh the page.')
+            : token;
+          
+          logger.error(`[ChatService] 🔍 Attempt ${attempt + 1}: Fetching from ${messageEndpoint}`, {
+            tokenRefreshed: freshToken !== token,
+            tokenLength: freshToken?.length || 0
+          });
           
           // ✅ CRITICAL FIX: Add timeout to prevent hanging requests
           const timeoutController = new AbortController();
@@ -156,7 +164,7 @@ export const chatService = {
             headers: { 
               "Content-Type": "application/json",
               "Accept": "text/event-stream",
-              "Authorization": `Bearer ${token}`
+              "Authorization": `Bearer ${freshToken}` // ✅ Use fresh token on each attempt
             },
             body: JSON.stringify({ 
               message: text, // Backend expects "message" field

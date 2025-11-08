@@ -705,16 +705,31 @@ export class ConversationSyncService {
           await atlasDB.messages.update(msg.id, { synced: true });
           logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
         } else {
-          // ✅ CRITICAL FIX: Handle various error types
+          // ✅ CRITICAL FIX: Log full error details for debugging
           const errorStatus = (error as any)?.status || (error as any)?.code;
           const errorMessage = error.message || String(error);
           const errorCode = error.code;
+          const errorDetails = (error as any)?.details || '';
+          const errorHint = (error as any)?.hint || '';
+          
+          // Log full error for debugging
+          logger.error('[ConversationSync] ❌ Sync error details:', {
+            messageId: msg.id,
+            conversationId: msg.conversationId,
+            errorCode,
+            errorMessage,
+            errorDetails,
+            errorHint,
+            errorStatus,
+            fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+          });
           
           // Foreign key constraint violation (conversation doesn't exist)
           const isForeignKeyError = 
             errorCode === '23503' ||
             errorMessage?.includes('foreign key constraint') ||
-            errorMessage?.includes('Key is not present in table "conversations"');
+            errorMessage?.includes('Key is not present in table "conversations"') ||
+            errorDetails?.includes('Key is not present in table "conversations"');
           
           // Conflict errors (message already exists)
           const isConflict = 
@@ -732,19 +747,26 @@ export class ConversationSyncService {
             await atlasDB.messages.update(msg.id, { synced: true });
             logger.debug('[ConversationSync] ✅ Message already exists (409 conflict), marked as synced:', msg.id);
           } else if (isForeignKeyError) {
-            // Conversation doesn't exist - this shouldn't happen if we created it above
-            logger.warn('[ConversationSync] ⚠️ Conversation missing for message (after creation attempt):', msg.id, {
-              conversationId: msg.conversationId,
-              error: errorMessage
-            });
+            // Conversation doesn't exist - try creating it again (might have failed above)
+            logger.warn('[ConversationSync] ⚠️ Conversation missing, retrying creation:', msg.conversationId);
+            const { error: retryCreateError } = await supabase
+              .from('conversations')
+              .upsert({
+                id: msg.conversationId,
+                user_id: userId,
+                title: 'Chat',
+                created_at: msg.timestamp,
+                updated_at: msg.timestamp
+              }, { onConflict: 'id' });
+            
+            if (!retryCreateError) {
+              logger.debug('[ConversationSync] ✅ Conversation created on retry, message will sync on next attempt');
+            } else {
+              logger.error('[ConversationSync] ❌ Retry conversation creation failed:', retryCreateError);
+            }
             // Don't mark as synced - will retry on next sync
           } else {
-            logger.error('[ConversationSync] ❌ Failed to sync message:', msg.id, {
-              error,
-              status: errorStatus,
-              message: errorMessage,
-              code: errorCode
-            });
+            logger.error('[ConversationSync] ❌ Failed to sync message (unknown error):', msg.id);
           }
         }
       }
