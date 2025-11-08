@@ -1,21 +1,26 @@
 import { logger } from '../lib/simpleLogger.mjs';
-import { createClient } from '@supabase/supabase-js';
 import { SYSTEM_LIMITS, TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
 
-// Lazy initialization like your existing logger
-let supabase = null;
+// ✅ Use centralized Supabase client with IPv4 fix
+let supabaseClient = null;
 
-function getSupabaseClient() {
-  if (!supabase && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+async function getSupabaseClient() {
+  if (!supabaseClient) {
+    try {
+      const { supabase } = await import('../config/supabaseClient.mjs');
+      supabaseClient = supabase;
+    } catch (error) {
+      logger.error('[BudgetCeiling] Failed to import Supabase client:', error.message || error);
+      return null;
+    }
   }
-  return supabase;
+  return supabaseClient;
 }
 
 export const budgetCeilingService = {
   async checkBudgetCeiling(tier) {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient();
       if (!client) {
         // ✅ FAIL-CLOSED: Block access if service unavailable (prevents financial loss)
         logger.error('[BudgetCeiling] Supabase client unavailable - blocking access for safety');
@@ -24,6 +29,8 @@ export const budgetCeilingService = {
 
       const [tierSpend, totalSpend] = await Promise.all([this._tierSpend(tier), this._totalSpend()]);
       const ceiling = TIER_DEFINITIONS[tier]?.budgetCeiling ?? 0;
+      
+      logger.debug(`[BudgetCeiling] Check for ${tier}: tierSpend=${tierSpend}, totalSpend=${totalSpend}, ceiling=${ceiling}`);
 
       // ✅ EMERGENCY KILL SWITCH: Block all requests if system-wide limit exceeded
       if (totalSpend >= SYSTEM_LIMITS.emergencyShutoff) {
@@ -61,7 +68,7 @@ export const budgetCeilingService = {
 
   async recordSpend(tier, cost = 0, reqInc = 1) {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient();
       if (!client) return;
 
       const { error } = await client.rpc('increment_budget_tracking', {
@@ -77,7 +84,7 @@ export const budgetCeilingService = {
 
   async _tierSpend(tier) {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient();
       if (!client) return 0;
 
       const { data } = await client.from('budget_tracking')
@@ -90,7 +97,7 @@ export const budgetCeilingService = {
 
   async _totalSpend() {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient();
       if (!client) return 0;
 
       const { data } = await client.from('budget_tracking')
@@ -103,7 +110,7 @@ export const budgetCeilingService = {
 
   async _log(event, payload) {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient();
       if (!client) return;
 
       await client.from('usage_logs').insert({
