@@ -830,10 +830,16 @@ const verifyJWT = async (req, res, next) => {
         path: req.path
       });
       
+      // ✅ IMPROVED: Clearer error message for expired tokens
+      const isExpiredToken = error.message?.includes('expired') || 
+                             error.message?.includes('jwt expired') ||
+                             error.status === 401;
+      
       return res.status(401).json({ 
-        error: 'Invalid or expired token',
+        error: isExpiredToken ? 'Supabase token expired or invalid' : 'Invalid or expired token',
         details: error.message,
-        code: 'TOKEN_VERIFICATION_FAILED'
+        code: 'TOKEN_VERIFICATION_FAILED',
+        suggestion: isExpiredToken ? 'Please refresh your session or sign in again' : undefined
       });
     }
     
@@ -848,7 +854,8 @@ const verifyJWT = async (req, res, next) => {
       return res.status(401).json({ 
         error: 'No user found in token',
         details: 'Token may be expired or invalid',
-        code: 'NO_USER_IN_TOKEN'
+        code: 'NO_USER_IN_TOKEN',
+        suggestion: 'Please refresh your session or sign in again'
       });
     }
     

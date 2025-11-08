@@ -58,16 +58,40 @@ class MessageService {
   }
 
   private async makeAuthenticatedRequest(url: string, options: RequestInit = {}): Promise<Response> {
-    const token = await this.getAuthToken();
+    // ✅ FIXED: Use centralized auth helper with automatic refresh
+    const { getAuthTokenOrThrow } = await import('../../../utils/getAuthToken');
+    const { handle401Auth } = await import('../../../utils/handle401Auth');
     
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
-    });
+    const token = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
+    
+    // Create original request function for retry
+    const makeRequest = async (): Promise<Response> => {
+      const currentToken = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
+      return fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`,
+          ...options.headers,
+        },
+      });
+    };
+
+    const response = await makeRequest();
+
+    // ✅ FIXED: Handle 401 with automatic token refresh
+    if (response.status === 401) {
+      try {
+        return await handle401Auth({
+          response,
+          originalRequest: makeRequest,
+          preventRedirect: false
+        });
+      } catch (error) {
+        logger.error('[MessageService] 401 handling failed:', error);
+        throw new Error(`Authentication failed: ${error instanceof Error ? error.message : 'Please sign in again'}`);
+      }
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

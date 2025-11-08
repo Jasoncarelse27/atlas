@@ -329,26 +329,49 @@ export class VoiceCallServiceSimplified {
   }
   
   private async getAIResponse(transcript: string, options: VoiceCallOptions): Promise<string> {
-    const { data: { session } } = await supabase.auth.getSession();
+    // ✅ FIXED: Use centralized auth helper and handle 401
+    const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+    const { handle401Auth } = await import('../utils/handle401Auth');
     
-    // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-    const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-        'Accept': 'text/event-stream',
-      },
-      body: JSON.stringify({
-        message: transcript,
-        conversationId: options.conversationId,
-        is_voice_call: true,
-        context: conversationBuffer.getRecent(5),
-      })
-    });
+    const token = await getAuthTokenOrThrow('Authentication required for voice call.');
+    
+    // Create original request function for retry
+    const makeRequest = async (): Promise<Response> => {
+      const currentToken = await getAuthTokenOrThrow('Authentication required for voice call.');
+      return fetch(getApiEndpoint('/api/message?stream=1'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`,
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({
+          message: transcript,
+          conversationId: options.conversationId,
+          is_voice_call: true,
+          context: conversationBuffer.getRecent(5),
+        })
+      });
+    };
+
+    let response = await makeRequest();
+    
+    // ✅ FIXED: Handle 401 before starting stream
+    if (response.status === 401) {
+      try {
+        response = await handle401Auth({
+          response,
+          originalRequest: makeRequest,
+          preventRedirect: true // Don't redirect during voice call
+        });
+      } catch (error) {
+        throw new Error(`Authentication failed: ${error instanceof Error ? error.message : 'Please sign in again'}`);
+      }
+    }
     
     if (!response.ok) {
-      throw new Error('AI response failed');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'AI response failed');
     }
     
     // Parse SSE stream

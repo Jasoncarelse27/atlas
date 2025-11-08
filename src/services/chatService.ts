@@ -136,9 +136,10 @@ export const chatService = {
         fullUrl: messageEndpoint
       });
       
-      // ✅ ENHANCED ERROR HANDLING: Retry with exponential backoff
+      // ✅ ENHANCED ERROR HANDLING: Retry with exponential backoff + automatic token refresh on 401
       let lastError: Error | null = null;
       let response: Response | null = null;
+      let tokenRefreshAttempted = false; // Track if we've already tried refreshing token
       const MAX_RETRIES = 3;
       
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -198,12 +199,83 @@ export const chatService = {
             break;
           }
           
-          // Handle errors
+          // ✅ CRITICAL FIX: Check 401 FIRST before parsing error (token might be expired)
+          if (response.status === 401) {
+            logger.warn('[ChatService] 🔄 401 Unauthorized detected - handling token refresh...');
+            
+            // Parse error data ONCE (response body can only be read once)
+            const errorData = await response.json().catch(() => ({ error: 'Invalid or expired token' }));
+            
+            // Only attempt token refresh once per request
+            if (!tokenRefreshAttempted) {
+              tokenRefreshAttempted = true;
+              logger.warn('[ChatService] 🔄 401 Unauthorized - attempting token refresh and retry...');
+              
+              try {
+                // Force refresh the session
+                const { data: { session: refreshedSession }, error: refreshError } = 
+                  await supabase.auth.refreshSession();
+                
+                if (refreshError || !refreshedSession?.access_token) {
+                  logger.error('[ChatService] ❌ Token refresh failed:', refreshError?.message || 'No token in response');
+                  // Create error that won't be retried
+                  const authError = new Error('Session expired. Please sign in again.');
+                  (authError as any).isAuthError = true;
+                  throw authError;
+                }
+                
+                // Retry immediately with fresh token (don't increment attempt counter)
+                logger.info('[ChatService] ✅ Token refreshed, retrying request...');
+                const refreshedToken = refreshedSession.access_token;
+                
+                // Retry the request with fresh token
+                const retryResponse = await fetch(messageEndpoint, {
+                  method: "POST",
+                  headers: { 
+                    "Content-Type": "application/json",
+                    "Accept": "text/event-stream",
+                    "Authorization": `Bearer ${refreshedToken}`
+                  },
+                  body: JSON.stringify({ 
+                    message: text,
+                    conversationId: conversationId || null
+                  }),
+                  signal: combinedController.signal,
+                });
+                
+                if (retryResponse.ok) {
+                  logger.info('[ChatService] ✅ Retry successful after token refresh');
+                  response = retryResponse;
+                  break; // Success!
+                } else {
+                  // Still 401 after refresh - user needs to sign in again
+                  const retryErrorData = await retryResponse.json().catch(() => ({ error: 'Unknown error' }));
+                  const authError = new Error(`Authentication failed: ${retryErrorData.error || 'Please sign in again'}`);
+                  (authError as any).isAuthError = true;
+                  throw authError;
+                }
+              } catch (refreshError) {
+                // Refresh failed or retry still failed - don't retry this
+                logger.error('[ChatService] ❌ Token refresh/retry failed:', refreshError);
+                const authError = refreshError instanceof Error ? refreshError : new Error('Session expired. Please sign in again.');
+                (authError as any).isAuthError = true;
+                throw authError;
+              }
+            } else {
+              // Already tried refresh, still 401 - user needs to sign in (don't retry)
+              const authError = new Error(`Authentication failed: ${errorData.error || 'Please sign in again'}`);
+              (authError as any).isAuthError = true;
+              throw authError;
+            }
+          }
+          
+          // Handle errors (only if not 401, which was handled above)
+          // Parse error data for non-401 errors
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           
-          // Don't retry on auth/limit errors
-          if (response.status === 401 || response.status === 429) {
-            if (response.status === 429 && errorData.error === 'MONTHLY_LIMIT_REACHED') {
+          // Handle rate limit errors (don't retry)
+          if (response.status === 429) {
+            if (errorData.error === 'MONTHLY_LIMIT_REACHED') {
               throw new Error('MONTHLY_LIMIT_REACHED');
             }
             throw new Error(`Backend error: ${errorData.error || response.statusText}`);
@@ -226,8 +298,15 @@ export const chatService = {
             name: error instanceof Error ? error.name : 'Unknown',
             message: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
-            type: error instanceof TypeError ? 'TypeError' : error instanceof Error ? error.constructor.name : 'Unknown'
+            type: error instanceof TypeError ? 'TypeError' : error instanceof Error ? error.constructor.name : 'Unknown',
+            isAuthError: (error as any)?.isAuthError
           });
+          
+          // ✅ CRITICAL: Don't retry auth errors (401 after refresh attempt)
+          if ((error as any)?.isAuthError) {
+            logger.error('[ChatService] ❌ Auth error - not retrying');
+            throw error;
+          }
           
           // Don't retry on abort or specific errors
           if (error instanceof Error && (

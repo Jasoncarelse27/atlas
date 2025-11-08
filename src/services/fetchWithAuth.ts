@@ -1,35 +1,46 @@
 import { supabase } from "../lib/supabaseClient";
 import { logger } from '../lib/logger';
+import { getAuthTokenOrThrow } from '../utils/getAuthToken';
+import { handle401Auth } from '../utils/handle401Auth';
 
+/**
+ * ✅ FIXED: Now uses proper token refresh on 401 instead of immediate sign-out
+ * Follows best practices: refresh → retry → fail gracefully
+ */
 export async function fetchWithAuth(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  // Get current Supabase session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // ✅ BEST PRACTICE: Use centralized auth helper with automatic refresh
+  const token = await getAuthTokenOrThrow("No valid auth token found. Please log in again.");
 
-  const token = session?.access_token;
-  if (!token) {
-    throw new Error("No valid auth token found. Please log in again.");
-  }
+  // Create original request function for retry
+  const makeRequest = async (): Promise<Response> => {
+    const currentToken = await getAuthTokenOrThrow("No valid auth token found. Please log in again.");
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentToken}`,
+      },
+    });
+  };
 
-  
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const res = await makeRequest();
 
-  // Global 401 handler
+  // ✅ FIXED: Handle 401 with automatic token refresh and retry
   if (res.status === 401) {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-    throw new Error("Session expired, redirecting to login.");
+    try {
+      return await handle401Auth({
+        response: res,
+        originalRequest: makeRequest,
+        preventRedirect: false
+      });
+    } catch (error) {
+      logger.error('[FetchWithAuth] 401 handling failed:', error);
+      throw error;
+    }
   }
 
   if (!res.ok) {

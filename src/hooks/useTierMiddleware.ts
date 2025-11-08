@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
+import { logger } from '../lib/logger';
 import { getApiEndpoint } from '../utils/apiClient';
 import { useSupabaseAuth } from './useSupabaseAuth';
 import { useTierAccess } from './useTierAccess';
@@ -48,24 +49,46 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
       // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
       const apiEndpoint = getApiEndpoint('/message');
       
-      // Get Supabase session token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // ✅ FIXED: Use centralized auth helper with automatic refresh
+      const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+      const { handle401Auth } = await import('../utils/handle401Auth');
+      
+      const token = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
 
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify({
-          userId,
-          message,
-          tier,
-          ...(conversationId && { conversationId }),
-          promptType
-        })
-      });
+      // Create original request function for retry
+      const makeRequest = async (): Promise<Response> => {
+        const currentToken = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
+        return fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({
+            userId,
+            message,
+            tier,
+            ...(conversationId && { conversationId }),
+            promptType
+          })
+        });
+      };
+
+      let response = await makeRequest();
+
+      // ✅ FIXED: Handle 401 with automatic token refresh
+      if (response.status === 401) {
+        try {
+          response = await handle401Auth({
+            response,
+            originalRequest: makeRequest,
+            preventRedirect: false
+          });
+        } catch (error) {
+          logger.error('[useTierMiddleware] 401 handling failed:', error);
+          throw error;
+        }
+      }
 
       const data = await response.json();
 

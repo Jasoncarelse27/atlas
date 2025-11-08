@@ -99,21 +99,46 @@ class TierEnforcementService {
    * Send message with server-side tier enforcement and middleware
    */
   async sendMessage(userId: string, message: string, tier: string = 'free', conversationId?: string, promptType?: string): Promise<MessageResponse> {
-    // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-    const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-      },
-      body: JSON.stringify({
-        userId,
-        message,
-        tier,
-        conversationId,
-        promptType
-      })
-    });
+    // ✅ FIXED: Add authentication header and 401 handling
+    const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+    const { handle401Auth } = await import('../utils/handle401Auth');
+    
+    const token = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
+
+    // Create original request function for retry
+    const makeRequest = async (): Promise<Response> => {
+      const currentToken = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
+      return fetch(getApiEndpoint('/api/message?stream=1'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Authorization': `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({
+          userId,
+          message,
+          tier,
+          conversationId,
+          promptType
+        })
+      });
+    };
+
+    let response = await makeRequest();
+
+    // ✅ FIXED: Handle 401 with automatic token refresh
+    if (response.status === 401) {
+      try {
+        response = await handle401Auth({
+          response,
+          originalRequest: makeRequest,
+          preventRedirect: false
+        });
+      } catch (error) {
+        throw new Error(`Authentication failed: ${error instanceof Error ? error.message : 'Please sign in again'}`);
+      }
+    }
 
     const data = await response.json();
 

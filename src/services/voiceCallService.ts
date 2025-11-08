@@ -1895,23 +1895,47 @@ export class VoiceCallService {
       
       let response;
       try {
-        // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-        response = await fetch(getApiEndpoint('/api/message?stream=1'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-            'Accept': 'text/event-stream',
-          },
-          body: JSON.stringify({
-            message: transcript,
-            conversationId: options.conversationId,
-            is_voice_call: true,
-            // ✅ FIX: Don't send context - let backend load full conversation history from database
-            // Frontend buffer only has current session, backend loads last 10 messages for proper memory
-          }),
-          signal: claudeController.signal,
-        });
+        // ✅ FIXED: Use centralized auth helper and handle 401
+        const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+        const { handle401Auth } = await import('../utils/handle401Auth');
+        
+        const token = await getAuthTokenOrThrow('Authentication required for voice call.');
+        
+        // Create original request function for retry
+        const makeRequest = async (): Promise<Response> => {
+          const currentToken = await getAuthTokenOrThrow('Authentication required for voice call.');
+          return fetch(getApiEndpoint('/api/message?stream=1'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${currentToken}`,
+              'Accept': 'text/event-stream',
+            },
+            body: JSON.stringify({
+              message: transcript,
+              conversationId: options.conversationId,
+              is_voice_call: true,
+            }),
+            signal: claudeController.signal,
+          });
+        };
+
+        response = await makeRequest();
+        
+        // ✅ FIXED: Handle 401 before starting stream
+        if (response.status === 401) {
+          try {
+            response = await handle401Auth({
+              response,
+              originalRequest: makeRequest,
+              preventRedirect: true // Don't redirect during voice call
+            });
+          } catch (error) {
+            this.clearTrackedTimeout(claudeTimeout);
+            throw new Error(`Authentication failed: ${error instanceof Error ? error.message : 'Please sign in again'}`);
+          }
+        }
+        
         this.clearTrackedTimeout(claudeTimeout);
       } catch (error) {
         this.clearTrackedTimeout(claudeTimeout);
@@ -2252,25 +2276,45 @@ export class VoiceCallService {
   private async getAIResponse(userMessage: string, conversationId: string): Promise<string> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Authentication required');
-      }
+      // ✅ FIXED: Use centralized auth helper and handle 401
+      const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
+      const { handle401Auth } = await import('../utils/handle401Auth');
       
-      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-      const response = await fetch(getApiEndpoint('/api/message?stream=1'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          conversationId: conversationId,
-          is_voice_call: true,
-          // ✅ FIX: Don't send context - let backend load full conversation history from database
-        })
-      });
+      const token = await getAuthTokenOrThrow('Authentication required for voice call.');
+      
+      // Create original request function for retry
+      const makeRequest = async (): Promise<Response> => {
+        const currentToken = await getAuthTokenOrThrow('Authentication required for voice call.');
+        return fetch(getApiEndpoint('/api/message?stream=1'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({
+            message: userMessage,
+            conversationId: conversationId,
+            is_voice_call: true,
+          })
+        });
+      };
+
+      let response = await makeRequest();
+      
+      // ✅ FIXED: Handle 401 before starting stream
+      if (response.status === 401) {
+        try {
+          response = await handle401Auth({
+            response,
+            originalRequest: makeRequest,
+            preventRedirect: true // Don't redirect during voice call
+          });
+        } catch (error) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Authentication failed: ${error instanceof Error ? error.message : 'Please sign in again'}`);
+        }
+      }
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));

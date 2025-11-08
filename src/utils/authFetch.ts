@@ -64,66 +64,56 @@ export async function fetchWithAuth(
       headers,
     });
 
-    // Handle 401 Unauthorized
+    // ✅ FIXED: Handle 401 with centralized handler (follows best practices)
     if (response.status === 401) {
       if (retryOn401) {
-        logger.debug('[AuthFetch] 401 received, attempting token refresh...');
-        
-        // ✅ IMPROVED: Try to refresh token
-        const newToken = await getAuthToken(true);
-        
-        if (newToken) {
-          logger.debug('[AuthFetch] ✅ Token available, retrying request...', {
-            tokenChanged: newToken !== token,
-            originalTokenLength: token?.length || 0,
-            newTokenLength: newToken.length
-          });
-          
-          // ✅ IMPROVED: Retry with new token (even if same - Supabase may have refreshed it)
-          // The backend might accept it now if Supabase refreshed it internally
-          const retryHeaders = {
-            ...headers,
-            'Authorization': `Bearer ${newToken}`,
-          };
-          
-          const retryResponse = await fetch(url, {
-            ...fetchOptions,
-            headers: retryHeaders,
-          });
-          
-          logger.debug('[AuthFetch] Retry response status:', retryResponse.status);
-          
-          if (retryResponse.status !== 401) {
-            logger.debug('[AuthFetch] ✅ Retry successful');
-            return retryResponse;
-          } else {
-            // Get error details for better diagnostics
-            const errorText = await retryResponse.text().catch(() => '');
-            logger.error('[AuthFetch] ❌ Retry still returned 401:', {
-              errorText: errorText.substring(0, 200), // First 200 chars
-              tokenPreview: newToken.substring(0, 20) + '...'
+        try {
+          // Create retry function
+          const makeRetryRequest = async (): Promise<Response> => {
+            const newToken = await getAuthToken(true);
+            if (!newToken) {
+              throw new Error('Token refresh failed');
+            }
+            return fetch(url, {
+              ...fetchOptions,
+              headers: {
+                ...headers,
+                'Authorization': `Bearer ${newToken}`,
+              },
             });
+          };
+
+          const retryResponse = await handle401Auth({
+            response,
+            originalRequest: makeRetryRequest,
+            preventRedirect
+          });
+
+          return retryResponse;
+        } catch (error) {
+          // Refresh failed - show error and redirect
+          if (showErrorToast) {
+            showToast('⚠️ Session expired. Please log in again.', 'error');
           }
-        } else {
-          logger.error('[AuthFetch] ❌ Token refresh failed - no new token available');
+          
+          const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
+          throw new Error(JSON.stringify(errorData));
         }
+      } else {
+        // Retry disabled - just show error
+        if (showErrorToast) {
+          showToast('⚠️ Session expired. Please log in again.', 'error');
+        }
+        
+        if (!preventRedirect) {
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        }
+        
+        const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
+        throw new Error(JSON.stringify(errorData));
       }
-      
-      // Still 401 after retry, handle session expiry
-      if (showErrorToast) {
-        showToast('⚠️ Session expired. Please log in again.', 'error');
-      }
-      
-      // ✅ NEW: Only redirect if not prevented (for silent failures like TTS)
-      if (!preventRedirect) {
-        // Redirect to login after a short delay
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 2000);
-      }
-      
-      const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
-      throw new Error(JSON.stringify(errorData));
     }
 
     // Handle 429 Rate Limit / Tier Limit
