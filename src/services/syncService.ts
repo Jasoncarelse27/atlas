@@ -126,6 +126,44 @@ export const syncService = {
           continue;
         }
 
+        // ✅ CRITICAL FIX: Ensure conversation exists before syncing messages
+        const { data: existingConv } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('id', msg.conversationId)
+          .maybeSingle();
+        
+        // If conversation doesn't exist, create it
+        if (!existingConv) {
+          logger.debug('[SYNC] ⚠️ Conversation missing, creating:', msg.conversationId);
+          const { error: createError } = await supabase
+            .from('conversations')
+            .insert({
+              id: msg.conversationId,
+              user_id: userId,
+              title: 'Chat',
+              created_at: msg.timestamp,
+              updated_at: msg.timestamp
+            } as any);
+          
+          if (createError) {
+            // Check if it's a conflict (conversation was created concurrently)
+            const isConflict = createError.code === '23505' || 
+                              createError.message?.includes('duplicate') ||
+                              createError.message?.includes('already exists');
+            
+            if (!isConflict) {
+              logger.error('[SYNC] ❌ Failed to create conversation:', {
+                conversationId: msg.conversationId,
+                messageId: msg.id,
+                error: createError
+              });
+              // Skip this message - can't sync without conversation
+              continue;
+            }
+          }
+        }
+
         // Ensure content is a string (Supabase expects TEXT)
         let contentText = msg.content as string;
         if (typeof msg.content === 'object' && msg.content !== null) {
@@ -148,6 +186,25 @@ export const syncService = {
             logger.debug("[SYNC] 403 Forbidden on push - user not authenticated, stopping sync")
             return
           }
+          
+          // ✅ Handle foreign key errors (conversation doesn't exist)
+          const errorCode = (pushErr as any).code;
+          const errorMessage = (pushErr as any).message || String(pushErr);
+          const isForeignKeyError = 
+            errorCode === '23503' ||
+            errorMessage?.includes('foreign key constraint') ||
+            errorMessage?.includes('Key is not present in table "conversations"');
+          
+          if (isForeignKeyError) {
+            logger.error('[SYNC] ❌ Foreign key error - conversation missing:', {
+              messageId: msg.id,
+              conversationId: msg.conversationId,
+              error: pushErr
+            });
+            // Skip this message - conversation creation above should have handled this
+            continue;
+          }
+          
           logger.error("[SYNC] Push error:", pushErr)
         } else {
           await atlasDB.messages.update(msg.id, { synced: true })
