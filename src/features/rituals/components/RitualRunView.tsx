@@ -7,6 +7,7 @@ import { atlasDB } from '@/database/atlasDB';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { ensureConversationExists } from '@/services/conversationGuard';
 import { generateUUID } from '@/utils/uuid';
 import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, Pause, Play, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
@@ -261,18 +262,34 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
       // Save to Dexie (local) first
       await atlasDB.messages.put(message);
       
-      // Sync to Supabase (using type assertion for compatibility)
-      const { error } = await supabase.from('messages').insert({
-        id: message.id,
-        conversation_id: conversationId,
-        user_id: user!.id,
-        role: 'assistant',
-        content: summaryContent,
-        created_at: message.timestamp,
-      } as any); // Type assertion to bypass Supabase type issues
-      
-      if (error) {
-        logger.error('[RitualRunView] Supabase insert error:', error);
+      // ✅ CRITICAL FIX: Ensure conversation exists before creating message
+      if (user?.id) {
+        const conversationExists = await ensureConversationExists(
+          conversationId,
+          user.id,
+          message.timestamp
+        );
+        
+        if (conversationExists) {
+          // Sync to Supabase (using type assertion for compatibility)
+          const { error } = await supabase.from('messages').insert({
+            id: message.id,
+            conversation_id: conversationId,
+            user_id: user.id,
+            role: 'assistant',
+            content: summaryContent,
+            created_at: message.timestamp,
+          } as any); // Type assertion to bypass Supabase type issues
+          
+          if (error) {
+            logger.error('[RitualRunView] Supabase insert error:', error);
+          }
+        } else {
+          logger.error('[RitualRunView] Cannot sync message - conversation creation failed:', {
+            conversationId,
+            userId: user.id
+          });
+        }
       }
       
       // Update conversation updatedAt

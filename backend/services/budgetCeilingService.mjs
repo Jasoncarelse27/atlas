@@ -17,17 +17,21 @@ export const budgetCeilingService = {
     try {
       const client = getSupabaseClient();
       if (!client) {
-        return { allowed: true };
+        // ✅ FAIL-CLOSED: Block access if service unavailable (prevents financial loss)
+        logger.error('[BudgetCeiling] Supabase client unavailable - blocking access for safety');
+        return { allowed: false, message: 'Service temporarily unavailable. Please try again later.' };
       }
 
       const [tierSpend, totalSpend] = await Promise.all([this._tierSpend(tier), this._totalSpend()]);
       const ceiling = TIER_DEFINITIONS[tier]?.budgetCeiling ?? 0;
 
+      // ✅ EMERGENCY KILL SWITCH: Block all requests if system-wide limit exceeded
       if (totalSpend >= SYSTEM_LIMITS.emergencyShutoff) {
         await this._log('budget_emergency_shutoff', { totalSpend });
         return { allowed: false, message: 'Atlas is temporarily unavailable. Please try again later.' };
       }
       
+      // ✅ HIGH TRAFFIC: Prioritize paid users, block free tier
       if (totalSpend >= SYSTEM_LIMITS.highTrafficThreshold) {
         if (tier === 'free') {
           await this._log('budget_high_traffic_free_blocked', { totalSpend });
@@ -37,6 +41,7 @@ export const budgetCeilingService = {
         return { allowed: true, priorityOverride: true };
       }
       
+      // ✅ TIER BUDGET CEILING: Enforce per-tier daily limits
       if (tierSpend >= ceiling) {
         if (tier === 'free') {
           await this._log('budget_tier_ceiling_free', { tierSpend, ceiling });
@@ -48,7 +53,9 @@ export const budgetCeilingService = {
       
       return { allowed: true };
     } catch (error) {
-      return { allowed: true }; // GRACEFUL FALLBACK
+      // ✅ FAIL-CLOSED: Block access on error (prevents financial loss during outages)
+      logger.error('[BudgetCeiling] Error checking budget:', error.message || error);
+      return { allowed: false, message: 'Service temporarily unavailable. Please try again later.' };
     }
   },
 

@@ -243,6 +243,25 @@ export async function processMessage(userId, text, conversationId = null) {
 
   const tier = await getUserTier(userId);
   
+  // ✅ SECURITY: Validate message length (prevent abuse, protect API costs) - Tier-aware
+  // Aligned with token monitoring system: ~4 characters per token
+  const TIER_CHAR_LIMITS = {
+    free: 2000,    // ~500 tokens (maxTokensPerResponse: 100 × 5)
+    core: 4000,    // ~1000 tokens (maxTokensPerResponse: 250 × 4)
+    studio: 8000,  // ~2000 tokens (maxTokensPerResponse: 400 × 5)
+  };
+  const maxLength = TIER_CHAR_LIMITS[tier] || TIER_CHAR_LIMITS.free;
+  if (text && text.length > maxLength) {
+    logger.warn(`[MessageService] Message too long for ${tier} tier: ${text.length} chars (max: ${maxLength})`);
+    return {
+      success: false,
+      error: 'MESSAGE_TOO_LONG',
+      message: `Message exceeds ${maxLength.toLocaleString()} character limit for ${tier} tier.`,
+      maxLength,
+      currentLength: text.length
+    };
+  }
+  
   // ✅ ENFORCE MESSAGE LIMITS - Check before processing
   // 🔒 SECURITY: Fail-closed on errors to prevent free tier abuse
   if (tier === 'free') {

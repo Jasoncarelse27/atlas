@@ -9,6 +9,7 @@
 
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabaseClient';
+import { ensureConversationExists } from '@/services/conversationGuard';
 import type {
   MessagePersistenceService as IMessagePersistenceService,
 } from './interfaces';
@@ -61,6 +62,16 @@ export class MessagePersistenceService implements IMessagePersistenceService {
     userId: string
   ): Promise<void> {
     try {
+      // ✅ CRITICAL FIX: Ensure conversation exists before creating message
+      const conversationExists = await ensureConversationExists(conversationId, userId);
+      if (!conversationExists) {
+        logger.error('[MessagePersistence] ❌ Cannot save message - conversation creation failed:', {
+          conversationId,
+          userId
+        });
+        throw new Error('Conversation creation failed');
+      }
+
       // ✅ CRITICAL FIX: Filter stage directions before saving (especially for assistant messages)
       const filteredText = role === 'assistant' ? filterResponse(text) : text;
       

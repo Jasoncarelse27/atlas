@@ -97,11 +97,41 @@ class UsageTrackingService {
     message?: string
   ): Promise<UsageCheckResult> {
     try {
-      // 🚨 ETHICAL SAFEGUARD: Crisis bypass check
+      // 🚨 ETHICAL SAFEGUARD: Crisis bypass check with rate limiting (industry standard: 10/day max)
       const isCrisisMessage = message && containsCrisisKeywords(message);
       
       if (isCrisisMessage) {
-        // Crisis situations bypass usage limits temporarily
+        // ✅ RATE LIMIT: Prevent abuse while maintaining ethical safeguards (industry standard: 10/day)
+        const today = new Date().toISOString().split('T')[0];
+        const { data: crisisLogs } = await supabase
+          .from('usage_logs')
+          .select('*')
+          .eq('event', 'crisis_bypass_activated')
+          .gte('timestamp', `${today}T00:00:00Z`)
+          .lt('timestamp', `${today}T23:59:59Z`);
+        
+        // Filter by userId in application code (Supabase JSONB query limitation)
+        const userCrisisLogs = crisisLogs?.filter(log => {
+          const logData = log.data as any;
+          return logData?.userId === userId;
+        }) || [];
+        
+        const crisisCount = userCrisisLogs.length;
+        const MAX_CRISIS_BYPASSES_PER_DAY = 10; // Industry standard for mental health apps
+        
+        if (crisisCount >= MAX_CRISIS_BYPASSES_PER_DAY) {
+          await this.logError('crisis_bypass_limit_exceeded', { userId, tier, crisisCount });
+          return {
+            canProceed: false,
+            reason: 'crisis_limit_exceeded',
+            remainingConversations: 0,
+            upgradeRequired: false,
+            message: 'Crisis bypass limit reached. Please contact emergency services: 988 or text HOME to 741741',
+            mentalHealthResources: MENTAL_HEALTH_RESOURCES
+          };
+        }
+        
+        // Allow crisis bypass but track separately
         await this.logCrisisBypass(userId, tier, message!);
         
         return {
@@ -159,15 +189,16 @@ class UsageTrackingService {
         warningLevel
       };
     } catch (error) {
-      
-      // Graceful degradation - allow but log
+      // ✅ FAIL-CLOSED: Block access on error (prevents financial loss during outages)
       await this.logError('usage_check_failed', { userId, tier, error: error.message });
       
       return {
-        canProceed: true,
-        remainingConversations: 'unlimited',
+        canProceed: false,
+        reason: 'service_unavailable',
+        remainingConversations: 0,
         upgradeRequired: false,
-        warningLevel: 'normal'
+        warningLevel: 'normal',
+        message: 'Service temporarily unavailable. Please try again in a moment.'
       };
     }
   }

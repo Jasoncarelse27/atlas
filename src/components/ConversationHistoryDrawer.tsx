@@ -239,7 +239,6 @@ export function ConversationHistoryDrawer({
                       const supabase = (await import('../lib/supabaseClient')).default;
                       const { data: { user } } = await supabase.auth.getUser();
                       if (user) {
-                        console.log('[ConversationHistoryDrawer] 🚀 Starting manual delta sync...');
                         logger.debug('[ConversationHistoryDrawer] 🚀 Starting manual delta sync...');
                         
                         // ✅ CRITICAL FIX: Clear syncMetadata to force first sync (if IndexedDB is empty)
@@ -249,23 +248,20 @@ export function ConversationHistoryDrawer({
                           .count();
                         
                         if (localCount === 0) {
-                          console.log('[ConversationHistoryDrawer] 🔄 IndexedDB empty - clearing syncMetadata to force first sync');
+                          logger.debug('[ConversationHistoryDrawer] 🔄 IndexedDB empty - clearing syncMetadata to force first sync');
                           await atlasDB.syncMetadata.delete(user.id);
                         }
                         
                         await conversationSyncService.deltaSync(user.id);
-                        console.log('[ConversationHistoryDrawer] ✅ Delta sync completed');
                         logger.debug('[ConversationHistoryDrawer] ✅ Delta sync completed');
                         
                         // ✅ Refresh the conversations list via callback (no page reload)
                         if (onRefresh) {
                           await onRefresh();
-                          console.log('[ConversationHistoryDrawer] ✅ Conversation list refreshed');
                           logger.debug('[ConversationHistoryDrawer] ✅ Conversation list refreshed');
                         }
                       }
                     } catch (error) {
-                      console.error('[ConversationHistoryDrawer] ❌ Delta sync failed:', error);
                       logger.error('[ConversationHistoryDrawer] ❌ Delta sync failed:', error);
                       // ✅ Show error to user (better than silent failure)
                       toast.error('Sync failed. Please check your connection and try again.');

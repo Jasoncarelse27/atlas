@@ -9,6 +9,8 @@
  * changing the build signature and forcing a fresh deployment.
  */
 
+import { logger } from './logger';
+
 // ✅ Build signature timestamp - changes on every deployment
 export const BUILD_SIGNATURE = "atlas-rebuild-1762464000000";
 
@@ -23,10 +25,10 @@ export { create, createStore, __VERIFY_EXPORT__ };
 if (typeof window !== 'undefined') {
   // Verify exports exist
   const exportsExist = typeof create === 'function' && typeof createStore === 'function';
-  console.log('[Atlas] 🚀 Vercel rebuild module loaded');
-  console.log('[Atlas] 📦 BUILD_SIGNATURE:', BUILD_SIGNATURE);
-  console.log('[Atlas] ✅ Exports verified:', exportsExist);
-  console.log('[Atlas] 🔗 Create function:', typeof create);
+  logger.debug('[Atlas] 🚀 Vercel rebuild module loaded');
+  logger.debug('[Atlas] 📦 BUILD_SIGNATURE:', BUILD_SIGNATURE);
+  logger.debug('[Atlas] ✅ Exports verified:', exportsExist);
+  logger.debug('[Atlas] 🔗 Create function:', typeof create);
   
   // Store in global to prevent optimization
   (window as any).__ATLAS_REBUILD_SIGNATURE__ = BUILD_SIGNATURE;

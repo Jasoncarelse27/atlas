@@ -8,6 +8,7 @@ import {
     useConversations,
     useMessages
 } from '../stores/useMessageStore';
+import { ensureConversationExists } from '../services/conversationGuard';
 
 export interface UseStorageSyncOptions {
   conversationId?: string;
@@ -57,6 +58,22 @@ export function useStorageSync(options: UseStorageSyncOptions) {
       const unsyncedMessages = await getUnsyncedMessages();
       for (const msg of unsyncedMessages) {
         try {
+          // ✅ CRITICAL FIX: Ensure conversation exists before creating message
+          if (!msg.conversation_id || !msg.user_id) {
+            continue; // Skip invalid messages
+          }
+          
+          const conversationExists = await ensureConversationExists(
+            msg.conversation_id,
+            msg.user_id,
+            msg.created_at
+          );
+          
+          if (!conversationExists) {
+            // Skip this message - can't sync without conversation
+            continue;
+          }
+
           const { data, error } = await supabase
             .from('messages')
             .insert({

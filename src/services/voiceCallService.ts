@@ -8,6 +8,7 @@ import { captureException } from './sentryService';
 import { audioQueueService } from './audioQueueService';
 import { NetworkMonitoringService } from './voice/NetworkMonitoringService';
 import { RetryService } from './voice/RetryService';
+import { ensureConversationExists } from './conversationGuard';
 import { MessagePersistenceService } from './voice/MessagePersistenceService';
 import { AudioPlaybackService } from './voice/AudioPlaybackService';
 import { VADService } from './voice/VADService';
@@ -2454,6 +2455,16 @@ export class VoiceCallService {
     
     // Legacy implementation
     try {
+      // ✅ CRITICAL FIX: Ensure conversation exists before creating message
+      const conversationExists = await ensureConversationExists(conversationId, userId);
+      if (!conversationExists) {
+        logger.error('[VoiceCall] ❌ Cannot save message - conversation creation failed:', {
+          conversationId,
+          userId
+        });
+        return;
+      }
+
       const messageData = {
         conversation_id: conversationId,
         user_id: userId,

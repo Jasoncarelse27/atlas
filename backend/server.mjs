@@ -23,6 +23,7 @@ import { messageRateLimit, imageAnalysisRateLimit } from './middleware/rateLimit
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
+import { budgetCeilingService } from './services/budgetCeilingService.mjs';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -1155,6 +1156,26 @@ app.post('/message',
       return res.status(400).json({ error: 'Missing message text or attachments' });
     }
 
+    // ✅ SECURITY: Validate message length (prevent abuse, protect API costs) - Tier-aware
+    // Aligned with token monitoring system: ~4 characters per token
+    if (messageText) {
+      const TIER_CHAR_LIMITS = {
+        free: 2000,    // ~500 tokens (maxTokensPerResponse: 100 × 5)
+        core: 4000,    // ~1000 tokens (maxTokensPerResponse: 250 × 4)
+        studio: 8000,  // ~2000 tokens (maxTokensPerResponse: 400 × 5)
+      };
+      const maxLength = TIER_CHAR_LIMITS[userTier] || TIER_CHAR_LIMITS.free;
+      if (messageText.length > maxLength) {
+        logger.warn(`[Server] Message too long for ${userTier} tier: ${messageText.length} chars (max: ${maxLength})`);
+        return res.status(400).json({
+          error: 'MESSAGE_TOO_LONG',
+          message: `Message exceeds ${maxLength.toLocaleString()} character limit for ${userTier} tier.`,
+          maxLength,
+          currentLength: messageText.length
+        });
+      }
+    }
+
     logger.debug('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId, attachments: attachments?.length });
 
     // ✅ Ensure conversation exists before saving messages
@@ -1389,6 +1410,17 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
     } catch (error) {
       logger.warn(`[Message] Failed to fetch tier for ${userId}, defaulting to free`);
       effectiveTier = 'free'; // Fail closed: Default to free tier
+    }
+
+    // ✅ BUDGET PROTECTION: Enforce budget ceilings before processing (industry standard)
+    const budgetCheck = await budgetCeilingService.checkBudgetCeiling(effectiveTier);
+    if (!budgetCheck.allowed) {
+      logger.warn(`[Message] Budget limit exceeded for ${effectiveTier} tier user ${userId}`);
+      return res.status(429).json({
+        error: 'BUDGET_LIMIT_EXCEEDED',
+        message: budgetCheck.message || 'Daily usage limit reached. Please try again later.',
+        tier: effectiveTier
+      });
     }
 
     // Enforce Free tier monthly limit (15 messages/month) - Studio/Core unlimited
@@ -1732,6 +1764,34 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
       // ✅ CRITICAL: Stop heartbeat before sending completion
       clearInterval(heartbeatInterval);
       
+      // ✅ COST TRACKING: Record spend after message processing (industry standard)
+      try {
+        // Estimate tokens: ~4 characters per token (industry standard)
+        const inputTokens = Math.ceil(message.trim().length / 4);
+        const outputTokens = Math.ceil(finalText.length / 4);
+        const totalTokens = inputTokens + outputTokens;
+        
+        // Get cost per token based on model
+        const MODEL_COSTS = {
+          'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
+          'claude-3-sonnet-20240229': { input: 0.003, output: 0.015 },
+          'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
+          'claude-3-haiku': { input: 0.00025, output: 0.00125 },
+          'claude-3-sonnet': { input: 0.003, output: 0.015 },
+          'claude-3-opus': { input: 0.015, output: 0.075 }
+        };
+        
+        const modelCost = MODEL_COSTS[selectedModel] || MODEL_COSTS['claude-3-haiku-20240307'];
+        const estimatedCost = (inputTokens * modelCost.input / 1000) + (outputTokens * modelCost.output / 1000);
+        
+        // Record spend in budget tracking (non-blocking)
+        budgetCeilingService.recordSpend(effectiveTier, estimatedCost, 1).catch(err => {
+          logger.error('[Server] Error recording spend:', err.message || err);
+        });
+      } catch (costError) {
+        logger.error('[Server] Error calculating/recording cost:', costError.message || costError);
+      }
+      
       // Send completion signal
       writeSSE(res, { done: true, response: storedResponse, conversationId: messageData.conversation_id });
       res.end();
@@ -1858,6 +1918,27 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
       }
     } catch (oneShotErr) {
       logger.error('[Server] One-shot prompt error:', oneShotErr.message || oneShotErr);
+    }
+
+    // ✅ COST TRACKING: Record spend for one-shot mode (industry standard)
+    try {
+      const inputTokens = Math.ceil(message.trim().length / 4);
+      const outputTokens = Math.ceil(finalText.length / 4);
+      const MODEL_COSTS = {
+        'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
+        'claude-3-sonnet-20240229': { input: 0.003, output: 0.015 },
+        'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
+        'claude-3-haiku': { input: 0.00025, output: 0.00125 },
+        'claude-3-sonnet': { input: 0.003, output: 0.015 },
+        'claude-3-opus': { input: 0.015, output: 0.075 }
+      };
+      const modelCost = MODEL_COSTS[selectedModel] || MODEL_COSTS['claude-3-haiku-20240307'];
+      const estimatedCost = (inputTokens * modelCost.input / 1000) + (outputTokens * modelCost.output / 1000);
+      budgetCeilingService.recordSpend(effectiveTier, estimatedCost, 1).catch(err => {
+        logger.error('[Server] Error recording spend (one-shot):', err.message || err);
+      });
+    } catch (costError) {
+      logger.error('[Server] Error calculating cost (one-shot):', costError.message || costError);
     }
 
     const aiResponse = {

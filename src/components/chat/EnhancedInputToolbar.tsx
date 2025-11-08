@@ -125,12 +125,35 @@ export default function EnhancedInputToolbar({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isStreaming]);
 
+  // ✅ TIER-AWARE MESSAGE LIMITS (Profit Protection)
+  // Aligned with token monitoring system: ~4 characters per token
+  // Limits based on maxTokensPerResponse × multiplier for good UX
+  const TIER_LIMITS: Record<string, number> = {
+    free: 2000,    // ~500 tokens (maxTokensPerResponse: 100 × 5) - Protects $0/month margin
+    core: 4000,    // ~1000 tokens (maxTokensPerResponse: 250 × 4) - Protects $19.99/month margin
+    studio: 8000,  // ~2000 tokens (maxTokensPerResponse: 400 × 5) - Protects $149.99/month margin
+  };
+
+  const maxLength = TIER_LIMITS[tier] || TIER_LIMITS.free;
+  const currentLength = text.length;
+  const percentUsed = maxLength > 0 ? (currentLength / maxLength) * 100 : 0;
+  const showCounter = percentUsed > 80; // Only show when >80% used (professional, non-distracting)
+
   const handleSend = async () => {
     if (isProcessing || disabled) return;
     
     // ✅ IMMEDIATE UI CLEAR - Clear attachments and text instantly for better UX
     const currentText = text.trim();
     const currentAttachments = [...attachmentPreviews];
+    
+    // ✅ SECURITY: Validate message length (prevent abuse, protect API costs) - Tier-aware
+    if (currentText && currentText.length > maxLength) {
+      modernToast.error(
+        'Message Too Long',
+        `Please keep messages under ${maxLength.toLocaleString()} characters for your ${tier} tier.`
+      );
+      return;
+    }
     
     // ✅ FIX: Clear UI immediately but prevent height animation glitch
     // Temporarily disable transitions on textarea
@@ -729,33 +752,43 @@ export default function EnhancedInputToolbar({
         </div>
 
             {/* Text Input - Dual purpose: text or caption */}
-            <textarea
-              ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyPress}
-              onClick={() => {
-                // 📱 Focus the input to open keyboard ONLY
-                if (inputRef.current) {
-                  inputRef.current.focus();
+            <div className="flex-1 flex flex-col">
+              <textarea
+                ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={handleKeyPress}
+                onClick={() => {
+                  // 📱 Focus the input to open keyboard ONLY
+                  if (inputRef.current) {
+                    inputRef.current.focus();
+                  }
+                }}
+                onBlur={handleInputBlur}
+                onFocus={handleInputFocus}
+                placeholder={
+                  attachmentPreviews.length > 0 
+                    ? (window.innerWidth < 640 ? "Add a caption..." : "Add a caption (optional)...")
+                    : placeholder
                 }
-              }}
-              onBlur={handleInputBlur}
-              onFocus={handleInputFocus}
-              placeholder={
-                attachmentPreviews.length > 0 
-                  ? (window.innerWidth < 640 ? "Add a caption..." : "Add a caption (optional)...")
-                  : placeholder
-              }
-              className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
-              style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
-              disabled={isProcessing || disabled}
-              autoComplete="off"
-              autoCapitalize="sentences"
-              autoCorrect="on"
-              spellCheck="true"
-              rows={1}
-            />
+                className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
+                style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
+                disabled={isProcessing || disabled}
+                autoComplete="off"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                spellCheck="true"
+                rows={1}
+              />
+              {/* Character Counter - Only show when >80% used (professional, non-distracting) */}
+              {showCounter && (
+                <div className={`text-right text-xs px-3 pb-1 ${
+                  percentUsed > 95 ? 'text-red-500' : 'text-amber-500'
+                }`}>
+                  {maxLength - currentLength} characters remaining
+                </div>
+              )}
+            </div>
 
         {/* Action Buttons - ✅ MOBILE BEST PRACTICE: Vertically centered for iOS/Android */}
         <div className="flex items-center space-x-2">

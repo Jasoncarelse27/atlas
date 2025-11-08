@@ -10,6 +10,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 // Log visible error for debugging, but don't throw immediately
 if (!supabaseUrl || !supabaseAnonKey) {
   const errorMsg = `Missing required environment variables: VITE_SUPABASE_URL=${!!supabaseUrl}, VITE_SUPABASE_ANON_KEY=${!!supabaseAnonKey}`;
+  // ✅ Keep console.error for critical startup errors (before logger available)
   console.error('❌ [Supabase]', errorMsg);
   console.error('❌ [Supabase] Check Vercel Environment Variables are set for Production');
   // Show visible error in DOM if React hasn't loaded yet

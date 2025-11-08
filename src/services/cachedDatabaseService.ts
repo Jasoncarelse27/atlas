@@ -6,6 +6,7 @@
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { redisCacheService } from './redisCacheService';
+import { ensureConversationExists } from './conversationGuard';
 
 interface UserProfile {
   id: string;
@@ -191,6 +192,16 @@ class CachedDatabaseService {
     content: string
   ): Promise<Message | null> {
     try {
+      // ✅ CRITICAL FIX: Ensure conversation exists before creating message
+      const conversationExists = await ensureConversationExists(conversationId, userId);
+      if (!conversationExists) {
+        logger.error('[CachedDB] ❌ Cannot create message - conversation creation failed:', {
+          conversationId,
+          userId
+        });
+        return null;
+      }
+
       const { data: message, error } = await supabase
         .from('messages')
         .insert({

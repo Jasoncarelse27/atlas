@@ -117,13 +117,12 @@ function createSnippet(content: string, searchTerm: string, contextLength: numbe
 }
 
 /**
- * Highlight search term in text (for UI rendering)
+ * Escape HTML to prevent XSS attacks
  */
-export function highlightSearchTerm(text: string, searchTerm: string): string {
-  if (!searchTerm || !text) return text;
-
-  const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
-  return text.replace(regex, '<mark class="bg-yellow-200 text-gray-900 px-0.5 rounded">$1</mark>');
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 /**
@@ -131,5 +130,18 @@ export function highlightSearchTerm(text: string, searchTerm: string): string {
  */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Highlight search term in text (for UI rendering)
+ * ✅ SECURITY: Escapes HTML to prevent XSS attacks
+ */
+export function highlightSearchTerm(text: string, searchTerm: string): string {
+  if (!searchTerm || !text) return text;
+
+  // ✅ SECURITY: Escape HTML first to prevent XSS
+  const escapedText = escapeHtml(text);
+  const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+  return escapedText.replace(regex, '<mark class="bg-yellow-200 text-gray-900 px-0.5 rounded">$1</mark>');
 }
 

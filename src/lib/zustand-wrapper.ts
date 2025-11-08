@@ -9,6 +9,7 @@
  */
 
 import { create as zustandCreate } from 'zustand';
+import { logger } from './logger';
 
 // ✅ CRITICAL: Direct assignment - simplest pattern that Rollup can't break
 // Using Object.assign to create a non-optimizable reference
@@ -28,9 +29,9 @@ export default zustandCreate;
 const _verifyExport = (() => {
   if (typeof window !== 'undefined') {
     (window as any).__ATLAS_ZUSTAND_CREATE__ = create;
-    console.log('[Atlas] ✅ Zustand wrapper loaded - create export verified');
-    console.log('[Atlas] 🔍 Create function type:', typeof create);
-    console.log('[Atlas] 🚀 Build timestamp:', new Date().toISOString());
+    logger.debug('[Atlas] ✅ Zustand wrapper loaded - create export verified');
+    logger.debug('[Atlas] 🔍 Create function type:', typeof create);
+    logger.debug('[Atlas] 🚀 Build timestamp:', new Date().toISOString());
   }
   return create;
 })();

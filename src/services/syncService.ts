@@ -2,6 +2,7 @@ import { canSyncCloud, isPaidTier } from "@/config/featureAccess";
 import { atlasDB } from "@/database/atlasDB";
 import { supabase } from "@/lib/supabaseClient";
 import { logger } from '../lib/logger';
+import { ensureConversationExists } from './conversationGuard';
 import { conversationSyncService } from "./conversationSyncService";
 import { voiceCallState } from './voiceCallState';
 
@@ -127,41 +128,20 @@ export const syncService = {
         }
 
         // ✅ CRITICAL FIX: Ensure conversation exists before syncing messages
-        const { data: existingConv } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('id', msg.conversationId)
-          .maybeSingle();
+        // Use centralized helper for consistency and race-condition safety
+        const conversationExists = await ensureConversationExists(
+          msg.conversationId,
+          userId,
+          msg.timestamp
+        );
         
-        // If conversation doesn't exist, create it
-        if (!existingConv) {
-          logger.debug('[SYNC] ⚠️ Conversation missing, creating:', msg.conversationId);
-          const { error: createError } = await supabase
-            .from('conversations')
-            .insert({
-              id: msg.conversationId,
-              user_id: userId,
-              title: 'Chat',
-              created_at: msg.timestamp,
-              updated_at: msg.timestamp
-            } as any);
-          
-          if (createError) {
-            // Check if it's a conflict (conversation was created concurrently)
-            const isConflict = createError.code === '23505' || 
-                              createError.message?.includes('duplicate') ||
-                              createError.message?.includes('already exists');
-            
-            if (!isConflict) {
-              logger.error('[SYNC] ❌ Failed to create conversation:', {
-                conversationId: msg.conversationId,
-                messageId: msg.id,
-                error: createError
-              });
-              // Skip this message - can't sync without conversation
-              continue;
-            }
-          }
+        if (!conversationExists) {
+          logger.error('[SYNC] ❌ Cannot sync message - conversation creation failed:', {
+            conversationId: msg.conversationId,
+            messageId: msg.id
+          });
+          // Skip this message - can't sync without conversation
+          continue;
         }
 
         // Ensure content is a string (Supabase expects TEXT)
