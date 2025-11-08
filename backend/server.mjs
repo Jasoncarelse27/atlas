@@ -1134,9 +1134,24 @@ app.get('/api/auth/status', (req, res) => {
   const authHeader = req.headers.authorization;
   const hasToken = authHeader && authHeader.startsWith('Bearer ');
   
+  // ✅ DEBUG: Check if Supabase env vars are loaded (without exposing values)
+  const hasSupabaseUrl = !!process.env.SUPABASE_URL;
+  const hasSupabaseAnonKey = !!process.env.SUPABASE_ANON_KEY;
+  const hasSupabaseServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrlLength = process.env.SUPABASE_URL?.length || 0;
+  const anonKeyLength = process.env.SUPABASE_ANON_KEY?.length || 0;
+  
   res.json({
     hasAuthHeader: !!authHeader,
     hasValidFormat: hasToken,
+    supabaseConfig: {
+      hasUrl: hasSupabaseUrl,
+      hasAnonKey: hasSupabaseAnonKey,
+      hasServiceKey: hasSupabaseServiceKey,
+      urlLength: supabaseUrlLength,
+      anonKeyLength: anonKeyLength,
+      allConfigured: hasSupabaseUrl && hasSupabaseAnonKey && hasSupabaseServiceKey
+    },
     environment: process.env.NODE_ENV || 'development',
     developmentMode: process.env.NODE_ENV === 'development',
     timestamp: new Date().toISOString()
