@@ -281,10 +281,11 @@ export class ConversationSyncService {
           .from('conversations')
           .select('id')
           .eq('id', msg.conversationId)
-          .single();
+          .maybeSingle(); // ✅ Use maybeSingle() instead of single() - returns null if not found instead of error
         
         // ✅ BEST PRACTICE: Use upsert to handle race conditions (conversation might be created concurrently)
-        if (!existingConv) {
+        // If conversation doesn't exist (null) or check failed, create it
+        if (!existingConv && (!convCheckError || convCheckError.code === 'PGRST116')) {
           logger.debug('[ConversationSync] ⚠️ Conversation missing, creating:', msg.conversationId);
           const { error: createConvError } = await supabase
             .from('conversations')
