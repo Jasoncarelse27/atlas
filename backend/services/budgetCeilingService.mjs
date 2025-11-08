@@ -87,10 +87,19 @@ export const budgetCeilingService = {
       const client = await getSupabaseClient();
       if (!client) return 0;
 
-      const { data } = await client.from('budget_tracking')
-        .select('total_spend').eq('date', new Date().toISOString().slice(0,10)).eq('tier', tier).single();
+      const { data, error } = await client.from('budget_tracking')
+        .select('total_spend')
+        .eq('date', new Date().toISOString().slice(0,10))
+        .eq('tier', tier)
+        .maybeSingle(); // ✅ Use maybeSingle() instead of single() to handle missing rows
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found (expected)
+        logger.warn(`[BudgetCeiling] Error fetching tier spend for ${tier}:`, error.message);
+      }
+      
       return data?.total_spend ?? 0;
     } catch (error) {
+      logger.warn(`[BudgetCeiling] Exception fetching tier spend for ${tier}:`, error.message);
       return 0;
     }
   },
@@ -100,10 +109,18 @@ export const budgetCeilingService = {
       const client = await getSupabaseClient();
       if (!client) return 0;
 
-      const { data } = await client.from('budget_tracking')
-        .select('total_spend').eq('date', new Date().toISOString().slice(0,10));
-      return (data ?? []).reduce((s, r) => s + (r.total_spend ?? 0), 0);
+      const { data, error } = await client.from('budget_tracking')
+        .select('total_spend')
+        .eq('date', new Date().toISOString().slice(0,10));
+      
+      if (error) {
+        logger.warn('[BudgetCeiling] Error fetching total spend:', error.message);
+        return 0;
+      }
+      
+      return (data ?? []).reduce((s, r) => s + (Number(r.total_spend) || 0), 0);
     } catch (error) {
+      logger.warn('[BudgetCeiling] Exception fetching total spend:', error.message);
       return 0;
     }
   },
