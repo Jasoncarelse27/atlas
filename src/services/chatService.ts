@@ -69,11 +69,18 @@ export const chatService = {
     abortController = new AbortController();
 
     try {
-      // ✅ BEST PRACTICE: Use centralized auth helper
+      // ✅ BEST PRACTICE: Use centralized auth helper (forces refresh if needed)
       const token = await getAuthTokenOrThrow('You must be logged in to send messages. Please sign in and try again.');
       
-      // Get user ID from session if not provided
-      const { data: { session } } = await supabase.auth.getSession();
+      // ✅ CRITICAL FIX: Get session ONCE after token refresh to avoid race conditions
+      // getAuthTokenOrThrow() already refreshed the session, so this gets the fresh one
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        logger.error('[ChatService] ❌ Session error after token refresh:', sessionError);
+        throw new Error('Session error. Please sign in again.');
+      }
+      
       const actualUserId = userId || session?.user?.id;
       
       // ✅ CRITICAL: Log the exact userId being used
@@ -82,7 +89,8 @@ export const chatService = {
         sessionUserId: session?.user?.id,
         actualUserId,
         hasSession: !!session,
-        token: token?.substring(0, 20) + '...'
+        tokenLength: token?.length || 0,
+        tokenPreview: token?.substring(0, 20) + '...'
       });
       
       // ✅ FIX: Prevent 'anonymous' from reaching Supabase
