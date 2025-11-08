@@ -646,14 +646,15 @@ export class ConversationSyncService {
         }
         
         // ✅ CRITICAL FIX: Ensure conversation exists before syncing messages
-        const { data: existingConv } = await supabase
+        const { data: existingConv, error: convCheckError } = await supabase
           .from('conversations')
           .select('id')
           .eq('id', msg.conversationId)
-          .single();
+          .maybeSingle(); // ✅ Use maybeSingle() instead of single() - returns null if not found instead of error
         
         // ✅ BEST PRACTICE: Use upsert to handle race conditions (conversation might be created concurrently)
-        if (!existingConv) {
+        // If conversation doesn't exist (null) or check failed, create it
+        if (!existingConv && (!convCheckError || convCheckError.code === 'PGRST116')) {
           logger.debug('[ConversationSync] ⚠️ Conversation missing, creating:', msg.conversationId);
           const { error: createConvError } = await supabase
             .from('conversations')
