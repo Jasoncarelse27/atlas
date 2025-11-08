@@ -682,63 +682,46 @@ export class ConversationSyncService {
           continue;
         }
         
-        // ✅ ONE-SHOT FIX: Ensure conversation exists before syncing messages
-        // Check if conversation exists first
-        const { data: existingConv, error: checkError } = await supabase
+        // ✅ ONE-SHOT FIX: Always ensure conversation exists before syncing messages
+        // Use upsert to handle both creation and existence check in one operation
+        logger.info('[ConversationSync] 🔍 Ensuring conversation exists:', msg.conversationId);
+        const { error: convError } = await supabase
           .from('conversations')
-          .select('id')
-          .eq('id', msg.conversationId)
-          .maybeSingle();
-        
-        // Log check result for debugging
-        if (checkError) {
-          logger.warn('[ConversationSync] ⚠️ Error checking conversation, will attempt creation:', {
-            conversationId: msg.conversationId,
-            error: checkError
+          .upsert({
+            id: msg.conversationId,
+            user_id: userId,
+            title: 'Chat',
+            created_at: msg.timestamp,
+            updated_at: msg.timestamp
+          } as any, {
+            onConflict: 'id' // If exists, just update; if not, create
           });
-        }
         
-        // If conversation doesn't exist (or check failed), create it
-        if (!existingConv) {
-          logger.warn('[ConversationSync] ⚠️ Conversation missing, creating:', msg.conversationId);
-          const { error: createError } = await supabase
-            .from('conversations')
-            .insert({
-              id: msg.conversationId,
-              user_id: userId,
-              title: 'Chat',
-              created_at: msg.timestamp,
-              updated_at: msg.timestamp
-            } as any);
+        if (convError) {
+          // Check if it's a conflict (conversation was created concurrently)
+          const isConflict = convError.code === '23505' || 
+                            convError.message?.includes('duplicate') ||
+                            convError.message?.includes('already exists');
           
-          if (createError) {
-            // Check if it's a conflict (conversation was created concurrently)
-            const isConflict = createError.code === '23505' || 
-                              createError.message?.includes('duplicate') ||
-                              createError.message?.includes('already exists');
-            
-            if (isConflict) {
-              logger.info('[ConversationSync] ✅ Conversation created concurrently, continuing:', msg.conversationId);
-              // Conversation exists now, continue with message sync
-            } else {
-              // Log the error and skip this message
-              logger.error('[ConversationSync] ❌ Failed to create conversation:', {
-                conversationId: msg.conversationId,
-                messageId: msg.id,
-                error: createError,
-                errorCode: createError.code,
-                errorMessage: createError.message,
-                errorDetails: (createError as any)?.details,
-                errorHint: (createError as any)?.hint
-              });
-              // Skip this message - can't sync without conversation
-              continue;
-            }
+          if (isConflict) {
+            logger.info('[ConversationSync] ✅ Conversation exists (conflict), continuing:', msg.conversationId);
+            // Conversation exists now, continue with message sync
           } else {
-            logger.info('[ConversationSync] ✅ Created conversation:', msg.conversationId);
+            // Log the error and skip this message
+            logger.error('[ConversationSync] ❌ Failed to ensure conversation exists:', {
+              conversationId: msg.conversationId,
+              messageId: msg.id,
+              error: convError,
+              errorCode: convError.code,
+              errorMessage: convError.message,
+              errorDetails: (convError as any)?.details,
+              errorHint: (convError as any)?.hint
+            });
+            // Skip this message - can't sync without conversation
+            continue;
           }
         } else {
-          logger.debug('[ConversationSync] ✅ Conversation exists:', msg.conversationId);
+          logger.info('[ConversationSync] ✅ Conversation ensured:', msg.conversationId);
         }
         
         // ✅ CRITICAL FIX: Retry message sync with conversation creation if foreign key error occurs
