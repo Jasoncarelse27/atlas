@@ -331,24 +331,24 @@ export class ConversationSyncService {
         const MAX_RETRIES = 2;
         
         while (!messageSynced && retryCount <= MAX_RETRIES) {
-          const { error } = await supabase
-            .from('messages')
-            .upsert({
-              id: msg.id,
-              conversation_id: msg.conversationId,
+        const { error } = await supabase
+          .from('messages')
+          .upsert({
+            id: msg.id,
+            conversation_id: msg.conversationId,
               user_id: _userId, // ✅ Use authenticated userId parameter
-              role: msg.role,
-              message_type: msg.role,
-              content: {
-                type: 'text',
-                text: msg.content
-              },
-              created_at: msg.timestamp
-            } as any, {
-              onConflict: 'id' // ✅ Handle duplicate IDs gracefully
-            });
+            role: msg.role,
+            message_type: msg.role,
+            content: {
+              type: 'text',
+              text: msg.content
+            },
+            created_at: msg.timestamp
+          } as any, {
+            onConflict: 'id' // ✅ Handle duplicate IDs gracefully
+          });
 
-          if (!error) {
+        if (!error) {
             await atlasDB.messages.update(msg.id, { synced: true });
             logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
             messageSynced = true;
@@ -684,15 +684,23 @@ export class ConversationSyncService {
         
         // ✅ ONE-SHOT FIX: Ensure conversation exists before syncing messages
         // Check if conversation exists first
-        const { data: existingConv } = await supabase
+        const { data: existingConv, error: checkError } = await supabase
           .from('conversations')
           .select('id')
           .eq('id', msg.conversationId)
           .maybeSingle();
         
-        // If conversation doesn't exist, create it
+        // Log check result for debugging
+        if (checkError) {
+          logger.warn('[ConversationSync] ⚠️ Error checking conversation, will attempt creation:', {
+            conversationId: msg.conversationId,
+            error: checkError
+          });
+        }
+        
+        // If conversation doesn't exist (or check failed), create it
         if (!existingConv) {
-          logger.debug('[ConversationSync] ⚠️ Conversation missing, creating:', msg.conversationId);
+          logger.warn('[ConversationSync] ⚠️ Conversation missing, creating:', msg.conversationId);
           const { error: createError } = await supabase
             .from('conversations')
             .insert({
@@ -710,7 +718,7 @@ export class ConversationSyncService {
                               createError.message?.includes('already exists');
             
             if (isConflict) {
-              logger.debug('[ConversationSync] ✅ Conversation created concurrently, continuing:', msg.conversationId);
+              logger.info('[ConversationSync] ✅ Conversation created concurrently, continuing:', msg.conversationId);
               // Conversation exists now, continue with message sync
             } else {
               // Log the error and skip this message
@@ -727,8 +735,10 @@ export class ConversationSyncService {
               continue;
             }
           } else {
-            logger.debug('[ConversationSync] ✅ Created conversation:', msg.conversationId);
+            logger.info('[ConversationSync] ✅ Created conversation:', msg.conversationId);
           }
+        } else {
+          logger.debug('[ConversationSync] ✅ Conversation exists:', msg.conversationId);
         }
         
         // ✅ CRITICAL FIX: Retry message sync with conversation creation if foreign key error occurs
@@ -737,24 +747,24 @@ export class ConversationSyncService {
         const MAX_RETRIES = 2;
         
         while (!messageSynced && retryCount <= MAX_RETRIES) {
-          const { error } = await supabase
-            .from('messages')
-            .upsert({
-              id: msg.id,
-              conversation_id: msg.conversationId,
+        const { error } = await supabase
+          .from('messages')
+          .upsert({
+            id: msg.id,
+            conversation_id: msg.conversationId,
               user_id: userId,
-              role: msg.role,
-              content: msg.content, // ✅ Send as string directly
-              created_at: msg.timestamp
-            } as any, {
-              onConflict: 'id' // ✅ Handle duplicate IDs gracefully
-            });
-          
-          if (!error) {
-            await atlasDB.messages.update(msg.id, { synced: true });
-            logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
+            role: msg.role,
+            content: msg.content, // ✅ Send as string directly
+            created_at: msg.timestamp
+          } as any, {
+            onConflict: 'id' // ✅ Handle duplicate IDs gracefully
+          });
+        
+        if (!error) {
+          await atlasDB.messages.update(msg.id, { synced: true });
+          logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
             messageSynced = true;
-          } else {
+        } else {
             const errorStatus = (error as any)?.status || (error as any)?.code;
             const errorMessage = error.message || String(error);
             const errorCode = error.code;
@@ -779,8 +789,8 @@ export class ConversationSyncService {
               errorDetails?.includes('Key is not present in table "conversations"');
             
             if (isConflict) {
-              // Message already exists (likely created by backend), mark as synced
-              await atlasDB.messages.update(msg.id, { synced: true });
+            // Message already exists (likely created by backend), mark as synced
+            await atlasDB.messages.update(msg.id, { synced: true });
               logger.debug('[ConversationSync] ✅ Message already exists (409 conflict), marked as synced:', msg.id);
               messageSynced = true;
             } else if (isForeignKeyError && retryCount < MAX_RETRIES) {
@@ -805,7 +815,7 @@ export class ConversationSyncService {
               retryCount++;
               // Small delay before retry to allow database to catch up
               await new Promise(resolve => setTimeout(resolve, 100));
-            } else {
+          } else {
               // Unknown error or max retries reached
               logger.error('[ConversationSync] ❌ Failed to sync message:', {
                 messageId: msg.id,
