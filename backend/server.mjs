@@ -1178,40 +1178,40 @@ app.post('/message',
 
     logger.debug('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId, attachments: attachments?.length });
 
-    // ✅ Ensure conversation exists before saving messages
+    // ✅ Ensure conversation exists before saving messages (use upsert for race-condition safety)
     if (conversationId && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
-        // Check if conversation exists
-        const { data: existingConv, error: checkError } = await supabase
+        // Use upsert to handle both creation and existence check atomically
+        const { error: convError } = await supabase
           .from('conversations')
-          .select('id')
-          .eq('id', conversationId)
-          .single();
+          .upsert({
+            id: conversationId,
+            user_id: userId,
+            title: 'New Conversation',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'id' // If exists, just update; if not, create
+          });
 
-        if (checkError && checkError.code === 'PGRST116') {
-          // Conversation doesn't exist, create it
-          const { error: createError } = await supabase
-            .from('conversations')
-            .insert([{
-              id: conversationId,
-              user_id: userId,
-              title: 'New Conversation',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }]);
-
-          if (createError) {
-            logger.error('[Server] Error creating conversation:', createError.message || createError);
+        if (convError) {
+          // Check if it's a conflict (conversation was created concurrently)
+          const isConflict = convError.code === '23505' || 
+                            convError.message?.includes('duplicate') ||
+                            convError.message?.includes('already exists');
+          
+          if (isConflict) {
+            logger.debug('✅ [Backend] Conversation exists (conflict), continuing:', conversationId);
           } else {
-            logger.debug('✅ [Backend] Conversation created successfully');
+            logger.error('[Server] Error ensuring conversation exists:', convError.message || convError);
+            // Don't block message processing - conversation might exist from concurrent request
           }
-        } else if (checkError) {
-          logger.error('[Server] Error checking conversation:', checkError.message || checkError);
         } else {
-          logger.debug('✅ [Backend] Conversation exists:', conversationId);
+          logger.debug('✅ [Backend] Conversation ensured:', conversationId);
         }
       } catch (error) {
         logger.error('[Server] Conversation handling failed:', error.message || error);
+        // Don't block message processing - continue even if conversation check fails
       }
     }
 
