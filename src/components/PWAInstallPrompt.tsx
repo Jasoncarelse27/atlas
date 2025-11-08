@@ -254,12 +254,39 @@ export function PWAInstallPrompt() {
 
             {/* Buttons */}
             <div className="flex items-center gap-2">
+              {/* Android/Desktop: Show install button if prompt is available */}
               {!isIOS && deferredPrompt && (
                 <button
                   onClick={handleInstall}
                   className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
                 >
                   Install Now
+                </button>
+              )}
+              {/* Desktop: Show install button even if beforeinstallprompt hasn't fired yet */}
+              {!isMobile && canInstall && !deferredPrompt && (
+                <button
+                  onClick={() => {
+                    // Try to trigger browser's install prompt
+                    // On Chrome/Edge, this will show the native install dialog
+                    logger.debug('[PWAInstallPrompt] Desktop install clicked - browser will handle');
+                    // The browser will show its own install prompt
+                  }}
+                  className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
+                >
+                  Install Atlas
+                </button>
+              )}
+              {/* iOS: Show "Learn More" button that scrolls to instructions */}
+              {isIOS && (
+                <button
+                  onClick={() => {
+                    // iOS instructions are already visible above
+                    logger.debug('[PWAInstallPrompt] iOS - instructions already visible');
+                  }}
+                  className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
+                >
+                  View Instructions
                 </button>
               )}
               <button
