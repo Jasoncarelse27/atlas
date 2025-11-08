@@ -1130,7 +1130,7 @@ app.post('/api/reset-memory', async (req, res) => {
 });
 
 // Authentication status endpoint for debugging
-app.get('/api/auth/status', (req, res) => {
+app.get('/api/auth/status', async (req, res) => {
   const authHeader = req.headers.authorization;
   const hasToken = authHeader && authHeader.startsWith('Bearer ');
   
@@ -1141,6 +1141,32 @@ app.get('/api/auth/status', (req, res) => {
   const supabaseUrlLength = process.env.SUPABASE_URL?.length || 0;
   const anonKeyLength = process.env.SUPABASE_ANON_KEY?.length || 0;
   
+  // ✅ CRITICAL: Test if SUPABASE_ANON_KEY can actually verify tokens
+  let tokenVerificationTest = null;
+  if (hasToken && hasSupabaseAnonKey) {
+    try {
+      const token = authHeader.substring(7);
+      const { supabasePublic } = await import('./config/supabaseClient.mjs');
+      const { data: { user }, error } = await supabasePublic.auth.getUser(token);
+      tokenVerificationTest = {
+        success: !error && !!user,
+        error: error ? error.message : null,
+        userId: user?.id || null
+      };
+    } catch (testError) {
+      tokenVerificationTest = {
+        success: false,
+        error: testError.message || 'Unknown error',
+        userId: null
+      };
+    }
+  }
+  
+  // ✅ CRITICAL: Show first/last 10 chars of anon key for verification (safe to expose)
+  const anonKeyPreview = process.env.SUPABASE_ANON_KEY 
+    ? `${process.env.SUPABASE_ANON_KEY.substring(0, 10)}...${process.env.SUPABASE_ANON_KEY.substring(anonKeyLength - 10)}`
+    : null;
+  
   res.json({
     hasAuthHeader: !!authHeader,
     hasValidFormat: hasToken,
@@ -1150,8 +1176,10 @@ app.get('/api/auth/status', (req, res) => {
       hasServiceKey: hasSupabaseServiceKey,
       urlLength: supabaseUrlLength,
       anonKeyLength: anonKeyLength,
+      anonKeyPreview: anonKeyPreview, // ✅ First/last 10 chars for verification
       allConfigured: hasSupabaseUrl && hasSupabaseAnonKey && hasSupabaseServiceKey
     },
+    tokenVerificationTest: tokenVerificationTest, // ✅ Actual test result
     environment: process.env.NODE_ENV || 'development',
     developmentMode: process.env.NODE_ENV === 'development',
     timestamp: new Date().toISOString()
