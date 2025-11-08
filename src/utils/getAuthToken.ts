@@ -34,7 +34,7 @@ import { logger } from '../lib/logger';
  */
 export async function getAuthToken(forceRefresh = false): Promise<string | null> {
   try {
-    // Get current session (Supabase auto-refreshes expired tokens automatically)
+    // Get current session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
@@ -42,16 +42,26 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
       return null;
     }
     
-    // ✅ PRODUCTION FIX: Supabase handles auto-refresh, so we just check if token exists
-    // Only manually refresh if explicitly requested (for edge cases)
-    if (session?.access_token && !forceRefresh) {
-      // Token exists - Supabase will auto-refresh if expired
-      return session.access_token;
+    if (!session) {
+      logger.debug('[getAuthToken] ⚠️ No session found');
+      return null;
     }
     
-    // Force refresh requested or no token - attempt manual refresh
-    if (forceRefresh && session) {
-      logger.debug('[getAuthToken] Force refresh requested, refreshing...');
+    // ✅ CRITICAL FIX: Check if token is expired or about to expire
+    const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+    const now = Date.now();
+    const timeUntilExpiry = expiresAt - now;
+    const isExpired = timeUntilExpiry < 0;
+    const isExpiringSoon = timeUntilExpiry < 5 * 60 * 1000; // Less than 5 minutes
+    
+    // ✅ FIX: Always refresh if expired or expiring soon, or if forceRefresh requested
+    if (isExpired || isExpiringSoon || forceRefresh) {
+      logger.debug('[getAuthToken] Token expired or expiring soon, refreshing...', {
+        isExpired,
+        isExpiringSoon,
+        timeUntilExpiry: Math.round(timeUntilExpiry / 1000) + 's',
+        forceRefresh
+      });
       
       try {
         const { data: { session: refreshedSession }, error: refreshError } = 
@@ -67,6 +77,8 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
           // ✅ IMPROVED: If refresh token is expired, user needs to sign in again
           if (refreshError.message?.includes('refresh_token') || refreshError.message?.includes('expired')) {
             logger.warn('[getAuthToken] ⚠️ Refresh token expired - user needs to sign in again');
+            // Clear invalid session
+            await supabase.auth.signOut();
           }
           
           return null;
@@ -80,6 +92,7 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
           return refreshedSession.access_token;
         } else {
           logger.warn('[getAuthToken] ⚠️ Refresh succeeded but no access token in response');
+          return null;
         }
       } catch (refreshException) {
         logger.error('[getAuthToken] ❌ Exception during refresh:', refreshException);
@@ -87,12 +100,8 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
       }
     }
     
-    // No session or token available
-    if (!session) {
-      logger.debug('[getAuthToken] ⚠️ No session found');
-    }
-    
-    return session?.access_token || null;
+    // Token is still valid
+    return session.access_token;
   } catch (error) {
     logger.error('[getAuthToken] ❌ Unexpected error:', error);
     return null;

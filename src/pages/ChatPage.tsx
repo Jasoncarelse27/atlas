@@ -271,6 +271,21 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       return;
     }
     
+    // ✅ SECURITY: Validate message length (prevent abuse, protect API costs) - Tier-aware
+    // Aligned with token monitoring system: ~4 characters per token
+    // Limits based on maxTokensPerResponse × multiplier for good UX
+    const TIER_LIMITS: Record<string, number> = {
+      free: 2000,    // ~500 tokens (maxTokensPerResponse: 100 × 5) - Protects $0/month margin
+      core: 4000,    // ~1000 tokens (maxTokensPerResponse: 250 × 4) - Protects $19.99/month margin
+      studio: 8000,  // ~2000 tokens (maxTokensPerResponse: 400 × 5) - Protects $149.99/month margin
+    };
+    const maxLength = TIER_LIMITS[tier] || TIER_LIMITS.free;
+    const trimmedText = text.trim();
+    if (trimmedText && trimmedText.length > maxLength) {
+      toast.error(`Message too long (${trimmedText.length.toLocaleString()} characters). Maximum is ${maxLength.toLocaleString()} characters for your ${tier} tier.`);
+      return;
+    }
+    
     if (!conversationId || !userId) {
       logger.error('[ChatPage] ❌ Cannot send message: missing conversationId or userId', {
         conversationId,
@@ -284,7 +299,27 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       return;
     }
     
-    lastMessageRef.current = text.trim();
+    // ✅ CRITICAL FIX: Ensure auth token is valid before sending
+    try {
+      const { getAuthToken } = await import('@/utils/getAuthToken');
+      const token = await getAuthToken(true); // Force refresh if needed
+      
+      if (!token) {
+        logger.error('[ChatPage] ❌ No valid auth token - session expired');
+        toast.error('Session expired. Please refresh the page or sign in again.');
+        // Redirect to login after delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+        return;
+      }
+    } catch (authError) {
+      logger.error('[ChatPage] ❌ Auth check failed:', authError);
+      toast.error('Authentication error. Please refresh the page.');
+      return;
+    }
+    
+    lastMessageRef.current = trimmedText;
     isProcessingRef.current = true;
     
     // ✅ FIX: Check message count BEFORE optimistic update

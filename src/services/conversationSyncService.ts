@@ -299,12 +299,29 @@ export class ConversationSyncService {
           logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
         } else {
           // ✅ CRITICAL FIX: Handle 409 conflicts - message already exists (backend created it)
-          if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('409')) {
+          const errorStatus = (error as any)?.status || (error as any)?.code;
+          const errorMessage = error.message || String(error);
+          const isConflict = 
+            errorStatus === 409 || 
+            errorStatus === '409' ||
+            error.code === '23505' || // PostgreSQL unique violation
+            error.code === 'PGRST116' || // Supabase conflict
+            errorMessage?.includes('duplicate') || 
+            errorMessage?.includes('409') ||
+            errorMessage?.includes('conflict') ||
+            errorMessage?.includes('already exists');
+            
+          if (isConflict) {
             // Message already exists (likely created by backend), mark as synced
             await atlasDB.messages.update(msg.id, { synced: true });
-            logger.debug('[ConversationSync] ✅ Message already exists (backend created), marked as synced:', msg.id);
+            logger.debug('[ConversationSync] ✅ Message already exists (409 conflict), marked as synced:', msg.id);
           } else {
-            logger.error('[ConversationSync] Failed to sync message:', msg.id, error);
+            logger.error('[ConversationSync] Failed to sync message:', msg.id, {
+              error,
+              status: errorStatus,
+              message: errorMessage,
+              code: error.code
+            });
           }
         }
       }
@@ -401,7 +418,6 @@ export class ConversationSyncService {
       queriesExecuted++; // Track query count
       
       if (convError) {
-        console.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
         logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
         return;
       }
@@ -420,7 +436,6 @@ export class ConversationSyncService {
       
       // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all
       if (conversationsSynced === 0 && isFirstSync) {
-        console.warn('[ConversationSync] ⚠️ No conversations found on first sync. Checking if any exist...');
         logger.warn('[ConversationSync] ⚠️ No conversations found on first sync. Checking if any exist...');
         
         const { data: allConversations, error: checkError } = await supabase
@@ -430,17 +445,12 @@ export class ConversationSyncService {
           .limit(5);
         
         if (checkError) {
-          console.error('[ConversationSync] ❌ Error checking conversations:', checkError);
           logger.error('[ConversationSync] ❌ Error checking conversations:', checkError);
         } else if (allConversations) {
-          console.log(`[ConversationSync] 📋 Found ${allConversations.length} total conversations (including deleted):`, 
-            allConversations.map(c => ({ id: c.id, title: c.title, deleted: !!c.deleted_at }))
-          );
           logger.info(`[ConversationSync] 📋 Found ${allConversations.length} total conversations (including deleted):`, 
             allConversations.map(c => ({ id: c.id, title: c.title, deleted: !!c.deleted_at }))
           );
         } else {
-          console.log('[ConversationSync] 📋 No conversations found in Supabase at all');
           logger.info('[ConversationSync] 📋 No conversations found in Supabase at all');
         }
       }
@@ -598,12 +608,29 @@ export class ConversationSyncService {
           logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
         } else {
           // ✅ CRITICAL FIX: Handle 409 conflicts - message already exists (backend created it)
-          if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('409')) {
+          const errorStatus = (error as any)?.status || (error as any)?.code;
+          const errorMessage = error.message || String(error);
+          const isConflict = 
+            errorStatus === 409 || 
+            errorStatus === '409' ||
+            error.code === '23505' || // PostgreSQL unique violation
+            error.code === 'PGRST116' || // Supabase conflict
+            errorMessage?.includes('duplicate') || 
+            errorMessage?.includes('409') ||
+            errorMessage?.includes('conflict') ||
+            errorMessage?.includes('already exists');
+            
+          if (isConflict) {
             // Message already exists (likely created by backend), mark as synced
             await atlasDB.messages.update(msg.id, { synced: true });
-            logger.debug('[ConversationSync] ✅ Message already exists (backend created), marked as synced:', msg.id);
+            logger.debug('[ConversationSync] ✅ Message already exists (409 conflict), marked as synced:', msg.id);
           } else {
-            logger.error('[ConversationSync] ❌ Failed to sync message:', msg.id, error);
+            logger.error('[ConversationSync] ❌ Failed to sync message:', msg.id, {
+              error,
+              status: errorStatus,
+              message: errorMessage,
+              code: error.code
+            });
           }
         }
       }

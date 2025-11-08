@@ -17,14 +17,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session) {
-        localStorage.setItem("supabase_session", JSON.stringify(session));
+    // ✅ CRITICAL FIX: Force refresh session on startup to prevent 401 errors
+    const initAuth = async () => {
+      try {
+        // First, try to get existing session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        // ✅ FIX: If session exists but might be expired, refresh it
+        if (session && !sessionError) {
+          // Check if token is expired (within 5 minutes of expiry)
+          const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+          const now = Date.now();
+          const timeUntilExpiry = expiresAt - now;
+          
+          // If token expires in less than 5 minutes, refresh proactively
+          if (timeUntilExpiry < 5 * 60 * 1000) {
+            const { data: { session: refreshedSession }, error: refreshError } = 
+              await supabase.auth.refreshSession();
+            
+            if (!refreshError && refreshedSession) {
+              setUser(refreshedSession.user);
+              localStorage.setItem("supabase_session", JSON.stringify(refreshedSession));
+              setLoading(false);
+              return;
+            }
+          }
+          
+          // Token is still valid
+          setUser(session.user);
+          localStorage.setItem("supabase_session", JSON.stringify(session));
+        } else if (sessionError) {
+          // Session error - clear and require re-login
+          console.warn('[AuthProvider] Session error:', sessionError.message);
+          localStorage.removeItem("supabase_session");
+          setUser(null);
+        } else {
+          // No session
+          setUser(null);
+          localStorage.removeItem("supabase_session");
+        }
+      } catch (error) {
+        console.error('[AuthProvider] Auth init error:', error);
+        setUser(null);
+        localStorage.removeItem("supabase_session");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initAuth();
 
     // Keep session refreshed & synced
     const {
