@@ -59,19 +59,19 @@ export function useTierMiddleware(): UseTierMiddlewareReturn {
       const makeRequest = async (): Promise<Response> => {
         const currentToken = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
         return fetch(apiEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
             'Authorization': `Bearer ${currentToken}`
-          },
-          body: JSON.stringify({
-            userId,
-            message,
-            tier,
-            ...(conversationId && { conversationId }),
-            promptType
-          })
-        });
+        },
+        body: JSON.stringify({
+          userId,
+          message,
+          tier,
+          ...(conversationId && { conversationId }),
+          promptType
+        })
+      });
       };
 
       let response = await makeRequest();

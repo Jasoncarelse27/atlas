@@ -109,20 +109,20 @@ class TierEnforcementService {
     const makeRequest = async (): Promise<Response> => {
       const currentToken = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
       return fetch(getApiEndpoint('/api/message?stream=1'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
           'Authorization': `Bearer ${currentToken}`,
-        },
-        body: JSON.stringify({
-          userId,
-          message,
-          tier,
-          conversationId,
-          promptType
-        })
-      });
+      },
+      body: JSON.stringify({
+        userId,
+        message,
+        tier,
+        conversationId,
+        promptType
+      })
+    });
     };
 
     let response = await makeRequest();

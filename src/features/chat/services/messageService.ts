@@ -68,13 +68,13 @@ class MessageService {
     const makeRequest = async (): Promise<Response> => {
       const currentToken = await getAuthTokenOrThrow('Authentication required. Please sign in again.');
       return fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentToken}`,
-          ...options.headers,
-        },
-      });
+        ...options.headers,
+      },
+    });
     };
 
     const response = await makeRequest();

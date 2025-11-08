@@ -70,26 +70,26 @@ export async function fetchWithAuth(
         try {
           // Create retry function
           const makeRetryRequest = async (): Promise<Response> => {
-            const newToken = await getAuthToken(true);
+        const newToken = await getAuthToken(true);
             if (!newToken) {
               throw new Error('Token refresh failed');
             }
             return fetch(url, {
               ...fetchOptions,
               headers: {
-                ...headers,
-                'Authorization': `Bearer ${newToken}`,
+            ...headers,
+            'Authorization': `Bearer ${newToken}`,
               },
             });
           };
-
+          
           const retryResponse = await handle401Auth({
             response,
             originalRequest: makeRetryRequest,
             preventRedirect
           });
 
-          return retryResponse;
+            return retryResponse;
         } catch (error) {
           // Refresh failed - show error and redirect
           if (showErrorToast) {
@@ -98,21 +98,21 @@ export async function fetchWithAuth(
           
           const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
           throw new Error(JSON.stringify(errorData));
-        }
-      } else {
+          }
+        } else {
         // Retry disabled - just show error
-        if (showErrorToast) {
-          showToast('⚠️ Session expired. Please log in again.', 'error');
-        }
-        
-        if (!preventRedirect) {
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-        }
-        
-        const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
-        throw new Error(JSON.stringify(errorData));
+      if (showErrorToast) {
+        showToast('⚠️ Session expired. Please log in again.', 'error');
+      }
+      
+      if (!preventRedirect) {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      }
+      
+      const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
+      throw new Error(JSON.stringify(errorData));
       }
     }
 

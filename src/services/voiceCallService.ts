@@ -1905,19 +1905,19 @@ export class VoiceCallService {
         const makeRequest = async (): Promise<Response> => {
           const currentToken = await getAuthTokenOrThrow('Authentication required for voice call.');
           return fetch(getApiEndpoint('/api/message?stream=1'), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
               'Authorization': `Bearer ${currentToken}`,
-              'Accept': 'text/event-stream',
-            },
-            body: JSON.stringify({
-              message: transcript,
-              conversationId: options.conversationId,
-              is_voice_call: true,
-            }),
-            signal: claudeController.signal,
-          });
+            'Accept': 'text/event-stream',
+          },
+          body: JSON.stringify({
+            message: transcript,
+            conversationId: options.conversationId,
+            is_voice_call: true,
+          }),
+          signal: claudeController.signal,
+        });
         };
 
         response = await makeRequest();
@@ -2286,18 +2286,18 @@ export class VoiceCallService {
       const makeRequest = async (): Promise<Response> => {
         const currentToken = await getAuthTokenOrThrow('Authentication required for voice call.');
         return fetch(getApiEndpoint('/api/message?stream=1'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'text/event-stream',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
             'Authorization': `Bearer ${currentToken}`
-          },
-          body: JSON.stringify({
-            message: userMessage,
-            conversationId: conversationId,
-            is_voice_call: true,
-          })
-        });
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationId: conversationId,
+          is_voice_call: true,
+        })
+      });
       };
 
       let response = await makeRequest();

@@ -18,13 +18,13 @@ export async function fetchWithAuth(
   const makeRequest = async (): Promise<Response> => {
     const currentToken = await getAuthTokenOrThrow("No valid auth token found. Please log in again.");
     return fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        "Content-Type": "application/json",
+    ...options,
+    headers: {
+      ...options.headers,
+      "Content-Type": "application/json",
         Authorization: `Bearer ${currentToken}`,
-      },
-    });
+    },
+  });
   };
 
   const res = await makeRequest();

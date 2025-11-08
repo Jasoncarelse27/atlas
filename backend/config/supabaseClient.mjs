@@ -1,6 +1,11 @@
 // backend/config/supabaseClient.mjs
 import { logger } from '../lib/simpleLogger.mjs';
 import { createClient } from "@supabase/supabase-js";
+import dns from 'dns';
+
+// ✅ CRITICAL: Force IPv4 for Railway compatibility
+// Railway doesn't support IPv6 connections
+dns.setDefaultResultOrder('ipv4first');
 
 // Function to create and validate Supabase clients
 function createSupabaseClients() {
@@ -22,11 +27,23 @@ function createSupabaseClients() {
   // Create Supabase client with service role key for backend operations
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
+    // ✅ Force IPv4 connections for Railway
+    global: {
+      headers: {
+        'X-Prefer-IPv4': 'true'
+      }
+    }
   });
 
   // Create public client with anon key for frontend-like operations
   const supabasePublic = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
+    // ✅ Force IPv4 connections for Railway
+    global: {
+      headers: {
+        'X-Prefer-IPv4': 'true'
+      }
+    }
   });
 
   logger.debug('✅ Supabase client initialized successfully');
