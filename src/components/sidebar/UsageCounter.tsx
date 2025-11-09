@@ -5,6 +5,7 @@ import { getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/us
 import { UpgradeButton } from '../UpgradeButton';
 import { fetchWithAuthJSON } from '../../services/fetchWithAuth';
 import { logger } from '../../lib/logger';
+import { supabase } from '../../lib/supabaseClient';
 
 interface UsageCounterProps {
   userId?: string;
@@ -18,17 +19,39 @@ interface UsageData {
   isUnlimited: boolean;
 }
 
-export default function UsageCounter({ userId }: UsageCounterProps) {
+export default function UsageCounter({ userId: propUserId }: UsageCounterProps) {
   // 🚀 Modern tier management with React Query + Realtime
   const { tier, isLoading } = useTierQuery();
   
   // ✅ FIX: Fetch actual monthly message count from backend
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(true);
+  const [actualUserId, setActualUserId] = useState<string | null>(propUserId || null);
+  
+  // ✅ Get userId from session if not provided
+  useEffect(() => {
+    const getUserId = async () => {
+      if (propUserId) {
+        setActualUserId(propUserId);
+        return;
+      }
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          setActualUserId(session.user.id);
+        }
+      } catch (error) {
+        logger.error('[UsageCounter] Failed to get userId:', error);
+      }
+    };
+    
+    getUserId();
+  }, [propUserId]);
   
   useEffect(() => {
     const fetchUsage = async () => {
-      if (!userId) {
+      if (!actualUserId) {
         setLoadingUsage(false);
         return;
       }
@@ -65,7 +88,7 @@ export default function UsageCounter({ userId }: UsageCounterProps) {
     // Refresh every 30 seconds
     const interval = setInterval(fetchUsage, 30000);
     return () => clearInterval(interval);
-  }, [userId, tier]);
+  }, [actualUserId, tier]);
   
   const messageCount = usage?.monthlyCount ?? 0;
   const maxMessages = usage?.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
