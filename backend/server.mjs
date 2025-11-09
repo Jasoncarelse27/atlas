@@ -532,6 +532,7 @@ function fixPunctuationSpacing(text) {
     { from: /Inthe/gi, to: 'In the' },
     { from: /Howmany/gi, to: 'How many' },
     { from: /Howdoes/gi, to: 'How does' },
+    { from: /Howare/gi, to: 'How are' },
     { from: /Whatare/gi, to: 'What are' },
     { from: /Whereare/gi, to: 'Where are' },
     { from: /Whenare/gi, to: 'When are' },
