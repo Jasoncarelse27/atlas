@@ -4,6 +4,7 @@ import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { getApiEndpoint } from '../utils/apiClient';
 import { generateUUID } from "../utils/uuid";
+import { fetchWithAuth } from '../utils/authFetch';
 
 export interface TranscriptionResult {
   transcript: string;
@@ -110,25 +111,14 @@ class VoiceService {
    */
   async transcribeAudio(audioUrl: string): Promise<TranscriptionResult> {
     try {
-      // Get JWT token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-
-      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-      const response = await fetch(getApiEndpoint('/api/transcribe'), {
+      // ✅ BEST PRACTICE: Use centralized auth fetch utility (handles 401 automatically)
+      const response = await fetchWithAuth(getApiEndpoint('/api/transcribe'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           audioUrl,
           language: 'en', // Default to English, can be made configurable
         }),
+        retryOn401: true, // ✅ CRITICAL: Auto-retry with refreshed token on 401
       });
 
       if (!response.ok) {
