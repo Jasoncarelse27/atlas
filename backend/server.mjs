@@ -480,8 +480,32 @@ async function getUserMemory(userId) {
   }
 }
 
+// ✅ GRAMMAR FIX: Ensure proper spacing after punctuation marks
+function fixPunctuationSpacing(text) {
+  if (!text) return text;
+  
+  // Fix missing spaces after punctuation: !, ?, ., ,, :, ;
+  // Pattern: punctuation followed immediately by a letter (no space)
+  let fixed = text;
+  
+  // Fix spacing after exclamation marks, question marks, periods, colons, semicolons
+  fixed = fixed.replace(/([!?.])([A-Za-z])/g, '$1 $2');
+  
+  // Fix spacing after commas (but preserve numbers like "1,000")
+  fixed = fixed.replace(/(,)([A-Za-z])/g, '$1 $2');
+  
+  // Fix spacing after colons and semicolons
+  fixed = fixed.replace(/([:;])([A-Za-z])/g, '$1 $2');
+  
+  // Collapse multiple spaces back to single space
+  fixed = fixed.replace(/\s{2,}/g, ' ');
+  
+  return fixed;
+}
+
 // 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
 // 🎭 STAGE DIRECTION FILTER: Remove stage directions like "*speaks in a friendly voice*"
+// ✅ GRAMMAR FIX: Fix spacing after punctuation marks
 function filterResponse(text) {
   if (!text) return text;
   
@@ -493,7 +517,9 @@ function filterResponse(text) {
   // This prevents stage directions from appearing in transcripts or being spoken
   filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
   filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
-  filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces (but preserve single spaces)
+  
+  // ✅ GRAMMAR FIX: Fix spacing after punctuation marks BEFORE collapsing spaces
+  filtered = fixPunctuationSpacing(filtered);
   
   // Direct identity reveals
   filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
@@ -584,11 +610,15 @@ Core principles:
 
 FORMATTING GUIDELINES (CRITICAL for readability and professionalism):
 
-Grammar & Spacing:
-- Use proper grammar, spacing, and punctuation (e.g., "Jason! It's" not "Jason!It's")
+Grammar & Spacing (MANDATORY - follow exactly):
+- ALWAYS add a space after punctuation marks: periods (.), exclamation marks (!), question marks (?), commas (,), colons (:), semicolons (;)
+- Examples: "Jason! It's" (correct) NOT "Jason!It's" (wrong)
+- Examples: "wonderfully. I remember" (correct) NOT "wonderfully. Iremember" (wrong)
+- Examples: "passions! How" (correct) NOT "passions!How" (wrong)
+- Examples: "update. Let" (correct) NOT "update.Let" (wrong)
 - Always use double line breaks (\\n\\n) to separate distinct ideas or sections
 - Keep paragraphs short (2-3 sentences max) for mobile readability
-- Use proper spacing after punctuation: periods, commas, exclamation marks, question marks
+- Double-check your response: every punctuation mark must be followed by a space before the next word
 
 Emojis:
 - Use emojis sparingly (1-2 per response max) for warmth and emphasis
