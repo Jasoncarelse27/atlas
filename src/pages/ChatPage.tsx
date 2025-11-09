@@ -496,17 +496,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             error.message === 'MONTHLY_LIMIT_REACHED') {
           logger.warn('[ChatPage] ⚠️ Monthly limit reached - showing upgrade modal');
           
-          // ✅ CRITICAL: Show toast notification immediately
-          try {
-            toast.error('Monthly message limit reached. Upgrade to continue!', {
-              duration: 5000,
-              icon: '⚠️'
-            });
-          } catch (toastError) {
-            logger.error('[ChatPage] Failed to show toast:', toastError);
-            // Fallback: Use alert if toast fails
-            alert('Monthly message limit reached. Please upgrade to continue.');
-          }
+          // ✅ CRITICAL: Show toast notification immediately (use setTimeout to ensure DOM is ready)
+          setTimeout(() => {
+            try {
+              toast.error('Monthly message limit reached. Upgrade to continue!', {
+                duration: 5000,
+                icon: '⚠️'
+              });
+            } catch (toastError) {
+              logger.error('[ChatPage] Failed to show toast:', toastError);
+              // Fallback: Use alert if toast fails
+              alert('Monthly message limit reached. Please upgrade to continue.');
+            }
+          }, 0);
           
           // Show upgrade modal
           setCurrentUsage(15);
@@ -515,11 +517,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           setUpgradeModalVisible(true);
           
           // Also trigger context modal for consistency
-          try {
-            showGenericUpgrade('monthly_limit');
-          } catch (modalError) {
-            logger.error('[ChatPage] Failed to show upgrade modal:', modalError);
-          }
+          setTimeout(() => {
+            try {
+              showGenericUpgrade('monthly_limit');
+            } catch (modalError) {
+              logger.error('[ChatPage] Failed to show upgrade modal:', modalError);
+            }
+          }, 100);
           return;
         }
         

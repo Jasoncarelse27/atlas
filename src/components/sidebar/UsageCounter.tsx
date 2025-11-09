@@ -61,23 +61,51 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
         const API_URL = import.meta.env.VITE_API_URL || '';
         const usageData = await fetchWithAuthJSON(`${API_URL}/api/usage`);
         
+        logger.debug('[UsageCounter] Fetched usage data:', usageData);
+        
+        // ✅ CRITICAL FIX: Ensure we get actual count from backend
+        const monthlyCount = usageData.monthlyCount ?? 0;
+        const monthlyLimit = usageData.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
+        
         setUsage({
           tier: usageData.tier || tier,
-          monthlyCount: usageData.monthlyCount || 0,
-          monthlyLimit: usageData.monthlyLimit || 15,
-          remaining: usageData.remaining ?? (usageData.monthlyLimit === -1 ? -1 : Math.max(0, (usageData.monthlyLimit || 15) - (usageData.monthlyCount || 0))),
-          isUnlimited: usageData.isUnlimited || false
+          monthlyCount: monthlyCount,
+          monthlyLimit: monthlyLimit,
+          remaining: usageData.remaining ?? (monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - monthlyCount)),
+          isUnlimited: usageData.isUnlimited || monthlyLimit === -1
         });
       } catch (error) {
         logger.error('[UsageCounter] Failed to fetch usage:', error);
-        // Fallback to showing 0 if fetch fails
-        setUsage({
-          tier,
-          monthlyCount: 0,
-          monthlyLimit: hasUnlimitedMessages(tier) ? -1 : 15,
-          remaining: hasUnlimitedMessages(tier) ? -1 : 15,
-          isUnlimited: hasUnlimitedMessages(tier)
-        });
+        // ✅ FIX: If API fails, try to get count from local messages as fallback
+        try {
+          const { atlasDB } = await import('../../database/atlasDB');
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const localMessages = await atlasDB.messages
+            .where('timestamp')
+            .aboveOrEqual(startOfMonth.toISOString())
+            .filter(msg => msg.role === 'user')
+            .count();
+          
+          const monthlyLimit = hasUnlimitedMessages(tier) ? -1 : 15;
+          setUsage({
+            tier,
+            monthlyCount: localMessages,
+            monthlyLimit: monthlyLimit,
+            remaining: monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - localMessages),
+            isUnlimited: monthlyLimit === -1
+          });
+        } catch (fallbackError) {
+          logger.error('[UsageCounter] Fallback also failed:', fallbackError);
+          // Final fallback
+          setUsage({
+            tier,
+            monthlyCount: 0,
+            monthlyLimit: hasUnlimitedMessages(tier) ? -1 : 15,
+            remaining: hasUnlimitedMessages(tier) ? -1 : 15,
+            isUnlimited: hasUnlimitedMessages(tier)
+          });
+        }
       } finally {
         setLoadingUsage(false);
       }

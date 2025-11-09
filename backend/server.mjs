@@ -1072,12 +1072,25 @@ app.get('/api/usage', verifyJWT, async (req, res) => {
       .gte('created_at', startOfMonthUTC.toISOString());
     
     if (countErr) {
-      logger.error('[Usage] Error counting messages:', countErr.message);
+      logger.error('[Usage] Error counting messages:', {
+        error: countErr.message,
+        code: countErr.code,
+        userId,
+        startOfMonth: startOfMonthUTC.toISOString()
+      });
       return res.status(500).json({ 
         error: 'Failed to fetch usage',
         monthlyCount: 0 
       });
     }
+    
+    // ✅ CRITICAL: Log the actual count for debugging
+    logger.info('[Usage] Message count query result:', {
+      userId: userId.slice(0, 8) + '...',
+      monthlyCount: monthlyCount ?? 0,
+      startOfMonth: startOfMonthUTC.toISOString(),
+      hasError: !!countErr
+    });
     
     const monthlyLimit = tier === 'free' ? 15 : -1; // -1 = unlimited
     const remaining = monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - (monthlyCount ?? 0));
