@@ -67,15 +67,15 @@ export function UpgradeButton({
       // ✅ FASTSPRING PENDING: Check if FastSpring is approved
       try {
         const checkoutUrl = await fastspringService.createCheckoutUrl(user.id, targetTier, user.email);
-        
-        // Dismiss loading toast
+      
+      // Dismiss loading toast
         toast.dismiss(loadingToastId);
-        
-        // ✅ BEST PRACTICE: Log checkout URL for debugging
-        logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
-        
-        // Redirect to FastSpring checkout
-        window.location.href = checkoutUrl;
+      
+      // ✅ BEST PRACTICE: Log checkout URL for debugging
+      logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
+      
+      // Redirect to FastSpring checkout
+      window.location.href = checkoutUrl;
       } catch (fastspringError) {
         // ✅ FASTSPRING PENDING: Show message if not approved yet
         toast.dismiss(loadingToastId);

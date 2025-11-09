@@ -62,14 +62,26 @@ export default function EnhancedInputToolbar({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
+  // ✅ VOICE RECORDING IMPROVEMENTS: Press-and-hold detection
+  const pressHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const [isPressHoldActive, setIsPressHoldActive] = useState(false);
+  const [slideCancelDistance, setSlideCancelDistance] = useState(0);
+  
+  // ✅ ACCESSIBILITY: Toggle mode for users who can't use press-and-hold
+  const [recordingMode, setRecordingMode] = useState<'hold' | 'toggle'>('hold');
+  
   // Use external ref if provided, otherwise use internal ref
   const inputRef = externalInputRef || internalInputRef;
 
-  // ✅ Cleanup timer on unmount
+  // ✅ Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
+      }
+      if (pressHoldTimerRef.current) {
+        clearTimeout(pressHoldTimerRef.current);
       }
     };
   }, []);
@@ -392,7 +404,10 @@ export default function EnhancedInputToolbar({
     modernToast.warning("Recording Cancelled", "Voice note discarded");
   };
 
-  const handleMicPress = async () => {
+  // ✅ VOICE RECORDING IMPROVEMENTS: Enhanced press-and-hold handlers
+  const handleMicPressStart = async (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    
     if (!user) {
       modernToast.error('Login Required', 'Sign in to use voice features');
       return;
@@ -405,94 +420,258 @@ export default function EnhancedInputToolbar({
       return;
     }
 
-    if (!isListening) {
-      // Start recording
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
-        const audioChunks: Blob[] = [];
-        
-        // Store mediaRecorder reference for stopping
-        (window as any).__atlasMediaRecorder = mediaRecorder;
-        (window as any).__atlasMediaStream = stream;
-        
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunks.push(event.data);
-          }
-        };
-        
-        mediaRecorder.onstop = async () => {
-          try {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            
-            // 🎯 Transcribe audio and send immediately (ChatGPT-style)
-            modernToast.info('Transcribing...', 'Converting speech to text');
-            const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
-            
-            // Auto-send the transcribed message
-            if (transcript && transcript.trim()) {
-              modernToast.success('Voice Transcribed', 'Sending to Atlas...');
-              // Send immediately
-              onSendMessage(transcript);
-            } else {
-              modernToast.error('No Speech Detected', 'Please speak clearly and try again');
-            }
-            
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
-            modernToast.error('Transcription Failed', errorMessage);
-          } finally {
-            setIsListening(false);
-            setRecordingDuration(0);
-            // Clear timer
-            if (recordingTimerRef.current) {
-              clearInterval(recordingTimerRef.current);
-            }
-            // Stop all tracks
-            stream.getTracks().forEach(track => track.stop());
-            // Clean up references
-            delete (window as any).__atlasMediaRecorder;
-            delete (window as any).__atlasMediaStream;
-          }
-        };
-        
-        mediaRecorder.start();
-        setIsListening(true);
-        setRecordingDuration(0);
-        modernToast.success('Recording Started', 'Speak clearly for best results');
-        
-        // Start timer
-        recordingTimerRef.current = setInterval(() => {
-          setRecordingDuration(prev => prev + 1);
-        }, 1000);
-        
-        // Auto-stop after 30 seconds
-        setTimeout(() => {
-          if (mediaRecorder.state === 'recording') {
-            if (recordingTimerRef.current) {
-              clearInterval(recordingTimerRef.current);
-            }
-            mediaRecorder.stop();
-          }
-        }, 30000);
-        
-      } catch (error) {
-        modernToast.error('Microphone Blocked', 'Allow microphone access in browser settings');
-        setIsListening(false);
-      }
+    if (isListening) {
+      // Already recording - stop it
+      handleMicPressEnd();
+      return;
+    }
+
+    // ✅ BEST PRACTICE: Store touch start position for slide-to-cancel
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
     } else {
-      // Stop recording
-      const mediaRecorder = (window as any).__atlasMediaRecorder;
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-        }
-        mediaRecorder.stop();
-        modernToast.info('Processing Audio', 'Converting to text...');
+      touchStartPosRef.current = { x: e.clientX, y: e.clientY };
+    }
+
+    // ✅ BEST PRACTICE: Press-and-hold detection (250ms delay to prevent accidental taps)
+    setIsPressHoldActive(true);
+    
+    // Haptic feedback on press start
+    if ('vibrate' in navigator) {
+      navigator.vibrate(10); // Light tap feedback
+    }
+
+    pressHoldTimerRef.current = setTimeout(async () => {
+      // ✅ After 250ms, start recording
+      await startRecording();
+      setIsPressHoldActive(false);
+      
+      // Stronger haptic feedback when recording actually starts
+      if ('vibrate' in navigator) {
+        navigator.vibrate([20, 10, 20]); // Double pulse for recording start
       }
-      setIsListening(false);
+    }, 250);
+  };
+
+  const handleMicPressEnd = () => {
+    // Clear press-and-hold timer if recording hasn't started yet
+    if (pressHoldTimerRef.current) {
+      clearTimeout(pressHoldTimerRef.current);
+      pressHoldTimerRef.current = null;
+    }
+    
+    setIsPressHoldActive(false);
+    touchStartPosRef.current = null;
+    setSlideCancelDistance(0);
+
+    // If recording, stop it
+    if (isListening) {
+      stopRecording();
+    }
+  };
+
+  const handleMicPressMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!touchStartPosRef.current || !isListening) return;
+
+    // Calculate distance from start position
+    let currentX: number, currentY: number;
+    if ('touches' in e) {
+      const touch = e.touches[0];
+      currentX = touch.clientX;
+      currentY = touch.clientY;
+    } else {
+      currentX = e.clientX;
+      currentY = e.clientY;
+    }
+
+    const deltaX = currentX - touchStartPosRef.current.x;
+    const deltaY = currentY - touchStartPosRef.current.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    setSlideCancelDistance(distance);
+
+    // ✅ BEST PRACTICE: Slide-to-cancel (cancel if moved > 50px upward)
+    if (deltaY < -50) {
+      handleCancelRecording();
+      if ('vibrate' in navigator) {
+        navigator.vibrate(30); // Cancel feedback
+      }
+    }
+  };
+
+  const startRecording = async () => {
+    if (isListening) return; // Prevent double-start
+
+    try {
+      // ✅ BEST PRACTICE: Audio quality constraints (echo cancellation, noise suppression)
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+        } 
+      });
+      const mediaRecorder = new MediaRecorder(stream);
+      const audioChunks: Blob[] = [];
+      
+      // Store mediaRecorder reference for stopping
+      (window as any).__atlasMediaRecorder = mediaRecorder;
+      (window as any).__atlasMediaStream = stream;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        try {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          
+          // 🎯 Transcribe audio and send immediately (ChatGPT-style)
+          modernToast.info('Transcribing...', 'Converting speech to text');
+          const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
+          
+          // Auto-send the transcribed message
+          if (transcript && transcript.trim()) {
+            modernToast.success('Voice Transcribed', 'Sending to Atlas...');
+            // Send immediately
+            onSendMessage(transcript);
+          } else {
+            modernToast.error('No Speech Detected', 'Please speak clearly and try again');
+          }
+          
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
+          modernToast.error('Transcription Failed', errorMessage);
+        } finally {
+          setIsListening(false);
+          setRecordingDuration(0);
+          // Clear timer
+          if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+          }
+          // Stop all tracks
+          stream.getTracks().forEach(track => track.stop());
+          // Clean up references
+          delete (window as any).__atlasMediaRecorder;
+          delete (window as any).__atlasMediaStream;
+        }
+      };
+      
+      mediaRecorder.start();
+      setIsListening(true);
       setRecordingDuration(0);
+      modernToast.success('Recording Started', 'Speak clearly for best results');
+      
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+      
+      // Auto-stop after 30 seconds
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+          }
+          mediaRecorder.stop();
+        }
+      }, 30000);
+      
+    } catch (error) {
+      // ✅ IMPROVED ERROR GUIDANCE: Browser-specific instructions
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      let errorMessage = 'Microphone access blocked';
+      let guidance = '';
+      
+      if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isChrome = /Chrome/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && !isChrome;
+        
+        if (isIOS && isSafari) {
+          guidance = 'Go to Settings → Safari → Microphone → Allow';
+        } else if (isChrome) {
+          guidance = 'Click the lock icon in address bar → Allow microphone';
+        } else {
+          guidance = 'Check browser settings → Privacy → Microphone permissions';
+        }
+        
+        modernToast.error(errorMessage, guidance);
+        // Show additional help link after a delay
+        setTimeout(() => {
+          const helpToast = modernToast.info('Need Help?', 'Click for browser-specific instructions');
+          // Make toast clickable
+          setTimeout(() => {
+            const toastElement = document.querySelector('[data-sonner-toast]');
+            if (toastElement) {
+              toastElement.style.cursor = 'pointer';
+              toastElement.addEventListener('click', () => {
+                window.open('https://support.google.com/chrome/answer/2693767', '_blank');
+              }, { once: true });
+            }
+          }, 100);
+        }, 2000);
+      } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+        modernToast.error('No Microphone Found', 'Please connect a microphone and try again');
+      } else {
+        modernToast.error('Microphone Error', error instanceof Error ? error.message : 'Please try again');
+      }
+      
+      setIsListening(false);
+      setIsPressHoldActive(false);
+    }
+  };
+
+  const stopRecording = () => {
+    const mediaRecorder = (window as any).__atlasMediaRecorder;
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      mediaRecorder.stop();
+      modernToast.info('Processing Audio', 'Converting to text...');
+    }
+    setIsListening(false);
+    setRecordingDuration(0);
+  };
+
+  // ✅ ACCESSIBILITY: Toggle mode handler (for users who can't use press-and-hold)
+  const handleToggleRecording = async () => {
+    if (!user) {
+      modernToast.error('Login Required', 'Sign in to use voice features');
+      return;
+    }
+
+    const hasAccess = await attemptAudio();
+    if (!hasAccess) {
+      return;
+    }
+
+    if (!isListening) {
+      await startRecording();
+    } else {
+      stopRecording();
+    }
+  };
+
+  // ✅ BACKWARD COMPATIBILITY: Keep original onClick handler for desktop
+  const handleMicPress = async () => {
+    // If toggle mode, use toggle handler
+    if (recordingMode === 'toggle') {
+      await handleToggleRecording();
+      return;
+    }
+    
+    // Otherwise, use press-and-hold (handled by onMouseDown/onTouchStart)
+    // This onClick is fallback for quick taps in hold mode
+    if (!isListening) {
+      await handleMicPressStart({ preventDefault: () => {} } as React.MouseEvent);
+    } else {
+      handleMicPressEnd();
     }
   };
 
@@ -757,25 +936,98 @@ export default function EnhancedInputToolbar({
 
         {/* Action Buttons - ✅ MOBILE FIX: Responsive container, prevent overflow */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {/* Mic Button */}
+              {/* Mic Button - ✅ IMPROVED: Press-and-hold with slide-to-cancel + Toggle mode */}
               <motion.button
+                ref={buttonRef}
                 onClick={handleMicPress}
+                onMouseDown={recordingMode === 'hold' ? handleMicPressStart : undefined}
+                onMouseUp={recordingMode === 'hold' ? handleMicPressEnd : undefined}
+                onMouseLeave={recordingMode === 'hold' ? handleMicPressEnd : undefined}
+                onTouchStart={recordingMode === 'hold' ? handleMicPressStart : undefined}
+                onTouchEnd={recordingMode === 'hold' ? handleMicPressEnd : undefined}
+                onTouchMove={recordingMode === 'hold' ? handleMicPressMove : undefined}
                 disabled={isProcessing || disabled}
-                className={`min-h-[44px] min-w-[44px] p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md touch-manipulation flex items-center justify-center ${
+                className={`min-h-[44px] min-w-[44px] p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md touch-manipulation flex items-center justify-center relative ${
                   isListening
-                    ? 'bg-red-500/80 hover:bg-red-600/90 text-white'
+                    ? 'bg-red-500/90 hover:bg-red-600 text-white'
+                    : isPressHoldActive && recordingMode === 'hold'
+                    ? 'bg-red-400/70 text-white scale-95'
                     : 'bg-[#CEC1B8] hover:bg-[#978671] text-gray-700'
                 }`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
                   boxShadow: isListening 
-                    ? undefined 
+                    ? '0 0 0 4px rgba(239, 68, 68, 0.3), 0 4px 12px rgba(239, 68, 68, 0.4)' 
+                    : isPressHoldActive && recordingMode === 'hold'
+                    ? '0 0 0 2px rgba(239, 68, 68, 0.2)'
                     : '0 2px 8px rgba(151, 134, 113, 0.3), inset 0 -1px 2px rgba(151, 134, 113, 0.2)'
                 }}
-                title="Voice recording"
+                title={
+                  isListening 
+                    ? `Recording... ${formatTime(recordingDuration)}. ${recordingMode === 'toggle' ? 'Tap to stop' : 'Release to stop'}`
+                    : recordingMode === 'toggle'
+                    ? 'Tap to start recording'
+                    : 'Hold to record voice message'
+                }
+                aria-label={
+                  isListening 
+                    ? `Recording, ${formatTime(recordingDuration)}. ${recordingMode === 'toggle' ? 'Tap to stop' : 'Release to stop'}`
+                    : recordingMode === 'toggle'
+                    ? 'Tap to start recording voice message'
+                    : 'Hold to record voice message'
+                }
+                aria-pressed={isListening}
               >
-                <Mic size={18} />
+                {/* ✅ IMPROVED: Pulsing animation when recording */}
+                {isListening && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-red-500/30"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0.5, 0.8, 0.5],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
+                )}
+                
+                {/* ✅ IMPROVED: Show recording duration on button when active */}
+                {isListening ? (
+                  <span className="text-white font-mono text-xs font-semibold z-10">
+                    {formatTime(recordingDuration)}
+                  </span>
+                ) : (
+                  <Mic size={18} className="relative z-10" />
+                )}
+                
+                {/* ✅ IMPROVED: Slide-to-cancel indicator */}
+                {isListening && slideCancelDistance > 20 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap z-20"
+                  >
+                    ↑ Slide up to cancel
+                  </motion.div>
+                )}
               </motion.button>
+              
+              {/* ✅ ACCESSIBILITY: Recording mode toggle button (small, unobtrusive) */}
+              <button
+                onClick={() => setRecordingMode(prev => prev === 'hold' ? 'toggle' : 'hold')}
+                className="ml-1 p-1.5 rounded-full hover:bg-gray-200/50 transition-colors opacity-60 hover:opacity-100"
+                title={recordingMode === 'hold' ? 'Switch to tap mode' : 'Switch to hold mode'}
+                aria-label={recordingMode === 'hold' ? 'Switch to tap mode for accessibility' : 'Switch to hold mode'}
+              >
+                {recordingMode === 'hold' ? (
+                  <MessageSquare size={12} className="text-gray-600" />
+                ) : (
+                  <Mic size={12} className="text-gray-600" />
+                )}
+              </button>
 
               {/* ✅ REMOVED: Voice Call Button - Removed per user request - v2 */}
 
