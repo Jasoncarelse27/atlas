@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useFeatureAccess } from "@/hooks/useTierAccess";
 import { logger } from '../../lib/logger';
 import { imageService } from "../../services/imageService";
+import { generateUUID } from "../../utils/uuid";
 // Removed useMessageStore import - using callback pattern instead
 
 interface AttachmentMenuProps {
@@ -39,7 +40,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const mobileCameraInputRef = useRef<HTMLInputElement>(null);
   
   // Tier access for image upload features
-  const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
+  const { attemptFeature: attemptImage } = useFeatureAccess('image');
+  const { attemptFeature: attemptCamera } = useFeatureAccess('camera');
   
   // Detect mobile device
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -175,6 +177,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
       if (onAddAttachment) {
         const attachment = {
+          id: generateUUID(),
           type: file.type.startsWith('image/') ? "image" as const : "file" as const,
           url: result.publicUrl,
           publicUrl: result.publicUrl,
@@ -274,6 +277,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
       if (onAddAttachment) {
         const attachment = {
+          id: generateUUID(),
           type: file.type.startsWith('image/') ? "image" as const : "file" as const,
           url: result.publicUrl,
           publicUrl: result.publicUrl,
@@ -342,7 +346,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       const err = error as Error;
       if (err.name === 'NotAllowedError') {
         toast.error('Camera access denied. Please allow camera access.');
-      } else if (error.name === 'NotFoundError') {
+      } else if (err.name === 'NotFoundError') {
         toast.error('No camera found on this device.');
       } else {
         toast.error('Camera access failed. Please try again.');
@@ -423,6 +427,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         
         const result = await imageService.uploadImage(file, userId);
         const attachment = {
+          id: generateUUID(),
           type: "image" as const,
           url: result.publicUrl,
           publicUrl: result.publicUrl,
@@ -485,18 +490,144 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     };
   }, [stream]);
 
+  // ✅ BEST PRACTICE: Calculate menu position relative to button (works on mobile & web)
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Find the attachment button using data attribute
+      const button = document.querySelector('[data-attachment-button]') as HTMLElement;
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        const menuWidth = window.innerWidth < 640 ? 288 : 320; // w-72 (288px) mobile, w-80 (320px) desktop
+        const menuHeight = 450; // Approximate height
+        const spacing = 12; // Space above button
+        
+        // Position above button, centered horizontally
+        let left = rect.left + (rect.width / 2) - (menuWidth / 2);
+        let top = rect.top - menuHeight - spacing;
+        
+        // ✅ BEST PRACTICE: Ensure menu stays within viewport (mobile & web)
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const padding = 8; // Safe padding from edges
+        
+        // Adjust horizontal position if menu would overflow
+        if (left < padding) {
+          left = padding;
+        } else if (left + menuWidth > viewportWidth - padding) {
+          left = viewportWidth - menuWidth - padding;
+        }
+        
+        // Adjust vertical position if menu would overflow top
+        if (top < padding) {
+          // If not enough space above, position below button
+          top = rect.bottom + spacing;
+        }
+        
+        // Ensure menu doesn't overflow bottom
+        if (top + menuHeight > viewportHeight - padding) {
+          top = viewportHeight - menuHeight - padding;
+        }
+        
+        setMenuPosition({ top, left });
+      }
+    } else {
+      setMenuPosition(null);
+    }
+  }, [isOpen]);
+
+  // ✅ BEST PRACTICE: Update position on window resize (mobile orientation change)
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleResize = () => {
+      const button = document.querySelector('[data-attachment-button]') as HTMLElement;
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        const menuWidth = window.innerWidth < 640 ? 288 : 320;
+        const menuHeight = 450;
+        const spacing = 12;
+        
+        let left = rect.left + (rect.width / 2) - (menuWidth / 2);
+        let top = rect.top - menuHeight - spacing;
+        
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const padding = 8;
+        
+        if (left < padding) left = padding;
+        if (left + menuWidth > viewportWidth - padding) left = viewportWidth - menuWidth - padding;
+        if (top < padding) top = rect.bottom + spacing;
+        if (top + menuHeight > viewportHeight - padding) top = viewportHeight - menuHeight - padding;
+        
+        setMenuPosition({ top, left });
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, [isOpen]);
+
+  // ✅ BEST PRACTICE: Handle click outside to close menu (mobile & web)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      const button = document.querySelector('[data-attachment-button]');
+      const menu = menuRef.current;
+      
+      // Close if clicking outside both button and menu
+      if (menu && !menu.contains(target) && button && !button.contains(target)) {
+        onClose();
+      }
+    };
+
+    // ✅ BEST PRACTICE: Use both mouse and touch events for mobile & web
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   return (
     <>
     <AnimatePresence>
-      {isOpen && (
+      {isOpen && menuPosition && (
         <>
-          {/* Positioned above the + button - Mobile friendly */}
+          {/* ✅ BEST PRACTICE: Backdrop overlay (mobile & web) */}
           <motion.div
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9998]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          
+          {/* ✅ BEST PRACTICE: Fixed positioning relative to viewport (not clipped by parent) */}
+          <motion.div
+            ref={menuRef}
             data-attachment-menu
-            className="absolute bottom-12 left-1/2 -translate-x-1/2 w-72 sm:w-80 max-w-[95vw] z-50"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            className="fixed w-72 sm:w-80 max-w-[calc(100vw-16px)] z-[9999]"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
+            }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
           >

@@ -911,6 +911,7 @@ export default function EnhancedInputToolbar({
         <div className="relative">
               <motion.button
                 ref={buttonRef}
+                data-attachment-button
                 onClick={() => {
                   // ✅ Check tier access before opening attachment menu
                   if (!canUseImage) {
