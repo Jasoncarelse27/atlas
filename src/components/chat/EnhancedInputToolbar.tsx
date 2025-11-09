@@ -78,7 +78,7 @@ export default function EnhancedInputToolbar({
   
   // Use external ref if provided, otherwise use internal ref
   const inputRef = externalInputRef || internalInputRef;
-  
+
   // ✅ FEATURE DETECTION: Check browser support on mount
   useEffect(() => {
     const supported = isAudioRecordingSupported();
@@ -582,79 +582,79 @@ export default function EnhancedInputToolbar({
           sampleRate: 44100,
         } 
       });
-      const mediaRecorder = new MediaRecorder(stream);
-      const audioChunks: Blob[] = [];
-      
-      // Store mediaRecorder reference for stopping
-      (window as any).__atlasMediaRecorder = mediaRecorder;
-      (window as any).__atlasMediaStream = stream;
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = async () => {
-        try {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          
-          // 🎯 Transcribe audio and send immediately (ChatGPT-style)
-          modernToast.info('Transcribing...', 'Converting speech to text');
-          const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
-          
-          // Auto-send the transcribed message
-          if (transcript && transcript.trim()) {
-            modernToast.success('Voice Transcribed', 'Sending to Atlas...');
-            // Send immediately
-            onSendMessage(transcript);
-          } else {
-            modernToast.error('No Speech Detected', 'Please speak clearly and try again');
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks: Blob[] = [];
+        
+        // Store mediaRecorder reference for stopping
+        (window as any).__atlasMediaRecorder = mediaRecorder;
+        (window as any).__atlasMediaStream = stream;
+        
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
           }
-          
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
-          modernToast.error('Transcription Failed', errorMessage);
-        } finally {
-          setIsListening(false);
-          setRecordingDuration(0);
-          // Clear timer
-          if (recordingTimerRef.current) {
-            clearInterval(recordingTimerRef.current);
+        };
+        
+        mediaRecorder.onstop = async () => {
+          try {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // 🎯 Transcribe audio and send immediately (ChatGPT-style)
+            modernToast.info('Transcribing...', 'Converting speech to text');
+            const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
+            
+            // Auto-send the transcribed message
+            if (transcript && transcript.trim()) {
+              modernToast.success('Voice Transcribed', 'Sending to Atlas...');
+              // Send immediately
+              onSendMessage(transcript);
+            } else {
+              modernToast.error('No Speech Detected', 'Please speak clearly and try again');
+            }
+            
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
+            modernToast.error('Transcription Failed', errorMessage);
+          } finally {
+            setIsListening(false);
+            setRecordingDuration(0);
+            // Clear timer
+            if (recordingTimerRef.current) {
+              clearInterval(recordingTimerRef.current);
+            }
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+            // Clean up references
+            delete (window as any).__atlasMediaRecorder;
+            delete (window as any).__atlasMediaStream;
           }
-          // Stop all tracks
-          stream.getTracks().forEach(track => track.stop());
-          // Clean up references
-          delete (window as any).__atlasMediaRecorder;
-          delete (window as any).__atlasMediaStream;
-        }
-      };
-      
-      mediaRecorder.start();
-      setIsListening(true);
-      setRecordingDuration(0);
+        };
+        
+        mediaRecorder.start();
+        setIsListening(true);
+        setRecordingDuration(0);
       
       // ✅ SOUND CUE: Play start beep
       playSoundCue('start');
       
-      modernToast.success('Recording Started', 'Speak clearly for best results');
-      
-      // Start timer
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
-      }, 1000);
-      
-      // Auto-stop after 30 seconds
-      setTimeout(() => {
-        if (mediaRecorder.state === 'recording') {
-          if (recordingTimerRef.current) {
-            clearInterval(recordingTimerRef.current);
+        modernToast.success('Recording Started', 'Speak clearly for best results');
+        
+        // Start timer
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingDuration(prev => prev + 1);
+        }, 1000);
+        
+        // Auto-stop after 30 seconds
+        setTimeout(() => {
+          if (mediaRecorder.state === 'recording') {
+            if (recordingTimerRef.current) {
+              clearInterval(recordingTimerRef.current);
+            }
+            mediaRecorder.stop();
           }
-          mediaRecorder.stop();
-        }
-      }, 30000);
-      
-    } catch (error) {
+        }, 30000);
+        
+      } catch (error) {
       // ✅ IMPROVED ERROR GUIDANCE: Browser-specific instructions
       const errorName = error instanceof Error ? error.name : 'UnknownError';
       let errorMessage = 'Microphone access blocked';
@@ -690,7 +690,7 @@ export default function EnhancedInputToolbar({
         }, 2000);
       } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
         modernToast.error('No Microphone Found', 'Please connect a microphone and try again');
-      } else {
+    } else {
         modernToast.error('Microphone Error', error instanceof Error ? error.message : 'Please try again');
       }
       
@@ -700,16 +700,20 @@ export default function EnhancedInputToolbar({
   };
 
   const stopRecording = () => {
-    const mediaRecorder = (window as any).__atlasMediaRecorder;
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
+      const mediaRecorder = (window as any).__atlasMediaRecorder;
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+        }
+      
+      // ✅ SOUND CUE: Play stop beep
+      playSoundCue('stop');
+      
+        mediaRecorder.stop();
+        modernToast.info('Processing Audio', 'Converting to text...');
       }
-      mediaRecorder.stop();
-      modernToast.info('Processing Audio', 'Converting to text...');
-    }
-    setIsListening(false);
-    setRecordingDuration(0);
+      setIsListening(false);
+      setRecordingDuration(0);
   };
 
   // ✅ ACCESSIBILITY: Toggle mode handler (for users who can't use press-and-hold)
@@ -1024,6 +1028,8 @@ export default function EnhancedInputToolbar({
         {/* Action Buttons - ✅ MOBILE FIX: Responsive container, prevent overflow */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {/* Mic Button - ✅ IMPROVED: Press-and-hold with slide-to-cancel + Toggle mode */}
+              {/* ✅ FEATURE DETECTION: Only show if voice recording is supported */}
+              {isVoiceSupported ? (
               <motion.button
                 ref={buttonRef}
                 onClick={handleMicPress}
@@ -1085,7 +1091,7 @@ export default function EnhancedInputToolbar({
                 {isListening ? (
                   <span className="text-white font-mono text-xs font-semibold z-10">
                     {formatTime(recordingDuration)}
-                  </span>
+                      </span>
                 ) : (
                   <Mic size={18} className="relative z-10" />
                 )}
@@ -1101,8 +1107,24 @@ export default function EnhancedInputToolbar({
                   </motion.div>
                 )}
               </motion.button>
+              ) : (
+              /* ✅ FEATURE DETECTION: Show fallback message if not supported */
+              <div className="relative group">
+                <button
+                  disabled
+                  className="min-h-[44px] min-w-[44px] p-2 rounded-full bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
+                  title="Voice recording not supported in this browser"
+                >
+                  <Mic size={18} />
+                </button>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                  Voice recording requires Chrome, Firefox, or Safari
+                </div>
+              </div>
+              )}
               
               {/* ✅ ACCESSIBILITY: Recording mode toggle button (small, unobtrusive) */}
+              {isVoiceSupported && (
               <button
                 onClick={() => setRecordingMode(prev => prev === 'hold' ? 'toggle' : 'hold')}
                 className="ml-1 p-1.5 rounded-full hover:bg-gray-200/50 transition-colors opacity-60 hover:opacity-100"
