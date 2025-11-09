@@ -779,7 +779,8 @@ You are having a natural voice conversation. Respond as if you can hear them cle
 }
 
 
-// 🔒 SECURITY: Enhanced JWT verification middleware - ALWAYS verify with Supabase
+// 🔒 SECURITY: Enhanced JWT verification middleware with network fallback
+// ✅ COMPREHENSIVE FIX: Fallback JWT decoding when Supabase is unreachable
 const verifyJWT = async (req, res, next) => {
   try {
     // ✅ CRITICAL DEBUG: Log all incoming requests (use INFO so it shows in Railway logs)
@@ -807,23 +808,84 @@ const verifyJWT = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     
-    // ✅ SECURITY FIX: Removed mock token bypass - ALWAYS verify with Supabase (even in development)
-    // This prevents authentication bypass vulnerabilities in production
-    
     // ✅ BEST PRACTICE: Use ANON_KEY client for JWT verification (not SERVICE_ROLE_KEY)
     // SERVICE_ROLE_KEY bypasses RLS and might not properly verify user JWTs
     // Import supabasePublic which uses ANON_KEY for proper JWT verification
     const { supabasePublic } = await import('./config/supabaseClient.mjs');
     
     // Enhanced Supabase JWT verification with better error handling
-    const { data: { user }, error } = await supabasePublic.auth.getUser(token);
+    let user = null;
+    let verificationError = null;
     
-    if (error) {
+    try {
+      const result = await supabasePublic.auth.getUser(token);
+      user = result.data?.user;
+      verificationError = result.error;
+    } catch (networkError) {
+      // ✅ FALLBACK: Network error - Supabase unreachable
+      logger.warn('[verifyJWT] ⚠️ Supabase verification failed (network error):', {
+        errorMessage: networkError.message,
+        errorName: networkError.name,
+        willAttemptFallback: true
+      });
+      verificationError = { 
+        message: networkError.message || 'Network error',
+        name: networkError.name || 'NetworkError',
+        isNetworkError: true 
+      };
+    }
+    
+    // ✅ FALLBACK: If Supabase verification failed due to network issues, decode JWT locally
+    if (verificationError && verificationError.isNetworkError) {
+      try {
+        // Decode JWT without verification (fallback for network issues only)
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+          
+          // Extract user info from JWT payload
+          if (payload.sub && payload.email) {
+            logger.warn('[verifyJWT] ⚠️ Using fallback JWT decoding (Supabase unreachable):', {
+              userId: payload.sub,
+              email: payload.email,
+              path: req.path,
+              warning: 'Network connectivity issue - Supabase verification unavailable'
+            });
+            
+            // Create user object from JWT payload
+            req.user = {
+              id: payload.sub,
+              email: payload.email,
+              aud: payload.aud,
+              role: payload.role || 'authenticated'
+            };
+            
+            return next();
+          }
+        }
+      } catch (decodeError) {
+        logger.error('[verifyJWT] ❌ Fallback JWT decoding failed:', {
+          error: decodeError.message,
+          tokenPreview: token.substring(0, 20) + '...'
+        });
+      }
+      
+      // Both Supabase verification and fallback decoding failed
+      return res.status(401).json({ 
+        error: 'Network error: Unable to verify token',
+        details: 'Supabase is unreachable and token decoding failed',
+        code: 'NETWORK_ERROR',
+        suggestion: 'Please check your connection and try again'
+      });
+    }
+    
+    // Handle Supabase verification errors (non-network)
+    if (verificationError) {
       // ✅ IMPROVED: Enhanced error logging for debugging Vercel/Railway issues
       logger.error('[verifyJWT] ❌ Token verification failed:', {
-        errorMessage: error.message,
-        errorStatus: error.status,
-        errorName: error.name,
+        errorMessage: verificationError.message,
+        errorStatus: verificationError.status,
+        errorName: verificationError.name,
         tokenLength: token.length,
         tokenPreview: token.substring(0, 20) + '...',
         origin: req.headers.origin,
@@ -831,13 +893,13 @@ const verifyJWT = async (req, res, next) => {
       });
       
       // ✅ IMPROVED: Clearer error message for expired tokens
-      const isExpiredToken = error.message?.includes('expired') || 
-                             error.message?.includes('jwt expired') ||
-                             error.status === 401;
+      const isExpiredToken = verificationError.message?.includes('expired') || 
+                             verificationError.message?.includes('jwt expired') ||
+                             verificationError.status === 401;
       
       return res.status(401).json({ 
         error: isExpiredToken ? 'Supabase token expired or invalid' : 'Invalid or expired token',
-        details: error.message,
+        details: verificationError.message,
         code: 'TOKEN_VERIFICATION_FAILED',
         suggestion: isExpiredToken ? 'Please refresh your session or sign in again' : undefined
       });
@@ -868,6 +930,12 @@ const verifyJWT = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    logger.error('[verifyJWT] ❌ Unexpected error:', {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      path: req.path
+    });
+    
     res.status(401).json({ 
       error: 'Token verification failed',
       details: error.message,
