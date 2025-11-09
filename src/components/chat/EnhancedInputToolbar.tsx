@@ -659,19 +659,33 @@ export default function EnhancedInputToolbar({
   };
 
   // ✅ BACKWARD COMPATIBILITY: Keep original onClick handler for desktop
-  const handleMicPress = async () => {
+  const handleMicPress = async (e?: React.MouseEvent) => {
+    // Prevent default to avoid double-triggering with onMouseDown
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     // If toggle mode, use toggle handler
     if (recordingMode === 'toggle') {
       await handleToggleRecording();
       return;
     }
     
-    // Otherwise, use press-and-hold (handled by onMouseDown/onTouchStart)
-    // This onClick is fallback for quick taps in hold mode
+    // Hold mode: onClick is fallback for desktop clicks
+    // Only trigger if not already handling via onMouseDown/onTouchStart
+    // Check if press-hold timer is active (means onMouseDown already handled it)
+    if (pressHoldTimerRef.current) {
+      // Already handled by onMouseDown - don't double-trigger
+      return;
+    }
+    
     if (!isListening) {
-      await handleMicPressStart({ preventDefault: () => {} } as React.MouseEvent);
+      // Quick click in hold mode - start recording immediately (no delay for desktop)
+      await startRecording();
     } else {
-      handleMicPressEnd();
+      // Stop recording
+      stopRecording();
     }
   };
 
@@ -1003,8 +1017,8 @@ export default function EnhancedInputToolbar({
                   <Mic size={18} className="relative z-10" />
                 )}
                 
-                {/* ✅ IMPROVED: Slide-to-cancel indicator */}
-                {isListening && slideCancelDistance > 20 && (
+                {/* ✅ IMPROVED: Slide-to-cancel indicator (only in hold mode) */}
+                {isListening && slideCancelDistance > 20 && recordingMode === 'hold' && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
