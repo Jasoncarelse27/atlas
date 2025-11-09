@@ -10,11 +10,27 @@ import './lib/vercel-rebuild'
 import './lib/cache-buster' // ✅ Force cache invalidation
 
 // ✅ DEPLOYMENT VERIFICATION: Log build version to verify deployment
-const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || 'dev';
+const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || Date.now().toString();
 const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();
+const CACHE_BUSTER_VERSION = 'call-button-removed-v2'; // ✅ Force cache clear for call button removal
+
+// ✅ CRITICAL: Check if cached version matches current version
+const CACHE_KEY = 'atlas-app-version';
+const cachedVersion = localStorage.getItem(CACHE_KEY);
+if (cachedVersion && cachedVersion !== CACHE_BUSTER_VERSION) {
+  console.log(`[Atlas] 🔄 New version detected! Clearing cache and reloading...`);
+  localStorage.clear();
+  sessionStorage.clear();
+  // Force hard reload
+  window.location.reload();
+} else {
+  localStorage.setItem(CACHE_KEY, CACHE_BUSTER_VERSION);
+}
+
 console.log(`[Atlas] Build: ${buildVersion} | Deployed: ${deployTime}`);
 console.log(`[Atlas] 🔄 Cache Check: If you see this, new bundle loaded!`);
 console.log(`[Atlas] 🔍 VoiceV2 Auth Fix: Active (waiting for session_started before audio)`);
+console.log(`[Atlas] ✅ Call Button Removed - Version: ${CACHE_BUSTER_VERSION}`);
 
 // Initialize Sentry before rendering app
 initSentry()
