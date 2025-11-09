@@ -719,6 +719,12 @@ export default function EnhancedInputToolbar({
   // Desktop: Quick click = immediate start, Hold = press-and-hold
   // Mobile: Quick tap = immediate start, Hold = press-and-hold with slide-to-cancel
   const handleMicPress = async (e?: React.MouseEvent) => {
+    // Prevent double-triggering with onMouseDown/onTouchStart
+    // If press-hold timer is active or we just handled a press-hold, ignore onClick
+    if (pressHoldTimerRef.current || isPressHoldActive) {
+      return; // Already handled by onMouseDown/onTouchStart
+    }
+    
     // Don't preventDefault - let browser handle naturally
     if (e) {
       e.stopPropagation(); // Prevent bubbling but allow default behavior
