@@ -750,14 +750,25 @@ export default function EnhancedInputToolbar({
     }
     
     // Hold mode: onClick is fallback for desktop clicks
-    // Only trigger if not already handling via onMouseDown/onTouchStart
     // Check if press-hold timer is active (means onMouseDown already handled it)
     if (pressHoldTimerRef.current) {
       // Already handled by onMouseDown - don't double-trigger
       return;
     }
     
+    // ✅ FIX: Handle quick clicks in hold mode
     if (!isListening) {
+      // Check user and permissions first
+      if (!user) {
+        modernToast.error('Login Required', 'Sign in to use voice features');
+        return;
+      }
+      
+      const hasAccess = await attemptAudio();
+      if (!hasAccess) {
+        return;
+      }
+      
       // Quick click in hold mode - start recording immediately (no delay for desktop)
       await startRecording();
     } else {
