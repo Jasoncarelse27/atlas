@@ -1185,13 +1185,19 @@ export default function EnhancedInputToolbar({
                   disabled={disabled || (!text.trim() && attachmentPreviews.length === 0) || isStreaming}
                   title="Send message"
                   whileTap={{ scale: 0.95 }}
-                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 bg-[#D3DCAB]/50 hover:bg-[#D3DCAB] text-gray-800`}
+                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 ${
+                    text.trim() || attachmentPreviews.length > 0
+                      ? 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
+                      : 'bg-[#D3DCAB]/50 text-gray-500'
+                  }`}
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
-                    boxShadow: '0 2px 8px rgba(211, 220, 171, 0.3)'
+                    boxShadow: text.trim() || attachmentPreviews.length > 0
+                      ? '0 2px 8px rgba(211, 220, 171, 0.4)'
+                      : '0 2px 8px rgba(211, 220, 171, 0.2)'
                   }}
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className={`w-4 h-4 ${text.trim() || attachmentPreviews.length > 0 ? 'text-gray-800' : 'text-gray-500'}`} />
                 </motion.button>
               )}
         </div>
