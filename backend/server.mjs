@@ -812,32 +812,31 @@ const verifyJWT = async (req, res, next) => {
     // Uses auth.getClaims() for local verification (signature verified)
     // Falls back to auth.getUser() with retry logic for network errors
     // Works for both web and mobile browsers
-    try {
-      const { verifyJWT: verifyJWTSecure } = await import('./services/jwtVerificationService.mjs');
-      const user = await verifyJWTSecure(token);
-      
-      if (!user || !user.id) {
-        logger.error('[verifyJWT] ❌ No user found in verified token:', {
-          tokenPreview: token.substring(0, 20) + '...',
-          path: req.path
-        });
-        
-        return res.status(401).json({ 
-          error: 'Invalid token',
-          details: 'No user found in token',
-          code: 'NO_USER_IN_TOKEN',
-          suggestion: 'Please refresh your session or sign in again'
-        });
-      }
-      
-      logger.debug('[verifyJWT] ✅ Token verified successfully:', {
-        userId: user.id,
-        email: user.email,
+    const { verifyJWT: verifyJWTSecure } = await import('./services/jwtVerificationService.mjs');
+    const user = await verifyJWTSecure(token);
+    
+    if (!user || !user.id) {
+      logger.error('[verifyJWT] ❌ No user found in verified token:', {
+        tokenPreview: token.substring(0, 20) + '...',
         path: req.path
       });
+      
+      return res.status(401).json({ 
+        error: 'Invalid token',
+        details: 'No user found in token',
+        code: 'NO_USER_IN_TOKEN',
+        suggestion: 'Please refresh your session or sign in again'
+      });
+    }
+    
+    logger.debug('[verifyJWT] ✅ Token verified successfully:', {
+      userId: user.id,
+      email: user.email,
+      path: req.path
+    });
 
-      req.user = user;
-      return next();
+    req.user = user;
+    return next();
   } catch (error) {
     logger.error('[verifyJWT] ❌ Unexpected error:', {
       errorMessage: error.message,
