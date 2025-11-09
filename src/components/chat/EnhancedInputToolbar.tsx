@@ -69,8 +69,7 @@ export default function EnhancedInputToolbar({
   const [isPressHoldActive, setIsPressHoldActive] = useState(false);
   const [slideCancelDistance, setSlideCancelDistance] = useState(0);
   
-  // ✅ ACCESSIBILITY: Toggle mode for users who can't use press-and-hold
-  const [recordingMode, setRecordingMode] = useState<'hold' | 'toggle'>('hold');
+  // ✅ REMOVED: Toggle mode state - using intelligent single-button approach
   
   // ✅ FEATURE DETECTION: Check if voice recording is supported
   const [isVoiceSupported, setIsVoiceSupported] = useState(true);
@@ -716,34 +715,34 @@ export default function EnhancedInputToolbar({
       setRecordingDuration(0);
   };
 
-  // ✅ ACCESSIBILITY: Toggle mode handler (for users who can't use press-and-hold)
-  const handleToggleRecording = async () => {
+  // ✅ INTELLIGENT SINGLE BUTTON: Handles both quick clicks and hold
+  // Desktop: Quick click = immediate start, Hold = press-and-hold
+  // Mobile: Quick tap = immediate start, Hold = press-and-hold with slide-to-cancel
+  const handleMicPress = async (e?: React.MouseEvent) => {
+    // Don't preventDefault - let browser handle naturally
+    if (e) {
+      e.stopPropagation(); // Prevent bubbling but allow default behavior
+    }
+    
+    // If already recording, stop it
+    if (isListening) {
+      stopRecording();
+      return;
+    }
+    
+    // Check user and permissions
     if (!user) {
       modernToast.error('Login Required', 'Sign in to use voice features');
       return;
     }
-
+    
     const hasAccess = await attemptAudio();
     if (!hasAccess) {
       return;
     }
-
-    if (!isListening) {
-      await startRecording();
-    } else {
-      stopRecording();
-    }
-  };
-
-  // ✅ BEST PRACTICE: onClick handler ONLY for toggle mode
-  // Hold mode uses onMouseDown/onTouchStart exclusively (no onClick)
-  const handleMicPress = async (e?: React.MouseEvent) => {
-    // ✅ BEST PRACTICE: Don't preventDefault in onClick - let browser handle naturally
-    // Only handle toggle mode clicks here
-    if (recordingMode === 'toggle') {
-      await handleToggleRecording();
-    }
-    // Hold mode is handled by onMouseDown/onTouchStart - no onClick needed
+    
+    // Quick click/tap - start recording immediately (no delay)
+    await startRecording();
   };
 
   // ✅ REMOVED: handleStartVoiceCall function (call button removed)
@@ -1012,18 +1011,18 @@ export default function EnhancedInputToolbar({
               {isVoiceSupported ? (
               <motion.button
                 ref={buttonRef}
-                onClick={recordingMode === 'toggle' ? handleMicPress : undefined}
-                onMouseDown={recordingMode === 'hold' ? handleMicPressStart : undefined}
-                onMouseUp={recordingMode === 'hold' ? handleMicPressEnd : undefined}
-                onMouseLeave={recordingMode === 'hold' ? handleMicPressEnd : undefined}
-                onTouchStart={recordingMode === 'hold' ? handleMicPressStart : undefined}
-                onTouchEnd={recordingMode === 'hold' ? handleMicPressEnd : undefined}
-                onTouchMove={recordingMode === 'hold' ? handleMicPressMove : undefined}
+                onClick={handleMicPress}
+                onMouseDown={handleMicPressStart}
+                onMouseUp={handleMicPressEnd}
+                onMouseLeave={handleMicPressEnd}
+                onTouchStart={handleMicPressStart}
+                onTouchEnd={handleMicPressEnd}
+                onTouchMove={handleMicPressMove}
                 disabled={isProcessing || disabled}
                 className={`min-h-[44px] min-w-[44px] p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md touch-manipulation flex items-center justify-center relative ${
                   isListening
                     ? 'bg-red-500/90 hover:bg-red-600 text-white'
-                    : isPressHoldActive && recordingMode === 'hold'
+                    : isPressHoldActive
                     ? 'bg-red-400/70 text-white scale-95'
                     : 'bg-[#CEC1B8] hover:bg-[#978671] text-gray-700'
                 }`}
@@ -1031,23 +1030,19 @@ export default function EnhancedInputToolbar({
                   WebkitTapHighlightColor: 'transparent',
                   boxShadow: isListening 
                     ? '0 0 0 4px rgba(239, 68, 68, 0.3), 0 4px 12px rgba(239, 68, 68, 0.4)' 
-                    : isPressHoldActive && recordingMode === 'hold'
+                    : isPressHoldActive
                     ? '0 0 0 2px rgba(239, 68, 68, 0.2)'
                     : '0 2px 8px rgba(151, 134, 113, 0.3), inset 0 -1px 2px rgba(151, 134, 113, 0.2)'
                 }}
                 title={
                   isListening 
-                    ? `Recording... ${formatTime(recordingDuration)}. ${recordingMode === 'toggle' ? 'Tap to stop' : 'Release to stop'}`
-                    : recordingMode === 'toggle'
-                    ? 'Tap to start recording'
-                    : 'Hold to record voice message'
+                    ? `Recording... ${formatTime(recordingDuration)}. Tap or release to stop`
+                    : 'Tap to record or hold for press-and-hold mode'
                 }
                 aria-label={
                   isListening 
-                    ? `Recording, ${formatTime(recordingDuration)}. ${recordingMode === 'toggle' ? 'Tap to stop' : 'Release to stop'}`
-                    : recordingMode === 'toggle'
-                    ? 'Tap to start recording voice message'
-                    : 'Hold to record voice message'
+                    ? `Recording, ${formatTime(recordingDuration)}. Tap or release to stop`
+                    : 'Tap to start recording voice message, or hold for press-and-hold mode'
                 }
                 aria-pressed={isListening}
               >
@@ -1076,8 +1071,8 @@ export default function EnhancedInputToolbar({
                   <Mic size={18} className="relative z-10" />
                 )}
                 
-                {/* ✅ IMPROVED: Slide-to-cancel indicator (only in hold mode) */}
-                {isListening && slideCancelDistance > 20 && recordingMode === 'hold' && (
+                {/* ✅ IMPROVED: Slide-to-cancel indicator (shows when sliding during hold) */}
+                {isListening && slideCancelDistance > 20 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1101,22 +1096,6 @@ export default function EnhancedInputToolbar({
                   Voice recording requires Chrome, Firefox, or Safari
                 </div>
               </div>
-              )}
-              
-              {/* ✅ ACCESSIBILITY: Recording mode toggle button (small, unobtrusive) */}
-              {isVoiceSupported && (
-              <button
-                onClick={() => setRecordingMode(prev => prev === 'hold' ? 'toggle' : 'hold')}
-                className="ml-1 p-1.5 rounded-full hover:bg-gray-200/50 transition-colors opacity-60 hover:opacity-100"
-                title={recordingMode === 'hold' ? 'Switch to tap mode' : 'Switch to hold mode'}
-                aria-label={recordingMode === 'hold' ? 'Switch to tap mode for accessibility' : 'Switch to hold mode'}
-              >
-                {recordingMode === 'hold' ? (
-                  <MessageSquare size={12} className="text-gray-600" />
-                ) : (
-                  <Mic size={12} className="text-gray-600" />
-                )}
-              </button>
               )}
 
               {/* ✅ REMOVED: Voice Call Button - Removed per user request - v2 */}
