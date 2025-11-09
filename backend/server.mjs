@@ -808,203 +808,36 @@ const verifyJWT = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     
-    // ✅ BEST PRACTICE: Use ANON_KEY client for JWT verification (not SERVICE_ROLE_KEY)
-    // SERVICE_ROLE_KEY bypasses RLS and might not properly verify user JWTs
-    // Import supabasePublic which uses ANON_KEY for proper JWT verification
-    const { supabasePublic } = await import('./config/supabaseClient.mjs');
-    
-    // Enhanced Supabase JWT verification with better error handling
-    let user = null;
-    let verificationError = null;
-    let isNetworkError = false;
-    
+    // ✅ SECURE: Use secure JWT verification service
+    // Uses auth.getClaims() for local verification (signature verified)
+    // Falls back to auth.getUser() with retry logic for network errors
+    // Works for both web and mobile browsers
     try {
-      const result = await supabasePublic.auth.getUser(token);
-      user = result.data?.user;
-      verificationError = result.error;
+      const { verifyJWT: verifyJWTSecure } = await import('./services/jwtVerificationService.mjs');
+      const user = await verifyJWTSecure(token);
       
-      // ✅ CRITICAL FIX: Detect network errors from error object (Supabase doesn't throw)
-      // Network errors manifest as fetch failures, connection errors, or timeout errors
-      if (verificationError) {
-        const errorMsg = verificationError.message?.toLowerCase() || '';
-        const errorName = verificationError.name?.toLowerCase() || '';
+      if (!user || !user.id) {
+        logger.error('[verifyJWT] ❌ No user found in verified token:', {
+          tokenPreview: token.substring(0, 20) + '...',
+          path: req.path
+        });
         
-        // Detect network-related errors
-        isNetworkError = 
-          errorMsg.includes('fetch') ||
-          errorMsg.includes('network') ||
-          errorMsg.includes('connection') ||
-          errorMsg.includes('timeout') ||
-          errorMsg.includes('econnrefused') ||
-          errorMsg.includes('enotfound') ||
-          errorName.includes('network') ||
-          errorName.includes('fetch') ||
-          verificationError.status === undefined; // Network errors often lack status codes
-          
-        if (isNetworkError) {
-          logger.warn('[verifyJWT] ⚠️ Network error detected from Supabase:', {
-            errorMessage: verificationError.message,
-            errorName: verificationError.name,
-            errorStatus: verificationError.status,
-            willAttemptFallback: true
-          });
-        }
-      }
-    } catch (networkError) {
-      // ✅ FALLBACK: Exception thrown (rare, but possible)
-      logger.warn('[verifyJWT] ⚠️ Supabase verification exception (network error):', {
-        errorMessage: networkError.message,
-        errorName: networkError.name,
-        willAttemptFallback: true
-      });
-      verificationError = { 
-        message: networkError.message || 'Network error',
-        name: networkError.name || 'NetworkError',
-        isNetworkError: true 
-      };
-      isNetworkError = true;
-    }
-    
-    // ✅ FALLBACK: If Supabase verification failed due to network issues, decode JWT locally
-    if (verificationError && isNetworkError) {
-      try {
-        // Decode JWT without verification (fallback for network issues only)
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-          
-          // Extract user info from JWT payload
-          if (payload.sub && payload.email) {
-            logger.warn('[verifyJWT] ⚠️ Using fallback JWT decoding (Supabase unreachable):', {
-              userId: payload.sub,
-              email: payload.email,
-              path: req.path,
-              warning: 'Network connectivity issue - Supabase verification unavailable'
-            });
-            
-            // Create user object from JWT payload
-            req.user = {
-              id: payload.sub,
-              email: payload.email,
-              aud: payload.aud,
-              role: payload.role || 'authenticated'
-            };
-            
-            return next();
-          }
-        }
-      } catch (decodeError) {
-        logger.error('[verifyJWT] ❌ Fallback JWT decoding failed:', {
-          error: decodeError.message,
-          tokenPreview: token.substring(0, 20) + '...'
+        return res.status(401).json({ 
+          error: 'Invalid token',
+          details: 'No user found in token',
+          code: 'NO_USER_IN_TOKEN',
+          suggestion: 'Please refresh your session or sign in again'
         });
       }
       
-      // Both Supabase verification and fallback decoding failed
-      return res.status(401).json({ 
-        error: 'Network error: Unable to verify token',
-        details: 'Supabase is unreachable and token decoding failed',
-        code: 'NETWORK_ERROR',
-        suggestion: 'Please check your connection and try again'
-      });
-    }
-    
-    // ✅ ADDITIONAL FALLBACK: If error is "Invalid or expired token" but token looks valid, try fallback
-    // This handles cases where Supabase returns auth errors due to connectivity issues
-    if (verificationError && !isNetworkError) {
-      const errorMsg = verificationError.message?.toLowerCase() || '';
-      const isExpiredError = errorMsg.includes('expired') || errorMsg.includes('invalid');
-      
-      // If it's an expired/invalid error, try fallback decoding as last resort
-      // This is safe because we're only decoding, not verifying signature
-      if (isExpiredError) {
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-            
-            // Check if token is actually expired (exp claim)
-            const now = Math.floor(Date.now() / 1000);
-            const isActuallyExpired = payload.exp && payload.exp < now;
-            
-            // If token is NOT expired but Supabase says it is, likely a connectivity issue
-            if (!isActuallyExpired && payload.sub && payload.email) {
-              logger.warn('[verifyJWT] ⚠️ Token not expired but Supabase rejected - using fallback:', {
-                userId: payload.sub,
-                email: payload.email,
-                tokenExp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'none',
-                now: new Date(now * 1000).toISOString(),
-                path: req.path,
-                warning: 'Supabase may be unreachable - using fallback verification'
-              });
-              
-              req.user = {
-                id: payload.sub,
-                email: payload.email,
-                aud: payload.aud,
-                role: payload.role || 'authenticated'
-              };
-              
-              return next();
-            }
-          }
-        } catch (decodeError) {
-          // Fallback decode failed - continue with normal error handling
-          logger.debug('[verifyJWT] Fallback decode attempt failed:', decodeError.message);
-        }
-      }
-    }
-    
-    // Handle Supabase verification errors (non-network)
-    if (verificationError) {
-      // ✅ IMPROVED: Enhanced error logging for debugging Vercel/Railway issues
-      logger.error('[verifyJWT] ❌ Token verification failed:', {
-        errorMessage: verificationError.message,
-        errorStatus: verificationError.status,
-        errorName: verificationError.name,
-        tokenLength: token.length,
-        tokenPreview: token.substring(0, 20) + '...',
-        origin: req.headers.origin,
+      logger.debug('[verifyJWT] ✅ Token verified successfully:', {
+        userId: user.id,
+        email: user.email,
         path: req.path
       });
-      
-      // ✅ IMPROVED: Clearer error message for expired tokens
-      const isExpiredToken = verificationError.message?.includes('expired') || 
-                             verificationError.message?.includes('jwt expired') ||
-                             verificationError.status === 401;
-      
-      return res.status(401).json({ 
-        error: isExpiredToken ? 'Supabase token expired or invalid' : 'Invalid or expired token',
-        details: verificationError.message,
-        code: 'TOKEN_VERIFICATION_FAILED',
-        suggestion: isExpiredToken ? 'Please refresh your session or sign in again' : undefined
-      });
-    }
-    
-    if (!user) {
-      logger.error('[verifyJWT] ❌ No user found in token:', {
-        tokenLength: token.length,
-        tokenPreview: token.substring(0, 20) + '...',
-        origin: req.headers.origin,
-        path: req.path
-      });
-      
-      return res.status(401).json({ 
-        error: 'No user found in token',
-        details: 'Token may be expired or invalid',
-        code: 'NO_USER_IN_TOKEN',
-        suggestion: 'Please refresh your session or sign in again'
-      });
-    }
-    
-    logger.info('[verifyJWT] ✅ Token verified successfully:', {
-      userId: user.id,
-      email: user.email,
-      path: req.path
-    });
 
-    req.user = user;
-    next();
+      req.user = user;
+      return next();
   } catch (error) {
     logger.error('[verifyJWT] ❌ Unexpected error:', {
       errorMessage: error.message,
