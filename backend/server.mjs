@@ -779,8 +779,10 @@ You are having a natural voice conversation. Respond as if you can hear them cle
 }
 
 
-// 🔒 SECURITY: Enhanced JWT verification middleware with network fallback
-// ✅ COMPREHENSIVE FIX: Fallback JWT decoding when Supabase is unreachable
+// 🔒 SECURITY: Secure JWT verification middleware
+// ✅ Uses auth.getClaims() for local verification (signature verified)
+// ✅ Falls back to auth.getUser() with retry logic for network errors
+// ✅ Works for both web and mobile browsers
 const verifyJWT = async (req, res, next) => {
   try {
     // ✅ CRITICAL DEBUG: Log all incoming requests (use INFO so it shows in Railway logs)
