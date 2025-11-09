@@ -64,16 +64,6 @@ function setCachedTier(data: TierData): void {
  */
 async function fetchTier(forceRefresh = false): Promise<TierData> {
   try {
-    // ✅ CRITICAL FIX: Always clear cache first to ensure fresh fetch
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(TIER_CACHE_KEY);
-        logger.debug('[useTierQuery] 🧹 Cleared localStorage cache to ensure fresh fetch');
-      } catch (e) {
-        // Ignore localStorage errors
-      }
-    }
-
     // Get cached session first (faster than getUser)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
@@ -84,17 +74,53 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
         details: sessionError.details,
         hint: sessionError.hint
       });
+      // Clear stale cache on session error
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
       return { tier: 'free', userId: null };
     }
     
     if (!session?.user) {
+      // Clear cache when not logged in
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
       return { tier: 'free', userId: null };
     }
 
     const userId = session.user.id;
     
-    // ✅ CRITICAL FIX: Always fetch DIRECTLY from Supabase - NO cache checks
-    logger.info(`[useTierQuery] 📡 Fetching tier DIRECTLY from Supabase database for user: ${userId.slice(0, 8)}...`);
+    // ✅ BEST PRACTICE: Check cache first for performance, but only if not forcing refresh
+    if (!forceRefresh) {
+      const cached = getCachedTier(userId);
+      if (cached) {
+        // Cache is valid - use it for instant UI update
+        // Realtime subscription will update if tier changes
+        logger.debug(`[useTierQuery] Using cached tier: ${cached.tier.toUpperCase()} (age: ${Math.round((Date.now() - (cached.timestamp || 0)) / 1000)}s)`);
+        return { tier: cached.tier, userId: cached.userId };
+      }
+    } else {
+      // Force refresh - clear cache
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
+    }
+    
+    // ✅ BEST PRACTICE: Fetch from Supabase when cache miss or force refresh
+    logger.debug(`[useTierQuery] 📡 Fetching tier from Supabase for user: ${userId.slice(0, 8)}...`);
     const { data, error } = await supabase
       .from('profiles')
       .select('subscription_tier')
@@ -138,19 +164,15 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 
     const tier = data?.subscription_tier || 'free';
     
-    // ✅ CRITICAL: Always log tier fetch for debugging (even in production)
-    logger.info(`[useTierQuery] ✅ Fetched tier DIRECTLY from Supabase: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
-    logger.info(`[useTierQuery] 📊 Raw Supabase response:`, { 
-      subscription_tier: data?.subscription_tier,
-      userId: userId.slice(0, 8) + '...'
-    });
+    // ✅ BEST PRACTICE: Log tier fetch (debug level to reduce production noise)
+    logger.debug(`[useTierQuery] ✅ Fetched tier from Supabase: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
     
     const result = {
       tier,
       userId,
     };
     
-    // ✅ Cache result AFTER successful fetch (for performance, but always fetch fresh)
+    // ✅ BEST PRACTICE: Cache result for performance (Realtime will invalidate on changes)
     setCachedTier(result);
     
     return result;
@@ -180,14 +202,19 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 }
 
 /**
- * Modern tier management hook using React Query
+ * ✅ BEST PRACTICE: Modern tier management hook using React Query + Supabase Realtime
  * 
- * Features:
- * - Automatic caching (5min stale, 30min cache)
- * - Background refetching on window focus/reconnect
- * - Instant updates via Supabase Realtime WebSocket
- * - Zero manual refreshes needed
- * - Automatic retry on failure
+ * Architecture:
+ * 1. **Smart Caching**: Uses localStorage + React Query cache for instant UI (5min stale, 30min cache)
+ * 2. **Realtime Updates**: Supabase WebSocket pushes instant tier changes (no polling needed)
+ * 3. **Cache Invalidation**: Automatically clears caches when tier changes via Realtime
+ * 4. **Fallback Refetch**: Refetches on window focus/reconnect for reliability
+ * 
+ * Why this approach:
+ * - ✅ Performance: Cached data = instant UI load
+ * - ✅ Accuracy: Realtime = instant updates when tier changes
+ * - ✅ Efficiency: No polling = less server load
+ * - ✅ Reliability: Fallback refetch = handles edge cases
  * 
  * @example
  * ```tsx
@@ -200,19 +227,24 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 export function useTierQuery() {
   const queryClient = useQueryClient();
 
-    // React Query hook with production-grade configuration
+    // ✅ BEST PRACTICE: React Query with smart caching + Realtime updates
   const query = useQuery({
     queryKey: ['user-tier'],
-    queryFn: () => fetchTier(false), // ✅ CRITICAL: Always fetch fresh from Supabase
-    staleTime: 0, // ✅ CRITICAL: Always consider stale - fetch fresh every time
-    gcTime: 0, // ✅ CRITICAL: Don't cache in React Query - always fetch from Supabase
-    refetchOnWindowFocus: true, // ✅ FIX: Refetch on focus to ensure tier is current
+    queryFn: () => fetchTier(false),
+    staleTime: 5 * 60 * 1000, // ✅ BEST PRACTICE: Consider fresh for 5 minutes (Realtime handles instant updates)
+    gcTime: 30 * 60 * 1000, // ✅ BEST PRACTICE: Keep in cache for 30 minutes
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
     refetchOnReconnect: true, // Auto-refetch on network restore
-    refetchInterval: 30000, // ✅ CRITICAL: Refetch every 30 seconds to catch tier changes
+    // ✅ BEST PRACTICE: NO refetchInterval - Realtime subscription handles instant updates
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-    // ✅ CRITICAL: Never use cached data - always fetch fresh
-    initialData: undefined, // Always start with undefined to force fresh fetch
+    // ✅ BEST PRACTICE: Use cached data for instant UI, but Realtime will update if stale
+    initialData: () => {
+      // Check React Query cache first
+      const cached = queryClient.getQueryData<TierData>(['user-tier']);
+      if (cached) return cached;
+      return undefined; // Let fetchTier check localStorage cache
+    },
   });
 
   // ✅ PERFORMANCE FIX: Only log tier changes in dev mode (reduce console spam)
@@ -265,12 +297,16 @@ export function useTierQuery() {
           const newTier = (payload.new as any).subscription_tier as Tier || 'free';
           const oldTier = queryClient.getQueryData<TierData>(['user-tier'])?.tier;
           
+          // ✅ BEST PRACTICE: Log tier changes for debugging
           logger.info(`[useTierQuery] ✨ Tier updated via Realtime: ${oldTier?.toUpperCase() || 'UNKNOWN'} → ${newTier.toUpperCase()}`);
           
-          // ✅ UNIFIED: Trigger centralized cache invalidation (clears all caches)
+          // ✅ BEST PRACTICE: Clear all caches first, then update
           if (typeof window !== 'undefined') {
             try {
-              // Import and trigger centralized invalidation service
+              // Clear localStorage cache
+              localStorage.removeItem(TIER_CACHE_KEY);
+              
+              // Trigger centralized cache invalidation (clears all related caches)
               import('../services/cacheInvalidationService').then(({ cacheInvalidationService }) => {
                 cacheInvalidationService.onTierChange(userId, newTier, 'realtime');
               }).catch(err => {
@@ -286,18 +322,17 @@ export function useTierQuery() {
             }
           }
           
-          // Instantly update cache with new tier (no API call needed!)
+          // ✅ BEST PRACTICE: Instantly update React Query cache (no API call needed!)
           const updatedData: TierData = {
             tier: newTier,
             userId: userId,
           };
           queryClient.setQueryData<TierData>(['user-tier'], updatedData);
           
-          // ✅ PERFORMANCE FIX: Update localStorage cache with fresh timestamp
+          // ✅ BEST PRACTICE: Update localStorage cache with fresh timestamp
           setCachedTier(updatedData);
           
-          // ✅ MOBILE FIX: Log cache update for debugging
-          logger.debug(`[useTierQuery] ✅ Cache updated: ${newTier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
+          logger.debug(`[useTierQuery] ✅ Cache updated via Realtime: ${newTier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
         }
       )
       .subscribe((status) => {
