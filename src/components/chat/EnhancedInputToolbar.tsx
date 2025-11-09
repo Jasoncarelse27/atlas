@@ -14,6 +14,7 @@ import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
 import { ErrorBoundary } from '../ErrorBoundary';
 import AttachmentMenu from './AttachmentMenu';
+import { isAudioRecordingSupported } from '../../utils/audioHelpers';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -71,8 +72,76 @@ export default function EnhancedInputToolbar({
   // ✅ ACCESSIBILITY: Toggle mode for users who can't use press-and-hold
   const [recordingMode, setRecordingMode] = useState<'hold' | 'toggle'>('hold');
   
+  // ✅ FEATURE DETECTION: Check if voice recording is supported
+  const [isVoiceSupported, setIsVoiceSupported] = useState(true);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
+  
   // Use external ref if provided, otherwise use internal ref
   const inputRef = externalInputRef || internalInputRef;
+  
+  // ✅ FEATURE DETECTION: Check browser support on mount
+  useEffect(() => {
+    const supported = isAudioRecordingSupported();
+    setIsVoiceSupported(supported);
+    
+    if (!supported) {
+      logger.warn('[Voice] Audio recording not supported in this browser');
+    }
+    
+    // ✅ PRIVACY NOTICE: Check if user has seen privacy notice
+    const hasSeenPrivacyNotice = localStorage.getItem('atlas-voice-privacy-notice-seen');
+    if (!hasSeenPrivacyNotice && supported) {
+      // Show privacy notice after a short delay (not immediately)
+      const timer = setTimeout(() => {
+        setShowPrivacyNotice(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+  
+  // ✅ SOUND CUES: Play subtle beep sounds
+  const playSoundCue = (type: 'start' | 'stop') => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      if (type === 'start') {
+        // Single beep (800Hz, 100ms) for start
+        oscillator.frequency.value = 800;
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+      } else {
+        // Double beep (600Hz, 50ms each) for stop
+        oscillator.frequency.value = 600;
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.05);
+        
+        // Second beep after 50ms
+        setTimeout(() => {
+          const osc2 = audioContext.createOscillator();
+          const gain2 = audioContext.createGain();
+          osc2.connect(gain2);
+          gain2.connect(audioContext.destination);
+          osc2.frequency.value = 600;
+          gain2.gain.setValueAtTime(0.1, audioContext.currentTime);
+          gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+          osc2.start(audioContext.currentTime);
+          osc2.stop(audioContext.currentTime + 0.05);
+        }, 50);
+      }
+    } catch (error) {
+      // Silently fail if audio context not available
+      logger.debug('[Voice] Sound cue failed:', error);
+    }
+  };
 
   // ✅ Cleanup timers on unmount
   useEffect(() => {
@@ -564,6 +633,10 @@ export default function EnhancedInputToolbar({
       mediaRecorder.start();
       setIsListening(true);
       setRecordingDuration(0);
+      
+      // ✅ SOUND CUE: Play start beep
+      playSoundCue('start');
+      
       modernToast.success('Recording Started', 'Speak clearly for best results');
       
       // Start timer
@@ -1042,6 +1115,7 @@ export default function EnhancedInputToolbar({
                   <Mic size={12} className="text-gray-600" />
                 )}
               </button>
+              )}
 
               {/* ✅ REMOVED: Voice Call Button - Removed per user request - v2 */}
 
