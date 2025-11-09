@@ -480,14 +480,13 @@ async function getUserMemory(userId) {
   }
 }
 
-// ✅ GRAMMAR FIX: Ensure proper spacing after punctuation marks
+// ✅ GRAMMAR FIX: Ensure proper spacing after punctuation marks AND between words
 function fixPunctuationSpacing(text) {
   if (!text) return text;
   
-  // Fix missing spaces after punctuation: !, ?, ., ,, :, ;
-  // Pattern: punctuation followed immediately by a letter (no space)
   let fixed = text;
   
+  // ✅ STEP 1: Fix missing spaces after punctuation marks
   // Fix spacing after exclamation marks, question marks, periods, colons, semicolons
   fixed = fixed.replace(/([!?.])([A-Za-z])/g, '$1 $2');
   
@@ -497,8 +496,55 @@ function fixPunctuationSpacing(text) {
   // Fix spacing after colons and semicolons
   fixed = fixed.replace(/([:;])([A-Za-z])/g, '$1 $2');
   
-  // Collapse multiple spaces back to single space
+  // ✅ STEP 2: Fix missing spaces between words (common patterns)
+  // Fix: lowercase letter followed by uppercase letter (e.g., "Iremember" → "I remember")
+  // This catches most word concatenation issues
+  fixed = fixed.replace(/([a-z])([A-Z])/g, '$1 $2');
+  
+  // ✅ STEP 3: Fix specific common concatenations
+  // Fix common words that get concatenated incorrectly
+  const commonFixes = [
+    { from: /Iremember/gi, to: 'I remember' },
+    { from: /adance/gi, to: 'a dance' },
+    { from: /Asyour/gi, to: 'As your' },
+    { from: /manydays/gi, to: 'many days' },
+    { from: /Withthose/gi, to: 'With those' },
+    { from: /Foryou/gi, to: 'For you' },
+    { from: /Toyou/gi, to: 'To you' },
+    { from: /Inyour/gi, to: 'In your' },
+    { from: /Onyour/gi, to: 'On your' },
+    { from: /Howmany/gi, to: 'How many' },
+    { from: /Whatare/gi, to: 'What are' },
+    { from: /Whereare/gi, to: 'Where are' },
+    { from: /Whenare/gi, to: 'When are' },
+    { from: /Whyare/gi, to: 'Why are' },
+    { from: /Doyou/gi, to: 'Do you' },
+    { from: /Areyou/gi, to: 'Are you' },
+    { from: /Canyou/gi, to: 'Can you' },
+    { from: /Willyou/gi, to: 'Will you' },
+    { from: /Wouldyou/gi, to: 'Would you' },
+    { from: /Shouldyou/gi, to: 'Should you' },
+    { from: /Haveyou/gi, to: 'Have you' },
+    { from: /Hasyou/gi, to: 'Has you' },
+    { from: /Iam/gi, to: 'I am' },
+    { from: /Ihave/gi, to: 'I have' },
+    { from: /Iwill/gi, to: 'I will' },
+    { from: /Ican/gi, to: 'I can' },
+    { from: /Ido/gi, to: 'I do' },
+    { from: /Idid/gi, to: 'I did' },
+    { from: /Iwas/gi, to: 'I was' },
+    { from: /Iwere/gi, to: 'I were' },
+  ];
+  
+  for (const { from, to } of commonFixes) {
+    fixed = fixed.replace(from, to);
+  }
+  
+  // ✅ STEP 4: Collapse multiple spaces back to single space
   fixed = fixed.replace(/\s{2,}/g, ' ');
+  
+  // ✅ STEP 5: Trim and clean up
+  fixed = fixed.trim();
   
   return fixed;
 }
@@ -612,13 +658,17 @@ FORMATTING GUIDELINES (CRITICAL for readability and professionalism):
 
 Grammar & Spacing (MANDATORY - follow exactly):
 - ALWAYS add a space after punctuation marks: periods (.), exclamation marks (!), question marks (?), commas (,), colons (:), semicolons (;)
+- ALWAYS add a space between words - never concatenate words together
 - Examples: "Jason! It's" (correct) NOT "Jason!It's" (wrong)
 - Examples: "wonderfully. I remember" (correct) NOT "wonderfully. Iremember" (wrong)
-- Examples: "passions! How" (correct) NOT "passions!How" (wrong)
-- Examples: "update. Let" (correct) NOT "update.Let" (wrong)
+- Examples: "a dance" (correct) NOT "adance" (wrong)
+- Examples: "As your" (correct) NOT "Asyour" (wrong)
+- Examples: "many days" (correct) NOT "manydays" (wrong)
+- Examples: "With those" (correct) NOT "Withthose" (wrong)
+- Examples: "I remember" (correct) NOT "Iremember" (wrong)
 - Always use double line breaks (\\n\\n) to separate distinct ideas or sections
 - Keep paragraphs short (2-3 sentences max) for mobile readability
-- Double-check your response: every punctuation mark must be followed by a space before the next word
+- CRITICAL: Before sending your response, read it back and ensure every word is separated by a space. Never concatenate words together.
 
 Emojis:
 - Use emojis sparingly (1-2 per response max) for warmth and emphasis
