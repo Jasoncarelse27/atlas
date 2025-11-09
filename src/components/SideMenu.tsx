@@ -326,18 +326,18 @@ const SideMenu: React.FC<SideMenuProps> = ({
                         </div>
                         <span className="text-atlas-stone font-medium">
                           {profile.usage_stats.audio_minutes_this_month}/
-                          {TIER_CONFIGS[profile.tier].limits.audio_minutes_per_month === -1 
+                          {TIER_CONFIGS_IMPORT[profile.tier].limits.audio_minutes_per_month === -1 
                             ? '∞' 
-                            : TIER_CONFIGS[profile.tier].limits.audio_minutes_per_month}
+                            : TIER_CONFIGS_IMPORT[profile.tier].limits.audio_minutes_per_month}
                         </span>
                       </div>
                       <div className="h-2 bg-atlas-sand/40 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-atlas-peach rounded-full transition-all duration-500" 
                           style={{ 
-                            width: `${TIER_CONFIGS[profile.tier].limits.audio_minutes_per_month === -1 
+                            width: `${TIER_CONFIGS_IMPORT[profile.tier].limits.audio_minutes_per_month === -1 
                               ? 10 
-                              : Math.min(100, (profile.usage_stats.audio_minutes_this_month / TIER_CONFIGS[profile.tier].limits.audio_minutes_per_month) * 100)}%` 
+                              : Math.min(100, (profile.usage_stats.audio_minutes_this_month / TIER_CONFIGS_IMPORT[profile.tier].limits.audio_minutes_per_month) * 100)}%` 
                           }}
                         />
                       </div>
@@ -352,14 +352,14 @@ const SideMenu: React.FC<SideMenuProps> = ({
                         </div>
                         <span className="text-atlas-stone font-medium">
                           {profile.usage_stats.storage_used_mb}/
-                          {TIER_CONFIGS[profile.tier].limits.storage_limit_mb} MB
+                          {TIER_CONFIGS_IMPORT[profile.tier].limits.storage_limit_mb} MB
                         </span>
                       </div>
                       <div className="h-2 bg-atlas-sand/40 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-atlas-stone rounded-full transition-all duration-500" 
                           style={{ 
-                            width: `${Math.min(100, (profile.usage_stats.storage_used_mb / TIER_CONFIGS[profile.tier].limits.storage_limit_mb) * 100)}%` 
+                            width: `${Math.min(100, (profile.usage_stats.storage_used_mb / TIER_CONFIGS_IMPORT[profile.tier].limits.storage_limit_mb) * 100)}%` 
                           }}
                         />
                       </div>
@@ -513,8 +513,5 @@ const SideMenu: React.FC<SideMenuProps> = ({
     </AnimatePresence>
   );
 };
-
-// Import TIER_CONFIGS for usage limits
-import { TIER_CONFIGS } from '../types/subscription';
 
 export default SideMenu;
