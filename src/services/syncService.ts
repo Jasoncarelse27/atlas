@@ -23,6 +23,10 @@ export let isSyncingNow = false
 
 let syncInterval: NodeJS.Timeout | null = null;
 let focusHandler: (() => void) | null = null;
+// ✅ MEMORY LEAK FIX: Track activity listeners for cleanup
+let activityUpdateHandler: (() => void) | null = null;
+let mousemoveHandler: ((e: Event) => void) | null = null;
+let keydownHandler: ((e: Event) => void) | null = null;
 
 export async function markSyncing(state: boolean) {
   isSyncingNow = state
@@ -226,11 +230,15 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     let lastActivityTime = Date.now();
     
     // Track user activity (message sent, conversation opened, etc.)
-    const updateActivity = () => { lastActivityTime = Date.now(); };
+    // ✅ MEMORY LEAK FIX: Store handlers for cleanup
+    activityUpdateHandler = () => { lastActivityTime = Date.now(); };
+    mousemoveHandler = activityUpdateHandler;
+    keydownHandler = activityUpdateHandler;
+    
     if (typeof window !== 'undefined') {
-      window.addEventListener('focus', updateActivity);
-      window.addEventListener('mousemove', updateActivity, { passive: true });
-      window.addEventListener('keydown', updateActivity, { passive: true });
+      // Note: focus event is handled separately by focusHandler below
+      window.addEventListener('mousemove', mousemoveHandler, { passive: true });
+      window.addEventListener('keydown', keydownHandler, { passive: true });
     }
     
     const getSyncInterval = (): number => {
@@ -293,9 +301,23 @@ export function stopBackgroundSync() {
     syncInterval = null;
   }
   
-  // ✅ FIX: Cleanup focus listener
-  if (focusHandler && typeof window !== "undefined") {
-    window.removeEventListener("focus", focusHandler);
-    focusHandler = null;
+  // ✅ MEMORY LEAK FIX: Cleanup all event listeners
+  if (typeof window !== "undefined") {
+    if (focusHandler) {
+      window.removeEventListener("focus", focusHandler);
+      focusHandler = null;
+    }
+    
+    // ✅ MEMORY LEAK FIX: Cleanup activity tracking listeners
+    if (mousemoveHandler) {
+      window.removeEventListener("mousemove", mousemoveHandler);
+      mousemoveHandler = null;
+    }
+    if (keydownHandler) {
+      window.removeEventListener("keydown", keydownHandler);
+      keydownHandler = null;
+    }
+    // Cleanup activity handler reference
+    activityUpdateHandler = null;
   }
 }

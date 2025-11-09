@@ -76,12 +76,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   
   // History modal state
   const [showHistory, setShowHistory] = useState(false);
-  const [historyData, setHistoryData] = useState<{
-    conversations: any[];
+  // ✅ TYPESCRIPT FIX: Use proper Conversation type instead of any[]
+  interface HistoryModalData {
+    conversations: Array<{
+      id: string;
+      title: string;
+      createdAt: string;
+      updatedAt: string;
+      userId?: string;
+    }>;
     onDeleteConversation: (id: string) => void;
     deletingId: string | null;
     onRefresh?: () => Promise<void>;
-  } | null>(null);
+  }
+  const [historyData, setHistoryData] = useState<HistoryModalData | null>(null);
   
   // Search modal state
   const [showSearch, setShowSearch] = useState(false);
@@ -102,12 +110,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useRealtimeConversations(userId || undefined);
 
   // Handle history modal from QuickActions
-  const handleViewHistory = (data: {
-    conversations: any[];
-    onDeleteConversation: (id: string) => void;
-    deletingId: string | null;
-    onRefresh?: () => Promise<void>;
-  }) => {
+  // ✅ TYPESCRIPT FIX: Use proper type instead of any[]
+  const handleViewHistory = (data: HistoryModalData) => {
     setHistoryData(data);
     setShowHistory(true);
     setSidebarOpen(false); // ✅ Close main sidebar when opening history
@@ -431,8 +435,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         
         if (!error && latestMessages && latestMessages.length > 0) {
           // Save to Dexie immediately
+          // ✅ TYPESCRIPT FIX: Use proper SupabaseMessage type instead of any
+          interface SupabaseMessage {
+            id: string;
+            conversation_id: string;
+            user_id: string;
+            role: 'user' | 'assistant' | 'system';
+            content: string;
+            created_at: string;
+            attachments?: Array<{ type: string; url: string }>;
+            deleted_at?: string;
+            deleted_by?: 'user' | 'everyone';
+          }
           await atlasDB.messages.bulkPut(
-            latestMessages.map((msg: any) => ({
+            latestMessages.map((msg: SupabaseMessage) => ({
               id: msg.id,
               conversationId: msg.conversation_id,
               userId: msg.user_id || userId,
@@ -843,7 +859,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             hasAttachments: !!messageToSave.attachments
           });
           
-          await atlasDB.messages.put(messageToSave as any);
+          // ✅ TYPESCRIPT FIX: messageToSave already matches Message interface from atlasDB
+          await atlasDB.messages.put(messageToSave);
           
           logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
