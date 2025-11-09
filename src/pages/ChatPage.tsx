@@ -40,7 +40,6 @@ import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
-import { useBrowserUI } from '../hooks/useBrowserUI'; // ✅ MOBILE: Browser UI detection
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 
 interface ChatPageProps {
@@ -51,7 +50,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
   useAndroidBackButton();
   const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
-  const { toolbarHeight } = useBrowserUI(); // ✅ MOBILE: Detect browser UI height
   const navigate = useNavigate();
   const {
     voiceModalVisible,
