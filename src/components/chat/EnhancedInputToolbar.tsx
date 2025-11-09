@@ -735,46 +735,15 @@ export default function EnhancedInputToolbar({
     }
   };
 
-  // ✅ BACKWARD COMPATIBILITY: Keep original onClick handler for desktop
+  // ✅ BEST PRACTICE: onClick handler ONLY for toggle mode
+  // Hold mode uses onMouseDown/onTouchStart exclusively (no onClick)
   const handleMicPress = async (e?: React.MouseEvent) => {
-    // Prevent default to avoid double-triggering with onMouseDown
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    // If toggle mode, use toggle handler
+    // ✅ BEST PRACTICE: Don't preventDefault in onClick - let browser handle naturally
+    // Only handle toggle mode clicks here
     if (recordingMode === 'toggle') {
       await handleToggleRecording();
-      return;
     }
-    
-    // Hold mode: onClick is fallback for desktop clicks
-    // Check if press-hold timer is active (means onMouseDown already handled it)
-    if (pressHoldTimerRef.current) {
-      // Already handled by onMouseDown - don't double-trigger
-      return;
-    }
-    
-    // ✅ FIX: Handle quick clicks in hold mode
-    if (!isListening) {
-      // Check user and permissions first
-      if (!user) {
-        modernToast.error('Login Required', 'Sign in to use voice features');
-        return;
-      }
-      
-      const hasAccess = await attemptAudio();
-      if (!hasAccess) {
-        return;
-      }
-      
-      // Quick click in hold mode - start recording immediately (no delay for desktop)
-      await startRecording();
-    } else {
-      // Stop recording
-      stopRecording();
-    }
+    // Hold mode is handled by onMouseDown/onTouchStart - no onClick needed
   };
 
   // ✅ REMOVED: handleStartVoiceCall function (call button removed)
@@ -1043,7 +1012,7 @@ export default function EnhancedInputToolbar({
               {isVoiceSupported ? (
               <motion.button
                 ref={buttonRef}
-                onClick={handleMicPress}
+                onClick={recordingMode === 'toggle' ? handleMicPress : undefined}
                 onMouseDown={recordingMode === 'hold' ? handleMicPressStart : undefined}
                 onMouseUp={recordingMode === 'hold' ? handleMicPressEnd : undefined}
                 onMouseLeave={recordingMode === 'hold' ? handleMicPressEnd : undefined}
