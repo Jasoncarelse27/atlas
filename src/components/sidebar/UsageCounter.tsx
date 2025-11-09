@@ -118,12 +118,26 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
     return () => clearInterval(interval);
   }, [actualUserId, tier]);
   
-  // ✅ PROFESSIONAL FIX: Cap display at limit maximum (never show 62/15, show 15/15 instead)
+  // ✅ PROFESSIONAL FIX: Cap display at limit maximum (never show 65/15, show 15/15 instead)
   const rawCount = usage?.monthlyCount ?? 0;
   const maxMessages = usage?.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
-  const messageCount = maxMessages === -1 ? rawCount : Math.min(rawCount, maxMessages); // Cap at limit
-  const remainingMessages = usage?.remaining ?? (hasUnlimitedMessages(tier) ? -1 : Math.max(0, maxMessages - messageCount));
+  // ✅ CRITICAL: Always cap at limit for display (works on both mobile and web)
+  const messageCount = maxMessages === -1 ? rawCount : Math.min(rawCount, maxMessages);
+  // ✅ CRITICAL: Calculate remaining based on capped count, not raw count
+  const remainingMessages = maxMessages === -1 ? -1 : Math.max(0, maxMessages - messageCount);
   const isUnlimited = usage?.isUnlimited ?? hasUnlimitedMessages(tier);
+  
+  // ✅ DEBUG: Log for troubleshooting mobile/web differences
+  if (import.meta.env.DEV) {
+    logger.debug('[UsageCounter] Display values:', {
+      rawCount,
+      messageCount,
+      maxMessages,
+      remainingMessages,
+      isUnlimited,
+      userAgent: navigator.userAgent.slice(0, 50)
+    });
+  }
 
   return (
     <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">

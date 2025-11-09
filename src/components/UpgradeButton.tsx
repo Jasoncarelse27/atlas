@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useTierAccess } from '../hooks/useTierAccess';
 import { logger } from '../lib/logger';
@@ -19,7 +19,7 @@ export function UpgradeButton({
   children = 'Upgrade Now'
 }: UpgradeButtonProps) {
   const { user } = useSupabaseAuth();
-  const { showUpgradeModal } = useTierAccess();
+  const { tier, showUpgradeModal } = useTierAccess();
   const [isLoading, setIsLoading] = useState(false);
 
   const getSizeStyles = () => {
@@ -53,21 +53,41 @@ export function UpgradeButton({
     setIsLoading(true);
     
     try {
+      // ✅ TIER LOGIC: Check current tier and suggest appropriate upgrade
+      let targetTier: 'core' | 'studio' = 'core';
+      
+      // If already on Core, suggest Studio
+      if (tier === 'core') {
+        targetTier = 'studio';
+      }
+      
       // Show loading toast
-      const loadingToast = toast.loading('Opening secure checkout...');
+      const loadingToastId = toast.loading('Opening secure checkout...');
       
-      // Default to Core tier for upgrade
-      const tier = 'core';
-      const checkoutUrl = await fastspringService.createCheckoutUrl(user.id, tier, user.email);
-      
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-      
-      // ✅ BEST PRACTICE: Log checkout URL for debugging
-      logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
-      
-      // Redirect to FastSpring checkout
-      window.location.href = checkoutUrl;
+      // ✅ FASTSPRING PENDING: Check if FastSpring is approved
+      try {
+        const checkoutUrl = await fastspringService.createCheckoutUrl(user.id, targetTier, user.email);
+        
+        // Dismiss loading toast
+        toast.dismiss(loadingToastId);
+        
+        // ✅ BEST PRACTICE: Log checkout URL for debugging
+        logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
+        
+        // Redirect to FastSpring checkout
+        window.location.href = checkoutUrl;
+      } catch (fastspringError) {
+        // ✅ FASTSPRING PENDING: Show message if not approved yet
+        toast.dismiss(loadingToastId);
+        logger.warn('FastSpring checkout not available yet:', fastspringError);
+        toast.info(
+          'Checkout is being set up. Please check back soon or contact support for early access.',
+          { duration: 5000 }
+        );
+        
+        // Fallback to showing upgrade modal
+        showUpgradeModal('subscription');
+      }
       
     } catch (error) {
       logger.error('Upgrade error:', error);

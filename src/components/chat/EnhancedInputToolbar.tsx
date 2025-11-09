@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Phone, Plus, Send, Square, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Plus, Send, Square, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
@@ -13,9 +13,7 @@ import { logger } from '../../lib/logger';
 import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { VoiceCallModal } from '../modals/VoiceCallModal';
 import AttachmentMenu from './AttachmentMenu';
-import { isVoiceCallComingSoon } from '../../config/featureAccess';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -44,13 +42,12 @@ export default function EnhancedInputToolbar({
 }: EnhancedInputToolbarProps) {
   const { user } = useSupabaseAuth();
   const { tier } = useTierAccess();
-  const { canUse: canUseVoice } = useFeatureAccess('voice');
+  // ✅ REMOVED: canUseVoice (call button removed)
   const { canUse: canUseImage } = useFeatureAccess('image');
   const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio'); // ✅ Add audio feature access
   const { showGenericUpgrade } = useUpgradeModals();
   
-  // ✅ Use centralized hook instead of hardcoded check
-  const isStudioTier = canUseVoice; // Voice calls are Studio-only feature
+  // ✅ REMOVED: isStudioTier check (call button removed)
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -58,8 +55,7 @@ export default function EnhancedInputToolbar({
   const [isListening, setIsListening] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
-  const [showVoiceCall, setShowVoiceCall] = useState(false);
-  const [isStartingVoiceCall, setIsStartingVoiceCall] = useState(false);
+  // ✅ REMOVED: Voice call state (call button removed per user request)
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
@@ -500,39 +496,7 @@ export default function EnhancedInputToolbar({
     }
   };
 
-  const handleStartVoiceCall = async () => {
-    if (!user) {
-      modernToast.error('Login Required', 'Sign in to start voice calls');
-      return;
-    }
-
-    // ✅ SOFT LAUNCH: Check if voice calls are coming soon
-    if (isVoiceCallComingSoon()) {
-      modernToast.info('🎙️ Voice Calls Coming Soon', 'This feature will be available soon!', {
-        duration: 4000,
-        icon: '🔜',
-      });
-      return;
-    }
-
-    if (!canUseVoice) {
-      // ✅ Show upgrade modal with voice_calls feature (triggers Studio tier)
-      showGenericUpgrade('voice_calls');
-      return;
-    }
-    
-    // Mark voice call as used (remove NEW badge)
-    localStorage.setItem('hasUsedVoiceCall', 'true');
-    
-    // Show loading state
-    setIsStartingVoiceCall(true);
-    
-    // Small delay to show loading state, then open modal
-    setTimeout(() => {
-      setIsStartingVoiceCall(false);
-    setShowVoiceCall(true);
-    }, 300);
-  };
+  // ✅ REMOVED: handleStartVoiceCall function (call button removed)
 
 
   // Click outside detection is handled by AttachmentMenu component
@@ -677,7 +641,7 @@ export default function EnhancedInputToolbar({
           {/* ✅ MOBILE BEST PRACTICE: items-center for proper vertical alignment on iOS/Android */}
           <motion.div 
             data-input-area
-            className="flex items-center w-full max-w-4xl mx-auto px-3 py-2 rounded-2xl mb-6"
+            className="flex items-center w-full max-w-4xl mx-auto px-2 sm:px-3 py-2 rounded-2xl mb-6 overflow-x-hidden"
             style={{
               background: '#ffffff !important',
               backgroundColor: '#ffffff !important',
@@ -791,8 +755,8 @@ export default function EnhancedInputToolbar({
               )}
             </div>
 
-        {/* Action Buttons - ✅ MOBILE BEST PRACTICE: Vertically centered for iOS/Android */}
-        <div className="flex items-center space-x-2">
+        {/* Action Buttons - ✅ MOBILE FIX: Responsive container, prevent overflow */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {/* Mic Button */}
               <motion.button
                 onClick={handleMicPress}
@@ -813,67 +777,9 @@ export default function EnhancedInputToolbar({
                 <Mic size={18} />
               </motion.button>
 
-              {/* Voice Call Button - Coming Soon (Soft Launch) */}
-              <motion.button
-                onClick={() => {
-                  // ✅ SOFT LAUNCH: Show "coming soon" message
-                  if (isVoiceCallComingSoon()) {
-                    modernToast.info('🎙️ Voice Calls Coming Soon', 'This feature will be available soon!', {
-                      duration: 4000,
-                      icon: '🔜',
-                    });
-                    return;
-                  }
-                  // ✅ Add haptic feedback
-                  if ('vibrate' in navigator) navigator.vibrate(20);
-                  handleStartVoiceCall();
-                }}
-                disabled={disabled || isStartingVoiceCall || isVoiceCallComingSoon()}
-                title={
-                  isVoiceCallComingSoon()
-                    ? "Voice calls coming soon!"
-                    : isStudioTier 
-                      ? "Start voice call (Studio)" 
-                      : "Voice calls available in Studio tier - Upgrade now"
-                }
-                className={`relative ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-9 h-9 transition-all duration-200 shadow-lg touch-manipulation ${
-                  isVoiceCallComingSoon()
-                    ? 'bg-[#8FA67E]/50 hover:bg-[#8FA67E]/50 opacity-70 cursor-not-allowed'
-                    : isStudioTier
-                      ? 'bg-[#8FA67E] hover:bg-[#7E9570] text-white voice-call-pulse animate-pulse-subtle'
-                      : 'bg-gray-600 hover:bg-gray-500 opacity-60'
-                } ${isStartingVoiceCall ? 'opacity-50 cursor-wait' : ''}`}
-                style={{ 
-                  WebkitTapHighlightColor: 'transparent',
-                  boxShadow: isVoiceCallComingSoon()
-                    ? undefined
-                    : isStudioTier 
-                      ? '0 4px 12px rgba(143, 166, 126, 0.4), inset 0 -2px 4px rgba(126, 149, 112, 0.15)'
-                      : undefined
-                }}
-              >
-                {isStartingVoiceCall ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                  />
-                ) : (
-                  <>
-                    <Phone className="w-4 h-4 text-white" />
-                    {isVoiceCallComingSoon() && isStudioTier && (
-                      <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-medium bg-[#8FA67E]/20 text-[#8FA67E] rounded-full border border-[#8FA67E]/30">
-                        Soon
-                      </span>
-                    )}
-                  </>
-                )}
-                {!isVoiceCallComingSoon() && isStudioTier && !localStorage.getItem('hasUsedVoiceCall') && !isStartingVoiceCall && (
-                  <span className="voice-call-badge">New</span>
-                )}
-              </motion.button>
+              {/* ✅ REMOVED: Voice Call Button - Removed per user request */}
 
-              {/* Dynamic Button: Send/Stop (has text or attachments) */}
+              {/* Send/Stop Button - ✅ MOBILE FIX: Always visible, responsive sizing */}
               {text.trim() || attachmentPreviews.length > 0 ? (
                 // Send/Stop button with progressive animation
                 <motion.button
@@ -887,7 +793,7 @@ export default function EnhancedInputToolbar({
                   disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
                   title={isStreaming ? "Stop Generation" : (attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message")}
                   whileTap={{ scale: 0.95 }}
-                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-9 h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation ${
+                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 ${
                     isStreaming 
                       ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
@@ -923,34 +829,33 @@ export default function EnhancedInputToolbar({
                     )}
                   </AnimatePresence>
                 </motion.button>
-              ) : null}
+              ) : (
+                // ✅ MOBILE FIX: Show send button even when empty (for better UX)
+                <motion.button
+                  onClick={() => {
+                    if (text.trim() || attachmentPreviews.length > 0) {
+                      if ('vibrate' in navigator) {
+                        navigator.vibrate(20);
+                      }
+                      isStreaming ? stopMessageStream() : handleSend();
+                    }
+                  }}
+                  disabled={disabled || (!text.trim() && attachmentPreviews.length === 0) || isStreaming}
+                  title="Send message"
+                  whileTap={{ scale: 0.95 }}
+                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 bg-[#D3DCAB]/50 hover:bg-[#D3DCAB] text-gray-800`}
+                  style={{ 
+                    WebkitTapHighlightColor: 'transparent',
+                    boxShadow: '0 2px 8px rgba(211, 220, 171, 0.3)'
+                  }}
+                >
+                  <Send className="w-4 h-4" />
+                </motion.button>
+              )}
         </div>
       </motion.div>
 
-      {/* Voice Call Modal */}
-      {user && conversationId && (
-        <ErrorBoundary fallback={
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-2">Voice Call Error</h3>
-              <p className="text-sm text-gray-600 mb-4">There was an issue with the voice call feature. Please try again.</p>
-              <button
-                onClick={() => setShowVoiceCall(false)}
-                className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        }>
-          <VoiceCallModal
-            isOpen={showVoiceCall}
-            onClose={() => setShowVoiceCall(false)}
-            userId={user.id}
-            conversationId={conversationId}
-          />
-        </ErrorBoundary>
-      )}
+      {/* ✅ REMOVED: Voice Call Modal (call button removed per user request) */}
     </div>
   );
 }
