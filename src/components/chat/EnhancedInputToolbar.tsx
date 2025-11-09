@@ -777,7 +777,7 @@ export default function EnhancedInputToolbar({
                 <Mic size={18} />
               </motion.button>
 
-              {/* ✅ REMOVED: Voice Call Button - Removed per user request */}
+              {/* ✅ REMOVED: Voice Call Button - Removed per user request - v2 */}
 
               {/* Send/Stop Button - ✅ MOBILE FIX: Always visible, responsive sizing */}
               {text.trim() || attachmentPreviews.length > 0 ? (
