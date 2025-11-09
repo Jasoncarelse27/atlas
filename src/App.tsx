@@ -12,6 +12,8 @@ import { useSettingsStore } from "./stores/useSettingsStore";
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary })));
 const RitualBuilder = lazy(() => import("./features/rituals/components/RitualBuilder").then(m => ({ default: m.RitualBuilder })));
 const RitualRunView = lazy(() => import("./features/rituals/components/RitualRunView").then(m => ({ default: m.RitualRunView })));
@@ -125,6 +127,8 @@ function App() {
                 <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
                 <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
                 <Route path="/upgrade" element={<UpgradePage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/" element={<Navigate to="/chat" replace />} />
                 <Route path="*" element={<Navigate to="/chat" replace />} />
               </Routes>

@@ -1,6 +1,6 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 
 // Login Toggle Component
@@ -185,13 +185,13 @@ const AuthPage = () => {
         {/* Policy Text - Bottom, Centered */}
         <p className="text-center text-xs text-[#B8A9A0] mt-4">
           By continuing, you agree to our{' '}
-          <a href="#" className="text-[#8B7E74] underline hover:text-[#5A524A] transition-colors">
+          <Link to="/terms" className="text-[#8B7E74] underline hover:text-[#5A524A] transition-colors">
             Terms of Service
-          </a>{' '}
+          </Link>{' '}
           and{' '}
-          <a href="#" className="text-[#8B7E74] underline hover:text-[#5A524A] transition-colors">
+          <Link to="/privacy" className="text-[#8B7E74] underline hover:text-[#5A524A] transition-colors">
             Privacy Policy
-          </a>
+          </Link>
         </p>
       </div>
     </div>

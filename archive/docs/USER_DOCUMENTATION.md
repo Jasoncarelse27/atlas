@@ -136,7 +136,7 @@ Interactive exercises designed to boost your emotional intelligence:
 - Free tier: No payment required
 - Core/Studio: Monthly subscription via Paddle
 - Cancel anytime (no cancellation fees)
-- Refunds available within 30 days
+- Refunds available within 7 days
 
 ### **Upgrading Your Tier**
 1. Click "Upgrade" when you hit limits
@@ -179,7 +179,7 @@ A: Atlas provides suggestions, not commands. Always use your own judgment and co
 ### **Billing Questions**
 
 **Q: Can I get a refund?**
-A: Yes, we offer 30-day refunds for any reason. Contact support for assistance.
+A: Yes, we offer 7-day money-back guarantee for any reason. Contact support for assistance.
 
 **Q: Will my price change?**
 A: Your subscription price is locked in when you sign up. We'll notify you 30 days before any price changes.

@@ -19,6 +19,7 @@ import {
     X
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { SoundType } from '../hooks/useSoundEffects';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
@@ -605,29 +606,35 @@ const AccountModal: React.FC<AccountModalProps> = ({
                   <h4 className="font-medium text-gray-900">Legal Documents</h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <a
-                      href="#"
+                    <Link
+                      to="/privacy"
+                      onClick={() => {
+                        onSoundPlay?.('click');
+                        onClose();
+                      }}
                       className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between group"
-                      onClick={() => onSoundPlay?.('click')}
                     >
                       <div>
                         <h5 className="font-medium text-gray-900">Privacy Policy</h5>
                         <p className="text-sm text-gray-600">How we collect and use your data</p>
                       </div>
                       <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                    </a>
+                    </Link>
                     
-                    <a
-                      href="#"
+                    <Link
+                      to="/terms"
+                      onClick={() => {
+                        onSoundPlay?.('click');
+                        onClose();
+                      }}
                       className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between group"
-                      onClick={() => onSoundPlay?.('click')}
                     >
                       <div>
                         <h5 className="font-medium text-gray-900">Terms of Service</h5>
                         <p className="text-sm text-gray-600">Terms and conditions of use</p>
                       </div>
                       <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                    </a>
+                    </Link>
                   </div>
                 </div>
 
