@@ -4,7 +4,8 @@ import {
     canUseCamera,
     canUseImage,
     hasUnlimitedMessages,
-    isPaidTier
+    isPaidTier,
+    isStudioTier
 } from '../config/featureAccess';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
@@ -414,7 +415,7 @@ export function useTierAccess(userId?: string) {
       case 'unlimited_messages':
         return hasUnlimitedMessages(tier);
       case 'priority_support':
-        return tier === 'studio'; // Studio-specific feature
+        return isStudioTier(tier); // ✅ Use centralized utility function
       default:
         return true; // Basic features available to all tiers
     }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { isPaidTier } from '../config/featureAccess';
+import { isPaidTier, isStudioTier } from '../config/featureAccess';
 import { useUsageIndicator } from '../hooks/useUsageIndicator';
 
 interface ChatFooterProps {
@@ -85,9 +85,11 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
           <div className={`px-2 py-1 text-xs font-medium rounded-full ${
             usage.tier === 'core' 
               ? 'bg-green-100 text-green-800' 
-              : 'bg-purple-100 text-purple-800'
+              : isStudioTier(usage.tier)
+              ? 'bg-purple-100 text-purple-800'
+              : 'bg-gray-100 text-gray-800'
           }`}>
-            {usage.tier === 'core' ? '🌱 Core' : '🚀 Studio'}
+            {usage.tier === 'core' ? '🌱 Core' : isStudioTier(usage.tier) ? '🚀 Studio' : 'Free'}
           </div>
         </div>
       )}

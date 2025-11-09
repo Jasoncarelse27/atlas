@@ -294,6 +294,11 @@ export function isPaidTier(tier: Tier): boolean {
   return tier === 'core' || tier === 'studio';
 }
 
+// ✅ Utility: Check if tier is Studio (for centralized tier checks)
+export function isStudioTier(tier: Tier): boolean {
+  return tier === 'studio';
+}
+
 // Cloud sync capability check
 export function canSyncCloud(tier: Tier): boolean {
   return tierFeatures[tier].cloudSync;

@@ -12,6 +12,7 @@ import '../../styles/voice-animations.css';
 import { logger } from '../../lib/logger';
 import { voiceService } from '../../services/voiceService';
 import { generateUUID } from '../../utils/uuid';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { VoiceCallModal } from '../modals/VoiceCallModal';
 import AttachmentMenu from './AttachmentMenu';
 import { isVoiceCallComingSoon } from '../../config/featureAccess';
@@ -48,8 +49,8 @@ export default function EnhancedInputToolbar({
   const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio'); // ✅ Add audio feature access
   const { showGenericUpgrade } = useUpgradeModals();
   
-  // ✅ Studio-only feature check (voice calls)
-  const isStudioTier = tier === 'studio';
+  // ✅ Use centralized hook instead of hardcoded check
+  const isStudioTier = canUseVoice; // Voice calls are Studio-only feature
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
@@ -928,12 +929,27 @@ export default function EnhancedInputToolbar({
 
       {/* Voice Call Modal */}
       {user && conversationId && (
-        <VoiceCallModal
-          isOpen={showVoiceCall}
-          onClose={() => setShowVoiceCall(false)}
-          userId={user.id}
-          conversationId={conversationId}
-        />
+        <ErrorBoundary fallback={
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-2">Voice Call Error</h3>
+              <p className="text-sm text-gray-600 mb-4">There was an issue with the voice call feature. Please try again.</p>
+              <button
+                onClick={() => setShowVoiceCall(false)}
+                className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        }>
+          <VoiceCallModal
+            isOpen={showVoiceCall}
+            onClose={() => setShowVoiceCall(false)}
+            userId={user.id}
+            conversationId={conversationId}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );

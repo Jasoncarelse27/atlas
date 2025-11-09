@@ -2,7 +2,7 @@
 // Shows daily conversation limits and encourages upgrades
 
 import { Clock, MessageCircle, TrendingUp, Zap } from 'lucide-react';
-import { isPaidTier, tierFeatures } from '../config/featureAccess';
+import { isPaidTier, isStudioTier, tierFeatures } from '../config/featureAccess';
 import type { Tier } from '../types/tier';
 
 interface UsageIndicatorEnhancedProps {
@@ -180,7 +180,7 @@ export function UsageIndicatorEnhanced({
         {/* Tier Badge */}
         <div className="mt-2">
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            tier === 'studio'
+            isStudioTier(tier)
               ? 'bg-purple-100 text-purple-800'
               : isPaidTier(tier)
               ? 'bg-green-100 text-green-800'

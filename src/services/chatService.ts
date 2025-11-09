@@ -273,12 +273,24 @@ export const chatService = {
           // Parse error data for non-401 errors
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           
-          // Handle rate limit errors (don't retry)
+          // ✅ CRITICAL FIX: Handle 429 errors - don't retry limit errors
           if (response.status === 429) {
-            if (errorData.error === 'MONTHLY_LIMIT_REACHED') {
-              throw new Error('MONTHLY_LIMIT_REACHED');
+            const errorMessage = errorData.error || errorData.message || response.statusText || '';
+            const errorLower = errorMessage.toLowerCase();
+            
+            // Don't retry if it's a limit error (monthly/daily limit reached)
+            if (errorLower.includes('monthly limit') || 
+                errorLower.includes('daily limit') || 
+                errorLower.includes('limit reached') ||
+                errorData.error === 'MONTHLY_LIMIT_REACHED' ||
+                errorData.error === 'DAILY_LIMIT_REACHED') {
+              logger.warn('[ChatService] ⚠️ Limit reached - not retrying:', errorMessage);
+              throw new Error(`Backend error: ${errorMessage}`);
             }
-            throw new Error(`Backend error: ${errorData.error || response.statusText}`);
+            
+            // Transient rate limit (too many requests per second) - could retry, but don't for now
+            logger.warn('[ChatService] ⚠️ Rate limit (429) - not retrying:', errorMessage);
+            throw new Error(`Backend error: ${errorMessage}`);
           }
           
           // Retry on server errors (500+) or network issues
@@ -308,13 +320,18 @@ export const chatService = {
             throw error;
           }
           
-          // Don't retry on abort or specific errors
+          // ✅ CRITICAL FIX: Don't retry on abort or limit errors
           if (error instanceof Error && (
             error.name === 'AbortError' || 
-            error.message.includes('MONTHLY_LIMIT_REACHED')
+            error.message.includes('MONTHLY_LIMIT_REACHED') ||
+            error.message.toLowerCase().includes('monthly limit') ||
+            error.message.toLowerCase().includes('daily limit') ||
+            error.message.toLowerCase().includes('limit reached')
           )) {
             if (error.name === 'AbortError') {
               logger.info('[ChatService] ✅ Request aborted by user');
+            } else {
+              logger.warn('[ChatService] ⚠️ Limit error - not retrying:', error.message);
             }
             throw error;
           }

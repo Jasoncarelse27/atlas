@@ -1583,43 +1583,103 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         />
 
         {/* ✅ Use VoiceUpgradeModal for ALL upgrade scenarios (consistent warm UI) */}
-        <VoiceUpgradeModal
-          isOpen={genericModalVisible}
-          onClose={hideGenericUpgrade}
-          feature={genericModalFeature === 'audio' ? 'audio' : genericModalFeature === 'image' ? 'image' : 'voice_calls'}
-          defaultTier={genericModalFeature === 'audio' || genericModalFeature === 'image' ? 'core' : 'studio'}
-        />
+        <ErrorBoundary fallback={
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-2">Upgrade Modal Error</h3>
+              <p className="text-sm text-gray-600 mb-4">There was an issue loading the upgrade modal. Please try again.</p>
+              <button
+                onClick={hideGenericUpgrade}
+                className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        }>
+          <VoiceUpgradeModal
+            isOpen={genericModalVisible}
+            onClose={hideGenericUpgrade}
+            feature={genericModalFeature === 'audio' ? 'audio' : genericModalFeature === 'image' ? 'image' : 'voice_calls'}
+            defaultTier={genericModalFeature === 'audio' || genericModalFeature === 'image' ? 'core' : 'studio'}
+          />
+        </ErrorBoundary>
 
 
         {/* Conversation History Modal - Rendered at page level for proper mobile centering */}
         {historyData && (
-          <ConversationHistoryDrawer
-            isOpen={showHistory}
-            onClose={() => setShowHistory(false)}
-            conversations={historyData.conversations}
+          <ErrorBoundary fallback={
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+                <h3 className="text-lg font-semibold mb-2">Conversation History Error</h3>
+                <p className="text-sm text-gray-600 mb-4">There was an issue loading conversation history. Please try again.</p>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          }>
+            <ConversationHistoryDrawer
+              isOpen={showHistory}
+              onClose={() => setShowHistory(false)}
+              conversations={historyData.conversations}
             onDeleteConversation={historyData.onDeleteConversation}
             deletingId={historyData.deletingId}
             onRefresh={historyData.onRefresh}
           />
+          </ErrorBoundary>
         )}
 
         {/* Search Drawer - PHASE 2B */}
         {userId && (
-          <SearchDrawer
-            isOpen={showSearch}
-            onClose={() => setShowSearch(false)}
-            userId={userId}
-            currentConversationId={conversationId || undefined}
-            onNavigateToMessage={handleNavigateToMessage}
-          />
+          <ErrorBoundary fallback={
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+                <h3 className="text-lg font-semibold mb-2">Search Error</h3>
+                <p className="text-sm text-gray-600 mb-4">There was an issue loading search. Please try again.</p>
+                <button
+                  onClick={() => setShowSearch(false)}
+                  className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          }>
+            <SearchDrawer
+              isOpen={showSearch}
+              onClose={() => setShowSearch(false)}
+              userId={userId}
+              currentConversationId={conversationId || undefined}
+              onNavigateToMessage={handleNavigateToMessage}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Profile Settings Modal */}
-        <ProfileSettingsModal
-          isOpen={showProfile}
-          onClose={() => setShowProfile(false)}
-          onSignOut={handleLogout}
-        />
+        <ErrorBoundary fallback={
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-2">Settings Error</h3>
+              <p className="text-sm text-gray-600 mb-4">There was an issue loading settings. Please try again.</p>
+              <button
+                onClick={() => setShowProfile(false)}
+                className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        }>
+          <ProfileSettingsModal
+            isOpen={showProfile}
+            onClose={() => setShowProfile(false)}
+            onSignOut={handleLogout}
+          />
+        </ErrorBoundary>
 
         {/* ✅ PWA Install Prompt - Shows on mobile for better UX */}
         <PWAInstallPrompt />
