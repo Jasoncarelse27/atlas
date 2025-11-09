@@ -64,6 +64,16 @@ function setCachedTier(data: TierData): void {
  */
 async function fetchTier(forceRefresh = false): Promise<TierData> {
   try {
+    // ✅ CRITICAL FIX: Always clear cache first to ensure fresh fetch
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(TIER_CACHE_KEY);
+        logger.debug('[useTierQuery] 🧹 Cleared localStorage cache to ensure fresh fetch');
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+
     // Get cached session first (faster than getUser)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
@@ -74,53 +84,17 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
         details: sessionError.details,
         hint: sessionError.hint
       });
-      // ✅ MOBILE FIX: Clear stale cache on session error
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem(TIER_CACHE_KEY);
-        } catch (e) {
-          // Ignore localStorage errors
-        }
-      }
       return { tier: 'free', userId: null };
     }
     
     if (!session?.user) {
-      // ✅ MOBILE FIX: Clear stale cache when not logged in
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem(TIER_CACHE_KEY);
-        } catch (e) {
-          // Ignore localStorage errors
-        }
-      }
       return { tier: 'free', userId: null };
     }
 
     const userId = session.user.id;
     
-    // ✅ MOBILE FIX: Skip cache if forceRefresh is true (for manual refresh)
-    if (forceRefresh) {
-      // ✅ MOBILE FIX: Clear cache when forcing refresh
-      logger.debug('[useTierQuery] 🔄 Force refresh - clearing cache');
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem(TIER_CACHE_KEY);
-        } catch (e) {
-          // Ignore localStorage errors
-        }
-      }
-    } else {
-      // ✅ FIX: Always fetch fresh from database - don't trust cache for tier display
-      // Cache can be stale if tier was updated elsewhere (e.g., via FastSpring webhook)
-      const cached = getCachedTier(userId);
-      if (cached && import.meta.env.DEV) {
-        logger.debug('[useTierQuery] Found cached tier, but fetching fresh from database to ensure accuracy...');
-      }
-    }
-
-    // ✅ FIX: Always fetch fresh from database (don't trust cache for tier)
-    logger.debug(`[useTierQuery] 📡 Fetching tier from database for user: ${userId.slice(0, 8)}...`);
+    // ✅ CRITICAL FIX: Always fetch DIRECTLY from Supabase - NO cache checks
+    logger.info(`[useTierQuery] 📡 Fetching tier DIRECTLY from Supabase database for user: ${userId.slice(0, 8)}...`);
     const { data, error } = await supabase
       .from('profiles')
       .select('subscription_tier')
@@ -129,7 +103,7 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 
     if (error) {
       // ✅ BETTER ERROR LOGGING: Capture full error details
-      logger.error('[useTierQuery] Supabase query error:', {
+      logger.error('[useTierQuery] ❌ Supabase query error:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -164,17 +138,19 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 
     const tier = data?.subscription_tier || 'free';
     
-    // ✅ PERFORMANCE FIX: Only log tier fetch in dev mode (reduce console spam)
-    if (import.meta.env.DEV) {
-      logger.debug(`[useTierQuery] ✅ Fetched tier from database: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
-    }
+    // ✅ CRITICAL: Always log tier fetch for debugging (even in production)
+    logger.info(`[useTierQuery] ✅ Fetched tier DIRECTLY from Supabase: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
+    logger.info(`[useTierQuery] 📊 Raw Supabase response:`, { 
+      subscription_tier: data?.subscription_tier,
+      userId: userId.slice(0, 8) + '...'
+    });
     
     const result = {
       tier,
       userId,
     };
     
-    // ✅ PERFORMANCE FIX: Cache result for instant future loads
+    // ✅ Cache result AFTER successful fetch (for performance, but always fetch fresh)
     setCachedTier(result);
     
     return result;
@@ -227,23 +203,16 @@ export function useTierQuery() {
     // React Query hook with production-grade configuration
   const query = useQuery({
     queryKey: ['user-tier'],
-    queryFn: () => fetchTier(false), // ✅ FIX: Always fetch fresh from database
-    staleTime: 0, // ✅ FIX: Always consider stale - fetch fresh every time
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (formerly cacheTime)
+    queryFn: () => fetchTier(false), // ✅ CRITICAL: Always fetch fresh from Supabase
+    staleTime: 0, // ✅ CRITICAL: Always consider stale - fetch fresh every time
+    gcTime: 0, // ✅ CRITICAL: Don't cache in React Query - always fetch from Supabase
     refetchOnWindowFocus: true, // ✅ FIX: Refetch on focus to ensure tier is current
     refetchOnReconnect: true, // Auto-refetch on network restore
+    refetchInterval: 30000, // ✅ CRITICAL: Refetch every 30 seconds to catch tier changes
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-    // ✅ FIX: Don't use placeholder 'free' - let fetchTier handle initial data from cache
-    // Note: localStorage cache check happens in fetchTier() for async session access
-    initialData: () => {
-      // Check React Query cache first (fastest)
-      const cached = queryClient.getQueryData<TierData>(['user-tier']);
-      if (cached) return cached;
-      
-      // Return undefined to trigger fetchTier which will check localStorage cache
-      return undefined;
-    },
+    // ✅ CRITICAL: Never use cached data - always fetch fresh
+    initialData: undefined, // Always start with undefined to force fresh fetch
   });
 
   // ✅ PERFORMANCE FIX: Only log tier changes in dev mode (reduce console spam)

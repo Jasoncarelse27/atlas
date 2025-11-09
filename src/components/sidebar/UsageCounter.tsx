@@ -23,6 +23,11 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
   // 🚀 Modern tier management with React Query + Realtime
   const { tier, isLoading } = useTierQuery();
   
+  // ✅ CRITICAL: Log tier changes for debugging
+  useEffect(() => {
+    logger.info(`[UsageCounter] 🔄 Tier updated: ${tier.toUpperCase()}, isLoading: ${isLoading}`);
+  }, [tier, isLoading]);
+  
   // ✅ FIX: Fetch actual monthly message count from backend
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(true);
@@ -67,9 +72,10 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
         const monthlyCount = usageData.monthlyCount ?? 0;
         const monthlyLimit = usageData.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
         
-        // ✅ FIX: Always use tier from useTierQuery (database source of truth), not API response
+        // ✅ CRITICAL FIX: Always use tier from useTierQuery (database source of truth), not API response
+        logger.info(`[UsageCounter] 📊 Setting usage with tier from database: ${tier.toUpperCase()}`);
         setUsage({
-          tier: tier, // Always use tier from useTierQuery hook (fetches from database)
+          tier: tier, // Always use tier from useTierQuery hook (fetches DIRECTLY from Supabase)
           monthlyCount: monthlyCount,
           monthlyLimit: monthlyLimit,
           remaining: usageData.remaining ?? (monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - monthlyCount)),
@@ -140,8 +146,9 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
     });
   }
 
-  // ✅ FIX: Ensure tier is loaded before displaying
+  // ✅ CRITICAL FIX: Ensure tier is loaded before displaying
   if (isLoading || !tier) {
+    logger.debug(`[UsageCounter] ⏳ Waiting for tier... isLoading: ${isLoading}, tier: ${tier}`);
     return (
       <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
         <div className="flex items-center justify-between mb-3">
@@ -151,6 +158,9 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
       </div>
     );
   }
+
+  // ✅ CRITICAL: Log what tier we're displaying
+  logger.info(`[UsageCounter] 🎨 Rendering with tier: ${tier.toUpperCase()}, display name: ${getTierDisplayName(tier)}`);
 
   return (
     <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
