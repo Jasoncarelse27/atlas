@@ -300,18 +300,18 @@ const SideMenu: React.FC<SideMenuProps> = ({
                         </div>
                         <span className="text-atlas-stone font-medium">
                           {profile.usage_stats.requests_this_month}/
-                          {TIER_CONFIGS[profile.tier].limits.requests_per_month === -1 
+                          {TIER_CONFIGS_IMPORT[profile.tier].limits.requests_per_month === -1 
                             ? '∞' 
-                            : TIER_CONFIGS[profile.tier].limits.requests_per_month}
+                            : TIER_CONFIGS_IMPORT[profile.tier].limits.requests_per_month}
                         </span>
                       </div>
                       <div className="h-2 bg-atlas-sand/40 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-atlas-sage rounded-full transition-all duration-500" 
                           style={{ 
-                            width: `${TIER_CONFIGS[profile.tier].limits.requests_per_month === -1 
+                            width: `${TIER_CONFIGS_IMPORT[profile.tier].limits.requests_per_month === -1 
                               ? 10 
-                              : Math.min(100, (profile.usage_stats.requests_this_month / TIER_CONFIGS[profile.tier].limits.requests_per_month) * 100)}%` 
+                              : Math.min(100, (profile.usage_stats.requests_this_month / TIER_CONFIGS_IMPORT[profile.tier].limits.requests_per_month) * 100)}%` 
                           }}
                         />
                       </div>
