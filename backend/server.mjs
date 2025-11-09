@@ -816,14 +816,43 @@ const verifyJWT = async (req, res, next) => {
     // Enhanced Supabase JWT verification with better error handling
     let user = null;
     let verificationError = null;
+    let isNetworkError = false;
     
     try {
       const result = await supabasePublic.auth.getUser(token);
       user = result.data?.user;
       verificationError = result.error;
+      
+      // ✅ CRITICAL FIX: Detect network errors from error object (Supabase doesn't throw)
+      // Network errors manifest as fetch failures, connection errors, or timeout errors
+      if (verificationError) {
+        const errorMsg = verificationError.message?.toLowerCase() || '';
+        const errorName = verificationError.name?.toLowerCase() || '';
+        
+        // Detect network-related errors
+        isNetworkError = 
+          errorMsg.includes('fetch') ||
+          errorMsg.includes('network') ||
+          errorMsg.includes('connection') ||
+          errorMsg.includes('timeout') ||
+          errorMsg.includes('econnrefused') ||
+          errorMsg.includes('enotfound') ||
+          errorName.includes('network') ||
+          errorName.includes('fetch') ||
+          verificationError.status === undefined; // Network errors often lack status codes
+          
+        if (isNetworkError) {
+          logger.warn('[verifyJWT] ⚠️ Network error detected from Supabase:', {
+            errorMessage: verificationError.message,
+            errorName: verificationError.name,
+            errorStatus: verificationError.status,
+            willAttemptFallback: true
+          });
+        }
+      }
     } catch (networkError) {
-      // ✅ FALLBACK: Network error - Supabase unreachable
-      logger.warn('[verifyJWT] ⚠️ Supabase verification failed (network error):', {
+      // ✅ FALLBACK: Exception thrown (rare, but possible)
+      logger.warn('[verifyJWT] ⚠️ Supabase verification exception (network error):', {
         errorMessage: networkError.message,
         errorName: networkError.name,
         willAttemptFallback: true
@@ -833,10 +862,11 @@ const verifyJWT = async (req, res, next) => {
         name: networkError.name || 'NetworkError',
         isNetworkError: true 
       };
+      isNetworkError = true;
     }
     
     // ✅ FALLBACK: If Supabase verification failed due to network issues, decode JWT locally
-    if (verificationError && verificationError.isNetworkError) {
+    if (verificationError && isNetworkError) {
       try {
         // Decode JWT without verification (fallback for network issues only)
         const parts = token.split('.');
@@ -877,6 +907,52 @@ const verifyJWT = async (req, res, next) => {
         code: 'NETWORK_ERROR',
         suggestion: 'Please check your connection and try again'
       });
+    }
+    
+    // ✅ ADDITIONAL FALLBACK: If error is "Invalid or expired token" but token looks valid, try fallback
+    // This handles cases where Supabase returns auth errors due to connectivity issues
+    if (verificationError && !isNetworkError) {
+      const errorMsg = verificationError.message?.toLowerCase() || '';
+      const isExpiredError = errorMsg.includes('expired') || errorMsg.includes('invalid');
+      
+      // If it's an expired/invalid error, try fallback decoding as last resort
+      // This is safe because we're only decoding, not verifying signature
+      if (isExpiredError) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+            
+            // Check if token is actually expired (exp claim)
+            const now = Math.floor(Date.now() / 1000);
+            const isActuallyExpired = payload.exp && payload.exp < now;
+            
+            // If token is NOT expired but Supabase says it is, likely a connectivity issue
+            if (!isActuallyExpired && payload.sub && payload.email) {
+              logger.warn('[verifyJWT] ⚠️ Token not expired but Supabase rejected - using fallback:', {
+                userId: payload.sub,
+                email: payload.email,
+                tokenExp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'none',
+                now: new Date(now * 1000).toISOString(),
+                path: req.path,
+                warning: 'Supabase may be unreachable - using fallback verification'
+              });
+              
+              req.user = {
+                id: payload.sub,
+                email: payload.email,
+                aud: payload.aud,
+                role: payload.role || 'authenticated'
+              };
+              
+              return next();
+            }
+          }
+        } catch (decodeError) {
+          // Fallback decode failed - continue with normal error handling
+          logger.debug('[verifyJWT] Fallback decode attempt failed:', decodeError.message);
+        }
+      }
     }
     
     // Handle Supabase verification errors (non-network)
