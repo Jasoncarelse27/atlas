@@ -438,22 +438,29 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       return;
     }
 
-    // For assistant messages, show typing effect if it's the latest message and not in sending state
-    if (isLatest && !isUser && message.status !== 'sending') {
+    // ✅ CHATGPT PATTERN: Show typing effect only while actively streaming
+    // Once message completes (status !== 'sending'), show full content immediately
+    if (isLatest && !isUser && message.status === 'sending' && messageContent) {
+      // Typing animation for streaming messages
       const timer = setInterval(() => {
         setCurrentIndex(prevIndex => {
           if (prevIndex < messageContent.length) {
             setDisplayedText(messageContent.slice(0, prevIndex + 1));
             return prevIndex + 1;
+          } else {
+            // Message complete - stop animation
+            clearInterval(timer);
+            setDisplayedText(messageContent);
+            return messageContent.length;
           }
-          return prevIndex;
         });
       }, 25); // Smoother, more natural ChatGPT-like effect
 
       return () => clearInterval(timer);
     } else {
-      // ✅ CRITICAL FIX: For all other cases, show full content immediately
+      // ✅ CRITICAL FIX: For completed messages, show full content immediately
       setDisplayedText(messageContent);
+      setCurrentIndex(messageContent?.length || 0);
     }
   }, [messageContent, isUser, isLatest, message.status]);
 
@@ -469,7 +476,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     }
   }, [messageContent, isLatest, isUser, message.role]); // ✅ Use content, not ID
 
-  const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length;
+  // ✅ CHATGPT PATTERN: Show typing indicator only while actively typing
+  // Action buttons should show immediately after message completes
+  const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length && message.status === 'sending';
   
   // ✅ IMPROVED TTS handler with audio controls
   const handlePlayTTS = async () => {
@@ -830,8 +839,9 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
           {/* Message Status Indicators removed - cleaner UI */}
           
+          {/* ✅ CHATGPT PATTERN: Action buttons always visible for completed messages */}
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
-          {!isUser && !showTypingIndicator && message.status !== 'sending' && (
+          {!isUser && message.status !== 'sending' && displayedText && displayedText.length > 0 && (
             <div className="flex items-center gap-2 mt-2">
               {/* Copy Button - ✅ MOBILE FIX: Proper touch targets and event handling */}
               <button
