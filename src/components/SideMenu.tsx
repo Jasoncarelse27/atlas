@@ -20,7 +20,7 @@ import {
 import React from 'react';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { UserProfile } from '../types/subscription';
-import { TIER_CONFIGS } from '../types/subscription';
+import { TIER_CONFIGS as TIER_CONFIGS_IMPORT } from '../types/subscription';
 import StatusIndicator from './StatusIndicator';
 import SubscriptionBadge from './SubscriptionBadge';
 import ThemeToggle from './ThemeToggle';
@@ -192,7 +192,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                     <div className="mt-4 p-4 bg-white/50 rounded-xl">
                       <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-2 flex items-center justify-between">
                         <span>Current Tier</span>
-                        <span className="text-xs font-normal text-[#8B7E74]/70">{TIER_CONFIGS[profile.tier]?.displayName || 'Atlas Free'}</span>
+                        <span className="text-xs font-normal text-[#8B7E74]/70">{TIER_CONFIGS_IMPORT[profile.tier]?.displayName || 'Atlas Free'}</span>
                       </h3>
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center justify-center">
@@ -204,9 +204,9 @@ const SideMenu: React.FC<SideMenuProps> = ({
                         </div>
                         <div className="text-center">
                           <div className="font-semibold text-[#3B3632]">
-                            {TIER_CONFIGS[profile.tier]?.displayName || 'Atlas Free'}
+                            {TIER_CONFIGS_IMPORT[profile.tier]?.displayName || 'Atlas Free'}
                           </div>
-                          {TIER_CONFIGS[profile.tier]?.limits.text_messages_per_month === -1 ? (
+                          {TIER_CONFIGS_IMPORT[profile.tier]?.limits.text_messages_per_month === -1 ? (
                             <>
                               <div className="text-sm text-[#8B7E74]">Unlimited Messages</div>
                               {profile.tier === 'studio' && (
@@ -216,10 +216,10 @@ const SideMenu: React.FC<SideMenuProps> = ({
                           ) : (
                             <>
                               <div className="text-sm text-[#8B7E74]">
-                                {profile.usage_stats?.text_messages_this_month || 0} / {TIER_CONFIGS[profile.tier]?.limits.text_messages_per_month || 15} messages
+                                {profile.usage_stats?.text_messages_this_month || 0} / {TIER_CONFIGS_IMPORT[profile.tier]?.limits.text_messages_per_month || 15} messages
                               </div>
                               <div className="text-xs text-[#8B7E74]/70 mt-1">
-                                {TIER_CONFIGS[profile.tier]?.price || '$0/month'}
+                                {TIER_CONFIGS_IMPORT[profile.tier]?.price || '$0/month'}
                               </div>
                             </>
                           )}
