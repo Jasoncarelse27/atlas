@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, Image, Loader2, MessageSquare, Mic, Plus, Send, Square, X, XCircle } from 'lucide-react';
+import { CheckCircle2, Image, Loader2, Mic, Plus, Send, Square, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
@@ -61,6 +61,7 @@ export default function EnhancedInputToolbar({
   const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const micButtonRef = useRef<HTMLButtonElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // ✅ VOICE RECORDING IMPROVEMENTS: Press-and-hold detection
@@ -778,7 +779,6 @@ export default function EnhancedInputToolbar({
         <div className="mb-3 max-w-4xl mx-auto">
           {/* Subtle Hint */}
           <div className="flex items-center gap-2 mb-2 px-1">
-            <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
             <span className="text-xs text-gray-400">Add an optional caption below</span>
           </div>
           
@@ -1010,13 +1010,13 @@ export default function EnhancedInputToolbar({
               )}
             </div>
 
-        {/* Action Buttons - ✅ MOBILE FIX: Responsive container, prevent overflow */}
+        {/* Action Buttons - ✅ ONLY TWO BUTTONS: Microphone (Core/Studio only) + Send */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {/* Mic Button - ✅ IMPROVED: Press-and-hold with slide-to-cancel + Toggle mode */}
-              {/* ✅ FEATURE DETECTION: Only show if voice recording is supported */}
-              {isVoiceSupported ? (
+              {/* ✅ SINGLE MICROPHONE BUTTON: Only for Core and Studio tiers */}
+              {isVoiceSupported && canUseAudio && (tier === 'core' || tier === 'studio') && (
               <motion.button
-                ref={buttonRef}
+                key="voice-recording-button"
+                ref={micButtonRef}
                 onClick={handleMicPress}
                 onMouseDown={handleMicPressStart}
                 onMouseUp={handleMicPressEnd}
@@ -1088,103 +1088,60 @@ export default function EnhancedInputToolbar({
                   </motion.div>
                 )}
               </motion.button>
-              ) : (
-              /* ✅ FEATURE DETECTION: Show fallback message if not supported */
-              <div className="relative group">
-                <button
-                  disabled
-                  className="min-h-[44px] min-w-[44px] p-2 rounded-full bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-                  title="Voice recording not supported in this browser"
-                >
-                  <Mic size={18} />
-                </button>
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                  Voice recording requires Chrome, Firefox, or Safari
-                </div>
-              </div>
               )}
 
-              {/* ✅ REMOVED: Voice Call Button - Removed per user request - v2 */}
-
-              {/* Send/Stop Button - ✅ MOBILE FIX: Always visible, responsive sizing */}
-              {text.trim() || attachmentPreviews.length > 0 ? (
-                // Send/Stop button with progressive animation
-                <motion.button
-                  onClick={() => {
-                    // Haptic feedback
-                    if ('vibrate' in navigator) {
-                      navigator.vibrate(isStreaming ? 40 : 20);
-                    }
-                    isStreaming ? stopMessageStream() : handleSend();
-                  }}
-                  disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
-                  title={isStreaming ? "Stop Generation" : (attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message")}
-                  whileTap={{ scale: 0.95 }}
-                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 ${
-                    isStreaming 
-                      ? 'bg-red-500 hover:bg-red-600' 
-                      : 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
-                  }`}
-                  style={{ 
-                    WebkitTapHighlightColor: 'transparent',
-                    boxShadow: isStreaming 
-                      ? '0 4px 16px rgba(239, 68, 68, 0.5)' 
-                      : '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
-                  }}
-                >
-                  <AnimatePresence mode="wait" initial={false}>
-                    {isStreaming ? (
-                      <motion.div
-                        key="stop"
-                        initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
-                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                      >
-                        <Square className="w-4 h-4 text-white" fill="white" />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="send"
-                        initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
-                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                      >
-                        <Send className="w-4 h-4 text-white" />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
-              ) : (
-                // ✅ MOBILE FIX: Show send button even when empty (for better UX)
-                <motion.button
-                  onClick={() => {
-                    if (text.trim() || attachmentPreviews.length > 0) {
-                      if ('vibrate' in navigator) {
-                        navigator.vibrate(20);
-                      }
-                      isStreaming ? stopMessageStream() : handleSend();
-                    }
-                  }}
-                  disabled={disabled || (!text.trim() && attachmentPreviews.length === 0) || isStreaming}
-                  title="Send message"
-                  whileTap={{ scale: 0.95 }}
-                  className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 ${
-                    text.trim() || attachmentPreviews.length > 0
-                      ? 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
-                      : 'bg-[#D3DCAB]/50 text-gray-500'
-                  }`}
-                  style={{ 
-                    WebkitTapHighlightColor: 'transparent',
-                    boxShadow: text.trim() || attachmentPreviews.length > 0
-                      ? '0 2px 8px rgba(211, 220, 171, 0.4)'
-                      : '0 2px 8px rgba(211, 220, 171, 0.2)'
-                  }}
-                >
-                  <Send className={`w-4 h-4 ${text.trim() || attachmentPreviews.length > 0 ? 'text-gray-800' : 'text-gray-500'}`} />
-                </motion.button>
-              )}
+              {/* ✅ SINGLE SEND BUTTON: Always visible, changes to Stop when streaming */}
+              <motion.button
+                key="send-button"
+                onClick={() => {
+                  if ('vibrate' in navigator) {
+                    navigator.vibrate(isStreaming ? 40 : 20);
+                  }
+                  isStreaming ? stopMessageStream() : handleSend();
+                }}
+                disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
+                title={isStreaming ? "Stop Generation" : (attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message")}
+                whileTap={{ scale: 0.95 }}
+                className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 ${
+                  isStreaming 
+                    ? 'bg-red-500 hover:bg-red-600' 
+                    : (text.trim() || attachmentPreviews.length > 0)
+                    ? 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
+                    : 'bg-[#D3DCAB]/50 text-gray-500'
+                }`}
+                style={{ 
+                  WebkitTapHighlightColor: 'transparent',
+                  boxShadow: isStreaming 
+                    ? '0 4px 16px rgba(239, 68, 68, 0.5)' 
+                    : (text.trim() || attachmentPreviews.length > 0)
+                    ? '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                    : '0 2px 8px rgba(211, 220, 171, 0.2)'
+                }}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {isStreaming ? (
+                    <motion.div
+                      key="stop"
+                      initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    >
+                      <Square className="w-4 h-4 text-white" fill="white" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="send"
+                      initial={{ opacity: 0, scale: 0.8, rotate: -90 }}
+                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    >
+                      <Send className={`w-4 h-4 ${(text.trim() || attachmentPreviews.length > 0) ? 'text-gray-800' : 'text-gray-500'}`} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
         </div>
       </motion.div>
 

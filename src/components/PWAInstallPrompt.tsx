@@ -182,8 +182,14 @@ export function PWAInstallPrompt() {
     return null;
   }
 
-  // Desktop: Show subtle tooltip
-  if (isDesktop && !showPrompt) {
+  // ✅ FIX: Check if user dismissed before showing desktop button
+  const dismissed = localStorage.getItem('pwa-install-dismissed');
+  const dismissedTime = dismissed ? parseInt(dismissed, 10) : 0;
+  const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
+  const isDismissed = dismissed && daysSinceDismissed < 7;
+
+  // Desktop: Show subtle tooltip (only if not dismissed)
+  if (isDesktop && !showPrompt && !isDismissed) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}

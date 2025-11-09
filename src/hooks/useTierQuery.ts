@@ -111,23 +111,15 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
         }
       }
     } else {
-      // ✅ PERFORMANCE FIX: Check localStorage cache first for instant loading
-      // ✅ MOBILE FIX: But always verify with database if cache is older than 1 minute
+      // ✅ FIX: Always fetch fresh from database - don't trust cache for tier display
+      // Cache can be stale if tier was updated elsewhere (e.g., via FastSpring webhook)
       const cached = getCachedTier(userId);
-      if (cached) {
-        // Check cache age - if older than 1 minute, verify with database
-        const cacheAge = Date.now() - (cached as any).timestamp;
-        if (cacheAge < 60 * 1000) { // Less than 1 minute old
-          logger.debug('[useTierQuery] ✅ Using cached tier:', cached.tier);
-          return cached;
-        } else {
-          // Cache is stale (1+ minutes old) - verify with database
-          logger.debug(`[useTierQuery] ⚠️ Cache is ${Math.round(cacheAge / 1000)}s old, verifying with database...`);
-        }
+      if (cached && import.meta.env.DEV) {
+        logger.debug('[useTierQuery] Found cached tier, but fetching fresh from database to ensure accuracy...');
       }
     }
 
-    // ✅ MOBILE FIX: Always fetch fresh from database (don't trust cache)
+    // ✅ FIX: Always fetch fresh from database (don't trust cache for tier)
     logger.debug(`[useTierQuery] 📡 Fetching tier from database for user: ${userId.slice(0, 8)}...`);
     const { data, error } = await supabase
       .from('profiles')
@@ -235,24 +227,22 @@ export function useTierQuery() {
     // React Query hook with production-grade configuration
   const query = useQuery({
     queryKey: ['user-tier'],
-    queryFn: fetchTier,
-    staleTime: 5 * 60 * 1000, // ✅ PERFORMANCE FIX: Increase stale time to 5 minutes (tier doesn't change often)
+    queryFn: () => fetchTier(false), // ✅ FIX: Always fetch fresh from database
+    staleTime: 0, // ✅ FIX: Always consider stale - fetch fresh every time
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (formerly cacheTime)
-    refetchOnWindowFocus: false, // ✅ PERFORMANCE FIX: Disable refetch on focus (reduces excessive queries, realtime handles updates)
+    refetchOnWindowFocus: true, // ✅ FIX: Refetch on focus to ensure tier is current
     refetchOnReconnect: true, // Auto-refetch on network restore
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-    // ✅ PERFORMANCE FIX: Show 'free' tier immediately while loading (prevents slow drawer)
-    placeholderData: { tier: 'free' as Tier, userId: null },
-    // ✅ PERFORMANCE FIX: Use cached data immediately if available
+    // ✅ FIX: Don't use placeholder 'free' - let fetchTier handle initial data from cache
     // Note: localStorage cache check happens in fetchTier() for async session access
     initialData: () => {
       // Check React Query cache first (fastest)
       const cached = queryClient.getQueryData<TierData>(['user-tier']);
       if (cached) return cached;
       
-      // Fall back to placeholder (will be replaced by fetchTier's localStorage cache)
-      return { tier: 'free' as Tier, userId: null };
+      // Return undefined to trigger fetchTier which will check localStorage cache
+      return undefined;
     },
   });
 

@@ -67,8 +67,9 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
         const monthlyCount = usageData.monthlyCount ?? 0;
         const monthlyLimit = usageData.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
         
+        // ✅ FIX: Always use tier from useTierQuery (database source of truth), not API response
         setUsage({
-          tier: usageData.tier || tier,
+          tier: tier, // Always use tier from useTierQuery hook (fetches from database)
           monthlyCount: monthlyCount,
           monthlyLimit: monthlyLimit,
           remaining: usageData.remaining ?? (monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - monthlyCount)),
@@ -137,6 +138,18 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
       isUnlimited,
       userAgent: navigator.userAgent.slice(0, 50)
     });
+  }
+
+  // ✅ FIX: Ensure tier is loaded before displaying
+  if (isLoading || !tier) {
+    return (
+      <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-[#8B7E74] text-sm font-medium uppercase tracking-wider">Current Tier</h3>
+          <span className="text-xs font-semibold text-[#9B8FDB]">Loading...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
