@@ -1045,7 +1045,19 @@ app.get('/api/status', (req, res) => {
 app.get('/api/usage', verifyJWT, async (req, res) => {
   try {
     const userId = req.user.id;
-    const tier = req.user.tier || 'free';
+    
+    // ✅ Fetch tier from database (never trust client)
+    let tier = 'free';
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
+      tier = profile?.subscription_tier || 'free';
+    } catch (error) {
+      logger.warn('[Usage] Failed to fetch tier, defaulting to free:', error.message);
+    }
     
     // ✅ Use UTC for start of month to match database timestamps
     const now = new Date();
@@ -1069,6 +1081,15 @@ app.get('/api/usage', verifyJWT, async (req, res) => {
     
     const monthlyLimit = tier === 'free' ? 15 : -1; // -1 = unlimited
     const remaining = monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - (monthlyCount ?? 0));
+    
+    logger.debug('[Usage] Monthly count fetched:', {
+      userId,
+      tier,
+      monthlyCount: monthlyCount ?? 0,
+      monthlyLimit,
+      remaining,
+      startOfMonth: startOfMonthUTC.toISOString()
+    });
     
     res.json({
       tier,
