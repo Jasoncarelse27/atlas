@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
+import { BookOpen, Brain, Heart, Lightbulb, LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -19,8 +19,8 @@ import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
 import { messageService } from '../features/chat/services/messageService';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
-import { useTierQuery } from '../hooks/useTierQuery'; // 🔥 Use modern tier hook
 import { useThemeMode } from '../hooks/useThemeMode'; // ✅ Theme support
+import { useTierQuery } from '../hooks/useTierQuery'; // 🔥 Use modern tier hook
 import { logger } from '../lib/logger';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
@@ -32,15 +32,16 @@ import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
 import { ConversationHistoryDrawer } from '../components/ConversationHistoryDrawer';
+import { PWAInstallPrompt } from '../components/PWAInstallPrompt'; // ✅ PWA: Install prompt for mobile users
 import { SearchDrawer } from '../components/SearchDrawer';
 import InsightsWidget from '../components/sidebar/InsightsWidget';
 import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
-import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
-import { PWAInstallPrompt } from '../components/PWAInstallPrompt'; // ✅ PWA: Install prompt for mobile users
+import { useBrowserUI } from '../hooks/useBrowserUI'; // ✅ MOBILE: Browser UI detection
+import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 
 interface ChatPageProps {
   user?: { id: string; email?: string };
@@ -50,6 +51,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
   useAndroidBackButton();
   const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
+  const { toolbarHeight } = useBrowserUI(); // ✅ MOBILE: Detect browser UI height
   const navigate = useNavigate();
   const {
     voiceModalVisible,
@@ -97,6 +99,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Removed duplicate useMessageStore - using usePersistentMessages as single source of truth
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // ✅ CRITICAL FIX: Declare refs BEFORE they're used in useEffect
+  const isProcessingRef = useRef(false);
+  const lastMessageRef = useRef<string>('');
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Memory integration
   useMemoryIntegration({ userId: userId || undefined });
 
@@ -108,14 +115,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // ✅ ENTERPRISE: Real-time conversation deletion listener (clean, reliable)
   useRealtimeConversations(userId || undefined);
-
-  // Handle history modal from QuickActions
-  // ✅ TYPESCRIPT FIX: Use proper type instead of any[]
-  const handleViewHistory = (data: HistoryModalData) => {
-    setHistoryData(data);
-    setShowHistory(true);
-    setSidebarOpen(false); // ✅ Close main sidebar when opening history
-  };
 
   // ✅ PHASE 2: Messages state - only updated by loadMessages (from Dexie)
   const [messages, setMessages] = useState<Message[]>([]);
@@ -129,6 +128,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const messageLoadCache = useRef(new Map<string, { timestamp: number; promise: Promise<Message[]> }>()).current;
   
   // ✅ PHASE 2: Load messages from Dexie (read-only, single source of truth)
+  // ✅ CRITICAL FIX: Declare loadMessages BEFORE useEffect that uses it
   const loadMessages = useCallback(async (conversationId: string) => {
     const startTime = performance.now();
     try {
@@ -202,6 +202,62 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   }, [userId]); // ✅ MOBILE FIX: Add userId dependency to ensure proper filtering
 
+  // ✅ CRITICAL FIX: Listen for new messages from real-time (mobile-safe)
+  useEffect(() => {
+    if (!conversationId || typeof window === 'undefined') return;
+
+    const handleNewMessage = async (event: CustomEvent) => {
+      const { message, conversationId: msgConversationId } = event.detail;
+      
+      // Only handle messages for current conversation
+      if (msgConversationId !== conversationId) return;
+      
+      logger.debug('[ChatPage] 📨 New message received via real-time:', {
+        id: message.id,
+        role: message.role,
+        conversationId: msgConversationId,
+        isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      });
+      
+      // Clear fallback timer if it exists
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      
+      // ✅ MOBILE SAFETY: Use requestAnimationFrame to ensure UI updates even if page was backgrounded
+      requestAnimationFrame(async () => {
+        try {
+          // Reload messages to show the new one
+          await loadMessages(conversationId);
+          
+          // Clear typing/streaming indicators
+          setIsTyping(false);
+          setIsStreaming(false);
+          isProcessingRef.current = false;
+        } catch (error) {
+          logger.error('[ChatPage] Error handling new message:', error);
+        }
+      });
+    };
+    
+    window.addEventListener('newMessageReceived', handleNewMessage as EventListener);
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('newMessageReceived', handleNewMessage as EventListener);
+      }
+    };
+  }, [conversationId, loadMessages]);
+
+  // Handle history modal from QuickActions
+  // ✅ TYPESCRIPT FIX: Use proper type instead of any[]
+  const handleViewHistory = (data: HistoryModalData) => {
+    setHistoryData(data);
+    setShowHistory(true);
+    setSidebarOpen(false); // ✅ Close main sidebar when opening history
+  };
+
   // Messages container ref for scroll detection
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
@@ -256,11 +312,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // Placeholder variables for components that need them
   const isProcessing = isTyping;
-
-  // Guard to prevent duplicate calls using ref (immediate, no state update delay)
-  const isProcessingRef = useRef(false);
-  const lastMessageRef = useRef<string>('');
-  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // ✅ OPTIMISTIC UPDATES: Show user message instantly for ChatGPT-like experience
   const handleTextMessage = async (text: string) => {
@@ -420,9 +471,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
       }
       
-      // ✅ BULLETPROOF FALLBACK: If realtime fails, fetch directly from Supabase after 2s
+      // ✅ BULLETPROOF FALLBACK: If realtime fails, fetch directly from Supabase (mobile-safe)
+      // ✅ MOBILE FIX: Increased timeout to 3s for slower mobile connections
+      const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const fallbackDelay = isMobile ? 3000 : 2000; // 3s on mobile, 2s on desktop
+      
       fallbackTimerRef.current = setTimeout(async () => {
-        logger.warn('[ChatPage] ⚠️ Real-time not received after 2s, fetching from Supabase');
+        logger.warn(`[ChatPage] ⚠️ Real-time not received after ${fallbackDelay}ms${isMobile ? ' (Mobile)' : ''}, fetching from Supabase`);
+        
+        // ✅ MOBILE SAFETY: Check if timer was cleared (real-time might have worked)
+        // Note: We can't check fallbackTimerRef.current here because setTimeout already fired
+        // But we can check if messages were already loaded
         
         // Fetch latest 10 messages from Supabase
         const { data: latestMessages, error } = await supabase
@@ -470,7 +529,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         await loadMessages(conversationId);
         setIsTyping(false);
         setIsStreaming(false);
-      }, 2000); // ✅ 2-second fallback ensures messages always appear
+        isProcessingRef.current = false;
+      }, fallbackDelay); // ✅ Mobile-safe fallback delay
       
       // Keep typing indicator active until real-time listener receives response
       
@@ -765,24 +825,61 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   }, []);
 
   // ✅ PHASE 2B: Keyboard shortcut for search (Cmd+K / Ctrl+K)
+  // ✅ BEST PRACTICE: Comprehensive keyboard navigation (WCAG 2.1 Level AA)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      // Don't handle shortcuts when user is typing in input
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Cmd+K / Ctrl+K → Open search (industry standard - ChatGPT, Slack, Discord)
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setShowSearch(true);
         logger.debug('[ChatPage] 🔍 Search opened via keyboard shortcut');
       }
 
-      // Escape to close search
-      if (e.key === 'Escape' && showSearch) {
-        setShowSearch(false);
+      // Cmd+N / Ctrl+N → New conversation (industry standard)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        const newConversationId = generateUUID();
+        window.history.pushState({ conversationId: newConversationId }, '', `/chat?conversation=${newConversationId}`);
+        window.dispatchEvent(new PopStateEvent('popstate', { state: { conversationId: newConversationId } }));
+        logger.debug('[ChatPage] 💬 New conversation created via keyboard shortcut');
+      }
+
+      // Escape → Close modals/sidebar (WCAG 2.4.3 - Focus Order)
+      if (e.key === 'Escape') {
+        if (sidebarOpen) {
+          setSidebarOpen(false);
+          logger.debug('[ChatPage] 🚪 Sidebar closed via Escape');
+        }
+        if (showSearch) {
+          setShowSearch(false);
+          logger.debug('[ChatPage] 🔍 Search closed via Escape');
+        }
+        if (showHistory) {
+          setShowHistory(false);
+          logger.debug('[ChatPage] 📜 History closed via Escape');
+        }
+        if (showProfile) {
+          setShowProfile(false);
+          logger.debug('[ChatPage] 👤 Profile closed via Escape');
+        }
+      }
+
+      // Cmd+/ or Ctrl+/ → Show keyboard shortcuts help
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+        e.preventDefault();
+        toast.info('Keyboard shortcuts: Cmd+K (Search), Cmd+N (New chat), Esc (Close)', { duration: 3000 });
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showSearch]);
+  }, [sidebarOpen, showSearch, showHistory, showProfile]);
 
   // ✅ PHASE 2: Real-time listener as SINGLE SOURCE OF TRUTH
   useEffect(() => {
@@ -1222,13 +1319,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-atlas-pearl'}`}>
         {/* Header Skeleton - White gradient effect (visible fade) */}
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
             background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--atlas-surface)',
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
             borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
@@ -1366,13 +1463,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
+      <div 
+        className="min-h-screen bg-atlas-pearl text-gray-900"
+        style={{
+          // ✅ FIX: Use consistent 100dvh to prevent layout jumps
+          minHeight: '100dvh',
+          height: '100dvh', // Fixed height prevents jumps when browser UI changes
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          backgroundColor: 'var(--atlas-pearl)', // ✅ ALWAYS PEARL: Ensure background is always pearl white
+          // ✅ FIX: Prevent layout shifts from browser UI
+          overflow: 'hidden', // Prevent scroll on container
+        }}
+      >
         {/* Header - White gradient effect (visible fade) */}
         <div 
           className={`sticky top-0 z-30 transition-all duration-300`}
           style={{ 
             background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--atlas-surface)',
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
             borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
@@ -1389,8 +1497,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <Menu className="w-5 h-5 text-atlas-stone" />
                 </button>
                 <div>
-                  <h1 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`} style={{ color: '#000000', fontWeight: 700 }}>Atlas AI</h1>
-                  <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm sm:text-base hidden sm:block`}>Your emotionally intelligent AI assistant</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-atlas-text-dark" style={{ fontWeight: 700 }}>Atlas AI</h1>
+                  <p className="text-gray-600 text-sm sm:text-base hidden sm:block">Your emotionally intelligent AI assistant</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
@@ -1424,19 +1532,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 onClick={() => setSidebarOpen(false)}
               />
               
-              {/* Sidebar */}
+              {/* Sidebar - ✅ RESPONSIVE: Full width on mobile, fixed width on desktop */}
               <motion.div
                 initial={{ x: -320 }}
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 h-full w-80 bg-atlas-pearl border-r border-atlas-border z-50 overflow-y-auto shadow-xl"
+                className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl border-r border-atlas-border z-50 overflow-y-auto shadow-xl"
               >
-                <div className="p-4 space-y-6">
+                <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
                   {/* Header with Profile and Close Buttons */}
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-atlas-text-dark">Menu</h2>
-                    <div className="flex items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-semibold text-atlas-text-dark">Menu</h2>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <button
                         onClick={() => setShowProfile(true)}
                         className="p-2 rounded-xl bg-atlas-button hover:bg-atlas-button-hover transition-colors"
@@ -1514,7 +1622,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {/* Chat Container - ✅ WCAG AA: Semantic <main> landmark */}
         <main 
           id="main-chat"
-          className="flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-80px)]"
+          className="flex flex-col bg-atlas-pearl"
+          style={{
+            // ✅ FIX: Use dvh consistently to prevent jumps
+            height: 'calc(100dvh - 120px)', // Account for header height
+            maxHeight: 'calc(100dvh - 120px)',
+            overflow: 'hidden', // Prevent container scroll
+          }}
           aria-label="Chat conversation"
           onClick={(e) => {
             // 📱 ChatGPT-like behavior: dismiss keyboard when clicking outside input
@@ -1532,10 +1646,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           {/* Messages */}
           <div 
             ref={messagesContainerRef} 
-            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-white"
+            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-atlas-pearl"
             role="log"
             aria-live="polite"
             aria-label="Message list"
+            style={{
+              // ✅ FIX: Ensure proper scrolling with dvh
+              minHeight: 0, // Allow flex child to shrink
+              WebkitOverflowScrolling: 'touch', // Smooth iOS scrolling
+            }}
             onScroll={() => {
               // 📱 Dismiss keyboard when scrolling (ChatGPT-like behavior)
               if (inputRef.current) {
@@ -1543,7 +1662,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               }
             }}
           >
-            <div className="max-w-4xl mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <div className="max-w-4xl mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(16px, 4vw, 32px)' }}>
               
               <MessageListWithPreviews>
                 {(() => {
@@ -1595,62 +1714,67 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       </>
                     );
                   } else {
+                    // ✅ MODERN: Web-style empty state matching reference design with Atlas branding
                     return (
-                      <div className="space-y-4">
-                        <div className="flex justify-center items-center h-32">
-                          <div className="text-center text-gray-400">
-                            <div className="mb-4">
-                              <img 
-                                src="/atlas-logo.png" 
-                                alt="Atlas AI" 
-                                className="w-16 h-16 mx-auto object-contain"
-                              />
-                            </div>
-                            <h2 className="text-xl font-semibold mb-2">Welcome to Atlas AI</h2>
-                            <p className="text-sm">Your emotionally intelligent AI assistant is ready to help.</p>
-                            <p className="text-xs mt-2 text-gray-500">Start a conversation below!</p>
-                          </div>
+                      <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center min-h-[60vh] sm:min-h-[400px]">
+                        {/* Atlas Logo - Same as web version */}
+                        <div className="mb-8 sm:mb-10">
+                          <img
+                            src="/atlas-logo.png"
+                            alt="Atlas AI Logo"
+                            className="mx-auto h-24 w-24 sm:h-32 sm:w-32"
+                          />
                         </div>
                         
+                        {/* Welcome heading - Atlas text-dark color */}
+                        <h2 className="text-3xl sm:text-4xl font-bold text-atlas-text-dark mb-3 sm:mb-4" style={{ fontWeight: 700 }}>
+                          Welcome to Atlas AI
+                        </h2>
+                        
+                        {/* Description - Atlas text-medium color */}
+                        <p className="text-base sm:text-lg text-atlas-text-medium mb-4 sm:mb-6 max-w-md mx-auto leading-relaxed">
+                          Your emotionally intelligent AI assistant is ready to help.
+                        </p>
+                        
+                        {/* Call to action - Atlas text-muted color */}
+                        <p className="text-sm sm:text-base text-atlas-text-muted mb-8 sm:mb-10 max-w-sm mx-auto">
+                          Start a conversation below!
+                        </p>
                       </div>
                     );
                   }
                 })()}
               </MessageListWithPreviews>
               
-              
               {/* Scroll anchor */}
               <div ref={bottomRef} />
             </div>
           </div>
 
-        {/* Footer - ✅ WHITE GRADIENT TRANSPARENT APPROACH (restored) */}
-        {/* ✅ PROFESSIONAL FINISH: Minimal breathing room at bottom with polished spacing */}
+        {/* ✅ FLOATING CONTAINER: Transparent background so chatbox appears to float */}
         <div
-          className={`fixed bottom-0 left-0 right-0 z-30`}
+          className="fixed bottom-0 left-0 right-0 z-[10000]"
           style={{
-            paddingBottom: `calc(8px + env(safe-area-inset-bottom, 0px))`, // ✅ Professional 8px breathing room
-            paddingTop: '12px', // ✅ Balanced top spacing
-            // ✅ WHITE GRADIENT TRANSPARENT: Smooth fade from solid at bottom to transparent at top
-            background: 'linear-gradient(to top, rgba(249, 246, 243, 1) 0%, rgba(249, 246, 243, 0.95) 25%, rgba(249, 246, 243, 0.85) 50%, rgba(249, 246, 243, 0.7) 75%, rgba(249, 246, 243, 0) 100%)',
-            backgroundColor: 'rgba(249, 246, 243, 0)', // ✅ Transparent base for gradient overlay
-            backdropFilter: 'blur(12px)', // ✅ Professional subtle blur for depth
-            WebkitBackdropFilter: 'blur(12px)',
-            borderTop: 'none',
+            // ✅ FIX: Simple safe-area padding - prevents Safari jump
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
+            paddingTop: '12px', // ✅ Mobile-optimized spacing
+            paddingLeft: 'max(8px, env(safe-area-inset-left, 0px))', // ✅ Mobile: 8px, Desktop: safe area
+            paddingRight: 'max(8px, env(safe-area-inset-right, 0px))', // ✅ Mobile: 8px, Desktop: safe area
+            backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
           }}
         >
-            <div className="max-w-4xl mx-auto">
-              <EnhancedInputToolbar
-                onSendMessage={handleTextMessage}
-                isProcessing={isProcessing}
-                placeholder="Ask Atlas anything..."
-                conversationId={conversationId || undefined}
-                inputRef={inputRef}
-                isStreaming={isStreaming}
-                addMessage={addMessage}
-              />
-            </div>
-          </div>
+          <EnhancedInputToolbar
+            onSendMessage={handleTextMessage}
+            isProcessing={isProcessing}
+            placeholder="Ask Atlas anything..."
+            conversationId={conversationId || undefined}
+            inputRef={inputRef}
+            isStreaming={isStreaming}
+            addMessage={addMessage}
+          />
+        </div>
         </main>
 
         {/* Modern scroll-to-bottom button with golden sparkle */}
