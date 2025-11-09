@@ -491,39 +491,40 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         
         // ✅ FIX: Check for monthly limit error (multiple formats)
         const errorLower = error.message.toLowerCase();
-        if (errorLower.includes('monthly limit') || 
+        const isMonthlyLimit = errorLower.includes('monthly limit') || 
             errorLower.includes('monthly_limit') ||
-            error.message === 'MONTHLY_LIMIT_REACHED') {
+            error.message === 'MONTHLY_LIMIT_REACHED' ||
+            errorLower.includes('monthly limit reached');
+            
+        if (isMonthlyLimit) {
           logger.warn('[ChatPage] ⚠️ Monthly limit reached - showing upgrade modal');
           
-          // ✅ CRITICAL: Show toast notification immediately (use setTimeout to ensure DOM is ready)
-          setTimeout(() => {
-            try {
-              toast.error('Monthly message limit reached. Upgrade to continue!', {
-                duration: 5000,
-                icon: '⚠️'
-              });
-            } catch (toastError) {
-              logger.error('[ChatPage] Failed to show toast:', toastError);
-              // Fallback: Use alert if toast fails
-              alert('Monthly message limit reached. Please upgrade to continue.');
-            }
-          }, 0);
+          // ✅ CRITICAL: Show toast notification immediately (synchronous, no setTimeout)
+          try {
+            toast.error('Monthly message limit reached. Upgrade to continue!', {
+              duration: 5000,
+              icon: '⚠️'
+            });
+            logger.debug('[ChatPage] ✅ Toast shown for monthly limit');
+          } catch (toastError) {
+            logger.error('[ChatPage] Failed to show toast:', toastError);
+            // Fallback: Use alert if toast fails
+            alert('Monthly message limit reached. Please upgrade to continue.');
+          }
           
-          // Show upgrade modal
+          // Show upgrade modal immediately
           setCurrentUsage(15);
           setLimit(15);
           setUpgradeReason('monthly message limit');
           setUpgradeModalVisible(true);
           
           // Also trigger context modal for consistency
-          setTimeout(() => {
-            try {
-              showGenericUpgrade('monthly_limit');
-            } catch (modalError) {
-              logger.error('[ChatPage] Failed to show upgrade modal:', modalError);
-            }
-          }, 100);
+          try {
+            showGenericUpgrade('monthly_limit');
+            logger.debug('[ChatPage] ✅ Upgrade modal triggered');
+          } catch (modalError) {
+            logger.error('[ChatPage] Failed to show upgrade modal:', modalError);
+          }
           return;
         }
         

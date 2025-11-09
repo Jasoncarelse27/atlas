@@ -62,11 +62,8 @@ export function PWAInstallPrompt() {
       return;
     }
 
-    // ✅ DESKTOP: Desktop tooltip is handled separately in render
-    // Mobile prompt logic below only runs on mobile devices
-    if (!isMobile) {
-      return;
-    }
+    // ✅ DESKTOP & MOBILE: Listen for beforeinstallprompt on all devices
+    // Desktop browsers (Chrome/Edge) also support PWA install
 
     // Check if user dismissed before
     const dismissed = localStorage.getItem('pwa-install-dismissed');
@@ -113,13 +110,33 @@ export function PWAInstallPrompt() {
       return () => clearTimeout(timer);
     }
 
-    // Android: Listen for install prompt
+    // ✅ DESKTOP & MOBILE: Listen for install prompt on all platforms
+    // Chrome/Edge desktop and Android mobile both support beforeinstallprompt
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // Desktop: Show prompt after delay (beforeinstallprompt may not fire immediately)
+    if (!isMobile && !isIOSDevice) {
+      const desktopTimer = setTimeout(() => {
+        setShowPrompt(true);
+        logger.debug('[PWAInstallPrompt] Desktop - showing install prompt');
+        
+        // ✅ ANALYTICS: Track impression when prompt is shown
+        if (!hasTrackedImpression) {
+          trackPWAEvent('pwa_install_prompt_shown');
+          setHasTrackedImpression(true);
+        }
+      }, 5000); // Show after 5 seconds on desktop
+      
+      return () => {
+        clearTimeout(desktopTimer);
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      };
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [isMobile, isPWA]);
+  }, [isMobile, isPWA, hasTrackedImpression]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
@@ -263,19 +280,20 @@ export function PWAInstallPrompt() {
                   Install Now
                 </button>
               )}
-              {/* Desktop: Show install button even if beforeinstallprompt hasn't fired yet */}
-              {!isMobile && canInstall && !deferredPrompt && (
+              {/* Desktop: Show install button only when beforeinstallprompt is available */}
+              {!isMobile && canInstall && deferredPrompt && (
                 <button
-                  onClick={() => {
-                    // Try to trigger browser's install prompt
-                    // On Chrome/Edge, this will show the native install dialog
-                    logger.debug('[PWAInstallPrompt] Desktop install clicked - browser will handle');
-                    // The browser will show its own install prompt
-                  }}
+                  onClick={handleInstall}
                   className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
                 >
                   Install Atlas
                 </button>
+              )}
+              {/* Desktop: Show message if install not yet available */}
+              {!isMobile && canInstall && !deferredPrompt && (
+                <div className="flex-1 text-sm text-gray-600 py-2.5 px-4 text-center">
+                  Install option will appear soon
+                </div>
               )}
               {/* iOS: Show "Learn More" button that scrolls to instructions */}
               {isIOS && (
