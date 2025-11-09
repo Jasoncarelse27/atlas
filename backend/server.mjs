@@ -19,11 +19,11 @@ import { logger } from './lib/simpleLogger.mjs';
 import authMiddleware from './middleware/authMiddleware.mjs';
 import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
 import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
-import { messageRateLimit, imageAnalysisRateLimit } from './middleware/rateLimitMiddleware.mjs';
+import { imageAnalysisRateLimit, messageRateLimit } from './middleware/rateLimitMiddleware.mjs';
+import { budgetCeilingService } from './services/budgetCeilingService.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
-import { budgetCeilingService } from './services/budgetCeilingService.mjs';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -1611,7 +1611,14 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
         
         if (countErr) {
           logger.error('[Server] Error counting messages:', countErr.message || countErr);
-          // Don't block on count error - allow message through
+          // ✅ SECURITY FIX: Fail-closed - block message if we can't verify limit
+          return res.status(429).json({
+            error: 'Unable to verify message limit. Please try again in a moment.',
+            upgrade_required: true,
+            tier: effectiveTier,
+            limits: { monthly_messages: 15 },
+            current_count: 0
+          });
         } else if ((monthlyCount ?? 0) >= 15) {
           logger.warn('[Message] Monthly limit reached:', {
             userId,
@@ -1628,7 +1635,14 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
         }
       } catch (error) {
         logger.error('[Server] Monthly limit check exception:', error.message);
-        // Continue without limit check in case of error
+        // ✅ SECURITY FIX: Fail-closed - block message if limit check fails
+        return res.status(429).json({
+          error: 'Unable to verify message limit. Please try again in a moment.',
+          upgrade_required: true,
+          tier: effectiveTier,
+          limits: { monthly_messages: 15 },
+          current_count: 0
+        });
       }
     } else if (effectiveTier === 'studio' || effectiveTier === 'core') {
       logger.debug(`[Server] ${effectiveTier} tier - unlimited messages`);

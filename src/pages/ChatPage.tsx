@@ -57,6 +57,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     genericModalVisible,
     hideGenericUpgrade,
     genericModalFeature,
+    showGenericUpgrade,
   } = useUpgradeModals();
   
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -466,8 +467,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         fallbackTimerRef.current = null;
       }
       
-      // ✅ ROLLBACK: Remove optimistic message on error
-      setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
+      // ✅ ROLLBACK: Remove optimistic message on error (remove the last user message that failed)
+      setMessages(prev => {
+        // Find and remove the last user message with 'sending' status (the one that just failed)
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].role === 'user' && prev[i].status === 'sending') {
+            return prev.filter((_, index) => index !== i);
+          }
+        }
+        return prev;
+      });
       logger.debug('[ChatPage] ⚠️ Rolled back optimistic message due to error');
       
       setIsTyping(false);
@@ -480,13 +489,60 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           return;
         }
         
-        if (error.message === 'MONTHLY_LIMIT_REACHED') {
+        // ✅ FIX: Check for monthly limit error (multiple formats)
+        const errorLower = error.message.toLowerCase();
+        if (errorLower.includes('monthly limit') || 
+            errorLower.includes('monthly_limit') ||
+            error.message === 'MONTHLY_LIMIT_REACHED') {
+          logger.warn('[ChatPage] ⚠️ Monthly limit reached - showing upgrade modal');
+          
+          // ✅ CRITICAL: Show toast notification immediately
+          try {
+            toast.error('Monthly message limit reached. Upgrade to continue!', {
+              duration: 5000,
+              icon: '⚠️'
+            });
+          } catch (toastError) {
+            logger.error('[ChatPage] Failed to show toast:', toastError);
+            // Fallback: Use alert if toast fails
+            alert('Monthly message limit reached. Please upgrade to continue.');
+          }
+          
+          // Show upgrade modal
           setCurrentUsage(15);
           setLimit(15);
           setUpgradeReason('monthly message limit');
           setUpgradeModalVisible(true);
+          
+          // Also trigger context modal for consistency
+          try {
+            showGenericUpgrade('monthly_limit');
+          } catch (modalError) {
+            logger.error('[ChatPage] Failed to show upgrade modal:', modalError);
+          }
           return;
         }
+        
+        // ✅ FIX: Check for daily limit error
+        if (errorLower.includes('daily limit') || 
+            errorLower.includes('daily_limit') ||
+            error.message === 'DAILY_LIMIT_REACHED') {
+          logger.warn('[ChatPage] ⚠️ Daily limit reached - showing upgrade modal');
+          toast.error('Daily message limit reached. Upgrade to continue!', {
+            duration: 5000,
+            icon: '⚠️'
+          });
+          showGenericUpgrade('daily_limit');
+          return;
+        }
+        
+        // ✅ FIX: Generic error feedback
+        const errorMessage = error.message || 'Failed to send message';
+        toast.error(errorMessage.includes('Backend error:') 
+          ? errorMessage.replace('Backend error: ', '') 
+          : errorMessage, {
+          duration: 5000
+        });
       }
     } finally {
       isProcessingRef.current = false;

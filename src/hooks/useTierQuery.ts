@@ -172,8 +172,10 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 
     const tier = data?.subscription_tier || 'free';
     
-    // ✅ MOBILE FIX: Log tier fetch for debugging
-    logger.info(`[useTierQuery] ✅ Fetched tier from database: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
+    // ✅ PERFORMANCE FIX: Only log tier fetch in dev mode (reduce console spam)
+    if (import.meta.env.DEV) {
+      logger.debug(`[useTierQuery] ✅ Fetched tier from database: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
+    }
     
     const result = {
       tier,
@@ -234,9 +236,9 @@ export function useTierQuery() {
   const query = useQuery({
     queryKey: ['user-tier'],
     queryFn: fetchTier,
-    staleTime: 1 * 60 * 1000, // ✅ MOBILE FIX: Reduce stale time to 1 minute (was 5 minutes) - catch tier changes faster
+    staleTime: 5 * 60 * 1000, // ✅ PERFORMANCE FIX: Increase stale time to 5 minutes (tier doesn't change often)
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes (formerly cacheTime)
-    refetchOnWindowFocus: true, // ✅ MOBILE FIX: Re-enable refetch on focus to catch tier changes
+    refetchOnWindowFocus: false, // ✅ PERFORMANCE FIX: Disable refetch on focus (reduces excessive queries, realtime handles updates)
     refetchOnReconnect: true, // Auto-refetch on network restore
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
@@ -254,12 +256,12 @@ export function useTierQuery() {
     },
   });
 
-  // Log tier only when it changes (reduce console spam)
+  // ✅ PERFORMANCE FIX: Only log tier changes in dev mode (reduce console spam)
   useEffect(() => {
-    if (query.data?.tier) {
+    if (query.data?.tier && import.meta.env.DEV) {
       const prevTier = queryClient.getQueryData<TierData>(['user-tier'])?.tier;
       if (prevTier !== query.data.tier) {
-        logger.debug(`[useTierQuery] ✅ Tier: ${query.data.tier} for user ${query.data.userId?.slice(0, 8)}...`);
+        logger.debug(`[useTierQuery] ✅ Tier changed: ${prevTier} → ${query.data.tier} for user ${query.data.userId?.slice(0, 8)}...`);
       }
     }
   }, [query.data?.tier, queryClient]);

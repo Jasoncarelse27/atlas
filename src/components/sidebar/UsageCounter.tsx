@@ -90,9 +90,11 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
     return () => clearInterval(interval);
   }, [actualUserId, tier]);
   
-  const messageCount = usage?.monthlyCount ?? 0;
+  // ✅ PROFESSIONAL FIX: Cap display at limit maximum (never show 62/15, show 15/15 instead)
+  const rawCount = usage?.monthlyCount ?? 0;
   const maxMessages = usage?.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
-  const remainingMessages = usage?.remaining ?? (hasUnlimitedMessages(tier) ? -1 : 15 - messageCount);
+  const messageCount = maxMessages === -1 ? rawCount : Math.min(rawCount, maxMessages); // Cap at limit
+  const remainingMessages = usage?.remaining ?? (hasUnlimitedMessages(tier) ? -1 : Math.max(0, maxMessages - messageCount));
   const isUnlimited = usage?.isUnlimited ?? hasUnlimitedMessages(tier);
 
   return (
@@ -121,18 +123,27 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-[#8B7E74]">Messages This Month</span>
-            <span className="text-[#5A524A] font-medium">{messageCount} / {maxMessages}</span>
+            <span className={`font-medium ${messageCount >= maxMessages ? 'text-red-600' : 'text-[#5A524A]'}`}>
+              {messageCount} / {maxMessages}
+            </span>
           </div>
           
           <div className="w-full bg-[#E8DDD2] rounded-full h-2">
             <div 
-              className="bg-[#F3B562] h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(messageCount / maxMessages) * 100}%` }}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                messageCount >= maxMessages ? 'bg-red-500' : 'bg-[#F3B562]'
+              }`}
+              style={{ width: `${Math.min(100, (messageCount / maxMessages) * 100)}%` }}
             />
           </div>
           
-          <p className="text-[#8B7E74] text-xs text-center">
-            {remainingMessages} messages remaining this month
+          <p className={`text-xs text-center ${
+            messageCount >= maxMessages ? 'text-red-600 font-semibold' : 'text-[#8B7E74]'
+          }`}>
+            {messageCount >= maxMessages 
+              ? 'Limit reached - Upgrade to continue' 
+              : `${remainingMessages} messages remaining this month`
+            }
           </p>
           
           {remainingMessages <= 3 && (
