@@ -1041,6 +1041,52 @@ app.get('/api/status', (req, res) => {
 });
 
 // Usage log endpoint with service role
+// ✅ GET /api/usage - Get current user's monthly message count
+app.get('/api/usage', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const tier = req.user.tier || 'free';
+    
+    // ✅ Use UTC for start of month to match database timestamps
+    const now = new Date();
+    const startOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+    
+    // Count messages this month
+    const { count: monthlyCount, error: countErr } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('role', 'user')
+      .gte('created_at', startOfMonthUTC.toISOString());
+    
+    if (countErr) {
+      logger.error('[Usage] Error counting messages:', countErr.message);
+      return res.status(500).json({ 
+        error: 'Failed to fetch usage',
+        monthlyCount: 0 
+      });
+    }
+    
+    const monthlyLimit = tier === 'free' ? 15 : -1; // -1 = unlimited
+    const remaining = monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - (monthlyCount ?? 0));
+    
+    res.json({
+      tier,
+      monthlyCount: monthlyCount ?? 0,
+      monthlyLimit,
+      remaining,
+      isUnlimited: monthlyLimit === -1,
+      startOfMonth: startOfMonthUTC.toISOString()
+    });
+  } catch (error) {
+    logger.error('[Usage] Error:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to fetch usage',
+      monthlyCount: 0 
+    });
+  }
+});
+
 app.post('/api/usage-log', verifyJWT, async (req, res) => {
   try {
     const { user_id, event, feature, estimated_cost, metadata } = req.body;
@@ -1523,27 +1569,44 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
     // Enforce Free tier monthly limit (15 messages/month) - Studio/Core unlimited
     if (effectiveTier === 'free' && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
+        // ✅ CRITICAL FIX: Use UTC for start of month to match database timestamps
+        const now = new Date();
+        const startOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+        
         const { count: monthlyCount, error: countErr } = await supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('role', 'user')
-          .gte('created_at', startOfMonth.toISOString());
+          .gte('created_at', startOfMonthUTC.toISOString());
+        
+        // ✅ DEBUG: Log the count for troubleshooting
+        logger.info('[Message] Monthly limit check:', {
+          userId,
+          monthlyCount: monthlyCount ?? 0,
+          startOfMonthUTC: startOfMonthUTC.toISOString(),
+          error: countErr?.message
+        });
+        
         if (countErr) {
           logger.error('[Server] Error counting messages:', countErr.message || countErr);
-        }
-        if ((monthlyCount ?? 0) >= 15) {
+          // Don't block on count error - allow message through
+        } else if ((monthlyCount ?? 0) >= 15) {
+          logger.warn('[Message] Monthly limit reached:', {
+            userId,
+            monthlyCount,
+            limit: 15
+          });
           return res.status(429).json({
             error: 'Monthly limit reached for Free tier',
             upgrade_required: true,
             tier: effectiveTier,
-            limits: { monthly_messages: 15 }
+            limits: { monthly_messages: 15 },
+            current_count: monthlyCount
           });
         }
       } catch (error) {
+        logger.error('[Server] Monthly limit check exception:', error.message);
         // Continue without limit check in case of error
       }
     } else if (effectiveTier === 'studio' || effectiveTier === 'core') {

@@ -1,26 +1,76 @@
 import { Crown } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { hasUnlimitedMessages } from '../../config/featureAccess';
 import { getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/useTierQuery';
 import { UpgradeButton } from '../UpgradeButton';
+import { fetchWithAuthJSON } from '../../services/fetchWithAuth';
+import { logger } from '../../lib/logger';
 
 interface UsageCounterProps {
   userId?: string;
 }
 
+interface UsageData {
+  tier: string;
+  monthlyCount: number;
+  monthlyLimit: number;
+  remaining: number;
+  isUnlimited: boolean;
+}
+
 export default function UsageCounter({ userId }: UsageCounterProps) {
   // 🚀 Modern tier management with React Query + Realtime
   const { tier, isLoading } = useTierQuery();
-
-  // ✅ PERFORMANCE FIX: Don't show loading state - use placeholderData instead
-  // This prevents slow drawer opening. Tier will update instantly when loaded.
-  // The placeholderData ensures we always have a tier value (defaults to 'free')
   
-  // ✅ Usage tracking: Shows 0 until usage API is implemented
-  // This is a display-only component; actual enforcement happens in useTierAccess
-  const messageCount = 0; // Shows 0 messages used (enforcement happens server-side)
-  const maxMessages = hasUnlimitedMessages(tier) ? -1 : 15;
-  const remainingMessages = hasUnlimitedMessages(tier) ? 0 : 15 - messageCount;
-  const isUnlimited = hasUnlimitedMessages(tier);
+  // ✅ FIX: Fetch actual monthly message count from backend
+  const [usage, setUsage] = useState<UsageData | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(true);
+  
+  useEffect(() => {
+    const fetchUsage = async () => {
+      if (!userId) {
+        setLoadingUsage(false);
+        return;
+      }
+      
+      try {
+        setLoadingUsage(true);
+        const API_URL = import.meta.env.VITE_API_URL || '';
+        const usageData = await fetchWithAuthJSON(`${API_URL}/api/usage`);
+        
+        setUsage({
+          tier: usageData.tier || tier,
+          monthlyCount: usageData.monthlyCount || 0,
+          monthlyLimit: usageData.monthlyLimit || 15,
+          remaining: usageData.remaining ?? (usageData.monthlyLimit === -1 ? -1 : Math.max(0, (usageData.monthlyLimit || 15) - (usageData.monthlyCount || 0))),
+          isUnlimited: usageData.isUnlimited || false
+        });
+      } catch (error) {
+        logger.error('[UsageCounter] Failed to fetch usage:', error);
+        // Fallback to showing 0 if fetch fails
+        setUsage({
+          tier,
+          monthlyCount: 0,
+          monthlyLimit: hasUnlimitedMessages(tier) ? -1 : 15,
+          remaining: hasUnlimitedMessages(tier) ? -1 : 15,
+          isUnlimited: hasUnlimitedMessages(tier)
+        });
+      } finally {
+        setLoadingUsage(false);
+      }
+    };
+    
+    fetchUsage();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUsage, 30000);
+    return () => clearInterval(interval);
+  }, [userId, tier]);
+  
+  const messageCount = usage?.monthlyCount ?? 0;
+  const maxMessages = usage?.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
+  const remainingMessages = usage?.remaining ?? (hasUnlimitedMessages(tier) ? -1 : 15 - messageCount);
+  const isUnlimited = usage?.isUnlimited ?? hasUnlimitedMessages(tier);
 
   return (
     <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
