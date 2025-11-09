@@ -501,19 +501,37 @@ function fixPunctuationSpacing(text) {
   // This catches most word concatenation issues
   fixed = fixed.replace(/([a-z])([A-Z])/g, '$1 $2');
   
-  // ✅ STEP 3: Fix specific common concatenations
+  // ✅ STEP 3: Fix missing spaces after punctuation (more comprehensive)
+  // Fix: word + punctuation + letter (catches "now.I", "be.Asyour", "anything.I'm")
+  fixed = fixed.replace(/([a-z])([!?.])([A-Za-z])/g, '$1$2 $3');
+  
+  // Fix: punctuation + any non-space character + letter (catches "you.✨ Inthe", "you.💪 Inthe")
+  // This handles emojis and other characters between punctuation and letters
+  fixed = fixed.replace(/([!?.])([^\s])([A-Za-z])/g, '$1$2 $3');
+  
+  // Fix: word + number (catches "Even10-15" → "Even 10-15")
+  fixed = fixed.replace(/([a-z])([0-9])/g, '$1 $2');
+  
+  // Fix: number + word (catches "10-15minutes" → "10-15 minutes")
+  fixed = fixed.replace(/([0-9])([a-z])/g, '$1 $2');
+  
+  // ✅ STEP 4: Fix specific common concatenations
   // Fix common words that get concatenated incorrectly
   const commonFixes = [
     { from: /Iremember/gi, to: 'I remember' },
     { from: /adance/gi, to: 'a dance' },
     { from: /Asyour/gi, to: 'As your' },
+    { from: /Sinceyou/gi, to: 'Since you' },
+    { from: /puttogether/gi, to: 'put together' },
     { from: /manydays/gi, to: 'many days' },
     { from: /Withthose/gi, to: 'With those' },
     { from: /Foryou/gi, to: 'For you' },
     { from: /Toyou/gi, to: 'To you' },
     { from: /Inyour/gi, to: 'In your' },
     { from: /Onyour/gi, to: 'On your' },
+    { from: /Inthe/gi, to: 'In the' },
     { from: /Howmany/gi, to: 'How many' },
+    { from: /Howdoes/gi, to: 'How does' },
     { from: /Whatare/gi, to: 'What are' },
     { from: /Whereare/gi, to: 'Where are' },
     { from: /Whenare/gi, to: 'When are' },
@@ -526,6 +544,7 @@ function fixPunctuationSpacing(text) {
     { from: /Shouldyou/gi, to: 'Should you' },
     { from: /Haveyou/gi, to: 'Have you' },
     { from: /Hasyou/gi, to: 'Has you' },
+    { from: /Pleaselet/gi, to: 'Please let' },
     { from: /Iam/gi, to: 'I am' },
     { from: /Ihave/gi, to: 'I have' },
     { from: /Iwill/gi, to: 'I will' },
@@ -540,10 +559,10 @@ function fixPunctuationSpacing(text) {
     fixed = fixed.replace(from, to);
   }
   
-  // ✅ STEP 4: Collapse multiple spaces back to single space
+  // ✅ STEP 5: Collapse multiple spaces back to single space
   fixed = fixed.replace(/\s{2,}/g, ' ');
   
-  // ✅ STEP 5: Trim and clean up
+  // ✅ STEP 6: Trim and clean up
   fixed = fixed.trim();
   
   return fixed;
