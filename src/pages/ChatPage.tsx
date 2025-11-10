@@ -1761,7 +1761,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               {!hasOpenModal && (
                 <div
                   className="
-                    fixed bottom-[60px] left-0 right-0 z-[10000]
+                    fixed bottom-[12px] left-0 right-0 z-[10000]
                     pt-3 pb-3 px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
                     sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0 sm:bottom-0
                   "

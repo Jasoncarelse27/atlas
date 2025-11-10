@@ -882,7 +882,7 @@ export default function EnhancedInputToolbar({
         className="
           unified-input-bar
           flex items-center w-full max-w-4xl mx-auto px-2 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 
-          rounded-t-2xl sm:rounded-[2rem]
+          rounded-[2rem] sm:rounded-[2rem]
           bg-white/70 backdrop-blur-md shadow-lg mb-0
           sm:bg-gradient-to-r sm:from-atlas-pearl sm:via-atlas-peach sm:to-atlas-pearl
           sm:backdrop-blur-0 sm:border-2 sm:border-atlas-sand sm:shadow-lg sm:mb-2
