@@ -3,18 +3,17 @@ import { CheckCircle2, Image, Loader2, Mic, Plus, Send, Square, X, XCircle } fro
 import React, { useEffect, useRef, useState } from 'react';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
-import type { Message } from '../../database/types';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useFeatureAccess, useTierAccess } from '../../hooks/useTierAccess';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import '../../styles/voice-animations.css';
+import type { Message } from '../../types/chat';
 // Removed useMessageStore import - using props from parent component
 import { logger } from '../../lib/logger';
 import { voiceService } from '../../services/voiceService';
-import { generateUUID } from '../../utils/uuid';
-import { ErrorBoundary } from '../ErrorBoundary';
-import AttachmentMenu from './AttachmentMenu';
 import { isAudioRecordingSupported } from '../../utils/audioHelpers';
+import { generateUUID } from '../../utils/uuid';
+import AttachmentMenu from './AttachmentMenu';
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -272,7 +271,7 @@ export default function EnhancedInputToolbar({
         // Update status to analyzing (more specific feedback)
         attachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
-            setUploadStatus(prev => ({ ...prev, [att.id]: 'analyzing' }));
+            setUploadStatus(prev => ({ ...prev, [att.id!]: 'processing' as const }));
           }
         });
         
@@ -296,7 +295,7 @@ export default function EnhancedInputToolbar({
         // Update status to success
         attachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
-            setUploadStatus(prev => ({ ...prev, [att.id]: 'success' }));
+            setUploadStatus(prev => ({ ...prev, [att.id!]: 'success' as const }));
           }
         });
         
@@ -314,7 +313,7 @@ export default function EnhancedInputToolbar({
         // Update status to error
         attachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
-            setUploadStatus(prev => ({ ...prev, [att.id]: 'error' }));
+            setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
           }
         });
         
@@ -676,10 +675,10 @@ export default function EnhancedInputToolbar({
         modernToast.error(errorMessage, guidance);
         // Show additional help link after a delay
         setTimeout(() => {
-          const helpToast = modernToast.info('Need Help?', 'Click for browser-specific instructions');
+          modernToast.info('Need Help?', 'Click for browser-specific instructions');
           // Make toast clickable
           setTimeout(() => {
-            const toastElement = document.querySelector('[data-sonner-toast]');
+            const toastElement = document.querySelector('[data-sonner-toast]') as HTMLElement | null;
             if (toastElement) {
               toastElement.style.cursor = 'pointer';
               toastElement.addEventListener('click', () => {
@@ -758,31 +757,16 @@ export default function EnhancedInputToolbar({
   // Click outside detection is handled by AttachmentMenu component
 
   return (
-    <div className="px-2 sm:px-4 pb-0" style={{ backgroundColor: '#F9F6F3' }}> {/* ✅ FIX: Atlas pearl background - removes black block */}
-      {/* Message Limit Warning - Temporarily disabled */}
-      {/* {false && (
-        <div className="mb-3 p-3 bg-red-900/30 border border-red-700/50 rounded-lg max-w-4xl mx-auto">
-          <p className="text-red-200 text-sm text-center">
-            ⚠️ Daily conversation limit reached. 
-            <button 
-              onClick={() => onShowUpgradeModal?.()}
-              className="ml-1 text-red-300 hover:text-red-100 underline"
-            >
-              Upgrade to continue
-            </button>
-          </p>
-        </div>
-      )} */}
-      
-      {/* ✅ Modernized Attachment Previews */}
+    <>
+      {/* ✅ BEST PRACTICE: Attachment Previews - Positioned above input, not constrained */}
       {attachmentPreviews.length > 0 && (
-        <div className="mb-3 max-w-4xl mx-auto">
+        <div className="mb-3 px-4 sm:px-6">
           {/* Subtle Hint */}
-          <div className="flex items-center gap-2 mb-2 px-1">
+          <div className="flex items-center gap-2 mb-2 px-1 max-w-4xl mx-auto">
             <span className="text-xs text-gray-400">Add an optional caption below</span>
           </div>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 max-w-4xl mx-auto">
             {attachmentPreviews.map((attachment) => {
               const status = uploadStatus[attachment.id] || 'uploading';
               return (
@@ -791,7 +775,7 @@ export default function EnhancedInputToolbar({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center justify-between rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-2 mt-2 transition-all max-w-[90vw]"
+                  className="flex items-center justify-between rounded-2xl bg-white/90 border border-atlas-sand/30 p-2 mt-2 transition-all max-w-[90vw]"
                 >
                   <div className="flex items-center space-x-3">
                     {attachment.type === 'image' && (
@@ -850,9 +834,9 @@ export default function EnhancedInputToolbar({
         </div>
       )}
       
-      {/* ✅ Single Loading Indicator - Only show during AI analysis, not during upload */}
+      {/* ✅ BEST PRACTICE: Loading Indicator - Fixed positioning relative to viewport */}
       {isUploading && attachmentPreviews.length === 0 && (
-        <div className="absolute bottom-14 left-0 right-0 flex justify-center z-50">
+        <div className="fixed bottom-24 left-0 right-0 flex justify-center z-50 px-4">
           <div className="flex items-center space-x-2 bg-neutral-900/90 rounded-full px-4 py-2 shadow-xl border border-white/20 backdrop-blur-sm">
             <Loader2 className="w-4 h-4 animate-spin text-white/90" />
             <span className="text-sm text-white/90 font-medium">Analyzing image...</span>
@@ -860,13 +844,13 @@ export default function EnhancedInputToolbar({
         </div>
       )}
       
-      {/* 🎙️ Recording Indicator - ChatGPT Style */}
+      {/* ✅ BEST PRACTICE: Recording Indicator - Fixed positioning relative to viewport */}
       {isListening && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
-          className="absolute bottom-14 left-0 right-0 flex justify-center z-50"
+          className="fixed bottom-24 left-0 right-0 flex justify-center z-50 px-4"
         >
           <div className="flex items-center space-x-3 bg-red-500/95 rounded-full px-5 py-3 shadow-2xl border border-red-400/50 backdrop-blur-sm">
             {/* Pulsing dot */}
@@ -892,23 +876,29 @@ export default function EnhancedInputToolbar({
         </motion.div>
       )}
       
-          {/* Main Input Container - Floating white card, no borders */}
-          {/* ✅ MOBILE BEST PRACTICE: items-center for proper vertical alignment on iOS/Android */}
-          <motion.div 
-            data-input-area
-            className="flex items-center w-full max-w-4xl mx-auto px-2 sm:px-3 py-2 rounded-2xl mb-6 overflow-x-hidden"
-            style={{
-              background: '#ffffff !important',
-              backgroundColor: '#ffffff !important',
-              backdropFilter: 'none !important',
-              WebkitBackdropFilter: 'none !important',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)'
-            }}
-          >
+      {/* ✅ UNIFIED INPUT BAR: Mobile floating overlay + Desktop static footer */}
+      <motion.div 
+        data-input-area
+        className="
+          unified-input-bar
+          flex items-center w-full max-w-4xl mx-auto px-2 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 
+          rounded-t-2xl sm:rounded-[2rem]
+          bg-white/70 backdrop-blur-md shadow-lg mb-0
+          sm:bg-gradient-to-r sm:from-atlas-pearl sm:via-atlas-peach sm:to-atlas-pearl
+          sm:backdrop-blur-0 sm:border-2 sm:border-atlas-sand sm:shadow-lg sm:mb-2
+        "
+        initial={{ y: 80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        style={{
+          gap: '8px', // ✅ BEST PRACTICE: Consistent gap between elements
+          transform: 'translateZ(0)', // ✅ GPU acceleration - prevents blur artifacts
+          willChange: 'transform' // ✅ Optimize for animations
+        }}
+      >
         
-        {/* + Attachment Button */}
-        <div className="relative">
+        {/* + Attachment Button - ✅ BEST PRACTICE: Fixed size, no flex-shrink */}
+        <div className="relative flex-shrink-0">
               <motion.button
                 ref={buttonRef}
                 data-attachment-button
@@ -936,18 +926,19 @@ export default function EnhancedInputToolbar({
                   setMenuOpen(!menuOpen)
                 }}
                 disabled={disabled}
-                className={`min-h-[44px] min-w-[44px] p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl touch-manipulation flex items-center justify-center ${
+                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center flex-shrink-0 ${
                   menuOpen 
-                    ? 'bg-[#D3DCAB] text-gray-800' 
-                    : 'bg-[#F3D3B8] hover:bg-[#D3DCAB] text-gray-800'
+                    ? 'bg-atlas-sage text-gray-800' 
+                    : 'bg-atlas-peach hover:bg-atlas-sage text-gray-800'
                 }`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
                   boxShadow: menuOpen 
-                    ? '0 4px 16px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
-                    : '0 4px 16px rgba(243, 211, 184, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                    ? '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                    : '0 2px 8px rgba(151, 134, 113, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                 }}
                 title="Add attachment"
+                aria-label="Add attachment"
               >
                 <Plus size={18} className={`transition-transform duration-300 ${menuOpen ? 'rotate-45' : 'rotate-0'}`} />
               </motion.button>
@@ -965,15 +956,14 @@ export default function EnhancedInputToolbar({
                   }
                 }, 200);
               }}
-              conversationId={conversationId || ""}
               userId={user?.id || ""}
               onAddAttachment={handleAddAttachment}
             />
           )}
         </div>
 
-            {/* Text Input - Dual purpose: text or caption */}
-            <div className="flex-1 flex flex-col">
+            {/* Text Input - ✅ BEST PRACTICE: Proper flex with min-width 0 to prevent overflow */}
+            <div className="flex-1 flex flex-col min-w-0">
               <textarea
                 ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
                 value={text}
@@ -989,10 +979,10 @@ export default function EnhancedInputToolbar({
                 onFocus={handleInputFocus}
                 placeholder={
                   attachmentPreviews.length > 0 
-                    ? (window.innerWidth < 640 ? "Add a caption..." : "Add a caption (optional)...")
+                    ? (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? "Add a caption..." : "Add a caption (optional)...")
                     : placeholder
                 }
-                className="flex-1 mx-2 sm:mx-3 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 border-none rounded-2xl px-4 py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out"
+                className="flex-1 w-full bg-transparent sm:bg-white/95 text-gray-900 placeholder-atlas-text-muted focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out shadow-sm"
                 style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
                 disabled={isProcessing || disabled}
                 autoComplete="off"
@@ -1011,8 +1001,8 @@ export default function EnhancedInputToolbar({
               )}
             </div>
 
-        {/* Action Buttons - ✅ ONLY TWO BUTTONS: Microphone (Core/Studio only) + Send */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        {/* Action Buttons - ✅ BEST PRACTICE: Fixed sizes, proper spacing, no overflow */}
+        <div className="flex items-center gap-2 flex-shrink-0">
               {/* ✅ SINGLE MICROPHONE BUTTON: Only for Core and Studio tiers */}
               {isVoiceSupported && canUseAudio && (tier === 'core' || tier === 'studio') && (
               <motion.button
@@ -1026,12 +1016,12 @@ export default function EnhancedInputToolbar({
                 onTouchEnd={handleMicPressEnd}
                 onTouchMove={handleMicPressMove}
                 disabled={isProcessing || disabled}
-                className={`min-h-[44px] min-w-[44px] p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md touch-manipulation flex items-center justify-center relative ${
+                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center relative flex-shrink-0 ${
                   isListening
                     ? 'bg-red-500/90 hover:bg-red-600 text-white'
                     : isPressHoldActive
                     ? 'bg-red-400/70 text-white scale-95'
-                    : 'bg-[#CEC1B8] hover:bg-[#978671] text-gray-700'
+                    : 'bg-atlas-sand hover:bg-atlas-stone text-gray-700'
                 }`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
@@ -1039,7 +1029,7 @@ export default function EnhancedInputToolbar({
                     ? '0 0 0 4px rgba(239, 68, 68, 0.3), 0 4px 12px rgba(239, 68, 68, 0.4)' 
                     : isPressHoldActive
                     ? '0 0 0 2px rgba(239, 68, 68, 0.2)'
-                    : '0 2px 8px rgba(151, 134, 113, 0.3), inset 0 -1px 2px rgba(151, 134, 113, 0.2)'
+                    : '0 4px 16px rgba(255, 255, 255, 0.3), inset 0 -2px 4px rgba(151, 134, 113, 0.1)'
                 }}
                 title={
                   isListening 
@@ -1091,7 +1081,7 @@ export default function EnhancedInputToolbar({
               </motion.button>
               )}
 
-              {/* ✅ SINGLE SEND BUTTON: Always visible, changes to Stop when streaming */}
+              {/* ✅ SINGLE SEND BUTTON: ✅ FIXED: Fixed size prevents cutoff */}
               <motion.button
                 key="send-button"
                 onClick={() => {
@@ -1103,20 +1093,20 @@ export default function EnhancedInputToolbar({
                 disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
                 title={isStreaming ? "Stop Generation" : (attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message")}
                 whileTap={{ scale: 0.95 }}
-                className={`ml-2 rounded-full flex items-center justify-center min-h-[44px] min-w-[44px] w-[44px] h-[44px] sm:w-9 sm:h-9 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg touch-manipulation flex-shrink-0 ${
+                className={`h-[44px] w-[44px] rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex-shrink-0 ${
                   isStreaming 
-                    ? 'bg-red-500 hover:bg-red-600' 
+                    ? 'bg-red-500 hover:bg-red-600 text-white' 
                     : (text.trim() || attachmentPreviews.length > 0)
-                    ? 'bg-[#D3DCAB] hover:bg-[#978671] text-gray-800'
-                    : 'bg-[#D3DCAB]/50 text-gray-500'
+                    ? 'bg-atlas-sage hover:bg-atlas-stone text-gray-800'
+                    : 'bg-atlas-sand/50 text-gray-500'
                 }`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
                   boxShadow: isStreaming 
                     ? '0 4px 16px rgba(239, 68, 68, 0.5)' 
                     : (text.trim() || attachmentPreviews.length > 0)
-                    ? '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
-                    : '0 2px 8px rgba(211, 220, 171, 0.2)'
+                    ? '0 4px 16px rgba(255, 255, 255, 0.3), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
+                    : '0 2px 8px rgba(255, 255, 255, 0.2)'
                 }}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -1160,7 +1150,7 @@ export default function EnhancedInputToolbar({
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
-                  <Mic className="w-5 h-5 text-[#CEC1B8]" />
+                  <Mic className="w-5 h-5 text-atlas-sand" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
@@ -1172,21 +1162,21 @@ export default function EnhancedInputToolbar({
                       href="/privacy" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-[#CEC1B8] hover:underline ml-1"
+                      className="text-atlas-sand hover:underline ml-1"
                     >
                       Learn more
                     </a>
                   </p>
-              <button
+                  <button
                     onClick={() => {
                       localStorage.setItem('atlas-voice-privacy-notice-seen', 'true');
                       setShowPrivacyNotice(false);
                     }}
-                    className="w-full px-3 py-1.5 bg-[#CEC1B8] hover:bg-[#978671] text-white text-xs font-medium rounded-md transition-colors"
+                    className="w-full px-3 py-1.5 bg-atlas-sand hover:bg-atlas-stone text-white text-xs font-medium rounded-md transition-colors"
                   >
                     Got it
-              </button>
-            </div>
+                  </button>
+                </div>
                 <button
                   onClick={() => {
                     localStorage.setItem('atlas-voice-privacy-notice-seen', 'true');
@@ -1196,11 +1186,11 @@ export default function EnhancedInputToolbar({
                 >
                   <X size={16} />
                 </button>
-          </div>
+              </div>
             </div>
           </motion.div>
         </AnimatePresence>
       )}
-    </div>
+    </>
   );
 }

@@ -30,7 +30,7 @@ export const ScrollToBottomButton = ({
                    bg-[#B2BDA3]/90 hover:bg-[#A3B295] 
                    border border-[#B2BDA3]/30 hover:border-[#B2BDA3]/50
                    text-white transition-all duration-200
-                   backdrop-blur-sm z-40
+                   backdrop-blur-sm z-[10001]
                    shadow-lg hover:shadow-xl
                    active:scale-95 touch-manipulation
                    min-w-[44px] min-h-[44px] flex items-center justify-center"
