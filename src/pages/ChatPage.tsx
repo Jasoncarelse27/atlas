@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, Brain, Heart, Lightbulb, LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
+import { LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -1757,27 +1757,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           return (
             <>
-              {/* 🌫 Gradient bridge between chat feed and floating input - only when no modals open */}
-              {!hasOpenModal && (
-                <div
-                  className="
-                    fixed bottom-24 left-0 right-0
-                    h-16
-                    bg-gradient-to-t from-atlas-pearl via-atlas-pearl/90 to-transparent
-                    pointer-events-none
-                    sm:hidden
-                    z-[9998]
-                  "
-                />
-              )}
-              
               {/* ✅ UNIFIED CONTAINER: Mobile floating overlay + Desktop static footer - hide when modals open */}
               {!hasOpenModal && (
                 <div
                   className="
-                    fixed bottom-0 left-0 right-0 z-[10000]
-                    pt-3 pb-[env(safe-area-inset-bottom,0px)] px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
-                    sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0
+                    fixed bottom-[60px] left-0 right-0 z-[10000]
+                    pt-3 pb-3 px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
+                    sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0 sm:bottom-0
                   "
                   style={{
                     backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
