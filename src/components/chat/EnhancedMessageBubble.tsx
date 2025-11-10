@@ -14,6 +14,7 @@ import { UpgradeButton } from '../UpgradeButton';
 import { DeleteMessageModal } from '../modals/DeleteMessageModal';
 import { ImageGallery } from './ImageGallery';
 import { MessageContextMenu } from './MessageContextMenu';
+import { MessageReactions } from './MessageReactions';
 import { LegacyMessageRenderer } from './MessageRenderer';
 import { StopButton } from './StopButton';
 import SystemMessage from './SystemMessage';
@@ -118,7 +119,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
   const [editedContent, setEditedContent] = useState('');
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   
-  const { tier, userId, loading } = useTierAccess();
+  const { tier, userId } = useTierAccess(); // ✅ FIX: Removed unused 'loading' variable
 
   // Get content as string for typing effect - needed by handlers
   const messageContent = (() => {
@@ -351,7 +352,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
             duration: 0.15,
             ease: "easeOut"
           }}
-          className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
+          className={`flex items-start mb-3 ${isUser ? 'flex-row-reverse' : ''}`}
           onContextMenu={handleContextMenu}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -401,14 +402,14 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           duration: 0.15,
           ease: "easeOut"
         }}
-        className={`flex items-start space-x-3 mb-6 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
+        className={`flex items-start space-x-3 mb-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
       >
         {/* Avatar */}
         <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
             isUser 
               ? 'bg-atlas-sage text-white' 
-              : 'bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] text-gray-800'
+              : 'bg-gradient-to-br from-atlas-gradient-start to-atlas-gradient-end text-gray-800'
           }`}>
             {isUser ? <User size={16} /> : <Bot size={16} />}
           </div>
@@ -419,7 +420,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
             isUser 
               ? 'bg-atlas-sage text-white rounded-br-md' 
-              : 'bg-gradient-to-br from-[#B2BDA3]/10 to-[#F4E5D9]/10 border border-[#B2BDA3]/20 text-gray-100 rounded-bl-md'
+              : 'bg-gradient-to-br from-atlas-gradient-start/10 to-atlas-gradient-end/10 border border-atlas-gradient-start/20 text-gray-100 rounded-bl-md'
           }`}>
             <pre style={{ color: "red", fontSize: 12, whiteSpace: "pre-wrap" }}>
               {JSON.stringify(message, null, 2)}
@@ -438,29 +439,22 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       return;
     }
 
-    // ✅ CHATGPT PATTERN: Show typing effect only while actively streaming
-    // Once message completes (status !== 'sending'), show full content immediately
-    if (isLatest && !isUser && message.status === 'sending' && messageContent) {
-      // Typing animation for streaming messages
+    // For assistant messages, show typing effect if it's the latest message and not in sending state
+    if (isLatest && !isUser && message.status !== 'sending') {
       const timer = setInterval(() => {
         setCurrentIndex(prevIndex => {
           if (prevIndex < messageContent.length) {
             setDisplayedText(messageContent.slice(0, prevIndex + 1));
             return prevIndex + 1;
-          } else {
-            // Message complete - stop animation
-            clearInterval(timer);
-            setDisplayedText(messageContent);
-            return messageContent.length;
           }
+          return prevIndex;
         });
       }, 25); // Smoother, more natural ChatGPT-like effect
 
       return () => clearInterval(timer);
     } else {
-      // ✅ CRITICAL FIX: For completed messages, show full content immediately
+      // ✅ CRITICAL FIX: For all other cases, show full content immediately
       setDisplayedText(messageContent);
-      setCurrentIndex(messageContent?.length || 0);
     }
   }, [messageContent, isUser, isLatest, message.status]);
 
@@ -476,9 +470,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     }
   }, [messageContent, isLatest, isUser, message.role]); // ✅ Use content, not ID
 
-  // ✅ CHATGPT PATTERN: Show typing indicator only while actively typing
-  // Action buttons should show immediately after message completes
-  const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length && message.status === 'sending';
+  const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length;
   
   // ✅ IMPROVED TTS handler with audio controls
   const handlePlayTTS = async () => {
@@ -666,7 +658,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
         id={`message-${message.id}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className={`flex items-start mb-6 ${isUser ? 'flex-row-reverse' : ''}`}
+        className={`flex items-start mb-3 ${isUser ? 'flex-row-reverse' : ''}`}
       >
         <div className={`flex-1 ${isUser ? 'max-w-[75%] flex justify-end' : 'w-full max-w-[75%]'}`}>
           <div className={`px-4 py-3 rounded-2xl flex items-center gap-2 text-sm ${
@@ -711,7 +703,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       <div
         id={`message-${message.id}`}
         className={`flex items-start ${isUser ? 'flex-row-reverse' : ''}`}
-        style={{ marginBottom: '32px' }}
+        style={{ marginBottom: '12px' }}
         onContextMenu={handleContextMenu} // ✅ Right-click handler (desktop)
         onTouchStart={handleTouchStart}   // ✅ Long-press start (mobile)
         onTouchMove={handleTouchMove}     // ✅ Long-press move detection (mobile)
@@ -839,9 +831,15 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
           {/* Message Status Indicators removed - cleaner UI */}
           
-          {/* ✅ CHATGPT PATTERN: Action buttons always visible for completed messages */}
+          {/* ✅ Message Reactions - Phase 1 Quick Win */}
+          {message.id && message.status !== 'sending' && !isEditing && (
+            <div className={`mt-2 ${isUser ? 'flex justify-end' : ''}`}>
+              <MessageReactions messageId={message.id} userId={userId || null} />
+            </div>
+          )}
+          
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
-          {!isUser && message.status !== 'sending' && displayedText && displayedText.length > 0 && (
+          {!isUser && !showTypingIndicator && message.status !== 'sending' && (
             <div className="flex items-center gap-2 mt-2">
               {/* Copy Button - ✅ MOBILE FIX: Proper touch targets and event handling */}
               <button

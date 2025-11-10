@@ -289,7 +289,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     try {
       const supabase = (await import('../lib/supabase')).default;
       await supabase.auth.signOut();
-      window.location.href = '/login';
+      // ✅ FIX: Use React Router navigation instead of hard reload
+      navigate('/login', { replace: true });
     } catch (error) {
       // Silent fail - logout will redirect regardless
     }
@@ -361,9 +362,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       if (!token) {
         logger.error('[ChatPage] ❌ No valid auth token - session expired');
         toast.error('Session expired. Please refresh the page or sign in again.');
-        // Redirect to login after delay
+        // ✅ FIX: Use React Router navigation instead of hard reload
         setTimeout(() => {
-          window.location.href = '/login';
+          navigate('/login', { replace: true });
         }, 2000);
         return;
       }
@@ -1078,7 +1079,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       const deletedId = event.detail.conversationId;
       if (conversationId === deletedId) {
         logger.debug('[ChatPage] 🔄 Redirecting to new chat (current conversation deleted)');
-        window.location.href = '/chat';
+        // ✅ FIX: Use React Router navigation instead of hard reload
+        navigate('/chat', { replace: true });
       }
     };
 
@@ -1660,7 +1662,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               }
             }}
           >
-            <div className="max-w-4xl mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(16px, 4vw, 32px)' }}>
+            <div className="max-w-4xl mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(8px, 2vw, 16px)' }}>
               
               <MessageListWithPreviews>
                 {(() => {
@@ -1749,30 +1751,55 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-        {/* ✅ FLOATING CONTAINER: Transparent background so chatbox appears to float */}
-        <div
-          className="fixed bottom-0 left-0 right-0 z-[10000]"
-          style={{
-            // ✅ FIX: Simple safe-area padding - prevents Safari jump
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
-            paddingTop: '12px', // ✅ Mobile-optimized spacing
-            paddingLeft: 'max(8px, env(safe-area-inset-left, 0px))', // ✅ Mobile: 8px, Desktop: safe area
-            paddingRight: 'max(8px, env(safe-area-inset-right, 0px))', // ✅ Mobile: 8px, Desktop: safe area
-            backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
-            backdropFilter: 'none',
-            WebkitBackdropFilter: 'none',
-          }}
-        >
-          <EnhancedInputToolbar
-            onSendMessage={handleTextMessage}
-            isProcessing={isProcessing}
-            placeholder="Ask Atlas anything..."
-            conversationId={conversationId || undefined}
-            inputRef={inputRef}
-            isStreaming={isStreaming}
-            addMessage={addMessage}
-          />
-        </div>
+        {/* ✅ MODAL-AWARE: Check if any modals are open */}
+        {(() => {
+          const hasOpenModal = sidebarOpen || showHistory || showProfile || showSearch || genericModalVisible;
+          
+          return (
+            <>
+              {/* 🌫 Gradient bridge between chat feed and floating input - only when no modals open */}
+              {!hasOpenModal && (
+                <div
+                  className="
+                    fixed bottom-24 left-0 right-0
+                    h-16
+                    bg-gradient-to-t from-atlas-pearl via-atlas-pearl/90 to-transparent
+                    pointer-events-none
+                    sm:hidden
+                    z-[9998]
+                  "
+                />
+              )}
+              
+              {/* ✅ UNIFIED CONTAINER: Mobile floating overlay + Desktop static footer - hide when modals open */}
+              {!hasOpenModal && (
+                <div
+                  className="
+                    fixed bottom-0 left-0 right-0 z-[10000]
+                    pt-3 pb-[env(safe-area-inset-bottom,0px)] px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
+                    sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0
+                  "
+                  style={{
+                    backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
+                    backdropFilter: 'none',
+                    WebkitBackdropFilter: 'none',
+                    transform: 'translateZ(0)', // ✅ GPU acceleration
+                  }}
+                >
+                  <EnhancedInputToolbar
+                    onSendMessage={handleTextMessage}
+                    isProcessing={isProcessing}
+                    placeholder="Ask Atlas anything..."
+                    conversationId={conversationId || undefined}
+                    inputRef={inputRef}
+                    isStreaming={isStreaming}
+                    addMessage={addMessage}
+                  />
+                </div>
+              )}
+            </>
+          );
+        })()}
         </main>
 
         {/* Modern scroll-to-bottom button with golden sparkle */}
