@@ -137,7 +137,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // API routes
         '/v1': {
-          target: 'https://localhost:8000',
+          target: 'http://localhost:8000', // ✅ HTTP backend (proxy handles HTTPS → HTTP)
           changeOrigin: true,
           secure: false, // Accept self-signed certs in development
           ws: true, // Enable WebSocket support
@@ -151,13 +151,13 @@ export default defineConfig(({ mode }) => {
           }
         },
         '/api': {
-          target: 'https://localhost:8000',
+          target: 'http://localhost:8000', // ✅ HTTP backend (proxy handles HTTPS → HTTP)
           changeOrigin: true,
           secure: false,
           ws: true
         },
         '/message': {
-          target: 'https://localhost:8000',
+          target: 'http://localhost:8000', // ✅ HTTP backend (proxy handles HTTPS → HTTP)
           changeOrigin: true,
           secure: false
         }

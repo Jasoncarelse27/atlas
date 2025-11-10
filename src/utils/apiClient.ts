@@ -30,21 +30,23 @@ export function getApiUrl(): string {
       import.meta.env.DEV || // Vite development mode
       /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|localhost|127\.0\.0\.1)/.test(apiUrl);
     
+    // ✅ FIX: In local dev with HTTPS frontend + HTTP backend, use Vite proxy (empty string)
+    // This avoids browser mixed content blocking - Vite proxy handles HTTPS → HTTP internally
+    if (isFrontendHttps && isBackendHttp && isLocalDev) {
+      logger.debug(
+        '[API Client] ℹ️ Local dev: Frontend HTTPS, backend HTTP. ' +
+        'Using Vite proxy (relative URLs) to avoid mixed content blocking.'
+      );
+      return ''; // Return empty string to use Vite proxy
+    }
+    
     // Only upgrade HTTP to HTTPS in production (not local dev)
-    // Local dev: Allow HTTP backend even with HTTPS frontend (needed for iOS mic access)
     if (isFrontendHttps && isBackendHttp && !isLocalDev) {
       logger.warn(
         '[API Client] ⚠️ Mixed content detected: Frontend HTTPS but backend HTTP. ' +
         'Upgrading backend URL to HTTPS automatically.'
       );
       apiUrl = apiUrl.replace('http://', 'https://');
-    } else if (isFrontendHttps && isBackendHttp && isLocalDev) {
-      // ✅ Local dev: Log info but keep HTTP (allows iOS HTTPS frontend + HTTP backend)
-      logger.debug(
-        '[API Client] ℹ️ Local dev: Frontend HTTPS, backend HTTP. ' +
-        'Keeping HTTP backend for local development compatibility.'
-      );
-      // Keep HTTP - don't upgrade
     }
   }
   
