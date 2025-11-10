@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { isPaidTier, isStudioTier } from '../config/featureAccess';
 import { useUsageIndicator } from '../hooks/useUsageIndicator';
 
@@ -15,6 +16,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
   onUpgradeClick,
   className = '' 
 }) => {
+  const navigate = useNavigate();
   const {
     usage,
     loading,
@@ -33,8 +35,8 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
       if (typeof window !== 'undefined' && (window as any).showUpgradeModal) {
         (window as any).showUpgradeModal();
       } else {
-        // Fallback: Use FastSpring checkout (external navigation is acceptable here)
-        window.location.href = '/upgrade';
+        // ✅ FIX: Use React Router navigation instead of hard reload
+        navigate('/upgrade', { replace: true });
       }
     }
   };

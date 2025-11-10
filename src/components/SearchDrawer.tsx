@@ -37,7 +37,9 @@ export function SearchDrawer({
   // Focus input when drawer opens
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
-      setTimeout(() => searchInputRef.current?.focus(), 100);
+      const focusTimer = setTimeout(() => searchInputRef.current?.focus(), 100);
+      // ✅ MEMORY LEAK FIX: Cleanup timer on unmount or when drawer closes
+      return () => clearTimeout(focusTimer);
     }
   }, [isOpen]);
 

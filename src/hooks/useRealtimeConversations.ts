@@ -54,14 +54,79 @@ export function useRealtimeConversations(userId?: string) {
       }
     );
 
+    // ✅ CRITICAL FIX: Handle new messages (assistant responses)
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `user_id=eq.${userId}`,
+      },
+      async (payload) => {
+        const newMessage = payload.new;
+        
+        try {
+          // ✅ MOBILE SAFETY: Ensure window is available
+          if (typeof window === 'undefined') {
+            logger.warn('[Realtime] ⚠️ Window not available (SSR?), skipping message event');
+            return;
+          }
+          
+          // Save to Dexie immediately
+          await atlasDB.messages.put({
+            id: newMessage.id,
+            conversationId: newMessage.conversation_id,
+            userId: newMessage.user_id,
+            role: newMessage.role,
+            type: 'text',
+            content: newMessage.content,
+            timestamp: newMessage.created_at,
+            synced: true,
+            updatedAt: newMessage.created_at,
+            attachments: newMessage.attachments || undefined,
+          });
+          
+          // ✅ CRITICAL: Trigger message update event so ChatPage can refresh
+          // ✅ MOBILE SAFETY: Use setTimeout to ensure event fires even if page is backgrounded
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('newMessageReceived', {
+              detail: { 
+                message: newMessage,
+                conversationId: newMessage.conversation_id
+              }
+            }));
+          }
+          
+          logger.info('[Realtime] ✅ New message received:', {
+            id: newMessage.id,
+            role: newMessage.role,
+            conversationId: newMessage.conversation_id,
+            contentPreview: typeof newMessage.content === 'string' 
+              ? newMessage.content.substring(0, 50) 
+              : 'non-string content',
+            isMobile: typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+          });
+        } catch (error) {
+          logger.error('[Realtime] Failed to handle new message:', error);
+        }
+      }
+    );
+
     // Subscribe with error handling
     channel.subscribe((status) => {
+      const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
       if (status === "SUBSCRIBED") {
-        logger.info('[Realtime] Connected');
+        logger.info(`[Realtime] ✅ Connected${isMobile ? ' (Mobile)' : ''}`);
       } else if (status === "CLOSED") {
-        logger.warn('[Realtime] Connection closed, will retry');
+        logger.warn(`[Realtime] ⚠️ Connection closed${isMobile ? ' (Mobile)' : ''}, will retry`);
       } else if (status === "CHANNEL_ERROR") {
-        logger.error('[Realtime] Channel error, reconnecting...');
+        logger.error(`[Realtime] ❌ Channel error${isMobile ? ' (Mobile)' : ''}, reconnecting...`);
+      } else if (status === "TIMED_OUT") {
+        logger.error(`[Realtime] ⏱️ Connection timeout${isMobile ? ' (Mobile)' : ''}, will retry`);
+      } else {
+        logger.debug(`[Realtime] Status: ${status}${isMobile ? ' (Mobile)' : ''}`);
       }
     });
 

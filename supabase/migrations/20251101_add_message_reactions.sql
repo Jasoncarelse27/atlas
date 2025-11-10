@@ -60,3 +60,4 @@ COMMENT ON COLUMN message_reactions.message_id IS 'Reference to the message bein
 COMMENT ON COLUMN message_reactions.user_id IS 'User who added the reaction';
 
 
+

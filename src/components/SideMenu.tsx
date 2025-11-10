@@ -18,6 +18,7 @@ import {
     X
 } from 'lucide-react';
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { UserProfile } from '../types/subscription';
 import { TIER_CONFIGS as TIER_CONFIGS_IMPORT } from '../types/subscription';
@@ -68,6 +69,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
   onThemeChange,
   onSoundPlay
 }) => {
+  const navigate = useNavigate();
   const handleClose = () => {
     if (onSoundPlay) onSoundPlay('modal_close');
     onClose();
@@ -374,7 +376,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
                 <div className="space-y-2">
                   <button
                     onClick={() => handleAction(() => {
-                      window.location.href = '/chat';
+                      // ✅ FIX: Use React Router navigation instead of hard reload
+                      navigate('/chat', { replace: true });
                     })}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] transition-colors"
                   >

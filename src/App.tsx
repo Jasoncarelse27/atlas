@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "sonner";
-import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
 import { AuthProvider, useAuth } from "./providers/AuthProvider";
 import { useSettingsStore } from "./stores/useSettingsStore";
+import { setGlobalNavigate } from "./utils/navigation";
 
 // 🚀 Route-based code splitting for better performance
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -106,6 +107,21 @@ function ProtectedRitualInsightsRoute() {
   );
 }
 
+// Component to set up global navigation
+function NavigationSetup() {
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Set global navigate function for utility functions
+    setGlobalNavigate(navigate);
+    if (typeof window !== 'undefined') {
+      (window as any).__atlasNavigate = navigate;
+    }
+  }, [navigate]);
+  
+  return null;
+}
+
 function App() {
   // Initialize settings from localStorage on app load
   useEffect(() => {
@@ -117,6 +133,7 @@ function App() {
       <AuthProvider>
         <UpgradeModalProvider>
           <Router>
+            <NavigationSetup />
             <Toaster position="top-center" />
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>

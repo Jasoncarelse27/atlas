@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState } from "react";
+import { logger } from "../lib/logger";
 import { supabase } from "../lib/supabaseClient";
 
 interface AuthContextType {
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("supabase_session", JSON.stringify(session));
         } else if (sessionError) {
           // Session error - clear and require re-login
-          console.warn('[AuthProvider] Session error:', sessionError.message);
+          logger.warn('[AuthProvider] Session error:', sessionError.message);
           localStorage.removeItem("supabase_session");
           setUser(null);
         } else {
@@ -57,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem("supabase_session");
         }
       } catch (error) {
-        console.error('[AuthProvider] Auth init error:', error);
+        logger.error('[AuthProvider] Auth init error:', error);
         setUser(null);
         localStorage.removeItem("supabase_session");
       } finally {

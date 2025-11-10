@@ -16,6 +16,7 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { logger } from '../lib/logger';
+import { navigateTo } from './navigation';
 
 interface Handle401Options {
   response: Response;
@@ -58,9 +59,9 @@ export async function handle401Auth({
         logger.warn('[handle401Auth] ⚠️ Refresh token expired - user needs to sign in');
         
         if (!preventRedirect) {
-          // Redirect to login after a short delay
+          // ✅ FIX: Use React Router navigation instead of hard reload
           setTimeout(() => {
-            window.location.href = '/login';
+            navigateTo('/login', true);
           }, 2000);
         }
       }
@@ -81,8 +82,9 @@ export async function handle401Auth({
       logger.error('[handle401Auth] ❌ Retry still returned 401:', errorText.substring(0, 200));
       
       if (!preventRedirect) {
+        // ✅ FIX: Use React Router navigation instead of hard reload
         setTimeout(() => {
-          window.location.href = '/login';
+          navigateTo('/login', true);
         }, 2000);
       }
 

@@ -55,12 +55,12 @@ export const DevTierSwitcher: React.FC<DevTierSwitcherProps> = ({ onTierChange }
         logger.warn('[DevTierSwitcher] Could not trigger cache invalidation:', err);
         // Fallback: Clear Dexie cache manually
         try {
-          if (window.db?.profiles) {
-            await window.db.profiles.clear();
+        if (window.db?.profiles) {
+          await window.db.profiles.clear();
             logger.debug('✅ Dexie cache cleared (fallback)');
-          }
-        } catch (dexieError) {
-          // Intentionally empty - error handling not required
+        }
+      } catch (dexieError) {
+      // Intentionally empty - error handling not required
         }
       }
 

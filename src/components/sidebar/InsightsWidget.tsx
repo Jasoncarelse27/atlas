@@ -2,7 +2,7 @@ import { BarChart3, Brain } from 'lucide-react';
 
 export default function InsightsWidget() {
   return (
-    <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
+    <div className="bg-transparent border-transparent p-4 rounded-xl">
       <div className="flex items-center gap-2 mb-3">
         <div className="p-2 rounded-xl bg-[#B8A5D6]/20">
           <BarChart3 className="w-4 h-4 text-[#8B7AB8]" />

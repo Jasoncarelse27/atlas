@@ -123,20 +123,10 @@ class CacheInvalidationService {
       
       if (accessToken) {
         // Force refresh by calling the API's cache clear method
-        // ✅ GRACEFUL HANDLING: Don't throw if FastSpring isn't ready yet
-        const result = await subscriptionApi.forceRefreshProfile(userId, accessToken);
-        if (!result) {
-          logger.debug('[CacheInvalidation] FastSpring not ready yet - gracefully skipping cache refresh');
-        }
+        await subscriptionApi.forceRefreshProfile(userId, accessToken);
       }
     } catch (error) {
-      // ✅ GRACEFUL HANDLING: Only log as debug if it's a JSON parse error (FastSpring not ready)
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Unexpected token') || errorMessage.includes('<!DOCTYPE')) {
-        logger.debug('[CacheInvalidation] FastSpring not ready yet - gracefully skipping cache refresh');
-      } else {
-        logger.warn('[CacheInvalidation] Could not clear SubscriptionAPI cache:', error);
-      }
+      logger.warn('[CacheInvalidation] Could not clear SubscriptionAPI cache:', error);
     }
   }
 

@@ -38,7 +38,7 @@ initSentry()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <SentryErrorBoundary fallback={({ error, resetError }) => (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#F9F6F3]">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Application Error</h1>
           <p className="text-gray-600 mb-4">Something went wrong. Please reload the page.</p>

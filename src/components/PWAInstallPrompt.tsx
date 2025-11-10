@@ -34,11 +34,18 @@ export function PWAInstallPrompt() {
   const trackPWAEvent = async (eventType: 'pwa_install_prompt_shown' | 'pwa_installed' | 'pwa_install_dismissed') => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'anonymous';
+      const userId = user?.id;
+      
+      // ✅ FIX: Skip tracking if user not authenticated (RLS requires user_id)
+      if (!userId) {
+        logger.debug('[PWAInstallPrompt] Skipping analytics - user not authenticated');
+        return;
+      }
 
       await supabase
         .from('usage_logs')
         .insert({
+          user_id: userId, // ✅ CRITICAL: Set user_id for RLS compliance
           event: eventType,
           data: {
             platform: isIOS ? 'ios' : 'android',

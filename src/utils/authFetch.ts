@@ -1,6 +1,6 @@
-import { supabase } from '../lib/supabaseClient';
 import { logger } from '../lib/logger';
 import { getAuthToken as getAuthTokenHelper } from './getAuthToken';
+import { navigateTo } from './navigation';
 
 // Environment variable safety check
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
@@ -64,56 +64,66 @@ export async function fetchWithAuth(
       headers,
     });
 
-    // ✅ FIXED: Handle 401 with centralized handler (follows best practices)
+    // Handle 401 Unauthorized
     if (response.status === 401) {
       if (retryOn401) {
-        try {
-          // Create retry function
-          const makeRetryRequest = async (): Promise<Response> => {
+        logger.debug('[AuthFetch] 401 received, attempting token refresh...');
+        
+        // ✅ IMPROVED: Try to refresh token
         const newToken = await getAuthToken(true);
-            if (!newToken) {
-              throw new Error('Token refresh failed');
-            }
-            return fetch(url, {
-              ...fetchOptions,
-              headers: {
+        
+        if (newToken) {
+          logger.debug('[AuthFetch] ✅ Token available, retrying request...', {
+            tokenChanged: newToken !== token,
+            originalTokenLength: token?.length || 0,
+            newTokenLength: newToken.length
+          });
+          
+          // ✅ IMPROVED: Retry with new token (even if same - Supabase may have refreshed it)
+          // The backend might accept it now if Supabase refreshed it internally
+          const retryHeaders = {
             ...headers,
             'Authorization': `Bearer ${newToken}`,
-              },
-            });
           };
           
-          const retryResponse = await handle401Auth({
-            response,
-            originalRequest: makeRetryRequest,
-            preventRedirect
+          const retryResponse = await fetch(url, {
+            ...fetchOptions,
+            headers: retryHeaders,
           });
-
-            return retryResponse;
-        } catch (error) {
-          // Refresh failed - show error and redirect
-          if (showErrorToast) {
-            showToast('⚠️ Session expired. Please log in again.', 'error');
-          }
           
-          const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
-          throw new Error(JSON.stringify(errorData));
+          logger.debug('[AuthFetch] Retry response status:', retryResponse.status);
+          
+          if (retryResponse.status !== 401) {
+            logger.debug('[AuthFetch] ✅ Retry successful');
+            return retryResponse;
+          } else {
+            // Get error details for better diagnostics
+            const errorText = await retryResponse.text().catch(() => '');
+            logger.error('[AuthFetch] ❌ Retry still returned 401:', {
+              errorText: errorText.substring(0, 200), // First 200 chars
+              tokenPreview: newToken.substring(0, 20) + '...'
+            });
           }
         } else {
-        // Retry disabled - just show error
+          logger.error('[AuthFetch] ❌ Token refresh failed - no new token available');
+        }
+      }
+      
+      // Still 401 after retry, handle session expiry
       if (showErrorToast) {
         showToast('⚠️ Session expired. Please log in again.', 'error');
       }
       
+      // ✅ NEW: Only redirect if not prevented (for silent failures like TTS)
       if (!preventRedirect) {
+        // ✅ FIX: Use React Router navigation instead of hard reload
         setTimeout(() => {
-          window.location.href = '/login';
+          navigateTo('/login', true);
         }, 2000);
       }
       
       const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session expired' };
       throw new Error(JSON.stringify(errorData));
-      }
     }
 
     // Handle 429 Rate Limit / Tier Limit
@@ -160,8 +170,8 @@ async function handleTierLimitError(errorData: ApiError): Promise<void> {
     if (typeof window !== 'undefined' && (window as any).showUpgradeModal) {
       (window as any).showUpgradeModal();
     } else {
-      // Fallback: redirect to upgrade page
-      window.location.href = '/upgrade';
+      // ✅ FIX: Use React Router navigation instead of hard reload
+      navigateTo('/upgrade', true);
     }
   } else if (errorData.code === 'BUDGET_LIMIT_EXCEEDED') {
     showToast('⚠️ Budget exceeded. Please upgrade.', 'warning');
@@ -170,8 +180,8 @@ async function handleTierLimitError(errorData: ApiError): Promise<void> {
     if (typeof window !== 'undefined' && (window as any).showUpgradeModal) {
       (window as any).showUpgradeModal();
     } else {
-      // Fallback: redirect to upgrade page
-      window.location.href = '/upgrade';
+      // ✅ FIX: Use React Router navigation instead of hard reload
+      navigateTo('/upgrade', true);
     }
   } else {
     // Generic 429 error

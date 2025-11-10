@@ -1438,9 +1438,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   setHealthError(null);
                   logger.debug('[ChatPage] ✅ Reconnection successful, resuming...');
                 } catch (error) {
-                  // If still failing, do a full reload as last resort
-                  logger.error('[ChatPage] Reconnection failed, reloading...', error);
-                  window.location.reload();
+                  // ✅ FIX: Show error UI instead of reloading (better UX, preserves state)
+                  logger.error('[ChatPage] Reconnection failed:', error);
+                  toast.error('Failed to reconnect. Please try again or refresh manually.', {
+                    duration: 5000,
+                    action: {
+                      label: 'Refresh',
+                      onClick: () => window.location.reload()
+                    }
+                  });
+                  // Don't auto-reload - let user decide
                 } finally {
                   setRetrying(false);
                 }

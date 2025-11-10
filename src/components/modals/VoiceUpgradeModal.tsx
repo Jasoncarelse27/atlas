@@ -136,7 +136,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -146,24 +146,25 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
             className="absolute inset-0 bg-black/70 backdrop-blur-md"
           />
 
-          {/* Modal */}
+          {/* Modal - ✅ RESPONSIVE: Better mobile sizing */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-2xl bg-[#F9F6F3] rounded-3xl shadow-2xl border border-[#E8DDD2] overflow-hidden max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-[95vw] sm:max-w-2xl bg-[#F9F6F3] rounded-2xl sm:rounded-3xl shadow-2xl border border-[#E8DDD2] overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
           >
-            {/* Close Button */}
+            {/* Close Button - ✅ RESPONSIVE: Better mobile positioning */}
             <button
               onClick={onClose}
-              className="absolute top-6 right-6 p-2 rounded-full bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors z-10"
+              className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2 rounded-full bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Close modal"
             >
-              <X className="w-5 h-5 text-[#8B7E74]" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#8B7E74]" />
             </button>
 
-            {/* Hero Section */}
-            <div className="relative bg-gradient-to-br from-[#8FA67E]/10 to-[#C6D4B0]/10 p-12 text-center border-b border-[#E8DDD2]">
+            {/* Hero Section - ✅ RESPONSIVE: Better mobile padding */}
+            <div className="relative bg-gradient-to-br from-[#8FA67E]/10 to-[#C6D4B0]/10 p-6 sm:p-8 md:p-12 text-center border-b border-[#E8DDD2]">
               {/* Animated Microphone */}
               <motion.div
                 animate={{
@@ -175,15 +176,15 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
                   repeat: Infinity,
                   ease: 'easeInOut',
                 }}
-                className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-[#8FA67E] to-[#C6D4B0] mb-6 shadow-lg shadow-[#8FA67E]/50"
+                className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-[#8FA67E] to-[#C6D4B0] mb-4 sm:mb-6 shadow-lg shadow-[#8FA67E]/50"
               >
-                <Mic className="w-12 h-12 text-white" />
+                <Mic className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
               </motion.div>
 
-              <h2 className="text-4xl font-bold text-[#3B3632] mb-3">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#3B3632] mb-3">
                 {modalContent.title}
               </h2>
-              <p className="text-xl text-[#8B7E74] max-w-lg mx-auto">
+              <p className="text-base sm:text-lg md:text-xl text-[#8B7E74] max-w-lg mx-auto px-2">
                 {modalContent.subtitle}
               </p>
 
@@ -198,28 +199,28 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
               )}
             </div>
 
-            {/* Benefits Grid */}
-            <div className="p-8 bg-white/50">
-              <h3 className="text-2xl font-bold text-[#3B3632] mb-6 text-center">
+            {/* Benefits Grid - ✅ RESPONSIVE: Better mobile spacing */}
+            <div className="p-4 sm:p-6 md:p-8 bg-white/50">
+              <h3 className="text-xl sm:text-2xl font-bold text-[#3B3632] mb-4 sm:mb-6 text-center">
                 What You'll Get
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 {benefits.map((benefit, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-start gap-4 p-4 bg-white rounded-xl border border-[#E8DDD2] hover:border-[#8FA67E]/50 transition-colors"
+                    className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-[#E8DDD2] hover:border-[#8FA67E]/50 transition-colors"
                   >
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-[#8FA67E]/20 to-[#C6D4B0]/20 flex items-center justify-center">
-                      <benefit.icon className="w-6 h-6 text-[#8FA67E]" />
+                    <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-[#8FA67E]/20 to-[#C6D4B0]/20 flex items-center justify-center">
+                      <benefit.icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#8FA67E]" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-[#3B3632] mb-1">
+                      <h4 className="text-sm sm:text-base font-semibold text-[#3B3632] mb-1">
                         {benefit.title}
                       </h4>
-                      <p className="text-sm text-[#8B7E74]">
+                      <p className="text-xs sm:text-sm text-[#8B7E74]">
                         {benefit.description}
                       </p>
                     </div>
@@ -228,25 +229,25 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
               </div>
             </div>
 
-            {/* Comparison Table */}
-            <div className="p-8 bg-[#F0E6DC]/30">
-              <h3 className="text-2xl font-bold text-[#3B3632] mb-6 text-center">
+            {/* Comparison Table - ✅ RESPONSIVE: Better mobile table */}
+            <div className="p-4 sm:p-6 md:p-8 bg-[#F0E6DC]/30">
+              <h3 className="text-xl sm:text-2xl font-bold text-[#3B3632] mb-4 sm:mb-6 text-center">
                 Compare Tiers
               </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[500px] sm:min-w-0">
                   <thead>
                     <tr className="border-b border-[#E8DDD2]">
-                      <th className="text-left py-3 px-4 text-[#8B7E74] font-medium">
+                      <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#8B7E74] font-medium">
                         Feature
                       </th>
-                      <th className="text-center py-3 px-4 text-[#8B7E74] font-medium">
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#8B7E74] font-medium">
                         Free
                       </th>
-                      <th className="text-center py-3 px-4 text-[#8B7E74] font-medium">
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#8B7E74] font-medium">
                         Core
                       </th>
-                      <th className="text-center py-3 px-4 text-[#8FA67E] font-semibold">
+                      <th className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#8FA67E] font-semibold">
                         Studio
                       </th>
                     </tr>
@@ -257,16 +258,16 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
                         key={index}
                         className="border-b border-[#E8DDD2]/50 hover:bg-[#F0E6DC]/20"
                       >
-                        <td className="py-3 px-4 text-[#5A524A]">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm text-[#5A524A]">
                           {row.feature}
                         </td>
-                        <td className="py-3 px-4 text-center text-[#B8A9A0]">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-center text-xs sm:text-sm text-[#B8A9A0]">
                           {row.free}
                         </td>
-                        <td className="py-3 px-4 text-center text-[#B8A9A0]">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-center text-xs sm:text-sm text-[#B8A9A0]">
                           {row.core}
                         </td>
-                        <td className="py-3 px-4 text-center text-[#8FA67E] font-medium">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-center text-xs sm:text-sm text-[#8FA67E] font-medium">
                           {row.studio}
                         </td>
                       </tr>
@@ -276,8 +277,8 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
               </div>
             </div>
 
-            {/* Pricing & CTA */}
-            <div className="p-8 bg-gradient-to-br from-[#8FA67E]/10 to-[#C6D4B0]/10 border-t border-[#E8DDD2]">
+            {/* Pricing & CTA - ✅ RESPONSIVE: Better mobile spacing */}
+            <div className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-[#8FA67E]/10 to-[#C6D4B0]/10 border-t border-[#E8DDD2]">
               {modalContent.showBothPlans ? (
                 // Show both Core and Studio options
                 <div className="space-y-4">

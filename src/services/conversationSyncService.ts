@@ -50,7 +50,9 @@ export class ConversationSyncService {
   private static instance: ConversationSyncService;
   private syncInProgress = false;
   private lastSyncTime = 0;
-  private readonly SYNC_COOLDOWN = 30000; // 30 seconds minimum between syncs
+  private syncDebounceTimer: NodeJS.Timeout | null = null;
+  private readonly SYNC_COOLDOWN = 120000; // ✅ OPTIMIZED: 120 seconds (2 min) minimum between syncs - prevents slow sync warnings
+  private readonly SYNC_DEBOUNCE = 10000; // ✅ OPTIMIZED: 10 second debounce to prevent rapid-fire syncs
   private readonly RECENT_DATA_DAYS = 30; // ✅ FIX: Reduced from 90 to 30 days for faster sync
 
   static getInstance(): ConversationSyncService {
@@ -429,8 +431,39 @@ export class ConversationSyncService {
    * - Tracks queries per sync
    * - Tracks sync duration
    * - Tracks data volume synced
+   * 
+   * ✅ OPTIMIZED: Debounced and rate-limited to prevent rapid-fire syncs
    */
-  async deltaSync(userId: string): Promise<void> {
+  async deltaSync(userId: string, force: boolean = false): Promise<void> {
+    // ✅ OPTIMIZATION: Debounce rapid sync requests
+    if (!force && this.syncDebounceTimer) {
+      logger.debug('[ConversationSync] ⏳ Debouncing sync request...');
+      return;
+    }
+    
+    // ✅ OPTIMIZATION: Rate limit syncs
+    const now = Date.now();
+    if (!force && now - this.lastSyncTime < this.SYNC_COOLDOWN) {
+      logger.debug('[ConversationSync] ⏳ Sync cooldown active, skipping...');
+      return;
+    }
+    
+    // ✅ OPTIMIZATION: Prevent concurrent syncs
+    if (this.syncInProgress) {
+      logger.debug('[ConversationSync] ⏳ Sync already in progress, skipping...');
+      return;
+    }
+    
+    // Set debounce timer
+    if (!force) {
+      this.syncDebounceTimer = setTimeout(() => {
+        this.syncDebounceTimer = null;
+      }, this.SYNC_DEBOUNCE);
+    }
+    
+    this.syncInProgress = true;
+    this.lastSyncTime = now;
+    
     perfMonitor.start('conversation-sync');
     const startTime = Date.now();
     let queriesExecuted = 0;
@@ -875,6 +908,13 @@ export class ConversationSyncService {
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error('[ConversationSync] ❌ Delta sync failed after', duration, 'ms:', error);
+    } finally {
+      // ✅ CRITICAL: Always clear sync flag and debounce timer
+      this.syncInProgress = false;
+      if (this.syncDebounceTimer) {
+        clearTimeout(this.syncDebounceTimer);
+        this.syncDebounceTimer = null;
+      }
     }
   }
 

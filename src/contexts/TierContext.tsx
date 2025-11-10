@@ -41,10 +41,13 @@ function notifyListeners() {
 // Fetch tier with global deduplication
 async function fetchTierGlobal(): Promise<Tier> {
   const now = Date.now();
-  const CACHE_DURATION = 30000; // 30 seconds cache
+  const CACHE_DURATION = 30 * 1000; // ✅ CROSS-DEVICE SYNC FIX: 30 seconds cache (matches useTierQuery)
 
-  // Return cached result if recent
-  if (globalTierState.tier && (now - globalTierState.lastFetch) < CACHE_DURATION) {
+  // ✅ CROSS-DEVICE SYNC FIX: Always check if cache is too old (forces refresh on app start)
+  const MAX_CACHE_AGE = 5 * 60 * 1000; // 5 minutes max age
+  
+  // Return cached result if recent AND not too old
+  if (globalTierState.tier && (now - globalTierState.lastFetch) < CACHE_DURATION && (now - globalTierState.lastFetch) < MAX_CACHE_AGE) {
     return globalTierState.tier;
   }
 

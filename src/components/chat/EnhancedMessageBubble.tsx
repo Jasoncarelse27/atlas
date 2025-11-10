@@ -830,8 +830,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
           {/* Message Status Indicators removed - cleaner UI */}
           
-          {/* Message Reactions removed - not Atlas style */}
-          
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
           {!isUser && !showTypingIndicator && message.status !== 'sending' && (
             <div className="flex items-center gap-2 mt-2">

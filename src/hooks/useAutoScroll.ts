@@ -50,16 +50,24 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
     if (!hasInitiallyScrolled && deps.length > 0) {
       // Force scroll to bottom on initial load with multiple attempts
       const scrollAttempts = [100, 300, 500]; // Try at different intervals
+      const timers: NodeJS.Timeout[] = [];
       
       scrollAttempts.forEach((delay) => {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           scrollToBottom();
         }, delay);
+        timers.push(timer);
       });
       
-      setTimeout(() => {
+      const finalTimer = setTimeout(() => {
         setHasInitiallyScrolled(true);
       }, 600);
+      timers.push(finalTimer);
+      
+      // ✅ MEMORY LEAK FIX: Cleanup all timers
+      return () => {
+        timers.forEach(timer => clearTimeout(timer));
+      };
     }
   }, [deps, hasInitiallyScrolled]);
 

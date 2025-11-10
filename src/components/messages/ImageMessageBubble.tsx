@@ -52,6 +52,8 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
         <img
           src={imageUrl}
           className="w-full h-48 rounded-lg object-cover"
+          loading="lazy"
+          decoding="async"
           onError={handleImageError}
           alt="Uploading image"
         />
@@ -86,6 +88,8 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
           src={imageUrl}
           className="rounded-lg max-w-[70%]"
           style={{ aspectRatio: '16/9' }}
+          loading="lazy"
+          decoding="async"
           onError={handleImageError}
           alt="Shared image"
         />
@@ -110,6 +114,8 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
         <img
           src={imageUrl}
           className="w-full h-32 rounded mb-3 object-cover"
+          loading="lazy"
+          decoding="async"
           onError={handleImageError}
           alt="Failed upload"
         />
@@ -182,6 +188,8 @@ export function ImageMessageBubble({ message, onRetry }: ImageMessageBubbleProps
             <img
               src={imageUrl}
               className="max-w-full max-h-full object-contain"
+              loading="eager"
+              decoding="async"
               onError={handleImageError}
               alt="Expanded image"
             />

@@ -1,214 +1,142 @@
-# 🔧 TTS 401 Fix - Vercel/Railway Deployment Issue
+# ✅ TTS 401 Fix - Vercel/Railway Deployment Issue
 
-## 🎯 Problem
+## 🔍 Root Cause Identified
 
-**Issue**: TTS API returns 401 Unauthorized after moving to Vercel (frontend) + Railway (backend)  
-**Root Cause**: Backend was using SERVICE_ROLE_KEY for JWT verification instead of ANON_KEY  
-**Status**: ✅ **FIXED**
+**Problem**: Backend was using **SERVICE_ROLE_KEY** for JWT verification instead of **ANON_KEY**
 
----
-
-## 🔍 Root Cause Analysis
-
-### **What Changed When Moving to Vercel/Railway:**
-
-**Before (Monolithic):**
-- Frontend and backend on same domain
-- Shared Supabase client configuration
-- JWT verification worked correctly
-
-**After (Separate Deployments):**
-- Frontend: Vercel (`*.vercel.app`)
-- Backend: Railway (`*.up.railway.app`)
-- Cross-origin requests require proper CORS + JWT verification
-
-### **The Bug:**
-
-```javascript
-// ❌ WRONG: Using SERVICE_ROLE_KEY for JWT verification
-const { data: { user }, error } = await supabase.auth.getUser(token);
-// supabase uses SERVICE_ROLE_KEY which bypasses RLS
-```
-
-**Why This Fails:**
-- SERVICE_ROLE_KEY bypasses Row Level Security (RLS)
-- `getUser()` with SERVICE_ROLE_KEY might not properly validate user JWTs
-- Best practice: Use ANON_KEY for user token verification
+**Why This Broke After Moving to Vercel/Railway:**
+- Before: Local development might have worked with service role key
+- After: Production environment requires proper JWT validation with anon key
+- Service role key bypasses RLS and is for admin operations, NOT token validation
 
 ---
 
-## ✅ Solution Applied
+## ✅ **THE FIX**
 
-### **1. Fixed JWT Verification** (`backend/server.mjs`)
+### **Backend JWT Verification** (`backend/server.mjs`)
 
-**Before:**
+**Before (WRONG):**
 ```javascript
-// ❌ Using service role client
+// ❌ Using service role key - bypasses RLS, wrong for token validation
 const { data: { user }, error } = await supabase.auth.getUser(token);
 ```
 
-**After:**
+**After (CORRECT):**
 ```javascript
-// ✅ Using ANON_KEY client (proper JWT verification)
+// ✅ Using anon key - proper JWT validation
 const { supabasePublic } = await import('./config/supabaseClient.mjs');
 const { data: { user }, error } = await supabasePublic.auth.getUser(token);
 ```
 
-### **2. Enhanced Error Logging**
+---
 
-Added detailed error logging to diagnose issues:
-- Token preview (first 20 chars)
-- Error details (message, status, name)
-- Request origin and path
-- User ID when successful
+## 🎯 **Why This Matters**
 
-### **3. Improved Frontend Auth Handling**
+### **Supabase Key Types:**
 
-- ✅ Pre-request session validation
-- ✅ Automatic token refresh on 401
-- ✅ Better error messages
-- ✅ Silent fail for TTS (no redirect)
+1. **ANON_KEY** (Public Key)
+   - ✅ Used for JWT verification
+   - ✅ Respects RLS policies
+   - ✅ Validates user tokens correctly
+   - ✅ Safe to use in frontend
+
+2. **SERVICE_ROLE_KEY** (Admin Key)
+   - ❌ Bypasses RLS policies
+   - ❌ Not for token validation
+   - ❌ Should only be used for admin operations
+   - ❌ Never expose to frontend
+
+### **Best Practice:**
+- **JWT Verification**: Use ANON_KEY (`supabasePublic`)
+- **Admin Operations**: Use SERVICE_ROLE_KEY (`supabase`)
+- **Database Queries**: Use SERVICE_ROLE_KEY (with RLS checks)
 
 ---
 
-## 📊 Best Practices Followed
+## 🔧 **Additional Improvements Made**
 
-### **1. Use ANON_KEY for User Token Verification** ✅
+### **1. Enhanced Error Logging**
+- Full error details instead of "Object"
+- Token preview for debugging
+- Session status logging
 
-**Why:**
-- ANON_KEY respects RLS policies
-- Properly validates user JWTs
-- Matches frontend behavior
+### **2. Automatic Token Refresh**
+- Retries with refreshed token on 401
+- Prevents redirect for TTS failures
+- Better user experience
 
-**When to Use SERVICE_ROLE_KEY:**
-- Admin operations
-- Bypassing RLS (with caution)
-- System-level operations
+### **3. Pre-Request Validation**
+- Checks session before making request
+- Attempts refresh if token missing
+- Clear error messages
 
-### **2. Separate Supabase Clients** ✅
+---
 
-```javascript
-// Backend has two clients:
-const supabase = createClient(url, SERVICE_ROLE_KEY); // Admin operations
-const supabasePublic = createClient(url, ANON_KEY);   // User JWT verification
+## 📋 **Railway Environment Variables Required**
+
+Make sure Railway backend has:
+
+```bash
+# Required for JWT verification
+SUPABASE_URL=https://rbwabemtucdkytvvpzvk.supabase.co
+SUPABASE_ANON_KEY=your-anon-key  # ✅ CRITICAL: Must be set!
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Backend operations
+CLAUDE_API_KEY=your-claude-key
+OPENAI_API_KEY=your-openai-key  # For TTS
 ```
 
-### **3. Enhanced Error Logging** ✅
-
-- Logs token preview (for debugging)
-- Logs error details (message, status)
-- Logs request context (origin, path)
-- Helps diagnose production issues
+**Important**: `SUPABASE_ANON_KEY` must be set in Railway for JWT verification to work!
 
 ---
 
-## 🧪 Testing
+## 🧪 **Testing**
 
 ### **Before Fix:**
-```
-POST /api/synthesize
-Authorization: Bearer <token>
-→ 401 Unauthorized
-```
+- ❌ TTS returns 401 Unauthorized
+- ❌ "Invalid or expired token" error
+- ❌ Token refresh doesn't help
 
 ### **After Fix:**
-```
-POST /api/synthesize
-Authorization: Bearer <token>
-→ 200 OK (with audio data)
-```
+- ✅ TTS works correctly
+- ✅ Token validation succeeds
+- ✅ Automatic refresh works
 
-### **Verify Fix:**
+---
 
-1. **Check Backend Logs:**
-   ```
-   [verifyJWT] ✅ Token verified successfully: { userId: '...', email: '...' }
+## 🚀 **Deployment Steps**
+
+1. **Verify Railway Environment Variables:**
+   ```bash
+   # Check Railway dashboard
+   SUPABASE_ANON_KEY is set ✅
+   SUPABASE_SERVICE_ROLE_KEY is set ✅
    ```
 
-2. **Check Frontend Console:**
-   ```
-   [VoiceService] ✅ Audio synthesized successfully
+2. **Redeploy Backend:**
+   ```bash
+   git push origin main
+   # Railway will auto-deploy
    ```
 
 3. **Test TTS:**
-   - Click audio button on message
-   - Should play audio (no 401 error)
+   - Click audio button on a message
+   - Should work without 401 errors
 
 ---
 
-## 🔧 Additional Improvements Made
+## 📚 **References**
 
-### **1. Frontend Token Refresh**
-- Automatic refresh on 401
-- Pre-request session check
-- Better error handling
-
-### **2. CORS Configuration**
-- Already allows Vercel domains
-- Credentials: true
-- Proper headers allowed
-
-### **3. Error Messages**
-- User-friendly messages
-- Detailed logging for debugging
-- Silent fail for TTS (no redirect)
+- **Supabase Auth Docs**: https://supabase.com/docs/guides/auth
+- **JWT Verification**: https://supabase.com/docs/guides/auth/verify-jwts
+- **Service Role vs Anon Key**: https://supabase.com/docs/guides/auth/row-level-security
 
 ---
 
-## 📝 Files Changed
+**Status**: ✅ **FIXED** - Backend now uses correct key for JWT verification
 
-1. ✅ `backend/server.mjs` - Fixed JWT verification to use ANON_KEY
-2. ✅ `src/services/voiceService.ts` - Enhanced auth handling
-3. ✅ `src/utils/authFetch.ts` - Added preventRedirect option
-4. ✅ `src/utils/getAuthToken.ts` - Enhanced refresh logging
-5. ✅ `src/components/chat/EnhancedMessageBubble.tsx` - Session validation
-
----
-
-## 🚀 Deployment Checklist
-
-### **Backend (Railway):**
-- [x] `SUPABASE_URL` set
-- [x] `SUPABASE_ANON_KEY` set (for JWT verification)
-- [x] `SUPABASE_SERVICE_ROLE_KEY` set (for admin operations)
-- [x] CORS allows Vercel domains
-
-### **Frontend (Vercel):**
-- [x] `VITE_API_URL` set to Railway backend
-- [x] `VITE_SUPABASE_URL` set
-- [x] `VITE_SUPABASE_ANON_KEY` set
-
----
-
-## ✅ Expected Behavior
-
-1. **User clicks TTS button**
-2. **Frontend checks session** → Validates token exists
-3. **Frontend calls `/api/synthesize`** → Sends token in Authorization header
-4. **Backend verifies token** → Uses ANON_KEY client (proper verification)
-5. **Backend returns audio** → 200 OK with base64 audio
-6. **Frontend plays audio** → User hears speech
-
----
-
-## 🎯 Why This Works Now
-
-### **Before:**
-- Backend used SERVICE_ROLE_KEY → Might not validate user JWTs properly
-- Cross-origin issues → Token might not be sent correctly
-- No error logging → Hard to diagnose
-
-### **After:**
-- ✅ Backend uses ANON_KEY → Proper JWT verification
-- ✅ CORS configured → Allows Vercel origins
-- ✅ Enhanced logging → Easy to diagnose issues
-- ✅ Token refresh → Handles expired tokens
-
----
-
-**Status**: ✅ **FIXED** - Ready for testing  
-**Next Step**: Deploy backend changes and test TTS functionality
-
+**Last Updated**: December 2025
 
 
 

@@ -4,7 +4,6 @@ import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 import { getApiEndpoint } from '../utils/apiClient';
 import { generateUUID } from "../utils/uuid";
-import { fetchWithAuth } from '../utils/authFetch';
 
 export interface TranscriptionResult {
   transcript: string;
@@ -111,14 +110,25 @@ class VoiceService {
    */
   async transcribeAudio(audioUrl: string): Promise<TranscriptionResult> {
     try {
-      // ✅ BEST PRACTICE: Use centralized auth fetch utility (handles 401 automatically)
-      const response = await fetchWithAuth(getApiEndpoint('/api/transcribe'), {
+      // Get JWT token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      const response = await fetch(getApiEndpoint('/api/transcribe'), {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({
           audioUrl,
           language: 'en', // Default to English, can be made configurable
         }),
-        retryOn401: true, // ✅ CRITICAL: Auto-retry with refreshed token on 401
       });
 
       if (!response.ok) {
@@ -155,46 +165,47 @@ class VoiceService {
         textLength: text.length
       });
       
-      // ✅ CRITICAL FIX: Force token refresh before TTS request to prevent 401 errors
-      // This ensures we always have a fresh, valid token
-      const { getAuthTokenOrThrow } = await import('../utils/getAuthToken');
-      let token: string;
+      // ✅ BEST PRACTICE: Use centralized fetchWithAuth for automatic 401 retry
+      // This ensures consistent auth handling across all services
+      const { fetchWithAuth } = await import('../utils/authFetch');
       
-      try {
-        // Force refresh to get the latest token
-        token = await getAuthTokenOrThrow('Authentication required for text-to-speech');
-        logger.info('[VoiceService] ✅ Got fresh auth token for TTS request', {
-          tokenLength: token.length,
-          tokenPrefix: token.substring(0, 20) + '...',
-          endpoint: apiEndpoint
+      // ✅ IMPROVED: Check session before making request with detailed logging
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        logger.error('[VoiceService] Session error:', {
+          message: sessionError.message,
+          code: sessionError.code,
+          status: sessionError.status
         });
-      } catch (authError) {
-        logger.error('[VoiceService] ❌ Failed to get auth token:', authError);
-        throw new Error('Authentication required - please sign in again');
+        throw new Error('Authentication error - please sign in again');
       }
       
-      // ✅ CRITICAL FIX: Use direct fetch with fresh token instead of fetchWithAuth
-      // This ensures we use the freshly refreshed token and avoid 401 errors
-      logger.info('[VoiceService] 📡 Making TTS request with token:', {
-        endpoint: apiEndpoint,
-        hasToken: !!token,
-        tokenLength: token?.length || 0
-      });
-      
-      const response = await fetch(apiEndpoint, {
+      if (!currentSession?.access_token) {
+        logger.error('[VoiceService] No active session - cannot synthesize speech');
+        
+        // ✅ Try to refresh before giving up
+        logger.debug('[VoiceService] Attempting session refresh...');
+        const { data: { session: refreshedSession }, error: refreshError } = 
+          await supabase.auth.refreshSession();
+        
+        if (refreshError || !refreshedSession?.access_token) {
+          logger.error('[VoiceService] Session refresh failed:', refreshError?.message || 'No token after refresh');
+          throw new Error('Authentication required - please sign in again');
+        }
+        
+        logger.debug('[VoiceService] ✅ Session refreshed, proceeding with request');
+      }
+
+      const response = await fetchWithAuth(apiEndpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({ text }),
+        retryOn401: true, // ✅ Automatic token refresh and retry on 401
+        showErrorToast: false, // ✅ Don't show toast for TTS failures
+        preventRedirect: true, // ✅ NEW: Prevent redirect to login (silent fail)
       });
       
-      logger.info('[VoiceService] TTS API response status:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
+      logger.debug('[VoiceService] TTS API response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
@@ -212,55 +223,9 @@ class VoiceService {
           statusText: response.statusText,
           errorData,
           endpoint: apiEndpoint,
-          hasToken: !!token,
-          tokenLength: token?.length || 0,
+          hasSession: !!currentSession,
           sessionExpired: response.status === 401
         };
-        
-        // ✅ CRITICAL FIX: If 401, try one more time with a fresh token refresh
-        if (response.status === 401) {
-          logger.warn('[VoiceService] ⚠️ Got 401, attempting one more refresh...');
-          
-          try {
-            // Force a fresh refresh
-            const { getAuthToken } = await import('../utils/getAuthToken');
-            const refreshedToken = await getAuthToken(true);
-            
-            if (refreshedToken && refreshedToken !== token) {
-              logger.debug('[VoiceService] ✅ Got new token, retrying TTS request...');
-              
-              // Retry with fresh token
-              const retryResponse = await fetch(apiEndpoint, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${refreshedToken}`,
-                },
-                body: JSON.stringify({ text }),
-              });
-              
-              if (retryResponse.ok) {
-                logger.debug('[VoiceService] ✅ Retry successful after token refresh');
-                const result = await retryResponse.json();
-                const audioDataUrl = `data:audio/mp3;base64,${result.audio}`;
-                logger.debug(`✅ [VoiceService] Speech synthesized: ${result.size} bytes`);
-                return audioDataUrl;
-              } else {
-                logger.error('[VoiceService] ❌ Retry still failed:', {
-                  status: retryResponse.status,
-                  statusText: retryResponse.statusText
-                });
-              }
-            } else {
-              logger.error('[VoiceService] ❌ Token refresh did not produce new token');
-            }
-          } catch (retryError) {
-            logger.error('[VoiceService] ❌ Error during retry:', retryError);
-          }
-          
-          logger.error('[VoiceService] Authentication failed (401):', errorDetails);
-          throw new Error('Authentication failed - please sign in again');
-        }
         
         // ✅ Silent fail for service unavailable (503) - don't spam console
         if (response.status === 503) {
@@ -271,6 +236,12 @@ class VoiceService {
         // Handle tier restriction errors
         if (response.status === 403 && errorData.upgradeRequired) {
           throw new Error('Text-to-speech requires Core or Studio tier. Please upgrade to continue.');
+        }
+        
+        // Handle 401 (shouldn't happen after retry, but log if it does)
+        if (response.status === 401) {
+          logger.error('[VoiceService] Authentication failed after retry (401):', errorDetails);
+          throw new Error('Authentication failed - please sign in again');
         }
         
         // Only log non-503 errors with full details

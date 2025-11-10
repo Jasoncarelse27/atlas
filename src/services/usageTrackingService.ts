@@ -103,29 +103,38 @@ class UsageTrackingService {
       if (isCrisisMessage) {
         // ✅ RATE LIMIT: Prevent abuse while maintaining ethical safeguards (industry standard: 10/day)
         const today = new Date().toISOString().split('T')[0];
-        const { data: crisisLogs } = await supabase
+        // ✅ FIX: Filter by user_id column for RLS compliance (not JSONB data)
+        const { data: crisisLogs, error: crisisLogsError } = await supabase
           .from('usage_logs')
           .select('*')
+          .eq('user_id', userId) // ✅ CRITICAL: Filter by user_id for RLS to work
           .eq('event', 'crisis_bypass_activated')
           .gte('timestamp', `${today}T00:00:00Z`)
           .lt('timestamp', `${today}T23:59:59Z`);
         
-        // Filter by userId in application code (Supabase JSONB query limitation)
-        const userCrisisLogs = crisisLogs?.filter(log => {
-          const logData = log.data as any;
-          return logData?.userId === userId;
-        }) || [];
+        if (crisisLogsError) {
+          logger.error('[UsageTracking] Error fetching crisis logs:', crisisLogsError);
+          // Fail open for crisis situations - allow the bypass
+          return {
+            canProceed: true,
+            remainingConversations: 'unlimited',
+            upgradeRequired: false,
+            crisisBypass: true,
+            mentalHealthResources: MENTAL_HEALTH_RESOURCES
+          };
+        }
         
-        const crisisCount = userCrisisLogs.length;
+        const crisisCount = crisisLogs?.length || 0;
         const MAX_CRISIS_BYPASSES_PER_DAY = 10; // Industry standard for mental health apps
         
         if (crisisCount >= MAX_CRISIS_BYPASSES_PER_DAY) {
           await this.logError('crisis_bypass_limit_exceeded', { userId, tier, crisisCount });
           return {
             canProceed: false,
-            reason: 'crisis_limit_exceeded',
+            reason: 'daily_limit', // Use standard reason code
             remainingConversations: 0,
             upgradeRequired: false,
+            warningLevel: 'exceeded',
             message: 'Crisis bypass limit reached. Please contact emergency services: 988 or text HOME to 741741',
             mentalHealthResources: MENTAL_HEALTH_RESOURCES
           };
@@ -253,7 +262,7 @@ class UsageTrackingService {
         estimatedCost,
         crisisBypass,
         date: today
-      });
+      }, userId);
       
       // Log usage attempt for billing reconciliation
       await supabase
@@ -360,17 +369,26 @@ class UsageTrackingService {
   /**
    * Log usage events for billing analysis
    */
-  private async logUsageEvent(event: string, data: Record<string, unknown>): Promise<void> {
+  private async logUsageEvent(event: string, data: Record<string, unknown>, userId?: string): Promise<void> {
     try {
+      // ✅ FIX: Get userId from auth if not provided, or from data object
+      const logUserId = userId || (data.userId as string) || null;
+      
+      if (!logUserId) {
+        logger.warn('[UsageTracking] Cannot log usage event without userId');
+        return;
+      }
+      
       await supabase
         .from('usage_logs')
         .insert({
+          user_id: logUserId, // ✅ CRITICAL: Set user_id for RLS compliance
           event,
           data,
           timestamp: new Date().toISOString()
         });
     } catch (error) {
-      logger.error('[UsageTracking] Error logging upgrade prompt:', error);
+      logger.error('[UsageTracking] Error logging usage event:', error);
     }
   }
 
@@ -384,7 +402,7 @@ class UsageTrackingService {
         tier,
         message: message.substring(0, 200), // Truncate for privacy
         timestamp: new Date().toISOString()
-      });
+      }, userId);
       
       // Also log in usage reconciliation
       await supabase
@@ -425,7 +443,7 @@ class UsageTrackingService {
         tier,
         reason,
         timestamp: new Date().toISOString()
-      });
+      }, userId);
     } catch (error) {
       logger.error('[UsageTracking] Error logging blocked attempt:', error);
     }

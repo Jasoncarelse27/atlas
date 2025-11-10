@@ -461,21 +461,8 @@ class SubscriptionApiService {
       });
 
       if (!response.ok) {
-        // ✅ GRACEFUL HANDLING: Check if response is HTML (error page) vs JSON
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('text/html')) {
-          logger.debug(`[SubscriptionAPI] ⚠️ Backend returned HTML (likely error page) - FastSpring may not be ready yet`);
-          return null; // Gracefully return null instead of throwing
-        }
-        logger.debug(`[SubscriptionAPI] ❌ Force refresh failed: ${response.status}`);
+        logger.error(`[SubscriptionAPI] ❌ Force refresh failed: ${response.status}`);
         return null;
-      }
-
-      // ✅ GRACEFUL HANDLING: Check content type before parsing JSON
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        logger.debug(`[SubscriptionAPI] ⚠️ Response is not JSON (${contentType}) - FastSpring may not be ready yet`);
-        return null; // Gracefully return null instead of throwing
       }
 
       const profile = await response.json();
