@@ -14,7 +14,6 @@ import { UpgradeButton } from '../UpgradeButton';
 import { DeleteMessageModal } from '../modals/DeleteMessageModal';
 import { ImageGallery } from './ImageGallery';
 import { MessageContextMenu } from './MessageContextMenu';
-import { MessageReactions } from './MessageReactions';
 import { LegacyMessageRenderer } from './MessageRenderer';
 import { StopButton } from './StopButton';
 import SystemMessage from './SystemMessage';
@@ -831,12 +830,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
           {/* Message Status Indicators removed - cleaner UI */}
           
-          {/* ✅ Message Reactions - Phase 1 Quick Win */}
-          {message.id && message.status !== 'sending' && !isEditing && (
-            <div className={`mt-2 ${isUser ? 'flex justify-end' : ''}`}>
-              <MessageReactions messageId={message.id} userId={userId || null} />
-            </div>
-          )}
+          {/* Message Reactions removed - not Atlas style */}
           
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
           {!isUser && !showTypingIndicator && message.status !== 'sending' && (

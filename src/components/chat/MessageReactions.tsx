@@ -5,13 +5,11 @@
  */
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
 import {
-  QUICK_REACTIONS,
   getMessageReactions,
   toggleReaction,
   type ReactionEmoji,
@@ -26,9 +24,7 @@ interface MessageReactionsProps {
 
 export function MessageReactions({ messageId, userId, className = '' }: MessageReactionsProps) {
   const [reactions, setReactions] = useState<ReactionSummary[]>([]);
-  const [showPicker, setShowPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
 
   // Load reactions on mount and subscribe to changes
   useEffect(() => {
@@ -60,19 +56,6 @@ export function MessageReactions({ messageId, userId, className = '' }: MessageR
     };
   }, [messageId, userId]);
 
-  // Close picker on click outside
-  useEffect(() => {
-    if (!showPicker) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        setShowPicker(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showPicker]);
 
   const loadReactions = async () => {
     if (!messageId || !userId) return;
@@ -96,7 +79,6 @@ export function MessageReactions({ messageId, userId, className = '' }: MessageR
       const success = await toggleReaction(messageId, userId, emoji);
       if (success) {
         // Reactions will update via real-time subscription
-        setShowPicker(false);
       } else {
         toast.error('Failed to add reaction. Please try again.');
       }
@@ -145,56 +127,6 @@ export function MessageReactions({ messageId, userId, className = '' }: MessageR
         ))}
       </AnimatePresence>
 
-      {/* Add Reaction Button */}
-      {userId && (
-        <div className="relative" ref={pickerRef}>
-          <button
-            onClick={() => setShowPicker(!showPicker)}
-            disabled={isLoading}
-            className={`
-              flex items-center justify-center w-7 h-7 rounded-full
-              transition-all duration-200
-              bg-atlas-pearl/80 border border-atlas-border
-              hover:bg-atlas-sand/20
-              ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-            `}
-            title="Add reaction"
-            aria-label="Add reaction"
-          >
-            <Plus className={`w-3.5 h-3.5 text-atlas-text-medium transition-transform duration-200 ${showPicker ? 'rotate-45' : ''}`} />
-          </button>
-
-          {/* Reaction Picker */}
-          <AnimatePresence>
-            {showPicker && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                transition={{ duration: 0.15 }}
-                className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-lg border border-atlas-border p-2 flex gap-1 z-50"
-              >
-                {QUICK_REACTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReactionClick(emoji)}
-                    disabled={isLoading}
-                    className={`
-                      w-8 h-8 flex items-center justify-center rounded-lg
-                      text-lg transition-all duration-150
-                      hover:bg-atlas-sage/20 hover:scale-110
-                      ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                    `}
-                    title={emoji}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
     </div>
   );
 }
