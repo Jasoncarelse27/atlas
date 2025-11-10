@@ -25,7 +25,7 @@ Atlas includes comprehensive voice capabilities across three tiers:
   - 2 minutes/day cap
   - Shared across STT + TTS
 
-### STUDIO Tier ($179.99/month)
+### STUDIO Tier ($149.99/month)
 - **TTS**: HD quality (`tts-1-hd`, `nova` voice)
 - **Voice Transcription**: OpenAI Whisper STT
 - **Voice Notes**: Upload as audio files (5 min max per note)

@@ -100,7 +100,7 @@
 
 ## 🎯 **HONEST ASSESSMENT**
 
-### **For Paid Users ($19.99-$179.99/month):**
+### **For Paid Users ($19.99-$149.99/month):**
 
 **✅ YES - Core Experience is 100%**
 - Professional grammar and spacing

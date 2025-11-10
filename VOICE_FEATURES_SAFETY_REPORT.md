@@ -103,7 +103,7 @@ npm run lint
 - Cost: ~$0.04/user/month
 - Profit margin: **99.8%**
 
-**Studio Tier ($179.99/month):**
+**Studio Tier ($149.99/month):**
 - Limit: Unlimited (with intelligent metering)
 - Cost: ~$0.63/user/month (heavy usage)
 - Profit margin: **99.65%**

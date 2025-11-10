@@ -220,7 +220,7 @@ npm run build
 **Break-even analysis:**
 - Free tier: Blocked (no cost)
 - Core tier ($19.99/month): ~950 voice messages/month to break even
-- Studio tier ($179.99/month): ~8,571 voice messages/month to break even
+- Studio tier ($149.99/month): ~8,571 voice messages/month to break even
 
 **Recommendation:** Current costs are sustainable. Monitor usage for first month.
 

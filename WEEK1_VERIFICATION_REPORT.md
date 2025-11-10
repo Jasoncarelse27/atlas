@@ -26,7 +26,7 @@ tier = profile?.subscription_tier || 'free';
 ```
 
 **Security Impact:** Client cannot control their tier  
-**Revenue Protected:** ✅ $179.99/user exploit prevented  
+**Revenue Protected:** ✅ $149.99/user exploit prevented  
 
 ---
 

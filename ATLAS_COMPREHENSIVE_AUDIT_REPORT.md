@@ -110,7 +110,7 @@ const tier = profile?.subscription_tier || 'free';
 
 **Impact:**
 - Users can send `"tier": "studio"` and bypass limits
-- Revenue loss: $179.99/user per month
+- Revenue loss: $149.99/user per month
 - Security rating: CRITICAL (1/10 difficulty to exploit)
 
 **Priority:** 🔴 P0 - Block Launch  

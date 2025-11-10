@@ -909,13 +909,26 @@ export default function EnhancedInputToolbar({
                     return;
                   }
                   
+                  // ✅ FIX: Don't blur input - let backdrop handle visual separation
+                  // Only blur on mobile if keyboard would actually overlap menu
                   if (!menuOpen) {
-                    // 📱 Close the keyboard before opening menu (prevents overlap)
-                    if (inputRef.current) {
-                      inputRef.current.blur();
+                    const isMobile = window.matchMedia('(max-width: 639px)').matches;
+                    if (isMobile && inputRef.current) {
+                      // Small delay to check if keyboard is visible
+                      setTimeout(() => {
+                        const input = inputRef.current;
+                        if (input) {
+                          const inputRect = input.getBoundingClientRect();
+                          const viewportHeight = window.innerHeight;
+                          // Only blur if input is in bottom 40% of screen (keyboard area)
+                          if (inputRect.top > viewportHeight * 0.6) {
+                            input.blur();
+                          }
+                        }
+                      }, 50);
                     }
                   } else {
-                    // Optionally, refocus input when closing the menu
+                    // Refocus input when closing the menu
                     setTimeout(() => {
                       if (inputRef.current) {
                         inputRef.current.focus();

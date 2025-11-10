@@ -134,7 +134,7 @@ Both branches: PUSHED & SAFE
 - Medium usage (50 calls × 3 min): $6.60/mo
 - Heavy usage (100 calls × 2 min): $8.80/mo
 
-**Conclusion:** Extremely affordable for Studio tier ($179.99/mo)
+**Conclusion:** Extremely affordable for Studio tier ($149.99/mo)
 
 ---
 

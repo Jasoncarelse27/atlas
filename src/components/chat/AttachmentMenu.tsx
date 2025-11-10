@@ -1,581 +1,173 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { Camera, ChevronRight, FileUp, Image as ImageIcon, RefreshCw } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { AnimatePresence, motion } from 'framer-motion';
+import { Camera, FileUp, Image as ImageIcon } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 
-// Removed sendMessageWithAttachments import - using callback pattern instead
-import { useFeatureAccess } from "@/hooks/useTierAccess";
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { useFeatureAccess } from '@/hooks/useTierAccess';
 import { logger } from '../../lib/logger';
-import { imageService } from "../../services/imageService";
-import { generateUUID } from "../../utils/uuid";
-// Removed useMessageStore import - using callback pattern instead
 
 interface AttachmentMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  conversationId?: string; // Made optional since we're using callback pattern
   userId: string;
   onAddAttachment?: (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File }) => void;
 }
 
+/**
+ * ✅ PREMIUM: Attachment Menu - Matching VoiceUpgradeModal Quality
+ * - Premium grid layout (icon-first design)
+ * - Animated icons with visual hierarchy
+ * - Removed header/footer for efficiency
+ * - Professional polish for paying users ($19.99-$149.99/month)
+ */
 const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   isOpen,
   onClose,
   userId,
   onAddAttachment,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // ✅ FIX 3: Cache failed upload for retry
-  const [failedUpload, setFailedUpload] = useState<{ file: File; error: string } | null>(null);
-  
-  // 📸 Camera state
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mobileCameraInputRef = useRef<HTMLInputElement>(null);
-  
-  // Tier access for image upload features
+  // Tier access checks
   const { attemptFeature: attemptImage } = useFeatureAccess('image');
   const { attemptFeature: attemptCamera } = useFeatureAccess('camera');
   
-  // Detect mobile device
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  
-  // Removed useMessageStore - using onAddAttachment callback instead
-
-  // 🔹 Upload handler for images from gallery - adds to input area for caption
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // ✅ Check tier access before uploading
-    const hasAccess = await attemptImage();
-    if (!hasAccess) {
-      e.target.value = ''; // Reset input
-      return; // attemptImage already shows upgrade modal
-    }
-
-    if (isUploading) {
-      logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
-      return;
-    }
-    
-    e.target.value = '';
-    
-    // Clear any previous failed upload
-    setFailedUpload(null);
-    
-    await uploadImage(file);
-  };
-  
-  // 🔹 Separate handler for camera capture to prevent duplicate uploads
-  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // ✅ Check tier access before uploading
-    const hasAccess = await attemptImage();
-    if (!hasAccess) {
-      e.target.value = ''; // Reset input
-      return; // attemptImage already shows upgrade modal
-    }
-
-    if (isUploading) {
-      logger.debug('[AttachmentMenu] Camera upload already in progress, ignoring duplicate');
-      return;
-    }
-    
-    e.target.value = '';
-    
-    // Clear any previous failed upload
-    setFailedUpload(null);
-    
-    await uploadImage(file);
-  };
-
-  // ✅ FIX 3: Retry failed upload
-  const retryFailedUpload = async () => {
-    if (!failedUpload) return;
-    const file = failedUpload.file;
-    setFailedUpload(null); // Clear error state
-    await uploadImage(file);
-  };
-
-  // ✅ BEST PRACTICE: Upload with automatic retry and exponential backoff
-  const uploadWithRetry = async (file: File, maxAttempts = 3): Promise<any> => {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        logger.debug(`[AttachmentMenu] Upload attempt ${attempt + 1}/${maxAttempts}`);
-        return await imageService.uploadImage(file, userId);
-      } catch (error) {
-        const isLastAttempt = attempt === maxAttempts - 1;
-        
-        // Check if error is retryable (network errors, timeouts)
-        const isRetryable = error instanceof Error && (
-          error.message.includes('network') ||
-          error.message.includes('timeout') ||
-          error.message.includes('fetch') ||
-          error.message.includes('failed to fetch')
-        );
-        
-        if (isLastAttempt || !isRetryable) {
-          throw error; // Give up after max attempts or non-retryable errors
-        }
-        
-        // Exponential backoff: 1s, 2s, 4s
-        const delayMs = Math.pow(2, attempt) * 1000;
-        logger.debug(`[AttachmentMenu] Upload failed, retrying in ${delayMs}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-    }
-    throw new Error('Upload failed after all retry attempts');
-  };
-
-  // ✅ FIX 3: Extracted upload logic for reusability
-  const uploadImage = async (file: File) => {
-    setIsUploading(true);
-    logger.debug('[AttachmentMenu] Starting single file upload');
-    
-    try {
-      // Show compression toast for large files
-      const fileSizeMB = file.size / 1024 / 1024;
-      const needsCompression = fileSizeMB > 0.5; // Show toast for files > 500KB
-
-      if (needsCompression) {
-        toast.loading(
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900">Optimizing image...</span>
-            <span className="text-xs text-gray-500">Compressing {fileSizeMB.toFixed(1)}MB file</span>
-          </div>,
-          { 
-            id: 'image-compression-loading',
-            icon: <div className="w-5 h-5 border-2 border-[#8FA67E] border-t-transparent rounded-full animate-spin" />
-          }
-        );
-      }
-
-      toast.loading(
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-900">Uploading image...</span>
-          <span className="text-xs text-gray-500">Preparing for analysis...</span>
-        </div>,
-        { 
-          id: 'image-upload-loading',
-          icon: <div className="w-5 h-5 border-2 border-[#8FA67E] border-t-transparent rounded-full animate-spin" />
-        }
-      );
-      
-      // ✅ BEST PRACTICE: Use automatic retry for better success rate
-      const result = await uploadWithRetry(file, 3);
-      
-      logger.debug('✅ File uploaded successfully');
-
+  // ✅ MODERN: Unified upload hook
+  const { uploadFile, isUploading } = useFileUpload({
+    userId,
+    onSuccess: (attachment) => {
       if (onAddAttachment) {
-        const attachment = {
-          id: generateUUID(),
-          type: file.type.startsWith('image/') ? "image" as const : "file" as const,
-          url: result.publicUrl,
-          publicUrl: result.publicUrl,
-          name: file.name,
-          size: file.size,
-          file: file,
-        };
         onAddAttachment(attachment);
-        
-        logger.debug('✅ File added to input area for caption');
-        if (needsCompression) toast.dismiss('image-compression-loading');
-        toast.dismiss('image-upload-loading');
-        toast.success(
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900">Upload complete</span>
-            <span className="text-xs text-gray-500">Add a caption and send</span>
-          </div>,
-          { 
-            duration: 3000,
-            icon: (
-              <div className="w-5 h-5 rounded-full bg-[#8FA67E] flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            )
-          }
-        );
       }
-
-    } catch (err) {
-      logger.error('[AttachmentMenu] Image upload failed:', err);
-      toast.dismiss('image-compression-loading');
-      toast.dismiss('image-upload-loading');
-      
-      // ✅ FIX 3: Cache failed upload and show retry option
-      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
-      setFailedUpload({ file, error: errorMessage });
-      
-      toast.error(
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-gray-900">Upload failed</span>
-          <span className="text-xs text-gray-500">{errorMessage}</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toast.dismiss();
-              retryFailedUpload();
-            }}
-            className="mt-1 px-3 py-1 bg-[#8FA67E] hover:bg-[#7E9570] text-white text-xs rounded-lg transition-colors"
-          >
-            Retry Upload
-          </button>
-        </div>,
-        { duration: 10000 } // Longer duration for retry button
-      );
-    } finally {
-      setIsUploading(false);
-      
-      // ✅ BEST PRACTICE: Clear all refs to ensure clean state
-      if (imageInputRef.current) imageInputRef.current.value = '';
-      if (mobileCameraInputRef.current) mobileCameraInputRef.current.value = '';
-      
       onClose();
-    }
-  };
+    },
+  });
 
-  // 🔹 Upload handler for files - adds to input area for caption (single file, professional UX)
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ✅ MODERN: Unified handler - one function for all uploads
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, source: 'gallery' | 'camera' | 'file') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (isUploading) {
-      logger.debug('[AttachmentMenu] Upload already in progress, ignoring duplicate trigger');
-      return;
-    }
-    
+    // Clear input for next selection
     e.target.value = '';
     
-    setIsUploading(true);
-    logger.debug('[AttachmentMenu] Starting single file upload');
-    try {
-      toast.loading(
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-900">Uploading file</span>
-          <span className="text-xs text-gray-500">Preparing for analysis...</span>
-        </div>,
-        { 
-          id: 'file-upload-loading',
-          icon: <div className="w-5 h-5 border-2 border-[#B2BDA3] border-t-transparent rounded-full animate-spin" />
-        }
-      );
-      
-      const result = await imageService.uploadImage(file, userId);
-      
-      logger.debug('✅ File uploaded successfully');
-
-      if (onAddAttachment) {
-        const attachment = {
-          id: generateUUID(),
-          type: file.type.startsWith('image/') ? "image" as const : "file" as const,
-          url: result.publicUrl,
-          publicUrl: result.publicUrl,
-          name: file.name,
-          size: file.size,
-          file: file,
-        };
-        onAddAttachment(attachment);
-        
-        logger.debug('✅ File added to input area for caption');
-        toast.dismiss('file-upload-loading');
-        toast.success(
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900">Upload complete</span>
-            <span className="text-xs text-gray-500">Add a caption and send</span>
-          </div>,
-          { 
-            duration: 3000,
-            icon: (
-              <div className="w-5 h-5 rounded-full bg-[#B2BDA3] flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            )
-          }
-        );
-      }
-
-    } catch (err) {
-      logger.error('[AttachmentMenu] File upload failed:', err);
-      toast.dismiss('file-upload-loading');
-      toast.error("Upload failed - check console for details");
-    } finally {
-      setIsUploading(false);
-      
-      // ✅ BEST PRACTICE: Clear file input ref to ensure clean state
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      
-      onClose();
-    }
-  };
-
-  // 📸 Camera functions
-  const startCamera = async () => {
-    // ✅ Check tier access before opening camera
+    // Check tier access
     const hasAccess = await attemptImage();
     if (!hasAccess) {
       return; // attemptImage already shows upgrade modal
     }
 
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: facingMode,
-          width: { ideal: isMobile ? 1920 : 1280 },
-          height: { ideal: isMobile ? 1080 : 720 }
-        } 
-      });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-      setIsCameraOpen(true);
-    } catch (error: unknown) {
-      const err = error as Error;
-      if (err.name === 'NotAllowedError') {
-        toast.error('Camera access denied. Please allow camera access.');
-      } else if (err.name === 'NotFoundError') {
-        toast.error('No camera found on this device.');
-      } else {
-        toast.error('Camera access failed. Please try again.');
-      }
-    }
-  };
-
-  const closeCamera = () => {
-    stream?.getTracks().forEach(track => track.stop());
-    setIsCameraOpen(false);
-    setStream(null);
-  };
-
-  const toggleCamera = async () => {
-    // Stop current stream
-    stream?.getTracks().forEach(track => track.stop());
-    
-    // Switch facing mode
-    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
-    setFacingMode(newFacingMode);
-    
-    // Restart camera with new facing mode
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: newFacingMode,
-          width: { ideal: isMobile ? 1920 : 1280 },
-          height: { ideal: isMobile ? 1080 : 720 }
-        } 
-      });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      await uploadFile(file, source);
     } catch (error) {
-      toast.error('Failed to switch camera');
+      // Error handling is done in useFileUpload hook
+      logger.error('[AttachmentMenu] Upload failed:', error);
     }
-  };
-
-  const capturePhoto = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    // Draw current video frame to canvas
-    const ctx = canvas.getContext('2d');
-    ctx?.drawImage(video, 0, 0);
-    
-    // Convert canvas to blob
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      
-      // Stop camera stream
-      stream?.getTracks().forEach(track => track.stop());
-      setIsCameraOpen(false);
-      
-      // Create File object
-      const file = new File([blob], `camera-${Date.now()}.png`, { type: 'image/png' });
-      
-      // Use existing upload flow
-      setIsUploading(true);
-      try {
-        toast.loading(
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900">Uploading photo</span>
-            <span className="text-xs text-gray-500">Preparing for analysis...</span>
-          </div>,
-          { 
-            id: 'camera-upload-loading',
-            icon: <div className="w-5 h-5 border-2 border-[#B2BDA3] border-t-transparent rounded-full animate-spin" />
-          }
-        );
-        
-        const result = await imageService.uploadImage(file, userId);
-        const attachment = {
-          id: generateUUID(),
-          type: "image" as const,
-          url: result.publicUrl,
-          publicUrl: result.publicUrl,
-          name: file.name,
-          size: file.size,
-          file: file,
-        };
-        
-        if (onAddAttachment) {
-          onAddAttachment(attachment);
-          toast.dismiss('camera-upload-loading');
-          toast.success(
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-gray-900">Photo captured</span>
-              <span className="text-xs text-gray-500">Add a caption and send</span>
-            </div>,
-            { 
-              duration: 3000,
-              icon: (
-                <div className="w-5 h-5 rounded-full bg-[#B2BDA3] flex items-center justify-center">
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-              )
-            }
-          );
-        }
-      } catch (error) {
-        toast.dismiss('camera-upload-loading');
-        toast.error('Failed to upload photo');
-      } finally {
-        setIsUploading(false);
-        onClose();
-      }
-    }, 'image/png');
   };
 
   const handleCameraClick = async () => {
+    // Check tier access for camera
     const hasAccess = await attemptCamera();
     if (!hasAccess) {
-      toast.error(
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-900">Studio Tier Required</span>
-          <span className="text-xs text-gray-500">Upgrade to use camera features</span>
-        </div>,
-        { duration: 4000 }
-      );
-      return;
+      return; // attemptCamera already shows upgrade modal
     }
-    startCamera();
+    cameraInputRef.current?.click();
   };
 
-  // Cleanup camera stream on unmount
-  useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [stream]);
-
-  // ✅ BEST PRACTICE: Calculate menu position relative to button (works on mobile & web)
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
+  // ✅ MOBILE-FIRST: Calculate position - optimized for grid layout
   useEffect(() => {
-    if (isOpen) {
-      // Find the attachment button using data attribute
+    if (!isOpen) {
+      setMenuPosition(null);
+      return;
+    }
+
+    // ✅ FIX: Add small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
       const button = document.querySelector('[data-attachment-button]') as HTMLElement;
-      if (button) {
-        const rect = button.getBoundingClientRect();
-        const menuWidth = window.innerWidth < 640 ? 288 : 320; // w-72 (288px) mobile, w-80 (320px) desktop
-        const menuHeight = 450; // Approximate height
-        const spacing = 12; // Space above button
-        
-        // Position above button, centered horizontally
-        let left = rect.left + (rect.width / 2) - (menuWidth / 2);
-        let top = rect.top - menuHeight - spacing;
-        
-        // ✅ BEST PRACTICE: Ensure menu stays within viewport (mobile & web)
+      if (!button) {
+        // Fallback: Center on screen if button not found
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
-        const padding = 8; // Safe padding from edges
-        
-        // Adjust horizontal position if menu would overflow
-        if (left < padding) {
-          left = padding;
-        } else if (left + menuWidth > viewportWidth - padding) {
-          left = viewportWidth - menuWidth - padding;
+        const menuWidth = window.matchMedia('(max-width: 639px)').matches ? 280 : 340;
+        const menuHeight = window.matchMedia('(max-width: 639px)').matches ? 180 : 200;
+        setMenuPosition({
+          top: (viewportHeight - menuHeight) / 2,
+          left: (viewportWidth - menuWidth) / 2
+        });
+        return;
+      }
+
+      const rect = button.getBoundingClientRect();
+      // ✅ BEST PRACTICE: Use matchMedia for responsive breakpoint (matches Tailwind sm: 640px)
+      const isMobile = window.matchMedia('(max-width: 639px)').matches;
+      const menuWidth = isMobile ? 280 : 340; // ✅ PREMIUM: Compact grid layout
+      const menuHeight = isMobile ? 180 : 200; // ✅ PREMIUM: Much smaller height
+      const spacing = isMobile ? 8 : 12;
+      const padding = 8;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // ✅ MOBILE-FIRST: Position centered above input area
+      let left = (viewportWidth - menuWidth) / 2; // Center horizontally
+      let top: number;
+
+      if (isMobile) {
+        // Mobile: Position above the entire input area
+        const inputArea = document.querySelector('[data-input-area]') as HTMLElement;
+        if (inputArea) {
+          const inputRect = inputArea.getBoundingClientRect();
+          top = inputRect.top - menuHeight - spacing;
+        } else {
+          // Fallback: Use button position
+          top = rect.top - menuHeight - spacing;
         }
+      } else {
+        // Desktop: Position above button, centered on button
+        left = rect.left + (rect.width / 2) - (menuWidth / 2);
+        top = rect.top - menuHeight - spacing;
+      }
+
+      // ✅ CRITICAL: Keep within viewport horizontally
+      if (left < padding) left = padding;
+      if (left + menuWidth > viewportWidth - padding) {
+        left = viewportWidth - menuWidth - padding;
+      }
         
-        // Adjust vertical position if menu would overflow top
-        if (top < padding) {
-          // If not enough space above, position below button
+      // ✅ CRITICAL: On mobile, if menu would go off-screen top, position it in visible area
+      if (top < padding) {
+        if (isMobile) {
+          // Mobile: Position in middle-top area (20% from top) so it's always visible
+          top = Math.max(padding, viewportHeight * 0.2);
+          // Re-center horizontally when repositioned
+          left = (viewportWidth - menuWidth) / 2;
+        } else {
+          // Desktop: Position below button if no space above
           top = rect.bottom + spacing;
         }
+      }
         
-        // Ensure menu doesn't overflow bottom
-        if (top + menuHeight > viewportHeight - padding) {
-          top = viewportHeight - menuHeight - padding;
+      // ✅ CRITICAL: Ensure menu doesn't overflow bottom (especially important on mobile)
+      const maxTop = viewportHeight - menuHeight - padding;
+      if (top > maxTop) {
+        top = Math.max(padding, maxTop);
+        // Re-center horizontally when repositioned
+        if (isMobile) {
+          left = (viewportWidth - menuWidth) / 2;
         }
-        
-        setMenuPosition({ top, left });
       }
-    } else {
-      setMenuPosition(null);
-    }
+        
+      setMenuPosition({ top, left });
+    }, 50); // ✅ Small delay to ensure DOM is ready
+    
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
-  // ✅ BEST PRACTICE: Update position on window resize (mobile orientation change)
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    const handleResize = () => {
-      const button = document.querySelector('[data-attachment-button]') as HTMLElement;
-      if (button) {
-        const rect = button.getBoundingClientRect();
-        const menuWidth = window.innerWidth < 640 ? 288 : 320;
-        const menuHeight = 450;
-        const spacing = 12;
-        
-        let left = rect.left + (rect.width / 2) - (menuWidth / 2);
-        let top = rect.top - menuHeight - spacing;
-        
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const padding = 8;
-        
-        if (left < padding) left = padding;
-        if (left + menuWidth > viewportWidth - padding) left = viewportWidth - menuWidth - padding;
-        if (top < padding) top = rect.bottom + spacing;
-        if (top + menuHeight > viewportHeight - padding) top = viewportHeight - menuHeight - padding;
-        
-        setMenuPosition({ top, left });
-      }
-    };
-    
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, [isOpen]);
-
-  // ✅ BEST PRACTICE: Handle click outside to close menu (mobile & web)
+  // ✅ SIMPLIFIED: Click outside to close
   useEffect(() => {
     if (!isOpen) return;
 
@@ -584,13 +176,11 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       const button = document.querySelector('[data-attachment-button]');
       const menu = menuRef.current;
       
-      // Close if clicking outside both button and menu
       if (menu && !menu.contains(target) && button && !button.contains(target)) {
         onClose();
       }
     };
 
-    // ✅ BEST PRACTICE: Use both mouse and touch events for mobile & web
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
     
@@ -601,260 +191,166 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   }, [isOpen, onClose]);
 
   return (
-    <>
     <AnimatePresence>
       {isOpen && menuPosition && (
         <>
-          {/* ✅ BEST PRACTICE: Backdrop overlay (mobile & web) */}
+          {/* Backdrop - ✅ FIX: Transparent to prevent blur artifacts */}
           <motion.div
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9998]"
+            className="fixed inset-0 bg-transparent z-[10001]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
             onClick={onClose}
             aria-hidden="true"
+            style={{
+              pointerEvents: 'auto',
+              transform: 'translateZ(0)', // ✅ GPU acceleration
+            }}
           />
           
-          {/* ✅ BEST PRACTICE: Fixed positioning relative to viewport (not clipped by parent) */}
+          {/* Menu - ✅ PREMIUM: Grid layout matching VoiceUpgradeModal quality */}
           <motion.div
             ref={menuRef}
             data-attachment-menu
-            className="fixed w-72 sm:w-80 max-w-[calc(100vw-16px)] z-[9999]"
+            className="fixed w-[280px] sm:w-[340px] max-w-[calc(100vw-16px)] z-[10003] rounded-3xl bg-gradient-to-br from-atlas-pearl to-atlas-peach shadow-2xl border-2 border-atlas-sand p-6 sm:p-8"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
+              boxShadow: '0 20px 60px rgba(151, 134, 113, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
             }}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            initial={{ opacity: 0, y: 10, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            exit={{ opacity: 0, y: 5, scale: 0.96 }}
+            transition={{ 
+              duration: 0.25, 
+              ease: [0.16, 1, 0.3, 1], // ✅ BEST PRACTICE: Smooth easing curve
+              scale: { duration: 0.2 }
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              className="rounded-3xl bg-gradient-to-br from-[#F4E8E1] to-[#F3D3B8] shadow-2xl border-2 border-[#CEC1B8]"
-              style={{
-                boxShadow: '0 20px 60px rgba(151, 134, 113, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
-              }}
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <div className="p-4 sm:p-6">
-                {/* Header */}
-                <div className="text-center mb-4 sm:mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Attach Media</h2>
-                  <p className="text-gray-600 text-xs sm:text-sm">Choose what you'd like to share</p>
+            {/* Hidden inputs - ✅ MODERN: Native inputs work everywhere now */}
+            <input
+              type="file"
+              accept="image/*,video/*"
+              ref={imageInputRef}
+              style={{ display: 'none' }}
+              onChange={(e) => handleFileSelect(e, 'gallery')}
+              aria-label="Select images or videos from gallery"
+              disabled={isUploading}
+            />
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={cameraInputRef}
+              style={{ display: 'none' }}
+              onChange={(e) => handleFileSelect(e, 'camera')}
+              aria-label="Take photo with camera"
+              disabled={isUploading}
+            />
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={(e) => handleFileSelect(e, 'file')}
+              aria-label="Select files to upload"
+              disabled={isUploading}
+            />
+
+            {/* ✅ PREMIUM: Grid Layout - Icon-first design */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              {/* Choose Photo - PRIMARY ACTION (highlighted) */}
+              <motion.button
+                disabled={isUploading}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  if (!isUploading) {
+                    imageInputRef.current?.click();
+                  }
+                }}
+                className={`flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
+                  isUploading 
+                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
+                    : 'bg-gradient-to-br from-atlas-sage/30 to-atlas-peach/20 border-atlas-sage/50 hover:border-atlas-sage shadow-lg hover:shadow-xl'
+                }`}
+                aria-label="Choose photos or videos from gallery"
+                aria-disabled={isUploading}
+              >
+                <motion.div
+                  animate={!isUploading ? { scale: [1, 1.1, 1] } : {}}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  className={`p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
+                    isUploading 
+                      ? 'bg-atlas-sage/20' 
+                      : 'bg-atlas-sage/40 group-hover:bg-atlas-sage/60'
+                  }`}
+                >
+                  <ImageIcon className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
+                </motion.div>
+                <span className="text-xs sm:text-sm font-semibold text-gray-900">Photo</span>
+                <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">Gallery</span>
+              </motion.button>
+
+              {/* Take Photo */}
+              <motion.button
+                disabled={isUploading}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCameraClick}
+                className={`flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
+                  isUploading 
+                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
+                    : 'bg-white/80 hover:bg-atlas-peach/30 border-atlas-sand hover:border-atlas-sage shadow-md hover:shadow-lg'
+                }`}
+                aria-label="Take photo with camera"
+                aria-disabled={isUploading}
+              >
+                <div className={`p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
+                  isUploading 
+                    ? 'bg-atlas-sage/20' 
+                    : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50'
+                }`}>
+                  <Camera className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
                 </div>
+                <span className="text-xs sm:text-sm font-semibold text-gray-900">Camera</span>
+                <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">Capture</span>
+              </motion.button>
 
-                {/* Hidden inputs (triggered programmatically) */}
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  ref={imageInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleImageSelect}
-                  aria-label="Select images or videos from gallery"
-                />
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  ref={mobileCameraInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleCameraCapture}
-                  aria-label="Take photo with camera"
-                />
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,audio/*"
-                  ref={fileInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleFileSelect}
-                  aria-label="Select files to upload"
-                />
-
-                {/* Options - Attach File, Upload Image, and Take Photo */}
-                <div className="space-y-2 sm:space-y-3">
-                  {/* Choose Photo - Direct to gallery */}
-                  <button
-                    disabled={isUploading}
-                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border-2 group ${
-                      isUploading 
-                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-                        : 'bg-white/80 hover:bg-[#D3DCAB]/30 border-[#CEC1B8] hover:border-[#D3DCAB] shadow-md hover:shadow-lg'
-                    }`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!isUploading) {
-                        imageInputRef.current?.click();
-                      }
-                    }}
-                    aria-label="Choose photos or videos from gallery"
-                    aria-disabled={isUploading}
-                  >
-                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
-                      isUploading 
-                        ? 'bg-[#D3DCAB]/20' 
-                        : 'bg-[#D3DCAB]/30 group-hover:bg-[#D3DCAB]/50'
-                    }`}>
-                      <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#978671]" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <div className="text-gray-900 font-medium text-sm sm:text-base">
-                        {isUploading ? 'Uploading...' : 'Choose Photo'}
-                      </div>
-                      <div className="text-gray-600 text-xs sm:text-sm">
-                        {isUploading ? 'Please wait...' : 'Select from gallery'}
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Take Photo - Direct to camera */}
-                  <button
-                    disabled={isUploading}
-                    className={`w-full flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl transition-all duration-200 border-2 group ${
-                      isUploading 
-                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-                        : 'bg-white/80 hover:bg-[#D3DCAB]/30 border-[#CEC1B8] hover:border-[#D3DCAB] shadow-md hover:shadow-lg'
-                    }`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!isUploading) {
-                        // Mobile: Use native camera input (opens device camera directly)
-                        // Desktop: Use WebRTC camera (in-app camera with preview)
-                        if (isMobile) {
-                          mobileCameraInputRef.current?.click();
-                        } else {
-                          handleCameraClick();
-                        }
-                      }
-                    }}
-                    aria-label="Take photo with camera"
-                    aria-disabled={isUploading}
-                  >
-                    <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
-                      isUploading 
-                        ? 'bg-[#D3DCAB]/20' 
-                        : 'bg-[#D3DCAB]/30 group-hover:bg-[#D3DCAB]/50'
-                    }`}>
-                      <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-[#978671]" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <div className="text-gray-900 font-medium text-sm sm:text-base">
-                        Take Photo
-                      </div>
-                      <div className="text-gray-600 text-xs sm:text-sm">
-                        Open camera now
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Attach File */}
-                  <button
-                    disabled={isUploading}
-                    className={`w-full flex items-center justify-between p-3 sm:p-4 rounded-2xl transition-all duration-200 border-2 group ${
-                      isUploading 
-                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-                        : 'bg-white/80 hover:bg-[#D3DCAB]/30 border-[#CEC1B8] hover:border-[#D3DCAB] shadow-md hover:shadow-lg'
-                    }`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!isUploading) {
-                        fileInputRef.current?.click();
-                      }
-                    }}
-                    aria-label="Attach files, documents, or PDFs"
-                    aria-disabled={isUploading}
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className={`p-1.5 sm:p-2 rounded-xl transition-colors shadow-sm ${
-                        isUploading 
-                          ? 'bg-[#D3DCAB]/20' 
-                          : 'bg-[#D3DCAB]/30 group-hover:bg-[#D3DCAB]/50'
-                      }`}>
-                        <FileUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#978671]" />
-                      </div>
-                      <div className="text-left">
-                        <div className="text-gray-900 font-medium text-sm sm:text-base">
-                          {isUploading ? 'Uploading...' : 'Attach File'}
-                        </div>
-                        <div className="text-gray-600 text-xs sm:text-sm">
-                          {isUploading ? 'Please wait...' : 'Upload documents, PDFs, and more'}
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                  </button>
+              {/* Attach File */}
+              <motion.button
+                disabled={isUploading}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  if (!isUploading) {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                className={`flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
+                  isUploading 
+                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
+                    : 'bg-white/80 hover:bg-atlas-peach/30 border-atlas-sand hover:border-atlas-sage shadow-md hover:shadow-lg'
+                }`}
+                aria-label="Attach files, documents, or PDFs"
+                aria-disabled={isUploading}
+              >
+                <div className={`p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
+                  isUploading 
+                    ? 'bg-atlas-sage/20' 
+                    : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50'
+                }`}>
+                  <FileUp className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
                 </div>
-
-                {/* Footer */}
-                <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-200">
-                  <p className="text-gray-500 text-xs text-center">
-                    Supported: Images, PDFs, Audio, Documents
-                  </p>
-                </div>
-              </div>
-            </motion.div>
+                <span className="text-xs sm:text-sm font-semibold text-gray-900">File</span>
+                <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">Upload</span>
+              </motion.button>
+            </div>
           </motion.div>
         </>
       )}
     </AnimatePresence>
-
-    {/* 📸 Camera Modal - Mobile Optimized */}
-    {isCameraOpen && (
-      <div className="fixed inset-0 bg-black z-[100] flex flex-col">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover"
-          style={{ WebkitPlaysinline: 'true' } as React.CSSProperties}
-        />
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-        
-        {/* Mobile-friendly controls */}
-        <div 
-          className="absolute bottom-0 left-0 right-0 pb-8 pt-6 bg-gradient-to-t from-black/80 to-transparent"
-          style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
-        >
-          <div className="flex flex-col items-center gap-4">
-            {/* Camera flip toggle (mobile only) */}
-            {isMobile && (
-              <button
-                onClick={toggleCamera}
-                className="px-4 py-2 bg-white/10 text-white rounded-full hover:bg-white/20 flex items-center gap-2 min-h-[44px]"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Flip Camera
-              </button>
-            )}
-            
-            {/* Large capture button */}
-            <button
-              onClick={capturePhoto}
-              className="w-16 h-16 bg-[#B2BDA3] text-white rounded-full hover:bg-[#A3B295] flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-            >
-              <Camera className="w-8 h-8" />
-            </button>
-            
-            {/* Cancel button */}
-            <button
-              onClick={closeCamera}
-              className="px-6 py-3 bg-white/10 text-white rounded-full hover:bg-white/20 min-h-[44px] min-w-[100px]"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
   );
 };
 

@@ -268,7 +268,7 @@ The backend automatically increments usage on each transcription.
 ### Total Cost per User (Studio Tier, 120 min/month)
 - STT: 120 min × $0.006 = $0.72
 - TTS (HD): ~18,000 chars × $0.00003 = $0.54
-- **Total: ~$1.26/user/month** (99.3% margin on $179.99 Studio tier!)
+- **Total: ~$1.26/user/month** (99.3% margin on $149.99 Studio tier!)
 
 ---
 
