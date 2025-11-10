@@ -17,31 +17,38 @@ import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowLeft, GripVertical, Info, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
+import { ArrowLeft, Copy, GripVertical, Info, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { useRitualStore } from '../hooks/useRitualStore';
-import { analyzeRitual, type RitualSuggestion } from '../services/ritualSuggestions';
+import { analyzeRitual, getQuickStartTemplate, type RitualSuggestion } from '../services/ritualSuggestions';
 import type { Ritual, RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
+import { normalizeStepDurations, prepareStepsForStorage } from '../utils/durationUtils';
 import { StepConfigPanel } from './StepConfigPanel';
 import { STEP_TYPE_DEFINITIONS, StepLibrary } from './StepLibrary';
 
 interface SortableStepCardProps {
   step: RitualStep;
   index: number;
+  totalSteps: number;
   onEdit: (step: RitualStep) => void;
   onDelete: (stepId: string) => void;
+  onDuplicate?: (stepId: string) => void;
+  onKeyboardReorder?: (stepId: string, direction: 'up' | 'down') => void;
   triggerHaptic: (duration: number) => void;
   isMobile: boolean;
 }
 
-const SortableStepCard: React.FC<SortableStepCardProps> = ({ 
+const SortableStepCard: React.FC<SortableStepCardProps> = React.memo(({ 
   step, 
-  index, 
+  index,
+  totalSteps,
   onEdit, 
   onDelete,
+  onDuplicate,
+  onKeyboardReorder,
   triggerHaptic,
   isMobile 
 }) => {
@@ -79,10 +86,22 @@ const SortableStepCard: React.FC<SortableStepCardProps> = ({
         <button
           {...attributes}
           {...listeners}
+          onKeyDown={(e) => {
+            // ✅ KEYBOARD NAVIGATION: Arrow keys to reorder steps
+            if (e.key === 'ArrowUp' && index > 0 && onKeyboardReorder) {
+              e.preventDefault();
+              onKeyboardReorder(step.id, 'up');
+            } else if (e.key === 'ArrowDown' && index < totalSteps - 1 && onKeyboardReorder) {
+              e.preventDefault();
+              onKeyboardReorder(step.id, 'down');
+            }
+          }}
           className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 
             flex-shrink-0 touch-target
-            active:scale-110 transition-transform"
-          aria-label="Drag to reorder"
+            active:scale-110 transition-transform
+            focus:outline-none focus:ring-2 focus:ring-[#B2BDA3] focus:ring-offset-1"
+          aria-label={`Step ${index + 1}: ${step.config.title}. Press arrow keys to reorder.`}
+          tabIndex={0}
         >
           <GripVertical size={isMobile ? 24 : 20} />
         </button>
@@ -100,8 +119,17 @@ const SortableStepCard: React.FC<SortableStepCardProps> = ({
 
         {/* Info - Tappable to edit */}
         <div 
-          className="flex-1 min-w-0 cursor-pointer" 
+          className="flex-1 min-w-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#B2BDA3] focus:ring-offset-1 rounded" 
           onClick={handleEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleEdit();
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Edit ${step.config.title}`}
         >
           <div className="font-medium text-sm sm:text-base text-[#3B3632] line-clamp-2">
             {step.config.title}
@@ -109,20 +137,49 @@ const SortableStepCard: React.FC<SortableStepCardProps> = ({
           <div className="text-xs text-gray-600">{step.duration} min</div>
         </div>
 
-        {/* Delete Button - Always visible on mobile, hover on desktop */}
-        <button
-          onClick={handleDelete}
-          className={`flex-shrink-0 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors
-            min-h-[44px] min-w-[44px]
-            ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-          aria-label="Delete step"
-        >
-          <Trash2 size={isMobile ? 20 : 18} />
-        </button>
+        {/* Action Buttons - Always visible on mobile, hover on desktop */}
+        <div className="flex items-center gap-1">
+          {/* Duplicate Button */}
+          {onDuplicate && (
+            <button
+              onClick={() => onDuplicate(step.id)}
+              className={`flex-shrink-0 p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors
+                min-h-[44px] min-w-[44px]
+                ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              aria-label="Duplicate step"
+              title="Duplicate step"
+            >
+              <Copy size={isMobile ? 20 : 18} />
+            </button>
+          )}
+          
+          {/* Delete Button */}
+          <button
+            onClick={handleDelete}
+            className={`flex-shrink-0 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors
+              min-h-[44px] min-w-[44px]
+              ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            aria-label="Delete step"
+            title="Delete step"
+          >
+            <Trash2 size={isMobile ? 20 : 18} />
+          </button>
+        </div>
       </div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if step data or index changes
+  return (
+    prevProps.step.id === nextProps.step.id &&
+    prevProps.step.duration === nextProps.step.duration &&
+    prevProps.step.config.title === nextProps.step.config.title &&
+    prevProps.step.config.instructions === nextProps.step.config.instructions &&
+    prevProps.index === nextProps.index &&
+    prevProps.totalSteps === nextProps.totalSteps &&
+    prevProps.isMobile === nextProps.isMobile
+  );
+});
 
 export const RitualBuilder: React.FC = () => {
   const navigate = useNavigate();
@@ -151,29 +208,46 @@ export const RitualBuilder: React.FC = () => {
   const [goal, setGoal] = useState<RitualGoal>(editRitual?.goal || 'focus');
   const [steps, setSteps] = useState<RitualStep[]>(() => {
     if (editRitual?.steps) {
-      // Check if durations are already in minutes (< 10) or in seconds (> 10)
-      // This handles both old corrupted data and new data
-      return editRitual.steps.map(step => ({
-        ...step,
-        duration: step.duration < 10 
-          ? step.duration // Already corrupted/in minutes, keep as is
-          : step.duration / 60, // In seconds, convert to minutes
-      }));
+      // ✅ Use utility function for duration normalization
+      return normalizeStepDurations(editRitual.steps) as RitualStep[];
     }
     return [];
   });
   const [selectedStep, setSelectedStep] = useState<RitualStep | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // 🔥 NEW: Smart suggestions
+  // 🔥 NEW: Smart suggestions with debounce
   const [suggestions, setSuggestions] = useState<RitualSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Analyze ritual and provide suggestions whenever steps or goal change
+  // Debounced suggestions analysis (300ms delay)
   useEffect(() => {
-    const newSuggestions = analyzeRitual(steps, goal);
-    setSuggestions(newSuggestions);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      const newSuggestions = analyzeRitual(steps, goal);
+      setSuggestions(newSuggestions);
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [steps, goal]);
+
+  // ✅ PHASE 3: Initialize component (simulate loading for skeleton)
+  useEffect(() => {
+    // Small delay to show skeleton loader on initial mount
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Mobile: Show config as bottom sheet
   const [showMobileConfig, setShowMobileConfig] = useState(false);
@@ -207,9 +281,14 @@ export const RitualBuilder: React.FC = () => {
     );
   }
 
-  const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
+  // ✅ PERFORMANCE: Memoize total duration calculation
+  const totalDuration = useMemo(() => 
+    steps.reduce((sum, step) => sum + step.duration, 0),
+    [steps]
+  );
 
-  const handleAddStep = (stepType: RitualStepType) => {
+  // ✅ PERFORMANCE: Memoize callbacks to prevent unnecessary re-renders
+  const handleAddStep = useCallback((stepType: RitualStepType) => {
     const stepDef = STEP_TYPE_DEFINITIONS[stepType];
     const newStep: RitualStep = {
       id: uuidv4(),
@@ -222,80 +301,152 @@ export const RitualBuilder: React.FC = () => {
       },
     };
 
-    setSteps([...steps, newStep]);
+    setSteps(prev => [...prev, newStep]);
     triggerHaptic(50); // Medium haptic for add
-    toast.success(`Added ${stepDef.label}`);
-  };
+    toast.success(`Added ${stepDef.label}`, {
+      duration: 2000,
+    });
+  }, [triggerHaptic]);
 
-  const handleDeleteStep = (stepId: string) => {
-    setSteps(steps.filter((s) => s.id !== stepId));
-    if (selectedStep?.id === stepId) {
-      setSelectedStep(null);
-      if (isMobile) setShowMobileConfig(false);
-    }
-    toast.success('Step removed');
-  };
+  const handleDeleteStep = useCallback((stepId: string) => {
+    setSteps(prev => prev.filter((s) => s.id !== stepId));
+    setSelectedStep(prev => {
+      if (prev?.id === stepId) {
+        if (isMobile) setShowMobileConfig(false);
+        return null;
+      }
+      return prev;
+    });
+    toast.success('Step removed', {
+      duration: 2000,
+    });
+  }, [isMobile]);
 
-  const handleUpdateStep = (updatedStep: RitualStep) => {
-    setSteps(steps.map((s) => (s.id === updatedStep.id ? updatedStep : s)));
-  };
+  // ✅ PHASE 2: Duplicate step feature
+  const handleDuplicateStep = useCallback((stepId: string) => {
+    setSteps(prev => {
+      const stepToDuplicate = prev.find(s => s.id === stepId);
+      if (!stepToDuplicate) return prev;
 
-  const handleEditStep = (step: RitualStep) => {
+      const duplicatedStep: RitualStep = {
+        ...stepToDuplicate,
+        id: uuidv4(),
+        order: prev.length, // Add at the end
+      };
+
+      triggerHaptic(50);
+      toast.success(`Duplicated ${stepToDuplicate.config.title}`, {
+        duration: 2000,
+      });
+      return [...prev, duplicatedStep];
+    });
+  }, [triggerHaptic]);
+
+  const handleUpdateStep = useCallback((updatedStep: RitualStep) => {
+    setSteps(prev => prev.map((s) => (s.id === updatedStep.id ? updatedStep : s)));
+  }, []);
+
+  const handleEditStep = useCallback((step: RitualStep) => {
     setSelectedStep(step);
     if (isMobile) {
       setShowMobileConfig(true);
     }
-  };
+  }, [isMobile]);
 
-  const handleDragStart = (_event: DragStartEvent) => {
-    triggerHaptic(10); // Light haptic on drag start
-  };
+  // ✅ KEYBOARD NAVIGATION: Handler for reordering steps via keyboard
+  const handleKeyboardReorder = useCallback((stepId: string, direction: 'up' | 'down') => {
+    setSteps(prev => {
+      const currentIndex = prev.findIndex(s => s.id === stepId);
+      if (currentIndex === -1) return prev;
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (newIndex < 0 || newIndex >= prev.length) return prev;
 
-    if (over && active.id !== over.id) {
-      const oldIndex = steps.findIndex((s) => s.id === active.id);
-      const newIndex = steps.findIndex((s) => s.id === over.id);
-
-      const reordered = arrayMove(steps, oldIndex, newIndex).map((step, index) => ({
+      const reordered = arrayMove(prev, currentIndex, newIndex).map((step, index) => ({
         ...step,
         order: index,
       }));
 
-      setSteps(reordered);
-      triggerHaptic(50); // Medium haptic on reorder
+      triggerHaptic(50);
+      return reordered;
+    });
+  }, [triggerHaptic]);
+
+  const handleDragStart = useCallback((_event: DragStartEvent) => {
+    triggerHaptic(10); // Light haptic on drag start
+  }, [triggerHaptic]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setSteps(prev => {
+        const oldIndex = prev.findIndex((s) => s.id === active.id);
+        const newIndex = prev.findIndex((s) => s.id === over.id);
+
+        const reordered = arrayMove(prev, oldIndex, newIndex).map((step, index) => ({
+          ...step,
+          order: index,
+        }));
+
+        triggerHaptic(50); // Medium haptic on reorder
+        return reordered;
+      });
     } else {
       triggerHaptic(10); // Light haptic on cancel
     }
-  };
+  }, [triggerHaptic]);
 
   const handleSave = async () => {
-    // Validation
+    // ✅ PHASE 2: Enhanced validation with better error messages
     if (!title.trim()) {
-      toast.error('Please enter a ritual title');
+      toast.error('Please enter a ritual title', {
+        description: 'A title helps you identify your ritual later',
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (title.trim().length > 100) {
+      toast.error('Title too long', {
+        description: 'Ritual title must be 100 characters or less',
+        duration: 3000,
+      });
       return;
     }
 
     if (steps.length === 0) {
-      toast.error('Add at least one step to your ritual');
+      toast.error('Add at least one step', {
+        description: 'Your ritual needs at least one step to be saved',
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (steps.length > 10) {
+      toast.error('Too many steps', {
+        description: 'Rituals can have a maximum of 10 steps',
+        duration: 3000,
+      });
       return;
     }
 
     if (!userId) {
-      toast.error('You must be logged in to save rituals');
+      toast.error('Please sign in', {
+        description: 'You must be logged in to save rituals',
+        duration: 3000,
+      });
       return;
     }
 
     setSaving(true);
-    const loadingToast = toast.loading('Saving ritual...');
+    const loadingToast = toast.loading('Saving ritual...', {
+      description: 'Please wait while we save your ritual',
+    });
 
     try {
-      // Convert step durations from MINUTES to SECONDS for consistency with presets
-      const stepsWithCorrectDuration = steps.map(step => ({
-        ...step,
-        duration: step.duration * 60, // Convert minutes to seconds
-      }));
+      // ✅ Use utility function to prepare steps for storage
+      const stepsWithCorrectDuration = prepareStepsForStorage(steps) as RitualStep[];
 
       await createRitual({
         userId,
@@ -307,19 +458,93 @@ export const RitualBuilder: React.FC = () => {
       });
 
       toast.dismiss(loadingToast);
-      toast.success('✨ Ritual saved successfully!');
+      toast.success('✨ Ritual saved successfully!', {
+        description: `${title.trim()} has been added to your library`,
+        duration: 3000,
+      });
       navigate('/rituals');
     } catch (error) {
       logger.error('[RitualBuilder] Failed to save ritual:', error);
       toast.dismiss(loadingToast);
-      toast.error('Failed to save ritual. Please try again.');
+      
+      // ✅ PHASE 2: Better error handling with retry option
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        toast.error('Network error', {
+          description: 'Please check your connection and try again',
+          duration: 5000,
+        });
+      } else {
+        toast.error('Failed to save ritual', {
+          description: errorMessage,
+          duration: 5000,
+        });
+      }
     } finally {
       setSaving(false);
     }
   };
 
+  // ✅ PHASE 3: Skeleton loader for initial load
+  if (isInitializing) {
+    return (
+      <div className="h-screen overflow-y-auto bg-[#F9F6F1] overscroll-contain">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+          <div className="animate-pulse space-y-6">
+            {/* Header skeleton */}
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gray-200 rounded-lg" />
+              <div className="flex-1">
+                <div className="h-8 bg-gray-200 rounded w-64 mb-2" />
+                <div className="h-4 bg-gray-200 rounded w-48" />
+              </div>
+              <div className="w-32 h-12 bg-gray-200 rounded-xl" />
+            </div>
+            {/* Content skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-xl p-6 space-y-4">
+                  <div className="h-6 bg-gray-200 rounded w-32" />
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-16 bg-gray-200 rounded-lg" />
+                  ))}
+                </div>
+              </div>
+              <div className="lg:col-span-1 space-y-6">
+                <div className="bg-white rounded-xl p-6 space-y-4">
+                  <div className="h-6 bg-gray-200 rounded w-40" />
+                  <div className="h-12 bg-gray-200 rounded-lg" />
+                  <div className="h-12 bg-gray-200 rounded-lg" />
+                  <div className="h-20 bg-gray-200 rounded-lg" />
+                </div>
+                <div className="bg-white rounded-xl p-6">
+                  <div className="h-6 bg-gray-200 rounded w-32 mb-4" />
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-20 bg-gray-200 rounded-lg mb-3" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#F9F6F1]">
+    <div className="h-screen overflow-y-auto bg-[#F9F6F1] overscroll-contain">
+      {/* ✅ PHASE 3: ARIA Live Region for dynamic announcements */}
+      <div 
+        role="status" 
+        aria-live="polite" 
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {suggestions.length > 0 && `${suggestions.length} suggestions available`}
+        {steps.length > 0 && `Ritual has ${steps.length} step${steps.length !== 1 ? 's' : ''}`}
+        {saving && 'Saving ritual...'}
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
@@ -389,7 +614,7 @@ export const RitualBuilder: React.FC = () => {
                 />
               </div>
 
-              <div>
+              <div className="mb-4">
                 <label className="block text-sm font-medium text-[#3B3632] mb-2">Goal</label>
                 <select
                   value={goal}
@@ -405,16 +630,119 @@ export const RitualBuilder: React.FC = () => {
                 </select>
               </div>
 
+              {/* ✅ PHASE 2: Quick Templates */}
+              {steps.length === 0 && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs font-medium text-blue-900 mb-2">Quick Start Templates:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(['5', '10'] as const).map((time) => (
+                      <button
+                        key={time}
+                        onClick={() => {
+                          const template = getQuickStartTemplate(goal, parseInt(time));
+                          setTitle(template.title);
+                          // Template returns durations in seconds, convert to minutes for UI
+                          setSteps(template.steps.map((s, i) => ({
+                            ...s,
+                            id: uuidv4(),
+                            order: i,
+                            duration: s.duration / 60, // Convert seconds to minutes
+                          })) as RitualStep[]);
+                          triggerHaptic(50);
+                          toast.success(`Loaded ${template.title} template`, {
+                            description: `${template.steps.length} steps added`,
+                            duration: 3000,
+                          });
+                        }}
+                        className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors active:scale-95 touch-manipulation"
+                      >
+                        {time} min {goal}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 flex justify-between items-center">
                 <span className="text-sm text-gray-600">Total Duration</span>
-                <span className="text-lg font-bold text-[#3B3632]">{totalDuration} min</span>
+                <span 
+                  className="text-lg font-bold text-[#3B3632]"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {totalDuration} min
+                </span>
               </div>
             </div>
 
+            {/* Smart Suggestions */}
+            {suggestions.length > 0 && showSuggestions && (
+              <div 
+                className="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-4 sm:p-5 mb-4 sm:mb-6"
+                role="status"
+                aria-live="polite"
+                aria-atomic="false"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <h4 className="font-semibold text-blue-900 flex items-center gap-2 text-sm sm:text-base">
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Suggestions
+                  </h4>
+                  <button
+                    onClick={() => setShowSuggestions(false)}
+                    className="text-blue-600 hover:text-blue-800 transition-colors p-1"
+                    aria-label="Hide suggestions"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {suggestions.map((suggestion, idx) => (
+                    <div
+                      key={idx}
+                      className={`text-sm sm:text-base ${
+                        suggestion.severity === 'warning'
+                          ? 'text-orange-800'
+                          : suggestion.severity === 'suggestion'
+                          ? 'text-blue-800'
+                          : 'text-blue-700'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5">
+                          {suggestion.severity === 'warning' ? '⚠️' : '💡'}
+                        </span>
+                        <div className="flex-1">
+                          <p>{suggestion.message}</p>
+                          {suggestion.action && (
+                            <button
+                              onClick={() => {
+                                if (suggestion.action?.stepType) {
+                                  handleAddStep(suggestion.action.stepType);
+                                  triggerHaptic(50);
+                                }
+                              }}
+                              className="mt-2 px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700 transition-colors active:scale-95 touch-manipulation min-h-[36px]"
+                            >
+                              {suggestion.action.label}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Steps */}
             <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-4 sm:p-6">
-              <h3 className="text-sm font-semibold text-[#3B3632] uppercase tracking-wide mb-4">
-                Your Ritual ({steps.length} steps)
+              <h3 
+                className="text-sm font-semibold text-[#3B3632] uppercase tracking-wide mb-4"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                Your Ritual ({steps.length} step{steps.length !== 1 ? 's' : ''})
               </h3>
 
               {steps.length === 0 ? (
@@ -458,8 +786,11 @@ export const RitualBuilder: React.FC = () => {
                           key={step.id}
                           step={step}
                           index={index}
+                          totalSteps={steps.length}
                           onEdit={handleEditStep}
                           onDelete={handleDeleteStep}
+                          onDuplicate={handleDuplicateStep}
+                          onKeyboardReorder={handleKeyboardReorder}
                           triggerHaptic={triggerHaptic}
                           isMobile={isMobile}
                         />
