@@ -20,7 +20,6 @@ import authMiddleware from './middleware/authMiddleware.mjs';
 import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
 import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
 import { imageAnalysisRateLimit, messageRateLimit } from './middleware/rateLimitMiddleware.mjs';
-import { budgetCeilingService } from './services/budgetCeilingService.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
@@ -480,98 +479,8 @@ async function getUserMemory(userId) {
   }
 }
 
-// ✅ GRAMMAR FIX: Ensure proper spacing after punctuation marks AND between words
-function fixPunctuationSpacing(text) {
-  if (!text) return text;
-  
-  let fixed = text;
-  
-  // ✅ STEP 1: Fix missing spaces after punctuation marks
-  // Fix spacing after exclamation marks, question marks, periods, colons, semicolons
-  fixed = fixed.replace(/([!?.])([A-Za-z])/g, '$1 $2');
-  
-  // Fix spacing after commas (but preserve numbers like "1,000")
-  fixed = fixed.replace(/(,)([A-Za-z])/g, '$1 $2');
-  
-  // Fix spacing after colons and semicolons
-  fixed = fixed.replace(/([:;])([A-Za-z])/g, '$1 $2');
-  
-  // ✅ STEP 2: Fix missing spaces between words (common patterns)
-  // Fix: lowercase letter followed by uppercase letter (e.g., "Iremember" → "I remember")
-  // This catches most word concatenation issues
-  fixed = fixed.replace(/([a-z])([A-Z])/g, '$1 $2');
-  
-  // ✅ STEP 3: Fix missing spaces after punctuation (more comprehensive)
-  // Fix: word + punctuation + letter (catches "now.I", "be.Asyour", "anything.I'm")
-  fixed = fixed.replace(/([a-z])([!?.])([A-Za-z])/g, '$1$2 $3');
-  
-  // Fix: punctuation + any non-space character + letter (catches "you.✨ Inthe", "you.💪 Inthe")
-  // This handles emojis and other characters between punctuation and letters
-  fixed = fixed.replace(/([!?.])([^\s])([A-Za-z])/g, '$1$2 $3');
-  
-  // Fix: word + number (catches "Even10-15" → "Even 10-15")
-  fixed = fixed.replace(/([a-z])([0-9])/g, '$1 $2');
-  
-  // Fix: number + word (catches "10-15minutes" → "10-15 minutes")
-  fixed = fixed.replace(/([0-9])([a-z])/g, '$1 $2');
-  
-  // ✅ STEP 4: Fix specific common concatenations
-  // Fix common words that get concatenated incorrectly
-  const commonFixes = [
-    { from: /Iremember/gi, to: 'I remember' },
-    { from: /adance/gi, to: 'a dance' },
-    { from: /Asyour/gi, to: 'As your' },
-    { from: /Sinceyou/gi, to: 'Since you' },
-    { from: /puttogether/gi, to: 'put together' },
-    { from: /manydays/gi, to: 'many days' },
-    { from: /Withthose/gi, to: 'With those' },
-    { from: /Foryou/gi, to: 'For you' },
-    { from: /Toyou/gi, to: 'To you' },
-    { from: /Inyour/gi, to: 'In your' },
-    { from: /Onyour/gi, to: 'On your' },
-    { from: /Inthe/gi, to: 'In the' },
-    { from: /Howmany/gi, to: 'How many' },
-    { from: /Howdoes/gi, to: 'How does' },
-    { from: /Howare/gi, to: 'How are' },
-    { from: /Whatare/gi, to: 'What are' },
-    { from: /Whereare/gi, to: 'Where are' },
-    { from: /Whenare/gi, to: 'When are' },
-    { from: /Whyare/gi, to: 'Why are' },
-    { from: /Doyou/gi, to: 'Do you' },
-    { from: /Areyou/gi, to: 'Are you' },
-    { from: /Canyou/gi, to: 'Can you' },
-    { from: /Willyou/gi, to: 'Will you' },
-    { from: /Wouldyou/gi, to: 'Would you' },
-    { from: /Shouldyou/gi, to: 'Should you' },
-    { from: /Haveyou/gi, to: 'Have you' },
-    { from: /Hasyou/gi, to: 'Has you' },
-    { from: /Pleaselet/gi, to: 'Please let' },
-    { from: /Iam/gi, to: 'I am' },
-    { from: /Ihave/gi, to: 'I have' },
-    { from: /Iwill/gi, to: 'I will' },
-    { from: /Ican/gi, to: 'I can' },
-    { from: /Ido/gi, to: 'I do' },
-    { from: /Idid/gi, to: 'I did' },
-    { from: /Iwas/gi, to: 'I was' },
-    { from: /Iwere/gi, to: 'I were' },
-  ];
-  
-  for (const { from, to } of commonFixes) {
-    fixed = fixed.replace(from, to);
-  }
-  
-  // ✅ STEP 5: Collapse multiple spaces back to single space
-  fixed = fixed.replace(/\s{2,}/g, ' ');
-  
-  // ✅ STEP 6: Trim and clean up
-  fixed = fixed.trim();
-  
-  return fixed;
-}
-
 // 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
 // 🎭 STAGE DIRECTION FILTER: Remove stage directions like "*speaks in a friendly voice*"
-// ✅ GRAMMAR FIX: Fix spacing after punctuation marks
 function filterResponse(text) {
   if (!text) return text;
   
@@ -583,9 +492,7 @@ function filterResponse(text) {
   // This prevents stage directions from appearing in transcripts or being spoken
   filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
   filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
-  
-  // ✅ GRAMMAR FIX: Fix spacing after punctuation marks BEFORE collapsing spaces
-  filtered = fixPunctuationSpacing(filtered);
+  filtered = filtered.replace(/\s{2,}/g, ' '); // Collapse multiple spaces (but preserve single spaces)
   
   // Direct identity reveals
   filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
@@ -667,93 +574,18 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
     }
 
     // Add comprehensive Atlas system prompt with enhanced emotional intelligence
-    finalUserContent = personalizedContent + `\n\nYou are Atlas, an emotionally intelligent AI companion designed to bridge emotional awareness with productive action.
+    finalUserContent = personalizedContent + `\n\nYou are Atlas, an emotionally intelligent AI companion.
 
-🎯 CORE IDENTITY:
-- You're not just empathetic OR productive - you're BOTH
-- Your unique value: Convert emotions into actionable steps
-- Think: "How can I help them understand their feeling AND take action?"
-
-💬 CONVERSATION PRINCIPLES:
-
-1. NATURAL FLOW (Not Robotic):
-   - Use contractions naturally: "I'm", "you're", "let's", "that's"
-   - Vary your responses - don't repeat the same phrases
-   - Match their energy: If they're excited, be enthusiastic. If they're stressed, be calm and supportive
-   - Skip unnecessary greetings: If you already know them, jump straight to helping
-   - Example GOOD: "I remember you mentioned dance - how's that going? What do you need help with today?"
-   - Example BAD: "Hello! It's great to hear from you again. I remember you mentioned dance. How can I help you today?"
-
-2. PROACTIVE HELPFULNESS:
-   - Don't just answer - anticipate what they might need next
-   - After answering, offer: "Would it help if I [suggested next step]?" or "I can also help with [related thing]"
-   - Example: User asks about dance timetable → Answer + "Want me to create a sample schedule, or do you have specific days in mind?"
-
-3. CONTEXT AWARENESS:
-   - Reference previous conversations naturally: "Last time we talked about [topic]..."
-   - Build on what you know: "Since you're into [their interest], here's how that applies..."
-   - Connect dots: "This relates to what you mentioned about [previous topic]..."
-
-4. EMOTION → ACTION FRAMEWORK (Your Unique Strength):
-   When users express emotions (stressed, overwhelmed, anxious, stuck, excited, motivated):
-   
-   STEP 1: Acknowledge the emotion with empathy
-   STEP 2: Help them understand WHY they feel this way (root cause)
-   STEP 3: Provide SPECIFIC actionable steps (not vague advice)
-   
-   Use tables when helpful:
-   | Feeling | Root Cause | Action Step |
-   |---------|------------|-------------|
-   | [emotion] | [why] | [specific step] |
-   
-   Example scenarios:
-   - "I'm overwhelmed" → Emotion → Action table + priority list
-   - "I'm stuck" → Decision clarity table + next steps
-   - "I don't know where to start" → Priority list with time estimates
-
-5. RESPONSE LENGTH (Match the Query):
-   - Simple questions (1-2 sentences): Keep response brief (2-3 sentences)
-   - Complex questions: Expand thoughtfully, use structure (lists, tables)
-   - Emotional queries: Take time to show empathy, then provide action steps
-   - Never pad responses with unnecessary words
-
-FORMATTING GUIDELINES (CRITICAL for readability and professionalism):
-
-Grammar & Spacing (MANDATORY - follow exactly):
-- ALWAYS add a space after punctuation marks: periods (.), exclamation marks (!), question marks (?), commas (,), colons (:), semicolons (;)
-- ALWAYS add a space between words - never concatenate words together
-- Examples: "Jason! It's" (correct) NOT "Jason!It's" (wrong)
-- Examples: "wonderfully. I remember" (correct) NOT "wonderfully. Iremember" (wrong)
-- Examples: "a dance" (correct) NOT "adance" (wrong)
-- Examples: "As your" (correct) NOT "Asyour" (wrong)
-- Examples: "many days" (correct) NOT "manydays" (wrong)
-- Examples: "With those" (correct) NOT "Withthose" (wrong)
-- Examples: "I remember" (correct) NOT "Iremember" (wrong)
-- Always use double line breaks (\\n\\n) to separate distinct ideas or sections
+Core principles:
+- Respond with empathy, clarity, and warmth
+- Keep responses concise (2-3 sentences for simple questions, expand only when helpful)
+- Use markdown formatting: **bold**, lists, tables when appropriate
+- Use emojis sparingly (1-2 per response max) for warmth: ✨ insights, 💡 ideas, 🎯 goals, 💪 encouragement, 🤔 reflection, ❤️ support
 - Keep paragraphs short (2-3 sentences max) for mobile readability
-- CRITICAL: Before sending your response, read it back and ensure every word is separated by a space. Never concatenate words together.
+- Use proper grammar, spacing, and punctuation (e.g., "Jason! It's" not "Jason!It's")
+- Be conversational, not robotic - avoid repetitive greetings
 
-Emojis:
-- Use emojis sparingly (1-2 per response max) for warmth and emphasis
-- Emoji guide: ✨ insights, 💡 ideas, 🎯 goals, 💪 encouragement, 🤔 reflection, ❤️ support, 🎉 celebration, 📊 data/analysis
-- Place emojis at the end of key points or sections, not in every sentence
-- Never overuse emojis - they should enhance, not distract
-
-Tables (USE WHEN ASKED TO EXPLAIN, COMPARE, OR SHOW DATA):
-- When user asks to "explain in a table", "compare in a table", "show in a table", or similar requests, ALWAYS use markdown tables
-- Use tables for: comparisons, options analysis, step-by-step breakdowns, data presentation, pros/cons, feature comparisons, emotion → action breakdowns
-- Format tables properly with markdown: | Column 1 | Column 2 | Column 3 |
-- Include clear headers and align content logically
-- Example use cases: "Compare these options", "Explain the differences", "Show me a breakdown", "What are the pros and cons"
-
-Markdown Formatting:
-- Use **bold** for key terms, section headers, or important points
-- Use *italics* for subtle emphasis or quotes
-- Use numbered lists (1. 2. 3.) for steps, priorities, or sequential information
-- Use bullet lists (- or *) for options, features, or non-sequential items
-- Always add spacing between list items for readability
-
-Tone: Warm, supportive, like talking to a knowledgeable friend who genuinely cares. Be conversational, not clinical. Show personality while staying professional.
+Tone: Warm, supportive, like talking to a knowledgeable friend. Respond contextually to what they're asking.
 
 Safety: Never provide medical, legal, or crisis advice. For distress, offer empathy and direct to support resources.`;
   }
@@ -921,9 +753,14 @@ You are having a natural voice conversation. Respond as if you can hear them cle
       }
     }
     
-    // ✅ CRITICAL: If no data was received, throw error
+    // ✅ CRITICAL: If no data was received, log more details before throwing
     if (!hasReceivedData) {
       logger.error('[streamAnthropicResponse] ❌ Stream completed but no data chunks received');
+      logger.error('[streamAnthropicResponse] Response status:', response.status);
+      logger.error('[streamAnthropicResponse] Response headers:', Object.fromEntries(response.headers.entries()));
+      logger.error('[streamAnthropicResponse] Model used:', requestBody.model);
+      logger.error('[streamAnthropicResponse] Messages count:', messages.length);
+      logger.error('[streamAnthropicResponse] Full text accumulated:', fullText);
       throw new Error('Anthropic API stream completed without sending any data chunks');
     }
     
@@ -946,28 +783,23 @@ You are having a natural voice conversation. Respond as if you can hear them cle
 }
 
 
-// 🔒 SECURITY: Secure JWT verification middleware
-// ✅ Uses auth.getClaims() for local verification (signature verified)
-// ✅ Falls back to auth.getUser() with retry logic for network errors
-// ✅ Works for both web and mobile browsers
+// 🔒 SECURITY: Enhanced JWT verification middleware - ALWAYS verify with Supabase
 const verifyJWT = async (req, res, next) => {
   try {
-    // ✅ CRITICAL DEBUG: Log all incoming requests (use INFO so it shows in Railway logs)
-    logger.info('[verifyJWT] 🔍 Request received:', {
+    // ✅ CRITICAL DEBUG: Log all incoming requests
+    logger.debug('[verifyJWT] 🔍 Request received:', {
       method: req.method,
       path: req.path,
       origin: req.headers.origin,
       hasAuth: !!req.headers.authorization,
-      authLength: req.headers.authorization?.length || 0,
-      authHeaderPreview: req.headers.authorization?.substring(0, 30) || 'none'
+      authLength: req.headers.authorization?.length || 0
     });
     
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       logger.error('[verifyJWT] ❌ Missing or invalid auth header:', {
         hasHeader: !!authHeader,
-        headerStart: authHeader?.substring(0, 20) || 'none',
-        allHeaders: Object.keys(req.headers).filter(h => h.toLowerCase().includes('auth'))
+        headerStart: authHeader?.substring(0, 20) || 'none'
       });
       return res.status(401).json({ 
         error: 'Missing or invalid authorization header',
@@ -977,42 +809,63 @@ const verifyJWT = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     
-    // ✅ SECURE: Use secure JWT verification service
-    // Uses auth.getClaims() for local verification (signature verified)
-    // Falls back to auth.getUser() with retry logic for network errors
-    // Works for both web and mobile browsers
-    const { verifyJWT: verifyJWTSecure } = await import('./services/jwtVerificationService.mjs');
-    const user = await verifyJWTSecure(token);
-    
-    if (!user || !user.id) {
-      logger.error('[verifyJWT] ❌ No user found in verified token:', {
-        tokenPreview: token.substring(0, 20) + '...',
-        path: req.path
-      });
+    // ✅ CRITICAL FIX: Use ANON_KEY for JWT verification (not SERVICE_ROLE_KEY)
+    // Service role key bypasses RLS and is for admin operations, not token validation
+    // For validating user tokens, we MUST use the anon key client
+    try {
+      const { supabasePublic } = await import('./config/supabaseClient.mjs');
+      
+      // Enhanced Supabase JWT verification with better error handling
+      const { data: { user }, error } = await supabasePublic.auth.getUser(token);
+      
+      if (error) {
+        logger.error('[verifyJWT] ❌ Token verification failed:', {
+          error: error.message,
+          status: error.status,
+          code: error.code,
+          hint: error.hint
+        });
+        
+        return res.status(401).json({ 
+          error: 'Invalid or expired token',
+          details: error.message,
+          code: 'TOKEN_VERIFICATION_FAILED'
+        });
+      }
+      
+      if (!user) {
+        logger.error('[verifyJWT] ❌ No user found in token');
+        return res.status(401).json({ 
+          error: 'No user found in token',
+          details: 'Token may be expired or invalid',
+          code: 'NO_USER_IN_TOKEN'
+        });
+      }
+
+      req.user = user;
+      next();
+    } catch (importError) {
+      logger.error('[verifyJWT] ❌ Failed to import supabasePublic:', importError);
+      
+      // Fallback: Check if ANON_KEY is missing
+      if (!process.env.SUPABASE_ANON_KEY && !process.env.VITE_SUPABASE_ANON_KEY) {
+        logger.error('[verifyJWT] ❌ SUPABASE_ANON_KEY is missing! JWT verification requires anon key.');
+        return res.status(500).json({
+          error: 'Server configuration error',
+          details: 'SUPABASE_ANON_KEY is required for authentication. Please set it in Railway environment variables.',
+          code: 'MISSING_ANON_KEY'
+        });
+      }
       
       return res.status(401).json({ 
-        error: 'Invalid token',
-        details: 'No user found in token',
-        code: 'NO_USER_IN_TOKEN',
-        suggestion: 'Please refresh your session or sign in again'
+        error: 'Token verification failed',
+        details: importError.message,
+        code: 'UNEXPECTED_ERROR'
       });
     }
-    
-    logger.debug('[verifyJWT] ✅ Token verified successfully:', {
-      userId: user.id,
-      email: user.email,
-      path: req.path
-    });
-
-    req.user = user;
-    return next();
+    // ✅ FIX: Removed unreachable dead code (lines 867-884)
+    // Error and user checks are already handled inside the try block above
   } catch (error) {
-    logger.error('[verifyJWT] ❌ Unexpected error:', {
-      errorMessage: error.message,
-      errorStack: error.stack,
-      path: req.path
-    });
-    
     res.status(401).json({ 
       error: 'Token verification failed',
       details: error.message,
@@ -1208,86 +1061,6 @@ app.get('/api/status', (req, res) => {
 });
 
 // Usage log endpoint with service role
-// ✅ GET /api/usage - Get current user's monthly message count
-app.get('/api/usage', verifyJWT, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    
-    // ✅ Fetch tier from database (never trust client)
-    let tier = 'free';
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', userId)
-        .single();
-      tier = profile?.subscription_tier || 'free';
-    } catch (error) {
-      logger.warn('[Usage] Failed to fetch tier, defaulting to free:', error.message);
-    }
-    
-    // ✅ Use UTC for start of month to match database timestamps
-    const now = new Date();
-    const startOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-    
-    // Count messages this month
-    const { count: monthlyCount, error: countErr } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('role', 'user')
-      .gte('created_at', startOfMonthUTC.toISOString());
-    
-    if (countErr) {
-      logger.error('[Usage] Error counting messages:', {
-        error: countErr.message,
-        code: countErr.code,
-        userId,
-        startOfMonth: startOfMonthUTC.toISOString()
-      });
-      return res.status(500).json({ 
-        error: 'Failed to fetch usage',
-        monthlyCount: 0 
-      });
-    }
-    
-    // ✅ CRITICAL: Log the actual count for debugging
-    logger.info('[Usage] Message count query result:', {
-      userId: userId.slice(0, 8) + '...',
-      monthlyCount: monthlyCount ?? 0,
-      startOfMonth: startOfMonthUTC.toISOString(),
-      hasError: !!countErr
-    });
-    
-    const monthlyLimit = tier === 'free' ? 15 : -1; // -1 = unlimited
-    const remaining = monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - (monthlyCount ?? 0));
-    
-    logger.debug('[Usage] Monthly count fetched:', {
-      userId,
-      tier,
-      monthlyCount: monthlyCount ?? 0,
-      monthlyLimit,
-      remaining,
-      startOfMonth: startOfMonthUTC.toISOString()
-    });
-    
-    res.json({
-      tier,
-      monthlyCount: monthlyCount ?? 0,
-      monthlyLimit,
-      remaining,
-      isUnlimited: monthlyLimit === -1,
-      startOfMonth: startOfMonthUTC.toISOString()
-    });
-  } catch (error) {
-    logger.error('[Usage] Error:', error.message);
-    res.status(500).json({ 
-      error: 'Failed to fetch usage',
-      monthlyCount: 0 
-    });
-  }
-});
-
 app.post('/api/usage-log', verifyJWT, async (req, res) => {
   try {
     const { user_id, event, feature, estimated_cost, metadata } = req.body;
@@ -1355,129 +1128,17 @@ app.post('/api/reset-memory', async (req, res) => {
 });
 
 // Authentication status endpoint for debugging
-app.get('/api/auth/status', async (req, res) => {
+app.get('/api/auth/status', (req, res) => {
   const authHeader = req.headers.authorization;
   const hasToken = authHeader && authHeader.startsWith('Bearer ');
-  
-  // ✅ DEBUG: Check if Supabase env vars are loaded (without exposing values)
-  const hasSupabaseUrl = !!process.env.SUPABASE_URL;
-  const hasSupabaseAnonKey = !!process.env.SUPABASE_ANON_KEY;
-  const hasSupabaseServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseUrlLength = process.env.SUPABASE_URL?.length || 0;
-  const anonKeyLength = process.env.SUPABASE_ANON_KEY?.length || 0;
-  
-  // ✅ CRITICAL: Test if SUPABASE_ANON_KEY can actually verify tokens
-  let tokenVerificationTest = null;
-  if (hasToken && hasSupabaseAnonKey) {
-    try {
-      const token = authHeader.substring(7);
-      const { supabasePublic } = await import('./config/supabaseClient.mjs');
-      const { data: { user }, error } = await supabasePublic.auth.getUser(token);
-      tokenVerificationTest = {
-        success: !error && !!user,
-        error: error ? error.message : null,
-        userId: user?.id || null
-      };
-    } catch (testError) {
-      tokenVerificationTest = {
-        success: false,
-        error: testError.message || 'Unknown error',
-        userId: null
-      };
-    }
-  }
-  
-  // ✅ CRITICAL: Show first/last 10 chars of anon key for verification (safe to expose)
-  const anonKeyPreview = process.env.SUPABASE_ANON_KEY 
-    ? `${process.env.SUPABASE_ANON_KEY.substring(0, 10)}...${process.env.SUPABASE_ANON_KEY.substring(anonKeyLength - 10)}`
-    : null;
   
   res.json({
     hasAuthHeader: !!authHeader,
     hasValidFormat: hasToken,
-    supabaseConfig: {
-      hasUrl: hasSupabaseUrl,
-      hasAnonKey: hasSupabaseAnonKey,
-      hasServiceKey: hasSupabaseServiceKey,
-      urlLength: supabaseUrlLength,
-      anonKeyLength: anonKeyLength,
-      anonKeyPreview: anonKeyPreview, // ✅ First/last 10 chars for verification
-      allConfigured: hasSupabaseUrl && hasSupabaseAnonKey && hasSupabaseServiceKey
-    },
-    tokenVerificationTest: tokenVerificationTest, // ✅ Actual test result
     environment: process.env.NODE_ENV || 'development',
     developmentMode: process.env.NODE_ENV === 'development',
     timestamp: new Date().toISOString()
   });
-});
-
-// ✅ CRITICAL: Test endpoint to verify Supabase connectivity
-app.get('/api/test-supabase', async (req, res) => {
-  const tests = {
-    envVars: {
-      url: process.env.SUPABASE_URL?.substring(0, 40) || 'NOT SET',
-      urlLength: process.env.SUPABASE_URL?.length || 0,
-      hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
-      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-    },
-    connectivity: {}
-  };
-
-  // Test 1: Can we reach Supabase URL?
-  try {
-    const testUrl = `${process.env.SUPABASE_URL}/rest/v1/`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const response = await fetch(testUrl, {
-      method: 'GET',
-      headers: { 'apikey': 'test' },
-      signal: controller.signal,
-      agent: httpsAgent
-    });
-    
-    clearTimeout(timeoutId);
-    tests.connectivity.supabaseReachable = true;
-    tests.connectivity.httpStatus = response.status;
-  } catch (error) {
-    tests.connectivity.supabaseReachable = false;
-    tests.connectivity.error = error.message;
-    tests.connectivity.errorName = error.name;
-  }
-
-  // Test 2: Can we initialize Supabase client?
-  try {
-    const { supabase, supabasePublic } = await import('./config/supabaseClient.mjs');
-    tests.supabaseClient = {
-      initialized: true,
-      hasSupabase: !!supabase,
-      hasSupabasePublic: !!supabasePublic
-    };
-  } catch (error) {
-    tests.supabaseClient = {
-      initialized: false,
-      error: error.message
-    };
-  }
-
-  // Test 3: Can we make a simple query?
-  if (tests.supabaseClient?.initialized) {
-    try {
-      const { supabase } = await import('./config/supabaseClient.mjs');
-      const { error } = await supabase.from('profiles').select('id').limit(1);
-      tests.databaseQuery = {
-        success: !error,
-        error: error?.message || null
-      };
-    } catch (error) {
-      tests.databaseQuery = {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  res.json(tests);
 });
 
 // ✅ Clean message endpoint with secure Supabase tier routing + conversation history + image analysis
@@ -1500,62 +1161,42 @@ app.post('/message',
       return res.status(400).json({ error: 'Missing message text or attachments' });
     }
 
-    // ✅ SECURITY: Validate message length (prevent abuse, protect API costs) - Tier-aware
-    // Aligned with token monitoring system: ~4 characters per token
-    if (messageText) {
-      const TIER_CHAR_LIMITS = {
-        free: 2000,    // ~500 tokens (maxTokensPerResponse: 100 × 5)
-        core: 4000,    // ~1000 tokens (maxTokensPerResponse: 250 × 4)
-        studio: 8000,  // ~2000 tokens (maxTokensPerResponse: 400 × 5)
-      };
-      const maxLength = TIER_CHAR_LIMITS[userTier] || TIER_CHAR_LIMITS.free;
-      if (messageText.length > maxLength) {
-        logger.warn(`[Server] Message too long for ${userTier} tier: ${messageText.length} chars (max: ${maxLength})`);
-        return res.status(400).json({
-          error: 'MESSAGE_TOO_LONG',
-          message: `Message exceeds ${maxLength.toLocaleString()} character limit for ${userTier} tier.`,
-          maxLength,
-          currentLength: messageText.length
-        });
-      }
-    }
-
     logger.debug('🧠 [MessageService] Processing:', { userId, text: messageText, tier: userTier, conversationId, attachments: attachments?.length });
 
-    // ✅ Ensure conversation exists before saving messages (use upsert for race-condition safety)
+    // ✅ Ensure conversation exists before saving messages
     if (conversationId && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
-        // Use upsert to handle both creation and existence check atomically
-        const { error: convError } = await supabase
+        // Check if conversation exists
+        const { data: existingConv, error: checkError } = await supabase
           .from('conversations')
-          .upsert({
-            id: conversationId,
-            user_id: userId,
-            title: 'New Conversation',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'id' // If exists, just update; if not, create
-          });
+          .select('id')
+          .eq('id', conversationId)
+          .single();
 
-        if (convError) {
-          // Check if it's a conflict (conversation was created concurrently)
-          const isConflict = convError.code === '23505' || 
-                            convError.message?.includes('duplicate') ||
-                            convError.message?.includes('already exists');
-          
-          if (isConflict) {
-            logger.debug('✅ [Backend] Conversation exists (conflict), continuing:', conversationId);
+        if (checkError && checkError.code === 'PGRST116') {
+          // Conversation doesn't exist, create it
+          const { error: createError } = await supabase
+            .from('conversations')
+            .insert([{
+              id: conversationId,
+              user_id: userId,
+              title: 'New Conversation',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
+
+          if (createError) {
+            logger.error('[Server] Error creating conversation:', createError.message || createError);
           } else {
-            logger.error('[Server] Error ensuring conversation exists:', convError.message || convError);
-            // Don't block message processing - conversation might exist from concurrent request
+            logger.debug('✅ [Backend] Conversation created successfully');
           }
+        } else if (checkError) {
+          logger.error('[Server] Error checking conversation:', checkError.message || checkError);
         } else {
-          logger.debug('✅ [Backend] Conversation ensured:', conversationId);
+          logger.debug('✅ [Backend] Conversation exists:', conversationId);
         }
       } catch (error) {
         logger.error('[Server] Conversation handling failed:', error.message || error);
-        // Don't block message processing - continue even if conversation check fails
       }
     }
 
@@ -1756,73 +1397,31 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
       effectiveTier = 'free'; // Fail closed: Default to free tier
     }
 
-    // ✅ BUDGET PROTECTION: Enforce budget ceilings before processing (industry standard)
-    const budgetCheck = await budgetCeilingService.checkBudgetCeiling(effectiveTier);
-    if (!budgetCheck.allowed) {
-      logger.warn(`[Message] Budget limit exceeded for ${effectiveTier} tier user ${userId}`);
-      return res.status(429).json({
-        error: 'BUDGET_LIMIT_EXCEEDED',
-        message: budgetCheck.message || 'Daily usage limit reached. Please try again later.',
-        tier: effectiveTier
-      });
-    }
-
     // Enforce Free tier monthly limit (15 messages/month) - Studio/Core unlimited
     if (effectiveTier === 'free' && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
-        // ✅ CRITICAL FIX: Use UTC for start of month to match database timestamps
-        const now = new Date();
-        const startOfMonthUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-        
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
         const { count: monthlyCount, error: countErr } = await supabase
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('role', 'user')
-          .gte('created_at', startOfMonthUTC.toISOString());
-        
-        // ✅ DEBUG: Log the count for troubleshooting
-        logger.info('[Message] Monthly limit check:', {
-          userId,
-          monthlyCount: monthlyCount ?? 0,
-          startOfMonthUTC: startOfMonthUTC.toISOString(),
-          error: countErr?.message
-        });
-        
+          .gte('created_at', startOfMonth.toISOString());
         if (countErr) {
           logger.error('[Server] Error counting messages:', countErr.message || countErr);
-          // ✅ SECURITY FIX: Fail-closed - block message if we can't verify limit
-          return res.status(429).json({
-            error: 'Unable to verify message limit. Please try again in a moment.',
-            upgrade_required: true,
-            tier: effectiveTier,
-            limits: { monthly_messages: 15 },
-            current_count: 0
-          });
-        } else if ((monthlyCount ?? 0) >= 15) {
-          logger.warn('[Message] Monthly limit reached:', {
-            userId,
-            monthlyCount,
-            limit: 15
-          });
+        }
+        if ((monthlyCount ?? 0) >= 15) {
           return res.status(429).json({
             error: 'Monthly limit reached for Free tier',
             upgrade_required: true,
             tier: effectiveTier,
-            limits: { monthly_messages: 15 },
-            current_count: monthlyCount
+            limits: { monthly_messages: 15 }
           });
         }
       } catch (error) {
-        logger.error('[Server] Monthly limit check exception:', error.message);
-        // ✅ SECURITY FIX: Fail-closed - block message if limit check fails
-        return res.status(429).json({
-          error: 'Unable to verify message limit. Please try again in a moment.',
-          upgrade_required: true,
-          tier: effectiveTier,
-          limits: { monthly_messages: 15 },
-          current_count: 0
-        });
+        // Continue without limit check in case of error
       }
     } else if (effectiveTier === 'studio' || effectiveTier === 'core') {
       logger.debug(`[Server] ${effectiveTier} tier - unlimited messages`);
@@ -2045,6 +1644,11 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
             finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
             streamCompleted = true;
             logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
+            // ✅ CRITICAL: If stream returned empty, it means no data was received
+            if (!finalText || finalText.trim().length === 0) {
+              logger.error(`❌ [API CALL] Stream completed but returned empty response`);
+              throw new Error('Anthropic API stream completed without sending any data chunks');
+            }
           } catch (apiError) {
             logger.error(`❌ [API CALL] streamAnthropicResponse threw error:`, apiError);
             logger.error(`❌ [API CALL] Error message: ${apiError.message}`);
@@ -2138,34 +1742,6 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
       
       // ✅ CRITICAL: Stop heartbeat before sending completion
       clearInterval(heartbeatInterval);
-      
-      // ✅ COST TRACKING: Record spend after message processing (industry standard)
-      try {
-        // Estimate tokens: ~4 characters per token (industry standard)
-        const inputTokens = Math.ceil(message.trim().length / 4);
-        const outputTokens = Math.ceil(finalText.length / 4);
-        const totalTokens = inputTokens + outputTokens;
-        
-        // Get cost per token based on model
-        const MODEL_COSTS = {
-          'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
-          'claude-3-sonnet-20240229': { input: 0.003, output: 0.015 },
-          'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
-          'claude-3-haiku': { input: 0.00025, output: 0.00125 },
-          'claude-3-sonnet': { input: 0.003, output: 0.015 },
-          'claude-3-opus': { input: 0.015, output: 0.075 }
-        };
-        
-        const modelCost = MODEL_COSTS[selectedModel] || MODEL_COSTS['claude-3-haiku-20240307'];
-        const estimatedCost = (inputTokens * modelCost.input / 1000) + (outputTokens * modelCost.output / 1000);
-        
-        // Record spend in budget tracking (non-blocking)
-        budgetCeilingService.recordSpend(effectiveTier, estimatedCost, 1).catch(err => {
-          logger.error('[Server] Error recording spend:', err.message || err);
-        });
-      } catch (costError) {
-        logger.error('[Server] Error calculating/recording cost:', costError.message || costError);
-      }
       
       // Send completion signal
       writeSSE(res, { done: true, response: storedResponse, conversationId: messageData.conversation_id });
@@ -2293,27 +1869,6 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
       }
     } catch (oneShotErr) {
       logger.error('[Server] One-shot prompt error:', oneShotErr.message || oneShotErr);
-    }
-
-    // ✅ COST TRACKING: Record spend for one-shot mode (industry standard)
-    try {
-      const inputTokens = Math.ceil(message.trim().length / 4);
-      const outputTokens = Math.ceil(finalText.length / 4);
-      const MODEL_COSTS = {
-        'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
-        'claude-3-sonnet-20240229': { input: 0.003, output: 0.015 },
-        'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
-        'claude-3-haiku': { input: 0.00025, output: 0.00125 },
-        'claude-3-sonnet': { input: 0.003, output: 0.015 },
-        'claude-3-opus': { input: 0.015, output: 0.075 }
-      };
-      const modelCost = MODEL_COSTS[selectedModel] || MODEL_COSTS['claude-3-haiku-20240307'];
-      const estimatedCost = (inputTokens * modelCost.input / 1000) + (outputTokens * modelCost.output / 1000);
-      budgetCeilingService.recordSpend(effectiveTier, estimatedCost, 1).catch(err => {
-        logger.error('[Server] Error recording spend (one-shot):', err.message || err);
-      });
-    } catch (costError) {
-      logger.error('[Server] Error calculating cost (one-shot):', costError.message || costError);
     }
 
     const aiResponse = {
@@ -3087,48 +2642,6 @@ app.post('/api/synthesize', verifyJWT, async (req, res) => {
 });
 
 // Get conversation messages
-// ✅ DIAGNOSTIC: Check conversations for a user (best practice - backend API, not window hacks)
-app.get('/api/debug/conversations', verifyJWT, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { supabasePublic } = await import('./config/supabaseClient.mjs');
-    
-    // Check conversations in Supabase
-    const { data: conversations, error } = await supabasePublic
-      .from('conversations')
-      .select('id, title, updated_at, deleted_at, created_at')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(50);
-    
-    if (error) {
-      logger.error('[Debug] Failed to fetch conversations:', error);
-      return res.status(500).json({ error: error.message });
-    }
-    
-    const active = conversations?.filter(c => !c.deleted_at) || [];
-    const deleted = conversations?.filter(c => c.deleted_at) || [];
-    
-    logger.info(`[Debug] User ${userId.slice(0, 8)}: ${active.length} active, ${deleted.length} deleted conversations`);
-    
-    return res.json({
-      userId: userId.slice(0, 8) + '...',
-      total: conversations?.length || 0,
-      active: active.length,
-      deleted: deleted.length,
-      conversations: active.map(c => ({
-        id: c.id,
-        title: c.title,
-        updated_at: c.updated_at,
-        created_at: c.created_at
-      }))
-    });
-  } catch (error) {
-    logger.error('[Debug] Error checking conversations:', error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
 app.get('/api/conversations/:conversationId/messages', 
   verifyJWT, 
   cacheTierMiddleware,
@@ -3780,18 +3293,35 @@ async function startServer() {
   
   // Start server - bind to all interfaces for mobile access
   // ✅ Support HTTPS if certs exist (for camera/audio testing)
-  const certPath = path.join(__dirname, '..', 'localhost+1.pem');
-  const keyPath = path.join(__dirname, '..', 'localhost+1-key.pem');
+  // ✅ Enhanced cert detection: supports multiple cert naming patterns
+  function findCertFiles() {
+    const rootDir = path.join(__dirname, '..');
+    const certPatterns = ['localhost+3.pem', 'localhost+1.pem', 'localhost.pem'];
+    
+    const certPath = certPatterns
+      .map(pattern => path.join(rootDir, pattern))
+      .find(p => fs.existsSync(p));
+    
+    const certName = certPath ? path.basename(certPath, '.pem') : null;
+    const keyPath = certName
+      ? path.join(rootDir, `${certName}-key.pem`)
+      : null;
+    
+    return { certPath, keyPath };
+  }
 
-  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  const { certPath, keyPath } = findCertFiles();
+
+  if (certPath && keyPath && fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     const httpsOptions = {
       key: fs.readFileSync(keyPath),
       cert: fs.readFileSync(certPath)
     };
     
     const httpsServer = https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
-      serverReady = true; // Mark server as ready
+      serverReady = true; // ✅ CRITICAL: Preserve for Railway health checks
       logger.info(`✅ Atlas backend (HTTPS) running on port ${PORT}`);
+      logger.info(`   Certificate: ${certPath}`);
       logger.info(`   Healthcheck: https://0.0.0.0:${PORT}/healthz`);
       console.log(`🚀 Server started on port ${PORT}`);
       console.log(`✅ Server is READY - Railway healthcheck should pass now`);
@@ -3800,11 +3330,17 @@ async function startServer() {
     httpsServer.on('error', (err) => {
       logger.error(`❌ HTTPS Server error:`, err);
       console.error(`❌ HTTPS Server error:`, err.message);
+      serverReady = false; // ✅ CRITICAL: Preserve for error recovery
+    });
+    
+    // ✅ CRITICAL: Preserve server close handler for Railway monitoring
+    httpsServer.on('close', () => {
+      logger.warn('⚠️ HTTPS Server closed');
       serverReady = false;
     });
   } else {
     const server = app.listen(PORT, '0.0.0.0', () => {
-      serverReady = true; // Mark server as ready
+      serverReady = true; // ✅ CRITICAL: Preserve for Railway health checks
       logger.info(`✅ Atlas backend (HTTP) running on port ${PORT}`);
       logger.info(`   Healthcheck: http://0.0.0.0:${PORT}/healthz`);
       console.log(`🚀 Server started on port ${PORT}`);

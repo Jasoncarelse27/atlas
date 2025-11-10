@@ -1,15 +1,15 @@
 import type { User } from '@supabase/supabase-js';
 import {
-    AlertTriangle,
-    CheckCircle,
-    Clock,
-    Database,
-    Settings,
-    TestTube,
-    TrendingUp,
-    User as UserIcon,
-    XCircle,
-    Zap
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Database,
+  Settings,
+  TestTube,
+  TrendingUp,
+  User as UserIcon,
+  XCircle,
+  Zap
 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { canUseAudio, canUseImage, isPaidTier } from '../config/featureAccess';
@@ -679,7 +679,10 @@ const TestingPanel: React.FC<TestingPanelProps> = ({ user, profile, onClose }) =
       message: 'Testing all backend health endpoints with retries and timeouts...'
     });
 
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const backendUrl = import.meta.env.VITE_API_URL || 
+      (window.location.protocol === 'https:' 
+        ? `https://${window.location.hostname}:8000` 
+        : 'http://localhost:8000');
     const railwayUrl = backendUrl;
     const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'http://localhost:3000';  // For dev testing only
     const endpoints = [

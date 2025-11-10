@@ -24,13 +24,22 @@ export function getApiUrl(): string {
   if (apiUrl && typeof window !== 'undefined') {
     const isFrontendHttps = window.location.protocol === 'https:';
     const isBackendHttp = apiUrl.startsWith('http://');
+    const isBackendHttps = apiUrl.startsWith('https://');
     
-    // ✅ Detect local development environment
+    // ✅ Detect local development environment (updated regex to include HTTPS)
     const isLocalDev = 
       import.meta.env.DEV || // Vite development mode
-      /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|localhost|127\.0\.0\.1)/.test(apiUrl);
+      /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|localhost|127\.0\.0\.1)/.test(apiUrl);
     
-    // ✅ FIX: In local dev with HTTPS frontend + HTTP backend, use Vite proxy (empty string)
+    // ✅ NEW: If backend is HTTPS in local dev, use it directly
+    if (isFrontendHttps && isBackendHttps && isLocalDev) {
+      logger.debug(
+        '[API Client] ✅ Local HTTPS backend detected - using directly'
+      );
+      return apiUrl;
+    }
+    
+    // ✅ EXISTING: Frontend HTTPS + backend HTTP → use Vite proxy (empty string)
     // This avoids browser mixed content blocking - Vite proxy handles HTTPS → HTTP internally
     if (isFrontendHttps && isBackendHttp && isLocalDev) {
       logger.debug(
