@@ -4,16 +4,16 @@
  * Industry standard pattern: Slack, Discord, WhatsApp
  */
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { Smile, Plus } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
 import {
+  QUICK_REACTIONS,
   getMessageReactions,
   toggleReaction,
-  QUICK_REACTIONS,
   type ReactionEmoji,
   type ReactionSummary,
 } from '../../services/reactionService';
@@ -161,11 +161,7 @@ export function MessageReactions({ messageId, userId, className = '' }: MessageR
             title="Add reaction"
             aria-label="Add reaction"
           >
-            {showPicker ? (
-              <Plus className="w-3.5 h-3.5 text-atlas-text-medium rotate-45" />
-            ) : (
-              <Smile className="w-3.5 h-3.5 text-atlas-text-medium" />
-            )}
+            <Plus className={`w-3.5 h-3.5 text-atlas-text-medium transition-transform duration-200 ${showPicker ? 'rotate-45' : ''}`} />
           </button>
 
           {/* Reaction Picker */}
@@ -202,5 +198,6 @@ export function MessageReactions({ messageId, userId, className = '' }: MessageR
     </div>
   );
 }
+
 
 
