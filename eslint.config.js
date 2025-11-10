@@ -74,6 +74,19 @@ export default [
     },
   },
   {
-    ignores: ['dist', 'node_modules', '*.config.js', 'venv/**/*', '*.py', 'server.py', 'api/voice-v2/**'],
+    ignores: [
+      'dist',
+      'node_modules',
+      '*.config.js',
+      '*.config.ts',
+      'venv/**/*',
+      '*.py',
+      'server.py',
+      'api/voice-v2/**', // Ignore all voice-v2 files (backend server)
+      'build',
+      '.next',
+      'coverage',
+      '.turbo',
+    ],
   },
 ];

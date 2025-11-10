@@ -219,7 +219,7 @@ export const RitualLibrary: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="min-h-screen bg-[#F9F6F1] relative safe-area"
+      className="h-screen overflow-y-auto bg-[#F9F6F1] relative safe-area overscroll-contain"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

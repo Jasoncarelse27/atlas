@@ -192,42 +192,28 @@ export const RitualRunView: React.FC = () => {
       let conversationId: string;
       
       // Check Supabase first for existing conversation
-      const { data: existingConvos } = await supabase
+      const { data: existingConvos, error: fetchError } = await supabase
         .from('conversations')
         .select('id')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
         .limit(1);
       
-      if (existingConvos && existingConvos.length > 0) {
+      if (fetchError) {
+        logger.error('[RitualRunView] Failed to fetch conversations:', fetchError);
+      }
+      
+      if (existingConvos && existingConvos.length > 0 && existingConvos[0]?.id) {
         conversationId = existingConvos[0].id;
       } else {
-        // Create new conversation in Supabase first
+        // Create new conversation ID and ensure it exists
         conversationId = generateUUID();
-        const { error: convError } = await supabase
-          .from('conversations')
-          .insert({
-            id: conversationId,
-            user_id: user!.id,
-            title: 'New Chat',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+        const created = await ensureConversationExists(conversationId, user!.id);
         
-        if (convError) {
-          logger.error('[RitualRunView] Failed to create conversation:', convError);
+        if (!created) {
+          logger.error('[RitualRunView] Failed to create conversation');
           return; // Exit early if we can't create conversation
         }
-        
-        // Also save to Dexie for offline access
-        await atlasDB.conversations.put({
-          id: conversationId,
-          userId: user!.id,
-          title: 'New Chat',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          synced: true,
-        });
       }
       
       // Find mood emojis
@@ -317,7 +303,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
   // PRE-RITUAL: Mood selection
   if (!hasStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6">
+      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6 overscroll-contain">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -350,15 +336,15 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             </button>
           </div>
 
-          {/* Mood Selection */}
-          <div className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg">
+          {/* Mood Selection - Mobile Optimized */}
+          <div className="bg-white/80 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg safe-area-inset">
             {/* Animated Mood Display */}
-            <div className="flex flex-col items-center mb-8 py-6">
-              <h2 className="text-2xl font-semibold text-[#3B3632] mb-6">
+            <div className="flex flex-col items-center mb-6 sm:mb-8 py-4 sm:py-6">
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#3B3632] mb-4 sm:mb-6 text-center px-2">
                 How Do You Feel Today?
               </h2>
               
-              <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center mb-4">
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex items-center justify-center mb-4">
                 {/* Animated ripples */}
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 opacity-20 animate-ripple" />
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 opacity-40 animate-ripple" style={{ animationDelay: '0.5s' }} />
@@ -367,19 +353,19 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                 {/* Main animated emoji */}
                 <div 
                   key={selectedMoodBefore || 'default'}
-                  className="text-7xl md:text-8xl transform animate-bounce-in z-10"
+                  className="text-6xl sm:text-7xl md:text-8xl transform animate-bounce-in z-10"
                 >
                   {MOOD_OPTIONS.find(m => m.value === selectedMoodBefore)?.emoji || '😐'}
                 </div>
               </div>
               
-              <p className="text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center">
+              <p className="text-base sm:text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center px-2">
                 {MOOD_OPTIONS.find(m => m.value === selectedMoodBefore)?.label || 'Select your mood below'}
               </p>
             </div>
 
-            {/* Mood Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Mood Grid - Mobile Optimized */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               {MOOD_OPTIONS.map((mood) => (
                 <button
                   key={mood.value}
@@ -388,15 +374,19 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                     // Haptic feedback on mobile
                     if (navigator.vibrate) navigator.vibrate(10);
                   }}
-                  className={`mood-button p-4 rounded-xl ${mood.color} border-2 
-                    min-h-[100px] md:min-h-[120px] touch-manipulation
+                  className={`mood-button p-4 sm:p-5 rounded-xl ${mood.color} border-2 
+                    min-h-[110px] sm:min-h-[120px] md:min-h-[130px] touch-manipulation
+                    transition-all duration-200 active:scale-95
+                    focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2
                     ${selectedMoodBefore === mood.value
-                      ? 'mood-button-selected border-[#C8956A]'
-                      : 'border-transparent hover:border-gray-300'
+                      ? 'mood-button-selected border-[#C8956A] shadow-md scale-[1.02]'
+                      : 'border-transparent hover:border-gray-300 hover:shadow-sm'
                   }`}
+                  aria-label={`Select ${mood.label} mood`}
+                  aria-pressed={selectedMoodBefore === mood.value}
                 >
-                  <div className="text-4xl md:text-3xl mb-2">{mood.emoji}</div>
-                  <div className="text-sm font-medium text-[#3B3632]">{mood.label}</div>
+                  <div className="text-5xl sm:text-4xl md:text-3xl mb-2 flex items-center justify-center">{mood.emoji}</div>
+                  <div className="text-sm sm:text-base font-medium text-[#3B3632] text-center">{mood.label}</div>
                 </button>
               ))}
             </div>
@@ -404,9 +394,11 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <button
               onClick={handleStart}
               disabled={!selectedMoodBefore}
-              className="mt-8 w-full py-4 md:py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-lg
+              className="mt-6 sm:mt-8 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-base sm:text-lg
                 hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all
-                min-h-[60px] touch-manipulation active:scale-95"
+                min-h-[56px] sm:min-h-[60px] touch-manipulation active:scale-95
+                focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2"
+              aria-label="Begin ritual"
             >
               Begin Ritual ✨
             </button>
@@ -419,7 +411,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
   // POST-RITUAL: Completion screen
   if (runner.isComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6">
+      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6 overscroll-contain">
         <div className="max-w-2xl mx-auto">
           {/* Celebration Header */}
           <div className="text-center mb-8">
@@ -428,15 +420,15 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <p className="text-[#8B7E74]">Great work completing {ritual.title}</p>
           </div>
 
-          {/* Mood After Selection */}
-          <div className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg mb-4">
+          {/* Mood After Selection - Mobile Optimized */}
+          <div className="bg-white/80 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg mb-4 safe-area-inset">
             {/* Animated Mood Display */}
-            <div className="flex flex-col items-center mb-8 py-6">
-              <h2 className="text-2xl font-semibold text-[#3B3632] mb-6">
+            <div className="flex flex-col items-center mb-6 sm:mb-8 py-4 sm:py-6">
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#3B3632] mb-4 sm:mb-6 text-center px-2">
                 How Do You Feel Now?
               </h2>
               
-              <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center mb-4">
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex items-center justify-center mb-4">
                 {/* Animated ripples */}
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-100 to-teal-100 opacity-20 animate-ripple" />
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-50 to-teal-50 opacity-40 animate-ripple" style={{ animationDelay: '0.5s' }} />
@@ -445,19 +437,19 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                 {/* Main animated emoji */}
                 <div 
                   key={selectedMoodAfter || 'default'}
-                  className="text-7xl md:text-8xl transform animate-bounce-in z-10"
+                  className="text-6xl sm:text-7xl md:text-8xl transform animate-bounce-in z-10"
                 >
                   {MOOD_OPTIONS.find(m => m.value === selectedMoodAfter)?.emoji || '😊'}
                 </div>
               </div>
               
-              <p className="text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center">
+              <p className="text-base sm:text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center px-2">
                 {MOOD_OPTIONS.find(m => m.value === selectedMoodAfter)?.label || 'Select your current mood'}
               </p>
             </div>
 
-            {/* Mood Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            {/* Mood Grid - Mobile Optimized */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
               {MOOD_OPTIONS.map((mood) => (
                 <button
                   key={mood.value}
@@ -466,15 +458,19 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                     // Haptic feedback on mobile
                     if (navigator.vibrate) navigator.vibrate(10);
                   }}
-                  className={`mood-button p-4 rounded-xl ${mood.color} border-2 
-                    min-h-[100px] md:min-h-[120px] touch-manipulation
+                  className={`mood-button p-4 sm:p-5 rounded-xl ${mood.color} border-2 
+                    min-h-[110px] sm:min-h-[120px] md:min-h-[130px] touch-manipulation
+                    transition-all duration-200 active:scale-95
+                    focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2
                     ${selectedMoodAfter === mood.value
-                      ? 'mood-button-selected border-[#C8956A]'
-                      : 'border-transparent hover:border-gray-300'
+                      ? 'mood-button-selected border-[#C8956A] shadow-md scale-[1.02]'
+                      : 'border-transparent hover:border-gray-300 hover:shadow-sm'
                   }`}
+                  aria-label={`Select ${mood.label} mood`}
+                  aria-pressed={selectedMoodAfter === mood.value}
                 >
-                  <div className="text-4xl md:text-3xl mb-2">{mood.emoji}</div>
-                  <div className="text-sm font-medium text-[#3B3632]">{mood.label}</div>
+                  <div className="text-5xl sm:text-4xl md:text-3xl mb-2 flex items-center justify-center">{mood.emoji}</div>
+                  <div className="text-sm sm:text-base font-medium text-[#3B3632] text-center">{mood.label}</div>
                 </button>
               ))}
             </div>
@@ -485,17 +481,20 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
               value={completionNotes}
               onChange={(e) => setCompletionNotes(e.target.value)}
               className="w-full p-4 rounded-xl border border-[#E8DDD2] bg-white/50 text-[#3B3632]
-                placeholder-[#8B7E74]/50 focus:outline-none focus:ring-2 focus:ring-[#C8956A]
-                min-h-[100px] md:min-h-[80px] text-base"
+                placeholder-[#8B7E74]/50 focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2
+                min-h-[100px] sm:min-h-[80px] text-base resize-none"
               rows={3}
+              aria-label="Completion notes (optional)"
             />
 
             <button
               onClick={handleComplete}
               disabled={!selectedMoodAfter || isSubmitting}
-              className="mt-4 w-full py-4 md:py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-lg
+              className="mt-4 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-base sm:text-lg
                 hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all
-                min-h-[60px] touch-manipulation active:scale-95"
+                min-h-[56px] sm:min-h-[60px] touch-manipulation active:scale-95
+                focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2"
+              aria-label="Complete ritual"
             >
               {isSubmitting ? 'Saving...' : 'Complete Ritual ✨'}
             </button>
@@ -540,8 +539,8 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
   // DURING RITUAL: Timer + Step Display
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-4 md:p-6
-      landscape:flex landscape:items-center landscape:py-4">
+    <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-4 md:p-6
+      landscape:flex landscape:items-center landscape:py-4 overscroll-contain">
       <div className="max-w-4xl mx-auto w-full 
         landscape:flex landscape:flex-row landscape:gap-6 landscape:items-start">
         {/* Header - Hide in landscape to save space */}

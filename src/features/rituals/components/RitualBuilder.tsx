@@ -9,23 +9,16 @@
  * - Responsive layout with mobile-first design
  */
 
-import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
-import { useMobileOptimization } from '@/hooks/useMobileOptimization';
-import { useTierQuery } from '@/hooks/useTierQuery';
-import { logger } from '@/lib/logger';
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, Copy, GripVertical, Info, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { useRitualStore } from '../hooks/useRitualStore';
-import { analyzeRitual, getQuickStartTemplate, type RitualSuggestion } from '../services/ritualSuggestions';
-import type { Ritual, RitualGoal, RitualStep, RitualStepType } from '../types/rituals';
-import { normalizeStepDurations, prepareStepsForStorage } from '../utils/durationUtils';
+import { useRitualBuilder } from '../hooks/useRitualBuilder';
+import { getQuickStartTemplate } from '../services/ritualSuggestions';
+import type { RitualGoal, RitualStep } from '../types/rituals';
 import { StepConfigPanel } from './StepConfigPanel';
 import { STEP_TYPE_DEFINITIONS, StepLibrary } from './StepLibrary';
 
@@ -182,12 +175,46 @@ const SortableStepCard: React.FC<SortableStepCardProps> = React.memo(({
 });
 
 export const RitualBuilder: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { tier, userId } = useTierQuery();
-  const { showGenericUpgrade } = useUpgradeModals();
-  const { createRitual } = useRitualStore();
-  const { isMobile, triggerHaptic } = useMobileOptimization();
+  const {
+    // State
+    title,
+    setTitle,
+    goal,
+    setGoal,
+    steps,
+    setSteps,
+    selectedStep,
+    setSelectedStep,
+    saving,
+    isInitializing,
+    suggestions,
+    showSuggestions,
+    setShowSuggestions,
+    showMobileConfig,
+    setShowMobileConfig,
+    totalDuration,
+    isEditing,
+
+    // Actions
+    handleAddStep,
+    handleDeleteStep,
+    handleDuplicateStep,
+    handleUpdateStep,
+    handleEditStep,
+    handleKeyboardReorder,
+    handleDragStart,
+    handleDragEnd,
+    handleSave,
+
+    // Navigation
+    navigate,
+    
+    // Context
+    tier,
+    showGenericUpgrade,
+    isMobile,
+    triggerHaptic,
+  } = useRitualBuilder();
 
   // Touch sensors for mobile drag-and-drop
   const mouseSensor = useSensor(MouseSensor);
@@ -198,59 +225,6 @@ export const RitualBuilder: React.FC = () => {
     },
   });
   const sensors = useSensors(mouseSensor, touchSensor);
-
-  // Check if we're editing an existing ritual
-  const editRitual = location.state?.editRitual as Ritual | undefined;
-  const isEditing = !!editRitual;
-
-  // Initialize state from editRitual if editing
-  const [title, setTitle] = useState(editRitual?.title || '');
-  const [goal, setGoal] = useState<RitualGoal>(editRitual?.goal || 'focus');
-  const [steps, setSteps] = useState<RitualStep[]>(() => {
-    if (editRitual?.steps) {
-      // ✅ Use utility function for duration normalization
-      return normalizeStepDurations(editRitual.steps) as RitualStep[];
-    }
-    return [];
-  });
-  const [selectedStep, setSelectedStep] = useState<RitualStep | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
-
-  // 🔥 NEW: Smart suggestions with debounce
-  const [suggestions, setSuggestions] = useState<RitualSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(true);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Debounced suggestions analysis (300ms delay)
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      const newSuggestions = analyzeRitual(steps, goal);
-      setSuggestions(newSuggestions);
-    }, 300);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [steps, goal]);
-
-  // ✅ PHASE 3: Initialize component (simulate loading for skeleton)
-  useEffect(() => {
-    // Small delay to show skeleton loader on initial mount
-    const timer = setTimeout(() => {
-      setIsInitializing(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Mobile: Show config as bottom sheet
-  const [showMobileConfig, setShowMobileConfig] = useState(false);
 
   // Tier gate
   if (tier === 'free') {
@@ -280,210 +254,6 @@ export const RitualBuilder: React.FC = () => {
       </div>
     );
   }
-
-  // ✅ PERFORMANCE: Memoize total duration calculation
-  const totalDuration = useMemo(() => 
-    steps.reduce((sum, step) => sum + step.duration, 0),
-    [steps]
-  );
-
-  // ✅ PERFORMANCE: Memoize callbacks to prevent unnecessary re-renders
-  const handleAddStep = useCallback((stepType: RitualStepType) => {
-    const stepDef = STEP_TYPE_DEFINITIONS[stepType];
-    const newStep: RitualStep = {
-      id: uuidv4(),
-      type: stepType,
-      duration: stepDef.defaultDuration,
-      order: steps.length,
-      config: {
-        title: stepDef.label,
-        instructions: stepDef.defaultInstructions,
-      },
-    };
-
-    setSteps(prev => [...prev, newStep]);
-    triggerHaptic(50); // Medium haptic for add
-    toast.success(`Added ${stepDef.label}`, {
-      duration: 2000,
-    });
-  }, [triggerHaptic]);
-
-  const handleDeleteStep = useCallback((stepId: string) => {
-    setSteps(prev => prev.filter((s) => s.id !== stepId));
-    setSelectedStep(prev => {
-      if (prev?.id === stepId) {
-        if (isMobile) setShowMobileConfig(false);
-        return null;
-      }
-      return prev;
-    });
-    toast.success('Step removed', {
-      duration: 2000,
-    });
-  }, [isMobile]);
-
-  // ✅ PHASE 2: Duplicate step feature
-  const handleDuplicateStep = useCallback((stepId: string) => {
-    setSteps(prev => {
-      const stepToDuplicate = prev.find(s => s.id === stepId);
-      if (!stepToDuplicate) return prev;
-
-      const duplicatedStep: RitualStep = {
-        ...stepToDuplicate,
-        id: uuidv4(),
-        order: prev.length, // Add at the end
-      };
-
-      triggerHaptic(50);
-      toast.success(`Duplicated ${stepToDuplicate.config.title}`, {
-        duration: 2000,
-      });
-      return [...prev, duplicatedStep];
-    });
-  }, [triggerHaptic]);
-
-  const handleUpdateStep = useCallback((updatedStep: RitualStep) => {
-    setSteps(prev => prev.map((s) => (s.id === updatedStep.id ? updatedStep : s)));
-  }, []);
-
-  const handleEditStep = useCallback((step: RitualStep) => {
-    setSelectedStep(step);
-    if (isMobile) {
-      setShowMobileConfig(true);
-    }
-  }, [isMobile]);
-
-  // ✅ KEYBOARD NAVIGATION: Handler for reordering steps via keyboard
-  const handleKeyboardReorder = useCallback((stepId: string, direction: 'up' | 'down') => {
-    setSteps(prev => {
-      const currentIndex = prev.findIndex(s => s.id === stepId);
-      if (currentIndex === -1) return prev;
-
-      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-      if (newIndex < 0 || newIndex >= prev.length) return prev;
-
-      const reordered = arrayMove(prev, currentIndex, newIndex).map((step, index) => ({
-        ...step,
-        order: index,
-      }));
-
-      triggerHaptic(50);
-      return reordered;
-    });
-  }, [triggerHaptic]);
-
-  const handleDragStart = useCallback((_event: DragStartEvent) => {
-    triggerHaptic(10); // Light haptic on drag start
-  }, [triggerHaptic]);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setSteps(prev => {
-        const oldIndex = prev.findIndex((s) => s.id === active.id);
-        const newIndex = prev.findIndex((s) => s.id === over.id);
-
-        const reordered = arrayMove(prev, oldIndex, newIndex).map((step, index) => ({
-          ...step,
-          order: index,
-        }));
-
-        triggerHaptic(50); // Medium haptic on reorder
-        return reordered;
-      });
-    } else {
-      triggerHaptic(10); // Light haptic on cancel
-    }
-  }, [triggerHaptic]);
-
-  const handleSave = async () => {
-    // ✅ PHASE 2: Enhanced validation with better error messages
-    if (!title.trim()) {
-      toast.error('Please enter a ritual title', {
-        description: 'A title helps you identify your ritual later',
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (title.trim().length > 100) {
-      toast.error('Title too long', {
-        description: 'Ritual title must be 100 characters or less',
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (steps.length === 0) {
-      toast.error('Add at least one step', {
-        description: 'Your ritual needs at least one step to be saved',
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (steps.length > 10) {
-      toast.error('Too many steps', {
-        description: 'Rituals can have a maximum of 10 steps',
-        duration: 3000,
-      });
-      return;
-    }
-
-    if (!userId) {
-      toast.error('Please sign in', {
-        description: 'You must be logged in to save rituals',
-        duration: 3000,
-      });
-      return;
-    }
-
-    setSaving(true);
-    const loadingToast = toast.loading('Saving ritual...', {
-      description: 'Please wait while we save your ritual',
-    });
-
-    try {
-      // ✅ Use utility function to prepare steps for storage
-      const stepsWithCorrectDuration = prepareStepsForStorage(steps) as RitualStep[];
-
-      await createRitual({
-        userId,
-        title: title.trim(),
-        goal,
-        steps: stepsWithCorrectDuration,
-        isPreset: false,
-        tierRequired: tier,
-      });
-
-      toast.dismiss(loadingToast);
-      toast.success('✨ Ritual saved successfully!', {
-        description: `${title.trim()} has been added to your library`,
-        duration: 3000,
-      });
-      navigate('/rituals');
-    } catch (error) {
-      logger.error('[RitualBuilder] Failed to save ritual:', error);
-      toast.dismiss(loadingToast);
-      
-      // ✅ PHASE 2: Better error handling with retry option
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-        toast.error('Network error', {
-          description: 'Please check your connection and try again',
-          duration: 5000,
-        });
-      } else {
-        toast.error('Failed to save ritual', {
-          description: errorMessage,
-          duration: 5000,
-        });
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // ✅ PHASE 3: Skeleton loader for initial load
   if (isInitializing) {

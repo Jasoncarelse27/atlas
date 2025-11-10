@@ -39,8 +39,8 @@ body {
   min-height: 100dvh;
   max-height: 100dvh; /* Prevent expansion beyond viewport */
   overflow: hidden; /* Prevent body scroll - let app handle scrolling */
-  /* ✅ FIX: Prevent passive event listener warnings by using CSS touch-action */
-  touch-action: manipulation;
+  /* ✅ FIX: Allow vertical scrolling on mobile - manipulation blocks scroll */
+  touch-action: pan-y pinch-zoom; /* Allow vertical pan (scroll) and pinch zoom */
   width: 100%;
   /* ✅ FIX: Prevent layout shifts from browser UI changes */
   position: relative;
@@ -235,6 +235,19 @@ body {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ✅ UNIFIED INPUT BAR: Responsive shadow (mobile vs desktop) */
+.unified-input-bar {
+  /* Mobile: Floating overlay shadow */
+  box-shadow: 0 -4px 16px rgba(151, 134, 113, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+@media (min-width: 640px) {
+  .unified-input-bar {
+    /* Desktop: Gradient shadow (existing behavior) */
+    box-shadow: 0 8px 24px rgba(151, 134, 113, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
 }
 
 /* ✅ CRITICAL FIX: Override any blue link colors in chat messages */

@@ -12,19 +12,19 @@ import { ArrowLeft, Award, Calendar, Sparkles, TrendingUp, Zap } from 'lucide-re
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Area,
-    AreaChart,
-    CartesianGrid,
-    Cell,
-    Legend,
-    Line,
-    LineChart,
-    Pie,
-    PieChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
 import { insightsGenerator } from '../services/insightsGenerator';
 import { ritualAnalyticsService, type CompletionStats, type MoodTrend, type StreakData } from '../services/ritualAnalyticsService';
@@ -155,7 +155,7 @@ export const RitualInsightsDashboard: React.FC = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] pb-8">
+    <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] pb-8 overscroll-contain">
       {/* Header */}
       <div className="bg-white border-b border-[#E8DCC8]">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
