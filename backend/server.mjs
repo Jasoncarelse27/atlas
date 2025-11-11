@@ -441,6 +441,12 @@ function stopKeepAlive() {
 // ✅ PRODUCTION-SAFE: Stream helper with forced flush for Railway/proxy compatibility
 const writeSSE = (res, payload) => {
   try {
+    // ✅ CRITICAL: Check if response is still writable before writing
+    if (res.destroyed || res.closed) {
+      logger.debug('[writeSSE] ⚠️ Response already closed, skipping write');
+      return;
+    }
+    
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
     // ✅ CRITICAL: Force flush to prevent Railway/proxy buffering
     if (res.flush) {
@@ -451,8 +457,9 @@ const writeSSE = (res, payload) => {
       res.flushHeaders();
     }
   } catch (flushError) {
-    // If flush fails, log but don't throw (stream may still work)
-    logger.debug('[writeSSE] ⚠️ Flush error (non-critical):', flushError.message);
+    // If write/flush fails, log but don't throw (stream may be closed)
+    logger.debug('[writeSSE] ⚠️ Write/flush error (non-critical):', flushError.message);
+    // Don't throw - let caller handle response state
   }
 };
 
@@ -1346,7 +1353,7 @@ app.post('/message',
 });
 
 // Legacy endpoint for backward compatibility
-app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
+app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => {
   // ✅ CRITICAL DEBUG: Log request arrival
   logger.debug('[POST /api/message] 📨 Request received:', {
     userId: req.user?.id,
@@ -1355,6 +1362,12 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
     stream: req.query.stream
   });
   
+  // ✅ CRITICAL: Ensure response hasn't been sent by middleware
+  if (res.headersSent) {
+    logger.warn('[POST /api/message] ⚠️ Response already sent by middleware');
+    return;
+  }
+
   try {
     const { message, conversationId, model = 'claude', is_voice_call, context } = req.body;
     const userId = req.user.id;
@@ -1599,26 +1612,35 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res) => {
     const wantsStream = req.query.stream === '1' || (req.headers.accept || '').includes('text/event-stream');
 
     if (wantsStream) {
-      // ✅ PRODUCTION-SAFE SSE: Set headers and flush immediately to prevent Railway buffering
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
-        'Transfer-Encoding': 'chunked',
-        'X-Accel-Buffering': 'no' // Disable nginx buffering
-      });
-      
-      // ✅ CRITICAL: Flush headers immediately to prevent proxy buffering
-      if (res.flushHeaders) {
-        res.flushHeaders();
-      }
+      try {
+        // ✅ PRODUCTION-SAFE SSE: Set headers and flush immediately to prevent Railway buffering
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
+          'Transfer-Encoding': 'chunked',
+          'X-Accel-Buffering': 'no' // Disable nginx buffering
+        });
+        
+        // ✅ CRITICAL: Flush headers immediately to prevent proxy buffering
+        if (res.flushHeaders) {
+          res.flushHeaders();
+        }
 
-      // ✅ CRITICAL: Send initial heartbeat/data before starting AI call
-      // This prevents frontend timeout while waiting for first chunk
-      writeSSE(res, { event: 'init', status: 'connecting' });
-      logger.debug('[Server] ✅ SSE headers flushed, initial heartbeat sent');
+        // ✅ CRITICAL: Send initial heartbeat/data before starting AI call
+        // This prevents frontend timeout while waiting for first chunk
+        writeSSE(res, { event: 'init', status: 'connecting' });
+        logger.debug('[Server] ✅ SSE headers flushed, initial heartbeat sent');
+      } catch (headerError) {
+        logger.error('[Server] ❌ Failed to set SSE headers:', headerError);
+        // Headers not set yet, can still send JSON error
+        return res.status(500).json({ 
+          error: 'Failed to initialize streaming',
+          details: headerError?.message || 'Unknown error'
+        });
+      }
 
       // ✅ PRODUCTION-SAFE: Periodic heartbeat to keep connection alive during long AI responses
       // Prevents Railway/proxy timeouts on streams > 10 seconds
@@ -1907,7 +1929,66 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
     });
 
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    // ✅ BEST PRACTICE: Log full error details for debugging
+    const errorDetails = {
+      message: error?.message || 'Unknown error',
+      stack: error?.stack,
+      name: error?.name,
+      userId: req.user?.id,
+      conversationId: req.body?.conversationId,
+      messageText: req.body?.message?.substring(0, 50),
+      headersSent: res.headersSent,
+      errorType: error?.constructor?.name || typeof error
+    };
+    logger.error('[POST /api/message] ❌ Unhandled error:', errorDetails);
+    console.error('[POST /api/message] ❌ Full error object:', error);
+    
+    // ✅ CRITICAL FIX: Check if response headers are already sent (SSE mode)
+    // If headers are sent, we can't send JSON - send SSE error instead
+    if (res.headersSent) {
+      logger.warn('[POST /api/message] ⚠️ Headers already sent, sending SSE error instead');
+      try {
+        writeSSE(res, { 
+          error: true,
+          message: error?.message || 'Internal server error',
+          chunk: 'Sorry, I encountered an error processing your message.'
+        });
+        writeSSE(res, { done: true });
+        res.end();
+      } catch (sseError) {
+        logger.error('[POST /api/message] ❌ Failed to send SSE error:', sseError);
+        // Response is already closed, can't do anything
+      }
+      return;
+    }
+    
+    // ✅ CRITICAL: Ensure we always send JSON, never plain text
+    try {
+      // ✅ BEST PRACTICE: Return descriptive error (safe for production)
+      const errorMessage = process.env.NODE_ENV === 'production' 
+        ? 'Message processing failed. Please try again.'
+        : error?.message || 'Internal server error';
+      
+      // ✅ BEST PRACTICE: Include error details in development for debugging
+      const errorResponse = {
+        error: errorMessage,
+        ...(process.env.NODE_ENV !== 'production' && {
+          details: error?.stack?.split('\n').slice(0, 3).join('\n'),
+          type: error?.name || 'Error'
+        })
+      };
+      
+      // ✅ CRITICAL: Set Content-Type header explicitly to ensure JSON
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json(errorResponse);
+    } catch (jsonError) {
+      // ✅ CRITICAL: If JSON.stringify fails, send plain text error (last resort)
+      logger.error('[POST /api/message] ❌ Failed to send JSON error:', jsonError);
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(500).send(JSON.stringify({ error: 'Internal server error' }));
+      }
+    }
   }
 });
 

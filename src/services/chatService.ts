@@ -186,10 +186,12 @@ export const chatService = {
           clearTimeout(timeoutId);
           
           // ✅ CRITICAL DEBUG: Log response immediately
+          const contentType = response.headers.get('content-type') || '';
           logger.error(`[ChatService] 📡 Response received:`, {
             status: response.status,
             statusText: response.statusText,
             ok: response.ok,
+            contentType,
             headers: Object.fromEntries(response.headers.entries())
           });
           
@@ -270,8 +272,27 @@ export const chatService = {
           }
           
           // Handle errors (only if not 401, which was handled above)
-          // Parse error data for non-401 errors
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          // ✅ BEST PRACTICE: Parse error data - handle both JSON and plain text responses
+          // Note: Response body can only be read once, so check content-type first
+          let errorData: any = { error: 'Unknown error' };
+          try {
+            if (contentType.includes('application/json')) {
+              errorData = await response.json();
+            } else {
+              // Backend might return plain text for 500 errors (text/plain)
+              const textError = await response.text();
+              // Try to parse as JSON if it looks like JSON, otherwise use as plain text
+              try {
+                errorData = JSON.parse(textError);
+              } catch {
+                errorData = { error: textError || 'Unknown error' };
+              }
+            }
+          } catch (parseError) {
+            // If parsing fails, use status text
+            logger.error('[ChatService] Error parsing error response:', parseError);
+            errorData = { error: response.statusText || 'Unknown error' };
+          }
           
           // ✅ CRITICAL FIX: Handle 429 errors - don't retry limit errors
           if (response.status === 429) {
@@ -301,7 +322,9 @@ export const chatService = {
             continue;
           }
           
-          throw new Error(`Backend error: ${errorData.error || response.statusText}`);
+          // ✅ BEST PRACTICE: Extract meaningful error message from backend
+          const backendError = errorData.error || errorData.message || response.statusText || 'Unknown error';
+          throw new Error(`Backend error: ${backendError}`);
         } catch (error) {
           lastError = error as Error;
           
