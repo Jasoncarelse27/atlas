@@ -946,11 +946,27 @@ app.use(compression({
   }
 }));
 app.use(morgan('combined'));
-// ✅ Allow LAN devices to connect (same Wi-Fi)
-// ✅ CRITICAL FIX: Support Vercel deployments (production + preview)
+// ✅ IMPROVED: Regex-based CORS (cleaner, more maintainable)
+// Supports: localhost, network IPs, Vercel, Railway, production domains
+const allowedOriginPatterns = [
+  // Localhost (any port, HTTP or HTTPS)
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+  
+  // Network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x) - any port, HTTP or HTTPS
+  /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)\d+\.\d+(:\d+)?$/,
+  
+  // Production domains
+  /^https:\/\/atlas-ai\.app$/,
+  /^https:\/\/www\.atlas-ai\.app$/,
+  /^https:\/\/.*\.vercel\.app$/,  // All Vercel deployments (production + preview)
+  /^https:\/\/.*\.up\.railway\.app$/,  // Railway preview URLs
+  /^https:\/\/.*\.fly\.dev$/,  // Fly.io deployments
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
     if (!origin) {
       logger.debug('[CORS] No origin header, allowing request');
       return callback(null, true);
@@ -958,61 +974,24 @@ app.use(cors({
     
     logger.debug(`[CORS] Checking origin: ${origin}, NODE_ENV: ${process.env.NODE_ENV}`);
     
-    // ✅ CRITICAL FIX: Always check Vercel domains regardless of NODE_ENV
-    // This handles Railway production deployments that might not have NODE_ENV=production
-    const isVercelDomain = origin.match(/^https:\/\/.*\.vercel\.app$/);
-    if (isVercelDomain) {
-      logger.debug(`[CORS] ✅ Allowing Vercel domain: ${origin}`);
+    // ✅ PRESERVE: Check ALLOWED_ORIGINS env var first (production flexibility)
+    if (process.env.ALLOWED_ORIGINS) {
+      const allowedList = process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim());
+      if (allowedList.includes(origin)) {
+        logger.debug(`[CORS] ✅ Allowing from ALLOWED_ORIGINS: ${origin}`);
+        return callback(null, true);
+      }
+    }
+    
+    // ✅ IMPROVED: Use regex patterns (cleaner than hardcoded lists)
+    const allowed = allowedOriginPatterns.some(rx => rx.test(origin));
+    if (allowed) {
+      logger.debug(`[CORS] ✅ Allowing origin: ${origin}`);
       return callback(null, true);
     }
     
-    if (process.env.NODE_ENV === 'production') {
-      // Check ALLOWED_ORIGINS env var first
-      const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-        'https://atlas-ai.app',
-        'https://www.atlas-ai.app',
-        'https://atlas.vercel.app',
-        'https://atlas-frontend.fly.dev',
-        'https://atlas-frontend.vercel.app',
-        'https://atlas-xi-tawny.vercel.app' // ✅ Explicitly add current Vercel deployment
-      ];
-      
-      // Allow exact matches
-      if (allowedOrigins.includes(origin)) {
-        logger.debug(`[CORS] ✅ Allowing exact match: ${origin}`);
-        return callback(null, true);
-      }
-      
-      // Reject unknown origins
-      logger.warn(`[CORS] ❌ Rejecting origin: ${origin}`);
-      return callback(new Error('Not allowed by CORS'));
-    } else {
-      // Development: allow all localhost and LAN IPs
-      const allowedDevOrigins = [
-        process.env.FRONTEND_URL || 'http://localhost:5173',
-        'http://localhost:5174', 
-        'http://localhost:5175',
-        'http://localhost:5176',
-        'http://localhost:5177',
-        'http://localhost:5178',
-        'http://localhost:5179',
-        'http://localhost:5180',
-        'http://localhost:5181',
-        'http://localhost:5182',
-        `http://${LOCAL_IP}:5174`,
-        `http://${LOCAL_IP}:5178`,
-        `http://${LOCAL_IP}:5179`,
-        `http://${LOCAL_IP}:5180`,
-      ];
-      
-      if (allowedDevOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.startsWith(`http://${LOCAL_IP}:`)) {
-        logger.debug(`[CORS] ✅ Allowing dev origin: ${origin}`);
-        return callback(null, true);
-      }
-      
-      logger.warn(`[CORS] ❌ Rejecting dev origin: ${origin}`);
-      return callback(new Error('Not allowed by CORS'));
-    }
+    logger.warn(`[CORS] ❌ Blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -1354,23 +1333,54 @@ app.post('/message',
 
 // Legacy endpoint for backward compatibility
 app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => {
-  // ✅ CRITICAL DEBUG: Log request arrival
-  logger.debug('[POST /api/message] 📨 Request received:', {
-    userId: req.user?.id,
-    hasMessage: !!req.body.message,
-    conversationId: req.body.conversationId,
-    stream: req.query.stream
-  });
-  
-  // ✅ CRITICAL: Ensure response hasn't been sent by middleware
-  if (res.headersSent) {
-    logger.warn('[POST /api/message] ⚠️ Response already sent by middleware');
-    return;
+  // ✅ CRITICAL: Wrap entire handler to catch ANY errors (including from middleware)
+  // This ensures we always return JSON errors, never plain text
+  try {
+    // ✅ CRITICAL DEBUG: Log request arrival
+    logger.debug('[POST /api/message] 📨 Request received:', {
+      userId: req.user?.id,
+      hasMessage: !!req.body.message,
+      conversationId: req.body.conversationId,
+      stream: req.query.stream,
+      hasAnthropicKey: !!ANTHROPIC_API_KEY,
+      method: req.method,
+      path: req.path,
+      headers: {
+        'content-type': req.headers['content-type'],
+        'accept': req.headers.accept,
+        'authorization': req.headers.authorization ? 'Bearer ***' : 'missing'
+      }
+    });
+    
+    // ✅ CRITICAL: Ensure response hasn't been sent by middleware
+    if (res.headersSent) {
+      logger.warn('[POST /api/message] ⚠️ Response already sent by middleware');
+      return;
+    }
+
+  // ✅ CRITICAL: Early validation - check API key before processing
+  if (!ANTHROPIC_API_KEY) {
+    logger.error('[POST /api/message] ❌ ANTHROPIC_API_KEY is missing');
+    return res.status(503).json({
+      error: 'AI service unavailable',
+      details: 'Anthropic API key is not configured. Please contact support.',
+      code: 'MISSING_API_KEY'
+    });
   }
 
   try {
     const { message, conversationId, model = 'claude', is_voice_call, context } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    
+    // ✅ CRITICAL: Validate userId exists
+    if (!userId) {
+      logger.error('[POST /api/message] ❌ Missing userId in request');
+      return res.status(401).json({
+        error: 'Authentication required',
+        details: 'User ID not found in request. Please sign in again.',
+        code: 'MISSING_USER_ID'
+      });
+    }
 
     if (!message || !message.trim()) {
       return res.status(400).json({ error: 'Message content is required' });
@@ -1661,8 +1671,15 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => 
         // 🎯 Real AI Model Logic - Use Claude based on tier
         logger.info(`🔍 [API CALL] Route check: provider=${routedProvider}, hasKey=${!!ANTHROPIC_API_KEY}, model=${selectedModel}, tier=${effectiveTier}`);
         logger.info(`🔍 [API CALL] About to call streamAnthropicResponse with model: ${selectedModel}`);
+        
+        // ✅ CRITICAL: Double-check API key before calling (defensive check)
+        if (!ANTHROPIC_API_KEY) {
+          throw new Error('ANTHROPIC_API_KEY is missing - cannot process message');
+        }
+        
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           try {
+            logger.debug(`[API CALL] Calling streamAnthropicResponse with userId: ${userId}, model: ${selectedModel}`);
             finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
             streamCompleted = true;
             logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
@@ -1673,17 +1690,20 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => 
             }
           } catch (apiError) {
             logger.error(`❌ [API CALL] streamAnthropicResponse threw error:`, apiError);
-            logger.error(`❌ [API CALL] Error message: ${apiError.message}`);
-            logger.error(`❌ [API CALL] Error stack: ${apiError.stack}`);
+            logger.error(`❌ [API CALL] Error message: ${apiError?.message || 'Unknown error'}`);
+            logger.error(`❌ [API CALL] Error stack: ${apiError?.stack || 'No stack trace'}`);
+            logger.error(`❌ [API CALL] Error name: ${apiError?.name || 'Error'}`);
             throw apiError; // Re-throw to be caught by outer catch block
           }
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
+          logger.debug('[API CALL] Using Claude fallback');
           finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
           streamCompleted = true;
           logger.debug('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
           // Fallback mock streaming for mobile
+          logger.warn('[API CALL] No API key available, using mock response');
           const mockChunks = [
             'Hello! I received your message: ',
             `"${message.trim()}". `,
@@ -1707,21 +1727,34 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => 
         // ✅ CRITICAL: Log and send structured error to frontend
         logger.error('[Server] ❌ Claude streaming error:', streamErr);
         logger.error('[Server] Error details:', {
-          message: streamErr.message,
-          stack: streamErr.stack,
-          name: streamErr.name,
+          message: streamErr?.message || 'Unknown error',
+          stack: streamErr?.stack || 'No stack trace',
+          name: streamErr?.name || 'Error',
           userId,
-          conversationId: finalConversationId
+          conversationId: finalConversationId,
+          hasAnthropicKey: !!ANTHROPIC_API_KEY
         });
         
-        // ✅ Send structured error as SSE chunk (frontend can parse and display)
-        writeSSE(res, { 
-          error: true,
-          message: streamErr.message || 'Unknown error occurred',
-          chunk: 'Sorry, I hit an error generating the response.'
-        });
-        finalText = 'Sorry, I hit an error generating the response.';
-        streamCompleted = true; // Mark as completed so we save error message to DB
+        // ✅ CRITICAL: Only send SSE error if headers are set (SSE mode)
+        if (res.headersSent) {
+          try {
+            // ✅ Send structured error as SSE chunk (frontend can parse and display)
+            writeSSE(res, { 
+              error: true,
+              message: streamErr?.message || 'Unknown error occurred',
+              chunk: 'Sorry, I hit an error generating the response.'
+            });
+            finalText = 'Sorry, I hit an error generating the response.';
+            streamCompleted = true; // Mark as completed so we save error message to DB
+          } catch (sseWriteError) {
+            logger.error('[Server] ❌ Failed to write SSE error:', sseWriteError);
+            // Re-throw original error to be caught by outer catch block
+            throw streamErr;
+          }
+        } else {
+          // Headers not set yet - re-throw to be caught by outer catch block
+          throw streamErr;
+        }
       }
       
       // ✅ CRITICAL: Ensure stream completed before saving
@@ -1927,6 +1960,11 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
       response: storedResponse,
       conversationId: messageData.conversation_id
     });
+    } catch (innerError) {
+      // Inner try-catch for the message processing logic
+      logger.error('[POST /api/message] Inner error:', innerError?.message);
+      throw innerError; // Re-throw to be caught by outer catch
+    }
 
   } catch (error) {
     // ✅ BEST PRACTICE: Log full error details for debugging
@@ -1938,7 +1976,8 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
       conversationId: req.body?.conversationId,
       messageText: req.body?.message?.substring(0, 50),
       headersSent: res.headersSent,
-      errorType: error?.constructor?.name || typeof error
+      errorType: error?.constructor?.name || typeof error,
+      wantsStream: req.query.stream === '1' || (req.headers.accept || '').includes('text/event-stream')
     };
     logger.error('[POST /api/message] ❌ Unhandled error:', errorDetails);
     console.error('[POST /api/message] ❌ Full error object:', error);
@@ -1963,6 +2002,9 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
     }
     
     // ✅ CRITICAL: Ensure we always send JSON, never plain text
+    // ✅ FIX: Check if we're in streaming mode but headers weren't set yet
+    const wantsStream = req.query.stream === '1' || (req.headers.accept || '').includes('text/event-stream');
+    
     try {
       // ✅ BEST PRACTICE: Return descriptive error (safe for production)
       const errorMessage = process.env.NODE_ENV === 'production' 
@@ -1974,19 +2016,42 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
         error: errorMessage,
         ...(process.env.NODE_ENV !== 'production' && {
           details: error?.stack?.split('\n').slice(0, 3).join('\n'),
-          type: error?.name || 'Error'
+          type: error?.name || 'Error',
+          wantsStream: wantsStream
         })
       };
       
-      // ✅ CRITICAL: Set Content-Type header explicitly to ensure JSON
-      res.setHeader('Content-Type', 'application/json');
-      res.status(500).json(errorResponse);
+      // ✅ CRITICAL: Set Content-Type header explicitly BEFORE status to ensure JSON
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(500).json(errorResponse);
+      } else {
+        // Headers already sent - try to send SSE error
+        logger.warn('[POST /api/message] ⚠️ Headers sent but not SSE - attempting SSE error');
+        try {
+          writeSSE(res, { error: true, message: errorMessage });
+          writeSSE(res, { done: true });
+          res.end();
+        } catch (e) {
+          logger.error('[POST /api/message] ❌ Cannot send any response:', e);
+        }
+      }
     } catch (jsonError) {
       // ✅ CRITICAL: If JSON.stringify fails, send plain text error (last resort)
       logger.error('[POST /api/message] ❌ Failed to send JSON error:', jsonError);
+      logger.error('[POST /api/message] ❌ JSON error details:', {
+        message: jsonError?.message,
+        stack: jsonError?.stack,
+        originalError: error?.message
+      });
       if (!res.headersSent) {
-        res.setHeader('Content-Type', 'application/json');
-        res.status(500).send(JSON.stringify({ error: 'Internal server error' }));
+        // ✅ FIX: Always send JSON, even if stringify fails
+        try {
+          res.setHeader('Content-Type', 'application/json');
+          res.status(500).send('{"error":"Internal server error"}');
+        } catch (finalError) {
+          logger.error('[POST /api/message] ❌ Complete failure to send response:', finalError);
+        }
       }
     }
   }
@@ -3375,9 +3440,22 @@ async function startServer() {
   // Start server - bind to all interfaces for mobile access
   // ✅ Support HTTPS if certs exist (for camera/audio testing)
   // ✅ Enhanced cert detection: supports multiple cert naming patterns
+  // ✅ MOBILE FIX: Supports both localhost and LAN IP certificates (mkcert)
   function findCertFiles() {
     const rootDir = path.join(__dirname, '..');
-    const certPatterns = ['localhost+3.pem', 'localhost+1.pem', 'localhost.pem'];
+    // ✅ ENHANCED: Support both localhost and LAN IP certificates
+    // ✅ SAFE: Additive changes only, preserves existing functionality
+    // ✅ PRODUCTION-SAFE: Files won't exist in production (Railway/Vercel use platform SSL)
+    const certPatterns = [
+      // ✅ NEW: mkcert LAN certificates (for mobile testing on network IPs)
+      '192.168.0.10+3.pem',
+      '192.168.0.10+2.pem',
+      '192.168.0.10+1.pem',
+      // ✅ PRESERVED: Existing localhost patterns (backward compatible)
+      'localhost+3.pem',
+      'localhost+1.pem',
+      'localhost.pem'
+    ];
     
     const certPath = certPatterns
       .map(pattern => path.join(rootDir, pattern))

@@ -20,6 +20,39 @@ import { logger } from '@/lib/logger';
 export function getApiUrl(): string {
   let apiUrl = import.meta.env.VITE_API_URL || '';
   
+  // ✅ MOBILE FIX: If VITE_API_URL is empty and we're accessing from a network IP (mobile),
+  // construct the backend URL from the current hostname with port 8000
+  if (!apiUrl && typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // Check if we're accessing from a network IP (not localhost)
+    const isNetworkIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(hostname);
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    
+    // If accessing from network IP (mobile device), use backend directly on port 8000
+    if (isNetworkIP && import.meta.env.DEV) {
+      // ✅ BEST PRACTICE: Match frontend protocol to prevent mixed content blocking
+      // HTTPS frontend MUST use HTTPS backend (browsers block HTTP from HTTPS)
+      // Backend runs HTTPS on port 8000, so use same protocol as frontend
+      const backendProtocol = window.location.protocol === 'https:' ? 'https' : 'http';
+      const backendUrl = `${backendProtocol}://${hostname}:8000`;
+      logger.debug(
+        `[API Client] 📱 Mobile/Network access detected (${hostname}). ` +
+        `Using backend URL: ${backendUrl} (protocol matches frontend: ${window.location.protocol})`
+      );
+      return backendUrl;
+    }
+    
+    // If localhost, use relative URLs (Vite proxy handles it)
+    if (isLocalhost) {
+      logger.debug(
+        '[API Client] 💻 Localhost access - using relative URLs (Vite proxy)'
+      );
+      return ''; // Return empty string to use Vite proxy
+    }
+  }
+  
   // ✅ CRITICAL FIX: Mixed content prevention - HTTPS frontend requires HTTPS backend
   if (apiUrl && typeof window !== 'undefined') {
     const isFrontendHttps = window.location.protocol === 'https:';
@@ -39,17 +72,31 @@ export function getApiUrl(): string {
       return apiUrl;
     }
     
-    // ✅ EXISTING: Frontend HTTPS + backend HTTP → use Vite proxy (empty string)
-    // This avoids browser mixed content blocking - Vite proxy handles HTTPS → HTTP internally
+    // ✅ CRITICAL FIX: Frontend HTTPS + backend HTTP → upgrade to HTTPS
+    // Mixed content blocking prevents HTTPS pages from loading HTTP resources
+    // Backend runs HTTPS on port 8000, so upgrade HTTP to HTTPS
     if (isFrontendHttps && isBackendHttp && isLocalDev) {
-      logger.debug(
-        '[API Client] ℹ️ Local dev: Frontend HTTPS, backend HTTP. ' +
-        'Using Vite proxy (relative URLs) to avoid mixed content blocking.'
-      );
-      return ''; // Return empty string to use Vite proxy
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      // If localhost, try Vite proxy first (but it may not work with HTTPS frontend)
+      if (isLocalhost) {
+        logger.debug(
+          '[API Client] ℹ️ Local dev: Frontend HTTPS, backend HTTP. ' +
+          'Trying Vite proxy first, but may need HTTPS backend.'
+        );
+        // Still upgrade to HTTPS for consistency (backend supports HTTPS)
+        apiUrl = apiUrl.replace('http://', 'https://');
+      } else {
+        // Network IP: Must upgrade HTTP to HTTPS (no proxy available)
+        logger.warn(
+          '[API Client] ⚠️ Mixed content fix: Frontend HTTPS, backend HTTP. ' +
+          'Upgrading backend URL to HTTPS to prevent mixed content blocking.'
+        );
+        apiUrl = apiUrl.replace('http://', 'https://');
+      }
     }
     
-    // Only upgrade HTTP to HTTPS in production (not local dev)
+    // ✅ PRODUCTION: Also upgrade HTTP to HTTPS in production
     if (isFrontendHttps && isBackendHttp && !isLocalDev) {
       logger.warn(
         '[API Client] ⚠️ Mixed content detected: Frontend HTTPS but backend HTTP. ' +

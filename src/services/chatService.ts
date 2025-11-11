@@ -5,7 +5,7 @@ import type { Message } from "../types/chat";
 import { generateUUID } from "../utils/uuid";
 import { enhancedResponseCacheService } from "./enhancedResponseCacheService";
 import { subscriptionApi } from "./subscriptionApi";
-import { getApiEndpoint } from "../utils/apiClient";
+import { getApiEndpoint, getApiUrl } from "../utils/apiClient";
 import { getAuthTokenOrThrow } from "../utils/getAuthToken";
 
 // Global abort controller for message streaming
@@ -129,11 +129,19 @@ export const chatService = {
       const messageEndpoint = getApiEndpoint('/api/message?stream=1');
       
       // ✅ CRITICAL DEBUG: Log endpoint URL to diagnose missing requests
+      const apiUrl = getApiUrl();
       logger.error('[ChatService] 🔍 API Endpoint:', {
         endpoint: messageEndpoint,
-        baseUrl: import.meta.env.VITE_API_URL || 'NOT SET',
+        baseUrl: apiUrl || 'RELATIVE (Vite proxy)',
+        viteApiUrl: import.meta.env.VITE_API_URL || 'NOT SET',
         isProd: import.meta.env.PROD,
-        fullUrl: messageEndpoint
+        isDev: import.meta.env.DEV,
+        fullUrl: messageEndpoint,
+        windowLocation: typeof window !== 'undefined' ? {
+          protocol: window.location.protocol,
+          hostname: window.location.hostname,
+          port: window.location.port
+        } : 'N/A'
       });
       
       // ✅ ENHANCED ERROR HANDLING: Retry with exponential backoff + automatic token refresh on 401
@@ -328,14 +336,29 @@ export const chatService = {
         } catch (error) {
           lastError = error as Error;
           
-          // ✅ CRITICAL DEBUG: Log ALL errors with full details
-          logger.error(`[ChatService] ❌ Fetch error on attempt ${attempt + 1}:`, {
+          // ✅ CRITICAL DEBUG: Log ALL errors with full details (especially network/CORS errors)
+          const errorDetails: any = {
             name: error instanceof Error ? error.name : 'Unknown',
             message: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
             type: error instanceof TypeError ? 'TypeError' : error instanceof Error ? error.constructor.name : 'Unknown',
-            isAuthError: (error as any)?.isAuthError
-          });
+            isAuthError: (error as any)?.isAuthError,
+            endpoint: messageEndpoint,
+            apiUrl: getApiUrl() || 'RELATIVE'
+          };
+          
+          // ✅ MOBILE FIX: Detect common network errors
+          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            errorDetails.networkError = true;
+            errorDetails.possibleCauses = [
+              'CORS blocked',
+              'SSL certificate invalid (self-signed cert on mobile)',
+              'Network unreachable',
+              'Backend not running'
+            ];
+          }
+          
+          logger.error(`[ChatService] ❌ Fetch error on attempt ${attempt + 1}:`, errorDetails);
           
           // ✅ CRITICAL: Don't retry auth errors (401 after refresh attempt)
           if ((error as any)?.isAuthError) {

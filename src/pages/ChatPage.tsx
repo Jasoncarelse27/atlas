@@ -419,6 +419,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       logger.debug('[ChatPage] ✅ Optimistic user message displayed with typing indicators:', optimisticUserMessage.id);
       
       // Send to backend - real-time listener will replace optimistic with real message
+      // ✅ DEBUG: Log before sending to catch any immediate errors
+      logger.error('[ChatPage] 🚀 About to call chatService.sendMessage', {
+        text: text.substring(0, 50),
+        conversationId,
+        userId
+      });
+      
       await chatService.sendMessage(
         text, 
         () => {}, // No frontend status updates needed
@@ -534,7 +541,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Keep typing indicator active until real-time listener receives response
       
     } catch (error) {
-      logger.error('[ChatPage] ❌ Failed to send message:', error);
+      // ✅ IMPROVED: Log full error details for debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorName = error instanceof Error ? error.name : 'Unknown';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      
+      logger.error('[ChatPage] ❌ Failed to send message:', {
+        error: errorMessage,
+        name: errorName,
+        stack: errorStack,
+        fullError: error
+      });
       
       // ✅ Clear fallback timer on error
       if (fallbackTimerRef.current) {
@@ -552,7 +569,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
         return prev;
       });
-      logger.debug('[ChatPage] ⚠️ Rolled back optimistic message due to error');
+      logger.debug('[ChatPage] ⚠️ Rolled back optimistic message due to error:', errorMessage);
       
       setIsTyping(false);
       setIsStreaming(false);

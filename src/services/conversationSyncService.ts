@@ -78,24 +78,72 @@ export class ConversationSyncService {
       // ⚡ OPTIMIZATION: Sync recent data (90 days for mobile/web parity)
       const recentDate = new Date(Date.now() - (this.RECENT_DATA_DAYS * 24 * 60 * 60 * 1000)).toISOString();
       
-      const { data: remoteConversations, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', userId)
-        .is('deleted_at', null)
-        .gte('updated_at', recentDate) // ⚡ 30-day window for faster sync
-        .order('updated_at', { ascending: false })
-        .limit(30) as { data: SupabaseConversation[] | null; error: any }; // ✅ FIX: Reduced from 50 to 30
+      // ✅ NETWORK FIX: Retry logic with exponential backoff for "Load failed" errors
+      let remoteConversations: SupabaseConversation[] | null = null;
+      let error: any = null;
+      const MAX_RETRIES = 3;
+      let attempt = 0;
+      
+      for (attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const result = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('user_id', userId)
+            .is('deleted_at', null)
+            .gte('updated_at', recentDate)
+            .order('updated_at', { ascending: false })
+            .limit(30) as { data: SupabaseConversation[] | null; error: any };
+          
+          remoteConversations = result.data;
+          error = result.error;
+          
+          // Success - break retry loop
+          if (!error) {
+            break;
+          }
+          
+          // Don't retry non-network errors
+          if (error.code && error.code !== 'PGRST116') {
+            break;
+          }
+          
+          // Retry with exponential backoff
+          if (attempt < MAX_RETRIES - 1) {
+            const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+            logger.debug(`[ConversationSync] ⚡ Retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        } catch (fetchError: any) {
+          // Network error (TypeError: Load failed)
+          if (!(fetchError instanceof TypeError) || !fetchError.message?.includes('Load failed')) {
+            error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+            break;
+          }
+          
+          // Retry network errors
+          if (attempt < MAX_RETRIES - 1) {
+            const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+            logger.debug(`[ConversationSync] ⚡ Network error, retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+          }
+        }
+      }
 
       if (error) {
-        // ✅ BETTER ERROR LOGGING: Capture full error details
-        logger.error('[ConversationSync] Failed to fetch remote conversations:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          userId: userId.slice(0, 8) + '...'
-        });
+        // ✅ IMPROVED: Only log errors once (not on every retry)
+        if (attempt === MAX_RETRIES - 1 || !error.message?.includes('Load failed')) {
+          logger.error('[ConversationSync] ❌ Failed to fetch conversations:', {
+            code: error.code || 'NETWORK_ERROR',
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            userId: userId.slice(0, 8) + '...',
+            retries: attempt + 1
+          });
+        }
         return;
       }
 

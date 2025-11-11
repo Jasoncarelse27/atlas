@@ -20,6 +20,13 @@ interface TierData {
 let realtimeChannelRef: ReturnType<typeof supabase.channel> | null = null;
 let subscribedUserId: string | null = null;
 
+// ✅ NETWORK FIX: Request deduplication - prevent multiple simultaneous queries
+let inFlightRequest: Promise<TierData> | null = null;
+let circuitBreakerFailures = 0;
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Stop retrying after 5 consecutive failures
+const CIRCUIT_BREAKER_RESET_TIME = 30000; // Reset after 30 seconds
+let circuitBreakerOpenUntil = 0;
+
 // ✅ CROSS-DEVICE SYNC FIX: Reduced cache duration for faster sync across mobile/web
 // localStorage cache persists across devices, so we need shorter expiry to catch tier changes
 const TIER_CACHE_KEY = 'atlas:tier_cache';
@@ -91,9 +98,28 @@ function setCachedTier(data: TierData): void {
  * @returns TierData with tier and userId
  */
 async function fetchTier(forceRefresh = false): Promise<TierData> {
-  try {
-    // Get cached session first (faster than getUser)
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  // ✅ NETWORK FIX: Request deduplication - reuse in-flight request
+  if (inFlightRequest && !forceRefresh) {
+    logger.debug('[useTierQuery] ⚡ Reusing in-flight request');
+    return inFlightRequest;
+  }
+  
+  // ✅ NETWORK FIX: Circuit breaker - stop retrying if too many failures
+  const now = Date.now();
+  if (circuitBreakerOpenUntil > now) {
+    const remainingSeconds = Math.ceil((circuitBreakerOpenUntil - now) / 1000);
+    logger.debug(`[useTierQuery] ⚠️ Circuit breaker open, using cache (resets in ${remainingSeconds}s)`);
+    // Return cached tier if available, otherwise free tier
+    const cached = getCachedTier(null);
+    return cached || { tier: 'free', userId: null };
+  }
+  
+  // Create new request promise
+  const requestPromise = (async () => {
+    const requestStartTime = Date.now();
+    try {
+      // Get cached session first (faster than getUser)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
       logger.error('[useTierQuery] Session error:', {
@@ -155,22 +181,78 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
     }
 
     // ✅ BEST PRACTICE: Fetch fresh from database (cache is for performance, realtime handles updates)
+    // ✅ NETWORK FIX: Retry logic with exponential backoff for "Load failed" errors
     logger.debug(`[useTierQuery] 📡 Fetching tier from database for user: ${userId.slice(0, 8)}...`);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .single<{ subscription_tier: Tier }>();
+    
+    let lastError: any = null;
+    const MAX_RETRIES = 3;
+    let data: { subscription_tier: Tier } | null = null;
+    let error: any = null;
+    let attempt = 0;
+    
+    for (attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const result = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single<{ subscription_tier: Tier }>();
+        
+        data = result.data;
+        error = result.error;
+        
+        // Success - break retry loop
+        if (!error) {
+          break;
+        }
+        
+        // Don't retry non-network errors (auth, not found, etc.)
+        if (error.code && error.code !== 'PGRST116') {
+          break;
+        }
+        
+        lastError = error;
+        
+        // Retry with exponential backoff (only for network errors)
+        if (attempt < MAX_RETRIES - 1) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000); // Max 5s delay
+          logger.debug(`[useTierQuery] ⚡ Retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (fetchError: any) {
+        // Network error (TypeError: Load failed)
+        lastError = fetchError;
+        
+        // Don't retry if it's not a network error
+        if (!(fetchError instanceof TypeError) || !fetchError.message?.includes('Load failed')) {
+          error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+          break;
+        }
+        
+        // Retry network errors with exponential backoff
+        if (attempt < MAX_RETRIES - 1) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+          logger.debug(`[useTierQuery] ⚡ Network error, retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+        }
+      }
+    }
 
-    if (error) {
-      // ✅ BETTER ERROR LOGGING: Capture full error details
-      logger.error('[useTierQuery] Supabase query error:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        userId: userId.slice(0, 8) + '...'
-      });
+    if (error || lastError) {
+      // ✅ IMPROVED: Only log errors once (not on every retry)
+      const finalError = error || lastError;
+      if (attempt === MAX_RETRIES - 1 || !finalError.message?.includes('Load failed')) {
+        logger.error('[useTierQuery] Supabase query error:', {
+          code: finalError.code || 'NETWORK_ERROR',
+          message: finalError.message,
+          details: finalError.details,
+          hint: finalError.hint,
+          userId: userId.slice(0, 8) + '...',
+          retries: attempt + 1
+        });
+      }
       
       // ✅ MOBILE FIX: If profile doesn't exist, try to create it
       if (error.code === 'PGRST116') {
@@ -210,30 +292,61 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
     // ✅ PERFORMANCE FIX: Cache result for instant future loads
     setCachedTier(result);
     
-    return result;
-  } catch (fetchError) {
-    // ✅ CATCH NETWORK ERRORS: Better diagnostics for "Failed to fetch"
-    logger.error('[useTierQuery] Network/fetch error:', {
-      message: fetchError instanceof Error ? fetchError.message : 'Unknown error',
-      type: fetchError instanceof TypeError ? 'TypeError' : fetchError?.constructor?.name || 'Unknown',
-      stack: fetchError instanceof Error ? fetchError.stack : undefined,
-      // Check if Supabase URL/key are available
-      hasSupabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
-      hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
-      supabaseUrlPreview: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...' || 'NOT SET'
-    });
+    // ✅ NETWORK FIX: Reset circuit breaker on success
+    circuitBreakerFailures = 0;
+    circuitBreakerOpenUntil = 0;
     
-    // ✅ MOBILE FIX: Clear stale cache on network error
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(TIER_CACHE_KEY);
-      } catch (e) {
-        // Ignore localStorage errors
+      return result;
+    } catch (fetchError) {
+      // ✅ CATCH NETWORK ERRORS: Better diagnostics for "Failed to fetch"
+      const isNetworkError = fetchError instanceof TypeError && fetchError.message?.includes('Load failed');
+      
+      // ✅ NETWORK FIX: Circuit breaker - track consecutive failures
+      if (isNetworkError) {
+        circuitBreakerFailures++;
+        if (circuitBreakerFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+          circuitBreakerOpenUntil = requestStartTime + CIRCUIT_BREAKER_RESET_TIME;
+          logger.warn(`[useTierQuery] ⚠️ Circuit breaker opened after ${circuitBreakerFailures} failures (resets in ${CIRCUIT_BREAKER_RESET_TIME / 1000}s)`);
+          circuitBreakerFailures = 0; // Reset counter
+        }
+      } else {
+        // Reset counter on non-network errors
+        circuitBreakerFailures = 0;
       }
+      
+      // Only log errors if circuit breaker not open (prevent spam)
+      if (circuitBreakerOpenUntil <= requestStartTime) {
+        logger.error('[useTierQuery] Network/fetch error:', {
+          message: fetchError instanceof Error ? fetchError.message : 'Unknown error',
+          type: fetchError instanceof TypeError ? 'TypeError' : fetchError?.constructor?.name || 'Unknown',
+          stack: fetchError instanceof Error ? fetchError.stack : undefined,
+          hasSupabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
+          hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+          supabaseUrlPreview: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...' || 'NOT SET',
+          circuitBreakerFailures
+        });
+      }
+      
+      // ✅ MOBILE FIX: Clear stale cache on network error
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(TIER_CACHE_KEY);
+        } catch (e) {
+          // Ignore localStorage errors
+        }
+      }
+      
+      return { tier: 'free', userId: null };
+    } finally {
+      // Clear in-flight request
+      inFlightRequest = null;
     }
-    
-    return { tier: 'free', userId: null };
-  }
+  })();
+  
+  // Store in-flight request
+  inFlightRequest = requestPromise;
+  
+  return requestPromise;
 }
 
 /**
