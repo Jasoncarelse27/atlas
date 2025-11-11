@@ -54,6 +54,7 @@ export default function EnhancedInputToolbar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false); // ✅ NEW: Processing state after recording
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
   // ✅ REMOVED: Voice call state (call button removed per user request)
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
@@ -62,6 +63,7 @@ export default function EnhancedInputToolbar({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const micButtonRef = useRef<HTMLButtonElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isCancelledRef = useRef(false); // ✅ CRITICAL: Prevent message send when cancelled
   
   // ✅ VOICE RECORDING IMPROVEMENTS: Press-and-hold detection
   const pressHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -449,6 +451,9 @@ export default function EnhancedInputToolbar({
     const mediaRecorder = (window as any).__atlasMediaRecorder;
     const stream = (window as any).__atlasMediaStream;
     
+    // ✅ CRITICAL: Set cancellation flag BEFORE stopping to prevent message send
+    isCancelledRef.current = true;
+    
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
     }
@@ -463,6 +468,7 @@ export default function EnhancedInputToolbar({
     }
     
     setIsListening(false);
+    setIsProcessingAudio(false); // ✅ FIX: Clear processing state
     setRecordingDuration(0);
     
     // Clean up references
@@ -571,6 +577,9 @@ export default function EnhancedInputToolbar({
   const startRecording = async () => {
     if (isListening) return; // Prevent double-start
 
+    // ✅ CRITICAL: Reset cancellation flag for new recording
+    isCancelledRef.current = false;
+
     try {
       // ✅ BEST PRACTICE: Audio quality constraints (echo cancellation, noise suppression)
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -596,15 +605,22 @@ export default function EnhancedInputToolbar({
         
         mediaRecorder.onstop = async () => {
           try {
+            // ✅ CRITICAL: Exit early if cancelled - prevents message send
+            if (isCancelledRef.current) {
+              isCancelledRef.current = false; // Reset for next recording
+              return; // Don't process or send message
+            }
+            
+            setIsListening(false);
+            setIsProcessingAudio(true); // ✅ NEW: Show processing state
+            
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
             // 🎯 Transcribe audio and send immediately (ChatGPT-style)
-            modernToast.info('Transcribing...', 'Converting speech to text');
             const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
             
             // Auto-send the transcribed message
             if (transcript && transcript.trim()) {
-              modernToast.success('Voice Transcribed', 'Sending to Atlas...');
               // Send immediately
               onSendMessage(transcript);
             } else {
@@ -614,8 +630,10 @@ export default function EnhancedInputToolbar({
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
             modernToast.error('Transcription Failed', errorMessage);
+            setIsProcessingAudio(false); // ✅ FIX: Clear processing state on error
           } finally {
             setIsListening(false);
+            setIsProcessingAudio(false); // ✅ NEW: Clear processing state
             setRecordingDuration(0);
             // Clear timer
             if (recordingTimerRef.current) {
@@ -626,6 +644,7 @@ export default function EnhancedInputToolbar({
             // Clean up references
             delete (window as any).__atlasMediaRecorder;
             delete (window as any).__atlasMediaStream;
+            isCancelledRef.current = false; // ✅ Reset flag
           }
         };
         
@@ -709,7 +728,7 @@ export default function EnhancedInputToolbar({
       playSoundCue('stop');
       
         mediaRecorder.stop();
-        modernToast.info('Processing Audio', 'Converting to text...');
+        // ✅ REMOVED: Toast notification (floating overlay shows processing state)
       }
       setIsListening(false);
       setRecordingDuration(0);
@@ -845,33 +864,54 @@ export default function EnhancedInputToolbar({
       )}
       
       {/* ✅ BEST PRACTICE: Recording Indicator - Fixed positioning relative to viewport */}
-      {isListening && (
+      {/* ✅ PROFESSIONAL RECORDING INDICATOR: Enhanced floating overlay (WhatsApp/Telegram-style) */}
+      {(isListening || isProcessingAudio) && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-          className="fixed bottom-24 left-0 right-0 flex justify-center z-50 px-4"
+          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.9 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="fixed bottom-24 sm:bottom-28 left-0 right-0 flex justify-center z-[9999] px-4 pointer-events-auto"
         >
-          <div className="flex items-center space-x-3 bg-red-500/95 rounded-full px-5 py-3 shadow-2xl border border-red-400/50 backdrop-blur-sm">
-            {/* Pulsing dot */}
-            <div className="relative flex items-center justify-center">
-              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-              <div className="absolute w-3 h-3 bg-white rounded-full animate-ping"></div>
-            </div>
+          <div className={`flex items-center space-x-3 rounded-full px-6 py-3.5 shadow-2xl border backdrop-blur-md ${
+            isProcessingAudio 
+              ? 'bg-blue-500/95 border-blue-400/50' 
+              : 'bg-red-500/95 border-red-400/50'
+          }`}>
+            {/* ✅ IMPROVED: Pulsing animation - more professional */}
+            {isListening && (
+              <div className="relative flex items-center justify-center">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                <div className="absolute w-3 h-3 bg-white rounded-full animate-ping"></div>
+              </div>
+            )}
             
-            {/* Timer */}
-            <span className="text-white font-mono font-medium text-base">
-              {formatTime(recordingDuration)}
+            {/* ✅ IMPROVED: Processing spinner */}
+            {isProcessingAudio && (
+              <div className="relative flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+            
+            {/* ✅ IMPROVED: Clear status text */}
+            <span className="text-white font-medium text-sm sm:text-base whitespace-nowrap">
+              {isProcessingAudio 
+                ? 'Processing...' 
+                : `Recording • ${formatTime(recordingDuration)}`
+              }
             </span>
             
-            {/* Cancel button */}
-            <button
-              onClick={handleCancelRecording}
-              className="ml-2 p-1.5 rounded-full hover:bg-white/20 transition-colors"
-              title="Cancel recording"
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
+            {/* ✅ IMPROVED: Cancel button - only show when recording (not processing) */}
+            {isListening && (
+              <button
+                onClick={handleCancelRecording}
+                className="ml-2 p-1.5 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors touch-manipulation"
+                title="Cancel recording"
+                aria-label="Cancel recording"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            )}
           </div>
         </motion.div>
       )}
@@ -1016,7 +1056,7 @@ export default function EnhancedInputToolbar({
 
         {/* Action Buttons - ✅ BEST PRACTICE: Fixed sizes, proper spacing, no overflow */}
         <div className="flex items-center gap-2 flex-shrink-0">
-              {/* ✅ SINGLE MICROPHONE BUTTON: Only for Core and Studio tiers */}
+              {/* ✅ PROFESSIONAL MICROPHONE BUTTON: Enhanced UX with clear states */}
               {isVoiceSupported && canUseAudio && (tier === 'core' || tier === 'studio') && (
               <motion.button
                 key="voice-recording-button"
@@ -1028,65 +1068,76 @@ export default function EnhancedInputToolbar({
                 onTouchStart={handleMicPressStart}
                 onTouchEnd={handleMicPressEnd}
                 onTouchMove={handleMicPressMove}
-                disabled={isProcessing || disabled}
-                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center relative flex-shrink-0 ${
+                disabled={isProcessing || disabled || isProcessingAudio}
+                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center relative flex-shrink-0 ${
                   isListening
-                    ? 'bg-red-500/90 hover:bg-red-600 text-white'
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : isProcessingAudio
+                    ? 'bg-blue-500 text-white'
                     : isPressHoldActive
-                    ? 'bg-red-400/70 text-white scale-95'
+                    ? 'bg-red-400 text-white scale-95'
                     : 'bg-atlas-sand hover:bg-atlas-stone text-gray-700'
                 }`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
                   boxShadow: isListening 
                     ? '0 0 0 4px rgba(239, 68, 68, 0.3), 0 4px 12px rgba(239, 68, 68, 0.4)' 
+                    : isProcessingAudio
+                    ? '0 0 0 4px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.4)'
                     : isPressHoldActive
                     ? '0 0 0 2px rgba(239, 68, 68, 0.2)'
-                    : '0 4px 16px rgba(255, 255, 255, 0.3), inset 0 -2px 4px rgba(151, 134, 113, 0.1)'
+                    : '0 2px 8px rgba(151, 134, 113, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                 }}
                 title={
-                  isListening 
-                    ? `Recording... ${formatTime(recordingDuration)}. Tap or release to stop`
-                    : 'Tap to record or hold for press-and-hold mode'
+                  isProcessingAudio
+                    ? 'Processing audio...'
+                    : isListening 
+                    ? `Recording... Tap to stop`
+                    : 'Tap to record voice message'
                 }
                 aria-label={
-                  isListening 
-                    ? `Recording, ${formatTime(recordingDuration)}. Tap or release to stop`
-                    : 'Tap to start recording voice message, or hold for press-and-hold mode'
+                  isProcessingAudio
+                    ? 'Processing audio, please wait'
+                    : isListening 
+                    ? `Recording, tap to stop`
+                    : 'Tap to start recording voice message'
                 }
                 aria-pressed={isListening}
+                aria-busy={isProcessingAudio}
               >
-                {/* ✅ IMPROVED: Pulsing animation when recording */}
+                {/* ✅ IMPROVED: Subtle pulsing animation when recording (more professional) */}
                 {isListening && (
                   <motion.div
-                    className="absolute inset-0 rounded-full bg-red-500/30"
+                    className="absolute inset-0 rounded-full bg-red-500/20"
                     animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [0.5, 0.8, 0.5],
+                      scale: [1, 1.15, 1],
+                      opacity: [0.3, 0.6, 0.3],
                     }}
                     transition={{
-                      duration: 1.5,
+                      duration: 1.2,
                       repeat: Infinity,
                       ease: "easeInOut"
                     }}
                   />
                 )}
                 
-                {/* ✅ IMPROVED: Show recording duration on button when active */}
-                {isListening ? (
-                  <span className="text-white font-mono text-xs font-semibold z-10">
-                    {formatTime(recordingDuration)}
-                      </span>
+                {/* ✅ IMPROVED: Processing spinner */}
+                {isProcessingAudio ? (
+                  <motion.div
+                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  />
                 ) : (
                   <Mic size={18} className="relative z-10" />
                 )}
                 
-                {/* ✅ IMPROVED: Slide-to-cancel indicator (shows when sliding during hold) */}
+                {/* ✅ IMPROVED: Slide-to-cancel indicator (more visible) */}
                 {isListening && slideCancelDistance > 20 && (
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap z-20"
+                    className="absolute -top-14 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-4 py-2 rounded-lg shadow-xl whitespace-nowrap z-20 font-medium"
                   >
                     ↑ Slide up to cancel
                   </motion.div>

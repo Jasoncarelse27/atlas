@@ -226,12 +226,12 @@ export function PWAInstallPrompt() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 100 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-[#F9F6F3] via-[#F9F6F3] to-transparent"
+        className="fixed bottom-0 left-0 right-0 z-[100] p-4 bg-gradient-to-t from-[#F9F6F3] via-[#F9F6F3] to-transparent safe-area-inset-bottom"
         aria-live="polite"
         role="status"
       >
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#E8DDD2] p-4 flex items-start gap-3">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#E8DDD2] p-4 flex items-start gap-3 max-w-full">
           {/* Icon */}
           <div className="flex-shrink-0 w-12 h-12 bg-[#D3DCAB] rounded-xl flex items-center justify-center">
             <svg

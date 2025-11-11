@@ -100,6 +100,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
   
   // Audio player state for TTS
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioPlayerRef = useRef<HTMLDivElement | null>(null); // ✅ NEW: Ref for click-outside detection
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
@@ -594,7 +595,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
-      setAudioDuration(audioRef.current.duration);
+      const duration = audioRef.current.duration;
+      // ✅ FIX: Handle NaN/Infinity duration values
+      if (isFinite(duration) && duration > 0) {
+        setAudioDuration(duration);
+      } else {
+        setAudioDuration(0);
+      }
     }
   };
 
@@ -603,7 +610,39 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     setAudioProgress(0);
   };
 
-  const formatTime = (seconds: number) => {
+  // ✅ BEST PRACTICE: Click outside to close audio player (WhatsApp/Telegram-style)
+  useEffect(() => {
+    if (!audioUrl) return; // Only listen when player is open
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      // Don't close if clicking on the audio player itself
+      if (audioPlayerRef.current && audioPlayerRef.current.contains(event.target as Node)) {
+        return;
+      }
+      
+      // Close the audio player when clicking outside
+      stopAudio();
+    };
+
+    // Small delay to prevent immediate close from the same click that opened it
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [audioUrl]);
+
+  // ✅ PROFESSIONAL: Time formatting with proper handling (WhatsApp/Telegram-style)
+  const formatTime = (seconds: number): string => {
+    // Handle invalid/NaN values
+    if (!isFinite(seconds) || seconds < 0) {
+      return '0:00';
+    }
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -730,6 +769,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           style={{ 
             wordBreak: "break-word", 
             overflowWrap: "anywhere",
+            overflowX: "hidden", // ✅ FIX: Prevent horizontal scroll
             color: isUser ? undefined : '#000000' // Pure black for maximum visibility
           }}
         >
@@ -773,8 +813,18 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                       // Simple rendering for user messages - no markdown  
                       <span className="block">{displayedText}</span>
                     ) : (
-                      // Keep markdown for assistant messages with enhanced spacing
-                      <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0 [&_.prose_table]:my-6 [&_.prose_p]:mb-4 [&_.prose_p:last-child]:mb-0 [&_.prose_ul]:my-4 [&_.prose_ol]:my-4 [&_.prose_blockquote]:my-4">
+                      // Keep markdown for assistant messages with enhanced spacing matching MessageRenderer
+                      <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0 
+                        [&_.prose_p]:mb-4 [&_.prose_p:last-child]:mb-0 [&_.prose_p]:leading-relaxed
+                        [&_.prose_h1]:mb-3 [&_.prose_h2]:mb-2 [&_.prose_h3]:mb-2
+                        [&_.prose_ul]:mb-5 [&_.prose_ul]:space-y-2.5
+                        [&_.prose_ol]:mb-5 [&_.prose_ol]:space-y-2.5
+                        [&_.prose_li]:leading-relaxed
+                        [&_.prose_blockquote]:my-3
+                        [&_.prose_table]:my-6
+                        [&_.prose_table]:overflow-x-auto
+                        [&_.prose_table]:-mx-2
+                        [&_.prose_table]:sm:mx-0">
                         <LegacyMessageRenderer content={displayedText} />
                       </div>
                     )
@@ -965,8 +1015,12 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                   )}
                 </button>
               ) : (
-                <div className="flex items-center gap-1">
-                  {/* Play/Pause Button - ✅ MOBILE FIX: Proper touch targets */}
+                <div 
+                  ref={audioPlayerRef}
+                  onClick={(e) => e.stopPropagation()} // ✅ Prevent closing when clicking player
+                  className="flex items-center gap-1 p-1 sm:gap-1.5 sm:p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md sm:rounded-lg border border-gray-200/50 shadow-sm w-full max-w-full overflow-hidden"
+                >
+                  {/* Play/Pause Button - ✅ ULTRA-COMPACT: 32px mobile, 40px desktop */}
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -976,29 +1030,36 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                     onTouchStart={(e) => {
                       e.stopPropagation();
                     }}
-                    className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 rounded-md 
-                               bg-gray-700/30 hover:bg-gray-600/50 active:bg-gray-600/70 text-gray-300 hover:text-white active:text-white
-                               border border-gray-600/20 hover:border-gray-500/40
-                               transition-all duration-200 touch-manipulation"
+                    className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full transition-all duration-200 touch-manipulation flex-shrink-0 ${
+                      isPlayingTTS
+                        ? 'bg-red-500 hover:bg-red-600 active:bg-red-700 text-white shadow-md'
+                        : 'bg-atlas-sage hover:bg-atlas-sage/90 active:bg-atlas-sage/80 text-white shadow-sm'
+                    }`}
                     style={{ touchAction: 'manipulation' }}
-                    aria-label={isPlayingTTS ? 'Pause' : 'Play'}
+                    aria-label={isPlayingTTS ? 'Pause audio' : 'Play audio'}
                     title={isPlayingTTS ? 'Pause' : 'Play'}
                   >
-                    {isPlayingTTS ? (
-                      <Pause className="w-4 h-4" />
+                    {isLoadingAudio ? (
+                      <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : isPlayingTTS ? (
+                      <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     ) : (
-                      <Play className="w-4 h-4" />
+                      <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-0.5" />
                     )}
                   </button>
 
-                  {/* Progress indicator */}
-                  <div className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400">
-                    <span>{formatTime(audioProgress)}</span>
-                    <span>/</span>
-                    <span>{formatTime(audioDuration)}</span>
+                  {/* ✅ ULTRA-COMPACT: Minimal timer - no padding, tight spacing */}
+                  <div className="flex items-center gap-0.5 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-white/60 rounded sm:rounded-md justify-center flex-shrink-0">
+                    <span className="text-[10px] sm:text-xs font-mono font-medium text-gray-700 tabular-nums whitespace-nowrap">
+                      {formatTime(audioProgress)}
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 font-normal">/</span>
+                    <span className="text-[10px] sm:text-xs font-mono font-medium text-gray-700 tabular-nums whitespace-nowrap">
+                      {formatTime(audioDuration || 0)}
+                    </span>
                   </div>
 
-                  {/* Stop Button - ✅ MOBILE FIX: Proper touch targets */}
+                  {/* Stop/Close Button - ✅ ULTRA-COMPACT: 32px mobile, 40px desktop */}
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -1008,15 +1069,14 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                     onTouchStart={(e) => {
                       e.stopPropagation();
                     }}
-                    className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 rounded-md 
-                               bg-gray-700/30 hover:bg-gray-600/50 active:bg-gray-600/70 text-gray-300 hover:text-white active:text-white
-                               border border-gray-600/20 hover:border-gray-500/40
-                               transition-all duration-200 touch-manipulation"
+                    className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0
+                               bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-600 hover:text-gray-800
+                               transition-all duration-200 touch-manipulation shadow-sm"
                     style={{ touchAction: 'manipulation' }}
-                    aria-label="Stop"
-                    title="Stop and close player"
+                    aria-label="Stop and close audio player"
+                    title="Stop"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   </button>
                 </div>
               )}
