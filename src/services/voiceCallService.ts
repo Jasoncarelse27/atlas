@@ -2423,7 +2423,7 @@ export class VoiceCallService {
         await this.messagePersistenceService.trackCallMetering(
           userId,
           durationSeconds,
-          this.currentOptions?.tier || 'unknown'
+          this.currentOptions?.tier || null
         );
       } catch (error) {
         // Non-critical - log but don't throw
@@ -2442,7 +2442,7 @@ export class VoiceCallService {
       const { error } = await supabase.from('usage_logs').insert({
         user_id: userId,
         event: 'voice_call_completed',
-        tier: this.currentOptions?.tier || 'unknown', // ✅ Explicit column (best practice)
+        tier: this.currentOptions?.tier || null, // ✅ Explicit column (best practice) - NULL allowed for unknown tiers
         feature: 'voice_call',
         estimated_cost: totalCost,
         metadata: {

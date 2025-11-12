@@ -524,7 +524,7 @@ function filterResponse(text) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = 'unknown' }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null }) {
   if (!ANTHROPIC_API_KEY) {
     logger.error('[streamAnthropicResponse] ❌ ANTHROPIC_API_KEY is missing or empty');
     throw new Error('Missing Anthropic API key - check Railway environment variables');
@@ -1102,7 +1102,7 @@ app.post('/api/usage-log', verifyJWT, async (req, res) => {
       .insert({
         user_id,
         event: event || 'feature_usage',
-        tier: tier || 'unknown', // ✅ Explicit column (best practice)
+        tier: tier || null, // ✅ Explicit column (best practice) - NULL allowed for unknown tiers
         feature,
         tokens_used: 0,
         estimated_cost,

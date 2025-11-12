@@ -445,12 +445,12 @@ export class VoiceCallServiceSimplified {
     try {
       const sttCost = (durationSeconds / 60) * 0.006;
       const ttsCost = (durationSeconds * 25 / 1000) * 0.015;
-      const tier = this.currentOptions?.tier || 'unknown';
+      const tier = this.currentOptions?.tier || null; // NULL allowed for unknown tiers
       
       await supabase.from('usage_logs').insert({
         user_id: userId,
         event: 'voice_call_completed',
-        tier: tier, // ✅ Explicit column (best practice)
+        tier: tier, // ✅ Explicit column (best practice) - NULL allowed for unknown tiers
         feature: 'voice_call',
         estimated_cost: sttCost + ttsCost,
         metadata: {

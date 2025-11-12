@@ -3,7 +3,7 @@
 
 import { logger } from '../lib/simpleLogger.mjs';
 import nodemailer from 'nodemailer';
-import { supabase } from '../lib/supabase.js';
+import { supabase } from '../config/supabaseClient.mjs';
 
 /**
  * Generate CSV data for a date range

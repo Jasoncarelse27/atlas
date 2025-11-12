@@ -387,7 +387,7 @@ class UsageTrackingService {
         .insert({
           user_id: logUserId, // ✅ CRITICAL: Set user_id for RLS compliance
           event,
-          tier: tier || 'unknown', // ✅ Explicit column (best practice)
+          tier: tier || null, // ✅ Explicit column (best practice) - NULL allowed for unknown tiers
           metadata: restData,
           timestamp: new Date().toISOString()
         });

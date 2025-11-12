@@ -1,4 +1,4 @@
-const { logger } = require('../lib/logger.mjs');
+import { logger } from '../lib/simpleLogger.mjs';
 import express from 'express';
 import { supabase } from '../config/supabaseClient.mjs';
 import { requireAdmin } from '../middleware/adminAuth.mjs';

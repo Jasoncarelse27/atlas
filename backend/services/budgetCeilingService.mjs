@@ -131,7 +131,7 @@ export const budgetCeilingService = {
       if (!client) return;
 
       // Extract tier from payload if available
-      const tier = payload?.tier || 'unknown';
+      const tier = payload?.tier || null; // NULL allowed for unknown tiers
       const { tier: _, ...restPayload } = payload || {};
 
       await client.from('usage_logs').insert({

@@ -1027,14 +1027,14 @@ export class ConversationSyncService {
         if (error) {
           // Fallback: Try direct insert (will fail gracefully due to RLS)
           // ✅ Fetch tier for analytics (non-critical, fails gracefully)
-          let tier = 'unknown';
+          let tier: string | null = null; // NULL allowed for unknown tiers
           try {
             const { data: profile } = await supabase
               .from('profiles')
               .select('subscription_tier')
               .eq('id', userId)
               .single();
-            tier = profile?.subscription_tier || 'unknown';
+            tier = profile?.subscription_tier || null;
           } catch {
             // Silent fail - tier not critical for sync monitoring
           }
@@ -1042,7 +1042,7 @@ export class ConversationSyncService {
           await supabase.from('usage_logs').insert({
             user_id: userId,
             event: 'delta_sync_completed',
-            tier: tier, // ✅ Explicit column (best practice)
+            tier: tier, // ✅ Explicit column (best practice) - NULL allowed for unknown tiers
             feature: 'sync',
             metadata: {
               duration,

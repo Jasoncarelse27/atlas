@@ -1,14 +1,21 @@
 -- Add explicit columns to usage_logs table for better performance and consistency
 -- Following Atlas best practices: explicit columns like daily_usage, model_usage_logs, budget_tracking
 
+-- Drop existing constraint if it exists (to allow NULL values)
+ALTER TABLE usage_logs DROP CONSTRAINT IF EXISTS usage_logs_tier_check;
+
 -- Add columns if they don't exist
 ALTER TABLE usage_logs
-  ADD COLUMN IF NOT EXISTS tier TEXT CHECK (tier IN ('free', 'core', 'studio')),
+  ADD COLUMN IF NOT EXISTS tier TEXT,
   ADD COLUMN IF NOT EXISTS feature TEXT,
   ADD COLUMN IF NOT EXISTS tokens_used INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS estimated_cost NUMERIC(10,4) DEFAULT 0,
   ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Add constraint that allows NULL values
+ALTER TABLE usage_logs
+  ADD CONSTRAINT usage_logs_tier_check CHECK (tier IS NULL OR tier IN ('free', 'core', 'studio'));
 
 -- Create indexes for performance (critical for profitability queries)
 CREATE INDEX IF NOT EXISTS idx_usage_logs_tier ON usage_logs(tier);
@@ -20,14 +27,11 @@ CREATE INDEX IF NOT EXISTS idx_usage_logs_user_tier ON usage_logs(user_id, tier)
 -- Backfill existing data: Extract tier from metadata if available
 UPDATE usage_logs
 SET 
-  tier = COALESCE(
-    CASE 
-      WHEN metadata->>'tier' IS NOT NULL THEN metadata->>'tier'
-      WHEN data->>'tier' IS NOT NULL THEN data->>'tier'
-      ELSE NULL
-    END,
-    'unknown'
-  ),
+  tier = CASE 
+    WHEN metadata->>'tier' IS NOT NULL THEN metadata->>'tier'
+    WHEN data->>'tier' IS NOT NULL THEN data->>'tier'
+    ELSE NULL
+  END,
   feature = COALESCE(
     metadata->>'feature',
     data->>'feature',

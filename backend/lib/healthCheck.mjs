@@ -1,6 +1,6 @@
 // Enhanced health check system
 import { logger } from './simpleLogger.mjs';
-import { supabase } from './supabaseClient.mjs';
+import { supabase } from '../config/supabaseClient.mjs';
 
 /**
  * Comprehensive health check
