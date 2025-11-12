@@ -7,7 +7,7 @@ const inMemoryUsage = new Map();
 
 /**
  * Middleware to enforce per-tier monthly message limits.
- * - Free users: 15 messages per month
+ * - Free users: 15 messages per month (blocks on 16th)
  * - Core/Studio: unlimited (-1 in config = no limit)
  * 
  * Attaches `req.tier` and `req.dailyUsage` for downstream services.
@@ -44,7 +44,7 @@ export default async function dailyLimitMiddleware(req, res, next) {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    const limit = tierConfig.monthlyMessages;
+    const limit = tierConfig.dailyMessages; // ✅ FIX: Use dailyMessages (15 for free tier)
 
     try {
       // Get usage count from Supabase
@@ -63,12 +63,20 @@ export default async function dailyLimitMiddleware(req, res, next) {
 
       const currentCount = data?.conversations_count || 0;
 
+      // ✅ FIX: Block on 16th message (after 15 allowed messages)
+      // currentCount is the count BEFORE this request, so if it's >= 15, block the 16th
       if (currentCount >= limit) {
+        logger.info(`[DailyLimit] Free tier user ${userId} blocked: ${currentCount}/${limit} messages used`);
         return res.status(429).json({
           success: false,
-          message: `Daily limit reached. Upgrade to Core for unlimited messages.`,
-          limit,
+          error: 'DAILY_LIMIT_EXCEEDED',
+          code: 'DAILY_LIMIT_EXCEEDED',
+          message: `You've used all ${limit} free messages this month. Upgrade to Core for unlimited conversations.`,
+          upgrade_required: true,
+          tier: tier,
+          limit: limit,
           used: currentCount,
+          remaining: 0
         });
       }
 
@@ -111,13 +119,19 @@ function handleInMemoryTracking(userId, tier, startOfMonth, limit, req, res, nex
   const key = `${userId}-${startOfMonth.toISOString().slice(0, 7)}`;
   const currentCount = inMemoryUsage.get(key) || 0;
   
-  
+  // ✅ FIX: Block on 16th message (after 15 allowed messages)
   if (currentCount >= limit) {
+    logger.info(`[DailyLimit] Free tier user ${userId} blocked (in-memory): ${currentCount}/${limit} messages used`);
     return res.status(429).json({
       success: false,
-      message: `Daily limit reached. Upgrade to Core for unlimited messages.`,
-      limit,
+      error: 'DAILY_LIMIT_EXCEEDED',
+      code: 'DAILY_LIMIT_EXCEEDED',
+      message: `You've used all ${limit} free messages this month. Upgrade to Core for unlimited conversations.`,
+      upgrade_required: true,
+      tier: tier,
+      limit: limit,
       used: currentCount,
+      remaining: 0
     });
   }
   
