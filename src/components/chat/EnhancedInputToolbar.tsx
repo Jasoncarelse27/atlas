@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, Image, Loader2, Mic, Plus, Send, Square, X, XCircle } from 'lucide-react';
+import { CheckCircle2, FileText, Image, Loader2, Mic, Music, Plus, Send, Square, X, XCircle } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
@@ -15,6 +15,9 @@ import { isAudioRecordingSupported } from '../../utils/audioHelpers';
 import { generateUUID } from '../../utils/uuid';
 import { validateImageFile } from '../../utils/imageCompression';
 import { imageService } from '../../services/imageService';
+import { validateFile, getFileTypeName, getFileTypeCategory } from '../../utils/fileValidation';
+import { fileService } from '../../services/fileService';
+import AttachmentMenu from './AttachmentMenu';
 
 // ✅ DEBUG: Conditional logging (dev only)
 const isDev = import.meta.env.DEV;
@@ -69,10 +72,13 @@ export default function EnhancedInputToolbar({
   // ✅ REMOVED: Voice call state (call button removed per user request)
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'pending' | 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const micButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isCancelledRef = useRef(false); // ✅ CRITICAL: Prevent message send when cancelled
   const previewUrlsRef = useRef<Set<string>>(new Set()); // ✅ Track preview URLs for cleanup
@@ -372,7 +378,14 @@ export default function EnhancedInputToolbar({
                 }
                 
                 logger.debug('[EnhancedInputToolbar] Uploading file:', att.file.name);
-                const uploadResult = await imageService.uploadImage(att.file, user.id);
+                
+                // Use appropriate service based on attachment type
+                let uploadResult;
+                if (att.type === 'file') {
+                  uploadResult = await fileService.uploadFile(att.file, user.id);
+                } else {
+                  uploadResult = await imageService.uploadImage(att.file, user.id);
+                }
                 
                 // Update status to processing
                 if (att.id) {
@@ -929,8 +942,28 @@ export default function EnhancedInputToolbar({
                         />
                       </div>
                     )}
-                    <Image className="w-4 h-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-200 truncate">{attachment.name || attachment.file?.name || 'Image'}</span>
+                    {attachment.type === 'file' && attachment.file && (
+                      <div className="relative w-8 h-8 rounded-lg bg-atlas-sage/20 flex items-center justify-center">
+                        {(() => {
+                          const category = getFileTypeCategory(attachment.file);
+                          if (category === 'audio') {
+                            return <Music className="w-4 h-4 text-atlas-sage" />;
+                          }
+                          return <FileText className="w-4 h-4 text-atlas-sage" />;
+                        })()}
+                      </div>
+                    )}
+                    {attachment.type === 'file' && !attachment.file && (
+                      <FileText className="w-4 h-4 text-neutral-400" />
+                    )}
+                    {attachment.type === 'image' && (
+                      <Image className="w-4 h-4 text-neutral-400" />
+                    )}
+                    <span className="text-sm text-neutral-200 truncate">
+                      {attachment.type === 'file' && attachment.file
+                        ? getFileTypeName(attachment.file)
+                        : attachment.name || attachment.file?.name || (attachment.type === 'image' ? 'Image' : 'File')}
+                    </span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -1137,47 +1170,103 @@ export default function EnhancedInputToolbar({
             position: 'relative',
           }}
         >
-              {/* Hidden file input */}
+              {/* Hidden file inputs */}
               <input
-                ref={fileInputRef}
+                ref={imageInputRef}
                 type="file"
                 accept="image/*"
                 style={{ display: 'none' }}
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  
-                  // ✅ Clear input for next selection (allows reselecting same file)
                   e.target.value = '';
                   
-                  // ✅ CLIENT-SIDE VALIDATION: Validate before showing preview
                   try {
                     const validation = await validateImageFile(file);
                     if (!validation.valid) {
-                      modernToast.error(
-                        'Invalid Image',
-                        validation.error || 'Please select a valid image file.'
-                      );
+                      modernToast.error('Invalid Image', validation.error || 'Please select a valid image file.');
                       return;
                     }
                   } catch (error) {
                     logger.error('[EnhancedInputToolbar] Validation error:', error);
-                    modernToast.error(
-                      'Validation Error',
-                      'Failed to validate image. Please try again.'
-                    );
+                    modernToast.error('Validation Error', 'Failed to validate image. Please try again.');
                     return;
                   }
                   
-                  // ✅ Create preview URL and attachment object (only if validation passes)
                   const previewUrl = URL.createObjectURL(file);
                   handleAddAttachment({
                     id: generateUUID(),
                     type: 'image',
                     file,
-                    name: file.name, // ✅ ADD: File name for display
-                    url: previewUrl, // Use 'url' to match handleAddAttachment interface
-                    previewUrl: previewUrl, // Also store in previewUrl for cleanup
+                    name: file.name,
+                    url: previewUrl,
+                    previewUrl: previewUrl,
+                  });
+                }}
+              />
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.txt,.mp3,.mp4"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  e.target.value = '';
+                  
+                  try {
+                    const validation = await validateFile(file);
+                    if (!validation.valid) {
+                      modernToast.error('Invalid File', validation.error || 'Please select a valid file.');
+                      return;
+                    }
+                  } catch (error) {
+                    logger.error('[EnhancedInputToolbar] Validation error:', error);
+                    modernToast.error('Validation Error', 'Failed to validate file. Please try again.');
+                    return;
+                  }
+                  
+                  handleAddAttachment({
+                    id: generateUUID(),
+                    type: 'file',
+                    file,
+                    name: file.name,
+                  });
+                }}
+              />
+              
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  e.target.value = '';
+                  
+                  try {
+                    const validation = await validateImageFile(file);
+                    if (!validation.valid) {
+                      modernToast.error('Invalid Image', validation.error || 'Please select a valid image file.');
+                      return;
+                    }
+                  } catch (error) {
+                    logger.error('[EnhancedInputToolbar] Validation error:', error);
+                    modernToast.error('Validation Error', 'Failed to validate image. Please try again.');
+                    return;
+                  }
+                  
+                  const previewUrl = URL.createObjectURL(file);
+                  handleAddAttachment({
+                    id: generateUUID(),
+                    type: 'image',
+                    file,
+                    name: file.name,
+                    url: previewUrl,
+                    previewUrl: previewUrl,
                   });
                 }}
               />
@@ -1186,19 +1275,10 @@ export default function EnhancedInputToolbar({
                 ref={buttonRef}
                 data-attachment-button
                 type="button"
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  
-                  // ✅ BEST PRACTICE: Check tier access BEFORE opening file picker
-                  const hasAccess = await attemptImage();
-                  if (!hasAccess) {
-                    // attemptImage already shows upgrade modal
-                    return;
-                  }
-                  
-                  // Open file picker
-                  fileInputRef.current?.click();
+                  setIsMenuOpen(!isMenuOpen);
                 }}
                 disabled={isUploading || isProcessing}
                 className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center flex-shrink-0 bg-atlas-peach hover:bg-atlas-peach/40 sm:hover:bg-atlas-sage text-gray-800 ${isUploading ? 'cursor-wait' : 'cursor-pointer'}`}
@@ -1212,6 +1292,19 @@ export default function EnhancedInputToolbar({
               >
                 <Plus size={18} className="transition-all duration-200" />
               </motion.button>
+              
+              {/* Attachment Menu */}
+              {user?.id && (
+                <AttachmentMenu
+                  isOpen={isMenuOpen}
+                  onClose={() => setIsMenuOpen(false)}
+                  userId={user.id}
+                  onAddAttachment={handleAddAttachment}
+                  imageInputRef={imageInputRef}
+                  fileInputRef={fileInputRef}
+                  cameraInputRef={cameraInputRef}
+                />
+              )}
         </div>
 
             {/* Text Input - ✅ BEST PRACTICE: Proper flex with min-width 0 to prevent overflow */}

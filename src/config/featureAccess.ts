@@ -17,6 +17,7 @@ export const tierFeatures = {
     audio: false, 
     image: false,
     camera: false,
+    file: false,
     voiceEmotionAnalysis: false,
     // Usage Limits
     maxConversationsPerMonth: 15,  // 15 messages per month for Free tier
@@ -49,6 +50,7 @@ export const tierFeatures = {
     audio: true, 
     image: true,
     camera: false,
+    file: true,
     voiceEmotionAnalysis: false,
     // Usage Limits
     maxConversationsPerDay: 150,
@@ -85,6 +87,7 @@ export const tierFeatures = {
     audio: true, 
     image: true,
     camera: true,
+    file: true,
     voiceEmotionAnalysis: true,  // Advanced voice emotion analysis
     // Usage Limits
     maxConversationsPerDay: 500,
@@ -278,6 +281,10 @@ export function canUseImage(tier: Tier): boolean {
 
 export function canUseCamera(tier: Tier): boolean {
   return tierFeatures[tier].camera;
+}
+
+export function canUseFile(tier: Tier): boolean {
+  return tierFeatures[tier].file;
 }
 
 export function canUseVoiceEmotion(tier: Tier): boolean {

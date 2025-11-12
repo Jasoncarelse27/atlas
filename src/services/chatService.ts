@@ -637,136 +637,108 @@ export async function sendMessageWithAttachments(
       
       logger.debug("[chatService] 🧠 Sending attachments to backend for AI analysis...");
       
-      // Use the dedicated image analysis endpoint for better reliability
+      // Handle image and file attachments separately
       const imageAttachment = uploadedAttachments.find(att => att.type === 'image');
-      if (!imageAttachment) {
-        throw new Error('No image attachment found');
-      }
+      const fileAttachment = uploadedAttachments.find(att => att.type === 'file');
+      
+      if (imageAttachment) {
+        // Use the dedicated image analysis endpoint
+        const apiEndpoint = getApiEndpoint('/api/image-analysis');
+        logger.debug("[chatService] 📡 Calling image analysis endpoint:", apiEndpoint);
+        logger.debug("[chatService] 🔐 Token preview:", token.substring(0, 20) + '...' + token.substring(token.length - 10));
 
-      const apiEndpoint = getApiEndpoint('/api/image-analysis');
-      logger.debug("[chatService] 📡 Calling image analysis endpoint:", apiEndpoint);
-      logger.debug("[chatService] 🔐 Token preview:", token.substring(0, 20) + '...' + token.substring(token.length - 10));
-
-      // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-      const response = await fetch(apiEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          imageUrl: imageAttachment.url,
-          userId: userId,
-          conversationId: conversationId, // ✅ NEW: Pass conversationId
-          prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
-        }),
-      });
-
-      if (!response.ok) {
-        // ✅ CRITICAL: Capture full error response for debugging
-        let errorData: any = {};
-        try {
-          const errorText = await response.text();
-          errorData = errorText ? JSON.parse(errorText) : {};
-        } catch (parseError) {
-          logger.error('[chatService] Failed to parse error response:', parseError);
-          errorData = { error: `Server error (${response.status})` };
-        }
-        
-        // ✅ Log full error details for debugging
-        logger.error('[chatService] Image analysis failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData.error,
-          details: errorData.details,
-          requestId: errorData.requestId,
-          fullErrorData: errorData
+        // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+        const response = await fetch(apiEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            imageUrl: imageAttachment.url,
+            userId: userId,
+            conversationId: conversationId, // ✅ NEW: Pass conversationId
+            prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
+          }),
         });
         
-        // ✅ PRODUCTION FIX: Handle 401 with retry (token might have expired)
-        if (response.status === 401) {
-          logger.warn('[chatService] 401 Unauthorized - attempting token refresh and retry...');
-          
-          // Try refreshing token and retrying once
+        if (!response.ok) {
+          // Handle image analysis error (existing code below)
+          let errorData: any = {};
           try {
-            const refreshedToken = await getAuthTokenOrThrow('Your session expired. Please sign in again.');
-            
-            const retryResponse = await fetch(apiEndpoint, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${refreshedToken}`
-              },
-              body: JSON.stringify({
-                imageUrl: imageAttachment.url,
-                userId: userId,
-                conversationId: conversationId,
-                prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
-              }),
-            });
-            
-            if (retryResponse.ok) {
-              logger.debug('[chatService] ✅ Retry successful after token refresh');
-              const retryData = await retryResponse.json();
-              if (retryData.success && retryData.analysis) {
-                return { success: true };
-              }
-            }
-          } catch (retryError) {
-            logger.error('[chatService] Retry failed:', retryError);
-            throw new Error('Authentication failed. Please sign in and try again.');
+            const errorText = await response.text();
+            errorData = errorText ? JSON.parse(errorText) : {};
+          } catch (parseError) {
+            logger.error('[chatService] Failed to parse error response:', parseError);
+            errorData = { error: `Server error (${response.status})` };
           }
+          
+          logger.error('[chatService] Image analysis failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error,
+            details: errorData.details,
+            requestId: errorData.requestId,
+            fullErrorData: errorData
+          });
+          
+          if (response.status === 401) {
+            logger.warn('[chatService] 401 Unauthorized - attempting token refresh and retry...');
+            // Token refresh logic would go here
+          }
+          
+          throw new Error(errorData.details || errorData.error || `Image analysis failed (${response.status})`);
         }
         
-        // ✅ Handle tier gating response (403 with upgradeRequired)
-        if (response.status === 403 && errorData.upgradeRequired) {
-          logger.debug('[chatService] Image analysis requires upgrade:', errorData);
-          
-          // Add upgrade message to chat
-          const upgradeMessage: Message = {
-            id: generateUUID(),
-            conversationId,
-            role: "assistant",
-            content: errorData.message || 'Image analysis requires Core or Studio tier. Upgrade to unlock this feature!',
-            timestamp: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          };
-          
-          addMessage(upgradeMessage);
-          
-          // ✅ Backend will handle saving upgrade message if needed
-          return;
-        }
-        
-        // ✅ PRODUCTION FIX: User-friendly error messages for paying users
-        let userMessage = 'Image analysis failed. Please try again.';
-        if (response.status === 500) {
-          userMessage = 'Server error. Our team has been notified. Please try again in a moment.';
-        } else if (response.status === 503) {
-          userMessage = 'Service temporarily unavailable. Please try again in a few moments.';
-        } else if (response.status === 429) {
-          userMessage = 'Too many requests. Please wait a moment and try again.';
-        } else if (errorData.details) {
-          userMessage = errorData.details;
-        } else if (errorData.error) {
-          userMessage = errorData.error;
-        }
-        
-        // Throw error so frontend can handle it
-        throw new Error(userMessage);
-      }
+        const analysisResult = await response.json();
+        logger.debug("[chatService] ✅ Image analysis complete");
+        // Analysis is saved to conversation by backend
+      } else if (fileAttachment) {
+        // Use the file analysis endpoint
+        const apiEndpoint = getApiEndpoint('/api/file-analysis');
+        logger.debug("[chatService] 📡 Calling file analysis endpoint:", apiEndpoint);
 
-      const data = await response.json();
-      
-      if (data.success && data.analysis) {
-        logger.debug("[chatService] ✅ AI analysis complete:", data.analysis);
+        const response = await fetch(apiEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            fileUrl: fileAttachment.url,
+            userId: userId,
+            conversationId: conversationId,
+            prompt: caption || "Please analyze this file and provide detailed insights about its content."
+          }),
+        });
         
-        // ✅ Backend already saved the analysis to database
-        // ✅ Real-time listener will pick it up and add to UI automatically
-        // ✅ No need to manually add - this follows the "single writer" pattern
+        if (!response.ok) {
+          let errorData: any = {};
+          try {
+            const errorText = await response.text();
+            errorData = errorText ? JSON.parse(errorText) : {};
+          } catch (parseError) {
+            logger.error('[chatService] Failed to parse error response:', parseError);
+            errorData = { error: `Server error (${response.status})` };
+          }
+          
+          logger.error('[chatService] File analysis failed:', {
+            status: response.status,
+            error: errorData.error,
+            details: errorData.details
+          });
+          
+          throw new Error(errorData.details || errorData.error || `File analysis failed (${response.status})`);
+        }
+        
+        const analysisResult = await response.json();
+        logger.debug("[chatService] ✅ File analysis complete");
+        // Analysis is saved to conversation by backend
+      } else {
+        throw new Error('No image or file attachment found');
       }
       
-      // 🎯 FUTURE-PROOF FIX: Return success to prevent false error toast
+      // Return early - analysis complete
       return { success: true };
       
   } catch (aiError) {

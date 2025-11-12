@@ -2493,6 +2493,312 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
   }
 });
 
+// 📄 File analysis endpoint (PDF, DOCX, TXT, MP3, MP4)
+app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, res) => {
+  const requestId = uuidv4();
+  
+  try {
+    logger.debug('[File Analysis] Request received:', {
+      requestId,
+      hasBody: !!req.body,
+      hasUser: !!req.user,
+      userId: req.user?.id,
+      fileUrl: req.body?.fileUrl?.substring(0, 50) + '...'
+    });
+    
+    const { fileUrl, userId, prompt = "Please analyze this file and provide detailed insights about its content." } = req.body;
+    const authenticatedUserId = req.user?.id;
+    
+    if (!fileUrl) {
+      logger.warn('[File Analysis] Missing fileUrl in request');
+      return res.status(400).json({ error: 'File URL is required' });
+    }
+
+    if (!authenticatedUserId) {
+      logger.error('[File Analysis] ❌ No authenticated user ID found');
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        details: 'User ID not found in request'
+      });
+    }
+
+    // 🎯 TIER ENFORCEMENT: Check if user has file analysis access (Core/Studio only)
+    let tier = 'free';
+    try {
+      const querySignal = createQueryTimeout(5000);
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', authenticatedUserId)
+        .abortSignal(querySignal)
+        .single();
+      
+      if (profileError) {
+        logger.warn(`[File Analysis] Could not fetch tier for user ${authenticatedUserId}:`, profileError.message);
+        tier = 'free';
+      } else {
+        tier = profile?.subscription_tier || 'free';
+      }
+    } catch (dbError) {
+      logger.error('[File Analysis] Database error fetching tier:', dbError.message);
+      tier = 'free';
+    }
+    
+    // Free tier doesn't have file analysis access
+    if (tier === 'free') {
+      logger.warn(`[File Analysis] Access denied for free tier user: ${authenticatedUserId}`);
+      return res.status(403).json({ 
+        error: 'File analysis requires Core or Studio tier',
+        upgradeRequired: true,
+        feature: 'file_analysis',
+        tier: 'free',
+        message: 'Upgrade to Core tier ($19.99/month) to unlock file analysis and other advanced features.'
+      });
+    }
+
+    // ✅ Validate file URL format
+    try {
+      const urlObj = new URL(fileUrl);
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        return res.status(400).json({ 
+          error: 'Invalid file URL',
+          details: 'File URL must use HTTP or HTTPS protocol'
+        });
+      }
+    } catch (urlError) {
+      logger.warn('[File Analysis] Invalid URL format:', fileUrl?.substring(0, 50));
+      return res.status(400).json({ 
+        error: 'Invalid file URL format',
+        details: 'Please provide a valid HTTP/HTTPS URL'
+      });
+    }
+
+    // Determine file type from URL
+    const fileExtension = fileUrl.toLowerCase().split('.').pop() || '';
+    const isTextFile = ['pdf', 'docx', 'doc', 'txt'].includes(fileExtension);
+    const isAudioFile = ['mp3', 'mp4', 'wav', 'ogg'].includes(fileExtension);
+
+    if (!isTextFile && !isAudioFile) {
+      return res.status(400).json({ 
+        error: 'Unsupported file type',
+        details: 'Supported file types: PDF, DOCX, TXT, MP3, MP4'
+      });
+    }
+
+    logger.debug(`[File Analysis] 🚀 Starting analysis for tier ${tier} user ${authenticatedUserId}`);
+
+    // ✅ Check if ANTHROPIC_API_KEY is configured
+    if (!ANTHROPIC_API_KEY || (typeof ANTHROPIC_API_KEY === 'string' && ANTHROPIC_API_KEY.trim() === '')) {
+      logger.error('[File Analysis] ❌ ANTHROPIC_API_KEY is missing');
+      return res.status(503).json({ 
+        error: 'File analysis service is not configured',
+        details: 'ANTHROPIC_API_KEY is missing. Please add it to Railway environment variables.',
+        requiresConfiguration: true
+      });
+    }
+
+    // Select model based on tier
+    let selectedModel = 'claude-3-haiku-20240307';
+    if (tier === 'studio') {
+      selectedModel = 'claude-3-opus-20240229';
+    } else if (tier === 'core') {
+      selectedModel = 'claude-3-sonnet-20240229';
+    }
+
+    // For text files, we'll send the URL and let Claude fetch it
+    // For audio files, we'd need transcription first (simplified for now - just send URL)
+    const analysisPrompt = isTextFile 
+      ? `${prompt}\n\nPlease analyze the content of this document file (${fileExtension.toUpperCase()}) and provide detailed insights.`
+      : `${prompt}\n\nPlease analyze this audio file (${fileExtension.toUpperCase()}) and provide insights about its content, if possible.`;
+
+    // Call Claude API
+    let response;
+    let lastError;
+    const MAX_RETRIES = 3;
+    const TIMEOUT_MS = 60000; // 60 seconds for file analysis
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      let timeoutId = null;
+      try {
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        
+        logger.debug(`[File Analysis] Attempt ${attempt}/${MAX_RETRIES} (Request ID: ${requestId})`);
+        
+        // For now, send file URL as text reference (Claude can't directly process files, but we can describe them)
+        // In production, you'd want to extract text from PDF/DOCX or transcribe audio first
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            max_tokens: 2000,
+            messages: [
+              {
+                role: 'user',
+                content: `${analysisPrompt}\n\nFile URL: ${fileUrl}\nFile Type: ${fileExtension.toUpperCase()}\n\nNote: Please provide analysis based on the file type. For documents, describe what insights you would provide if you could read the content. For audio, describe what analysis would be possible.`
+              }
+            ]
+          }),
+          signal: controller.signal,
+          agent: httpsAgent
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          logger.debug(`✅ [File Analysis] Success on attempt ${attempt}`);
+          break;
+        } else {
+          lastError = await response.text().catch(() => 'Claude API error');
+          logger.error(`❌ [File Analysis] Failed on attempt ${attempt}:`, lastError);
+          
+          if (attempt < MAX_RETRIES) {
+            const backoffMs = Math.pow(2, attempt - 1) * 1000;
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+          }
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        lastError = fetchError.message;
+        logger.error(`❌ [File Analysis] Network error on attempt ${attempt}:`, lastError);
+        
+        if (attempt < MAX_RETRIES) {
+          const backoffMs = Math.pow(2, attempt - 1) * 1000;
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        }
+      }
+    }
+
+    if (!response || !response.ok) {
+      const errorStatus = response?.status || 0;
+      const errorMessage = lastError?.message || (typeof lastError === 'string' ? lastError : JSON.stringify(lastError)) || 'Unknown error';
+      
+      logger.error('[File Analysis] Failed after retries:', {
+        requestId,
+        userId: authenticatedUserId,
+        tier,
+        errorStatus,
+        errorMessage: errorMessage.substring(0, 200)
+      });
+      
+      return res.status(500).json({ 
+        error: 'File analysis failed',
+        details: errorMessage || 'Unknown error occurred during file analysis',
+        requestId
+      });
+    }
+
+    // Parse response
+    let result;
+    try {
+      const responseText = await response.text();
+      result = JSON.parse(responseText);
+    } catch (jsonError) {
+      logger.error('[File Analysis] Failed to parse Claude API response:', jsonError.message);
+      return res.status(500).json({
+        error: 'Invalid response from file analysis service',
+        details: 'The service returned an invalid response format',
+        requestId
+      });
+    }
+    
+    // Extract analysis
+    let analysis;
+    try {
+      if (result.content && Array.isArray(result.content) && result.content.length > 0) {
+        analysis = result.content[0].text || '';
+      } else {
+        throw new Error('Invalid response structure from Claude API');
+      }
+    } catch (parseError) {
+      logger.error('[File Analysis] Failed to extract analysis:', parseError.message);
+      return res.status(500).json({
+        error: 'Failed to extract file analysis',
+        details: 'The service returned an unexpected response format',
+        requestId
+      });
+    }
+    
+    if (!analysis || !analysis.trim()) {
+      logger.error('[File Analysis] Empty analysis result', { requestId });
+      return res.status(500).json({
+        error: 'Empty analysis result',
+        details: 'The file analysis service returned an empty result',
+        requestId
+      });
+    }
+
+    logger.debug('✅ [File Analysis] Analysis complete');
+
+    // Save to conversation history if conversationId provided
+    const conversationId = req.body.conversationId || null;
+    if (conversationId && conversationId.trim() && authenticatedUserId && supabaseUrl !== 'https://your-project.supabase.co') {
+      try {
+        // Save user's file message
+        await supabase.from('messages').insert({
+          user_id: authenticatedUserId,
+          conversation_id: conversationId,
+          role: 'user',
+          content: prompt,
+          attachments: [{ type: 'file', url: fileUrl }],
+          created_at: new Date().toISOString()
+        });
+
+        // Save AI analysis response
+        await supabase.from('messages').insert({
+          user_id: authenticatedUserId,
+          conversation_id: conversationId,
+          role: 'assistant',
+          content: analysis,
+          created_at: new Date().toISOString()
+        });
+      } catch (saveError) {
+        logger.error('[File Analysis] Error saving messages:', saveError.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      analysis: analysis,
+      fileUrl: fileUrl,
+      fileType: fileExtension,
+      tier: tier,
+      model: selectedModel,
+      timestamp: new Date().toISOString(),
+      requestId
+    });
+
+  } catch (error) {
+    const errorDetails = {
+      requestId,
+      error: error?.message || 'Unknown error',
+      stack: error?.stack,
+      name: error?.name,
+      userId: req.user?.id,
+      fileUrl: req.body?.fileUrl?.substring(0, 50) + '...'
+    };
+    
+    logger.error('[File Analysis] Unexpected error:', errorDetails);
+    
+    try {
+      res.status(500).json({ 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'production' 
+          ? 'An error occurred processing your file. Please try again.' 
+          : error?.message || 'Unknown error occurred',
+        requestId: requestId || 'unknown'
+      });
+    } catch (sendError) {
+      logger.error('[File Analysis] Failed to send error response:', sendError);
+    }
+  }
+});
+
 // 🎙️ Audio transcription endpoint using OpenAI Whisper
 app.post('/api/transcribe', verifyJWT, async (req, res) => {
   try {

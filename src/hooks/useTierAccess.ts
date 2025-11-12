@@ -17,7 +17,7 @@ export function useTierAccess() {
     
     // Map feature names to config keys
     const featureMap = {
-      file: 'text',
+      file: 'file',
       image: 'image',
       camera: 'camera',
       audio: 'audio'
@@ -47,7 +47,7 @@ export function useTierAccess() {
 }
 
 // ✅ FEATURE ACCESS HOOK - For specific feature checks
-export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice") {
+export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice" | "file") {
   const { tier, loading, userId } = useTierAccess();
   
   // ✅ Use tier config instead of hardcoded checks
@@ -61,7 +61,14 @@ export function useFeatureAccess(feature: "audio" | "image" | "camera" | "voice"
     
     // Tier-specific upgrade messages (skip for voice - handled by custom modal)
     if (feature !== 'voice') {
-      toast.error(`${feature} requires Core or Studio tier`);
+      const tierMessage = feature === 'file' 
+        ? 'File uploads require Core or Studio tier'
+        : feature === 'image'
+        ? 'Image uploads require Core or Studio tier'
+        : feature === 'camera'
+        ? 'Camera access requires Studio tier'
+        : `${feature} requires Core or Studio tier`;
+      toast.error(tierMessage);
     } else if (isVoiceCallComingSoon()) {
       // ✅ SOFT LAUNCH: Show "coming soon" message for voice calls
       toast.info('🎙️ Voice calls coming soon!', { 

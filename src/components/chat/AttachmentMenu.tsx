@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { Camera, FileUp, Image as ImageIcon } from 'lucide-react';
+import { Camera, FileUp, Image as ImageIcon, Lock } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { useFeatureAccess } from '@/hooks/useTierAccess';
+import { useFeatureAccess, useTierAccess } from '@/hooks/useTierAccess';
+import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { logger } from '../../lib/logger';
 
 // ✅ CRITICAL: Module-level log to verify code is loaded
@@ -14,7 +15,10 @@ interface AttachmentMenuProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
-  onAddAttachment?: (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File }) => void;
+  onAddAttachment?: (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File; previewUrl?: string; name?: string }) => void;
+  imageInputRef?: React.RefObject<HTMLInputElement>;
+  fileInputRef?: React.RefObject<HTMLInputElement>;
+  cameraInputRef?: React.RefObject<HTMLInputElement>;
 }
 
 /**
@@ -29,14 +33,25 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   onClose,
   userId,
   onAddAttachment,
+  imageInputRef: externalImageInputRef,
+  fileInputRef: externalFileInputRef,
+  cameraInputRef: externalCameraInputRef,
 }) => {
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const internalImageInputRef = useRef<HTMLInputElement>(null);
+  const internalCameraInputRef = useRef<HTMLInputElement>(null);
+  const internalFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Use external refs if provided, otherwise use internal refs
+  const imageInputRef = externalImageInputRef || internalImageInputRef;
+  const cameraInputRef = externalCameraInputRef || internalCameraInputRef;
+  const fileInputRef = externalFileInputRef || internalFileInputRef;
   
   // Tier access checks
-  const { attemptFeature: attemptImage } = useFeatureAccess('image');
-  const { attemptFeature: attemptCamera } = useFeatureAccess('camera');
+  const { tier } = useTierAccess();
+  const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
+  const { canUse: canUseCamera, attemptFeature: attemptCamera } = useFeatureAccess('camera');
+  const { canUse: canUseFile, attemptFeature: attemptFile } = useFeatureAccess('file');
+  const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ MODERN: Unified upload hook
   const { uploadFile, isUploading } = useFileUpload({
@@ -60,10 +75,18 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     // ✅ Safety: Close menu before native picker opens (prevents double menu)
     onClose();
     
-    // Check tier access
-    const hasAccess = await attemptImage();
+    // Check tier access based on source
+    let hasAccess = false;
+    if (source === 'gallery') {
+      hasAccess = await attemptImage();
+    } else if (source === 'file') {
+      hasAccess = await attemptFile();
+    } else if (source === 'camera') {
+      hasAccess = await attemptCamera();
+    }
+    
     if (!hasAccess) {
-      return; // attemptImage already shows upgrade modal
+      return; // attemptFeature already shows upgrade modal
     }
 
     try {
@@ -72,6 +95,18 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       // Error handling is done in useFileUpload hook
       logger.error('[AttachmentMenu] Upload failed:', error);
     }
+  };
+
+  // Handle file button click with tier check
+  const handleFileClick = async () => {
+    const hasAccess = await attemptFile();
+    if (!hasAccess) {
+      return; // attemptFile already shows upgrade modal
+    }
+    onClose();
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 100);
   };
 
   const handleCameraClick = async () => {
@@ -395,95 +430,112 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
           {/* Choose Photo */}
           <motion.button
-            disabled={isUploading}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              if (!isUploading) {
-                onClose(); // ✅ Close menu immediately to prevent double representation
-                setTimeout(() => {
-                  imageInputRef.current?.click();
-                }, 100); // Small delay to ensure menu closes first
+            disabled={isUploading || !canUseImage}
+            whileHover={canUseImage && !isUploading ? { scale: 1.05 } : {}}
+            whileTap={canUseImage && !isUploading ? { scale: 0.95 } : {}}
+            onClick={async () => {
+              if (isUploading) return;
+              
+              // Check tier access before opening picker
+              const hasAccess = await attemptImage();
+              if (!hasAccess) {
+                return; // attemptImage already shows upgrade modal
               }
+              
+              onClose(); // ✅ Close menu immediately to prevent double representation
+              setTimeout(() => {
+                imageInputRef.current?.click();
+              }, 100); // Small delay to ensure menu closes first
             }}
-            className={`flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
-              isUploading 
+            className={`relative flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
+              isUploading || !canUseImage
                 ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
                 : 'bg-gradient-to-br from-atlas-sage/30 to-atlas-peach/20 border-atlas-sage/50 hover:border-atlas-sage shadow-lg hover:shadow-xl'
             }`}
-            aria-label="Choose photos or videos from gallery"
-            aria-disabled={isUploading}
+            aria-label={canUseImage ? "Choose photos or videos from gallery" : "Upgrade to Core or Studio to upload images"}
+            aria-disabled={isUploading || !canUseImage}
+            title={!canUseImage ? "Upgrade to Core or Studio to upload images" : undefined}
           >
             <motion.div
-              animate={!isUploading ? { scale: [1, 1.1, 1] } : {}}
+              animate={!isUploading && canUseImage ? { scale: [1, 1.1, 1] } : {}}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               className={`p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
-                isUploading 
+                isUploading || !canUseImage
                   ? 'bg-atlas-sage/20' 
                   : 'bg-atlas-sage/40 group-hover:bg-atlas-sage/60'
               }`}
             >
               <ImageIcon className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
+              {!canUseImage && (
+                <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+              )}
             </motion.div>
             <span className="text-xs sm:text-sm font-semibold text-gray-900">Photo</span>
-            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">Gallery</span>
+            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
+              {!canUseImage ? 'Upgrade' : 'Gallery'}
+            </span>
           </motion.button>
 
           {/* Take Photo */}
           <motion.button
-            disabled={isUploading}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            disabled={isUploading || !canUseCamera}
+            whileHover={canUseCamera && !isUploading ? { scale: 1.05 } : {}}
+            whileTap={canUseCamera && !isUploading ? { scale: 0.95 } : {}}
             onClick={handleCameraClick}
-            className={`flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
-              isUploading 
+            className={`relative flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
+              isUploading || !canUseCamera
                 ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
                 : 'bg-white/80 hover:bg-atlas-peach/30 border-atlas-sand hover:border-atlas-sage shadow-md hover:shadow-lg'
             }`}
-            aria-label="Take photo with camera"
-            aria-disabled={isUploading}
+            aria-label={canUseCamera ? "Take photo with camera" : "Upgrade to Studio to use camera"}
+            aria-disabled={isUploading || !canUseCamera}
+            title={!canUseCamera ? "Upgrade to Studio to use camera" : undefined}
           >
-            <div className={`p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
-              isUploading 
+            <div className={`relative p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
+              isUploading || !canUseCamera
                 ? 'bg-atlas-sage/20' 
                 : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50'
             }`}>
               <Camera className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
+              {!canUseCamera && (
+                <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+              )}
             </div>
             <span className="text-xs sm:text-sm font-semibold text-gray-900">Camera</span>
-            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">Capture</span>
+            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
+              {!canUseCamera ? 'Studio' : 'Capture'}
+            </span>
           </motion.button>
 
           {/* Attach File */}
           <motion.button
-            disabled={isUploading}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              if (!isUploading) {
-                onClose(); // ✅ Close menu immediately to prevent double representation
-                setTimeout(() => {
-                  fileInputRef.current?.click();
-                }, 100); // Small delay to ensure menu closes first
-              }
-            }}
-            className={`flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
-              isUploading 
+            disabled={isUploading || !canUseFile}
+            whileHover={canUseFile && !isUploading ? { scale: 1.05 } : {}}
+            whileTap={canUseFile && !isUploading ? { scale: 0.95 } : {}}
+            onClick={handleFileClick}
+            className={`relative flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
+              isUploading || !canUseFile
                 ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
                 : 'bg-white/80 hover:bg-atlas-peach/30 border-atlas-sand hover:border-atlas-sage shadow-md hover:shadow-lg'
             }`}
-            aria-label="Attach files, documents, or PDFs"
-            aria-disabled={isUploading}
+            aria-label={canUseFile ? "Attach files, documents, or PDFs" : "Upgrade to Core or Studio to upload files"}
+            aria-disabled={isUploading || !canUseFile}
+            title={!canUseFile ? "Upgrade to Core or Studio to upload files" : undefined}
           >
-            <div className={`p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
-              isUploading 
+            <div className={`relative p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
+              isUploading || !canUseFile
                 ? 'bg-atlas-sage/20' 
                 : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50'
             }`}>
               <FileUp className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
+              {!canUseFile && (
+                <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+              )}
             </div>
             <span className="text-xs sm:text-sm font-semibold text-gray-900">File</span>
-            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">Upload</span>
+            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
+              {!canUseFile ? 'Upgrade' : 'Upload'}
+            </span>
           </motion.button>
         </div>
       </div>
