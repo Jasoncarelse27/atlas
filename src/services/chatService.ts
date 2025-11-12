@@ -14,7 +14,7 @@ let abortController: AbortController | null = null;
 // 🧠 ATLAS GOLDEN STANDARD - Prevent duplicate message calls
 const pendingMessages = new Set<string>();
 
-// Simple function for AttachmentMenu to send messages with attachments
+// Simple function to send messages with attachments (legacy function, kept for compatibility)
 export async function sendAttachmentMessage(
   _conversationId: string,
   userId: string,

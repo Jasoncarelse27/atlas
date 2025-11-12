@@ -13,10 +13,15 @@ import { logger } from '../../lib/logger';
 import { voiceService } from '../../services/voiceService';
 import { isAudioRecordingSupported } from '../../utils/audioHelpers';
 import { generateUUID } from '../../utils/uuid';
-import AttachmentMenu from './AttachmentMenu';
+import { validateImageFile } from '../../utils/imageCompression';
+import { imageService } from '../../services/imageService';
+
+// ✅ DEBUG: Conditional logging (dev only)
+const isDev = import.meta.env.DEV;
+const debugLog = (...args: any[]) => isDev && console.log(...args);
 
 // ✅ CRITICAL: Module-level log to verify code is loaded
-console.log('[EnhancedInputToolbar] 📦 MODULE LOADED - Code is in bundle');
+debugLog('[EnhancedInputToolbar] 📦 MODULE LOADED - Code is in bundle');
 
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
@@ -44,13 +49,12 @@ export default function EnhancedInputToolbar({
   isStreaming = false
 }: EnhancedInputToolbarProps) {
   // ✅ CRITICAL: Log at component start to verify it's rendering
-  // Use window.console to bypass any potential console overrides
-  window.console.log('[EnhancedInputToolbar] 🎬 COMPONENT RENDERED', { isVisible, disabled, isProcessing });
+  debugLog('[EnhancedInputToolbar] 🎬 COMPONENT RENDERED', { isVisible, disabled, isProcessing });
   
   const { user } = useSupabaseAuth();
   const { tier } = useTierAccess();
   // ✅ REMOVED: canUseVoice (call button removed)
-  const { canUse: canUseImage } = useFeatureAccess('image');
+  const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
   const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio'); // ✅ Add audio feature access
   const { showGenericUpgrade } = useUpgradeModals();
   
@@ -58,19 +62,20 @@ export default function EnhancedInputToolbar({
   
   // Upgrade modal handler (from useTierAccess hook)
   const [text, setText] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false); // ✅ NEW: Processing state after recording
   const [attachmentPreviews, setAttachmentPreviews] = useState<any[]>([]);
   // ✅ REMOVED: Voice call state (call button removed per user request)
-  const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'processing' | 'success' | 'error'>>({});
+  const [uploadStatus, setUploadStatus] = useState<Record<string, 'pending' | 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const micButtonRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isCancelledRef = useRef(false); // ✅ CRITICAL: Prevent message send when cancelled
+  const previewUrlsRef = useRef<Set<string>>(new Set()); // ✅ Track preview URLs for cleanup
   
   // ✅ VOICE RECORDING IMPROVEMENTS: Press-and-hold detection
   const pressHoldTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -95,7 +100,7 @@ export default function EnhancedInputToolbar({
         // ✅ CRITICAL: Try to remove it entirely first (most aggressive)
         try {
           vercelFeedback.remove();
-          console.log('[EnhancedInputToolbar] ✅ Removed vercel-live-feedback from DOM');
+          debugLog('[EnhancedInputToolbar] ✅ Removed vercel-live-feedback from DOM');
           return;
         } catch (e) {
           // If removal fails (shadow DOM), hide it completely
@@ -113,7 +118,7 @@ export default function EnhancedInputToolbar({
         vercelFeedback.style.height = '0';
         vercelFeedback.style.zIndex = '-1';
         vercelFeedback.removeAttribute('aria-hidden');
-        console.log('[EnhancedInputToolbar] ✅ Hid vercel-live-feedback (removal failed)');
+        debugLog('[EnhancedInputToolbar] ✅ Hid vercel-live-feedback (removal failed)');
       }
     };
     
@@ -137,14 +142,14 @@ export default function EnhancedInputToolbar({
     const globalClickHandler = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target?.closest('[data-attachment-button]')) {
-        console.log('[EnhancedInputToolbar] 🌍 GLOBAL CLICK DETECTED on attachment button');
-        console.log('[EnhancedInputToolbar] Event target:', target);
-        console.log('[EnhancedInputToolbar] Event path:', e.composedPath());
+        debugLog('[EnhancedInputToolbar] 🌍 GLOBAL CLICK DETECTED on attachment button');
+        debugLog('[EnhancedInputToolbar] Event target:', target);
+        debugLog('[EnhancedInputToolbar] Event path:', e.composedPath());
       }
     };
     document.addEventListener('click', globalClickHandler, true); // Use capture phase
     
-    console.log('[EnhancedInputToolbar] 🚀 Component mounted and listeners attached');
+    debugLog('[EnhancedInputToolbar] 🚀 Component mounted and listeners attached');
     
     // Cleanup
     return () => {
@@ -218,7 +223,7 @@ export default function EnhancedInputToolbar({
     }
   };
 
-  // ✅ Cleanup timers on unmount
+  // ✅ Cleanup timers and preview URLs on unmount
   useEffect(() => {
     return () => {
       if (recordingTimerRef.current) {
@@ -227,6 +232,17 @@ export default function EnhancedInputToolbar({
       if (pressHoldTimerRef.current) {
         clearTimeout(pressHoldTimerRef.current);
       }
+      
+      // ✅ CLEANUP: Revoke all preview URLs on unmount to prevent memory leaks
+      previewUrlsRef.current.forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          // Ignore errors when revoking (URL might already be revoked)
+          logger.debug('[EnhancedInputToolbar] Error revoking URL on unmount:', error);
+        }
+      });
+      previewUrlsRef.current.clear();
     };
   }, []);
 
@@ -308,6 +324,9 @@ export default function EnhancedInputToolbar({
       return;
     }
     
+    // ✅ DON'T revoke preview URLs yet - wait until upload succeeds
+    // If upload fails, we need to keep preview URLs for retry
+    
     // ✅ FIX: Clear UI immediately but prevent height animation glitch
     // Temporarily disable transitions on textarea
     if (inputRef.current) {
@@ -331,35 +350,69 @@ export default function EnhancedInputToolbar({
     
     // 🎯 FUTURE-PROOF FIX: Send attachments even without conversationId (backend will create one)
     if (currentAttachments.length > 0) {
-      const attachments = currentAttachments.map(att => ({
-        id: att.id, // ✅ FIX: Include ID for status tracking
-        type: att.type,
-        file: att.file,
-        previewUrl: att.previewUrl,
-        url: att.url || att.publicUrl, // Use uploaded URL
-        name: att.name
-      }));
+      // Set processing state for floating indicator
+      setIsUploading(true);
       
-      // ✅ REMOVED: Duplicate toast notification - using only floating overlay
-      // Keep only the professional bottom-center indicator
-
       try {
-        // Update status to analyzing (more specific feedback)
-        attachments.forEach((att: { id?: string; type: string; url?: string }) => {
-          if (att.id) {
-            setUploadStatus(prev => ({ ...prev, [att.id!]: 'processing' as const }));
-          }
-        });
+        // ✅ CRITICAL: Upload files first to get HTTP/HTTPS URLs (backend requires HTTP/HTTPS, not blob URLs)
+        logger.debug('[EnhancedInputToolbar] 📤 Uploading files before sending...');
         
-        // Set processing state for floating indicator
-        setIsUploading(true);
+        const uploadedAttachments = await Promise.all(
+          currentAttachments.map(async (att) => {
+            // Update status to uploading
+            if (att.id) {
+              setUploadStatus(prev => ({ ...prev, [att.id!]: 'uploading' as const }));
+            }
+            
+            // If file exists and we don't have a publicUrl yet, upload it
+            if (att.file && !att.publicUrl && (!att.url || att.url.startsWith('blob:'))) {
+              try {
+                if (!user?.id) {
+                  throw new Error('User ID required for upload');
+                }
+                
+                logger.debug('[EnhancedInputToolbar] Uploading file:', att.file.name);
+                const uploadResult = await imageService.uploadImage(att.file, user.id);
+                
+                // Update status to processing
+                if (att.id) {
+                  setUploadStatus(prev => ({ ...prev, [att.id!]: 'processing' as const }));
+                }
+                
+                return {
+                  id: att.id,
+                  type: att.type,
+                  url: uploadResult.publicUrl,
+                  publicUrl: uploadResult.publicUrl,
+                  name: att.name || att.file.name
+                };
+              } catch (uploadError) {
+                logger.error('[EnhancedInputToolbar] Upload failed for attachment:', uploadError);
+                // Update status to error
+                if (att.id) {
+                  setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
+                }
+                throw uploadError;
+              }
+            }
+            
+            // Already uploaded, use existing URL
+            return {
+              id: att.id,
+              type: att.type,
+              url: att.publicUrl || att.url,
+              publicUrl: att.publicUrl || att.url,
+              name: att.name
+            };
+          })
+        );
         
-        logger.debug('[EnhancedInputToolbar] 🚀 Starting sendMessageWithAttachments...');
+        logger.debug('[EnhancedInputToolbar] ✅ Files uploaded, sending message...');
         
         // Use Promise.race for timeout protection (increased timeout for image analysis)
         if (addMessage) {
           await Promise.race([
-            sendMessageWithAttachments(conversationId || '', attachments, addMessage, currentText || undefined, user?.id),
+            sendMessageWithAttachments(conversationId || '', uploadedAttachments, addMessage, currentText || undefined, user?.id),
             new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Send timeout')), 15000) // Reduced from 30000ms for better mobile UX
             )
@@ -368,8 +421,17 @@ export default function EnhancedInputToolbar({
         
         logger.debug('[EnhancedInputToolbar] ✅ sendMessageWithAttachments completed');
         
+        // ✅ CLEANUP: Now safe to revoke preview URLs after successful upload
+        currentAttachments.forEach(att => {
+          const previewUrl = att.previewUrl || att.url;
+          if (previewUrl && previewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrlsRef.current.delete(previewUrl);
+          }
+        });
+        
         // Update status to success
-        attachments.forEach((att: { id?: string; type: string; url?: string }) => {
+        uploadedAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id!]: 'success' as const }));
           }
@@ -386,8 +448,8 @@ export default function EnhancedInputToolbar({
       } catch (error) {
         logger.error('[EnhancedInputToolbar] ❌ sendMessageWithAttachments failed:', error);
         
-        // Update status to error
-        attachments.forEach((att: { id?: string; type: string; url?: string }) => {
+        // Update status to error (use currentAttachments, not undefined 'attachments')
+        currentAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
           }
@@ -427,18 +489,22 @@ export default function EnhancedInputToolbar({
   };
 
   // Handle adding attachments to input area
-  const handleAddAttachment = (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File }) => {
+  const handleAddAttachment = (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File; previewUrl?: string; name?: string }) => {
     const attachmentWithId = {
       ...attachment,
       id: attachment.id || generateUUID() // Ensure it has an ID
     };
+    
+    // ✅ Track preview URL for cleanup
+    if (attachment.previewUrl || attachment.url) {
+      const previewUrl = attachment.previewUrl || attachment.url!;
+      previewUrlsRef.current.add(previewUrl);
+    }
+    
     setAttachmentPreviews(prev => [...prev, attachmentWithId]);
     
-    // Show uploading briefly, then success
-    setUploadStatus(prev => ({ ...prev, [attachmentWithId.id]: 'uploading' }));
-    setTimeout(() => {
-      setUploadStatus(prev => ({ ...prev, [attachmentWithId.id]: 'success' }));
-    }, 500);
+    // ✅ Set status to 'pending' (file selected but not uploaded yet)
+    setUploadStatus(prev => ({ ...prev, [attachmentWithId.id]: 'pending' }));
     
     // Don't set isUploading here - let the upload cards handle the loading state
     
@@ -452,6 +518,16 @@ export default function EnhancedInputToolbar({
 
   // Handle removing attachments from input area
   const removeAttachment = (attachmentId: string) => {
+    // ✅ Cleanup preview URL when removing attachment
+    const attachment = attachmentPreviews.find(att => att.id === attachmentId);
+    if (attachment) {
+      const previewUrl = attachment.previewUrl || attachment.url;
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+        previewUrlsRef.current.delete(previewUrl);
+      }
+    }
+    
     setAttachmentPreviews(prev => prev.filter(att => att.id !== attachmentId));
   };
 
@@ -463,13 +539,12 @@ export default function EnhancedInputToolbar({
   };
 
 
-  // ✅ REMOVED: Click-outside handling moved to AttachmentMenu component for better control
 
   // 📱 Handle input blur to minimize when clicking outside (ChatGPT-like behavior)
   const handleInputBlur = () => {
-    // Small delay to allow for menu interactions
+    // Small delay to allow for interactions
     setTimeout(() => {
-      if (inputRef.current && !menuOpen) {
+      if (inputRef.current) {
         // Blur the input to dismiss keyboard
         inputRef.current.blur();
         // Reset to single row for minimized state
@@ -820,8 +895,6 @@ export default function EnhancedInputToolbar({
   // ✅ REMOVED: handleStartVoiceCall function (call button removed)
 
 
-  // Click outside detection is handled by AttachmentMenu component
-
   return (
     <>
       {/* ✅ BEST PRACTICE: Attachment Previews - Positioned above input, not constrained */}
@@ -834,7 +907,7 @@ export default function EnhancedInputToolbar({
           
           <div className="flex flex-wrap gap-2 max-w-4xl mx-auto">
             {attachmentPreviews.map((attachment) => {
-              const status = uploadStatus[attachment.id] || 'uploading';
+              const status = uploadStatus[attachment.id] || 'pending';
               return (
                 <motion.div 
                   key={attachment.id} 
@@ -857,10 +930,16 @@ export default function EnhancedInputToolbar({
                       </div>
                     )}
                     <Image className="w-4 h-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-200 truncate">{attachment.name}</span>
+                    <span className="text-sm text-neutral-200 truncate">{attachment.name || attachment.file?.name || 'Image'}</span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    {status === 'pending' && (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                        <span className="text-xs text-blue-400">Ready</span>
+                      </>
+                    )}
                     {status === 'uploading' && (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
@@ -876,19 +955,85 @@ export default function EnhancedInputToolbar({
                     {status === 'success' && (
                       <>
                         <CheckCircle2 className="w-4 h-4 text-green-400" />
-                        <span className="text-xs text-green-400">Ready</span>
+                        <span className="text-xs text-green-400">Sent</span>
                       </>
                     )}
                     {status === 'error' && (
                       <>
                         <XCircle className="w-4 h-4 text-red-400" />
                         <span className="text-xs text-red-400">Failed</span>
+                        <button
+                          onClick={async () => {
+                            // ✅ RETRY: Re-upload and send this specific attachment
+                            const att = attachmentPreviews.find(a => a.id === attachment.id);
+                            if (!att?.file || !user?.id) return;
+                            
+                            // Update status to uploading
+                            setUploadStatus(prev => ({ ...prev, [attachment.id]: 'uploading' }));
+                            
+                            try {
+                              // Upload the file
+                              const uploadResult = await imageService.uploadImage(att.file, user.id);
+                              
+                              // Update attachment with uploaded URL
+                              setAttachmentPreviews(prev => prev.map(a => 
+                                a.id === attachment.id 
+                                  ? { ...a, url: uploadResult.publicUrl, publicUrl: uploadResult.publicUrl }
+                                  : a
+                              ));
+                              
+                              // Update status to processing
+                              setUploadStatus(prev => ({ ...prev, [attachment.id]: 'processing' }));
+                              
+                              // Send message with this attachment
+                              const updatedAttachments = [{
+                                id: attachment.id,
+                                type: att.type,
+                                url: uploadResult.publicUrl,
+                                publicUrl: uploadResult.publicUrl,
+                                name: att.name || att.file.name
+                              }];
+                              
+                              if (addMessage) {
+                                await sendMessageWithAttachments(
+                                  conversationId || '',
+                                  updatedAttachments,
+                                  addMessage,
+                                  text.trim() || undefined,
+                                  user.id
+                                );
+                              }
+                              
+                              // Success - remove from previews
+                              setAttachmentPreviews(prev => prev.filter(a => a.id !== attachment.id));
+                              setUploadStatus(prev => {
+                                const next = { ...prev };
+                                delete next[attachment.id];
+                                return next;
+                              });
+                            } catch (retryError) {
+                              logger.error('[EnhancedInputToolbar] Retry failed:', retryError);
+                              setUploadStatus(prev => ({ ...prev, [attachment.id]: 'error' }));
+                              modernToast.error(
+                                'Retry Failed',
+                                retryError instanceof Error ? retryError.message : 'Could not retry upload. Please try again.'
+                              );
+                            }
+                          }}
+                          className="ml-2 text-xs text-atlas-sage underline hover:opacity-80 transition-opacity"
+                          title="Retry upload"
+                          aria-label="Retry upload"
+                        >
+                          Retry
+                        </button>
                       </>
                     )}
                     
                     <button
                       onClick={() => removeAttachment(attachment.id)}
                       className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                      title="Remove attachment"
+                      aria-label="Remove attachment"
                     >
                       <X className="w-4 h-4 text-neutral-400" />
                     </button>
@@ -992,135 +1137,81 @@ export default function EnhancedInputToolbar({
             position: 'relative',
           }}
         >
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  // ✅ Clear input for next selection (allows reselecting same file)
+                  e.target.value = '';
+                  
+                  // ✅ CLIENT-SIDE VALIDATION: Validate before showing preview
+                  try {
+                    const validation = await validateImageFile(file);
+                    if (!validation.valid) {
+                      modernToast.error(
+                        'Invalid Image',
+                        validation.error || 'Please select a valid image file.'
+                      );
+                      return;
+                    }
+                  } catch (error) {
+                    logger.error('[EnhancedInputToolbar] Validation error:', error);
+                    modernToast.error(
+                      'Validation Error',
+                      'Failed to validate image. Please try again.'
+                    );
+                    return;
+                  }
+                  
+                  // ✅ Create preview URL and attachment object (only if validation passes)
+                  const previewUrl = URL.createObjectURL(file);
+                  handleAddAttachment({
+                    id: generateUUID(),
+                    type: 'image',
+                    file,
+                    name: file.name, // ✅ ADD: File name for display
+                    url: previewUrl, // Use 'url' to match handleAddAttachment interface
+                    previewUrl: previewUrl, // Also store in previewUrl for cleanup
+                  });
+                }}
+              />
+              
               <motion.button
                 ref={buttonRef}
                 data-attachment-button
                 type="button"
-                onMouseDown={(e) => {
-                  // ✅ CRITICAL: Use onMouseDown to catch event before vercel-live-feedback intercepts
-                  // Don't preventDefault here - let onClick handle the toggle to avoid double-toggle
-                  console.log('[EnhancedInputToolbar] 🔘 + button mousedown - FIRED');
-                  // Hide vercel-live-feedback early
-                  const vercelFeedback = document.querySelector('vercel-live-feedback') as HTMLElement | null;
-                  if (vercelFeedback) {
-                    vercelFeedback.setAttribute('inert', '');
-                    vercelFeedback.style.display = 'none';
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  
+                  // ✅ BEST PRACTICE: Check tier access BEFORE opening file picker
+                  const hasAccess = await attemptImage();
+                  if (!hasAccess) {
+                    // attemptImage already shows upgrade modal
+                    return;
                   }
+                  
+                  // Open file picker
+                  fileInputRef.current?.click();
                 }}
-                onTouchStart={(e) => {
-                  // ✅ CRITICAL: Use onTouchStart for mobile - don't toggle here to avoid double-toggle
-                  console.log('[EnhancedInputToolbar] 🔘 + button touchstart - FIRED');
-                  // Hide vercel-live-feedback early
-                  const vercelFeedback = document.querySelector('vercel-live-feedback') as HTMLElement | null;
-                  if (vercelFeedback) {
-                    vercelFeedback.setAttribute('inert', '');
-                    vercelFeedback.style.display = 'none';
-                  }
-                }}
-                onClick={(e) => {
-                  try {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    console.log('[EnhancedInputToolbar] 🔘 + button clicked - START');
-                    
-                    // ✅ CRITICAL: Hide vercel-live-feedback immediately (inert + CSS)
-                    const vercelFeedback = document.querySelector('vercel-live-feedback') as HTMLElement | null;
-                    if (vercelFeedback) {
-                      vercelFeedback.setAttribute('inert', '');
-                      vercelFeedback.style.display = 'none';
-                      vercelFeedback.style.visibility = 'hidden';
-                      vercelFeedback.style.pointerEvents = 'none';
-                      vercelFeedback.removeAttribute('aria-hidden');
-                      console.log('[EnhancedInputToolbar] ✅ Set inert + hidden on vercel-live-feedback');
-                    }
-                    
-                    // ✅ CRITICAL: Toggle menu state (only here to avoid double-toggle)
-                    const newState = !menuOpen;
-                    
-                    console.log('[EnhancedInputToolbar] Current menuOpen:', menuOpen);
-                    console.log('[EnhancedInputToolbar] Setting menuOpen to:', newState);
-                    
-                    // ✅ PROFESSIONAL: Blur input on mobile when opening menu to prevent keyboard overlap
-                    if (!menuOpen) {
-                      const isMobile = window.matchMedia('(max-width: 639px)').matches;
-                      if (isMobile && inputRef.current) {
-                        inputRef.current.blur();
-                      }
-                    } else {
-                      // Refocus input when closing the menu
-                      setTimeout(() => {
-                        if (inputRef.current) {
-                          inputRef.current.focus();
-                        }
-                      }, 200);
-                    }
-                    
-                    setMenuOpen(newState);
-                    
-                    console.log('[EnhancedInputToolbar] ✅ State updated, menuOpen is now:', newState);
-                    
-                    // ✅ DEBUG: Check if AttachmentMenu component receives the prop
-                    setTimeout(() => {
-                      console.log('[EnhancedInputToolbar] 🔍 After state update, checking menu...');
-                      const menuElement = document.querySelector('[data-attachment-menu]');
-                      console.log('[EnhancedInputToolbar] Menu element in DOM:', !!menuElement);
-                      if (menuElement) {
-                        const rect = menuElement.getBoundingClientRect();
-                        const styles = window.getComputedStyle(menuElement);
-                        console.log('[EnhancedInputToolbar] Menu position:', { top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-                        console.log('[EnhancedInputToolbar] Menu styles:', { visibility: styles.visibility, opacity: styles.opacity, display: styles.display, zIndex: styles.zIndex });
-                      }
-                    }, 100);
-                  } catch (error) {
-                    console.error('[EnhancedInputToolbar] ❌ Error in onClick handler:', error);
-                  }
-                }}
-                disabled={false}
-                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center flex-shrink-0 ${
-                  menuOpen 
-                    ? 'bg-atlas-sage text-gray-800' 
-                    : 'bg-atlas-peach hover:bg-atlas-sage text-gray-800'
-                }`}
+                disabled={isUploading || isProcessing}
+                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center flex-shrink-0 bg-atlas-peach hover:bg-atlas-peach/40 sm:hover:bg-atlas-sage text-gray-800 ${isUploading ? 'cursor-wait' : 'cursor-pointer'}`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
                   pointerEvents: 'auto',
-                  cursor: 'pointer',
-                  zIndex: 2147483647, // ✅ Maximum z-index to be above everything
                   position: 'relative',
-                  isolation: 'isolate', // ✅ Create new stacking context
-                  boxShadow: menuOpen 
-                    ? '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
-                    : '0 2px 8px rgba(151, 134, 113, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                 }}
                 title="Add attachment"
                 aria-label="Add attachment"
               >
-                {menuOpen ? (
-                  <X size={18} className="transition-transform duration-300" />
-                ) : (
-                  <Plus size={18} className="transition-transform duration-300" />
-                )}
+                <Plus size={18} className="transition-all duration-200" />
               </motion.button>
-
-          {/* Attachment Menu - ✅ FIX: Component handles its own AnimatePresence inside portal */}
-          {console.log('[EnhancedInputToolbar] 🔍 Rendering AttachmentMenu with isOpen:', menuOpen)}
-          <AttachmentMenu
-            key="attachment-menu"
-            isOpen={menuOpen}
-            onClose={() => {
-              console.log('[EnhancedInputToolbar] 🔍 AttachmentMenu onClose called');
-              setMenuOpen(false);
-              // Refocus input when closing the menu
-              setTimeout(() => {
-                if (inputRef.current) {
-                  inputRef.current.focus();
-                }
-              }, 200);
-            }}
-            userId={user?.id || ""}
-            onAddAttachment={handleAddAttachment}
-          />
         </div>
 
             {/* Text Input - ✅ BEST PRACTICE: Proper flex with min-width 0 to prevent overflow */}
@@ -1265,7 +1356,7 @@ export default function EnhancedInputToolbar({
                 disabled={disabled || (!isStreaming && !text.trim() && attachmentPreviews.length === 0)}
                 title={isStreaming ? "Stop Generation" : (attachmentPreviews.length > 0 ? `Send ${attachmentPreviews.length} attachment${attachmentPreviews.length > 1 ? 's' : ''}` : "Send message")}
                 whileTap={{ scale: 0.95 }}
-                className={`h-[44px] w-[44px] rounded-full flex items-center justify-center transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex-shrink-0 ${
+                className={`h-[44px] w-[44px] rounded-full flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex-shrink-0 ${isUploading ? 'cursor-wait' : ''} ${
                   isStreaming 
                     ? 'bg-red-500 hover:bg-red-600 text-white' 
                     : (text.trim() || attachmentPreviews.length > 0)
@@ -1300,7 +1391,7 @@ export default function EnhancedInputToolbar({
                       exit={{ opacity: 0, scale: 0.8, rotate: 90 }}
                       transition={{ type: "spring", stiffness: 300, damping: 25 }}
                     >
-                      <Send className={`w-4 h-4 ${(text.trim() || attachmentPreviews.length > 0) ? 'text-gray-800' : 'text-gray-500'}`} />
+                      <Send className={`w-4 h-4 transition-all duration-200 ${(text.trim() || attachmentPreviews.length > 0) ? 'text-gray-800' : 'text-gray-500'}`} />
                     </motion.div>
                   )}
                 </AnimatePresence>

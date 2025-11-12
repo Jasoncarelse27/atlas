@@ -12,7 +12,6 @@ import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
 import EnhancedInputToolbar from '../components/chat/EnhancedInputToolbar';
 import EnhancedMessageBubble from '../components/chat/EnhancedMessageBubble';
-import { SimpleAttachmentButton } from '../components/chat/SimpleAttachmentButton';
 import { ProfileSettingsModal } from '../components/modals/ProfileSettingsModal';
 import VoiceUpgradeModal from '../components/modals/VoiceUpgradeModal';
 import { useUpgradeModals } from '../contexts/UpgradeModalContext';
@@ -1808,22 +1807,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   />
                 </div>
               )}
-              
-              {/* NUCLEAR OPTION: Simple attachment button that ALWAYS shows */}
-              <SimpleAttachmentButton 
-                onImageSelect={async (file) => {
-                  // Handle image upload directly
-                  if (conversationId) {
-                    await chatService.sendMessageWithAttachments('', [{
-                      id: generateUUID(),
-                      file,
-                      type: 'image',
-                      preview: URL.createObjectURL(file),
-                      status: 'pending'
-                    }], conversationId, user?.id || '');
-                  }
-                }}
-              />
             </>
           );
         })()}
