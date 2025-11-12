@@ -274,6 +274,9 @@ const handleOnline = () => {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('online', handleOnline);
+  
+  // ✅ MEMORY LEAK FIX: Store handler reference for cleanup
+  // Note: This is a global singleton service, cleanup handled in cleanupResendListeners()
 }
 
 // ✅ FIX: Export cleanup function

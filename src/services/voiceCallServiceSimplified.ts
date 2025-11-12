@@ -445,13 +445,16 @@ export class VoiceCallServiceSimplified {
     try {
       const sttCost = (durationSeconds / 60) * 0.006;
       const ttsCost = (durationSeconds * 25 / 1000) * 0.015;
+      const tier = this.currentOptions?.tier || 'unknown';
       
       await supabase.from('usage_logs').insert({
         user_id: userId,
         event: 'voice_call_completed',
-        data: {
+        tier: tier, // ✅ Explicit column (best practice)
+        feature: 'voice_call',
+        estimated_cost: sttCost + ttsCost,
+        metadata: {
           duration_seconds: durationSeconds,
-          estimated_cost: sttCost + ttsCost,
         },
         timestamp: new Date().toISOString(),
       });

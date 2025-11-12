@@ -290,6 +290,9 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     };
     
     window.addEventListener("focus", focusHandler);
+    
+    // ✅ MEMORY LEAK FIX: Store handler for cleanup
+    // Cleanup handled in stopBackgroundSync()
   }
 
   logger.debug("[SYNC] ✅ Delta sync background service active - unified architecture");

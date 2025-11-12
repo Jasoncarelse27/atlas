@@ -195,6 +195,12 @@ export async function handlePrompt(
  */
 export function getModelInfo(model: string) {
   const models = {
+    'claude-sonnet-4-5-20250929': {
+      name: 'Claude Sonnet 4.5',
+      description: 'Fast and efficient for most tasks',
+      tier: 'core' as const,
+    },
+    // Legacy model names for backward compatibility
     'claude-3-sonnet-20240229': {
       name: 'Claude 3 Sonnet',
       description: 'Fast and efficient for most tasks',

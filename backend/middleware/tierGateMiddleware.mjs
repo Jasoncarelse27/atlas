@@ -1,7 +1,7 @@
 // backend/middleware/tierGateMiddleware.mjs
 // 🔒 SECURITY: Never trust client-sent tier. Always fetch from database.
 import { logger } from '../lib/simpleLogger.mjs';
-import { TIER_DEFINITIONS } from '../config/intelligentTierSystem.mjs';
+import { TIER_DEFINITIONS, selectOptimalModel } from '../config/intelligentTierSystem.mjs';
 import { supabase } from '../lib/supabase.js';
 
 /**
@@ -54,16 +54,34 @@ export default async function tierGateMiddleware(req, res, next) {
       // Fallback to free tier if invalid
       tier = 'free';
       req.tier = tier;
-      req.selectedModel = TIER_DEFINITIONS.free.model;
       req.tierConfig = TIER_DEFINITIONS.free;
     } else {
-      // Set the server-validated tier and model
+      // Set the server-validated tier
       req.tier = tier;
-      req.selectedModel = tierConfig.model;
       req.tierConfig = tierConfig;
     }
     
-    logger.debug(`✅ [TierGate] User ${user.id} authenticated with tier: ${tier}, model: ${req.selectedModel}`);
+    // ✅ COST OPTIMIZATION: Message length-based model routing
+    // Short messages (<1k chars) → Haiku (cost-effective)
+    // Longer messages → Tier-appropriate model (Sonnet/Opus)
+    const messageContent = req.body?.message || req.body?.text || '';
+    const messageLength = messageContent.length;
+    const requestType = req.path.includes('image') ? 'image_analysis' : 
+                       req.path.includes('file') ? 'file_analysis' : 
+                       'chat';
+    
+    // Select optimal model based on tier and message length
+    const selectedModel = selectOptimalModel(tier, messageContent, requestType);
+    
+    // ✅ COST CONTROL: Override to Haiku for short messages (<1k chars) regardless of tier
+    // This saves costs while maintaining quality for simple queries
+    const finalModel = messageLength > 0 && messageLength < 1000 
+      ? 'claude-3-haiku-20240307' 
+      : selectedModel;
+    
+    req.selectedModel = finalModel;
+    
+    logger.debug(`✅ [TierGate] User ${user.id} authenticated with tier: ${tier}, model: ${finalModel}, messageLength: ${messageLength}`);
     next();
   } catch (error) {
     logger.error('[TierGate] Unexpected error:', error);

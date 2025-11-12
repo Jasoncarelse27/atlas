@@ -151,7 +151,7 @@ export class ConversationSyncService {
       const localConversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
-        .limit(100)
+        .limit(20) // ✅ SCALABILITY FIX: Reduced from 100 to 20 for 10k+ users
         .toArray();
 
       // Sync conversations
@@ -586,7 +586,7 @@ export class ConversationSyncService {
           .eq('user_id', userId)
           .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
           .order('updated_at', { ascending: false })
-          .limit(50) as { data: any[] | null; error: any }; // ✅ Increased limit for first sync
+          .limit(20) as { data: any[] | null; error: any }; // ✅ SCALABILITY FIX: Reduced from 50 to 20
         
         updatedConversations = result.data;
         convError = result.error;
@@ -716,7 +716,7 @@ export class ConversationSyncService {
           .eq('user_id', userId)
           .not('deleted_at', 'is', null)  // Only deleted conversations
           .gt('updated_at', lastSyncedAt)  // Only recently deleted
-          .limit(50) as { data: any[] | null; error: any };
+          .limit(20) as { data: any[] | null; error: any }; // ✅ SCALABILITY FIX: Reduced from 50 to 20
         
         if (!deletedError && deletedConversations && deletedConversations.length > 0) {
           logger.debug(`[ConversationSync] ✅ Found ${deletedConversations.length} deleted conversations to sync`);
@@ -757,7 +757,7 @@ export class ConversationSyncService {
           .in('conversation_id', conversationIds)  // ← ONLY updated conversations
           .gt('created_at', lastSyncedAt)  // ← DELTA FILTER
           .order('created_at', { ascending: true })
-          .limit(100) as { data: any[] | null; error: any };
+          .limit(20) as { data: any[] | null; error: any }; // ✅ SCALABILITY FIX: Reduced from 100 to 20
         
         queriesExecuted++; // Track query count
         
@@ -1026,10 +1026,25 @@ export class ConversationSyncService {
         
         if (error) {
           // Fallback: Try direct insert (will fail gracefully due to RLS)
+          // ✅ Fetch tier for analytics (non-critical, fails gracefully)
+          let tier = 'unknown';
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('subscription_tier')
+              .eq('id', userId)
+              .single();
+            tier = profile?.subscription_tier || 'unknown';
+          } catch {
+            // Silent fail - tier not critical for sync monitoring
+          }
+          
           await supabase.from('usage_logs').insert({
             user_id: userId,
             event: 'delta_sync_completed',
-            data: {
+            tier: tier, // ✅ Explicit column (best practice)
+            feature: 'sync',
+            metadata: {
               duration,
               queries: queriesExecuted,
               conversationsSynced,

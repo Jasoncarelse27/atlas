@@ -1,8 +1,9 @@
 import { Camera } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useTierAccess } from '../hooks/useTierAccess';
+import { useFeatureAccess } from '../hooks/useTierAccess';
 import { imageService } from '../services/imageService';
+import { logger } from '../lib/logger';
 
 interface ImageUploadProps {
   onImageProcessed: (result: { filePath: string; publicUrl: string; analysis: string }) => void;
@@ -13,16 +14,17 @@ interface ImageUploadProps {
 export function ImageUpload({ onImageProcessed, userId, className = '' }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { hasAccess, showUpgradeModal } = useTierAccess();
+  const { canUse, attemptFeature } = useFeatureAccess('image');
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check tier access
-    if (!hasAccess('image')) {
-      showUpgradeModal('image');
-      return;
+    // ✅ Check tier access using centralized feature access hook
+    const hasAccess = await attemptFeature();
+    if (!hasAccess) {
+      logger.debug('[ImageUpload] Tier check failed - upgrade required');
+      return; // attemptFeature already shows upgrade modal
     }
 
     // Validate file
@@ -64,10 +66,11 @@ export function ImageUpload({ onImageProcessed, userId, className = '' }: ImageU
     }
   };
 
-  const handleClick = () => {
-    if (!hasAccess('image')) {
-      showUpgradeModal('image');
-      return;
+  const handleClick = async () => {
+    const hasAccess = await attemptFeature();
+    if (!hasAccess) {
+      logger.debug('[ImageUpload] Tier check failed - upgrade required');
+      return; // attemptFeature already shows upgrade modal
     }
     fileInputRef.current?.click();
   };
@@ -76,10 +79,10 @@ export function ImageUpload({ onImageProcessed, userId, className = '' }: ImageU
     <div className={`relative ${className}`}>
       <button
         onClick={handleClick}
-        disabled={isProcessing || !hasAccess('image')}
+        disabled={isProcessing || !canUse}
         className={`
           flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200
-          ${hasAccess('image') 
+          ${canUse 
             ? 'bg-atlas-sage text-white hover:bg-atlas-sage active:scale-95' 
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }

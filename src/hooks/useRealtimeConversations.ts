@@ -44,9 +44,9 @@ export function useRealtimeConversations(userId?: string) {
           
           // Trigger conversation history refresh
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('conversationDeleted', {
-              detail: { conversationId: deletedId }
-            }));
+          window.dispatchEvent(new CustomEvent('conversationDeleted', {
+            detail: { conversationId: deletedId }
+          }));
           }
           
           logger.info('[Realtime] Conversation hard deleted:', deletedId);

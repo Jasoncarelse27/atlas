@@ -21,6 +21,7 @@ import authMiddleware from './middleware/authMiddleware.mjs';
 import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
 import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
 import { imageAnalysisRateLimit, messageRateLimit } from './middleware/rateLimitMiddleware.mjs';
+import tierGateMiddleware from './middleware/tierGateMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
@@ -523,7 +524,7 @@ function filterResponse(text) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = 'unknown' }) {
   if (!ANTHROPIC_API_KEY) {
     logger.error('[streamAnthropicResponse] ❌ ANTHROPIC_API_KEY is missing or empty');
     throw new Error('Missing Anthropic API key - check Railway environment variables');
@@ -695,6 +696,7 @@ You are having a natural voice conversation. Respond as if you can hear them cle
   let fullText = '';
   let sentenceBuffer = ''; // Buffer to check complete sentences before sending
   let hasReceivedData = false; // Track if we've received any data chunks
+  let tokenUsage = { input_tokens: 0, output_tokens: 0 }; // ✅ Track token usage for cost logging
 
   // Alias for backward compatibility (use top-level filterResponse)
   const filterBrandingLeaks = filterResponse;
@@ -742,6 +744,13 @@ You are having a natural voice conversation. Respond as if you can hear them cle
                 // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"
               }
+            } else if (parsed.type === 'message_stop' && parsed.usage) {
+              // ✅ TOKEN TRACKING: Capture usage data from stream completion
+              tokenUsage = {
+                input_tokens: parsed.usage.input_tokens || 0,
+                output_tokens: parsed.usage.output_tokens || 0
+              };
+              logger.debug(`[streamAnthropicResponse] ✅ Token usage captured: ${tokenUsage.input_tokens} input, ${tokenUsage.output_tokens} output`);
             } else if (parsed.type === 'error') {
               // ✅ Handle Anthropic API errors in stream
               logger.error(`[streamAnthropicResponse] ❌ Anthropic stream error:`, parsed);
@@ -780,6 +789,39 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     throw streamError;
   } finally {
     reader.releaseLock();
+  }
+  
+  // ✅ TOKEN TRACKING: Log usage to database for cost tracking
+  if (userId && tokenUsage.input_tokens > 0) {
+    try {
+      const { estimateRequestCost } = await import('./config/intelligentTierSystem.mjs');
+      const cost = estimateRequestCost(model, tokenUsage.input_tokens, tokenUsage.output_tokens);
+      
+      // Log to usage_logs table
+      const { supabase } = await import('./config/supabaseClient.mjs');
+      await supabase.from('usage_logs').insert({
+        user_id: userId,
+        event: 'chat_message',
+        tier: tier, // ✅ Explicit column (best practice)
+        feature: 'chat',
+        tokens_used: tokenUsage.input_tokens + tokenUsage.output_tokens,
+        estimated_cost: cost,
+        metadata: {
+          model,
+          input_tokens: tokenUsage.input_tokens,
+          output_tokens: tokenUsage.output_tokens,
+          message_length: fullText.length
+        },
+        created_at: new Date().toISOString()
+      }).catch(err => {
+        logger.warn('[streamAnthropicResponse] Failed to log usage:', err.message);
+      });
+      
+      logger.debug(`[streamAnthropicResponse] ✅ Logged ${tokenUsage.input_tokens + tokenUsage.output_tokens} tokens, cost: $${cost.toFixed(6)}`);
+    } catch (logError) {
+      logger.warn('[streamAnthropicResponse] Error logging token usage:', logError.message);
+      // Don't fail the request if logging fails
+    }
   }
   
   // ✅ CRITICAL FIX: Final filter pass before returning (catches any stage directions that slipped through)
@@ -1046,7 +1088,7 @@ app.get('/api/status', (req, res) => {
 // Usage log endpoint with service role
 app.post('/api/usage-log', verifyJWT, async (req, res) => {
   try {
-    const { user_id, event, feature, estimated_cost, metadata } = req.body;
+    const { user_id, event, feature, estimated_cost, metadata, tier } = req.body;
     
     if (!user_id || !feature || estimated_cost === undefined) {
       return res.status(400).json({ 
@@ -1060,12 +1102,13 @@ app.post('/api/usage-log', verifyJWT, async (req, res) => {
       .insert({
         user_id,
         event: event || 'feature_usage',
+        tier: tier || 'unknown', // ✅ Explicit column (best practice)
         feature,
         tokens_used: 0,
         estimated_cost,
         created_at: new Date().toISOString(),
-        metadata,
-        data: metadata // duplicate for backwards compatibility
+        metadata: metadata || {},
+        data: metadata || {} // duplicate for backwards compatibility
       });
       
     if (error) {
@@ -1128,6 +1171,7 @@ app.get('/api/auth/status', (req, res) => {
 app.post('/message', 
   authMiddleware,
   dailyLimitMiddleware,
+  tierGateMiddleware,
   invalidateCacheMiddleware('conversation'),
   async (req, res) => {
   
@@ -1136,9 +1180,11 @@ app.post('/message',
     const { message, text, conversationId, attachments } = req.body;
     const userId = req.user?.id; // ✅ FIX: Get userId from auth middleware, not body!
     const messageText = text || message;
-    const userTier = req.user?.tier || 'free'; // Always use server-validated tier
+    // ✅ Use tier and model from tierGateMiddleware (already validated and optimized)
+    const userTier = req.tier || 'free'; // From tierGateMiddleware
+    const selectedModel = req.selectedModel || selectOptimalModel(userTier, messageText, 'chat');
     
-    logger.debug('🔍 [Server] Auth check - userId:', userId, 'req.user:', req.user);
+    logger.debug('🔍 [Server] Auth check - userId:', userId, 'tier:', userTier, 'model:', selectedModel);
     
     if (!messageText && !attachments) {
       return res.status(400).json({ error: 'Missing message text or attachments' });
@@ -1226,7 +1272,7 @@ app.post('/message',
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: selectOptimalModel(userTier || 'free', '', 'title_generation'), // ✅ FIX: Use centralized model selection
+              model: selectedModel, // ✅ Use model from tierGateMiddleware
               max_tokens: 2000,
               messages: [
                 {
@@ -1282,9 +1328,38 @@ app.post('/message',
 
           logger.debug('✅ [Image Analysis] Analysis complete');
 
+          // ✅ TOKEN TRACKING: Extract and log usage for cost tracking
+          if (result.usage && userId) {
+            try {
+              const { estimateRequestCost } = await import('./config/intelligentTierSystem.mjs');
+              const cost = estimateRequestCost(selectedModel, result.usage.input_tokens || 0, result.usage.output_tokens || 0);
+              
+              await supabase.from('usage_logs').insert({
+                user_id: userId,
+                event: 'image_analysis',
+                tier: userTier, // ✅ Explicit column (best practice)
+                feature: 'image',
+                tokens_used: (result.usage.input_tokens || 0) + (result.usage.output_tokens || 0),
+                estimated_cost: cost,
+                metadata: {
+                  model: selectedModel,
+                  input_tokens: result.usage.input_tokens || 0,
+                  output_tokens: result.usage.output_tokens || 0
+                },
+                created_at: new Date().toISOString()
+              }).catch(err => {
+                logger.warn('[Image Analysis] Failed to log usage:', err.message);
+              });
+              
+              logger.debug(`[Image Analysis] ✅ Logged ${(result.usage.input_tokens || 0) + (result.usage.output_tokens || 0)} tokens, cost: $${cost.toFixed(6)}`);
+            } catch (logError) {
+              logger.warn('[Image Analysis] Error logging token usage:', logError.message);
+            }
+          }
+
           res.json({
             success: true,
-            model: 'claude-3-haiku-20240307', // ✅ FIXED: Use working model (Sonnet returns 404)
+            model: selectedModel, // ✅ Use model from tierGateMiddleware
             tier: userTier || 'free',
             reply: analysis,
             conversationId: conversationId,
@@ -1329,7 +1404,7 @@ app.post('/message',
 });
 
 // Legacy endpoint for backward compatibility
-app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => {
+app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, async (req, res, next) => {
   // ✅ CRITICAL: Wrap entire handler to catch ANY errors (including from middleware)
   // This ensures we always return JSON errors, never plain text
   try {
@@ -1666,7 +1741,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => 
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           try {
             logger.debug(`[API CALL] Calling streamAnthropicResponse with userId: ${userId}, model: ${selectedModel}`);
-            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
+            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier });
             streamCompleted = true;
             logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
             // ✅ CRITICAL: If stream returned empty, it means no data was received
@@ -1684,7 +1759,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => 
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           logger.debug('[API CALL] Using Claude fallback');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier });
           streamCompleted = true;
           logger.debug('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
@@ -2044,7 +2119,7 @@ You're having a conversation, not giving a TED talk. Be human, be present, be br
 });
 
 // Image analysis endpoint using Claude Vision
-app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, res) => {
+app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddleware, async (req, res) => {
   // ✅ CRITICAL: Generate requestId at the very top for complete error tracing
   const requestId = uuidv4();
   
@@ -2057,8 +2132,11 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
       imageUrl: req.body?.imageUrl?.substring(0, 50) + '...'
     });
     
-    const { imageUrl, userId, prompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand." } = req.body;
+    const { imageUrl, prompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand." } = req.body;
     const authenticatedUserId = req.user?.id;
+    // ✅ Use tier from tierGateMiddleware (already validated)
+    const tier = req.tier || 'free';
+    const selectedModel = req.selectedModel || 'claude-sonnet-4-5-20250929';
     
     if (!imageUrl) {
       logger.warn('[Image Analysis] Missing imageUrl in request');
@@ -2073,33 +2151,8 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
       });
     }
 
-    // 🎯 TIER ENFORCEMENT: Check if user has image analysis access (Core/Studio only)
-    let tier = 'free';
-    try {
-      // ✅ SCALABILITY FIX: Add query timeout to prevent blocking
-      const querySignal = createQueryTimeout(5000); // 5s timeout
-      
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', authenticatedUserId)
-        .abortSignal(querySignal)
-        .single();
-      
-      if (profileError) {
-        logger.warn(`[Image Analysis] Could not fetch tier for user ${authenticatedUserId}:`, profileError.message);
-        // Fail closed - default to free tier
-        tier = 'free';
-      } else {
-        tier = profile?.subscription_tier || 'free';
-      }
-    } catch (dbError) {
-      logger.error('[Image Analysis] Database error fetching tier:', dbError.message);
-      // Fail closed - default to free tier
-      tier = 'free';
-    }
-    
-    // Free tier doesn't have image analysis access
+    // ✅ TIER ENFORCEMENT: Use tier from middleware (Core/Studio only)
+    // tierGateMiddleware already validates tier, but we still need to check feature access
     if (tier === 'free') {
       logger.warn(`[Image Analysis] Access denied for free tier user: ${authenticatedUserId}`);
       return res.status(403).json({ 
@@ -2171,9 +2224,9 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
             'x-api-key': ANTHROPIC_API_KEY,
             'anthropic-version': '2023-06-01'
           },
-          body: JSON.stringify({
-            model: selectOptimalModel(tier, prompt, 'image_analysis'), // ✅ PERFORMANCE FIX: Use tier-based model selection
-            max_tokens: 2000,
+            body: JSON.stringify({
+              model: selectedModel, // ✅ Use model from tierGateMiddleware (already optimized)
+              max_tokens: 2000,
             messages: [
               {
                 role: 'user',
@@ -2373,6 +2426,43 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
 
     logger.debug('✅ [Image Analysis] Analysis complete');
 
+    // ✅ TOKEN TRACKING: Extract and log usage for cost tracking
+    let tokenUsage = { input_tokens: 0, output_tokens: 0 };
+    if (result.usage) {
+      tokenUsage = {
+        input_tokens: result.usage.input_tokens || 0,
+        output_tokens: result.usage.output_tokens || 0
+      };
+      
+      // Log to usage_logs table
+      try {
+        const { estimateRequestCost } = await import('./config/intelligentTierSystem.mjs');
+        const cost = estimateRequestCost(selectedModel, tokenUsage.input_tokens, tokenUsage.output_tokens);
+        
+        await supabase.from('usage_logs').insert({
+          user_id: authenticatedUserId,
+          event: 'image_analysis',
+          tier: tier, // ✅ Explicit column (best practice)
+          feature: 'image_analysis',
+          tokens_used: tokenUsage.input_tokens + tokenUsage.output_tokens,
+          estimated_cost: cost,
+          metadata: {
+            model: selectedModel,
+            input_tokens: tokenUsage.input_tokens,
+            output_tokens: tokenUsage.output_tokens
+          },
+          created_at: new Date().toISOString()
+        }).catch(err => {
+          logger.warn('[Image Analysis] Failed to log usage:', err.message);
+        });
+        
+        logger.debug(`[Image Analysis] ✅ Logged ${tokenUsage.input_tokens + tokenUsage.output_tokens} tokens, cost: $${cost.toFixed(6)}`);
+      } catch (logError) {
+        logger.warn('[Image Analysis] Error logging token usage:', logError.message);
+        // Don't fail the request if logging fails
+      }
+    }
+
     // ✅ NEW: Save user image message to conversation history
     const conversationId = req.body.conversationId || null;
 
@@ -2439,6 +2529,9 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
       success: true,
       analysis: analysis,
       imageUrl: imageUrl,
+      model: selectedModel,
+      tier: tier,
+      tokens: tokenUsage,
       timestamp: new Date().toISOString(),
       requestId // ✅ BEST PRACTICE: Include request ID for tracing
     });
@@ -2480,7 +2573,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
 });
 
 // 📄 File analysis endpoint (PDF, DOCX, TXT, MP3, MP4)
-app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, res) => {
+app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddleware, async (req, res) => {
   const requestId = uuidv4();
   
   try {
@@ -2494,6 +2587,9 @@ app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, re
     
     const { fileUrl, userId, prompt = "Please analyze this file and provide detailed insights about its content." } = req.body;
     const authenticatedUserId = req.user?.id;
+    // ✅ Use tier from tierGateMiddleware (already validated)
+    const tier = req.tier || 'free';
+    const selectedModel = req.selectedModel || selectOptimalModel(tier, prompt, 'file_analysis');
     
     if (!fileUrl) {
       logger.warn('[File Analysis] Missing fileUrl in request');
@@ -2508,29 +2604,7 @@ app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, re
       });
     }
 
-    // 🎯 TIER ENFORCEMENT: Check if user has file analysis access (Core/Studio only)
-    let tier = 'free';
-    try {
-      const querySignal = createQueryTimeout(5000);
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', authenticatedUserId)
-        .abortSignal(querySignal)
-        .single();
-      
-      if (profileError) {
-        logger.warn(`[File Analysis] Could not fetch tier for user ${authenticatedUserId}:`, profileError.message);
-        tier = 'free';
-      } else {
-        tier = profile?.subscription_tier || 'free';
-      }
-    } catch (dbError) {
-      logger.error('[File Analysis] Database error fetching tier:', dbError.message);
-      tier = 'free';
-    }
-    
-    // Free tier doesn't have file analysis access
+    // ✅ TIER ENFORCEMENT: Use tier from middleware (Core/Studio only)
     if (tier === 'free') {
       logger.warn(`[File Analysis] Access denied for free tier user: ${authenticatedUserId}`);
       return res.status(403).json({ 
@@ -2582,9 +2656,6 @@ app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, re
         requiresConfiguration: true
       });
     }
-
-    // ✅ PERFORMANCE FIX: Use existing selectOptimalModel function (DRY principle)
-    const selectedModel = selectOptimalModel(tier, prompt, 'file_analysis');
 
     // For text files, we'll send the URL and let Claude fetch it
     // For audio files, we'd need transcription first (simplified for now - just send URL)
@@ -2716,6 +2787,44 @@ app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, re
 
     logger.debug('✅ [File Analysis] Analysis complete');
 
+    // ✅ TOKEN TRACKING: Extract and log usage for cost tracking
+    let tokenUsage = { input_tokens: 0, output_tokens: 0 };
+    if (result.usage) {
+      tokenUsage = {
+        input_tokens: result.usage.input_tokens || 0,
+        output_tokens: result.usage.output_tokens || 0
+      };
+      
+      // Log to usage_logs table
+      try {
+        const { estimateRequestCost } = await import('./config/intelligentTierSystem.mjs');
+        const cost = estimateRequestCost(selectedModel, tokenUsage.input_tokens, tokenUsage.output_tokens);
+        
+        await supabase.from('usage_logs').insert({
+          user_id: authenticatedUserId,
+          event: 'file_analysis',
+          tier: tier, // ✅ Explicit column (best practice)
+          feature: 'file_analysis',
+          tokens_used: tokenUsage.input_tokens + tokenUsage.output_tokens,
+          estimated_cost: cost,
+          metadata: {
+            model: selectedModel,
+            input_tokens: tokenUsage.input_tokens,
+            output_tokens: tokenUsage.output_tokens,
+            file_type: fileExtension
+          },
+          created_at: new Date().toISOString()
+        }).catch(err => {
+          logger.warn('[File Analysis] Failed to log usage:', err.message);
+        });
+        
+        logger.debug(`[File Analysis] ✅ Logged ${tokenUsage.input_tokens + tokenUsage.output_tokens} tokens, cost: $${cost.toFixed(6)}`);
+      } catch (logError) {
+        logger.warn('[File Analysis] Error logging token usage:', logError.message);
+        // Don't fail the request if logging fails
+      }
+    }
+
     // Save to conversation history if conversationId provided
     const conversationId = req.body.conversationId || null;
     if (conversationId && conversationId.trim() && authenticatedUserId && supabaseUrl !== 'https://your-project.supabase.co') {
@@ -2750,6 +2859,7 @@ app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, re
       fileType: fileExtension,
       tier: tier,
       model: selectedModel,
+      tokens: tokenUsage,
       timestamp: new Date().toISOString(),
       requestId
     });
@@ -2781,24 +2891,18 @@ app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, re
 });
 
 // 🎙️ Audio transcription endpoint using OpenAI Whisper
-app.post('/api/transcribe', verifyJWT, async (req, res) => {
+app.post('/api/transcribe', verifyJWT, tierGateMiddleware, async (req, res) => {
   try {
     const { audioUrl, language = 'en' } = req.body;
     const userId = req.user.id;
+    // ✅ Use tier from tierGateMiddleware (already validated)
+    const tier = req.tier || 'free';
     
     if (!audioUrl) {
       return res.status(400).json({ error: 'Audio URL is required' });
     }
 
-    // 🎯 TIER ENFORCEMENT: Check if user has audio access (Core/Studio only)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('subscription_tier, usage_stats')
-      .eq('id', userId)
-      .single();
-    
-    const tier = profile?.subscription_tier || 'free';
-    
+    // ✅ TIER ENFORCEMENT: Use tier from middleware (Core/Studio only)
     if (tier === 'free') {
       return res.status(403).json({ 
         error: 'Audio transcription requires Core or Studio tier',
@@ -2860,13 +2964,20 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
         try {
           const duration = transcription.duration || 0;
           
+          // Fetch current profile to get usage stats
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('usage_stats')
+            .eq('id', userId)
+            .single();
+          
           // Track audio usage (in minutes)
           const currentUsage = profile?.usage_stats?.audio_minutes_used || 0;
           const newUsage = currentUsage + (duration / 60);
           
           await supabase.from('profiles').update({
             usage_stats: {
-              ...profile?.usage_stats,
+              ...(profile?.usage_stats || {}),
               audio_minutes_used: Math.ceil(newUsage)
             }
           }).eq('id', userId);
@@ -2901,15 +3012,29 @@ app.post('/api/transcribe', verifyJWT, async (req, res) => {
 });
 
 // 🚀 DEEPGRAM STT - 22x faster than Whisper (300ms vs 6.8s)
-app.post('/api/stt-deepgram', verifyJWT, async (req, res) => {
+app.post('/api/stt-deepgram', verifyJWT, tierGateMiddleware, async (req, res) => {
   const startTime = Date.now();
   
   try {
     const { audio } = req.body; // base64 audio (without data:audio/webm;base64, prefix)
     const userId = req.user.id;
+    // ✅ Use tier from tierGateMiddleware (already validated)
+    const tier = req.tier || 'free';
     
     if (!audio) {
       return res.status(400).json({ error: 'Audio data required' });
+    }
+    
+    // ✅ TIER ENFORCEMENT: Use tier from middleware (Core/Studio only)
+    if (tier === 'free') {
+      logger.warn(`[Deepgram STT] Access denied for free tier user: ${userId}`);
+      return res.status(403).json({ 
+        error: 'Speech-to-text requires Core or Studio tier',
+        upgradeRequired: true,
+        feature: 'speech_to_text',
+        tier: 'free',
+        message: 'Upgrade to Core tier ($19.99/month) to unlock speech-to-text and other advanced features.'
+      });
     }
     
     // Check Deepgram API key
@@ -2966,12 +3091,14 @@ app.post('/api/stt-deepgram', verifyJWT, async (req, res) => {
         await supabase.from('usage_logs').insert({
           user_id: userId,
           event: 'stt_deepgram',
-          data: {
+          tier: tier, // ✅ Explicit column (best practice)
+          feature: 'speech_to_text',
+          estimated_cost: duration * 0.0125 / 60, // $0.0125 per minute
+          metadata: {
             transcript_length: transcript.length,
             audio_duration: duration,
             latency_ms: latency,
-            confidence: confidence,
-            cost: duration * 0.0125 / 60 // $0.0125 per minute
+            confidence: confidence
           },
           created_at: new Date().toISOString()
         });
@@ -2995,24 +3122,18 @@ app.post('/api/stt-deepgram', verifyJWT, async (req, res) => {
 });
 
 // 🔊 Text-to-speech endpoint using OpenAI TTS
-app.post('/api/synthesize', verifyJWT, async (req, res) => {
+app.post('/api/synthesize', verifyJWT, tierGateMiddleware, async (req, res) => {
   try {
     const { text } = req.body;
     const userId = req.user.id;
+    // ✅ Use tier from tierGateMiddleware (already validated)
+    const tier = req.tier || 'free';
     
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    // 🎯 TIER ENFORCEMENT: Check if user has audio access (Core/Studio only)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .single();
-    
-    const tier = profile?.subscription_tier || 'free';
-    
+    // ✅ TIER ENFORCEMENT: Use tier from middleware (Core/Studio only)
     if (tier === 'free') {
       return res.status(403).json({ 
         error: 'Text-to-speech requires Core or Studio tier',

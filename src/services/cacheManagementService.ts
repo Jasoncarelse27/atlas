@@ -66,10 +66,25 @@ class CacheManagementService {
     try {
       const metrics = await this.getPerformanceMetrics();
       
+      // ✅ Fetch tier for analytics (non-critical, fails gracefully)
+      let tier = 'unknown';
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single();
+        tier = profile?.subscription_tier || 'unknown';
+      } catch {
+        // Silent fail - tier not critical for cache monitoring
+      }
+      
       await supabase.from('usage_logs').insert({
         user_id: userId,
         event: 'cache_performance_report',
-        data: {
+        tier: tier, // ✅ Explicit column (best practice)
+        feature: 'cache',
+        metadata: {
           hitRate: metrics.hitRate,
           costSavings: metrics.costSavings,
           apiCallsSaved: metrics.apiCallsSaved,

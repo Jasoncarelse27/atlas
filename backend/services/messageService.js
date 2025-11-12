@@ -110,8 +110,8 @@ function getSupabase() {
 // ✅ Tier → Model map (updated to latest non-deprecated models)
 const MODEL_MAP = {
   free: "claude-3-haiku-20240307",   // ✅ Verified working
-  core: "claude-3-sonnet-20240229",  // ✅ Updated to correct format (Nov 2025)
-  studio: "claude-3-opus-20240229"   // ✅ Updated to correct format (Nov 2025)
+  core: "claude-sonnet-4-5-20250929",  // ✅ FIXED: Updated from claude-3-sonnet-20240229 (returns 404)
+  studio: "claude-sonnet-4-5-20250929"   // ✅ FIXED: Updated from claude-3-opus-20240229 (returns 404)
 };
 
 /**
@@ -672,6 +672,45 @@ Safety: Never provide medical, legal, or crisis advice. For distress, offer empa
 
     const reply = completion.content[0]?.text || "(no response)";
     logger.debug("🧠 [MessageService] Claude reply:", { tier, model, reply });
+
+    // ✅ TOKEN TRACKING: Extract and log usage for cost tracking
+    let tokenUsage = { input_tokens: 0, output_tokens: 0 };
+    if (completion.usage) {
+      tokenUsage = {
+        input_tokens: completion.usage.input_tokens || 0,
+        output_tokens: completion.usage.output_tokens || 0
+      };
+      
+      // Log to usage_logs table
+      try {
+        const { estimateRequestCost } = await import('../config/intelligentTierSystem.mjs');
+        const cost = estimateRequestCost(model, tokenUsage.input_tokens, tokenUsage.output_tokens);
+        
+        const { supabase } = await import('../config/supabaseClient.mjs');
+        await supabase.from('usage_logs').insert({
+          user_id: userId,
+          event: 'chat_message',
+          tier: tier, // ✅ Explicit column (best practice)
+          feature: 'chat',
+          tokens_used: tokenUsage.input_tokens + tokenUsage.output_tokens,
+          estimated_cost: cost,
+          metadata: {
+            model,
+            input_tokens: tokenUsage.input_tokens,
+            output_tokens: tokenUsage.output_tokens,
+            message_length: reply.length
+          },
+          created_at: new Date().toISOString()
+        }).catch(err => {
+          logger.warn('[MessageService] Failed to log usage:', err.message);
+        });
+        
+        logger.debug(`[MessageService] ✅ Logged ${tokenUsage.input_tokens + tokenUsage.output_tokens} tokens, cost: $${cost.toFixed(6)}`);
+      } catch (logError) {
+        logger.warn('[MessageService] Error logging token usage:', logError.message);
+        // Don't fail the request if logging fails
+      }
+    }
 
     // ✅ Save both messages to Supabase (if conversation exists)
     if (convId && userId) {

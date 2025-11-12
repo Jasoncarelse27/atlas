@@ -130,9 +130,15 @@ export const budgetCeilingService = {
       const client = await getSupabaseClient();
       if (!client) return;
 
+      // Extract tier from payload if available
+      const tier = payload?.tier || 'unknown';
+      const { tier: _, ...restPayload } = payload || {};
+
       await client.from('usage_logs').insert({
         event,
-        data: { ...payload, ts: new Date().toISOString(), svc: 'budgetCeiling' }
+        tier: tier, // ✅ Explicit column (best practice)
+        feature: 'budget_ceiling',
+        metadata: { ...restPayload, ts: new Date().toISOString(), svc: 'budgetCeiling' }
       });
     } catch (error) {
       logger.error('[BudgetCeiling] Error logging event:', error.message || error);

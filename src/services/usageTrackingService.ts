@@ -379,12 +379,16 @@ class UsageTrackingService {
         return;
       }
       
+      // ✅ Extract tier from data if present, use explicit column
+      const { tier, ...restData } = data as { tier?: string; [key: string]: unknown };
+      
       await supabase
         .from('usage_logs')
         .insert({
           user_id: logUserId, // ✅ CRITICAL: Set user_id for RLS compliance
           event,
-          data,
+          tier: tier || 'unknown', // ✅ Explicit column (best practice)
+          metadata: restData,
           timestamp: new Date().toISOString()
         });
     } catch (error) {

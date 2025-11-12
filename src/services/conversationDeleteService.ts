@@ -92,9 +92,9 @@ export async function deleteConversation(
     
     // ✅ CRITICAL FIX: Dispatch event for UI refresh
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('conversationDeleted', {
-        detail: { conversationId }
-      }));
+    window.dispatchEvent(new CustomEvent('conversationDeleted', {
+      detail: { conversationId }
+    }));
       logger.debug('[ConversationDelete] ✅ Dispatched deletion event for UI refresh');
     }
     

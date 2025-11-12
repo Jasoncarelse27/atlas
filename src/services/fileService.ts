@@ -20,6 +20,21 @@ export const fileService = {
    */
   async uploadFile(file: File, userId: string) {
     try {
+      // ✅ TIER ENFORCEMENT: Check if user has file access (Core/Studio only)
+      // Defense-in-depth: Even though UI checks tier, validate here to prevent direct service calls
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
+      
+      const tier = (profile as any)?.subscription_tier || 'free';
+      
+      if (tier === 'free') {
+        logger.warn(`[FileService] Access denied for free tier user: ${userId}`);
+        throw new Error('File upload requires Core or Studio tier. Please upgrade to continue.');
+      }
+      
       logEvent("file_upload_start", { fileName: file.name, size: file.size, type: file.type });
 
       // ✅ VALIDATE FILE BEFORE UPLOAD

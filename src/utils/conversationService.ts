@@ -120,16 +120,16 @@ export async function deleteConversation(conversation_id: string, user_id?: stri
       return true;
     } else {
       // Fallback to hard delete if no user_id (backward compatibility)
-      const { error } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', conversation_id);
+    const { error } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', conversation_id);
 
-      if (error) {
-        return false;
-      }
+    if (error) {
+      return false;
+    }
 
-      return true;
+    return true;
     }
   } catch (error) {
     return false;

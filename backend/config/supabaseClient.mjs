@@ -27,22 +27,35 @@ function createSupabaseClients() {
   // Create Supabase client with service role key for backend operations
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
-    // ✅ Force IPv4 connections for Railway
+    // ✅ SCALABILITY FIX: Connection reuse for 10k+ users
+    // Note: Supabase manages database connection pooling server-side via PgBouncer
+    // Client-side HTTP connection reuse is handled by Node.js HTTP Agent (configured in server.mjs)
+    db: {
+      schema: 'public',
+    },
     global: {
       headers: {
-        'X-Prefer-IPv4': 'true'
-      }
+        'X-Prefer-IPv4': 'true',
+        'Connection': 'keep-alive', // ✅ HTTP connection reuse (Node.js handles pooling via Agent)
+      },
+      // ✅ BEST PRACTICE: Use default fetch (Node.js 18+ uses undici with built-in connection pooling)
+      // No custom fetch override needed - Node.js handles connection reuse automatically
     }
   });
 
   // Create public client with anon key for frontend-like operations
   const supabasePublic = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
-    // ✅ Force IPv4 connections for Railway
+    // ✅ SCALABILITY FIX: Connection reuse for 10k+ users
+    db: {
+      schema: 'public',
+    },
     global: {
       headers: {
-        'X-Prefer-IPv4': 'true'
-      }
+        'X-Prefer-IPv4': 'true',
+        'Connection': 'keep-alive', // ✅ HTTP connection reuse
+      },
+      // ✅ BEST PRACTICE: Use default fetch (Node.js handles pooling)
     }
   });
 

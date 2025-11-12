@@ -113,12 +113,12 @@ export class MessagePersistenceService implements IMessagePersistenceService {
       const { error } = await supabase.from('usage_logs').insert({
         user_id: userId,
         event: 'voice_call_completed',
-        data: {
-          feature: 'voice_call',
-          tier: tier,
+        tier: tier, // ✅ Explicit column (best practice)
+        feature: 'voice_call',
+        estimated_cost: totalCost,
+        metadata: {
           duration_seconds: durationSeconds,
           tokens_used: 0,
-          estimated_cost: totalCost,
           cost_breakdown: { stt: sttCost, tts: ttsCost, total: totalCost }
         },
         timestamp: new Date().toISOString(),

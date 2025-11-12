@@ -13,6 +13,21 @@ const logEvent = (eventName: string, props: Record<string, unknown>) => {
 export const imageService = {
   async uploadImage(file: File, userId: string) {
     try {
+      // ✅ TIER ENFORCEMENT: Check if user has image access (Core/Studio only)
+      // Defense-in-depth: Even though UI checks tier, validate here to prevent direct service calls
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single();
+      
+      const tier = (profile as any)?.subscription_tier || 'free';
+      
+      if (tier === 'free') {
+        logger.warn(`[ImageService] Access denied for free tier user: ${userId}`);
+        throw new Error('Image upload requires Core or Studio tier. Please upgrade to continue.');
+      }
+      
       logEvent("image_upload_start", { fileName: file.name, size: file.size, type: file.type });
 
       // ✅ VALIDATE FILE BEFORE UPLOAD
@@ -122,7 +137,7 @@ export const imageService = {
       user_id: userId,
       event_name: "image_scan_request",
       file_path: filePath,
-      metadata: { model: "claude-3-sonnet-20240229" },
+      metadata: { model: "claude-sonnet-4-5-20250929" }, // ✅ FIXED: Updated from claude-3-sonnet-20240229 (returns 404)
     });
 
     // Get the public URL for the image

@@ -177,9 +177,9 @@ class ConversationService {
       
       // 4. Dispatch event for UI updates
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('conversationDeleted', {
-          detail: { conversationId }
-        }));
+      window.dispatchEvent(new CustomEvent('conversationDeleted', {
+        detail: { conversationId }
+      }));
       }
 
       logger.info('[ConversationService] ✅ Conversation soft deleted successfully');

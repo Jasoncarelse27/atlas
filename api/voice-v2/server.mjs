@@ -342,11 +342,11 @@ wss.on('connection', (ws, req) => {
               // ✅ TIER ENFORCEMENT: Check user tier (Studio only)
               const { data: profile, error: profileError } = await supabase
                 .from('profiles')
-                .select('tier')
+                .select('subscription_tier')
                 .eq('id', validatedUserId)
                 .single();
 
-              if (profileError || !profile || profile.tier !== 'studio') {
+              if (profileError || !profile || profile.subscription_tier !== 'studio') {
                 ws.send(JSON.stringify({
                   type: 'error',
                   message: 'Voice calls are only available for Studio tier. Upgrade to continue.',
@@ -366,6 +366,7 @@ wss.on('connection', (ws, req) => {
               session.userId = validatedUserId;
               session.conversationId = message.conversationId || '';
               session.authenticated = true;
+              session.tier = profile.subscription_tier; // ✅ Store tier for usage logging
               
               ws.send(JSON.stringify({
                 type: 'session_started',
@@ -751,12 +752,13 @@ async function logUsageToDatabase(sessionId, session, totalCost) {
       .insert({
         user_id: session.userId,
         event: 'voice_call',
-        data: {
-          feature: 'voice_call',
+        tier: session.tier || 'unknown', // ✅ Explicit column (best practice)
+        feature: 'voice_call',
+        tokens_used: inputTokens + outputTokens,
+        estimated_cost: totalCost,
+        metadata: {
           session_id: sessionId,
           conversation_id: session.conversationId,
-          tokens_used: inputTokens + outputTokens,
-          estimated_cost: totalCost,
           stt_duration_ms: session.metrics.deepgramDurationMs,
           tts_characters: session.metrics.ttsCharacters,
           llm_input_tokens: inputTokens,
