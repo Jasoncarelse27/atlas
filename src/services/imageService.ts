@@ -122,7 +122,7 @@ export const imageService = {
       user_id: userId,
       event_name: "image_scan_request",
       file_path: filePath,
-      metadata: { model: "claude-3-5-sonnet-20241022" },
+      metadata: { model: "claude-3-sonnet-20240229" },
     });
 
     // Get the public URL for the image
