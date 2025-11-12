@@ -337,25 +337,12 @@ if (!ANTHROPIC_API_KEY) {
   logger.error('⚠️ [Server] ANTHROPIC_API_KEY is missing - AI features will not work');
 }
 
-// Model mapping by tier (updated to Nov 2025 valid model identifiers)
-// ⚠️ NOTE: Sonnet model names return 404 - using Haiku temporarily until verified
-// ✅ CORRECT MODEL NAMES:
-// - Free:  claude-3-haiku-20240307 ✅ Verified working
-// - Core:  claude-3-haiku-20240307 ✅ Temporarily using Haiku (Sonnet returns 404)
-// - Studio: claude-3-haiku-20240307 ✅ Temporarily using Haiku (Opus returns 404)
-// TODO: Verify correct Sonnet/Opus model names via Anthropic API or docs
+// ✅ DEPRECATED: Use selectOptimalModel from intelligentTierSystem.mjs instead
+// This function is kept for backward compatibility but delegates to selectOptimalModel
 const _mapTierToAnthropicModel = (tier) => {
-  // ✅ TEMPORARY: Use Haiku for all tiers until Sonnet/Opus model names verified
-  // This ensures Atlas works while we verify correct model names
-  return 'claude-3-haiku-20240307'; // ✅ Verified working for all tiers
-  
-  // Uncomment once correct model names verified:
-  // const MODEL_MAP = {
-  //   free: 'claude-3-haiku-20240307',
-  //   core: 'claude-3-sonnet-20240229',  // ⚠️ Returns 404 - needs verification
-  //   studio: 'claude-3-opus-20240229'   // ⚠️ Returns 404 - needs verification
-  // };
-  // return MODEL_MAP[tier] || MODEL_MAP.free;
+  // ✅ FIX: Use centralized selectOptimalModel function (DRY principle)
+  // This ensures consistent model selection across all endpoints
+  return selectOptimalModel(tier, '', 'legacy_mapping');
 };
 
 // ✅ STARTUP VERIFICATION: Verify Anthropic API key and model before starting server
@@ -1239,7 +1226,7 @@ app.post('/message',
               'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-              model: _mapTierToAnthropicModel(userTier || 'free'), // ✅ Use correct model mapping
+              model: selectOptimalModel(userTier || 'free', '', 'title_generation'), // ✅ FIX: Use centralized model selection
               max_tokens: 2000,
               messages: [
                 {
@@ -1576,21 +1563,10 @@ app.post('/api/message', verifyJWT, messageRateLimit, async (req, res, next) => 
     }
 
     // 🎯 Dynamic model selection based on user tier
-    // ✅ Using _mapTierToAnthropicModel() which returns Haiku (working model)
-    let selectedModel = _mapTierToAnthropicModel(effectiveTier);
+    // ✅ FIX: Use centralized selectOptimalModel function (tier-based model selection)
+    // Studio → Opus, Core → Sonnet, Free → Haiku (handled by selectOptimalModel)
+    let selectedModel = selectOptimalModel(effectiveTier, message.trim(), 'chat_message');
     let routedProvider = 'claude';
-    
-    if (effectiveTier === 'studio') {
-      selectedModel = _mapTierToAnthropicModel('studio'); // Uses Haiku temporarily
-      routedProvider = 'claude';
-    } else if (effectiveTier === 'core') {
-      selectedModel = _mapTierToAnthropicModel('core'); // Uses Haiku temporarily
-      routedProvider = 'claude';
-    } else {
-      // Free tier - use Claude Haiku
-      selectedModel = 'claude-3-haiku-20240307'; // ✅ Already correct
-      routedProvider = 'claude';
-    }
     
 
     // 🧠 MEMORY 100%: Get conversation history for context (Core/Studio only)

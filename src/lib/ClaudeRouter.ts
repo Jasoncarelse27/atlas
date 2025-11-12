@@ -6,7 +6,7 @@ import { supabase } from './supabaseClient';
 export interface ClaudePrompt {
   id: string;
   content: string;
-  model: 'claude-3-5-sonnet' | 'claude-3-5-opus';
+  model: 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229' | 'claude-3-haiku-20240307';
   userTier: 'core' | 'studio';
   timestamp: Date;
   cached?: boolean;
@@ -195,17 +195,33 @@ export async function handlePrompt(
  */
 export function getModelInfo(model: string) {
   const models = {
+    'claude-3-sonnet-20240229': {
+      name: 'Claude 3 Sonnet',
+      description: 'Fast and efficient for most tasks',
+      tier: 'core' as const,
+    },
+    'claude-3-opus-20240229': {
+      name: 'Claude 3 Opus',
+      description: 'Most capable model for complex tasks',
+      tier: 'studio' as const,
+    },
+    'claude-3-haiku-20240307': {
+      name: 'Claude 3 Haiku',
+      description: 'Fast and cost-effective',
+      tier: 'free' as const,
+    },
+    // Legacy model names for backward compatibility
     'claude-3-5-sonnet': {
-      name: 'Claude 3.5 Sonnet',
+      name: 'Claude 3 Sonnet',
       description: 'Fast and efficient for most tasks',
       tier: 'core' as const,
     },
     'claude-3-5-opus': {
-      name: 'Claude 3.5 Opus',
+      name: 'Claude 3 Opus',
       description: 'Most capable model for complex tasks',
       tier: 'studio' as const,
     },
   };
   
-  return models[model as keyof typeof models] || models['claude-3-5-sonnet'];
+  return models[model as keyof typeof models] || models['claude-3-sonnet-20240229'];
 }

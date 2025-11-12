@@ -166,9 +166,9 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
       case 'groq':
         return { perToken: 0.0000002, model: 'llama3.3-70b-versatile' }; // Very cheap
       case 'claude':
-        return { perToken: 0.000003, model: 'claude-3-5-sonnet' }; // Moderate
+        return { perToken: 0.000003, model: 'claude-3-sonnet-20240229' }; // ✅ FIX: Use correct model name format
       case 'opus':
-        return { perToken: 0.000015, model: 'claude-3-5-opus' }; // Expensive but powerful
+        return { perToken: 0.000015, model: 'claude-3-opus-20240229' }; // ✅ FIX: Use correct model name format
       default:
         return { perToken: 0.0000002, model: 'unknown' };
     }
