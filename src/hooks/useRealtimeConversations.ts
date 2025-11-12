@@ -25,7 +25,7 @@ export function useRealtimeConversations(userId?: string) {
     // Create single unified channel
     const channel = supabase.channel(channelName);
 
-    // ✅ Handle conversation deletions
+    // ✅ Handle conversation hard deletions (DELETE events)
     channel.on(
       "postgres_changes",
       {
@@ -43,13 +43,81 @@ export function useRealtimeConversations(userId?: string) {
           await atlasDB.messages.where('conversationId').equals(deletedId).delete();
           
           // Trigger conversation history refresh
-          window.dispatchEvent(new CustomEvent('conversationDeleted', {
-            detail: { conversationId: deletedId }
-          }));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('conversationDeleted', {
+              detail: { conversationId: deletedId }
+            }));
+          }
           
-          logger.info('[Realtime] Conversation deleted:', deletedId);
+          logger.info('[Realtime] Conversation hard deleted:', deletedId);
         } catch (error) {
-          logger.error('[Realtime] Failed to handle deletion:', error);
+          logger.error('[Realtime] Failed to handle hard deletion:', error);
+        }
+      }
+    );
+
+    // ✅ CRITICAL FIX: Handle conversation soft deletions (UPDATE events)
+    // When deleted_at is set, mark conversation as deleted locally
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "conversations",
+        filter: `user_id=eq.${userId}`,
+      },
+      async (payload) => {
+        const updatedConv = payload.new;
+        
+        try {
+          // ✅ CRITICAL: Check if conversation was soft-deleted
+          if (updatedConv.deleted_at) {
+            const deletedAt = updatedConv.deleted_at;
+            
+            // Mark conversation as deleted locally
+            const localExists = await atlasDB.conversations.get(updatedConv.id);
+            if (localExists) {
+              await atlasDB.conversations.update(updatedConv.id, {
+                deletedAt: deletedAt
+              });
+              
+              // Mark all messages in conversation as deleted
+              const messages = await atlasDB.messages
+                .where('conversationId')
+                .equals(updatedConv.id)
+                .toArray();
+              
+              for (const msg of messages) {
+                await atlasDB.messages.update(msg.id, {
+                  deletedAt: deletedAt
+                });
+              }
+              
+              logger.info('[Realtime] ✅ Conversation soft deleted:', updatedConv.id);
+            }
+            
+            // Trigger conversation history refresh
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('conversationDeleted', {
+                detail: { conversationId: updatedConv.id }
+              }));
+            }
+          } else if (updatedConv.deleted_at === null) {
+            // ✅ CRITICAL: Conversation was restored (deleted_at cleared)
+            const localExists = await atlasDB.conversations.get(updatedConv.id);
+            if (localExists && localExists.deletedAt) {
+              // Restore conversation
+              await atlasDB.conversations.update(updatedConv.id, {
+                deletedAt: undefined,
+                title: updatedConv.title,
+                updatedAt: updatedConv.updated_at,
+              });
+              
+              logger.info('[Realtime] ✅ Conversation restored:', updatedConv.id);
+            }
+          }
+        } catch (error) {
+          logger.error('[Realtime] Failed to handle soft deletion:', error);
         }
       }
     );

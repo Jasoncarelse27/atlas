@@ -103,18 +103,34 @@ export async function updateConversationTitle(conversation_id: string, title: st
 /**
  * Delete a conversation and all its messages
  */
-export async function deleteConversation(conversation_id: string): Promise<boolean> {
+export async function deleteConversation(conversation_id: string, user_id?: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('conversations')
-      .delete()
-      .eq('id', conversation_id);
+    // ✅ CRITICAL: Use soft delete RPC if user_id is provided
+    // Otherwise fallback to hard delete for backward compatibility
+    if (user_id) {
+      const { error } = await supabase.rpc('delete_conversation_soft', {
+        p_user: user_id,
+        p_conversation: conversation_id
+      });
 
-    if (error) {
-      return false;
+      if (error) {
+        return false;
+      }
+
+      return true;
+    } else {
+      // Fallback to hard delete if no user_id (backward compatibility)
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversation_id);
+
+      if (error) {
+        return false;
+      }
+
+      return true;
     }
-
-    return true;
   } catch (error) {
     return false;
   }

@@ -81,9 +81,11 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       }
       
       // ⚡ SCALABILITY FIX: Limit at database level
+      // ✅ CRITICAL: Filter out deleted conversations
       let conversations = await atlasDB.conversations
         .where('userId')
         .equals(user.id)
+        .filter(conv => !conv.deletedAt) // ✅ Filter out soft-deleted conversations
         .reverse() // Most recent first
         .limit(50) // Prevent memory overload
         .toArray();
@@ -101,6 +103,7 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
           conversations = await atlasDB.conversations
             .where('userId')
             .equals(user.id)
+            .filter(conv => !conv.deletedAt) // ✅ Filter out soft-deleted conversations
             .reverse()
             .limit(50)
             .toArray();
@@ -198,21 +201,31 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
 
     setDeletingId(conversationId);
     
+    // ✅ OPTIMISTIC UI: Remove from cached list immediately
+    const previousConversations = [...cachedConversations];
+    setCachedConversations(prev => prev.filter(c => c.id !== conversationId));
+    
     try {
       // Get user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('Please login again');
 
-      // Simple delete using the clean service
+      // ✅ Use unified soft delete service
       await deleteConversation(conversationId, user.id);
 
-      // Refresh list after successful delete
+      // Refresh list after successful delete to ensure sync
       await refreshConversationList(true);
       
+      logger.info('[QuickActions] ✅ Conversation deleted successfully');
     } catch (err: unknown) {
       const error = err as Error;
       logger.error('[QuickActions] ❌ Delete failed:', err);
-      toast.error(`Failed to delete: ${error.message || 'Unknown error'}`);
+      
+      // ✅ ROLLBACK: Restore conversation on failure
+      setCachedConversations(previousConversations);
+      
+      // Show error message
+      alert(`Failed to delete conversation:\n${error.message || 'Unknown error'}\n\nPlease try again.`);
     } finally {
       setDeletingId(null);
     }

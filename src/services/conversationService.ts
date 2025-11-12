@@ -66,15 +66,17 @@ class ConversationService {
       await ensureDatabaseReady();
 
       // ⚡ SCALABILITY FIX: Limit at database level, not in-memory
+      // ✅ CRITICAL: Filter out deleted conversations
       const conversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
+        .filter(conv => !conv.deletedAt) // ✅ Filter out soft-deleted conversations
         .reverse() // Most recent first (indexed)
         .limit(50) // Limit BEFORE loading into memory
         .toArray();
 
       // Transform to consistent format
-      this.cache = conversations.map((conv: { id: string; title?: string; user_id: string; created_at: string; updated_at: string; last_message_at?: string }) => ({
+      this.cache = conversations.map((conv: { id: string; title?: string; user_id: string; created_at: string; updated_at: string; last_message_at?: string; deletedAt?: string }) => ({
         id: conv.id,
         title: conv.title,
         createdAt: conv.createdAt,
@@ -106,45 +108,81 @@ class ConversationService {
   }
 
   /**
-   * Delete conversation from both local and remote
-   * 🚨 CRITICAL FIX: Delete Supabase FIRST to prevent sync from restoring
+   * Delete conversation using soft delete for proper sync
+   * Uses soft delete RPC to ensure deletions persist across devices
    */
   async deleteConversation(conversationId: string, userId: string): Promise<void> {
     try {
-      logger.info(`[ConversationService] 🗑️ Deleting conversation: ${conversationId}`);
+      logger.info(`[ConversationService] 🗑️ Soft deleting conversation: ${conversationId}`);
       
-      // 1. DELETE FROM SUPABASE FIRST (and wait for it!)
-      const { error: deleteError } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', conversationId)
-        .eq('user_id', userId);
+      // ✅ CRITICAL: Use soft delete RPC to set deleted_at timestamp
+      // This ensures sync service can properly filter out deleted conversations
+      const { error: rpcError } = await supabase.rpc('delete_conversation_soft', {
+        p_user: userId,
+        p_conversation: conversationId
+      });
 
-      if (deleteError) {
-        logger.error('[ConversationService] ❌ Supabase delete failed:', deleteError);
-        throw new Error(`Failed to delete from database: ${deleteError.message}`);
+      if (rpcError) {
+        logger.error('[ConversationService] ❌ Soft delete RPC failed:', rpcError);
+        throw new Error(`Failed to delete conversation: ${rpcError.message}`);
       }
       
-      logger.info('[ConversationService] ✅ Deleted from Supabase');
+      logger.info('[ConversationService] ✅ Soft deleted from Supabase');
 
-      // 2. Now delete local (instant)
+      // 2. Update local Dexie with deletedAt timestamp
+      const deletedAt = new Date().toISOString();
       try {
-        await atlasDB.conversations.delete(conversationId);
-        await atlasDB.messages.where('conversationId').equals(conversationId).delete();
-        logger.info('[ConversationService] ✅ Deleted from local database');
+        // Mark conversation as deleted locally
+        const existingConv = await atlasDB.conversations.get(conversationId);
+        if (existingConv) {
+          await atlasDB.conversations.update(conversationId, {
+            deletedAt: deletedAt
+          });
+          logger.info('[ConversationService] ✅ Marked conversation as deleted in local database');
+        }
+        
+        // Mark all messages in conversation as deleted
+        const messages = await atlasDB.messages
+          .where('conversationId')
+          .equals(conversationId)
+          .toArray();
+        
+        for (const msg of messages) {
+          await atlasDB.messages.update(msg.id, {
+            deletedAt: deletedAt
+          });
+        }
       } catch (dexieError) {
-        logger.warn('[ConversationService] ⚠️ Local delete failed (non-critical):', dexieError);
+        logger.warn('[ConversationService] ⚠️ Local update failed (non-critical):', dexieError);
+        // Continue - sync will handle it
       }
 
-      // 3. Clear cache
+      // 3. Clear in-memory cache
       this.cache = this.cache.filter(c => c.id !== conversationId);
       
+      // ✅ CRITICAL: Invalidate Redis cache
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single();
+        const tier = (profile as any)?.subscription_tier || 'free';
+        
+        await redisCacheService.invalidateUserCache(userId, tier);
+        logger.debug('[ConversationService] ✅ Invalidated Redis cache');
+      } catch (cacheError) {
+        logger.warn('[ConversationService] ⚠️ Redis cache invalidation failed (non-critical):', cacheError);
+      }
+      
       // 4. Dispatch event for UI updates
-      window.dispatchEvent(new CustomEvent('conversationDeleted', {
-        detail: { conversationId }
-      }));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('conversationDeleted', {
+          detail: { conversationId }
+        }));
+      }
 
-      logger.info('[ConversationService] ✅ Conversation deleted successfully');
+      logger.info('[ConversationService] ✅ Conversation soft deleted successfully');
     } catch (error) {
       logger.error('[ConversationService] ❌ Delete failed:', error);
       throw error; // Let UI handle the error

@@ -146,26 +146,26 @@ class ConversationService {
   }
 
   /**
-   * Delete a conversation
+   * Delete a conversation using soft delete for proper sync
    */
   async deleteConversation(conversationId: string, userId: string): Promise<void> {
     try {
-      // First delete all messages in the conversation
-      const { error: messagesError } = await supabase
-        .from('messages')
-        .delete()
-        .eq('conversation_id', conversationId);
+      // ✅ CRITICAL: Use soft delete RPC to set deleted_at timestamp
+      // This ensures sync service can properly filter out deleted conversations
+      const { error: rpcError } = await supabase.rpc('delete_conversation_soft', {
+        p_user: userId,
+        p_conversation: conversationId
+      });
 
-      if (messagesError) throw messagesError;
-
-      // Then delete the conversation
-      const { error: conversationError } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', conversationId)
-        .eq('user_id', userId);
-
-      if (conversationError) throw conversationError;
+      if (rpcError) {
+        const chatError = createChatError(rpcError, {
+          operation: 'deleteConversation',
+          userId,
+          conversationId,
+          timestamp: new Date().toISOString(),
+        });
+        throw chatError;
+      }
     } catch (error) {
       const chatError = createChatError(error, {
         operation: 'deleteConversation',

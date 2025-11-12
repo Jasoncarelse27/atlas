@@ -156,27 +156,50 @@ export class ConversationSyncService {
 
       // Sync conversations
       for (const remoteConv of remoteConversations || []) {
+        // ✅ CRITICAL: Double-check deleted_at (defense in depth)
+        if (remoteConv.deleted_at) {
+          // Mark as deleted locally if it exists
+          const localConv = localConversations.find(l => l.id === remoteConv.id);
+          if (localConv && !localConv.deletedAt) {
+            await atlasDB.conversations.update(remoteConv.id, {
+              deletedAt: remoteConv.deleted_at
+            });
+            logger.debug('[ConversationSync] ✅ Marked conversation as deleted locally:', remoteConv.id);
+          }
+          continue;
+        }
+        
         const localConv = localConversations.find(l => l.id === remoteConv.id);
         
         if (!localConv) {
-          // ✅ Add new conversation
+          // ✅ Add new conversation (only if not deleted)
           await atlasDB.conversations.put({
             id: remoteConv.id,
             userId: remoteConv.user_id,
             title: remoteConv.title,
             createdAt: remoteConv.created_at,
-            updatedAt: remoteConv.updated_at
+            updatedAt: remoteConv.updated_at,
+            deletedAt: undefined // Ensure it's not marked as deleted
           });
           // Silent add - no console spam in production
         } else if (new Date(remoteConv.updated_at) > new Date(localConv.updatedAt)) {
-          // ✅ Update conversation (no soft delete check needed since we use hard delete)
-          
-          // Update existing conversation
-          await atlasDB.conversations.update(remoteConv.id, {
-            title: remoteConv.title,
-            updatedAt: remoteConv.updated_at,
-          });
-          logger.debug('[ConversationSync] ✅ Updated conversation:', remoteConv.id);
+          // ✅ CRITICAL: If locally deleted but remotely not deleted, restore it
+          if (localConv.deletedAt && !remoteConv.deleted_at) {
+            logger.debug('[ConversationSync] 🔄 Restoring conversation that was deleted locally but not remotely:', remoteConv.id);
+            await atlasDB.conversations.update(remoteConv.id, {
+              deletedAt: undefined,
+              title: remoteConv.title,
+              updatedAt: remoteConv.updated_at,
+            });
+            logger.debug('[ConversationSync] ✅ Restored conversation:', remoteConv.id);
+          } else if (!localConv.deletedAt) {
+            // Update existing non-deleted conversation
+            await atlasDB.conversations.update(remoteConv.id, {
+              title: remoteConv.title,
+              updatedAt: remoteConv.updated_at,
+            });
+            logger.debug('[ConversationSync] ✅ Updated conversation:', remoteConv.id);
+          }
         }
       }
 
@@ -627,33 +650,100 @@ export class ConversationSyncService {
       logger.debug('[ConversationSync] 📥 Syncing conversations...');
       
       // 3. Sync updated conversations to local (add new ones, update existing ones)
+      // ✅ CRITICAL: Only sync non-deleted conversations (already filtered by query)
       for (const conv of updatedConversations || []) {
+        // ✅ CRITICAL: Double-check deleted_at (defense in depth)
+        if (conv.deleted_at) {
+          logger.debug('[ConversationSync] ⚠️ Skipping deleted conversation:', conv.id);
+          // Mark as deleted locally if it exists
+          const localExists = await atlasDB.conversations.get(conv.id);
+          if (localExists && !localExists.deletedAt) {
+            await atlasDB.conversations.update(conv.id, {
+              deletedAt: conv.deleted_at
+            });
+            logger.debug('[ConversationSync] ✅ Marked conversation as deleted locally:', conv.id);
+          }
+          continue;
+        }
+        
         // ✅ CRITICAL: Check if conversation exists locally first
         const localExists = await atlasDB.conversations.get(conv.id);
         
         if (localExists) {
-          // ✅ Check if it was soft-deleted locally
-          // Update existing conversation (no soft delete check needed)
-          
-          // Update existing conversation
-          await atlasDB.conversations.put({
-            id: conv.id,
-            userId: conv.user_id,
-            title: conv.title,
-            createdAt: conv.created_at,
-            updatedAt: conv.updated_at,
-          });
-          logger.debug('[ConversationSync] ✅ Updated existing conversation:', conv.id);
+          // ✅ CRITICAL: If locally deleted but remotely not deleted, restore it
+          if (localExists.deletedAt && !conv.deleted_at) {
+            logger.debug('[ConversationSync] 🔄 Restoring conversation that was deleted locally but not remotely:', conv.id);
+            await atlasDB.conversations.update(conv.id, {
+              deletedAt: undefined,
+              title: conv.title,
+              updatedAt: conv.updated_at,
+            });
+            logger.debug('[ConversationSync] ✅ Restored conversation:', conv.id);
+          } else if (!localExists.deletedAt) {
+            // Update existing non-deleted conversation
+            await atlasDB.conversations.put({
+              id: conv.id,
+              userId: conv.user_id,
+              title: conv.title,
+              createdAt: conv.created_at,
+              updatedAt: conv.updated_at,
+              deletedAt: undefined, // Ensure it's not marked as deleted
+            });
+            logger.debug('[ConversationSync] ✅ Updated existing conversation:', conv.id);
+          }
         } else {
-          // ✅ ADD NEW CONVERSATION: This was the missing piece!
+          // ✅ ADD NEW CONVERSATION: Only if not deleted
           await atlasDB.conversations.put({
             id: conv.id,
             userId: conv.user_id,
             title: conv.title,
             createdAt: conv.created_at,
             updatedAt: conv.updated_at,
+            deletedAt: undefined, // Ensure it's not marked as deleted
           });
           logger.debug('[ConversationSync] ✅ Added new conversation:', conv.id, 'title:', conv.title);
+        }
+      }
+      
+      // ✅ CRITICAL FIX: Sync deletion markers (tombstone sync)
+      // Check for conversations that were deleted remotely but we haven't synced yet
+      // We need to fetch deleted conversations separately to sync deletion markers
+      if (!isFirstSync) {
+        // Fetch recently deleted conversations (within sync window)
+        const { data: deletedConversations, error: deletedError } = await supabase
+          .from('conversations')
+          .select('id, deleted_at, updated_at')
+          .eq('user_id', userId)
+          .not('deleted_at', 'is', null)  // Only deleted conversations
+          .gt('updated_at', lastSyncedAt)  // Only recently deleted
+          .limit(50) as { data: any[] | null; error: any };
+        
+        if (!deletedError && deletedConversations && deletedConversations.length > 0) {
+          logger.debug(`[ConversationSync] ✅ Found ${deletedConversations.length} deleted conversations to sync`);
+          
+          for (const deletedConv of deletedConversations) {
+            const localExists = await atlasDB.conversations.get(deletedConv.id);
+            if (localExists && !localExists.deletedAt) {
+              // Mark as deleted locally
+              await atlasDB.conversations.update(deletedConv.id, {
+                deletedAt: deletedConv.deleted_at
+              });
+              
+              // Mark all messages as deleted
+              const messages = await atlasDB.messages
+                .where('conversationId')
+                .equals(deletedConv.id)
+                .toArray();
+              
+              for (const msg of messages) {
+                await atlasDB.messages.update(msg.id, {
+                  deletedAt: deletedConv.deleted_at
+                });
+              }
+              
+              logger.debug('[ConversationSync] ✅ Synced deletion marker for conversation:', deletedConv.id);
+            }
+          }
         }
       }
       
