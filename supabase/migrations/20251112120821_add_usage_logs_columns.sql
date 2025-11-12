@@ -24,17 +24,18 @@ CREATE INDEX IF NOT EXISTS idx_usage_logs_created_at ON usage_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_tier_created_at ON usage_logs(tier, created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_user_tier ON usage_logs(user_id, tier) WHERE user_id IS NOT NULL;
 
--- Backfill existing data: Extract tier from metadata if available
+-- Backfill existing data: Extract tier from metadata/data if available
+-- ✅ FIXED: Validate tier values to prevent constraint violations (only accept 'free', 'core', 'studio')
 UPDATE usage_logs
 SET 
   tier = CASE 
-    WHEN metadata->>'tier' IS NOT NULL THEN metadata->>'tier'
-    WHEN data->>'tier' IS NOT NULL THEN data->>'tier'
+    WHEN metadata->>'tier' IN ('free', 'core', 'studio') THEN metadata->>'tier'
+    WHEN data->>'tier' IN ('free', 'core', 'studio') THEN data->>'tier'
     ELSE NULL
   END,
   feature = COALESCE(
-    metadata->>'feature',
-    data->>'feature',
+    NULLIF(metadata->>'feature', ''),
+    NULLIF(data->>'feature', ''),
     NULL
   ),
   tokens_used = COALESCE(
