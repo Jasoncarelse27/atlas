@@ -208,8 +208,9 @@ export function isValidTier(tier: string): tier is Tier {
 
 // Map tiers → Claude model with exact model names
 export function getClaudeModelName(tier: Tier): string {
-  if (tier === 'studio') return 'claude-3-opus-20240229';
-  if (tier === 'core') return 'claude-3-sonnet-20240229'; // ✅ FIXED: Match backend format
+  // ✅ FIXED: Using claude-sonnet-4-5-20250929 (claude-3-sonnet-20240229 returns 404)
+  if (tier === 'studio') return 'claude-sonnet-4-5-20250929';
+  if (tier === 'core') return 'claude-sonnet-4-5-20250929';
   return 'claude-3-haiku-20240307'; // fallback for free
 }
 

@@ -41,10 +41,11 @@ export const SYSTEM_LIMITS = {
 
 export function selectOptimalModel(userTier, messageContent = '', requestType = '') {
   // ✅ Tier-based model selection (aligned with messageService.js)
+  // ✅ FIXED: Using claude-sonnet-4-5-20250929 (claude-3-sonnet-20240229 returns 404)
   const MODEL_MAP = {
     free: 'claude-3-haiku-20240307', // ✅ Correct Haiku model name
-    core: 'claude-3-sonnet-20240229', // ✅ Updated to correct format (Nov 2025)
-    studio: 'claude-3-opus-20240229', // ✅ Updated to correct format (Nov 2025)
+    core: 'claude-sonnet-4-5-20250929', // ✅ FIXED: Updated from claude-3-sonnet-20240229 (returns 404)
+    studio: 'claude-sonnet-4-5-20250929', // ✅ FIXED: Updated from claude-3-opus-20240229 (returns 404)
   };
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;
@@ -56,7 +57,6 @@ export function selectOptimalModel(userTier, messageContent = '', requestType = 
     type: requestType
   });
   
-  // Note: Studio tier uses Sonnet for now (Opus deprecated)
   return selectedModel;
 }
 
