@@ -81,10 +81,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       return;
     }
 
-    // Clear input for next selection
-    e.target.value = '';
-    
-    // Check tier access based on source
+    // ✅ CRITICAL: Secondary tier check BEFORE processing file (bypass prevention safety net)
+    // This is a safety net in case file picker was triggered directly or bypassed initial checks
     let hasAccess = false;
     if (source === 'gallery') {
       hasAccess = await attemptImage();
@@ -95,7 +93,9 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     }
     
     if (!hasAccess) {
-      debugLog(`[AttachmentMenu] No access for ${source} - showing upgrade modal`);
+      debugLog(`[AttachmentMenu] No access for ${source} - showing upgrade modal (secondary check)`);
+      // Clear input to prevent re-selection
+      e.target.value = '';
       // ✅ Trigger beautiful upgrade modal with animating icons
       // Map source to modal feature: camera=Studio, file/image=Core
       if (source === 'gallery') {
@@ -108,6 +108,9 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
       // Menu stays open if no access (user can try again)
       return;
     }
+
+    // Clear input for next selection (only after tier check passes)
+    e.target.value = '';
 
     try {
       debugLog(`[AttachmentMenu] Starting upload for ${source}:`, file.name);

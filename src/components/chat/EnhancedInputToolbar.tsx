@@ -1199,6 +1199,15 @@ const EnhancedInputToolbar = React.memo(({
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  
+                  // ✅ CRITICAL: Tier check BEFORE validation (bypass prevention)
+                  const hasAccess = await attemptImage();
+                  if (!hasAccess) {
+                    e.target.value = ''; // Clear input
+                    showGenericUpgrade('image');
+                    return;
+                  }
+                  
                   e.target.value = '';
                   
                   try {
@@ -1233,6 +1242,15 @@ const EnhancedInputToolbar = React.memo(({
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  
+                  // ✅ CRITICAL: Tier check before processing (bypass prevention)
+                  const hasAccess = await attemptFile();
+                  if (!hasAccess) {
+                    e.target.value = ''; // Clear input
+                    showGenericUpgrade('file');
+                    return;
+                  }
+                  
                   e.target.value = '';
                   
                   try {
@@ -1265,6 +1283,15 @@ const EnhancedInputToolbar = React.memo(({
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  
+                  // ✅ CRITICAL: Tier check before processing (bypass prevention)
+                  const hasAccess = await attemptCamera();
+                  if (!hasAccess) {
+                    e.target.value = ''; // Clear input
+                    showGenericUpgrade('camera');
+                    return;
+                  }
+                  
                   e.target.value = '';
                   
                   try {

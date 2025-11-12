@@ -4,6 +4,8 @@ import { logger } from '../lib/logger';
 import { imageService } from '../services/imageService';
 import { supabase } from '../lib/supabaseClient';
 import { generateUUID } from '../utils/uuid';
+import { useFeatureAccess } from './useTierAccess';
+import { useUpgradeModals } from '../contexts/UpgradeModalContext';
 
 interface UploadOptions {
   userId: string;
@@ -28,6 +30,12 @@ interface Attachment {
 export function useFileUpload({ userId, onSuccess, showCompressionToast = true }: UploadOptions) {
   const [isUploading, setIsUploading] = useState(false);
   const [failedUpload, setFailedUpload] = useState<{ file: File; error: string } | null>(null);
+  
+  // ✅ CRITICAL: Add tier access checks for bypass prevention
+  const { attemptFeature: attemptImage } = useFeatureAccess('image');
+  const { attemptFeature: attemptFile } = useFeatureAccess('file');
+  const { attemptFeature: attemptCamera } = useFeatureAccess('camera');
+  const { showGenericUpgrade } = useUpgradeModals();
 
   // ✅ BEST PRACTICE: Upload with automatic retry and exponential backoff
   const uploadWithRetry = async (file: File, maxAttempts = 3): Promise<any> => {
@@ -90,6 +98,30 @@ export function useFileUpload({ userId, onSuccess, showCompressionToast = true }
   const uploadFile = async (file: File, source: 'gallery' | 'camera' | 'file' = 'file') => {
     if (isUploading) {
       logger.debug('[useFileUpload] Upload already in progress, ignoring duplicate trigger');
+      return;
+    }
+
+    // ✅ CRITICAL: Tier validation BEFORE upload (bypass prevention)
+    // This prevents direct hook calls from bypassing tier checks
+    let hasAccess = false;
+    if (source === 'gallery') {
+      hasAccess = await attemptImage();
+    } else if (source === 'file') {
+      hasAccess = await attemptFile();
+    } else if (source === 'camera') {
+      hasAccess = await attemptCamera();
+    }
+    
+    if (!hasAccess) {
+      logger.warn(`[useFileUpload] Tier check failed for ${source} - upload blocked`);
+      // attemptFeature already shows upgrade modal via toast, but ensure upgrade modal shows
+      if (source === 'gallery') {
+        showGenericUpgrade('image');
+      } else if (source === 'file') {
+        showGenericUpgrade('file');
+      } else if (source === 'camera') {
+        showGenericUpgrade('camera');
+      }
       return;
     }
 
