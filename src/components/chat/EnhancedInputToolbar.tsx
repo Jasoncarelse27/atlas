@@ -446,6 +446,10 @@ const EnhancedInputToolbar = React.memo(({
           }
         });
         
+        // ✅ PROFESSIONAL UX: Ensure attachments and text are cleared after successful send
+        setAttachmentPreviews([]);
+        setText('');
+        
         // Update status to success
         uploadedAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
@@ -464,7 +468,12 @@ const EnhancedInputToolbar = React.memo(({
       } catch (error) {
         logger.error('[EnhancedInputToolbar] ❌ sendMessageWithAttachments failed:', error);
         
-        // Update status to error (use currentAttachments, not undefined 'attachments')
+        // ✅ PROFESSIONAL UX: Keep UI cleared even on error (user can re-upload if needed)
+        // Don't restore attachments - they've already been cleared and user expects clean state
+        setAttachmentPreviews([]);
+        setText('');
+        
+        // Update status to error (use currentAttachments for logging only)
         currentAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
@@ -476,16 +485,21 @@ const EnhancedInputToolbar = React.memo(({
         
         // More specific error messages
         if (error instanceof Error && error.message === 'Send timeout') {
-          modernToast.error("Analysis Timeout", "Image is taking too long. Try a smaller file.");
+          modernToast.error("Analysis Timeout", "Image is taking too long. Try a smaller file or check your connection.");
         } else if (error instanceof Error) {
           modernToast.error("Analysis Failed", error.message || "Could not send attachment. Please try again.");
         } else {
           modernToast.error("Upload Failed", "Could not send attachment. Please try again.");
         }
         
-        // Restore attachments on error
-        setAttachmentPreviews(currentAttachments);
-        setText(currentText);
+        // ✅ CLEANUP: Revoke blob URLs even on error (they're no longer needed)
+        currentAttachments.forEach(att => {
+          const previewUrl = att.previewUrl || att.url;
+          if (previewUrl && previewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrlsRef.current.delete(previewUrl);
+          }
+        });
         
         // Clear error status after 3 seconds
         setTimeout(() => {
