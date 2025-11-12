@@ -313,7 +313,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const isProcessing = isTyping;
   
   // ✅ OPTIMISTIC UPDATES: Show user message instantly for ChatGPT-like experience
-  const handleTextMessage = async (text: string) => {
+  // ✅ PERFORMANCE FIX: Memoize callback to prevent EnhancedInputToolbar re-renders
+  const handleTextMessage = useCallback(async (text: string) => {
     // Prevent duplicate calls
     if (isProcessingRef.current) {
       logger.debug('[ChatPage] ⚠️ Message already processing, skipping...');
@@ -649,7 +650,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         lastMessageRef.current = '';
       }, 1000);
     }
-  };
+  }, [tier, conversationId, userId, messages.length, navigate, addMessage]); // ✅ PERFORMANCE FIX: Memoize with dependencies
 
   // ✅ Stop generation handler
   const handleStopGeneration = () => {
@@ -1812,10 +1813,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         })()}
         </main>
 
-        {/* Modern scroll-to-bottom button with golden sparkle */}
+        {/* Modern scroll-to-bottom button with golden sparkle - hide when drawer/modal is open */}
         <ScrollToBottomButton
           onClick={scrollToBottom}
-          visible={showScrollButton}
+          visible={showScrollButton && !sidebarOpen && !showHistory && !showProfile && !showSearch}
           shouldGlow={shouldGlow}
         />
 
@@ -1837,8 +1838,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           <VoiceUpgradeModal
             isOpen={genericModalVisible}
             onClose={hideGenericUpgrade}
-            feature={genericModalFeature === 'audio' ? 'audio' : genericModalFeature === 'image' ? 'image' : 'voice_calls'}
-            defaultTier={genericModalFeature === 'audio' || genericModalFeature === 'image' ? 'core' : 'studio'}
+            feature={genericModalFeature === 'audio' ? 'audio' : genericModalFeature === 'image' ? 'image' : genericModalFeature === 'file' ? 'file' : genericModalFeature === 'camera' ? 'camera' : 'voice_calls'}
+            defaultTier={genericModalFeature === 'audio' || genericModalFeature === 'image' || genericModalFeature === 'file' ? 'core' : 'studio'}
           />
         </ErrorBoundary>
 

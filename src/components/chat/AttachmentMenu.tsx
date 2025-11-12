@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Camera, FileUp, Image as ImageIcon, Lock } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -8,8 +8,9 @@ import { useFeatureAccess, useTierAccess } from '@/hooks/useTierAccess';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { logger } from '../../lib/logger';
 
-// ✅ CRITICAL: Module-level log to verify code is loaded
-console.log('[AttachmentMenu] 📦 MODULE LOADED - Code is in bundle');
+// ✅ DEBUG: Conditional logging (dev only)
+const isDev = import.meta.env.DEV;
+const debugLog = (...args: any[]) => isDev && console.log(...args);
 
 interface AttachmentMenuProps {
   isOpen: boolean;
@@ -41,10 +42,12 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   const internalCameraInputRef = useRef<HTMLInputElement>(null);
   const internalFileInputRef = useRef<HTMLInputElement>(null);
   
-  // Use external refs if provided, otherwise use internal refs
-  const imageInputRef = externalImageInputRef || internalImageInputRef;
-  const cameraInputRef = externalCameraInputRef || internalCameraInputRef;
-  const fileInputRef = externalFileInputRef || internalFileInputRef;
+  // ✅ CRITICAL FIX: Always use internal refs for AttachmentMenu inputs
+  // External refs are for EnhancedInputToolbar's own inputs (separate flow)
+  // This prevents conflicts and ensures menu buttons work correctly
+  const imageInputRef = internalImageInputRef;
+  const cameraInputRef = internalCameraInputRef;
+  const fileInputRef = internalFileInputRef;
   
   // Tier access checks
   const { tier } = useTierAccess();
@@ -67,13 +70,19 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
   // ✅ MODERN: Unified handler - one function for all uploads
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, source: 'gallery' | 'camera' | 'file') => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    
+    debugLog(`[AttachmentMenu] handleFileSelect called for ${source}`, { hasFile: !!file, fileName: file?.name });
+    
+    // ✅ Handle cancel case - user cancelled native picker
+    if (!file) {
+      e.target.value = '';
+      debugLog('[AttachmentMenu] User cancelled picker - menu stays open');
+      // Menu stays open (correct behavior)
+      return;
+    }
 
     // Clear input for next selection
     e.target.value = '';
-    
-    // ✅ Safety: Close menu before native picker opens (prevents double menu)
-    onClose();
     
     // Check tier access based on source
     let hasAccess = false;
@@ -86,39 +95,77 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     }
     
     if (!hasAccess) {
-      return; // attemptFeature already shows upgrade modal
+      debugLog(`[AttachmentMenu] No access for ${source} - showing upgrade modal`);
+      // ✅ Trigger beautiful upgrade modal with animating icons
+      // Map source to modal feature: camera=Studio, file/image=Core
+      if (source === 'gallery') {
+        showGenericUpgrade('image');
+      } else if (source === 'file') {
+        showGenericUpgrade('file');
+      } else if (source === 'camera') {
+        showGenericUpgrade('camera');
+      }
+      // Menu stays open if no access (user can try again)
+      return;
     }
 
     try {
+      debugLog(`[AttachmentMenu] Starting upload for ${source}:`, file.name);
       await uploadFile(file, source);
+      debugLog(`[AttachmentMenu] Upload successful for ${source}`);
+      // ✅ Menu closes automatically in useFileUpload onSuccess callback (line 64)
     } catch (error) {
       // Error handling is done in useFileUpload hook
       logger.error('[AttachmentMenu] Upload failed:', error);
+      debugLog('[AttachmentMenu] Upload failed - menu stays open for retry');
+      // Menu stays open on error (user can retry)
     }
   };
 
-  // Handle file button click with tier check
+  // ✅ BEST PRACTICE: Trigger picker, keep menu open until file is selected
   const handleFileClick = async () => {
+    if (isUploading) return;
+    
     const hasAccess = await attemptFile();
     if (!hasAccess) {
-      return; // attemptFile already shows upgrade modal
+      // ✅ Trigger beautiful upgrade modal with animating icons
+      showGenericUpgrade('file');
+      return;
     }
-    onClose();
-    setTimeout(() => {
-      fileInputRef.current?.click();
-    }, 100);
+    
+    // Trigger picker - menu stays open until file is selected
+    const input = fileInputRef.current;
+    if (input) {
+      debugLog('[AttachmentMenu] Triggering file picker');
+      input.click();
+      // Menu stays open - will close in handleFileSelect after successful selection
+    } else {
+      logger.error('[AttachmentMenu] File input ref not available');
+      debugLog('[AttachmentMenu] File input ref is null');
+    }
   };
 
   const handleCameraClick = async () => {
+    if (isUploading) return;
+    
     // Check tier access for camera
     const hasAccess = await attemptCamera();
     if (!hasAccess) {
-      return; // attemptCamera already shows upgrade modal
+      // ✅ Trigger beautiful upgrade modal with animating icons
+      showGenericUpgrade('camera');
+      return;
     }
-    onClose(); // ✅ Close menu immediately to prevent double representation
-    setTimeout(() => {
-      cameraInputRef.current?.click();
-    }, 100); // Small delay to ensure menu closes first
+    
+    // Trigger picker - menu stays open until file is selected
+    const input = cameraInputRef.current;
+    if (input) {
+      debugLog('[AttachmentMenu] Triggering camera picker');
+      input.click();
+      // Menu stays open - will close in handleFileSelect after successful selection
+    } else {
+      logger.error('[AttachmentMenu] Camera input ref not available');
+      debugLog('[AttachmentMenu] Camera input ref is null');
+    }
   };
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -328,74 +375,118 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
     };
   })();
 
-  // ✅ DEBUG: Log position for troubleshooting (only in dev mode)
+  // ✅ DEBUG: Log position for troubleshooting (only in dev mode, minimal logging)
   useEffect(() => {
-    if (isOpen && import.meta.env.DEV) {
-      console.log('[AttachmentMenu] ✅ Menu opened');
-      console.log('[AttachmentMenu] Position state:', position);
-      console.log('[AttachmentMenu] Display position:', displayPosition);
-      setTimeout(() => {
-        if (menuRef.current) {
-          const rect = menuRef.current.getBoundingClientRect();
-          const styles = window.getComputedStyle(menuRef.current);
-          console.log('[AttachmentMenu] DOM check:', {
-            inDOM: document.body.contains(menuRef.current),
-            rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
-            styles: { opacity: styles.opacity, visibility: styles.visibility, zIndex: styles.zIndex },
-            visible: rect.top >= 0 && rect.left >= 0 && rect.bottom <= window.innerHeight && rect.right <= window.innerWidth
-          });
-        } else {
-          console.warn('[AttachmentMenu] ⚠️ menuRef.current is null');
-        }
-      }, 100);
+    if (isOpen && isDev) {
+      debugLog('[AttachmentMenu] Menu opened');
+      if (menuRef.current) {
+        setTimeout(() => {
+          const rect = menuRef.current?.getBoundingClientRect();
+          debugLog('[AttachmentMenu] Position:', { top: rect?.top, left: rect?.left });
+        }, 100);
+      }
     }
-  }, [isOpen, position, displayPosition]);
+  }, [isOpen]);
 
-  // ✅ DEBUG: Log render state (always log, not just in DEV)
-  if (isOpen) {
-    console.log('[AttachmentMenu] ✅ Rendering - isOpen:', isOpen, 'position:', position, 'displayPosition:', displayPosition);
-  }
+  // ✅ Animation variants for menu entrance/exit
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+        duration: 0.2,
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.15,
+        ease: 'easeOut'
+      }
+    }
+  };
 
-  // ✅ CRITICAL FIX: Render menu first, then backdrop (correct stacking order)
-  if (!isOpen) {
-    return null;
-  }
+  const itemVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    show: { 
+      opacity: 1, 
+      scale: 1,
+      transition: {
+        type: 'spring',
+        damping: 20,
+        stiffness: 300
+      }
+    }
+  };
+
+  const menuVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    show: { 
+      opacity: 1, 
+      scale: 1,
+      transition: {
+        type: 'spring',
+        damping: 20,
+        stiffness: 300,
+        duration: 0.2
+      }
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.95,
+      transition: {
+        duration: 0.15,
+        ease: 'easeOut'
+      }
+    }
+  };
+
+  const backdropVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { duration: 0.2 } },
+    exit: { opacity: 0, transition: { duration: 0.15 } }
+  };
+
   return createPortal(
-    <>
-      {/* ✅ CRITICAL ONE-SHOT FIX: Force maximum z-index with !important to override ANY overlay */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        [data-attachment-menu] {
-          z-index: 2147483647 !important;
-          pointer-events: auto !important;
-          position: fixed !important;
-        }
-        vercel-live-feedback {
-          z-index: -1 !important;
-          pointer-events: none !important;
-        }
-      `}} />
-      
-      {/* ✅ MENU (renders first, higher z-index) */}
-      <div
-        ref={menuRef}
-        data-attachment-menu
-        className="fixed w-[280px] sm:w-[340px] max-w-[calc(100vw-16px)] rounded-3xl bg-gradient-to-br from-atlas-pearl to-atlas-peach shadow-2xl border-2 border-atlas-sand p-6 sm:p-8"
-        style={{
-          top: `${displayPosition.top}px`,
-          left: `${displayPosition.left}px`,
-          boxShadow: '0 20px 60px rgba(151, 134, 113, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
-          opacity: 1,
-          visibility: 'visible',
-          display: 'block',
-          position: 'fixed',
-          zIndex: 2147483647, // ✅ ABSOLUTE MAXIMUM z-index
-          transform: 'translateZ(0)',
-          pointerEvents: 'auto',
-          touchAction: 'manipulation',
-          isolation: 'isolate', // ✅ Create new stacking context
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* ✅ CRITICAL ONE-SHOT FIX: Force maximum z-index with !important to override ANY overlay */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            [data-attachment-menu] {
+              z-index: 2147483647 !important;
+              pointer-events: auto !important;
+              position: fixed !important;
+            }
+            vercel-live-feedback {
+              z-index: -1 !important;
+              pointer-events: none !important;
+            }
+          `}} />
+          
+          {/* ✅ MENU (renders first, higher z-index) with animations */}
+          <motion.div
+            ref={menuRef}
+            data-attachment-menu
+            variants={menuVariants}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="fixed w-[280px] sm:w-[340px] max-w-[calc(100vw-16px)] rounded-3xl bg-gradient-to-br from-atlas-pearl to-atlas-peach shadow-2xl border-2 border-atlas-sand p-6 sm:p-8"
+            style={{
+              top: `${displayPosition.top}px`,
+              left: `${displayPosition.left}px`,
+              boxShadow: '0 20px 60px rgba(151, 134, 113, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+              position: 'fixed',
+              zIndex: 2147483647, // ✅ ABSOLUTE MAXIMUM z-index
+              transform: 'translateZ(0)',
+              pointerEvents: 'auto',
+              touchAction: 'manipulation',
+              isolation: 'isolate', // ✅ Create new stacking context
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
         {/* Hidden inputs */}
         <input
           type="file"
@@ -426,10 +517,16 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
           disabled={isUploading}
         />
 
-        {/* Grid Layout */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        {/* Grid Layout with stagger animations */}
+        <motion.div 
+          className="grid grid-cols-3 gap-3 sm:gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
           {/* Choose Photo */}
           <motion.button
+            variants={itemVariants}
             disabled={isUploading || !canUseImage}
             whileHover={canUseImage && !isUploading ? { scale: 1.05 } : {}}
             whileTap={canUseImage && !isUploading ? { scale: 0.95 } : {}}
@@ -439,13 +536,21 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
               // Check tier access before opening picker
               const hasAccess = await attemptImage();
               if (!hasAccess) {
-                return; // attemptImage already shows upgrade modal
+                // ✅ Trigger beautiful upgrade modal with animating icons
+                showGenericUpgrade('image');
+                return;
               }
               
-              onClose(); // ✅ Close menu immediately to prevent double representation
-              setTimeout(() => {
-                imageInputRef.current?.click();
-              }, 100); // Small delay to ensure menu closes first
+              // ✅ BEST PRACTICE: Trigger picker, keep menu open until file is selected
+              const input = imageInputRef.current;
+              if (input) {
+                debugLog('[AttachmentMenu] Triggering image picker');
+                input.click();
+                // Menu stays open - will close in handleFileSelect after successful selection
+              } else {
+                logger.error('[AttachmentMenu] Image input ref not available');
+                debugLog('[AttachmentMenu] Image input ref is null');
+              }
             }}
             className={`relative flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
               isUploading || !canUseImage
@@ -459,15 +564,22 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             <motion.div
               animate={!isUploading && canUseImage ? { scale: [1, 1.1, 1] } : {}}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className={`p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
+              whileHover={canUseImage && !isUploading ? { scale: 1.1 } : {}}
+              className={`p-2 sm:p-2.5 rounded-xl transition-all duration-200 shadow-sm ${
                 isUploading || !canUseImage
                   ? 'bg-atlas-sage/20' 
-                  : 'bg-atlas-sage/40 group-hover:bg-atlas-sage/60'
+                  : 'bg-atlas-sage/40 group-hover:bg-atlas-sage/60 group-hover:shadow-md'
               }`}
             >
               <ImageIcon className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
               {!canUseImage && (
-                <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+                </motion.div>
               )}
             </motion.div>
             <span className="text-xs sm:text-sm font-semibold text-gray-900">Photo</span>
@@ -478,6 +590,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
           {/* Take Photo */}
           <motion.button
+            variants={itemVariants}
             disabled={isUploading || !canUseCamera}
             whileHover={canUseCamera && !isUploading ? { scale: 1.05 } : {}}
             whileTap={canUseCamera && !isUploading ? { scale: 0.95 } : {}}
@@ -491,16 +604,25 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             aria-disabled={isUploading || !canUseCamera}
             title={!canUseCamera ? "Upgrade to Studio to use camera" : undefined}
           >
-            <div className={`relative p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
-              isUploading || !canUseCamera
-                ? 'bg-atlas-sage/20' 
-                : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50'
-            }`}>
+            <motion.div 
+              whileHover={canUseCamera && !isUploading ? { scale: 1.05 } : {}}
+              className={`relative p-2 sm:p-2.5 rounded-xl transition-all duration-200 shadow-sm ${
+                isUploading || !canUseCamera
+                  ? 'bg-atlas-sage/20' 
+                  : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50 group-hover:shadow-md'
+              }`}
+            >
               <Camera className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
               {!canUseCamera && (
-                <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+                </motion.div>
               )}
-            </div>
+            </motion.div>
             <span className="text-xs sm:text-sm font-semibold text-gray-900">Camera</span>
             <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
               {!canUseCamera ? 'Studio' : 'Capture'}
@@ -509,6 +631,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
 
           {/* Attach File */}
           <motion.button
+            variants={itemVariants}
             disabled={isUploading || !canUseFile}
             whileHover={canUseFile && !isUploading ? { scale: 1.05 } : {}}
             whileTap={canUseFile && !isUploading ? { scale: 0.95 } : {}}
@@ -522,26 +645,39 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             aria-disabled={isUploading || !canUseFile}
             title={!canUseFile ? "Upgrade to Core or Studio to upload files" : undefined}
           >
-            <div className={`relative p-2 sm:p-2.5 rounded-xl transition-colors shadow-sm ${
-              isUploading || !canUseFile
-                ? 'bg-atlas-sage/20' 
-                : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50'
-            }`}>
+            <motion.div 
+              whileHover={canUseFile && !isUploading ? { scale: 1.05 } : {}}
+              className={`relative p-2 sm:p-2.5 rounded-xl transition-all duration-200 shadow-sm ${
+                isUploading || !canUseFile
+                  ? 'bg-atlas-sage/20' 
+                  : 'bg-atlas-peach/30 group-hover:bg-atlas-peach/50 group-hover:shadow-md'
+              }`}
+            >
               <FileUp className="w-6 h-6 sm:w-7 sm:h-7 text-atlas-stone" />
               {!canUseFile && (
-                <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
+                </motion.div>
               )}
-            </div>
+            </motion.div>
             <span className="text-xs sm:text-sm font-semibold text-gray-900">File</span>
             <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
               {!canUseFile ? 'Upgrade' : 'Upload'}
             </span>
           </motion.button>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-          {/* ✅ BACKDROP (renders after menu, lower z-index, for outside-click) */}
-          <div
+          {/* ✅ BACKDROP (renders after menu, lower z-index, for outside-click) with animation */}
+          <motion.div
+            variants={backdropVariants}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             className="fixed inset-0 bg-transparent"
             aria-hidden="true"
             style={{
@@ -555,7 +691,9 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
               onClose();
             }}
           />
-    </>,
+        </>
+      )}
+    </AnimatePresence>,
     document.body
   );
 };

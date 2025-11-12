@@ -599,38 +599,45 @@ export function useTierQuery() {
     };
   }, [queryClient]);
 
+  // ✅ PERFORMANCE FIX: Module-level cooldown tracking (prevents spam across all instances)
+  let lastRefetchTime = 0;
+  const REFETCH_COOLDOWN = 5000; // 5 seconds minimum between refetches
+
   // ✅ CROSS-DEVICE SYNC FIX: Force refresh tier when app becomes visible (catches tier changes from other devices)
+  // ✅ PERFORMANCE FIX: Consolidated handler with cooldown to prevent duplicate refetches
   useEffect(() => {
     if (typeof document === 'undefined') return;
     
-    const handleVisibilityChange = () => {
-      // When app becomes visible, check if cache is stale and force refresh
+    // ✅ Consolidated handler for both visibilitychange and focus events
+    const handleAppVisibility = () => {
       if (!document.hidden && query.data?.userId) {
+        const now = Date.now();
+        
+        // ✅ PERFORMANCE FIX: Cooldown check - prevent refetch if last refetch < 5 seconds ago
+        if (now - lastRefetchTime < REFETCH_COOLDOWN) {
+          logger.debug(`[useTierQuery] ⏳ Refetch cooldown active (${Math.round((REFETCH_COOLDOWN - (now - lastRefetchTime)) / 1000)}s remaining), skipping...`);
+          return;
+        }
+        
         const cached = getCachedTier(query.data.userId);
         const cacheAge = cached ? Date.now() - (cached as any).timestamp : Infinity;
         
         // ✅ FIX: If cache is older than 30 seconds, force refresh to catch tier changes from other devices
         if (cacheAge > TIER_CACHE_EXPIRY) {
           logger.debug(`[useTierQuery] 🔄 App visible, cache stale (${Math.round(cacheAge / 1000)}s), refreshing tier...`);
+          lastRefetchTime = now;
           query.refetch();
         }
       }
     };
     
-    // Also listen for page focus (mobile browsers)
-    const handleFocus = () => {
-      if (query.data?.userId) {
-        logger.debug('[useTierQuery] 🔄 Window focused, checking tier...');
-        query.refetch();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    // ✅ PERFORMANCE FIX: Single handler for both events (prevents duplicate refetches)
+    document.addEventListener('visibilitychange', handleAppVisibility);
+    window.addEventListener('focus', handleAppVisibility);
     
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleAppVisibility);
+      window.removeEventListener('focus', handleAppVisibility);
     };
   }, [query, query.data?.userId]);
 

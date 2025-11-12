@@ -10,7 +10,7 @@ interface VoiceUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTier?: 'core' | 'studio'; // ✅ NEW: Allow specifying which tier to show
-  feature?: 'voice_calls' | 'audio' | 'image'; // ✅ NEW: Feature context
+  feature?: 'voice_calls' | 'audio' | 'image' | 'file' | 'camera'; // ✅ NEW: Feature context (added file & camera)
 }
 
 export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'studio', feature = 'voice_calls' }: VoiceUpgradeModalProps) {
@@ -79,6 +79,20 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
         defaultTier: 'studio' as const,
         showBothPlans: true, // Voice calls = Studio, but show Core as alternative
       };
+    } else if (feature === 'camera') {
+      return {
+        title: 'Unlock Camera Access',
+        subtitle: 'Take photos directly with Atlas Studio',
+        defaultTier: 'studio' as const,
+        showBothPlans: true, // Camera = Studio tier
+      };
+    } else if (feature === 'file') {
+      return {
+        title: 'Unlock File Uploads',
+        subtitle: 'Upload documents, PDFs, and media files with Atlas Core',
+        defaultTier: 'core' as const,
+        showBothPlans: true, // File uploads = Core tier
+      };
     } else {
       return {
         title: feature === 'audio' ? 'Unlock Voice Features' : 'Unlock Image Analysis',
@@ -96,16 +110,22 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
   const benefits = [
     {
       icon: Phone,
-      title: feature === 'voice_calls' ? 'Unlimited Duration' : 'Voice Recording',
+      title: feature === 'voice_calls' ? 'Unlimited Duration' : feature === 'camera' ? 'Camera Access' : feature === 'file' ? 'File Uploads' : 'Voice Recording',
       description: feature === 'voice_calls' 
         ? 'Talk as long as you need - no time limits' 
+        : feature === 'camera'
+        ? 'Take photos directly from your device camera'
+        : feature === 'file'
+        ? 'Upload documents, PDFs, and media files'
         : 'Record and transcribe voice messages',
     },
     {
       icon: Zap,
-      title: feature === 'voice_calls' ? 'Real-Time Processing' : 'Unlimited Messages',
+      title: feature === 'voice_calls' ? 'Real-Time Processing' : feature === 'camera' || feature === 'file' ? 'AI Analysis' : 'Unlimited Messages',
       description: feature === 'voice_calls'
         ? 'Natural, flowing conversations with instant responses'
+        : feature === 'camera' || feature === 'file'
+        ? 'Get AI-powered insights from your uploads'
         : 'No daily message limits - chat as much as you need',
     },
     {
@@ -117,9 +137,13 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
     },
     {
       icon: Mic,
-      title: feature === 'image' ? 'Image Analysis' : 'Priority Processing',
+      title: feature === 'image' ? 'Image Analysis' : feature === 'camera' ? 'Photo Capture' : feature === 'file' ? 'Document Processing' : 'Priority Processing',
       description: feature === 'image'
         ? 'Upload and analyze images with AI'
+        : feature === 'camera'
+        ? 'Capture and analyze photos instantly'
+        : feature === 'file'
+        ? 'Process documents, PDFs, and media files'
         : selectedTier === 'studio' ? 'Faster response times than text conversations' : 'Full access to voice and image features',
     },
   ];
@@ -283,7 +307,7 @@ export default function VoiceUpgradeModal({ isOpen, onClose, defaultTier = 'stud
                 // Show both Core and Studio options
                 <div className="space-y-4">
                   {/* Core Plan Option */}
-                  {(feature === 'audio' || feature === 'image') && (
+                  {(feature === 'audio' || feature === 'image' || feature === 'file' || feature === 'camera') && (
                     <div className={`border-2 rounded-xl p-6 transition-all ${
                       selectedTier === 'core' ? 'border-[#8FA67E] bg-[#8FA67E]/5' : 'border-[#E8DDD2] bg-white'
                     }`}>

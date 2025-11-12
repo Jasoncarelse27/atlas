@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import OpenAI from 'openai';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
+import { selectOptimalModel } from './config/intelligentTierSystem.mjs';
 import { flushSentry, getSentryMiddleware, initSentry } from './lib/sentryService.mjs';
 import { logger } from './lib/simpleLogger.mjs';
 import authMiddleware from './middleware/authMiddleware.mjs';
@@ -247,6 +248,15 @@ const getLocalIPAddress = () => {
 
 const LOCAL_IP = getLocalIPAddress();
 const PORT = process.env.PORT || process.env.NOVA_BACKEND_PORT || 8000;
+
+// ✅ PERFORMANCE FIX: Startup validation - log model configuration to verify correct models
+if (process.env.NODE_ENV !== 'test') {
+  logger.info('[Server] Model configuration:', {
+    free: selectOptimalModel('free', '', 'startup'),
+    core: selectOptimalModel('core', '', 'startup'),
+    studio: selectOptimalModel('studio', '', 'startup')
+  });
+}
 
 // Log port immediately for Railway debugging
 console.log(`🔧 Server starting on PORT=${PORT} (from env: ${process.env.PORT || 'not set'})`);
@@ -2186,7 +2196,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-3-haiku-20240307', // ✅ FIXED: Use working model (Sonnet returns 404)
+            model: selectOptimalModel(tier, prompt, 'image_analysis'), // ✅ PERFORMANCE FIX: Use tier-based model selection
             max_tokens: 2000,
             messages: [
               {
@@ -2597,13 +2607,8 @@ app.post('/api/file-analysis', verifyJWT, imageAnalysisRateLimit, async (req, re
       });
     }
 
-    // Select model based on tier
-    let selectedModel = 'claude-3-haiku-20240307';
-    if (tier === 'studio') {
-      selectedModel = 'claude-3-opus-20240229';
-    } else if (tier === 'core') {
-      selectedModel = 'claude-3-sonnet-20240229';
-    }
+    // ✅ PERFORMANCE FIX: Use existing selectOptimalModel function (DRY principle)
+    const selectedModel = selectOptimalModel(tier, prompt, 'file_analysis');
 
     // For text files, we'll send the URL and let Claude fetch it
     // For audio files, we'd need transcription first (simplified for now - just send URL)

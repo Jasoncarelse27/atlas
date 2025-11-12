@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, FileText, Image, Loader2, Mic, Music, Plus, Send, Square, X, XCircle } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { modernToast } from '../../config/toastConfig';
 import { useUpgradeModals } from '../../contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
@@ -39,7 +39,8 @@ interface EnhancedInputToolbarProps {
   isStreaming?: boolean;
 }
 
-export default function EnhancedInputToolbar({
+// ✅ PERFORMANCE FIX: Memoized component to prevent unnecessary re-renders
+const EnhancedInputToolbar = React.memo(({
   onSendMessage,
   isProcessing = false,
   disabled = false,
@@ -50,7 +51,7 @@ export default function EnhancedInputToolbar({
   onSoundPlay,
   addMessage,
   isStreaming = false
-}: EnhancedInputToolbarProps) {
+}: EnhancedInputToolbarProps) => {
   // ✅ CRITICAL: Log at component start to verify it's rendering
   debugLog('[EnhancedInputToolbar] 🎬 COMPONENT RENDERED', { isVisible, disabled, isProcessing });
   
@@ -309,12 +310,14 @@ export default function EnhancedInputToolbar({
     studio: 8000,  // ~2000 tokens (maxTokensPerResponse: 400 × 5) - Protects $149.99/month margin
   };
 
-  const maxLength = TIER_LIMITS[tier] || TIER_LIMITS.free;
+  // ✅ PERFORMANCE FIX: Memoize computed values to prevent recalculation on every render
+  const maxLength = useMemo(() => TIER_LIMITS[tier] || TIER_LIMITS.free, [tier]);
   const currentLength = text.length;
-  const percentUsed = maxLength > 0 ? (currentLength / maxLength) * 100 : 0;
-  const showCounter = percentUsed > 80; // Only show when >80% used (professional, non-distracting)
+  const percentUsed = useMemo(() => maxLength > 0 ? (currentLength / maxLength) * 100 : 0, [currentLength, maxLength]);
+  const showCounter = useMemo(() => percentUsed > 80, [percentUsed]); // Only show when >80% used (professional, non-distracting)
 
-  const handleSend = async () => {
+  // ✅ PERFORMANCE FIX: Memoize callback to prevent child re-renders
+  const handleSend = useCallback(async () => {
     if (isProcessing || disabled) return;
     
     // ✅ IMMEDIATE UI CLEAR - Clear attachments and text instantly for better UX
@@ -499,10 +502,11 @@ export default function EnhancedInputToolbar({
     if (isVisible && inputRef.current) {
       inputRef.current.focus();
     }
-  };
+  }, [text, attachmentPreviews, isProcessing, disabled, maxLength, tier, onSoundPlay, addMessage, conversationId, user?.id, isVisible, onSendMessage]);
 
+  // ✅ PERFORMANCE FIX: Memoize callbacks to prevent child re-renders
   // Handle adding attachments to input area
-  const handleAddAttachment = (attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File; previewUrl?: string; name?: string }) => {
+  const handleAddAttachment = useCallback((attachment: { id: string; type: string; url?: string; publicUrl?: string; file?: File; previewUrl?: string; name?: string }) => {
     const attachmentWithId = {
       ...attachment,
       id: attachment.id || generateUUID() // Ensure it has an ID
@@ -527,22 +531,24 @@ export default function EnhancedInputToolbar({
         inputRef.current.focus();
       }
     }, 100);
-  };
+  }, []); // Empty deps - uses refs and setState which are stable
 
+  // ✅ PERFORMANCE FIX: Memoize callback to prevent child re-renders
   // Handle removing attachments from input area
-  const removeAttachment = (attachmentId: string) => {
+  const removeAttachment = useCallback((attachmentId: string) => {
     // ✅ Cleanup preview URL when removing attachment
-    const attachment = attachmentPreviews.find(att => att.id === attachmentId);
-    if (attachment) {
-      const previewUrl = attachment.previewUrl || attachment.url;
-      if (previewUrl && previewUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(previewUrl);
-        previewUrlsRef.current.delete(previewUrl);
+    setAttachmentPreviews(prev => {
+      const attachment = prev.find(att => att.id === attachmentId);
+      if (attachment) {
+        const previewUrl = attachment.previewUrl || attachment.url;
+        if (previewUrl && previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(previewUrl);
+          previewUrlsRef.current.delete(previewUrl);
+        }
       }
-    }
-    
-    setAttachmentPreviews(prev => prev.filter(att => att.id !== attachmentId));
-  };
+      return prev.filter(att => att.id !== attachmentId);
+    });
+  }, []); // Empty deps - uses setState which is stable
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1549,4 +1555,21 @@ export default function EnhancedInputToolbar({
       )}
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  // ✅ PERFORMANCE FIX: Custom comparison - only re-render if critical props change
+  // Shallow comparison is safe because props are primitives or stable refs
+  return (
+    prevProps.isProcessing === nextProps.isProcessing &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.isStreaming === nextProps.isStreaming &&
+    prevProps.isVisible === nextProps.isVisible &&
+    prevProps.conversationId === nextProps.conversationId &&
+    prevProps.onSendMessage === nextProps.onSendMessage &&
+    prevProps.addMessage === nextProps.addMessage &&
+    prevProps.placeholder === nextProps.placeholder
+  );
+});
+
+EnhancedInputToolbar.displayName = 'EnhancedInputToolbar';
+
+export default EnhancedInputToolbar;
