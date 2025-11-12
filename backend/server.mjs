@@ -1287,7 +1287,7 @@ app.post('/message',
 
           res.json({
             success: true,
-            model: 'claude-3-sonnet-20240229', // ✅ FIXED: Use same model as regular chat
+            model: 'claude-3-haiku-20240307', // ✅ FIXED: Use working model (Sonnet returns 404)
             tier: userTier || 'free',
             reply: analysis,
             conversationId: conversationId,
@@ -2186,7 +2186,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, async (req, r
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-3-sonnet-20240229', // ✅ FIXED: Use same model as regular chat
+            model: 'claude-3-haiku-20240307', // ✅ FIXED: Use working model (Sonnet returns 404)
             max_tokens: 2000,
             messages: [
               {
