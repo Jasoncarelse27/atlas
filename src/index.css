@@ -98,6 +98,36 @@ select {
   overflow: hidden;
 }
 
+/* 🔧 Fix hidden menus on desktop browsers - forces visibility for AttachmentMenu */
+[data-attachment-menu] {
+  position: fixed !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: block !important;
+  z-index: 10002 !important;
+  transform: translateZ(0) !important;
+  isolation: isolate !important;
+  will-change: transform, opacity !important;
+}
+
+/* ✅ WEB FIX: Ensure menu is visible on desktop (screen width > 640px) */
+@media (min-width: 640px) {
+  [data-attachment-menu] {
+    position: fixed !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+    z-index: 10002 !important;
+  }
+}
+
+/* Optional: remove any inherited transforms from parents that might clip the menu */
+[data-input-area],
+[data-input-area] * {
+  transform: none !important;
+}
+
 /* ✅ FIX: Prevent horizontal scroll */
 html,
 body {

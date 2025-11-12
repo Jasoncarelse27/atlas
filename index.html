@@ -24,6 +24,124 @@
     <!-- iOS: viewport-fit=cover for notch support -->
     <!-- Android: maximum-scale=5.0 for accessibility (allows zoom) -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes" />
+    <!-- ✅ CRITICAL: Hide vercel-live-feedback globally to prevent blocking interactions -->
+    <style>
+      vercel-live-feedback {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+      }
+    </style>
+    <script>
+      // ✅ CRITICAL: Remove vercel-live-feedback BEFORE React loads (most aggressive fix)
+      (function() {
+        let removalCount = 0;
+        
+        function removeVercelFeedback() {
+          const els = document.querySelectorAll('vercel-live-feedback');
+          if (els.length > 0) {
+            els.forEach(el => {
+              try {
+                // ✅ CRITICAL: Remove inert attribute first (might block removal)
+                el.removeAttribute('inert');
+                el.removeAttribute('aria-hidden');
+                el.removeAttribute('data-aria-hidden');
+                // ✅ CRITICAL: Force removal
+                el.remove();
+                removalCount++;
+                if (removalCount === 1) {
+                  console.log('[index.html] ✅ REMOVED vercel-live-feedback from DOM');
+                }
+                return true;
+              } catch (e) {
+                // If removal fails (shadow DOM), hide it completely
+                el.setAttribute('inert', '');
+                el.removeAttribute('aria-hidden');
+                el.removeAttribute('data-aria-hidden');
+                el.style.cssText = 'display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; position: fixed !important; top: -9999px !important; left: -9999px !important; width: 0 !important; height: 0 !important; z-index: -1 !important;';
+                if (removalCount === 1) {
+                  console.log('[index.html] ✅ Hid vercel-live-feedback (removal failed)');
+                }
+                removalCount++;
+                return false;
+              }
+            });
+            return true;
+          }
+          return false;
+        }
+        
+        // ✅ Run immediately (before anything else)
+        removeVercelFeedback();
+        
+        // ✅ Set up PERMANENT MutationObserver (never stops watching)
+        function setupObserver() {
+          if (document.body || document.documentElement) {
+            const observer = new MutationObserver(function() {
+              removeVercelFeedback();
+            });
+            // ✅ Watch documentElement (entire DOM) for comprehensive coverage
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+            console.log('[index.html] ✅ Persistent observer watching for vercel-live-feedback (PERMANENT)');
+            
+            // ✅ Keep observer alive forever (don't disconnect)
+            return observer;
+          }
+          return null;
+        }
+        
+        let permanentObserver = null;
+        
+        // ✅ Setup observer immediately if body exists, otherwise wait
+        if (document.body || document.documentElement) {
+          permanentObserver = setupObserver();
+        } else {
+          document.addEventListener('DOMContentLoaded', () => {
+            permanentObserver = setupObserver();
+          });
+        }
+        
+        // ✅ Also run on window load
+        window.addEventListener('load', function() {
+          removeVercelFeedback();
+          if (!permanentObserver) {
+            permanentObserver = setupObserver();
+          }
+        });
+        
+        // ✅ CRITICAL: Check every frame for 2 seconds (catches late Vercel injections)
+        let frameCount = 0;
+        const maxFrames = 120; // ~2 seconds at 60fps
+        function checkEveryFrame() {
+          removeVercelFeedback();
+          frameCount++;
+          if (frameCount < maxFrames) {
+            requestAnimationFrame(checkEveryFrame);
+          } else {
+            console.log('[index.html] ✅ Frame-based check completed');
+          }
+        }
+        requestAnimationFrame(checkEveryFrame);
+        
+        // ✅ PERMANENT guard: run every 2 seconds FOREVER (handles any late injections)
+        setInterval(() => {
+          removeVercelFeedback();
+        }, 2000);
+        
+        // ✅ Fallback: also hide if injected as a shadow root child (after 4 seconds)
+        setTimeout(() => {
+          const live = document.querySelector('vercel-live-feedback');
+          if (live) {
+            live.style.cssText = 'display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; position: fixed !important; top: -9999px !important; left: -9999px !important; width: 0 !important; height: 0 !important; z-index: -1 !important;';
+            live.setAttribute('inert', '');
+            live.removeAttribute('aria-hidden');
+            live.removeAttribute('data-aria-hidden');
+            console.log('[index.html] ⚙️ Hid persistent vercel-live-feedback overlay');
+          }
+        }, 4000);
+      })();
+    </script>
     <title>Atlas AI - Your AI-Powered Emotional Intelligence Companion</title>
     <!-- Force Vercel HTML rebuild: 2025-11-04-18:35 -->
     <meta name="description" content="Atlas AI - Intelligent conversations with emotional intelligence, secure and private." />

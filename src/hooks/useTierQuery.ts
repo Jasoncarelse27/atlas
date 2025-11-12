@@ -281,8 +281,8 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
 
     const tier = data?.subscription_tier || 'free';
     
-    // ✅ MOBILE FIX: Log tier fetch for debugging
-    logger.info(`[useTierQuery] ✅ Fetched tier from database: ${tier.toUpperCase()} for user ${userId.slice(0, 8)}...`);
+    // ✅ PERFORMANCE FIX: Removed log entirely - useEffect below logs when tier actually changes
+    // This prevents console spam from hundreds of refetches
     
     const result = {
       tier,
@@ -413,11 +413,11 @@ export function useTierQuery() {
   const query = useQuery({
     queryKey: ['user-tier'],
     queryFn: fetchTier,
-    staleTime: 30 * 1000, // ✅ CROSS-DEVICE SYNC FIX: 30 seconds (was 1 minute) - ensures fast sync across devices
-    gcTime: 5 * 60 * 1000, // ✅ FIX: Reduce cache time to 5 minutes (was 30 minutes) - prevents stale data
-    refetchOnWindowFocus: true, // ✅ CROSS-DEVICE SYNC FIX: Always refetch on focus to catch tier changes from other devices
+    staleTime: 5 * 60 * 1000, // ✅ PERFORMANCE FIX: 5 minutes (was 30 seconds) - reduces excessive refetches
+    gcTime: 10 * 60 * 1000, // ✅ FIX: 10 minutes cache time - prevents stale data while reducing queries
+    refetchOnWindowFocus: false, // ✅ PERFORMANCE FIX: Disable refetch on focus (was causing spam)
     refetchOnReconnect: true, // Auto-refetch on network restore
-    refetchInterval: 60 * 1000, // ✅ CROSS-DEVICE SYNC FIX: Poll every 60 seconds to catch tier changes
+    refetchInterval: false, // ✅ PERFORMANCE FIX: Disable polling (was every 60 seconds causing spam)
     retry: 3, // Retry failed requests up to 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     // ✅ TIER SYNC FIX: Use initialData instead of placeholderData to prevent "free" flash
@@ -433,15 +433,8 @@ export function useTierQuery() {
     },
   });
 
-  // Log tier only when it changes (reduce console spam)
-  useEffect(() => {
-    if (query.data?.tier) {
-      const prevTier = queryClient.getQueryData<TierData>(['user-tier'])?.tier;
-      if (prevTier !== query.data.tier) {
-        logger.debug(`[useTierQuery] ✅ Tier: ${query.data.tier} for user ${query.data.userId?.slice(0, 8)}...`);
-      }
-    }
-  }, [query.data?.tier, queryClient]);
+  // ✅ PERFORMANCE FIX: Removed tier change logging - reduces console spam
+  // Tier changes are already logged via Realtime subscription below
 
   // 🔥 Supabase Realtime: Instant tier updates via WebSocket (SINGLETON)
   useEffect(() => {

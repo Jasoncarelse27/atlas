@@ -15,6 +15,9 @@ import { isAudioRecordingSupported } from '../../utils/audioHelpers';
 import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
 
+// ✅ CRITICAL: Module-level log to verify code is loaded
+console.log('[EnhancedInputToolbar] 📦 MODULE LOADED - Code is in bundle');
+
 interface EnhancedInputToolbarProps {
   onSendMessage: (message: string) => void;
   isProcessing?: boolean;
@@ -40,6 +43,10 @@ export default function EnhancedInputToolbar({
   addMessage,
   isStreaming = false
 }: EnhancedInputToolbarProps) {
+  // ✅ CRITICAL: Log at component start to verify it's rendering
+  // Use window.console to bypass any potential console overrides
+  window.console.log('[EnhancedInputToolbar] 🎬 COMPONENT RENDERED', { isVisible, disabled, isProcessing });
+  
   const { user } = useSupabaseAuth();
   const { tier } = useTierAccess();
   // ✅ REMOVED: canUseVoice (call button removed)
@@ -79,6 +86,73 @@ export default function EnhancedInputToolbar({
   
   // Use external ref if provided, otherwise use internal ref
   const inputRef = externalInputRef || internalInputRef;
+
+  // ✅ CRITICAL: Completely hide vercel-live-feedback to prevent blocking
+  useEffect(() => {
+    const hideVercelFeedback = () => {
+      const vercelFeedback = document.querySelector('vercel-live-feedback') as HTMLElement | null;
+      if (vercelFeedback) {
+        // ✅ CRITICAL: Try to remove it entirely first (most aggressive)
+        try {
+          vercelFeedback.remove();
+          console.log('[EnhancedInputToolbar] ✅ Removed vercel-live-feedback from DOM');
+          return;
+        } catch (e) {
+          // If removal fails (shadow DOM), hide it completely
+        }
+        // ✅ Fallback: Use inert + hide completely
+        vercelFeedback.setAttribute('inert', '');
+        vercelFeedback.style.display = 'none';
+        vercelFeedback.style.visibility = 'hidden';
+        vercelFeedback.style.pointerEvents = 'none';
+        vercelFeedback.style.opacity = '0';
+        vercelFeedback.style.position = 'fixed';
+        vercelFeedback.style.top = '-9999px';
+        vercelFeedback.style.left = '-9999px';
+        vercelFeedback.style.width = '0';
+        vercelFeedback.style.height = '0';
+        vercelFeedback.style.zIndex = '-1';
+        vercelFeedback.removeAttribute('aria-hidden');
+        console.log('[EnhancedInputToolbar] ✅ Hid vercel-live-feedback (removal failed)');
+      }
+    };
+    
+    // Hide immediately
+    hideVercelFeedback();
+    
+    // Also hide after delays (in case it loads later)
+    const timers = [
+      setTimeout(hideVercelFeedback, 100),
+      setTimeout(hideVercelFeedback, 500),
+      setTimeout(hideVercelFeedback, 1000),
+    ];
+    
+    // Use MutationObserver to catch it if it's added dynamically
+    const observer = new MutationObserver(() => {
+      hideVercelFeedback();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // ✅ DEBUG: Add global click listener to see if ANY clicks are registering
+    const globalClickHandler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.closest('[data-attachment-button]')) {
+        console.log('[EnhancedInputToolbar] 🌍 GLOBAL CLICK DETECTED on attachment button');
+        console.log('[EnhancedInputToolbar] Event target:', target);
+        console.log('[EnhancedInputToolbar] Event path:', e.composedPath());
+      }
+    };
+    document.addEventListener('click', globalClickHandler, true); // Use capture phase
+    
+    console.log('[EnhancedInputToolbar] 🚀 Component mounted and listeners attached');
+    
+    // Cleanup
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      observer.disconnect();
+      document.removeEventListener('click', globalClickHandler, true);
+    };
+  }, []);
 
   // ✅ FEATURE DETECTION: Check browser support on mount
   useEffect(() => {
@@ -389,34 +463,7 @@ export default function EnhancedInputToolbar({
   };
 
 
-  // ✅ Handle clicking outside to close menu (but allow clicks inside AttachmentMenu)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuOpen) {
-        const target = event.target as Node;
-        const isInsideButton = buttonRef.current?.contains(target);
-        const isInsideAttachmentMenu = document.querySelector('[data-attachment-menu]')?.contains(target);
-        
-        if (!isInsideButton && !isInsideAttachmentMenu) {
-          setMenuOpen(false);
-          // Refocus input when closing the menu via click outside
-          setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.focus();
-            }
-          }, 200);
-        }
-      }
-    };
-
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [menuOpen]);
+  // ✅ REMOVED: Click-outside handling moved to AttachmentMenu component for better control
 
   // 📱 Handle input blur to minimize when clicking outside (ChatGPT-like behavior)
   const handleInputBlur = () => {
@@ -936,56 +983,112 @@ export default function EnhancedInputToolbar({
           willChange: 'transform' // ✅ Optimize for animations
         }}
       >
-        
         {/* + Attachment Button - ✅ BEST PRACTICE: Fixed size, no flex-shrink */}
-        <div className="relative flex-shrink-0">
+        <div 
+          className="relative flex-shrink-0"
+          style={{
+            zIndex: 2147483647, // ✅ Maximum z-index for parent container
+            isolation: 'isolate', // ✅ Create new stacking context
+            position: 'relative',
+          }}
+        >
               <motion.button
                 ref={buttonRef}
                 data-attachment-button
-                onClick={() => {
-                  // ✅ Check tier access before opening attachment menu
-                  if (!canUseImage) {
-                    showGenericUpgrade('image');
-                    return;
+                type="button"
+                onMouseDown={(e) => {
+                  // ✅ CRITICAL: Use onMouseDown to catch event before vercel-live-feedback intercepts
+                  // Don't preventDefault here - let onClick handle the toggle to avoid double-toggle
+                  console.log('[EnhancedInputToolbar] 🔘 + button mousedown - FIRED');
+                  // Hide vercel-live-feedback early
+                  const vercelFeedback = document.querySelector('vercel-live-feedback') as HTMLElement | null;
+                  if (vercelFeedback) {
+                    vercelFeedback.setAttribute('inert', '');
+                    vercelFeedback.style.display = 'none';
                   }
-                  
-                  // ✅ FIX: Don't blur input - let backdrop handle visual separation
-                  // Only blur on mobile if keyboard would actually overlap menu
-                  if (!menuOpen) {
-                    const isMobile = window.matchMedia('(max-width: 639px)').matches;
-                    if (isMobile && inputRef.current) {
-                      // Small delay to check if keyboard is visible
-                      setTimeout(() => {
-                        const input = inputRef.current;
-                        if (input) {
-                          const inputRect = input.getBoundingClientRect();
-                          const viewportHeight = window.innerHeight;
-                          // Only blur if input is in bottom 40% of screen (keyboard area)
-                          if (inputRect.top > viewportHeight * 0.6) {
-                            input.blur();
-                          }
-                        }
-                      }, 50);
-                    }
-                  } else {
-                    // Refocus input when closing the menu
-                    setTimeout(() => {
-                      if (inputRef.current) {
-                        inputRef.current.focus();
-                      }
-                    }, 200);
-                  }
-                  
-                  setMenuOpen(!menuOpen)
                 }}
-                disabled={disabled}
-                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center flex-shrink-0 ${
+                onTouchStart={(e) => {
+                  // ✅ CRITICAL: Use onTouchStart for mobile - don't toggle here to avoid double-toggle
+                  console.log('[EnhancedInputToolbar] 🔘 + button touchstart - FIRED');
+                  // Hide vercel-live-feedback early
+                  const vercelFeedback = document.querySelector('vercel-live-feedback') as HTMLElement | null;
+                  if (vercelFeedback) {
+                    vercelFeedback.setAttribute('inert', '');
+                    vercelFeedback.style.display = 'none';
+                  }
+                }}
+                onClick={(e) => {
+                  try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log('[EnhancedInputToolbar] 🔘 + button clicked - START');
+                    
+                    // ✅ CRITICAL: Hide vercel-live-feedback immediately (inert + CSS)
+                    const vercelFeedback = document.querySelector('vercel-live-feedback') as HTMLElement | null;
+                    if (vercelFeedback) {
+                      vercelFeedback.setAttribute('inert', '');
+                      vercelFeedback.style.display = 'none';
+                      vercelFeedback.style.visibility = 'hidden';
+                      vercelFeedback.style.pointerEvents = 'none';
+                      vercelFeedback.removeAttribute('aria-hidden');
+                      console.log('[EnhancedInputToolbar] ✅ Set inert + hidden on vercel-live-feedback');
+                    }
+                    
+                    // ✅ CRITICAL: Toggle menu state (only here to avoid double-toggle)
+                    const newState = !menuOpen;
+                    
+                    console.log('[EnhancedInputToolbar] Current menuOpen:', menuOpen);
+                    console.log('[EnhancedInputToolbar] Setting menuOpen to:', newState);
+                    
+                    // ✅ PROFESSIONAL: Blur input on mobile when opening menu to prevent keyboard overlap
+                    if (!menuOpen) {
+                      const isMobile = window.matchMedia('(max-width: 639px)').matches;
+                      if (isMobile && inputRef.current) {
+                        inputRef.current.blur();
+                      }
+                    } else {
+                      // Refocus input when closing the menu
+                      setTimeout(() => {
+                        if (inputRef.current) {
+                          inputRef.current.focus();
+                        }
+                      }, 200);
+                    }
+                    
+                    setMenuOpen(newState);
+                    
+                    console.log('[EnhancedInputToolbar] ✅ State updated, menuOpen is now:', newState);
+                    
+                    // ✅ DEBUG: Check if AttachmentMenu component receives the prop
+                    setTimeout(() => {
+                      console.log('[EnhancedInputToolbar] 🔍 After state update, checking menu...');
+                      const menuElement = document.querySelector('[data-attachment-menu]');
+                      console.log('[EnhancedInputToolbar] Menu element in DOM:', !!menuElement);
+                      if (menuElement) {
+                        const rect = menuElement.getBoundingClientRect();
+                        const styles = window.getComputedStyle(menuElement);
+                        console.log('[EnhancedInputToolbar] Menu position:', { top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                        console.log('[EnhancedInputToolbar] Menu styles:', { visibility: styles.visibility, opacity: styles.opacity, display: styles.display, zIndex: styles.zIndex });
+                      }
+                    }, 100);
+                  } catch (error) {
+                    console.error('[EnhancedInputToolbar] ❌ Error in onClick handler:', error);
+                  }
+                }}
+                disabled={false}
+                className={`h-[44px] w-[44px] p-2 rounded-full transition-all duration-300 shadow-md hover:shadow-lg touch-manipulation flex items-center justify-center flex-shrink-0 ${
                   menuOpen 
                     ? 'bg-atlas-sage text-gray-800' 
                     : 'bg-atlas-peach hover:bg-atlas-sage text-gray-800'
                 }`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',
+                  pointerEvents: 'auto',
+                  cursor: 'pointer',
+                  zIndex: 2147483647, // ✅ Maximum z-index to be above everything
+                  position: 'relative',
+                  isolation: 'isolate', // ✅ Create new stacking context
                   boxShadow: menuOpen 
                     ? '0 4px 12px rgba(211, 220, 171, 0.4), inset 0 -2px 4px rgba(151, 134, 113, 0.15)'
                     : '0 2px 8px rgba(151, 134, 113, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
@@ -993,26 +1096,31 @@ export default function EnhancedInputToolbar({
                 title="Add attachment"
                 aria-label="Add attachment"
               >
-                <Plus size={18} className={`transition-transform duration-300 ${menuOpen ? 'rotate-45' : 'rotate-0'}`} />
+                {menuOpen ? (
+                  <X size={18} className="transition-transform duration-300" />
+                ) : (
+                  <Plus size={18} className="transition-transform duration-300" />
+                )}
               </motion.button>
 
-          {/* Attachment Menu */}
-          {menuOpen && (
-            <AttachmentMenu
-              isOpen={menuOpen}
-              onClose={() => {
-                setMenuOpen(false)
-                // Refocus input when closing the menu
-                setTimeout(() => {
-                  if (inputRef.current) {
-                    inputRef.current.focus();
-                  }
-                }, 200);
-              }}
-              userId={user?.id || ""}
-              onAddAttachment={handleAddAttachment}
-            />
-          )}
+          {/* Attachment Menu - ✅ FIX: Component handles its own AnimatePresence inside portal */}
+          {console.log('[EnhancedInputToolbar] 🔍 Rendering AttachmentMenu with isOpen:', menuOpen)}
+          <AttachmentMenu
+            key="attachment-menu"
+            isOpen={menuOpen}
+            onClose={() => {
+              console.log('[EnhancedInputToolbar] 🔍 AttachmentMenu onClose called');
+              setMenuOpen(false);
+              // Refocus input when closing the menu
+              setTimeout(() => {
+                if (inputRef.current) {
+                  inputRef.current.focus();
+                }
+              }, 200);
+            }}
+            userId={user?.id || ""}
+            onAddAttachment={handleAddAttachment}
+          />
         </div>
 
             {/* Text Input - ✅ BEST PRACTICE: Proper flex with min-width 0 to prevent overflow */}
