@@ -23,15 +23,18 @@ export function SimpleAttachmentButton({ onImageSelect }: { onImageSelect: (file
       
       <button
         onClick={() => inputRef.current?.click()}
-        className="h-[44px] w-[44px] p-2 rounded-full bg-atlas-peach hover:bg-atlas-sage text-gray-800 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center flex-shrink-0"
+        className="h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center"
         style={{ 
           position: 'fixed',
-          bottom: '20px',
-          left: '20px',
-          zIndex: 999999999,
+          bottom: '24px',
+          right: '24px',
+          zIndex: 2147483647,
+          pointerEvents: 'auto',
+          touchAction: 'manipulation',
         }}
+        aria-label="Upload image"
       >
-        <Plus size={20} />
+        <Plus size={24} />
       </button>
     </>
   );
