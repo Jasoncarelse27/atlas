@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import toast from 'react-hot-toast';
 import { logger } from '../lib/logger';
 import { LiveInsightsWidgets } from './sidebar/LiveInsightsWidgets';
+import { supabase } from '../lib/supabaseClient';
 
 interface Conversation {
   id: string;
@@ -31,8 +32,31 @@ export function ConversationHistoryDrawer({
   onRefresh,
   userId
 }: ConversationHistoryDrawerProps) {
-  // ✅ DEBUG: Log when drawer renders
-  console.log('[ConversationHistoryDrawer] Component rendered:', { isOpen, userId, conversationsCount: conversations.length });
+  // ✅ DEBUG: ALWAYS log (fires even if JSX doesn't render)
+  console.log('[ConversationHistoryDrawer] 🔍 Component render', {
+    isOpen,
+    userId,
+    conversationsCount: conversations?.length || 0
+  });
+  
+  // ✅ FIX: Resolve userId from session if prop is missing (handles hydration delay)
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(userId || null);
+  
+  useEffect(() => {
+    if (!userId && isOpen) {
+      // Try to get userId from session if prop wasn't passed (handles hydration delay)
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user?.id) {
+          console.log('[ConversationHistoryDrawer] ✅ Resolved userId from session:', user.id);
+          setResolvedUserId(user.id);
+        }
+      }).catch((error) => {
+        logger.error('[ConversationHistoryDrawer] Failed to resolve userId:', error);
+      });
+    } else {
+      setResolvedUserId(userId || null);
+    }
+  }, [userId, isOpen]);
   
   // ✅ FIX #1: Add loading states for better mobile UX
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
@@ -48,7 +72,11 @@ export function ConversationHistoryDrawer({
 
   // ✅ DEBUG: Log when drawer is about to render
   if (isOpen) {
-    console.log('[ConversationHistoryDrawer] Drawer is OPEN, rendering content with userId:', userId);
+    console.log('[ConversationHistoryDrawer] Drawer is OPEN, rendering content', {
+      userId,
+      resolvedUserId,
+      willRenderWidgets: !!(resolvedUserId && isOpen)
+    });
   }
   
   return (
@@ -117,13 +145,9 @@ export function ConversationHistoryDrawer({
             {/* list - ✅ RESPONSIVE: Better mobile spacing */}
             <div className="flex-1 overflow-y-auto px-0 py-3 sm:py-4 min-h-0">
               {/* ✅ LIVE INSIGHTS WIDGETS: Tier-gated, cached, profitable */}
-              {userId ? (
-                (() => {
-                  console.log('[ConversationHistoryDrawer] ✅ Rendering widgets with userId:', userId, 'isOpen:', isOpen);
-                  return <LiveInsightsWidgets userId={userId} isOpen={isOpen} />;
-                })()
-              ) : (
-                console.log('[ConversationHistoryDrawer] ⚠️ userId not available, skipping widgets') || null
+              {/* ✅ FIX: Simple declarative conditional - no IIFE, handles hydration delays */}
+              {resolvedUserId && isOpen && (
+                <LiveInsightsWidgets userId={resolvedUserId} isOpen={isOpen} />
               )}
               
               <div className="px-3 sm:px-4 space-y-2 sm:space-y-3">

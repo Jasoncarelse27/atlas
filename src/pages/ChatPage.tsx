@@ -1860,6 +1860,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               </div>
             </div>
           }>
+            {console.log('[ChatPage] 🔍 Attempting to render drawer + widgets', {
+              showHistory,
+              userId,
+              conversationsCount: historyData?.conversations?.length || 0,
+            }) || null}
             <ConversationHistoryDrawer
               isOpen={showHistory}
               onClose={() => setShowHistory(false)}
