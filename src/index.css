@@ -449,3 +449,35 @@ div[class*="fixed"][class*="bottom"][class*="z-30"] button {
   background-color: white !important;
   background: white !important;
 }
+
+/* ✅ TEXT SELECTION: Make highlighted text visible with Atlas colors */
+::selection {
+  background-color: #D3DCAB; /* Atlas sage - light green background */
+  color: #3B3632; /* Dark text for contrast */
+  -webkit-text-fill-color: #3B3632;
+}
+
+::-moz-selection {
+  background-color: #D3DCAB; /* Atlas sage - light green background */
+  color: #3B3632; /* Dark text for contrast */
+}
+
+/* ✅ Ensure selection is visible in chat messages */
+.prose ::selection,
+.prose-invert ::selection,
+[class*="message"] ::selection,
+[class*="Message"] ::selection,
+div[class*="EnhancedMessageBubble"] ::selection {
+  background-color: #D3DCAB !important; /* Atlas sage */
+  color: #3B3632 !important; /* Dark text */
+  -webkit-text-fill-color: #3B3632 !important;
+}
+
+.prose ::-moz-selection,
+.prose-invert ::-moz-selection,
+[class*="message"] ::-moz-selection,
+[class*="Message"] ::-moz-selection,
+div[class*="EnhancedMessageBubble"] ::-moz-selection {
+  background-color: #D3DCAB !important; /* Atlas sage */
+  color: #3B3632 !important; /* Dark text */
+}
