@@ -491,6 +491,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
         {/* Hidden inputs */}
+        {/* ✅ SECURITY FIX: Disable inputs based on tier access to prevent bypass */}
         <input
           type="file"
           accept="image/*,video/*"
@@ -498,7 +499,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
           style={{ display: 'none' }}
           onChange={(e) => handleFileSelect(e, 'gallery')}
           aria-label="Select images or videos from gallery"
-          disabled={isUploading}
+          disabled={isUploading || !canUseImage}
         />
         <input
           type="file"
@@ -508,7 +509,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
           style={{ display: 'none' }}
           onChange={(e) => handleFileSelect(e, 'camera')}
           aria-label="Take photo with camera"
-          disabled={isUploading}
+          disabled={isUploading || !canUseCamera}
         />
         <input
           type="file"
@@ -517,7 +518,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
           style={{ display: 'none' }}
           onChange={(e) => handleFileSelect(e, 'file')}
           aria-label="Select files to upload"
-          disabled={isUploading}
+          disabled={isUploading || !canUseFile}
         />
 
         {/* Grid Layout with stagger animations */}

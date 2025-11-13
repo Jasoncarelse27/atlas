@@ -60,6 +60,7 @@ const EnhancedInputToolbar = React.memo(({
   // ✅ REMOVED: canUseVoice (call button removed)
   const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
   const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio'); // ✅ Add audio feature access
+  const { canUse: canUseCamera, attemptFeature: attemptCamera } = useFeatureAccess('camera'); // ✅ SECURITY FIX: Add camera access check
   const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ REMOVED: isStudioTier check (call button removed)
@@ -1280,6 +1281,7 @@ const EnhancedInputToolbar = React.memo(({
                 accept="image/*"
                 capture="environment"
                 style={{ display: 'none' }}
+                disabled={!canUseCamera}
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
