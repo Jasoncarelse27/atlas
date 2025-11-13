@@ -1124,6 +1124,73 @@ app.post('/api/usage-log', verifyJWT, async (req, res) => {
   }
 });
 
+// ✅ USAGE ENDPOINT: Get current user's usage stats (for UsageCounter widget)
+app.get('/api/usage', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get user's tier from profiles
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      logger.error('[Usage API] Error fetching profile:', profileError.message || profileError);
+    }
+
+    const tier = profile?.subscription_tier || 'free';
+    
+    // Calculate monthly usage (sum of conversations_count from daily_usage for current month)
+    const monthStart = new Date().toISOString().slice(0, 7) + '-01'; // First day of month
+    
+    const { data: monthlyData, error: usageError } = await supabase
+      .from('daily_usage')
+      .select('conversations_count')
+      .eq('user_id', userId)
+      .gte('date', monthStart);
+
+    if (usageError) {
+      logger.error('[Usage API] Error fetching usage data:', usageError.message || usageError);
+    }
+
+    // Sum conversations for the month
+    const monthlyCount = monthlyData?.reduce(
+      (sum, day) => sum + (day.conversations_count || 0),
+      0
+    ) || 0;
+
+    // Get tier limits (matching frontend logic)
+    const TIER_LIMITS = {
+      free: 15,
+      core: -1, // Unlimited
+      studio: -1, // Unlimited
+    };
+
+    const monthlyLimit = TIER_LIMITS[tier] || TIER_LIMITS.free;
+    const remaining = monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - monthlyCount);
+    const isUnlimited = monthlyLimit === -1;
+
+    // Return format matching UsageCounter expectations
+    return res.json({
+      monthlyCount,
+      monthlyLimit,
+      remaining,
+      isUnlimited,
+      tier, // Include tier for reference (frontend uses useTierQuery as source of truth)
+    });
+
+  } catch (error) {
+    logger.error('[Usage API] Internal error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Memory reset endpoint (for debugging)
 app.post('/api/reset-memory', async (req, res) => {
   try {
