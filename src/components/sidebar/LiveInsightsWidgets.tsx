@@ -168,11 +168,30 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
     );
   }
 
-  // ✅ WIDGETS: Horizontal scrollable row (only show if we have data)
-  const hasData = widgetData.streak || widgetData.completions > 0;
+  // ✅ DEBUG: Log rendering state
+  useEffect(() => {
+    if (isOpen) {
+      logger.debug('[LiveInsightsWidgets] Render state:', {
+        isOpen,
+        userId,
+        tier,
+        isLoading,
+        widgetData: {
+          streak: widgetData.streak?.currentStreak,
+          completions: widgetData.completions,
+          moodBoost: widgetData.moodBoost,
+        }
+      });
+    }
+  }, [isOpen, userId, tier, isLoading, widgetData]);
   
-  if (!hasData && !isLoading) {
-    // Don't show empty widgets - better UX
+  // ✅ WIDGETS: Horizontal scrollable row (only show if we have data)
+  // ✅ FIX: Always show widgets if loading OR if we have any data (even if streak is 0)
+  const hasData = widgetData.streak !== null || widgetData.completions > 0 || isLoading;
+  
+  if (!hasData) {
+    // ✅ DEBUG: Log why widgets aren't showing
+    logger.debug('[LiveInsightsWidgets] No data to display, hiding widgets');
     return null;
   }
 
