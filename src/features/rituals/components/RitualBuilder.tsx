@@ -12,7 +12,7 @@
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowLeft, Copy, GripVertical, Info, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Copy, GripVertical, Info, Plus, Save, Sparkles, TrendingUp, Trash2, X } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -340,20 +340,39 @@ export const RitualBuilder: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              triggerHaptic(50);
-              handleSave();
-            }}
-            disabled={saving || steps.length === 0 || !title.trim()}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 
-              bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] 
-              disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium
-              min-h-[48px] touch-manipulation active:scale-95"
-          >
-            <Save size={20} />
-            <span>{saving ? 'Saving...' : 'Save Ritual'}</span>
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* ✅ Insights Button - Show for Core/Studio tiers */}
+            {tier !== 'free' && (
+              <button
+                onClick={() => {
+                  triggerHaptic(10);
+                  navigate('/rituals/insights');
+                }}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border-2 border-[#E8DCC8] text-[#3B3632] 
+                  rounded-xl hover:bg-[#F9F6F1] transition-all hover:shadow-md active:scale-95
+                  min-h-[44px] touch-manipulation"
+                aria-label="View ritual insights"
+              >
+                <TrendingUp size={18} />
+                <span className="font-medium">Insights</span>
+              </button>
+            )}
+            
+            <button
+              onClick={() => {
+                triggerHaptic(50);
+                handleSave();
+              }}
+              disabled={saving || steps.length === 0 || !title.trim()}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 
+                bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] 
+                disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium
+                min-h-[48px] touch-manipulation active:scale-95"
+            >
+              <Save size={20} />
+              <span>{saving ? 'Saving...' : 'Save Ritual'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Mobile: Stack vertically, Desktop: 3-column grid */}

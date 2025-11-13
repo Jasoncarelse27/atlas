@@ -34,7 +34,7 @@ import { generateUUID } from '../utils/uuid';
 import { ConversationHistoryDrawer } from '../components/ConversationHistoryDrawer';
 import { PWAInstallPrompt } from '../components/PWAInstallPrompt'; // ✅ PWA: Install prompt for mobile users
 import { SearchDrawer } from '../components/SearchDrawer';
-import InsightsWidget from '../components/sidebar/InsightsWidget';
+import { LiveInsightsWidgets } from '../components/sidebar/LiveInsightsWidgets';
 import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
@@ -1593,7 +1593,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   {/* Sidebar Content */}
                   <QuickActions onViewHistory={handleViewHistory} />
                   <UsageCounter userId={userId ?? ''} />
-                  <InsightsWidget />
+                  {/* ✅ LIVE INSIGHTS WIDGETS: Show in Emotional Insights section */}
+                  {userId && <LiveInsightsWidgets userId={userId} isOpen={sidebarOpen} />}
                   
                   {/* Rituals Button */}
                   <button

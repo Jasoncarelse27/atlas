@@ -3,7 +3,6 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from 'react-hot-toast';
 import { logger } from '../lib/logger';
-import { LiveInsightsWidgets } from './sidebar/LiveInsightsWidgets';
 import { supabase } from '../lib/supabaseClient';
 
 interface Conversation {
@@ -144,12 +143,6 @@ export function ConversationHistoryDrawer({
 
             {/* list - ✅ RESPONSIVE: Better mobile spacing */}
             <div className="flex-1 overflow-y-auto px-0 py-3 sm:py-4 min-h-0">
-              {/* ✅ LIVE INSIGHTS WIDGETS: Tier-gated, cached, profitable */}
-              {/* ✅ FIX: Simple declarative conditional - no IIFE, handles hydration delays */}
-              {resolvedUserId && isOpen && (
-                <LiveInsightsWidgets userId={resolvedUserId} isOpen={isOpen} />
-              )}
-              
               <div className="px-3 sm:px-4 space-y-2 sm:space-y-3">
               {conversations.length === 0 ? (
                 // ✅ BEST PRACTICE: Enhanced empty state with clear CTA and helpful guidance
