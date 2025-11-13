@@ -1845,6 +1845,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
 
         {/* Conversation History Modal - Rendered at page level for proper mobile centering */}
+        {/* ✅ DEBUG: Log BEFORE conditional to ensure we see if drawer should render */}
+        {(() => {
+          console.log('[ChatPage] 🔍 Checking drawer render conditions', {
+            showHistory,
+            hasHistoryData: !!historyData,
+            userId,
+            conversationsCount: historyData?.conversations?.length || 0
+          });
+          return null;
+        })()}
         {historyData && (
           <ErrorBoundary fallback={
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -1860,11 +1870,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               </div>
             </div>
           }>
-            {console.log('[ChatPage] 🔍 Attempting to render drawer + widgets', {
-              showHistory,
-              userId,
-              conversationsCount: historyData?.conversations?.length || 0,
-            }) || null}
             <ConversationHistoryDrawer
               isOpen={showHistory}
               onClose={() => setShowHistory(false)}

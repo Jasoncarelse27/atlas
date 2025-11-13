@@ -42,6 +42,8 @@ export const RitualLibrary: React.FC = () => {
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastRefreshTimeRef = useRef<number>(0); // ✅ Prevent rapid refreshes
+  const touchStartTimeRef = useRef<number>(0); // ✅ Track touch duration for debouncing
 
   // Bottom sheet for locked ritual preview
   const [selectedLockedRitual, setSelectedLockedRitual] = useState<Ritual | null>(null);
@@ -87,32 +89,78 @@ export const RitualLibrary: React.FC = () => {
     });
   }, [customRituals, favoriteIds]);
 
-  // Pull-to-refresh handlers
+  // ✅ BEST PRACTICE: Pull-to-refresh handlers with debouncing and proper thresholds
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (!isMobile || window.scrollY > 10) return;
+    // ✅ Prevent refresh if already refreshing or if not mobile
+    if (!isMobile || isRefreshing) return;
+    
+    // ✅ Check container scroll position (more reliable than window.scrollY)
+    const container = containerRef.current;
+    if (container && container.scrollTop > 10) return;
+    
+    // ✅ Prevent refresh if less than 2 seconds since last refresh (debouncing)
+    const now = Date.now();
+    if (now - lastRefreshTimeRef.current < 2000) return;
+    
+    touchStartTimeRef.current = now;
     setPullStartY(e.touches[0].clientY);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isMobile || pullStartY === 0 || window.scrollY > 10) return;
-    const distance = Math.max(0, e.touches[0].clientY - pullStartY);
-    if (distance > 0 && distance < 120) {
-      setPullDistance(distance);
-    }
-  };
-
-  const handleTouchEnd = async () => {
-    if (!isMobile || pullDistance < 80) {
+    // ✅ Prevent if conditions not met
+    if (!isMobile || pullStartY === 0 || isRefreshing) return;
+    
+    const container = containerRef.current;
+    if (container && container.scrollTop > 10) {
       setPullDistance(0);
       setPullStartY(0);
       return;
     }
+    
+    const distance = Math.max(0, e.touches[0].clientY - pullStartY);
+    // ✅ Increased max distance to 150px for better UX
+    if (distance > 0 && distance < 150) {
+      setPullDistance(distance);
+    } else if (distance >= 150) {
+      // Cap at 150px to prevent excessive pulling
+      setPullDistance(150);
+    }
+  };
 
-    // Trigger refresh
+  const handleTouchEnd = async () => {
+    // ✅ Reset state if conditions not met
+    if (!isMobile || pullDistance < 100 || isRefreshing) {
+      setPullDistance(0);
+      setPullStartY(0);
+      touchStartTimeRef.current = 0;
+      return;
+    }
+
+    // ✅ Require minimum touch duration (prevents accidental triggers)
+    const touchDuration = Date.now() - touchStartTimeRef.current;
+    if (touchDuration < 200) {
+      setPullDistance(0);
+      setPullStartY(0);
+      touchStartTimeRef.current = 0;
+      return;
+    }
+
+    // ✅ Prevent rapid refreshes (minimum 2 seconds between refreshes)
+    const now = Date.now();
+    if (now - lastRefreshTimeRef.current < 2000) {
+      setPullDistance(0);
+      setPullStartY(0);
+      touchStartTimeRef.current = 0;
+      return;
+    }
+
+    // ✅ Trigger refresh (threshold increased from 80px to 100px)
     setIsRefreshing(true);
+    lastRefreshTimeRef.current = now;
     triggerHaptic(50); // Medium haptic
     setPullDistance(0);
     setPullStartY(0);
+    touchStartTimeRef.current = 0;
 
     try {
       await Promise.all([

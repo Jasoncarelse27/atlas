@@ -32,10 +32,15 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error to console in development
-    if (import.meta.env.DEV) {
-      logger.error('Error caught by boundary:', error, errorInfo);
-    }
+    // ✅ ALWAYS log to console (even in production) for debugging widget issues
+    console.error('[ErrorBoundary] ❌ Error caught:', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack
+    });
+    
+    // Also log via logger
+    logger.error('Error caught by boundary:', error, errorInfo);
 
     // Send to Sentry with React component stack
     captureException(error, {
