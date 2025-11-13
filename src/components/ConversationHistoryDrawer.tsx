@@ -31,6 +31,9 @@ export function ConversationHistoryDrawer({
   onRefresh,
   userId
 }: ConversationHistoryDrawerProps) {
+  // ✅ DEBUG: Log when drawer renders
+  console.log('[ConversationHistoryDrawer] Component rendered:', { isOpen, userId, conversationsCount: conversations.length });
+  
   // ✅ FIX #1: Add loading states for better mobile UX
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -43,6 +46,11 @@ export function ConversationHistoryDrawer({
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
 
+  // ✅ DEBUG: Log when drawer is about to render
+  if (isOpen) {
+    console.log('[ConversationHistoryDrawer] Drawer is OPEN, rendering content with userId:', userId);
+  }
+  
   return (
     <AnimatePresence>
       {isOpen && (
