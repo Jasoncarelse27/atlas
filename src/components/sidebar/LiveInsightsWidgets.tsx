@@ -38,8 +38,14 @@ interface WidgetData {
 const INSIGHTS_CACHE_TTL = 30 * 1000; // 30 seconds (matches Atlas sync pattern)
 
 export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps) {
+  // ✅ DEBUG: Force console.log to ensure visibility
+  console.log('[LiveInsightsWidgets] Component rendered:', { userId, isOpen });
+  
   const { tier } = useTierQuery();
   const { showGenericUpgrade } = useUpgradeModals();
+  
+  // ✅ DEBUG: Log tier immediately
+  console.log('[LiveInsightsWidgets] Tier:', tier);
   
   const [widgetData, setWidgetData] = useState<WidgetData>({
     streak: null,
@@ -168,21 +174,19 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
     );
   }
 
-  // ✅ DEBUG: Log rendering state
+  // ✅ DEBUG: Log rendering state (using console.log for visibility)
   useEffect(() => {
-    if (isOpen) {
-      logger.debug('[LiveInsightsWidgets] Render state:', {
-        isOpen,
-        userId,
-        tier,
-        isLoading,
-        widgetData: {
-          streak: widgetData.streak?.currentStreak,
-          completions: widgetData.completions,
-          moodBoost: widgetData.moodBoost,
-        }
-      });
-    }
+    console.log('[LiveInsightsWidgets] useEffect triggered:', {
+      isOpen,
+      userId,
+      tier,
+      isLoading,
+      widgetData: {
+        streak: widgetData.streak?.currentStreak,
+        completions: widgetData.completions,
+        moodBoost: widgetData.moodBoost,
+      }
+    });
   }, [isOpen, userId, tier, isLoading, widgetData]);
   
   // ✅ WIDGETS: Horizontal scrollable row (only show if we have data)
@@ -191,9 +195,22 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
   
   if (!hasData) {
     // ✅ DEBUG: Log why widgets aren't showing
-    logger.debug('[LiveInsightsWidgets] No data to display, hiding widgets');
+    console.log('[LiveInsightsWidgets] ❌ No data to display, hiding widgets', {
+      hasData,
+      isLoading,
+      streak: widgetData.streak,
+      completions: widgetData.completions
+    });
     return null;
   }
+  
+  // ✅ DEBUG: About to render widgets
+  console.log('[LiveInsightsWidgets] ✅ Rendering widgets with data:', {
+    streak: widgetData.streak?.currentStreak,
+    completions: widgetData.completions,
+    moodBoost: widgetData.moodBoost,
+    quickInsight: widgetData.quickInsight
+  });
 
   return (
     <div className="mb-4 px-3 sm:px-4">

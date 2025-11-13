@@ -109,9 +109,14 @@ export function ConversationHistoryDrawer({
             {/* list - ✅ RESPONSIVE: Better mobile spacing */}
             <div className="flex-1 overflow-y-auto px-0 py-3 sm:py-4 min-h-0">
               {/* ✅ LIVE INSIGHTS WIDGETS: Tier-gated, cached, profitable */}
-              {userId && (
-                <LiveInsightsWidgets userId={userId} isOpen={isOpen} />
-              )}
+              {(() => {
+                console.log('[ConversationHistoryDrawer] Rendering widgets check:', { userId, isOpen });
+                return userId ? (
+                  <LiveInsightsWidgets userId={userId} isOpen={isOpen} />
+                ) : (
+                  console.log('[ConversationHistoryDrawer] ⚠️ userId not available, skipping widgets')
+                );
+              })()}
               
               <div className="px-3 sm:px-4 space-y-2 sm:space-y-3">
               {conversations.length === 0 ? (
