@@ -1,7 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import toast from 'react-hot-toast';
 import { logger } from '../lib/logger';
+import { LiveInsightsWidgets } from './sidebar/LiveInsightsWidgets';
 
 interface Conversation {
   id: string;
@@ -17,6 +19,7 @@ interface ConversationHistoryDrawerProps {
   onDeleteConversation: (id: string) => void;
   deletingId: string | null;
   onRefresh?: () => Promise<void>;
+  userId?: string; // ✅ For live insight widgets (optional, falls back to getUser())
 }
 
 export function ConversationHistoryDrawer({ 
@@ -25,7 +28,8 @@ export function ConversationHistoryDrawer({
   conversations, 
   onDeleteConversation,
   deletingId,
-  onRefresh
+  onRefresh,
+  userId
 }: ConversationHistoryDrawerProps) {
   // ✅ FIX #1: Add loading states for better mobile UX
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
@@ -103,7 +107,13 @@ export function ConversationHistoryDrawer({
             </div>
 
             {/* list - ✅ RESPONSIVE: Better mobile spacing */}
-            <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 space-y-2 sm:space-y-3 min-h-0">
+            <div className="flex-1 overflow-y-auto px-0 py-3 sm:py-4 min-h-0">
+              {/* ✅ LIVE INSIGHTS WIDGETS: Tier-gated, cached, profitable */}
+              {userId && (
+                <LiveInsightsWidgets userId={userId} isOpen={isOpen} />
+              )}
+              
+              <div className="px-3 sm:px-4 space-y-2 sm:space-y-3">
               {conversations.length === 0 ? (
                 // ✅ BEST PRACTICE: Enhanced empty state with clear CTA and helpful guidance
                 <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -221,6 +231,7 @@ export function ConversationHistoryDrawer({
                   </div>
                 ))
               )}
+              </div>
             </div>
             
             {/* Footer - ✅ RESPONSIVE: Better mobile layout */}

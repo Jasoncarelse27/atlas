@@ -1864,10 +1864,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               isOpen={showHistory}
               onClose={() => setShowHistory(false)}
               conversations={historyData.conversations}
-            onDeleteConversation={historyData.onDeleteConversation}
-            deletingId={historyData.deletingId}
-            onRefresh={historyData.onRefresh}
-          />
+              onDeleteConversation={historyData.onDeleteConversation}
+              deletingId={historyData.deletingId}
+              onRefresh={historyData.onRefresh}
+              userId={userId || undefined} // ✅ Pass userId for live insight widgets
+            />
           </ErrorBoundary>
         )}
 
