@@ -898,6 +898,21 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen, showSearch, showHistory, showProfile]);
 
+  // ✅ BEST PRACTICE: Lock body scroll while sidebar is open
+  // ✅ FIX: Delay scroll unlock until exit animation completes (~400ms for spring)
+  useEffect(() => {
+    if (sidebarOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        // Delay scroll unlock to match exit animation duration
+        setTimeout(() => {
+          document.body.style.overflow = prev;
+        }, 450); // Slightly longer than spring animation duration (~400ms)
+      };
+    }
+  }, [sidebarOpen]);
+
   // ✅ PHASE 2: Real-time listener as SINGLE SOURCE OF TRUTH
   useEffect(() => {
     if (!userId || !conversationId) return;
@@ -1545,19 +1560,21 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
 
         {/* Sidebar Drawer */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {sidebarOpen && (
             <>
-              {/* Backdrop */}
+              {/* ✅ BEST PRACTICE: Backdrop with explicit transition */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 className="fixed inset-0 bg-black/50 z-40"
                 onClick={() => setSidebarOpen(false)}
               />
               
-              {/* Sidebar - ✅ RESPONSIVE: Full width on mobile, fixed width on desktop */}
+              {/* ✅ BEST PRACTICE: Sidebar with consistent animation */}
+              {/* ✅ RESPONSIVE: Full width on mobile, fixed width on desktop */}
               <motion.div
                 initial={{ x: -320 }}
                 animate={{ x: 0 }}

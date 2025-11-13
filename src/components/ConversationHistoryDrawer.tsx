@@ -34,37 +34,45 @@ export function ConversationHistoryDrawer({
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Lock background scroll while drawer is open
+  // ✅ BEST PRACTICE: Lock background scroll while drawer is open
+  // ✅ FIX: Delay scroll unlock until exit animation completes (~300ms)
   useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        // Delay scroll unlock to match exit animation duration
+        setTimeout(() => {
+          document.body.style.overflow = prev;
+        }, 350); // Slightly longer than animation duration (300ms)
+      };
+    }
   }, [isOpen]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* backdrop */}
+          {/* ✅ BEST PRACTICE: Single backdrop with explicit transition */}
           <motion.div
             className="fixed inset-0 bg-atlas-stone/50 backdrop-blur-md z-[99998]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={onClose}
           />
 
-          {/* centered modal */}
+          {/* ✅ BEST PRACTICE: Container with pointer-events optimization */}
           <motion.div
-            className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] sm:max-h-[85vh] bg-[#F9F6F3] rounded-2xl border border-[#E8DDD2] flex flex-col shadow-2xl overflow-hidden"
+              className="w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] sm:max-h-[85vh] bg-[#F9F6F3] rounded-2xl border border-[#E8DDD2] flex flex-col shadow-2xl overflow-hidden pointer-events-auto"
               initial={{ 
                 opacity: 0,
                 scale: 0.9,
