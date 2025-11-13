@@ -235,7 +235,7 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
           </div>
           {moodChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={80}>
-              <LineChart data={moodChartData}>
+              <LineChart data={moodChartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <Tooltip 
                   contentStyle={{
                     backgroundColor: '#FFF',
@@ -249,8 +249,9 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
                   type="monotone" 
                   dataKey="mood" 
                   stroke={COLORS.moodLine} 
-                  strokeWidth={2}
-                  dot={false}
+                  strokeWidth={2.5}
+                  dot={{ fill: COLORS.moodLine, r: 3 }}
+                  activeDot={{ r: 5 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -269,32 +270,41 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
           </div>
           {goalData.length > 0 ? (
             <div className="flex items-center gap-3">
-              <ResponsiveContainer width="50%" height={80}>
+              <ResponsiveContainer width={80} height={80}>
                 <PieChart>
                   <Pie
                     data={goalData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={20}
-                    outerRadius={35}
+                    innerRadius={18}
+                    outerRadius={32}
                     dataKey="value"
+                    startAngle={90}
+                    endAngle={-270}
                   >
                     {goalData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: '#FFF',
+                      border: '1px solid #E8DDD2',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-1.5">
                 {goalData.map((item) => (
                   <div key={item.name} className="flex items-center gap-2">
                     <div 
-                      className="w-3 h-3 rounded-full" 
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-xs text-[#8B7E74]">
-                      {item.name}: {item.value}
+                    <span className="text-xs text-[#8B7E74] font-medium">
+                      {item.name}: <span className="text-[#3B3632]">{item.value}</span>
                     </span>
                   </div>
                 ))}

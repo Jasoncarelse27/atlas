@@ -133,6 +133,7 @@ function generateFallbackTitle(): string {
 /**
  * Update conversation title in database
  * Safe to call multiple times (idempotent)
+ * ✅ BEST PRACTICE: Updates both Supabase and IndexedDB for immediate UI update
  */
 export async function updateConversationTitle(
   conversationId: string,
@@ -162,7 +163,7 @@ export async function updateConversationTitle(
       return true;
     }
     
-    // ✅ Update with new title
+    // ✅ Update Supabase (source of truth)
     const { error } = await supabase
       .from('conversations')
       .update({ 
@@ -173,8 +174,26 @@ export async function updateConversationTitle(
       .eq('user_id', userId);
     
     if (error) {
-      logger.error('[TitleGen] ❌ Failed to update title:', error);
+      logger.error('[TitleGen] ❌ Failed to update title in Supabase:', error);
       return false;
+    }
+    
+    // ✅ BEST PRACTICE: Optimistically update IndexedDB for immediate UI update
+    try {
+      const { atlasDB } = await import('../database/atlasDB');
+      const conversation = await atlasDB.conversations.get(conversationId);
+      
+      if (conversation) {
+        await atlasDB.conversations.update(conversationId, {
+          title,
+          updatedAt: new Date().toISOString()
+        });
+        logger.debug('[TitleGen] ✅ Updated title in IndexedDB (optimistic update)');
+      }
+    } catch (indexedDBError) {
+      // Non-critical: IndexedDB update failed, but Supabase update succeeded
+      // Sync service will catch up on next sync
+      logger.debug('[TitleGen] ⚠️ IndexedDB update failed (non-critical):', indexedDBError);
     }
     
     logger.debug('[TitleGen] ✅ Updated conversation title:', title);
