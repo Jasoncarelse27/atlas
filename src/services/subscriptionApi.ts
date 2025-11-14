@@ -14,12 +14,23 @@ let activeMode: "dexie" | "backend" | "supabase" | null = null;
 // TypeScript const for placeholder detection
 const PENDING_PLACEHOLDER = '__PENDING__' as const;
 
+// ✅ BEST PRACTICE: Safe JSON parsing with content-type validation
+async function safeParseJSON(response: Response): Promise<any> {
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const text = await response.text();
+    logger.error(`[SubscriptionAPI] ❌ Invalid response type: ${contentType}. Response: ${text.substring(0, 200)}`);
+    throw new Error(`Invalid response type: ${contentType}`);
+  }
+  return await response.json();
+}
+
 // Safe fetch helper with toast fallback
 async function safeFetch(url: string, options?: RequestInit) {
   try {
     const res = await fetch(url, options);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    return await safeParseJSON(res);
   } catch (err) {
     safeToast("⚠️ Backend unreachable, using offline mode", "error");
     return null;
@@ -235,7 +246,8 @@ class SubscriptionApiService {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const profile: SubscriptionProfile = await response.json();
+    // ✅ BEST PRACTICE: Validate content-type before parsing JSON
+    const profile: SubscriptionProfile = await safeParseJSON(response);
     
     // Cache the newly created profile
     this.profileCache.set(userId, { data: profile, timestamp: Date.now() });
@@ -275,11 +287,20 @@ class SubscriptionApiService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      // ✅ BEST PRACTICE: Safe error parsing with fallback
+      // Note: safeParseJSON already handles content-type validation and logging
+      let errorData: any = {};
+      try {
+        errorData = await safeParseJSON(response);
+      } catch {
+        // If parsing fails (wrong content-type), safeParseJSON already logged the error
+        // Response body is consumed, so we can't read it again - use empty object
+      }
       throw new Error(`Failed to update subscription tier: ${response.status} ${response.statusText} - ${errorData.message || 'Unknown error'}`);
     }
 
-    const updatedProfile = await response.json();
+    // ✅ BEST PRACTICE: Validate content-type before parsing JSON
+    const updatedProfile = await safeParseJSON(response);
     
     // ✅ UNIFIED: Clear cache and trigger centralized invalidation
     this.clearProfileCache(userId);
@@ -341,7 +362,8 @@ class SubscriptionApiService {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const profile = await response.json();
+    // ✅ BEST PRACTICE: Validate content-type before parsing JSON
+    const profile = await safeParseJSON(response);
     logger.debug('[SubscriptionAPI] Using backend API ✅', profile);
     
     // Convert profile to FastSpringSubscription format
@@ -407,7 +429,8 @@ class SubscriptionApiService {
         throw new Error(`Failed: ${response.status}`);
       }
 
-      const data = await response.json();
+      // ✅ BEST PRACTICE: Validate content-type before parsing JSON
+      const data = await safeParseJSON(response);
 
       // ✅ Save to Dexie cache (using new Golden Standard)
       // Note: subscription_stats table not implemented in new schema yet
@@ -465,7 +488,11 @@ class SubscriptionApiService {
         return null;
       }
 
-      const profile = await response.json();
+      // ✅ BEST PRACTICE: Validate content-type before parsing JSON (prevent HTML error pages)
+      const profile = await safeParseJSON(response).catch(() => null);
+      if (!profile) {
+        return null;
+      }
       logger.debug(`[SubscriptionAPI] ✅ Force refresh successful: ${profile.subscription_tier}`);
       
       // Cache the fresh result
