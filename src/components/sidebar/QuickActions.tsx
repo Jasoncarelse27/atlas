@@ -1,10 +1,13 @@
 import { History, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { atlasDB } from '../../database/atlasDB';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { deleteConversation } from '../../services/conversationDeleteService';
 import { generateUUID } from '../../utils/uuid';
+import { ConfirmDialog } from '../modals/ConfirmDialog';
 
 interface QuickActionsProps {
   onViewHistory?: (data: { 
@@ -16,9 +19,16 @@ interface QuickActionsProps {
 }
 
 export default function QuickActions({ onViewHistory }: QuickActionsProps) {
-  const [, setDeletingId] = useState<string | null>(null); // Keep setter for future use
+  const navigate = useNavigate();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, setConversations] = useState<any[]>([]); // State for UI updates
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  
+  // ✅ BEST PRACTICE: Confirmation dialog state
+  const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const [isClearingData, setIsClearingData] = useState(false);
   
   // ✅ Simple caching to avoid repeated DB calls
   const [cachedConversations, setCachedConversations] = useState<any[]>([]);
@@ -156,17 +166,10 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     const newConversationId = generateUUID();
     logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
     
-    // ✅ Navigate to new chat with new conversation ID
-    const newChatUrl = `/chat?conversation=${newConversationId}`;
-    logger.debug('[QuickActions] ✅ Navigating to:', newChatUrl);
+    // ✅ BEST PRACTICE: Use React Router navigation (ChatPage now uses useSearchParams to detect changes)
+    navigate(`/chat?conversation=${newConversationId}`, { replace: false });
     
-    // ✅ MOBILE FIX: Use history.pushState for instant navigation (no page reload)
-    window.history.pushState({ conversationId: newConversationId }, '', newChatUrl);
-    
-    // Trigger custom event for ChatPage to handle
-    window.dispatchEvent(new PopStateEvent('popstate', { state: { conversationId: newConversationId } }));
-    
-    logger.debug('[QuickActions] ✅ Navigation triggered without page reload');
+    logger.debug('[QuickActions] ✅ Navigation triggered via React Router');
   };
 
   const handleViewHistory = async () => {
@@ -194,12 +197,17 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    // Confirmation
-    if (!window.confirm('🗑️ Delete this conversation?\n\nThis cannot be undone.')) {
-      return;
-    }
+    // ✅ BEST PRACTICE: Show custom confirmation dialog
+    setConversationToDelete(conversationId);
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+
+    const conversationId = conversationToDelete;
     setDeletingId(conversationId);
+    setShowDeleteConfirm(false);
     
     // ✅ OPTIMISTIC UI: Remove from cached list immediately
     const previousConversations = [...cachedConversations];
@@ -217,6 +225,7 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       await refreshConversationList(true);
       
       logger.info('[QuickActions] ✅ Conversation deleted successfully');
+      toast.success('Conversation deleted successfully');
     } catch (err: unknown) {
       const error = err as Error;
       logger.error('[QuickActions] ❌ Delete failed:', err);
@@ -224,18 +233,25 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
       // ✅ ROLLBACK: Restore conversation on failure
       setCachedConversations(previousConversations);
       
-      // Show error message
-      alert(`Failed to delete conversation:\n${error.message || 'Unknown error'}\n\nPlease try again.`);
+      // ✅ BEST PRACTICE: Use toast instead of alert for better UX (mobile-friendly, accessible)
+      toast.error(`Failed to delete conversation: ${error.message || 'Unknown error'}`, {
+        duration: 5000,
+        description: 'Please try again.',
+      });
     } finally {
       setDeletingId(null);
+      setConversationToDelete(null);
     }
   };
 
-  const handleClearData = async () => {
-    // Confirmation dialog
-    if (!confirm('Clear All Data\n\nThis will clear all local conversations and cache. Your account data is safe on the server.\n\nContinue?')) {
-      return;
-    }
+  const handleClearData = () => {
+    // ✅ BEST PRACTICE: Show custom confirmation dialog
+    setShowClearDataConfirm(true);
+  };
+
+  const confirmClearData = async () => {
+    setShowClearDataConfirm(false);
+    setIsClearingData(true);
 
     try {
       logger.debug('[QuickActions] Clearing all local data...');
@@ -247,7 +263,9 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
     } catch (err) {
       logger.error('[QuickActions] Failed to clear data:', err);
       toast.error('Failed to clear data. Please try again.');
+      setIsClearingData(false);
     }
+    // Note: resetLocalData() will reload the page, so setIsClearingData won't run
   };
 
   const actions = [
@@ -281,10 +299,11 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
           <li>
             <button
               onClick={handleNewChat}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] transition-colors"
+              aria-label="Start a new conversation"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-[#8FA67E] focus-visible:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
-                <Plus className="w-4 h-4 text-white" />
+                <Plus className="w-4 h-4 text-white" aria-hidden="true" />
               </div>
               <span className="font-medium">Start New Chat</span>
             </button>
@@ -294,13 +313,15 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
             <button
               onClick={handleViewHistory}
               disabled={isLoadingHistory}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#C6D4B0] hover:bg-[#B8C6A2] transition-colors disabled:opacity-60"
+              aria-label={isLoadingHistory ? 'Loading conversation history' : 'View conversation history'}
+              aria-busy={isLoadingHistory}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#C6D4B0] hover:bg-[#B8C6A2] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#8FA67E] focus-visible:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center">
                 {isLoadingHistory ? (
-                  <Loader2 className="w-4 h-4 text-[#5A524A] animate-spin" />
+                  <Loader2 className="w-4 h-4 text-[#5A524A] animate-spin" aria-hidden="true" />
                 ) : (
-                  <History className="w-4 h-4 text-[#5A524A]" />
+                  <History className="w-4 h-4 text-[#5A524A]" aria-hidden="true" />
                 )}
               </div>
               <span className="font-medium">{isLoadingHistory ? 'Loading...' : 'View History'}</span>
@@ -310,17 +331,51 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
           <li>
             <button
               onClick={handleClearData}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+              disabled={isClearingData}
+              aria-label="Clear all local data (conversations and cache will be removed)"
+              aria-busy={isClearingData}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#A67571] focus-visible:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-[#CF9A96]/30 flex items-center justify-center">
-                <Trash2 className="w-4 h-4 text-[#A67571]" />
+                {isClearingData ? (
+                  <Loader2 className="w-4 h-4 text-[#A67571] animate-spin" aria-hidden="true" />
+                ) : (
+                  <Trash2 className="w-4 h-4 text-[#A67571]" aria-hidden="true" />
+                )}
               </div>
-              <span className="font-medium">Clear All Data</span>
+              <span className="font-medium">{isClearingData ? 'Clearing...' : 'Clear All Data'}</span>
             </button>
           </li>
         </ul>
       </div>
 
+      {/* ✅ BEST PRACTICE: Custom confirmation dialogs */}
+      <ConfirmDialog
+        isOpen={showClearDataConfirm}
+        onClose={() => setShowClearDataConfirm(false)}
+        onConfirm={confirmClearData}
+        title="Clear All Data"
+        message="This will clear all local conversations and cache. Your account data is safe on the server. This action cannot be undone."
+        confirmLabel="Clear All Data"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isLoading={isClearingData}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setConversationToDelete(null);
+        }}
+        onConfirm={confirmDeleteConversation}
+        title="Delete Conversation"
+        message="Are you sure you want to delete this conversation? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isLoading={!!deletingId}
+      />
     </>
   );
 }

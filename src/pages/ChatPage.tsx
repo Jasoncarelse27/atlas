@@ -3,7 +3,7 @@ import { LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 // Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
 // import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
@@ -41,6 +41,7 @@ import UsageCounter from '../components/sidebar/UsageCounter';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
+import { useTutorial } from '../hooks/useTutorial';
 
 interface ChatPageProps {
   user?: { id: string; email?: string };
@@ -51,6 +52,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useAndroidBackButton();
   const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // ✅ FIX: Use React Router's searchParams to detect URL changes
   const {
     voiceModalVisible,
     hideVoiceUpgrade,
@@ -1198,16 +1200,65 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   }, [userId, conversationId, loadMessages]);
 
-  // ✅ MOBILE FIX: Handle URL changes without page reload (for conversation selection)
-  // Set up listener immediately to avoid race conditions
+  // ✅ TUTORIAL: Trigger tutorial for first-time users
+  const { startTutorial, isCompleted, isLoading: tutorialLoading } = useTutorial();
   useEffect(() => {
-    const handleUrlChange = () => {
+    // Diagnostic logging (visible in production)
+    console.log('[ChatPage] Tutorial check:', { 
+      userId, 
+      isCompleted, 
+      tutorialLoading,
+      shouldTrigger: userId && !isCompleted && !tutorialLoading 
+    });
+    
+    // Only trigger tutorial if:
+    // 1. User is authenticated
+    // 2. Tutorial is not already completed
+    // 3. Tutorial is not loading
+    // 4. Page is ready (userId is set)
+    if (userId && !isCompleted && !tutorialLoading) {
+      // Small delay to ensure page is fully rendered
+      const timer = setTimeout(() => {
+        console.log('[ChatPage] 🎓 TRIGGERING TUTORIAL NOW');
+        logger.info('[ChatPage] 🎓 Starting tutorial for first-time user');
+        startTutorial();
+      }, 1000); // 1 second delay for smooth UX
+
+      return () => clearTimeout(timer);
+    }
+  }, [userId, isCompleted, tutorialLoading, startTutorial]);
+
+  // ✅ FIX: Handle URL changes using React Router's useSearchParams (detects navigate() calls)
+  // This works for both React Router navigation AND browser back/forward
+  useEffect(() => {
+    const urlConversationId = searchParams.get('conversation');
+    
+    // Only switch if URL has a different conversation ID
+    if (urlConversationId && urlConversationId !== conversationId) {
+      logger.debug('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId);
+      
+      // Update conversation ID and load messages
+      localStorage.setItem('atlas:lastConversationId', urlConversationId);
+      setConversationId(urlConversationId);
+      
+      // Only load messages if userId is available
+      if (userId) {
+        loadMessages(urlConversationId);
+      } else {
+        logger.debug('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
+      }
+    }
+  }, [searchParams, conversationId, userId]); // ✅ FIX: React to searchParams changes (includes navigate() calls)
+
+  // ✅ MOBILE FIX: Also listen to popstate for browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const urlConversationId = urlParams.get('conversation');
       
       // Only switch if URL has a different conversation ID
       if (urlConversationId && urlConversationId !== conversationId) {
-        logger.debug('[ChatPage] 🔄 URL changed, switching conversation:', urlConversationId);
+        logger.debug('[ChatPage] 🔄 URL changed (via browser navigation), switching conversation:', urlConversationId);
         
         // Update conversation ID and load messages
         localStorage.setItem('atlas:lastConversationId', urlConversationId);
@@ -1223,10 +1274,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     };
     
     // Listen for browser back/forward navigation
-    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('popstate', handlePopState);
     
     return () => {
-      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('popstate', handlePopState);
     };
   }, [conversationId, userId]); // Note: loadMessages deliberately excluded - stable callback with userId dependency
 
