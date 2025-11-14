@@ -102,6 +102,106 @@ app.get('/healthz', async (req, res) => {
   // ✅ DEBUG: Always log environment detection for troubleshooting
   logger.debug(`[HealthCheck] Environment check: CI=${process.env.CI}, GITHUB_ACTIONS=${process.env.GITHUB_ACTIONS}, NODE_ENV=${process.env.NODE_ENV}, isCI=${isCI}`);
   
+  // ✅ CONNECTION MONITORING: Calculate connection pool metrics
+  const getConnectionMetrics = () => {
+    const httpActive = httpAgent.sockets ? Object.keys(httpAgent.sockets).length : 0;
+    const httpsActive = httpsAgent.sockets ? Object.keys(httpsAgent.sockets).length : 0;
+    const totalActive = httpActive + httpsActive;
+    const maxConnections = 200; // HTTP + HTTPS combined limit
+    const utilizationPercent = (totalActive / maxConnections) * 100;
+    const supabaseMaxConnections = 3000; // Pro plan
+    const supabaseUtilization = (totalActive / supabaseMaxConnections) * 100;
+    
+    // Log warning if >80% utilized
+    if (utilizationPercent > 80) {
+      logger.warn(`⚠️ [ConnectionPool] At ${utilizationPercent.toFixed(1)}% capacity`, {
+        active: totalActive,
+        max: maxConnections,
+        http: httpActive,
+        https: httpsActive,
+        supabaseUtilization: `${supabaseUtilization.toFixed(2)}%`
+      });
+    }
+    
+    return {
+      http: { active: httpActive, max: 200, utilization: (httpActive / 200) * 100 },
+      https: { active: httpsActive, max: 200, utilization: (httpsActive / 200) * 100 },
+      total: { active: totalActive, max: maxConnections, utilization: utilizationPercent },
+      supabase: {
+        plan: 'Pro',
+        maxConnections: supabaseMaxConnections,
+        utilization: supabaseUtilization,
+        available: supabaseMaxConnections - totalActive
+      },
+      status: utilizationPercent > 90 ? 'critical' : utilizationPercent > 80 ? 'warning' : 'healthy'
+    };
+  };
+  
+  const connectionMetrics = getConnectionMetrics();
+
+  // ✅ TIER MONITORING: Get tier distribution (non-blocking, async)
+  const getTierMetrics = async (timeoutMs = 2000) => {
+    try {
+      const { supabase } = await import('./config/supabaseClient.mjs');
+      const querySignal = createQueryTimeout(timeoutMs);
+      
+      // Get tier distribution from profiles (efficient single query)
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('subscription_tier')
+        .abortSignal(querySignal);
+      
+      if (error) {
+        logger.debug('[HealthCheck] Tier metrics query failed:', error.message);
+        return {
+          free: 0,
+          core: 0,
+          studio: 0,
+          total: 0,
+          status: 'error',
+          error: error.message
+        };
+      }
+      
+      // Count tiers efficiently
+      const tierCounts = { free: 0, core: 0, studio: 0 };
+      (profiles || []).forEach(profile => {
+        const tier = profile?.subscription_tier || 'free';
+        if (tier === 'free' || tier === 'core' || tier === 'studio') {
+          tierCounts[tier]++;
+        }
+      });
+      
+      const total = tierCounts.free + tierCounts.core + tierCounts.studio;
+      
+      return {
+        free: tierCounts.free,
+        core: tierCounts.core,
+        studio: tierCounts.studio,
+        total: total,
+        distribution: total > 0 ? {
+          free: ((tierCounts.free / total) * 100).toFixed(1) + '%',
+          core: ((tierCounts.core / total) * 100).toFixed(1) + '%',
+          studio: ((tierCounts.studio / total) * 100).toFixed(1) + '%'
+        } : { free: '0%', core: '0%', studio: '0%' },
+        status: 'ok'
+      };
+    } catch (error) {
+      logger.debug('[HealthCheck] Tier metrics error:', error.message);
+      return {
+        free: 0,
+        core: 0,
+        studio: 0,
+        total: 0,
+        status: 'error',
+        error: error.message
+      };
+    }
+  };
+
+  // Initialize tier metrics promise (non-blocking)
+  const tierMetricsPromise = getTierMetrics(isCI ? 3000 : 2000);
+
   const health = {
     status: serverReady ? 'ok' : 'starting',
     timestamp: Date.now(),
@@ -111,6 +211,8 @@ app.get('/healthz', async (req, res) => {
     checks: {
       database: 'pending',
       redis: 'pending',
+      connections: connectionMetrics, // ✅ CONNECTION MONITORING: Added
+      tiers: { free: 0, core: 0, studio: 0, total: 0, status: 'pending' }, // ✅ TIER MONITORING: Added
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
@@ -122,7 +224,7 @@ app.get('/healthz', async (req, res) => {
   // ✅ CI FIX: In CI/test, wait synchronously for checks (max 5s)
   if (isCI) {
     try {
-      const [dbHealthy, redisHealthy] = await Promise.all([
+      const [dbHealthy, redisHealthy, tierMetrics] = await Promise.all([
         // Database check (with timeout)
         (async () => {
           try {
@@ -160,11 +262,14 @@ app.get('/healthz', async (req, res) => {
             logger.debug('[HealthCheck] Redis check failed:', error.message);
             return false;
           }
-        })()
+        })(),
+        // Tier metrics (non-blocking)
+        tierMetricsPromise
       ]);
 
       health.checks.database = dbHealthy;
       health.checks.redis = redisHealthy;
+      health.checks.tiers = tierMetrics; // ✅ TIER MONITORING: Add tier metrics
       
       // ✅ CI FIX: Return boolean values for CI script parsing
       const isHealthy = serverReady && (dbHealthy || process.env.NODE_ENV === 'test'); // DB optional in test
@@ -185,7 +290,38 @@ app.get('/healthz', async (req, res) => {
       });
     }
   } else {
-    // ✅ RAILWAY FIX: Production - async checks, respond immediately
+    // ✅ RAILWAY FIX: Production - wait for tier metrics (fast, non-blocking)
+    // Wait for tier metrics with timeout before responding (max 1.5s)
+    try {
+      const tierMetrics = await Promise.race([
+        tierMetricsPromise,
+        new Promise((resolve) => setTimeout(() => {
+          logger.debug('[HealthCheck] Tier metrics timeout, using defaults');
+          resolve({
+            free: 0,
+            core: 0,
+            studio: 0,
+            total: 0,
+            status: 'timeout',
+            error: 'Query timeout'
+          });
+        }, 1500)) // 1.5s timeout for production
+      ]);
+      
+      health.checks.tiers = tierMetrics; // ✅ TIER MONITORING: Add tier metrics
+    } catch (error) {
+      logger.debug('[HealthCheck] Tier metrics error:', error.message);
+      health.checks.tiers = {
+        free: 0,
+        core: 0,
+        studio: 0,
+        total: 0,
+        status: 'error',
+        error: error.message
+      };
+    }
+
+    // Database and Redis checks run async (non-blocking for response)
     Promise.all([
       // Database check (with timeout)
       (async () => {
@@ -224,7 +360,7 @@ app.get('/healthz', async (req, res) => {
       // Ignore errors - health check already responded
     });
 
-    // ✅ RAILWAY FIX: Return 200 immediately if server is ready
+    // ✅ RAILWAY FIX: Return 200 immediately if server is ready (with tier metrics)
     const isHealthy = serverReady;
     res.status(isHealthy ? 200 : 503).json(health);
   }
