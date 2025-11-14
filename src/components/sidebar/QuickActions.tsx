@@ -16,9 +16,10 @@ interface QuickActionsProps {
     deletingId: string | null;
     onRefresh: () => Promise<void>;
   }) => void;
+  onNewChat?: () => void; // ✅ FIX: Callback to close sidebar when starting new chat
 }
 
-export default function QuickActions({ onViewHistory }: QuickActionsProps) {
+export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsProps) {
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, setConversations] = useState<any[]>([]); // State for UI updates
@@ -162,6 +163,12 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   const handleNewChat = async () => {
     logger.debug('[QuickActions] 🚀 Starting new chat...');
     console.log('[QuickActions] 🚀 Starting new chat...'); // ✅ DEBUG: Visible in production
+    
+    // ✅ FIX: Close sidebar immediately for better UX
+    if (onNewChat) {
+      onNewChat();
+      console.log('[QuickActions] 🚪 Sidebar closed'); // ✅ DEBUG
+    }
     
     // ✅ Create new conversation ID (browser-compatible)
     const newConversationId = generateUUID();

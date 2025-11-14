@@ -1241,6 +1241,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       logger.debug('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId);
       console.log('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId); // ✅ DEBUG
       
+      // ✅ FIX: Clear messages immediately to show new conversation (prevents showing old messages)
+      setMessages([]);
+      console.log('[ChatPage] 🧹 Cleared messages for new conversation'); // ✅ DEBUG
+      
+      // ✅ FIX: Close sidebar when switching conversations (better UX)
+      setSidebarOpen(false);
+      
       // Update conversation ID and load messages
       localStorage.setItem('atlas:lastConversationId', urlConversationId);
       setConversationId(urlConversationId);
@@ -1667,7 +1674,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   </div>
                   
                   {/* Sidebar Content */}
-                  <QuickActions onViewHistory={handleViewHistory} />
+                  <QuickActions 
+                    onViewHistory={handleViewHistory}
+                    onNewChat={() => setSidebarOpen(false)} // ✅ FIX: Close sidebar when starting new chat
+                  />
                   <UsageCounter userId={userId ?? ''} />
                   {/* ✅ EMOTIONAL INSIGHTS WIDGETS: Show mood tracking and conversation analysis */}
                   {userId && <EmotionalInsightsWidgets userId={userId} isOpen={sidebarOpen} />}
