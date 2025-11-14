@@ -1234,6 +1234,60 @@ app.get('/api/auth/status', (req, res) => {
   });
 });
 
+// 🔒 CONTENT REPORTING: User reporting endpoint for inappropriate content
+app.post('/api/report-content', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { messageId, reportedUserId, reason, details } = req.body;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'Report reason is required' });
+    }
+    
+    // Validate reason (prevent abuse)
+    const validReasons = ['inappropriate', 'harassment', 'spam', 'violence', 'self-harm', 'other'];
+    if (!validReasons.includes(reason.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid report reason' });
+    }
+    
+    const { error } = await supabase
+      .from('content_reports')
+      .insert({
+        reporter_id: userId,
+        reported_message_id: messageId || null,
+        reported_user_id: reportedUserId || null,
+        report_reason: reason.toLowerCase(),
+        report_details: details || null,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      logger.error('[API /report-content] Failed to create report:', error.message);
+      return res.status(500).json({ error: 'Failed to submit report' });
+    }
+    
+    logger.info(`[API /report-content] Content report created by user ${userId}`, {
+      messageId,
+      reportedUserId,
+      reason
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Report submitted successfully. Thank you for helping keep Atlas safe.' 
+    });
+  } catch (error) {
+    logger.error('[API /report-content] Error:', error.message);
+    res.status(500).json({ error: 'Failed to submit report' });
+  }
+});
+
 // ✅ Clean message endpoint with secure Supabase tier routing + conversation history + image analysis
 app.post('/message', 
   authMiddleware,

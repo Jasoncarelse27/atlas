@@ -1121,7 +1121,7 @@ const EnhancedInputToolbar = React.memo(({
         >
           <div className={`flex items-center space-x-3 rounded-full px-6 py-3.5 shadow-2xl border backdrop-blur-md ${
             isProcessingAudio 
-              ? 'bg-blue-500/95 border-blue-400/50' 
+              ? 'bg-white/95 border-gray-300/50' 
               : 'bg-red-500/95 border-red-400/50'
           }`}>
             {/* ✅ IMPROVED: Pulsing animation - more professional */}
@@ -1132,15 +1132,19 @@ const EnhancedInputToolbar = React.memo(({
               </div>
             )}
             
-            {/* ✅ IMPROVED: Processing spinner */}
+            {/* ✅ IMPROVED: Processing spinner - dark grey for visibility */}
             {isProcessingAudio && (
               <div className="relative flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
             
-            {/* ✅ IMPROVED: Clear status text */}
-            <span className="text-white font-medium text-sm sm:text-base whitespace-nowrap">
+            {/* ✅ IMPROVED: Clear status text - dark grey for better visibility */}
+            <span className={`font-medium text-sm sm:text-base whitespace-nowrap ${
+              isProcessingAudio 
+                ? 'text-gray-700' 
+                : 'text-white'
+            }`}>
               {isProcessingAudio 
                 ? 'Processing...' 
                 : `Recording • ${formatTime(recordingDuration)}`

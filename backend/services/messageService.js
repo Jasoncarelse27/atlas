@@ -401,6 +401,77 @@ export async function processMessage(userId, text, conversationId = null) {
     }
   }
   
+  // 🔒 CONTENT MODERATION: Check user input before processing
+  // Multi-layer defense: Layer 1 - Pre-processing (user input screening)
+  try {
+    const { checkContentModeration, shouldBlockContent, getModerationErrorMessage } = await import('./moderationService.mjs');
+    const moderationResult = await checkContentModeration(text);
+    
+    // Log moderation decision for audit
+    try {
+      const { error: logError } = await getSupabase()
+        .from('moderation_logs')
+        .insert({
+          user_id: userId,
+          content: text.substring(0, 1000), // Store first 1000 chars for audit
+          content_length: text.length,
+          flagged: moderationResult.flagged || false,
+          blocked: shouldBlockContent(moderationResult),
+          highest_score: moderationResult.highestScore || 0,
+          highest_category: moderationResult.highestCategory || null,
+          category_scores: moderationResult.categoryScores || {},
+          flagged_categories: Object.entries(moderationResult.categories || {})
+            .filter(([, value]) => value)
+            .reduce((acc, [key]) => ({ ...acc, [key]: true }), {}),
+          moderation_service: 'openai',
+          error_message: moderationResult.error || null,
+          created_at: new Date().toISOString()
+        });
+      
+      if (logError) {
+        logger.warn('[MessageService] Failed to log moderation decision:', logError.message);
+      }
+    } catch (logError) {
+      logger.warn('[MessageService] Error logging moderation decision:', logError.message);
+      // Don't fail the request if logging fails
+    }
+    
+    // Block high-confidence violations (>0.9)
+    if (shouldBlockContent(moderationResult)) {
+      logger.warn('[MessageService] Content blocked by moderation:', {
+        userId,
+        highestCategory: moderationResult.highestCategory,
+        highestScore: moderationResult.highestScore,
+      });
+      
+      return {
+        success: false,
+        error: 'CONTENT_MODERATION_BLOCKED',
+        message: getModerationErrorMessage(),
+        moderationDetails: {
+          flagged: true,
+          highestCategory: moderationResult.highestCategory,
+          highestScore: moderationResult.highestScore,
+        }
+      };
+    }
+    
+    // Log medium-confidence violations (0.5-0.9) for manual review
+    if (moderationResult.flagged && moderationResult.highestScore >= 0.5 && moderationResult.highestScore < 0.9) {
+      logger.info('[MessageService] Medium-confidence violation logged for review:', {
+        userId,
+        highestCategory: moderationResult.highestCategory,
+        highestScore: moderationResult.highestScore,
+      });
+      // Allow but log for review
+    }
+  } catch (moderationError) {
+    // Fail-open: If moderation service fails, log error but allow content
+    // This prevents moderation service outages from blocking legitimate users
+    logger.error('[MessageService] Moderation check failed:', moderationError.message);
+    // Continue processing - moderation is a safety layer, not a hard requirement
+  }
+
   const model = MODEL_MAP[tier] || MODEL_MAP.free;
 
   // ✅ Ensure conversation exists

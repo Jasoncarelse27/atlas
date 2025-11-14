@@ -25,38 +25,8 @@ export function useRealtimeConversations(userId?: string) {
     // Create single unified channel
     const channel = supabase.channel(channelName);
 
-    // ✅ Handle conversation hard deletions (DELETE events)
-    channel.on(
-      "postgres_changes",
-      {
-        event: "DELETE",
-        schema: "public",
-        table: "conversations",
-        filter: `user_id=eq.${userId}`,
-      },
-      async (payload) => {
-        const deletedId = payload.old.id;
-        
-        try {
-          // Remove from local Dexie immediately
-          await atlasDB.conversations.delete(deletedId);
-          await atlasDB.messages.where('conversationId').equals(deletedId).delete();
-          
-          // Trigger conversation history refresh
-          if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('conversationDeleted', {
-            detail: { conversationId: deletedId }
-          }));
-          }
-          
-          logger.info('[Realtime] Conversation hard deleted:', deletedId);
-        } catch (error) {
-          logger.error('[Realtime] Failed to handle hard deletion:', error);
-        }
-      }
-    );
-
-    // ✅ CRITICAL FIX: Handle conversation soft deletions (UPDATE events)
+    // ✅ CRITICAL: Handle conversation soft deletions (UPDATE events)
+    // Note: We only use soft delete (delete_conversation_soft RPC), so DELETE events never fire
     // When deleted_at is set, mark conversation as deleted locally
     channel.on(
       "postgres_changes",

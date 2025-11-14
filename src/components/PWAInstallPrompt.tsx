@@ -222,11 +222,14 @@ export function PWAInstallPrompt() {
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: 100 }}
+        initial={{ opacity: 0, y: -100 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 100 }}
+        exit={{ opacity: 0, y: -100 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="fixed bottom-0 left-0 right-0 z-[100] p-4 bg-gradient-to-t from-[#F9F6F3] via-[#F9F6F3] to-transparent safe-area-inset-bottom"
+        className="fixed top-0 left-0 right-0 z-[100] p-3 sm:p-4 bg-gradient-to-b from-[#F9F6F3] via-[#F9F6F3] to-transparent"
+        style={{
+          paddingTop: `max(8px, env(safe-area-inset-top, 8px))`,
+        }}
         aria-live="polite"
         role="status"
       >

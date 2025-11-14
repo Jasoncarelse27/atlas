@@ -82,7 +82,7 @@ const TermsPage: React.FC = () => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-4 text-[#5A524A]">6. Acceptable Use</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-[#5A524A]">6. Acceptable Use & Content Moderation</h2>
             <p className="text-[#6B6560] leading-relaxed mb-3">
               You agree not to use the Service to:
             </p>
@@ -93,6 +93,12 @@ const TermsPage: React.FC = () => {
               <li>Attempt to gain unauthorized access to the Service</li>
               <li>Interfere with or disrupt the Service or servers</li>
             </ul>
+            <p className="text-[#6B6560] leading-relaxed mt-4 mb-3">
+              <strong>Content Moderation:</strong> Atlas uses automated content moderation systems to ensure a safe environment. 
+              Inappropriate content, including but not limited to sexual content, hate speech, harassment, violence, or self-harm 
+              content, may be automatically blocked. Users can report inappropriate content through the reporting mechanism. 
+              All moderation decisions are logged for audit purposes and reviewed regularly.
+            </p>
           </section>
 
           <section>

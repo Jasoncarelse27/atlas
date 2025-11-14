@@ -1,7 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Calendar, Eye, Lock, LogOut, Minimize2, Moon, Sparkles, Volume2, X } from 'lucide-react';
+import { Calendar, Eye, Loader2, Lock, LogOut, Minimize2, Moon, Sparkles, Trash2, Volume2, X } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { logger } from '../../lib/logger';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -23,6 +27,10 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
     toggleIncreaseContrast,
     toggleScreenReader,
   } = useSettingsStore();
+  
+  // ✅ Clear All Data state
+  const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
+  const [isClearingData, setIsClearingData] = useState(false);
 
   const getTierDisplay = (tier: string) => {
     switch (tier) {
@@ -31,6 +39,29 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
       case 'free': return 'Atlas Free';
       default: return 'Atlas Free';
     }
+  };
+
+  const handleClearData = () => {
+    setShowClearDataConfirm(true);
+  };
+
+  const confirmClearData = async () => {
+    setShowClearDataConfirm(false);
+    setIsClearingData(true);
+
+    try {
+      logger.debug('[ProfileSettings] Clearing all local data...');
+      
+      // Import and call resetLocalData utility
+      const { resetLocalData } = await import('../../utils/resetLocalData');
+      await resetLocalData();
+      
+    } catch (err) {
+      logger.error('[ProfileSettings] Failed to clear data:', err);
+      toast.error('Failed to clear data. Please try again.');
+      setIsClearingData(false);
+    }
+    // Note: resetLocalData() will reload the page, so setIsClearingData won't run
   };
 
   return (
@@ -159,6 +190,22 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
                     </div>
                   </div>
                   
+                  {/* ✅ Clear All Data - Smaller button below subscription tier */}
+                  <button
+                    onClick={handleClearData}
+                    disabled={isClearingData}
+                    aria-label="Clear all local data (conversations and cache will be removed)"
+                    aria-busy={isClearingData}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#8B7E74] bg-[#F0E6DC]/50 hover:bg-[#F0E6DC] border border-[#E8DDD2] hover:border-[#CF9A96]/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isClearingData ? (
+                      <Loader2 className="w-3.5 h-3.5 text-[#A67571] animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5 text-[#A67571]" />
+                    )}
+                    <span className="font-medium">{isClearingData ? 'Clearing...' : 'Clear All Data'}</span>
+                  </button>
+                  
                   <button
                     onClick={onSignOut}
                     className="w-full flex items-center gap-3 p-4 rounded-xl bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 transition-all"
@@ -175,6 +222,19 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
           </motion.div>
         </>
       )}
+      
+      {/* ✅ Clear All Data Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showClearDataConfirm}
+        onClose={() => setShowClearDataConfirm(false)}
+        onConfirm={confirmClearData}
+        title="Clear All Data"
+        message="This will clear all local conversations and cache. Your account data is safe on the server. This action cannot be undone."
+        confirmLabel="Clear All Data"
+        cancelLabel="Cancel"
+        variant="destructive"
+        isLoading={isClearingData}
+      />
     </AnimatePresence>
   );
 }

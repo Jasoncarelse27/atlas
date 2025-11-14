@@ -609,21 +609,32 @@ export class ConversationSyncService {
       queriesExecuted++; // Track query count
       
       if (convError) {
-        logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
+        // ✅ FIX: Handle connection errors gracefully (don't spam logs)
+        const isConnectionError = convError.message?.includes('Failed to fetch') || 
+                                  convError.message?.includes('ERR_CONNECTION_CLOSED') ||
+                                  convError.message?.includes('NetworkError');
+        
+        if (isConnectionError) {
+          logger.debug('[ConversationSync] ⚠️ Connection error (will retry on next sync):', convError.message);
+        } else {
+          logger.error('[ConversationSync] ❌ Failed to fetch conversations:', convError);
+        }
         return;
       }
       
       conversationsSynced = updatedConversations?.length || 0;
       
-      // ✅ Structured logging for sync results
-      logger.info('[ConversationSync] Sync results', {
-        found: conversationsSynced,
-        userId: userId.slice(0, 8) + '...',
-        lastSyncedAt,
-        isFirstSync,
-        localCount: localConversationCount,
-        queryType: isFirstSync ? 'FIRST_SYNC' : 'DELTA_SYNC'
-      });
+      // ✅ OPTIMIZED: Only log if there are changes or it's first sync (reduce log spam)
+      if (conversationsSynced > 0 || isFirstSync || import.meta.env.DEV) {
+        logger.info('[ConversationSync] Sync results', {
+          found: conversationsSynced,
+          userId: userId.slice(0, 8) + '...',
+          lastSyncedAt,
+          isFirstSync,
+          localCount: localConversationCount,
+          queryType: isFirstSync ? 'FIRST_SYNC' : 'DELTA_SYNC'
+        });
+      }
       
       // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all
       if (conversationsSynced === 0 && isFirstSync) {
@@ -762,7 +773,16 @@ export class ConversationSyncService {
         queriesExecuted++; // Track query count
         
         if (msgError) {
-          logger.error('[ConversationSync] ❌ Failed to fetch messages:', msgError);
+          // ✅ FIX: Handle connection errors gracefully
+          const isConnectionError = msgError.message?.includes('Failed to fetch') || 
+                                    msgError.message?.includes('ERR_CONNECTION_CLOSED') ||
+                                    msgError.message?.includes('NetworkError');
+          
+          if (isConnectionError) {
+            logger.debug('[ConversationSync] ⚠️ Connection error fetching messages (will retry):', msgError.message);
+          } else {
+            logger.error('[ConversationSync] ❌ Failed to fetch messages:', msgError);
+          }
         } else {
           messagesSynced = newMessages?.length || 0;
           logger.debug(`[ConversationSync] ✅ Found ${messagesSynced} new messages`);
