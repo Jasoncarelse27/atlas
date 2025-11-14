@@ -1,4 +1,4 @@
-import { History, Loader2, Plus, Trash2 } from 'lucide-react';
+import { History, Loader2, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -26,10 +26,8 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   // ✅ BEST PRACTICE: Confirmation dialog state
-  const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
-  const [isClearingData, setIsClearingData] = useState(false);
   
   // ✅ Simple caching to avoid repeated DB calls
   const [cachedConversations, setCachedConversations] = useState<any[]>([]);
@@ -196,17 +194,29 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         logger.debug('[QuickActions] No authenticated user - cannot load history');
+        toast.error('Please sign in to view your conversation history');
+        setIsLoadingHistory(false);
         return;
       }
 
       logger.debug('[QuickActions] Loading conversations for user:', user.id);
       
       // ✅ FIX: Always force refresh to ensure mobile and web show same data
-      await refreshConversationList(true);
+      const conversations = await refreshConversationList(true);
+      
+      // ✅ UX IMPROVEMENT: Show helpful message if no conversations
+      if (!conversations || conversations.length === 0) {
+        logger.debug('[QuickActions] No conversations found');
+        // Still open modal to show empty state (better UX than silent failure)
+      }
       
       logger.debug('[QuickActions] ✅ View History loaded with latest data');
     } catch (err) {
       logger.error('[QuickActions] Failed to load history:', err);
+      toast.error('Failed to load conversation history. Please try again.', {
+        duration: 5000,
+        description: 'If this persists, try refreshing the page.',
+      });
     } finally {
       setIsLoadingHistory(false);
     }
@@ -260,52 +270,7 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
     }
   };
 
-  const handleClearData = () => {
-    // ✅ BEST PRACTICE: Show custom confirmation dialog
-    setShowClearDataConfirm(true);
-  };
-
-  const confirmClearData = async () => {
-    setShowClearDataConfirm(false);
-    setIsClearingData(true);
-
-    try {
-      logger.debug('[QuickActions] Clearing all local data...');
-      
-      // Import and call resetLocalData utility
-      const { resetLocalData } = await import('@/utils/resetLocalData');
-      await resetLocalData();
-      
-    } catch (err) {
-      logger.error('[QuickActions] Failed to clear data:', err);
-      toast.error('Failed to clear data. Please try again.');
-      setIsClearingData(false);
-    }
-    // Note: resetLocalData() will reload the page, so setIsClearingData won't run
-  };
-
-  const actions = [
-    { 
-      icon: Plus, 
-      label: 'Start New Chat', 
-      action: handleNewChat,
-      color: 'emerald'
-    },
-    { 
-      icon: isLoadingHistory ? Loader2 : History, 
-      label: isLoadingHistory ? 'Loading...' : 'View History', 
-      action: handleViewHistory,
-      disabled: isLoadingHistory,
-      color: 'blue',
-      animate: isLoadingHistory
-    },
-    { 
-      icon: Trash2, 
-      label: 'Clear All Data', 
-      action: handleClearData,
-      color: 'red'
-    }
-  ];
+  // ✅ REMOVED: Clear All Data moved to ProfileSettingsModal (Account section)
 
   return (
     <>
@@ -331,53 +296,30 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
               disabled={isLoadingHistory}
               aria-label={isLoadingHistory ? 'Loading conversation history' : 'View conversation history'}
               aria-busy={isLoadingHistory}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#C6D4B0] hover:bg-[#B8C6A2] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#8FA67E] focus-visible:outline-none"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#C6D4B0] hover:bg-[#B8C6A2] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#8FA67E] focus-visible:outline-none relative"
             >
-              <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center">
+              {/* ✅ UX IMPROVEMENT: Loading overlay for better visual feedback */}
+              {isLoadingHistory && (
+                <div className="absolute inset-0 bg-[#C6D4B0]/80 rounded-xl flex items-center justify-center z-10">
+                  <Loader2 className="w-5 h-5 text-[#5A524A] animate-spin" />
+                </div>
+              )}
+              <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center flex-shrink-0">
                 {isLoadingHistory ? (
                   <Loader2 className="w-4 h-4 text-[#5A524A] animate-spin" aria-hidden="true" />
                 ) : (
                   <History className="w-4 h-4 text-[#5A524A]" aria-hidden="true" />
                 )}
               </div>
-              <span className="font-medium">{isLoadingHistory ? 'Loading...' : 'View History'}</span>
-            </button>
-          </li>
-          
-          <li>
-            <button
-              onClick={handleClearData}
-              disabled={isClearingData}
-              aria-label="Clear all local data (conversations and cache will be removed)"
-              aria-busy={isClearingData}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#A67571] focus-visible:outline-none"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#CF9A96]/30 flex items-center justify-center">
-                {isClearingData ? (
-                  <Loader2 className="w-4 h-4 text-[#A67571] animate-spin" aria-hidden="true" />
-                ) : (
-                  <Trash2 className="w-4 h-4 text-[#A67571]" aria-hidden="true" />
-                )}
-              </div>
-              <span className="font-medium">{isClearingData ? 'Clearing...' : 'Clear All Data'}</span>
+              <span className="font-medium flex-1 text-left">
+                {isLoadingHistory ? 'Loading History...' : 'View History'}
+              </span>
             </button>
           </li>
         </ul>
       </div>
 
       {/* ✅ BEST PRACTICE: Custom confirmation dialogs */}
-      <ConfirmDialog
-        isOpen={showClearDataConfirm}
-        onClose={() => setShowClearDataConfirm(false)}
-        onConfirm={confirmClearData}
-        title="Clear All Data"
-        message="This will clear all local conversations and cache. Your account data is safe on the server. This action cannot be undone."
-        confirmLabel="Clear All Data"
-        cancelLabel="Cancel"
-        variant="destructive"
-        isLoading={isClearingData}
-      />
-
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => {

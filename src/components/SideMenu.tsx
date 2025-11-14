@@ -408,16 +408,6 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   </button>
                   
                   <button
-                    onClick={() => handleAction(onShowControlCenter)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[#CF9A96]/30 flex items-center justify-center">
-                      <Settings className="w-4 h-4 text-[#A67571]" />
-                    </div>
-                    <span className="font-medium">Clear All Data</span>
-                  </button>
-                  
-                  <button
                     onClick={() => handleAction(onShowHelp)}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
                   >
