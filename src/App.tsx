@@ -5,9 +5,11 @@ import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from "r
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
+import { TutorialProvider } from "./contexts/TutorialContext";
 import { AuthProvider, useAuth } from "./providers/AuthProvider";
 import { useSettingsStore } from "./stores/useSettingsStore";
 import { setGlobalNavigate } from "./utils/navigation";
+import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
 
 // 🚀 Route-based code splitting for better performance
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -132,25 +134,30 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <UpgradeModalProvider>
-          <Router>
-            <NavigationSetup />
-            <Toaster position="top-center" />
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                <Route path="/login" element={<PublicAuthRoute />} />
-                <Route path="/chat" element={<ProtectedChatRoute />} />
-                <Route path="/rituals" element={<ProtectedRitualRoute />} />
-                <Route path="/rituals/builder" element={<ProtectedRitualBuilderRoute />} />
-                <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
-                <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
-                <Route path="/upgrade" element={<UpgradePage />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/" element={<Navigate to="/chat" replace />} />
-                <Route path="*" element={<Navigate to="/chat" replace />} />
-              </Routes>
-            </Suspense>
-          </Router>
+          <TutorialProvider>
+                    <Router>
+                      <NavigationSetup />
+                      <Toaster position="top-center" />
+                      <ErrorBoundary>
+                        <TutorialOverlay />
+                      </ErrorBoundary>
+                      <Suspense fallback={<LoadingSpinner />}>
+                <Routes>
+                  <Route path="/login" element={<PublicAuthRoute />} />
+                  <Route path="/chat" element={<ProtectedChatRoute />} />
+                  <Route path="/rituals" element={<ProtectedRitualRoute />} />
+                  <Route path="/rituals/builder" element={<ProtectedRitualBuilderRoute />} />
+                  <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
+                  <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
+                  <Route path="/upgrade" element={<UpgradePage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/privacy" element={<PrivacyPage />} />
+                  <Route path="/" element={<Navigate to="/chat" replace />} />
+                  <Route path="*" element={<Navigate to="/chat" replace />} />
+                </Routes>
+              </Suspense>
+            </Router>
+          </TutorialProvider>
         </UpgradeModalProvider>
       </AuthProvider>
     </QueryClientProvider>
