@@ -778,27 +778,73 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     try {
       logger.debug('[ChatPage] 🔍 Navigating to message:', { targetConversationId, messageId });
 
-      // Switch conversation if needed
+      // ✅ FIX: Update URL first to prevent URL effect from overriding
       if (targetConversationId !== conversationId) {
+        navigate(`/chat?conversation=${targetConversationId}`, { replace: true });
         setConversationId(targetConversationId);
-        await loadMessages(targetConversationId);
+        // Small delay to let URL effect process the change
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      // Always load messages to ensure they're fresh
+      const loadedMessages = await loadMessages(targetConversationId);
+      
+      // ✅ FIX: Verify message exists in loaded messages
+      const messageExists = loadedMessages?.some(msg => msg.id === messageId);
+      if (!messageExists) {
+        logger.warn('[ChatPage] ⚠️ Message not found in loaded messages:', {
+          messageId,
+          conversationId: targetConversationId,
+          messagesLoaded: loadedMessages?.length || 0
+        });
+        // Still try to scroll in case message is in DOM but not in state yet
       }
 
-      // Wait for messages to load
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // ✅ FIX: Wait for React to render messages, then poll for the element
+      // Use requestAnimationFrame to wait for next render cycle
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      await new Promise(resolve => requestAnimationFrame(resolve)); // Double RAF for React render
 
-      // Scroll to message
-      const messageElement = document.getElementById(`message-${messageId}`);
+      // Poll for message element with retries (up to 2 seconds)
+      const maxRetries = 20;
+      const retryDelay = 100;
+      let messageElement: HTMLElement | null = null;
+      
+      for (let i = 0; i < maxRetries; i++) {
+        messageElement = document.getElementById(`message-${messageId}`);
+        if (messageElement) {
+          logger.debug('[ChatPage] ✅ Found message element on attempt:', i + 1);
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+
       if (messageElement) {
+        // Small delay to ensure element is fully rendered
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
         messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
         // Highlight message briefly
         messageElement.classList.add('ring-2', 'ring-yellow-400', 'rounded-lg');
         setTimeout(() => {
-          messageElement.classList.remove('ring-2', 'ring-yellow-400', 'rounded-lg');
+          messageElement?.classList.remove('ring-2', 'ring-yellow-400', 'rounded-lg');
         }, 2000);
+        
+        logger.debug('[ChatPage] ✅ Successfully navigated to message:', messageId);
       } else {
-        logger.warn('[ChatPage] ⚠️ Message element not found:', messageId);
+        logger.warn('[ChatPage] ⚠️ Message element not found after retries:', {
+          messageId,
+          conversationId: targetConversationId,
+          messagesLoaded: loadedMessages?.length || 0,
+          messageInState: loadedMessages?.some(msg => msg.id === messageId) || false
+        });
+        // ✅ FALLBACK: Scroll to bottom if message not found
+        const messagesContainer = document.querySelector('[role="log"]') || 
+                                 document.querySelector('.overflow-y-auto');
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
       }
     } catch (error) {
       logger.error('[ChatPage] ❌ Failed to navigate to message:', error);

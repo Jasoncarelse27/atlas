@@ -66,17 +66,26 @@ export async function searchMessages(
     }
 
     // Format results with snippets
-    const results: SearchResult[] = data.map((msg: { id: string; content?: string; conversation_id: string; created_at: string; role: string }) => {
+    // ✅ TYPE SAFETY: Properly type the joined conversations data
+    const results: SearchResult[] = data.map((msg: any) => {
       const content = msg.content || '';
       const snippet = createSnippet(content, searchTerm);
+      
+      // ✅ TYPE SAFETY: Handle conversations join result (can be object or array)
+      const conversationTitle = 
+        (msg.conversations && typeof msg.conversations === 'object' && !Array.isArray(msg.conversations))
+          ? msg.conversations.title 
+          : Array.isArray(msg.conversations) && msg.conversations[0]
+            ? msg.conversations[0].title
+            : 'Untitled Conversation';
 
       return {
         messageId: msg.id,
         conversationId: msg.conversation_id,
-        conversationTitle: msg.conversations?.title || 'Untitled Conversation',
+        conversationTitle: conversationTitle,
         content: content,
         timestamp: msg.created_at,
-        role: msg.role,
+        role: msg.role as 'user' | 'assistant' | 'system',
         snippet,
       };
     });
