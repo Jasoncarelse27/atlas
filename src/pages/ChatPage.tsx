@@ -1233,9 +1233,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useEffect(() => {
     const urlConversationId = searchParams.get('conversation');
     
+    logger.debug('[ChatPage] 🔍 Checking URL conversation ID:', { urlConversationId, currentConversationId: conversationId }); // ✅ DEBUG
+    console.log('[ChatPage] 🔍 Checking URL conversation ID:', { urlConversationId, currentConversationId: conversationId }); // ✅ DEBUG: Visible in production
+    
     // Only switch if URL has a different conversation ID
     if (urlConversationId && urlConversationId !== conversationId) {
       logger.debug('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId);
+      console.log('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId); // ✅ DEBUG
       
       // Update conversation ID and load messages
       localStorage.setItem('atlas:lastConversationId', urlConversationId);
@@ -1247,8 +1251,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       } else {
         logger.debug('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
       }
+    } else if (!urlConversationId && conversationId) {
+      // ✅ FIX: If URL has no conversation ID but we have one in state, update URL
+      logger.debug('[ChatPage] ⚠️ URL missing conversation ID, updating URL');
+      navigate(`/chat?conversation=${conversationId}`, { replace: true });
     }
-  }, [searchParams, conversationId, userId]); // ✅ FIX: React to searchParams changes (includes navigate() calls)
+  }, [searchParams, conversationId, userId, navigate]); // ✅ FIX: navigate is stable, loadMessages is stable callback
 
   // ✅ MOBILE FIX: Also listen to popstate for browser back/forward navigation
   useEffect(() => {

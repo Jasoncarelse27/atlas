@@ -160,16 +160,25 @@ export default function QuickActions({ onViewHistory }: QuickActionsProps) {
   };
 
   const handleNewChat = async () => {
-    logger.debug('[QuickActions] Starting new chat...');
+    logger.debug('[QuickActions] 🚀 Starting new chat...');
+    console.log('[QuickActions] 🚀 Starting new chat...'); // ✅ DEBUG: Visible in production
     
     // ✅ Create new conversation ID (browser-compatible)
     const newConversationId = generateUUID();
     logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
+    console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId); // ✅ DEBUG
     
-    // ✅ BEST PRACTICE: Use React Router navigation (ChatPage now uses useSearchParams to detect changes)
-    navigate(`/chat?conversation=${newConversationId}`, { replace: false });
+    // ✅ FIX: Use replace: true to force navigation even if already on /chat route
+    // This ensures React Router treats it as a new navigation
+    const targetUrl = `/chat?conversation=${newConversationId}`;
+    logger.debug('[QuickActions] 🔄 Navigating to:', targetUrl);
+    console.log('[QuickActions] 🔄 Navigating to:', targetUrl); // ✅ DEBUG
+    
+    // ✅ FIX: Use replace: true to force React Router to update (prevents optimization skip)
+    navigate(targetUrl, { replace: true });
     
     logger.debug('[QuickActions] ✅ Navigation triggered via React Router');
+    console.log('[QuickActions] ✅ Navigation complete'); // ✅ DEBUG
   };
 
   const handleViewHistory = async () => {
