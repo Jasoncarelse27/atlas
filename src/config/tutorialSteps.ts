@@ -53,11 +53,11 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: 'button[aria-label*="menu" i], button:has(svg[class*="Menu"])', // Menu button
     position: {
       desktop: 'right',
-      mobile: 'right'
+      mobile: 'center' // ✅ FIX: Center on mobile for professional UX
     },
     offset: {
       desktop: { x: 10 },
-      mobile: { x: 10 }
+      mobile: { y: 0 } // No offset when centered
     }
   },
   {
