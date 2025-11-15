@@ -4133,11 +4133,83 @@ if (!process.env.RAILWAY_ENVIRONMENT && process.env.NODE_ENV !== 'production') {
       res.status(404).json({ error: 'API route not found' });
     } else {
       // Frontend routes should go to Vercel, not Railway
-      res.status(404).json({ 
-        error: 'Frontend not served from Railway',
-        message: 'Please access the frontend at https://atlas-xi-tawny.vercel.app',
-        backendApi: 'https://atlas-production-2123.up.railway.app/api'
-      });
+      // ✅ MOBILE FIX: Return HTML redirect page instead of JSON for better mobile UX
+      const frontendUrl = 'https://atlas-xi-tawny.vercel.app';
+      res.status(404).setHeader('Content-Type', 'text/html').send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="refresh" content="3;url=${frontendUrl}">
+          <title>Atlas - Redirecting...</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              background: linear-gradient(135deg, #F9F6F3 0%, #E8E3DC 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 20px;
+            }
+            .container {
+              background: white;
+              border-radius: 16px;
+              padding: 40px;
+              max-width: 500px;
+              width: 100%;
+              box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+              text-align: center;
+            }
+            h1 { color: #3B3632; margin-bottom: 16px; font-size: 24px; }
+            p { color: #8B7E74; margin-bottom: 24px; line-height: 1.6; }
+            .link {
+              display: inline-block;
+              background: #8FA67E;
+              color: white;
+              padding: 12px 24px;
+              border-radius: 8px;
+              text-decoration: none;
+              font-weight: 600;
+              margin-top: 8px;
+            }
+            .link:hover { background: #7A8F6A; }
+            .spinner {
+              border: 3px solid #f3f3f3;
+              border-top: 3px solid #8FA67E;
+              border-radius: 50%;
+              width: 40px;
+              height: 40px;
+              animation: spin 1s linear infinite;
+              margin: 20px auto;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>🚀 Redirecting to Atlas...</h1>
+            <p>You're accessing the backend API. The frontend is hosted separately.</p>
+            <div class="spinner"></div>
+            <p style="font-size: 14px; margin-top: 20px;">
+              Redirecting automatically in 3 seconds...
+            </p>
+            <a href="${frontendUrl}" class="link">Go to Atlas Now</a>
+          </div>
+          <script>
+            // Auto-redirect after 3 seconds
+            setTimeout(() => {
+              window.location.href = '${frontendUrl}';
+            }, 3000);
+          </script>
+        </body>
+        </html>
+      `);
     }
   });
 }
