@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { flushSync } from 'react-dom';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '../lib/logger';
@@ -44,6 +45,7 @@ export function ConversationHistoryDrawer({
   // ✅ DELETE CONFIRMATION: Local state for delete confirmation dialog
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false); // ✅ Loading state for delete operation
 
   // ✅ BEST PRACTICE: Lock background scroll while drawer is open
   // ✅ FIX: Delay scroll unlock until exit animation completes (~300ms)
@@ -225,12 +227,12 @@ export function ConversationHistoryDrawer({
                           setConversationToDelete(conv.id);
                           setShowDeleteConfirm(true);
                         }}
-                        disabled={deletingId === conv.id || isNavigating === conv.id}
+                        disabled={deletingId === conv.id || isNavigating === conv.id || (isDeleting && conversationToDelete === conv.id)}
                         className="flex-shrink-0 min-w-[44px] min-h-[44px] p-2 sm:p-3 bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 active:bg-[#CF9A96]/30 text-[#A67571] hover:text-[#8B5F5B] rounded-lg transition-all duration-200 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 disabled:opacity-50 disabled:cursor-not-allowed group/delete flex items-center justify-center"
                         title="Delete conversation"
                         aria-label="Delete conversation"
                       >
-                        {deletingId === conv.id ? (
+                        {(deletingId === conv.id || (isDeleting && conversationToDelete === conv.id)) ? (
                           <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -342,6 +344,15 @@ export function ConversationHistoryDrawer({
               }}
               onConfirm={async () => {
                 if (conversationToDelete) {
+                  // ✅ MOBILE FIX: Force immediate synchronous render on mobile browsers
+                  flushSync(() => {
+                    setIsDeleting(true); // ✅ Show loading state - renders immediately
+                  });
+                  
+                  // ✅ MOBILE FIX: Small delay to ensure UI updates before async operation starts
+                  // Mobile browsers need a frame to render the loading state
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  
                   try {
                     // ✅ FIX: Get authenticated user for delete service
                     const { data: { user } } = await supabase.auth.getUser();
@@ -349,6 +360,7 @@ export function ConversationHistoryDrawer({
                       toast.error('Please sign in to delete conversations');
                       setShowDeleteConfirm(false);
                       setConversationToDelete(null);
+                      setIsDeleting(false);
                       return;
                     }
                     
@@ -365,6 +377,7 @@ export function ConversationHistoryDrawer({
                     logger.error('[ConversationHistoryDrawer] Delete failed:', error);
                     toast.error(`Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`);
                   } finally {
+                    setIsDeleting(false); // ✅ Clear loading state
                     setShowDeleteConfirm(false);
                     setConversationToDelete(null);
                   }
@@ -375,7 +388,7 @@ export function ConversationHistoryDrawer({
               confirmLabel="Delete"
               cancelLabel="Cancel"
               variant="destructive"
-              isLoading={conversationToDelete !== null && deletingId === conversationToDelete}
+              isLoading={isDeleting}
             />
           )}
         </>
