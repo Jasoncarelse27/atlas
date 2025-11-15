@@ -82,8 +82,28 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
         logger.debug('[QuickActions] 📡 Force refresh - auto-syncing from Supabase...');
         try {
           const { conversationSyncService } = await import('../../services/conversationSyncService');
+          const { atlasDB } = await import('../../database/atlasDB');
+          
           // ✅ CRITICAL: Force sync bypasses cooldown to ensure mobile/web parity
           await conversationSyncService.deltaSync(user.id, true); // force=true bypasses cooldown
+          
+          // ✅ SYNC FIX: Check for missing conversations and do catch-up sync if needed
+          // This handles cases where delta sync misses conversations created before lastSyncedAt
+          const localCount = await atlasDB.conversations
+            .where('userId')
+            .equals(user.id)
+            .filter(conv => !conv.deletedAt)
+            .count();
+          
+          // If we have very few conversations locally, do a first-sync to catch up
+          if (localCount < 10) {
+            logger.debug('[QuickActions] 🔄 Low conversation count - doing catch-up sync...');
+            // Clear sync metadata to force first sync (fetches all conversations)
+            await atlasDB.syncMetadata.delete(user.id);
+            await conversationSyncService.deltaSync(user.id, true);
+            logger.debug('[QuickActions] ✅ Catch-up sync completed');
+          }
+          
           logger.debug('[QuickActions] ✅ Auto-sync completed - conversations synced');
         } catch (syncError) {
           logger.error('[QuickActions] ❌ Auto-sync failed:', syncError);
