@@ -2,11 +2,24 @@ import { supabase } from "../lib/supabaseClient";
 // Removed useMessageStore import - using callback pattern instead
 import { logger } from "../lib/logger";
 import type { Message } from "../types/chat";
+import type { Tier } from "../types/tier";
+import { getApiEndpoint, getApiUrl } from "../utils/apiClient";
+import { getAuthTokenOrThrow } from "../utils/getAuthToken";
 import { generateUUID } from "../utils/uuid";
 import { enhancedResponseCacheService } from "./enhancedResponseCacheService";
 import { subscriptionApi } from "./subscriptionApi";
-import { getApiEndpoint, getApiUrl } from "../utils/apiClient";
-import { getAuthTokenOrThrow } from "../utils/getAuthToken";
+
+// Extended Error type for auth errors
+interface AuthError extends Error {
+  isAuthError: true;
+}
+
+// Type for API error responses
+interface ApiErrorResponse {
+  error?: string;
+  message?: string;
+  [key: string]: unknown;
+}
 
 // Global abort controller for message streaming
 let abortController: AbortController | null = null;
@@ -104,7 +117,7 @@ export const chatService = {
 
       // ✅ ENHANCED CACHING: Check cache first for 20-30% cost reduction
       logger.debug('[ChatService] 🔍 Checking enhanced cache for query:', text.substring(0, 50));
-      const cachedResponse = await enhancedResponseCacheService.getCachedResponse(text, currentTier as any);
+      const cachedResponse = await enhancedResponseCacheService.getCachedResponse(text, currentTier as Tier);
       
       if (cachedResponse) {
         logger.debug('[ChatService] ✅ Cache hit! Returning cached response (API cost saved)');
@@ -229,8 +242,8 @@ export const chatService = {
                 if (refreshError || !refreshedSession?.access_token) {
                   logger.error('[ChatService] ❌ Token refresh failed:', refreshError?.message || 'No token in response');
                   // Create error that won't be retried
-                  const authError = new Error('Session expired. Please sign in again.');
-                  (authError as any).isAuthError = true;
+                  const authError = new Error('Session expired. Please sign in again.') as AuthError;
+                  authError.isAuthError = true;
                   throw authError;
                 }
                 
@@ -259,22 +272,22 @@ export const chatService = {
                   break; // Success!
                 } else {
                   // Still 401 after refresh - user needs to sign in again
-                  const retryErrorData = await retryResponse.json().catch(() => ({ error: 'Unknown error' }));
-                  const authError = new Error(`Authentication failed: ${retryErrorData.error || 'Please sign in again'}`);
-                  (authError as any).isAuthError = true;
+                  const retryErrorData = await retryResponse.json().catch(() => ({ error: 'Unknown error' })) as ApiErrorResponse;
+                  const authError = new Error(`Authentication failed: ${retryErrorData.error || 'Please sign in again'}`) as AuthError;
+                  authError.isAuthError = true;
                   throw authError;
                 }
               } catch (refreshError) {
                 // Refresh failed or retry still failed - don't retry this
                 logger.error('[ChatService] ❌ Token refresh/retry failed:', refreshError);
-                const authError = refreshError instanceof Error ? refreshError : new Error('Session expired. Please sign in again.');
-                (authError as any).isAuthError = true;
+                const authError = (refreshError instanceof Error ? refreshError : new Error('Session expired. Please sign in again.')) as AuthError;
+                authError.isAuthError = true;
                 throw authError;
               }
             } else {
               // Already tried refresh, still 401 - user needs to sign in (don't retry)
-              const authError = new Error(`Authentication failed: ${errorData.error || 'Please sign in again'}`);
-              (authError as any).isAuthError = true;
+              const authError = new Error(`Authentication failed: ${errorData.error || 'Please sign in again'}`) as AuthError;
+              authError.isAuthError = true;
               throw authError;
             }
           }
@@ -282,7 +295,7 @@ export const chatService = {
           // Handle errors (only if not 401, which was handled above)
           // ✅ BEST PRACTICE: Parse error data - handle both JSON and plain text responses
           // Note: Response body can only be read once, so check content-type first
-          let errorData: any = { error: 'Unknown error' };
+          let errorData: ApiErrorResponse = { error: 'Unknown error' };
           try {
             if (contentType.includes('application/json')) {
               errorData = await response.json();
@@ -337,12 +350,22 @@ export const chatService = {
           lastError = error as Error;
           
           // ✅ CRITICAL DEBUG: Log ALL errors with full details (especially network/CORS errors)
-          const errorDetails: any = {
+          const errorDetails: {
+            name: string;
+            message: string;
+            stack?: string;
+            type: string;
+            isAuthError?: boolean;
+            endpoint: string;
+            apiUrl: string;
+            networkError?: boolean;
+            possibleCauses?: string[];
+          } = {
             name: error instanceof Error ? error.name : 'Unknown',
             message: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
             type: error instanceof TypeError ? 'TypeError' : error instanceof Error ? error.constructor.name : 'Unknown',
-            isAuthError: (error as any)?.isAuthError,
+            isAuthError: (error as AuthError)?.isAuthError,
             endpoint: messageEndpoint,
             apiUrl: getApiUrl() || 'RELATIVE'
           };
@@ -361,7 +384,7 @@ export const chatService = {
           logger.error(`[ChatService] ❌ Fetch error on attempt ${attempt + 1}:`, errorDetails);
           
           // ✅ CRITICAL: Don't retry auth errors (401 after refresh attempt)
-          if ((error as any)?.isAuthError) {
+          if ((error as AuthError)?.isAuthError) {
             logger.error('[ChatService] ❌ Auth error - not retrying');
             throw error;
           }
@@ -664,7 +687,7 @@ export async function sendMessageWithAttachments(
         
         if (!response.ok) {
           // Handle image analysis error (existing code below)
-          let errorData: any = {};
+          let errorData: ApiErrorResponse = {};
           try {
             const errorText = await response.text();
             errorData = errorText ? JSON.parse(errorText) : {};
@@ -687,7 +710,8 @@ export async function sendMessageWithAttachments(
             // Token refresh logic would go here
           }
           
-          throw new Error(errorData.details || errorData.error || `Image analysis failed (${response.status})`);
+          const errorMessage = (errorData.details || errorData.error || `Image analysis failed (${response.status})`) as string;
+          throw new Error(errorMessage);
         }
         
         const analysisResult = await response.json();
@@ -713,7 +737,7 @@ export async function sendMessageWithAttachments(
         });
         
         if (!response.ok) {
-          let errorData: any = {};
+          let errorData: ApiErrorResponse = {};
           try {
             const errorText = await response.text();
             errorData = errorText ? JSON.parse(errorText) : {};
@@ -728,7 +752,8 @@ export async function sendMessageWithAttachments(
             details: errorData.details
           });
           
-          throw new Error(errorData.details || errorData.error || `File analysis failed (${response.status})`);
+          const errorMessage = (errorData.details || errorData.error || `File analysis failed (${response.status})`) as string;
+          throw new Error(errorMessage);
         }
         
         const analysisResult = await response.json();

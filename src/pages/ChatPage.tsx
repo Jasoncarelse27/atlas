@@ -281,9 +281,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useEffect(() => {
     if (messages && messages.length > 0) {
       // Additional scroll to bottom on initial load to ensure it works
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         scrollToBottom();
       }, 200);
+      
+      return () => clearTimeout(timer);
     }
   }, []); // Run once on mount
 

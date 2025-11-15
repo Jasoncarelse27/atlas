@@ -1,6 +1,8 @@
+import type { PostgrestError } from '@supabase/supabase-js';
 import { atlasDB } from '../database/atlasDB';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
+import type { Json } from '../types/database.types';
 import { perfMonitor } from '../utils/performanceMonitor';
 
 // Define proper types for Supabase responses
@@ -10,6 +12,7 @@ interface SupabaseConversation {
   title: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 interface SupabaseMessage {
@@ -18,9 +21,28 @@ interface SupabaseMessage {
   user_id: string;
   role: 'user' | 'assistant' | 'system';
   message_type: string;
-  content: string | { type: string; text: string };
+  content: string;  // Database expects string, not object
+  created_at: string;
+  deleted_at?: string | null;
+  deleted_by?: 'user' | 'everyone' | null;
+}
+
+// Type for message insert/update (content can be object during transformation)
+interface SupabaseMessageInsert {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  role: 'user' | 'assistant' | 'system';
+  message_type: string;
+  content: string;  // Must be string for database
   created_at: string;
 }
+
+// Type for Supabase query response
+type SupabaseQueryResponse<T> = {
+  data: T | null;
+  error: PostgrestError | null;
+};
 
 export interface ConversationSyncData {
   id: string;
@@ -80,7 +102,7 @@ export class ConversationSyncService {
       
       // ✅ NETWORK FIX: Retry logic with exponential backoff for "Load failed" errors
       let remoteConversations: SupabaseConversation[] | null = null;
-      let error: any = null;
+      let error: PostgrestError | null = null;
       const MAX_RETRIES = 3;
       let attempt = 0;
       
@@ -93,7 +115,7 @@ export class ConversationSyncService {
             .is('deleted_at', null)
             .gte('updated_at', recentDate)
             .order('updated_at', { ascending: false })
-            .limit(30) as { data: SupabaseConversation[] | null; error: any };
+            .limit(30) as SupabaseQueryResponse<SupabaseConversation[]>;
           
           remoteConversations = result.data;
           error = result.error;
@@ -114,10 +136,17 @@ export class ConversationSyncService {
             logger.debug(`[ConversationSync] ⚡ Retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
-        } catch (fetchError: any) {
+        } catch (fetchError: unknown) {
           // Network error (TypeError: Load failed)
-          if (!(fetchError instanceof TypeError) || !fetchError.message?.includes('Load failed')) {
-            error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+          const err = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+          if (!(fetchError instanceof TypeError) || !err.message?.includes('Load failed')) {
+            error = { 
+              message: err.message, 
+              code: 'NETWORK_ERROR',
+              details: err.stack || undefined,
+              hint: undefined,
+              name: 'PostgrestError'
+            } as unknown as PostgrestError;
             break;
           }
           
@@ -127,7 +156,13 @@ export class ConversationSyncService {
             logger.debug(`[ConversationSync] ⚡ Network error, retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
-            error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+            error = {
+              message: err.message,
+              code: 'NETWORK_ERROR',
+              details: undefined,
+              hint: undefined,
+              name: 'PostgrestError'
+            } as unknown as PostgrestError;
           }
         }
       }
@@ -224,7 +259,7 @@ export class ConversationSyncService {
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true }) as { data: SupabaseMessage[] | null; error: any };
+        .order('created_at', { ascending: true }) as SupabaseQueryResponse<SupabaseMessage[]>;
 
       if (error) {
         // ✅ BETTER ERROR LOGGING: Capture full error details
@@ -273,8 +308,10 @@ export class ConversationSyncService {
               parsedContent = remoteMsg.content;
             }
           } else {
-            // Object format
-            parsedContent = remoteMsg.content?.text || '';
+            // Object format (shouldn't happen with SupabaseMessage type, but handle safely)
+            parsedContent = typeof remoteMsg.content === 'object' && remoteMsg.content !== null && 'text' in remoteMsg.content
+              ? String((remoteMsg.content as { text?: string }).text || '')
+              : String(remoteMsg.content || '');
           }
           
           // Add new message only if it doesn't exist
@@ -330,7 +367,7 @@ export class ConversationSyncService {
             title: conv.title,
             created_at: conv.createdAt,
             updated_at: conv.updatedAt
-          } as any);
+          } as SupabaseConversation);
 
         if (error) {
           logger.error('[ConversationSync] Failed to sync conversation:', conv.id, error);
@@ -360,7 +397,7 @@ export class ConversationSyncService {
             title: 'Chat',
             created_at: msg.timestamp,
             updated_at: msg.timestamp
-          } as any, {
+          } as SupabaseConversation, {
             onConflict: 'id' // If exists, just update; if not, create
           });
         
@@ -381,8 +418,8 @@ export class ConversationSyncService {
               error: convError,
               errorCode: convError.code,
               errorMessage: convError.message,
-              errorDetails: (convError as any)?.details,
-              errorHint: (convError as any)?.hint
+              errorDetails: convError.details,
+              errorHint: convError.hint
             });
             // Skip this message - can't sync without conversation
             continue;
@@ -397,6 +434,9 @@ export class ConversationSyncService {
         const MAX_RETRIES = 2;
         
         while (!messageSynced && retryCount <= MAX_RETRIES) {
+        // ✅ Convert content to string (database expects string, not object)
+        const contentString = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+        
         const { error } = await supabase
           .from('messages')
           .upsert({
@@ -405,12 +445,9 @@ export class ConversationSyncService {
               user_id: _userId, // ✅ Use authenticated userId parameter
             role: msg.role,
             message_type: msg.role,
-            content: {
-              type: 'text',
-              text: msg.content
-            },
+            content: contentString, // ✅ Must be string for database
             created_at: msg.timestamp
-          } as any, {
+          } as SupabaseMessageInsert, {
             onConflict: 'id' // ✅ Handle duplicate IDs gracefully
           });
 
@@ -419,10 +456,10 @@ export class ConversationSyncService {
             logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
             messageSynced = true;
           } else {
-            const errorStatus = (error as any)?.status || (error as any)?.code;
+            const errorStatus = (error as PostgrestError & { status?: number })?.status || error.code;
             const errorMessage = error.message || String(error);
             const errorCode = error.code;
-            const errorDetails = (error as any)?.details || '';
+            const errorDetails = error.details || '';
             
             // Conflict errors (message already exists)
             const isConflict = 
@@ -460,7 +497,7 @@ export class ConversationSyncService {
                   title: 'Chat',
                   created_at: msg.timestamp,
                   updated_at: msg.timestamp
-                } as any, { onConflict: 'id' });
+                } as SupabaseConversation, { onConflict: 'id' });
               
               if (retryConvError) {
                 logger.error('[ConversationSync] ❌ Retry conversation creation failed:', retryConvError);
@@ -574,8 +611,8 @@ export class ConversationSyncService {
       });
       
       // 2. Fetch conversations - use different query for first sync vs delta sync
-      let updatedConversations: any[] | null = null;
-      let convError: any = null;
+      let updatedConversations: SupabaseConversation[] | null = null;
+      let convError: PostgrestError | null = null;
       
       if (isFirstSync) {
         // ✅ FIRST SYNC: Fetch ALL conversations (no date filter, just non-deleted)
@@ -586,7 +623,7 @@ export class ConversationSyncService {
           .eq('user_id', userId)
           .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
           .order('updated_at', { ascending: false })
-          .limit(20) as { data: any[] | null; error: any }; // ✅ SCALABILITY FIX: Reduced from 50 to 20
+          .limit(20) as SupabaseQueryResponse<SupabaseConversation[]>; // ✅ SCALABILITY FIX: Reduced from 50 to 20
         
         updatedConversations = result.data;
         convError = result.error;
@@ -600,7 +637,7 @@ export class ConversationSyncService {
           .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
           .gt('updated_at', lastSyncedAt)  // ← DELTA FILTER
           .order('updated_at', { ascending: false })
-          .limit(30) as { data: any[] | null; error: any };
+          .limit(30) as SupabaseQueryResponse<SupabaseConversation[]>;
         
         updatedConversations = result.data;
         convError = result.error;
@@ -650,7 +687,7 @@ export class ConversationSyncService {
           logger.error('[ConversationSync] ❌ Error checking conversations:', checkError);
         } else if (allConversations) {
           logger.info(`[ConversationSync] 📋 Found ${allConversations.length} total conversations (including deleted):`, 
-            (allConversations as any[]).map((c: any) => ({ id: c.id, title: c.title, deleted: !!c.deleted_at }))
+            (allConversations as SupabaseConversation[]).map((c: SupabaseConversation) => ({ id: c.id, title: c.title, deleted: !!c.deleted_at }))
           );
         } else {
           logger.info('[ConversationSync] 📋 No conversations found in Supabase at all');
@@ -727,7 +764,7 @@ export class ConversationSyncService {
           .eq('user_id', userId)
           .not('deleted_at', 'is', null)  // Only deleted conversations
           .gt('updated_at', lastSyncedAt)  // Only recently deleted
-          .limit(20) as { data: any[] | null; error: any }; // ✅ SCALABILITY FIX: Reduced from 50 to 20
+          .limit(20) as SupabaseQueryResponse<Pick<SupabaseConversation, 'id' | 'deleted_at' | 'updated_at'>[]>; // ✅ SCALABILITY FIX: Reduced from 50 to 20
         
         if (!deletedError && deletedConversations && deletedConversations.length > 0) {
           logger.debug(`[ConversationSync] ✅ Found ${deletedConversations.length} deleted conversations to sync`);
@@ -768,7 +805,7 @@ export class ConversationSyncService {
           .in('conversation_id', conversationIds)  // ← ONLY updated conversations
           .gt('created_at', lastSyncedAt)  // ← DELTA FILTER
           .order('created_at', { ascending: true })
-          .limit(20) as { data: any[] | null; error: any }; // ✅ SCALABILITY FIX: Reduced from 100 to 20
+          .limit(20) as SupabaseQueryResponse<SupabaseMessage[]>; // ✅ SCALABILITY FIX: Reduced from 100 to 20
         
         queriesExecuted++; // Track query count
         
@@ -816,8 +853,10 @@ export class ConversationSyncService {
                   parsedContent = msg.content;
                 }
               } else {
-                // Object format
-                parsedContent = msg.content?.text || '';
+                // Object format (shouldn't happen with SupabaseMessage type, but handle safely)
+                parsedContent = typeof msg.content === 'object' && msg.content !== null && 'text' in msg.content
+                  ? String((msg.content as { text?: string }).text || '')
+                  : String(msg.content || '');
               }
               
               await atlasDB.messages.put({
@@ -877,7 +916,7 @@ export class ConversationSyncService {
             title: 'Chat',
             created_at: msg.timestamp,
             updated_at: msg.timestamp
-          } as any, {
+          } as SupabaseConversation, {
             onConflict: 'id' // If exists, just update; if not, create
           });
         
@@ -898,8 +937,8 @@ export class ConversationSyncService {
               error: convError,
               errorCode: convError.code,
               errorMessage: convError.message,
-              errorDetails: (convError as any)?.details,
-              errorHint: (convError as any)?.hint
+              errorDetails: convError.details,
+              errorHint: convError.hint
             });
             // Skip this message - can't sync without conversation
             continue;
@@ -923,7 +962,7 @@ export class ConversationSyncService {
             role: msg.role,
             content: msg.content, // ✅ Send as string directly
             created_at: msg.timestamp
-          } as any, {
+          } as SupabaseMessageInsert, {
             onConflict: 'id' // ✅ Handle duplicate IDs gracefully
           });
         
@@ -932,10 +971,10 @@ export class ConversationSyncService {
           logger.debug('[ConversationSync] ✅ Synced message:', msg.id);
             messageSynced = true;
         } else {
-            const errorStatus = (error as any)?.status || (error as any)?.code;
+            const errorStatus = (error as PostgrestError & { status?: number })?.status || error.code;
             const errorMessage = error.message || String(error);
             const errorCode = error.code;
-            const errorDetails = (error as any)?.details || '';
+            const errorDetails = error.details || '';
             
             // Conflict errors (message already exists)
             const isConflict = 
@@ -973,7 +1012,7 @@ export class ConversationSyncService {
                   title: 'Chat',
                   created_at: msg.timestamp,
                   updated_at: msg.timestamp
-                } as any, { onConflict: 'id' });
+                } as SupabaseConversation, { onConflict: 'id' });
               
               if (retryConvError) {
                 logger.error('[ConversationSync] ❌ Retry conversation creation failed:', retryConvError);
@@ -1062,7 +1101,7 @@ export class ConversationSyncService {
           await supabase.from('usage_logs').insert({
             user_id: userId,
             event: 'delta_sync_completed',
-            tier: tier, // ✅ Explicit column (best practice) - NULL allowed for unknown tiers
+            tier: tier || null, // ✅ Explicit column (best practice) - NULL allowed for unknown tiers
             feature: 'sync',
             metadata: {
               duration,
@@ -1070,8 +1109,8 @@ export class ConversationSyncService {
               conversationsSynced,
               messagesSynced,
               unsyncedPushed: unsyncedMessages.length
-            }
-          } as any);
+            } as Json
+          });
         }
       } catch (logError) {
         // Silent fail - monitoring is optional and non-critical

@@ -1,4 +1,4 @@
-import Dexie, { type Table } from "dexie"
+import Dexie, { type Table } from "dexie";
 import { logger } from '../lib/logger';
 
 export interface Conversation {
@@ -7,6 +7,7 @@ export interface Conversation {
   title: string
   createdAt: string
   updatedAt: string
+  deletedAt?: string | null  // Soft delete support
 }
 
 export interface Message {

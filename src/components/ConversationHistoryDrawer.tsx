@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { logger } from '../lib/logger';
 
 interface Conversation {
@@ -28,8 +29,11 @@ export function ConversationHistoryDrawer({
   onDeleteConversation,
   deletingId,
   onRefresh,
-  userId
+  userId: _userId // ✅ Reserved for future live insight widgets (optional, currently unused)
 }: ConversationHistoryDrawerProps) {
+  // ✅ MOBILE FIX: Use React Router's navigate for proper navigation
+  const navigate = useNavigate();
+  
   // ✅ FIX #1: Add loading states for better mobile UX
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -145,16 +149,15 @@ export function ConversationHistoryDrawer({
                       ${deletingId === conv.id || isNavigating === conv.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}
                     `}
                     onClick={() => {
-                      // ✅ Close drawer IMMEDIATELY for instant feedback
+                      // ✅ MOBILE FIX: Close drawer IMMEDIATELY for instant feedback
                       onClose();
                       
-                      // ✅ Then navigate in background
+                      // ✅ MOBILE FIX: Use React Router's navigate (works properly on mobile)
                       setIsNavigating(conv.id);
                       const url = `/chat?conversation=${conv.id}`;
-                      window.history.pushState({ conversationId: conv.id }, '', url);
                       
-                      // Trigger custom event for ChatPage to handle
-                      window.dispatchEvent(new PopStateEvent('popstate', { state: { conversationId: conv.id } }));
+                      // ✅ Use React Router navigate - triggers searchParams update in ChatPage
+                      navigate(url, { replace: true });
                       
                       // Reset loading state after navigation
                       setTimeout(() => setIsNavigating(null), 500);
