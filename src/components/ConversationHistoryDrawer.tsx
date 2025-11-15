@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
+import { deleteConversation } from '../services/conversationDeleteService';
 import { ConfirmDialog } from './modals/ConfirmDialog';
 
 interface Conversation {
@@ -27,7 +29,7 @@ export function ConversationHistoryDrawer({
   isOpen, 
   onClose, 
   conversations, 
-  onDeleteConversation,
+  onDeleteConversation: _onDeleteConversation, // ✅ Kept for backward compatibility, but we handle delete directly now
   deletingId,
   onRefresh,
   userId: _userId // ✅ Reserved for future live insight widgets (optional, currently unused)
@@ -340,10 +342,32 @@ export function ConversationHistoryDrawer({
               }}
               onConfirm={async () => {
                 if (conversationToDelete) {
-                  // Call the parent's delete handler
-                  onDeleteConversation(conversationToDelete);
-                  setShowDeleteConfirm(false);
-                  setConversationToDelete(null);
+                  try {
+                    // ✅ FIX: Get authenticated user for delete service
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) {
+                      toast.error('Please sign in to delete conversations');
+                      setShowDeleteConfirm(false);
+                      setConversationToDelete(null);
+                      return;
+                    }
+                    
+                    // ✅ FIX: Direct delete (no second dialog) - same service QuickActions uses
+                    await deleteConversation(conversationToDelete, user.id);
+                    
+                    // ✅ FIX: Refresh list via callback
+                    if (onRefresh) {
+                      await onRefresh();
+                    }
+                    
+                    toast.success('Conversation deleted successfully');
+                  } catch (error) {
+                    logger.error('[ConversationHistoryDrawer] Delete failed:', error);
+                    toast.error(`Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  } finally {
+                    setShowDeleteConfirm(false);
+                    setConversationToDelete(null);
+                  }
                 }
               }}
               title="Delete Conversation"
