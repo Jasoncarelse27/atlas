@@ -146,9 +146,13 @@
     <!-- Force Vercel HTML rebuild: 2025-11-04-18:35 -->
     <meta name="description" content="Atlas AI - Intelligent conversations with emotional intelligence, secure and private." />
     <!-- ✅ CACHE-BUSTING: Version tag forces browser to reload HTML -->
-    <!-- ✅ CACHE-BUSTING: Version tag forces browser to reload HTML -->
-    <meta name="version" content="2025-11-07-footer-fix-1762495200" />
+    <!-- ✅ MOBILE FIX: Aggressive cache prevention for mobile browsers -->
+    <meta name="version" content="2025-11-15-mobile-fix-1763172000" />
     <!-- 🔧 Force HTML rebuild to fix bundle references -->
+    <!-- ✅ MOBILE: Prevent caching on mobile browsers (Safari/Chrome mobile cache aggressively) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
   </head>
   <body>
     <div id="root"></div>

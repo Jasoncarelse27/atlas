@@ -12,7 +12,7 @@ import './lib/cache-buster' // ✅ Force cache invalidation
 // ✅ DEPLOYMENT VERIFICATION: Log build version to verify deployment
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || Date.now().toString();
 const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();
-const CACHE_BUSTER_VERSION = 'call-button-removed-v2'; // ✅ Force cache clear for call button removal
+const CACHE_BUSTER_VERSION = 'mobile-loading-fix-v3'; // ✅ Force cache clear for mobile loading fix
 
 // ✅ CRITICAL: Check if cached version matches current version
 const CACHE_KEY = 'atlas-app-version';
@@ -31,6 +31,21 @@ console.log(`[Atlas] Build: ${buildVersion} | Deployed: ${deployTime}`);
 console.log(`[Atlas] 🔄 Cache Check: If you see this, new bundle loaded!`);
 console.log(`[Atlas] 🔍 VoiceV2 Auth Fix: Active (waiting for session_started before audio)`);
 console.log(`[Atlas] ✅ Call Button Removed - Version: ${CACHE_BUSTER_VERSION}`);
+
+// ✅ MOBILE FIX: Detect mobile and log environment for debugging
+if (typeof window !== 'undefined') {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isProduction = import.meta.env.PROD;
+  const apiUrl = import.meta.env.VITE_API_URL || 'NOT SET';
+  
+  console.log(`[Atlas] 📱 Mobile: ${isMobile ? 'YES' : 'NO'} | Production: ${isProduction ? 'YES' : 'NO'}`);
+  console.log(`[Atlas] 🔗 API URL: ${apiUrl}`);
+  console.log(`[Atlas] 🌐 Origin: ${window.location.origin}`);
+  
+  if (isMobile && isProduction && !apiUrl) {
+    console.error('[Atlas] ❌ MOBILE PRODUCTION ERROR: VITE_API_URL not set! API calls will fail.');
+  }
+}
 
 // Initialize Sentry before rendering app
 initSentry()
