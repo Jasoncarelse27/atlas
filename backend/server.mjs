@@ -26,6 +26,7 @@ import tierGateMiddleware from './middleware/tierGateMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
+import jwt from 'jsonwebtoken';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -3767,6 +3768,61 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
     
     res.status(500).json({ 
       error: 'Failed to sync subscriber',
+      details: error.message 
+    });
+  }
+});
+
+// MagicBell: Generate user token for notifications
+app.get('/api/magicbell/token', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const userEmail = req.user?.email;
+    
+    if (!userId || !userEmail) {
+      return res.status(401).json({ 
+        error: 'User authentication required' 
+      });
+    }
+
+    const MAGICBELL_API_SECRET = process.env.MAGICBELL_API_SECRET;
+    
+    if (!MAGICBELL_API_SECRET) {
+      logger.warn('[MagicBell] API secret not configured');
+      return res.status(500).json({ 
+        error: 'MagicBell service not configured' 
+      });
+    }
+
+    // Generate MagicBell user token (JWT)
+    // MagicBell expects: { external_id, email, hmac }
+    const token = jwt.sign(
+      {
+        external_id: userId,
+        email: userEmail,
+      },
+      MAGICBELL_API_SECRET,
+      {
+        expiresIn: '7d', // Token valid for 7 days
+        algorithm: 'HS256',
+      }
+    );
+
+    logger.debug(`[MagicBell] Generated token for user ${userId}`);
+    
+    res.json({ 
+      success: true,
+      token: token,
+      user: {
+        external_id: userId,
+        email: userEmail,
+      }
+    });
+
+  } catch (error) {
+    logger.error('[MagicBell] Failed to generate token:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to generate MagicBell token',
       details: error.message 
     });
   }
