@@ -216,11 +216,17 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     return;
   }
 
+  // ✅ COMPREHENSIVE SYNC FIX: Track when we last checked for missing conversations
+  let lastMissingCheck = 0;
+  const MISSING_CHECK_INTERVAL = 10 * 60 * 1000; // Check every 10 minutes
+
   // Run delta sync immediately on load (skip if voice call active)
   if (!voiceCallState.getActive()) {
-    conversationSyncService.deltaSync(userId).catch(error => {
+    // ✅ SYNC FIX: Check for missing conversations on initial load
+    conversationSyncService.deltaSync(userId, false, true).catch(error => {
       logger.error("[SYNC] Initial delta sync failed:", error);
     });
+    lastMissingCheck = Date.now();
   }
 
   // ✅ SCALABILITY FIX: Adaptive sync intervals based on user activity
@@ -263,13 +269,22 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
         logger.debug(`[SYNC] Adjusting sync interval: ${currentInterval}ms → ${newInterval}ms`);
         currentInterval = newInterval;
         // Restart interval with new timing
-        clearInterval(syncInterval);
+        if (syncInterval) {
+          clearInterval(syncInterval);
+        }
         syncInterval = setInterval(syncFunction, newInterval);
       }
       
-      conversationSyncService.deltaSync(userId).catch(error => {
+      // ✅ COMPREHENSIVE SYNC FIX: Periodically check for missing conversations
+      // Check every 10 minutes to avoid excessive count queries, but ensure sync parity
+      const shouldCheckMissing = Date.now() - lastMissingCheck > MISSING_CHECK_INTERVAL;
+      conversationSyncService.deltaSync(userId, false, shouldCheckMissing).catch(error => {
         logger.error("[SYNC] Background delta sync failed:", error);
       });
+      
+      if (shouldCheckMissing) {
+        lastMissingCheck = Date.now();
+      }
     };
     
     syncInterval = setInterval(syncFunction, currentInterval);
@@ -284,7 +299,8 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
         return;
       }
       
-      conversationSyncService.deltaSync(userId).catch(error => {
+      // ✅ SYNC FIX: Check for missing conversations when app regains focus
+      conversationSyncService.deltaSync(userId, false, true).catch(error => {
         logger.error("[SYNC] Focus delta sync failed:", error);
       });
     };

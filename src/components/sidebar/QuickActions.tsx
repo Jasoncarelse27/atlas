@@ -111,7 +111,8 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
         logger.debug('[QuickActions] 📡 IndexedDB empty, syncing from Supabase...');
         try {
           const { conversationSyncService } = await import('../../services/conversationSyncService');
-          await conversationSyncService.deltaSync(user.id, true); // force=true bypasses cooldown
+          // ✅ SYNC FIX: Empty IndexedDB should check for missing conversations too
+          await conversationSyncService.deltaSync(user.id, true, true); // force=true, checkForMissing=true
           
           // ✅ Read again after sync
           conversations = await atlasDB.conversations

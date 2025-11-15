@@ -611,14 +611,16 @@ export class ConversationSyncService {
         if (!countError && remoteCount !== null) {
           const countDiff = remoteCount - localConversationCount;
           
-          // If we're missing more than 1 conversation, force full sync
-          if (countDiff > 1) {
-            logger.warn(`[ConversationSync] 🔄 Missing ${countDiff} conversations (local: ${localConversationCount}, remote: ${remoteCount}) - forcing full sync`);
+          // ✅ CRITICAL FIX: If we're missing ANY conversations, force full sync
+          // Changed from countDiff > 1 to countDiff > 0 to catch single missing conversations
+          if (countDiff > 0) {
+            logger.warn(`[ConversationSync] 🔄 Missing ${countDiff} conversation(s) (local: ${localConversationCount}, remote: ${remoteCount}) - forcing full sync`);
             shouldForceFullSync = true;
             // Clear sync metadata to force first sync
             await atlasDB.syncMetadata.delete(userId);
-          } else if (countDiff > 0) {
-            logger.debug(`[ConversationSync] ⚠️ Missing ${countDiff} conversation(s) - will attempt delta sync first`);
+          } else if (countDiff < 0) {
+            // Local has more than remote (shouldn't happen, but log for debugging)
+            logger.debug(`[ConversationSync] ⚠️ Local has ${Math.abs(countDiff)} more conversation(s) than remote - this is unusual`);
           }
         }
       }
