@@ -2,10 +2,10 @@ import { Crown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { hasUnlimitedMessages } from '../../config/featureAccess';
 import { getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/useTierQuery';
-import { UpgradeButton } from '../UpgradeButton';
-import { fetchWithAuthJSON } from '../../services/fetchWithAuth';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchWithAuthJSON } from '../../services/fetchWithAuth';
+import { UpgradeButton } from '../UpgradeButton';
 
 interface UsageCounterProps {
   userId?: string;
@@ -63,8 +63,10 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
       
       try {
         setLoadingUsage(true);
-        const API_URL = import.meta.env.VITE_API_URL || '';
-        const usageData = await fetchWithAuthJSON(`${API_URL}/api/usage`);
+        // ✅ FIX: Use centralized API client to handle HTTPS/HTTP mixed content issues
+        const { getApiEndpoint } = await import('../../utils/apiClient');
+        const usageEndpoint = getApiEndpoint('/api/usage');
+        const usageData = await fetchWithAuthJSON(usageEndpoint);
         
         logger.debug('[UsageCounter] Fetched usage data:', usageData);
         

@@ -5,8 +5,8 @@
 
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
-import { redisCacheService } from './redisCacheService';
 import { ensureConversationExists } from './conversationGuard';
+import { redisCacheService } from './redisCacheService';
 
 interface UserProfile {
   id: string;
@@ -50,7 +50,7 @@ class CachedDatabaseService {
       // Cache miss - fetch from database
       logger.debug('[CachedDB] ❌ Cache miss - fetching user profile from DB');
       const { data: profile, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
@@ -235,7 +235,7 @@ class CachedDatabaseService {
   async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
     try {
       const { data: profile, error } = await (supabase
-        .from('user_profiles')
+        .from('profiles')
         .update(updates as any)
         .eq('id', userId)
         .select()
@@ -282,7 +282,7 @@ class CachedDatabaseService {
     
     let supabaseHealth = false;
     try {
-      const { error } = await supabase.from('user_profiles').select('id').limit(1);
+      const { error } = await supabase.from('profiles').select('id').limit(1);
       supabaseHealth = !error;
     } catch (error) {
       logger.error('[CachedDB] ❌ Supabase health check failed:', error);

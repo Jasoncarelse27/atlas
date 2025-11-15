@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '../lib/logger';
+import { ConfirmDialog } from './modals/ConfirmDialog';
 
 interface Conversation {
   id: string;
@@ -37,6 +38,10 @@ export function ConversationHistoryDrawer({
   // ✅ FIX #1: Add loading states for better mobile UX
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  
+  // ✅ DELETE CONFIRMATION: Local state for delete confirmation dialog
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
 
   // ✅ BEST PRACTICE: Lock background scroll while drawer is open
   // ✅ FIX: Delay scroll unlock until exit animation completes (~300ms)
@@ -214,7 +219,9 @@ export function ConversationHistoryDrawer({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteConversation(conv.id);
+                          // ✅ FIX: Show confirmation dialog instead of deleting immediately
+                          setConversationToDelete(conv.id);
+                          setShowDeleteConfirm(true);
                         }}
                         disabled={deletingId === conv.id || isNavigating === conv.id}
                         className="flex-shrink-0 min-w-[44px] min-h-[44px] p-2 sm:p-3 bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 active:bg-[#CF9A96]/30 text-[#A67571] hover:text-[#8B5F5B] rounded-lg transition-all duration-200 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 disabled:opacity-50 disabled:cursor-not-allowed group/delete flex items-center justify-center"
@@ -322,6 +329,31 @@ export function ConversationHistoryDrawer({
             </div>
             </motion.div>
           </motion.div>
+          
+          {/* ✅ DELETE CONFIRMATION: Dialog with higher z-index than drawer */}
+          {showDeleteConfirm && (
+            <ConfirmDialog
+              isOpen={showDeleteConfirm}
+              onClose={() => {
+                setShowDeleteConfirm(false);
+                setConversationToDelete(null);
+              }}
+              onConfirm={async () => {
+                if (conversationToDelete) {
+                  // Call the parent's delete handler
+                  onDeleteConversation(conversationToDelete);
+                  setShowDeleteConfirm(false);
+                  setConversationToDelete(null);
+                }
+              }}
+              title="Delete Conversation"
+              message="Are you sure you want to delete this conversation? This cannot be undone."
+              confirmLabel="Delete"
+              cancelLabel="Cancel"
+              variant="destructive"
+              isLoading={conversationToDelete !== null && deletingId === conversationToDelete}
+            />
+          )}
         </>
       )}
     </AnimatePresence>

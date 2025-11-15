@@ -28,6 +28,7 @@ import { databaseMigration } from '../services/databaseMigration';
 import { startBackgroundSync, stopBackgroundSync } from '../services/syncService';
 import { autoGenerateTitle } from '../services/titleGenerationService';
 import type { Message } from '../types/chat';
+import { getApiEndpoint } from '../utils/apiClient';
 import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
@@ -589,10 +590,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         
         // ✅ FIX: Check for monthly limit error (multiple formats)
         const errorLower = error.message.toLowerCase();
+        const errorCode = (error as any)?.code || (error as any)?.error || '';
         const isMonthlyLimit = errorLower.includes('monthly limit') || 
             errorLower.includes('monthly_limit') ||
             error.message === 'MONTHLY_LIMIT_REACHED' ||
+            errorCode === 'MONTHLY_LIMIT_REACHED' ||
             errorLower.includes('monthly limit reached');
+        
+        // ✅ COOLDOWN: Check for Core tier cooldown limit
+        const isCooldownLimit = errorLower.includes('cooldown') ||
+            errorCode === 'COOLDOWN_LIMIT_REACHED' ||
+            error.message === 'COOLDOWN_LIMIT_REACHED';
             
         if (isMonthlyLimit) {
           logger.warn('[ChatPage] ⚠️ Monthly limit reached - showing upgrade modal');
@@ -614,6 +622,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           setCurrentUsage(15);
           setLimit(15);
           setUpgradeReason('monthly message limit');
+          setUpgradeModalVisible(true);
+        } else if (isCooldownLimit) {
+          // ✅ COOLDOWN: Handle Core tier cooldown with friendly message
+          const cooldownData = (error as any)?.minutesUntilUnlock || 240;
+          const hours = Math.floor(cooldownData / 60);
+          const minutes = cooldownData % 60;
+          
+          logger.warn('[ChatPage] ⚠️ Cooldown limit reached - showing friendly message');
+          
+          try {
+            toast.error(`Taking a breath 🌙\n\nYou've had a busy conversation session! More messages unlock in ${hours}h ${minutes}m.`, {
+              duration: 8000,
+              icon: '⏱️'
+            });
+          } catch (toastError) {
+            logger.error('[ChatPage] Failed to show toast:', toastError);
+          }
+          
+          // Show upgrade modal with Studio upgrade option
+          setUpgradeReason('cooldown limit');
           setUpgradeModalVisible(true);
           
           // Also trigger context modal for consistency
@@ -1404,20 +1432,29 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             const accessToken = session?.access_token;
             
             if (accessToken) {
-              const response = await fetch(`/v1/user_profiles/${user.id}`, {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                  'Content-Type': 'application/json',
-                },
-              });
-              
-              if (response.ok) {
-                const profile = await response.json();
-                const tier = profile?.subscription_tier || 'core';
-                startBackgroundSync(user.id, tier);
-              } else {
+              // ✅ FIX: Use centralized API client for consistency and proper error handling
+              try {
+                const apiUrl = getApiEndpoint(`/v1/user_profiles/${user.id}`);
+                const response = await fetch(apiUrl, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                });
+                
+                if (response.ok) {
+                  const profile = await response.json();
+                  const tier = profile?.subscription_tier || 'core';
+                  startBackgroundSync(user.id, tier);
+                } else {
+                  // ✅ FIX: Log error but don't block - use default tier
+                  logger.warn(`[ChatPage] Profile fetch failed (${response.status}), using default tier`);
+                  startBackgroundSync(user.id, 'core');
+                }
+              } catch (error) {
+                // ✅ FIX: Handle fetch errors gracefully
+                logger.warn('[ChatPage] Profile fetch error, using default tier:', error);
                 startBackgroundSync(user.id, 'core');
               }
             } else {

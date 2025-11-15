@@ -65,10 +65,10 @@ export default defineConfig(({ mode }) => {
         'import.meta.env.VITE_BUILD_TIME': JSON.stringify(Date.now().toString()),
         'import.meta.env.VITE_BUILD_VERSION': JSON.stringify(process.env.VITE_BUILD_VERSION || Date.now().toString()),
       },
-      // ✅ CRITICAL FIX: Preserve Zustand wrapper and all zustand modules
-      // Prevents Vercel/Rollup from tree-shaking the create export
-      treeshake: {
-        moduleSideEffects: (id) => {
+        // ✅ CRITICAL FIX: Preserve Zustand wrapper and all zustand modules
+        // Prevents Vercel/Rollup from tree-shaking the create export
+        treeshake: {
+          moduleSideEffects: (id: string) => {
           // ✅ CRITICAL: Preserve wrapper module - critical for Zustand create export
           if (id.includes('zustand-wrapper') || id.includes('lib/zustand-wrapper')) {
             return true; // Has side effects - cannot be tree-shaken
@@ -134,34 +134,63 @@ export default defineConfig(({ mode }) => {
         key: fs.readFileSync('./localhost+1-key.pem'),
         cert: fs.readFileSync('./localhost+1.pem'),
       } : undefined,
-      proxy: {
-        // API routes
-        '/v1': {
-          target: 'http://localhost:8000', // ✅ HTTP backend (proxy handles HTTPS → HTTP)
-          changeOrigin: true,
-          secure: false, // Accept self-signed certs in development
-          ws: true, // Enable WebSocket support
-          configure: (proxy, options) => {
-            proxy.on('error', (err) => {
-              console.error('Proxy error:', err);
-            });
-            proxy.on('proxyReq', (proxyReq, req) => {
-              console.log('Proxying:', req.method, req.url, '→', options.target + req.url);
-            });
-          }
-        },
-        '/api': {
-          target: 'http://localhost:8000', // ✅ HTTP backend (proxy handles HTTPS → HTTP)
-          changeOrigin: true,
-          secure: false,
-          ws: true
-        },
-        '/message': {
-          target: 'http://localhost:8000', // ✅ HTTP backend (proxy handles HTTPS → HTTP)
-          changeOrigin: true,
-          secure: false
+      proxy: (() => {
+        // ✅ FIX: Detect backend HTTPS by checking for certificate files
+        function detectBackendProtocol(): 'http' | 'https' {
+          const rootDir = process.cwd();
+          const certPatterns = [
+            '192.168.0.10+3.pem',
+            '192.168.0.10+2.pem',
+            '192.168.0.10+1.pem',
+            'localhost+3.pem',
+            'localhost+1.pem',
+            'localhost.pem'
+          ];
+          
+          const hasCert = certPatterns.some(pattern => {
+            const certPath = path.join(rootDir, pattern);
+            const keyPath = path.join(rootDir, pattern.replace('.pem', '-key.pem'));
+            return fs.existsSync(certPath) && fs.existsSync(keyPath);
+          });
+          
+          return hasCert ? 'https' : 'http';
         }
-      }
+        
+        const backendProtocol = detectBackendProtocol();
+        const backendTarget = `${backendProtocol}://localhost:8000`;
+        
+        console.log(`🔒 [Vite Proxy] Backend protocol detected: ${backendProtocol.toUpperCase()}`);
+        console.log(`   Proxy target: ${backendTarget}`);
+        
+        return {
+          // API routes
+          '/v1': {
+            target: backendTarget,
+            changeOrigin: true,
+            secure: backendProtocol === 'https', // ✅ Accept self-signed certs when using HTTPS
+            ws: true, // Enable WebSocket support
+            configure: (proxy, options) => {
+              proxy.on('error', (err) => {
+                console.error('Proxy error:', err);
+              });
+              proxy.on('proxyReq', (proxyReq, req) => {
+                console.log(`[Proxy] ${req.method} ${req.url} → ${options.target}${req.url}`);
+              });
+            }
+          },
+          '/api': {
+            target: backendTarget,
+            changeOrigin: true,
+            secure: backendProtocol === 'https',
+            ws: true
+          },
+          '/message': {
+            target: backendTarget,
+            changeOrigin: true,
+            secure: backendProtocol === 'https'
+          }
+        };
+      })()
     }
   }
 })

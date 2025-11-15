@@ -25,17 +25,6 @@ async function safeParseJSON(response: Response): Promise<any> {
   return await response.json();
 }
 
-// Safe fetch helper with toast fallback
-async function safeFetch(url: string, options?: RequestInit) {
-  try {
-    const res = await fetch(url, options);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await safeParseJSON(res);
-  } catch (err) {
-    safeToast("⚠️ Backend unreachable, using offline mode", "error");
-    return null;
-  }
-}
 
 interface SubscriptionProfile {
   id: string;
@@ -127,20 +116,32 @@ class SubscriptionApiService {
     try {
       perfMonitor.start('tier-fetch');
       
-      // ✅ CRITICAL FIX: This is a Supabase REST endpoint, use full Supabase URL
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const profile = await safeFetch(`${supabaseUrl}/rest/v1/user_profiles?id=eq.${userId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
-          'Content-Type': 'application/json',
-        },
-      });
+      // ✅ CRITICAL FIX: Use backend API instead of Supabase REST for consistency and proper error handling
+      const backendUrl = getApiEndpoint(`/v1/user_profiles/${userId}`);
+      let profile: SubscriptionProfile | null = null;
       
-      const duration = perfMonitor.end('tier-fetch');
-      if (duration && profile) {
-        logger.debug(`✅ [Tier] Loaded "${profile.subscription_tier}" in ${duration.toFixed(0)}ms`);
+      try {
+        const response = await fetch(backendUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        profile = await response.json();
+        
+        const duration = perfMonitor.end('tier-fetch');
+        if (duration && profile) {
+          logger.debug(`✅ [Tier] Loaded "${profile.subscription_tier}" in ${duration.toFixed(0)}ms`);
+        }
+      } catch (fetchError) {
+        logger.warn('[SubscriptionAPI] Backend API call failed, trying fallback:', fetchError);
+        profile = null; // Trigger fallback
       }
 
       if (profile === null) {

@@ -81,7 +81,7 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
         logger.debug('[QuickActions] 📡 Force refresh - syncing from Supabase...');
         try {
           const { conversationSyncService } = await import('../../services/conversationSyncService');
-          await conversationSyncService.deltaSync(user.id);
+          await conversationSyncService.deltaSync(user.id, true); // force=true bypasses cooldown
           logger.debug('[QuickActions] ✅ Force sync completed');
         } catch (syncError) {
           logger.error('[QuickActions] ❌ Force sync failed:', syncError);
@@ -106,7 +106,7 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
         logger.debug('[QuickActions] 📡 IndexedDB empty, syncing from Supabase...');
         try {
           const { conversationSyncService } = await import('../../services/conversationSyncService');
-          await conversationSyncService.deltaSync(user.id);
+          await conversationSyncService.deltaSync(user.id, true); // force=true bypasses cooldown
           
           // ✅ Read again after sync
           conversations = await atlasDB.conversations
@@ -162,28 +162,79 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
     logger.debug('[QuickActions] 🚀 Starting new chat...');
     console.log('[QuickActions] 🚀 Starting new chat...'); // ✅ DEBUG: Visible in production
     
-    // ✅ FIX: Close sidebar immediately for better UX
-    if (onNewChat) {
-      onNewChat();
-      console.log('[QuickActions] 🚪 Sidebar closed'); // ✅ DEBUG
+    try {
+      // ✅ FIX: Close sidebar immediately for better UX
+      if (onNewChat) {
+        onNewChat();
+        console.log('[QuickActions] 🚪 Sidebar closed'); // ✅ DEBUG
+      }
+      
+      // ✅ Get authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        logger.error('[QuickActions] ❌ Cannot create conversation: not authenticated');
+        toast.error('Please sign in to start a new chat');
+        return;
+      }
+      
+      // ✅ Create new conversation ID (browser-compatible)
+      const newConversationId = generateUUID();
+      logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
+      console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId); // ✅ DEBUG
+      
+      // ✅ CRITICAL FIX: Create conversation record immediately (not wait for first message)
+      // This ensures it appears in conversation history right away
+      try {
+        const { createConversation } = await import('../../utils/conversationService');
+        const createdId = await createConversation(user.id, 'New Conversation');
+        
+        if (createdId) {
+          logger.debug('[QuickActions] ✅ Conversation created in Supabase:', createdId);
+          
+          // ✅ Also save to local Dexie for immediate availability
+          try {
+            await atlasDB.conversations.put({
+              id: createdId,
+              userId: user.id,
+              title: 'New Conversation',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            logger.debug('[QuickActions] ✅ Conversation saved to local Dexie');
+          } catch (dexieError) {
+            logger.warn('[QuickActions] ⚠️ Failed to save to Dexie (non-critical):', dexieError);
+          }
+          
+          // ✅ Use the created ID (in case it differs)
+          const finalId = createdId || newConversationId;
+          
+          // ✅ Refresh conversation list to show new conversation
+          await refreshConversationList(true);
+          
+          // ✅ Navigate to new conversation
+          const targetUrl = `/chat?conversation=${finalId}`;
+          logger.debug('[QuickActions] 🔄 Navigating to:', targetUrl);
+          console.log('[QuickActions] 🔄 Navigating to:', targetUrl); // ✅ DEBUG
+          
+          navigate(targetUrl, { replace: true });
+          
+          logger.debug('[QuickActions] ✅ Navigation triggered via React Router');
+          console.log('[QuickActions] ✅ Navigation complete'); // ✅ DEBUG
+        } else {
+          // Fallback: Use generated ID if creation failed
+          logger.warn('[QuickActions] ⚠️ Conversation creation returned null, using generated ID');
+          navigate(`/chat?conversation=${newConversationId}`, { replace: true });
+        }
+      } catch (createError) {
+        logger.error('[QuickActions] ❌ Failed to create conversation:', createError);
+        // Fallback: Still navigate with generated ID (conversation will be created on first message)
+        toast.error('Failed to create conversation. It will be created when you send your first message.');
+        navigate(`/chat?conversation=${newConversationId}`, { replace: true });
+      }
+    } catch (error) {
+      logger.error('[QuickActions] ❌ Error in handleNewChat:', error);
+      toast.error('Failed to start new chat. Please try again.');
     }
-    
-    // ✅ Create new conversation ID (browser-compatible)
-    const newConversationId = generateUUID();
-    logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
-    console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId); // ✅ DEBUG
-    
-    // ✅ FIX: Use replace: true to force navigation even if already on /chat route
-    // This ensures React Router treats it as a new navigation
-    const targetUrl = `/chat?conversation=${newConversationId}`;
-    logger.debug('[QuickActions] 🔄 Navigating to:', targetUrl);
-    console.log('[QuickActions] 🔄 Navigating to:', targetUrl); // ✅ DEBUG
-    
-    // ✅ FIX: Use replace: true to force React Router to update (prevents optimization skip)
-    navigate(targetUrl, { replace: true });
-    
-    logger.debug('[QuickActions] ✅ Navigation triggered via React Router');
-    console.log('[QuickActions] ✅ Navigation complete'); // ✅ DEBUG
   };
 
   const handleViewHistory = async () => {
@@ -247,8 +298,21 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
       // ✅ Use unified soft delete service
       await deleteConversation(conversationId, user.id);
 
-      // Refresh list after successful delete to ensure sync
+      // ✅ CRITICAL FIX: Refresh list AND update drawer if it's open
       await refreshConversationList(true);
+      
+      // ✅ CRITICAL FIX: Also trigger refresh in conversation history drawer if open
+      if (onViewHistory) {
+        const refreshedConversations = await refreshConversationList(true);
+        onViewHistory({
+          conversations: refreshedConversations || [],
+          onDeleteConversation: handleDeleteConversation,
+          deletingId: null,
+          onRefresh: async () => {
+            await refreshConversationList(true);
+          }
+        });
+      }
       
       logger.info('[QuickActions] ✅ Conversation deleted successfully');
       toast.success('Conversation deleted successfully');
