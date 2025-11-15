@@ -1974,7 +1974,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         
                         {/* Description - Atlas text-medium color */}
                         <p className="text-base sm:text-lg text-atlas-text-medium mb-4 sm:mb-6 max-w-md mx-auto leading-relaxed">
-                          Your emotionally intelligent AI assistant is ready to help.
+                          Your emotionally intelligent productivity assistant is ready to help.
                         </p>
                         
                         {/* Call to action - Atlas text-muted color */}
