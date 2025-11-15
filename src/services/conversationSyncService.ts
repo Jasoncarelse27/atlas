@@ -542,7 +542,7 @@ export class ConversationSyncService {
    * 
    * ✅ OPTIMIZED: Debounced and rate-limited to prevent rapid-fire syncs
    */
-  async deltaSync(userId: string, force: boolean = false): Promise<void> {
+  async deltaSync(userId: string, force: boolean = false, checkForMissing: boolean = false): Promise<void> {
     // ✅ OPTIMIZATION: Debounce rapid sync requests
     if (!force && this.syncDebounceTimer) {
       logger.debug('[ConversationSync] ⏳ Debouncing sync request...');
@@ -596,10 +596,37 @@ export class ConversationSyncService {
       
       const isFirstSync = !syncMeta || localConversationCount === 0;
       
-      // ✅ CRITICAL FIX: On first sync (empty Dexie), fetch ALL data, not just last 30 days
-      let lastSyncedAt = isFirstSync 
+      // ✅ COMPREHENSIVE SYNC FIX: Detect missing conversations and force full sync
+      // This ensures mobile/web parity by comparing counts and syncing all if mismatch detected
+      let shouldForceFullSync = isFirstSync;
+      
+      if (!isFirstSync && checkForMissing) {
+        // Fetch remote conversation count to compare with local
+        const { count: remoteCount, error: countError } = await supabase
+          .from('conversations')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .is('deleted_at', null);
+        
+        if (!countError && remoteCount !== null) {
+          const countDiff = remoteCount - localConversationCount;
+          
+          // If we're missing more than 1 conversation, force full sync
+          if (countDiff > 1) {
+            logger.warn(`[ConversationSync] 🔄 Missing ${countDiff} conversations (local: ${localConversationCount}, remote: ${remoteCount}) - forcing full sync`);
+            shouldForceFullSync = true;
+            // Clear sync metadata to force first sync
+            await atlasDB.syncMetadata.delete(userId);
+          } else if (countDiff > 0) {
+            logger.debug(`[ConversationSync] ⚠️ Missing ${countDiff} conversation(s) - will attempt delta sync first`);
+          }
+        }
+      }
+      
+      // ✅ CRITICAL FIX: On first sync (empty Dexie) or when missing conversations, fetch ALL data
+      let lastSyncedAt = shouldForceFullSync 
         ? new Date(0).toISOString()  // Epoch = fetch everything
-        : syncMeta.lastSyncedAt;
+        : (syncMeta?.lastSyncedAt || new Date(0).toISOString());
       
       // ✅ Structured logging for diagnostics
       logger.info('[ConversationSync] Sync state', {
@@ -614,17 +641,19 @@ export class ConversationSyncService {
       let updatedConversations: SupabaseConversation[] | null = null;
       let convError: PostgrestError | null = null;
       
-      if (isFirstSync) {
-        // ✅ FIRST SYNC: Fetch ALL conversations (no date filter, just non-deleted)
-        // ✅ FIX: Increased limit to 100 to ensure mobile/web parity (was 20, causing sync issues)
-        logger.info('[ConversationSync] First sync mode - fetching all conversations');
+      if (shouldForceFullSync) {
+        // ✅ FULL SYNC: Fetch ALL conversations (no date filter, just non-deleted)
+        // ✅ COMPREHENSIVE FIX: Increased limit to 200 to ensure mobile/web parity
+        logger.info('[ConversationSync] Full sync mode - fetching all conversations', { 
+          reason: isFirstSync ? 'first sync' : 'missing conversations detected' 
+        });
         const result = await supabase
           .from('conversations')
           .select('*')
           .eq('user_id', userId)
           .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
           .order('updated_at', { ascending: false })
-          .limit(100) as SupabaseQueryResponse<SupabaseConversation[]>; // ✅ SYNC FIX: Increased from 20 to 100 for mobile/web parity
+          .limit(200) as SupabaseQueryResponse<SupabaseConversation[]>; // ✅ SYNC FIX: Increased to 200 for comprehensive sync
         
         updatedConversations = result.data;
         convError = result.error;
@@ -662,20 +691,20 @@ export class ConversationSyncService {
       
       conversationsSynced = updatedConversations?.length || 0;
       
-      // ✅ OPTIMIZED: Only log if there are changes or it's first sync (reduce log spam)
-      if (conversationsSynced > 0 || isFirstSync || import.meta.env.DEV) {
+      // ✅ OPTIMIZED: Only log if there are changes or it's full sync (reduce log spam)
+      if (conversationsSynced > 0 || shouldForceFullSync || import.meta.env.DEV) {
         logger.info('[ConversationSync] Sync results', {
           found: conversationsSynced,
           userId: userId.slice(0, 8) + '...',
           lastSyncedAt,
-          isFirstSync,
+          isFirstSync: shouldForceFullSync,
           localCount: localConversationCount,
-          queryType: isFirstSync ? 'FIRST_SYNC' : 'DELTA_SYNC'
+          queryType: shouldForceFullSync ? 'FULL_SYNC' : 'DELTA_SYNC'
         });
       }
       
       // ✅ DIAGNOSTIC: If no conversations found, check if any exist at all
-      if (conversationsSynced === 0 && isFirstSync) {
+      if (conversationsSynced === 0 && shouldForceFullSync) {
         logger.warn('[ConversationSync] ⚠️ No conversations found on first sync. Checking if any exist...');
         
         const { data: allConversations, error: checkError } = await supabase
@@ -757,7 +786,7 @@ export class ConversationSyncService {
       // ✅ CRITICAL FIX: Sync deletion markers (tombstone sync)
       // Check for conversations that were deleted remotely but we haven't synced yet
       // We need to fetch deleted conversations separately to sync deletion markers
-      if (!isFirstSync) {
+      if (!shouldForceFullSync) {
         // Fetch recently deleted conversations (within sync window)
         const { data: deletedConversations, error: deletedError } = await supabase
           .from('conversations')
