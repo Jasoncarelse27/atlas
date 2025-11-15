@@ -26,9 +26,15 @@ export function useMagicBell() {
       }
 
       const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY;
+      console.log('[MagicBell] API Key check:', { 
+        hasApiKey: !!apiKey, 
+        apiKeyPrefix: apiKey?.substring(0, 10) || 'undefined' 
+      });
       if (!apiKey) {
-        logger.warn('[MagicBell] API key not configured');
-        setError('MagicBell API key not configured');
+        const errorMsg = 'MagicBell API key not configured';
+        logger.warn('[MagicBell]', errorMsg);
+        console.error('[MagicBell]', errorMsg, '- Check VITE_MAGICBELL_API_KEY in .env');
+        setError(errorMsg);
         setIsLoading(false);
         return;
       }
@@ -59,9 +65,12 @@ export function useMagicBell() {
         });
 
         logger.debug('[MagicBell] Initialized successfully');
+        console.log('[MagicBell] ✅ Initialized successfully');
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to initialize MagicBell';
         logger.error('[MagicBell] Failed to initialize:', err);
-        setError(err instanceof Error ? err.message : 'Failed to initialize MagicBell');
+        console.error('[MagicBell] ❌ Failed to initialize:', errorMsg, err);
+        setError(errorMsg);
       } finally {
         setIsLoading(false);
       }

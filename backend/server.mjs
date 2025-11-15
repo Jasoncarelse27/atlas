@@ -8,6 +8,7 @@ import fs from 'fs';
 import helmet from 'helmet';
 import http from 'http';
 import https from 'https';
+import jwt from 'jsonwebtoken';
 import morgan from 'morgan';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,7 +27,6 @@ import tierGateMiddleware from './middleware/tierGateMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
-import jwt from 'jsonwebtoken';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -3795,7 +3795,8 @@ app.get('/api/magicbell/token', verifyJWT, async (req, res) => {
     }
 
     // Generate MagicBell user token (JWT)
-    // MagicBell expects: { external_id, email, hmac }
+    // MagicBell expects: { external_id, email } signed with API secret
+    // The API key is passed separately to MagicBellProvider, not in the JWT
     const token = jwt.sign(
       {
         external_id: userId,

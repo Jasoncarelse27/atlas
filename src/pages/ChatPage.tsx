@@ -39,6 +39,7 @@ import { EmotionalInsightsWidgets } from '../components/sidebar/EmotionalInsight
 import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
+import { NotificationCenter } from '../components/NotificationCenter';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
@@ -1711,6 +1712,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
+                {/* Notifications */}
+                {userId && (
+                  <NotificationCenter />
+                )}
                 {/* Search Button - PHASE 2B */}
                 <button
                   onClick={() => setShowSearch(true)}

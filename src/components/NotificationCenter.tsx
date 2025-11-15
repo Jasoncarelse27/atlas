@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { MagicBell } from '@magicbell/react';
+import React, { useState, useEffect } from 'react';
+import { MagicBellProvider, FloatingInbox } from '@magicbell/react';
 import { useMagicBell } from '../hooks/useMagicBell';
 import { Bell } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 interface NotificationCenterProps {
   className?: string;
@@ -12,15 +11,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
   const { config, isLoading, error, isReady } = useMagicBell();
   const [isOpen, setIsOpen] = useState(false);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[NotificationCenter] Status:', { isLoading, error, isReady, hasConfig: !!config });
+  }, [isLoading, error, isReady, config]);
+
   if (!isReady) {
     // Don't show anything if not ready (user not logged in or still loading)
     if (isLoading) {
       return null; // Silent loading
     }
     if (error) {
-      // Only log error, don't show UI error
+      // Log error for debugging
+      console.warn('[NotificationCenter] Not showing due to error:', error);
       return null;
     }
+    console.debug('[NotificationCenter] Not ready - returning null');
     return null;
   }
 
@@ -31,11 +37,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
   return (
     <MagicBellProvider
       apiKey={config.apiKey}
-      userToken={config.userToken}
+      token={config.userToken}
       userEmail={config.userEmail}
       userId={config.userId}
     >
-      <div className={cn('relative', className)}>
+      <div className={`relative ${className || ''}`}>
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="relative p-2 rounded-md bg-white/80 border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-center"
@@ -55,7 +61,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
             />
             {/* Notification dropdown */}
             <div className="absolute right-0 top-full mt-2 z-50 shadow-lg rounded-lg overflow-hidden border border-gray-200 bg-white">
-              <MagicBell
+              <FloatingInbox
                 height={600}
                 width={400}
                 locale="en"
