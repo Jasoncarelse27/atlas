@@ -47,6 +47,25 @@ export function ConversationHistoryDrawer({
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false); // ✅ Loading state for delete operation
 
+  // ✅ CROSS-DEVICE SYNC: Listen for real-time deletion events from other devices
+  useEffect(() => {
+    const handleConversationDeleted = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      logger.debug('[ConversationHistoryDrawer] 🔔 Real-time deletion event received:', customEvent.detail?.conversationId);
+      
+      // ✅ CRITICAL: Refresh conversation list when deleted on another device
+      if (onRefresh) {
+        await onRefresh();
+      }
+    };
+
+    window.addEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+    
+    return () => {
+      window.removeEventListener('conversationDeleted', handleConversationDeleted as EventListener);
+    };
+  }, [onRefresh]); // ✅ Include onRefresh in deps to ensure latest callback is used
+
   // ✅ BEST PRACTICE: Lock background scroll while drawer is open
   // ✅ FIX: Delay scroll unlock until exit animation completes (~300ms)
   useEffect(() => {
