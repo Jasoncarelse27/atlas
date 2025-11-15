@@ -233,11 +233,12 @@ class SubscriptionApiService {
    * Create user profile through backend API
    */
   async createUserProfile(userId: string, accessToken: string): Promise<SubscriptionProfile> {
-    const response = await fetch(`${this.baseUrl}/v1/user_profiles`, {
+    // ✅ FIX: Use centralized API client for consistency and HTTPS support
+    const apiUrl = getApiEndpoint('/v1/user_profiles');
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ user_id: userId }),
@@ -277,12 +278,13 @@ class SubscriptionApiService {
     newTier: 'free' | 'core' | 'studio', 
     accessToken: string
   ): Promise<SubscriptionProfile> {
-    const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}/tier`, {
+    // ✅ FIX: Use centralized API client for consistency and HTTPS support
+    const apiUrl = getApiEndpoint(`/v1/user_profiles/${userId}/tier`);
+    const response = await fetch(apiUrl, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
       },
       body: JSON.stringify({ tier: newTier })
     });
@@ -346,12 +348,12 @@ class SubscriptionApiService {
       return this.getMockSubscriptionResponse(userId);
     }
 
-    // Use backend API instead of direct Supabase calls
-    const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
+    // ✅ FIX: Use centralized API client for consistency and HTTPS support
+    const apiUrl = getApiEndpoint(`/v1/user_profiles/${userId}`);
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
         'Content-Type': 'application/json',
       },
     });
@@ -387,12 +389,12 @@ class SubscriptionApiService {
     tier: 'free' | 'core' | 'studio',
     accessToken: string
   ): Promise<void> {
-    // Use backend API to update subscription tier
-    const response = await fetch(`${this.baseUrl}/v1/user_profiles/${userId}`, {
+    // ✅ FIX: Use centralized API client for consistency and HTTPS support
+    const apiUrl = getApiEndpoint(`/v1/user_profiles/${userId}`);
+    const response = await fetch(apiUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,   // Required for Supabase REST
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ 
@@ -470,12 +472,13 @@ class SubscriptionApiService {
     // Clear all caches first
     this.clearUserCache(userId);
     
+    // ✅ FIX: Use centralized API client for consistency and HTTPS support
     // Add cache-busting timestamp to prevent HTTP caching
     const timestamp = Date.now();
-    const url = `${this.baseUrl}/v1/user_profiles/${userId}?t=${timestamp}`;
+    const apiUrl = getApiEndpoint(`/v1/user_profiles/${userId}?t=${timestamp}`);
     
     try {
-      const response = await fetch(url, {
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
