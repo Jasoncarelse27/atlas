@@ -616,6 +616,7 @@ export class ConversationSyncService {
       
       if (isFirstSync) {
         // ✅ FIRST SYNC: Fetch ALL conversations (no date filter, just non-deleted)
+        // ✅ FIX: Increased limit to 100 to ensure mobile/web parity (was 20, causing sync issues)
         logger.info('[ConversationSync] First sync mode - fetching all conversations');
         const result = await supabase
           .from('conversations')
@@ -623,7 +624,7 @@ export class ConversationSyncService {
           .eq('user_id', userId)
           .is('deleted_at', null)  // ✅ Only sync non-deleted conversations
           .order('updated_at', { ascending: false })
-          .limit(20) as SupabaseQueryResponse<SupabaseConversation[]>; // ✅ SCALABILITY FIX: Reduced from 50 to 20
+          .limit(100) as SupabaseQueryResponse<SupabaseConversation[]>; // ✅ SYNC FIX: Increased from 20 to 100 for mobile/web parity
         
         updatedConversations = result.data;
         convError = result.error;

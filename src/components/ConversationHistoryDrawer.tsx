@@ -40,7 +40,7 @@ export function ConversationHistoryDrawer({
   
   // ✅ FIX #1: Add loading states for better mobile UX
   const [isNavigating, setIsNavigating] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  // ✅ REMOVED: isSyncing state (manual sync button removed per best practices)
   
   // ✅ DELETE CONFIRMATION: Local state for delete confirmation dialog
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -291,63 +291,15 @@ export function ConversationHistoryDrawer({
                   </div>
                 </div>
                 
-                {/* Manual Delta Sync Button - ✅ RESPONSIVE: Better mobile sizing */}
-                <button
-                  onClick={async () => {
-                    // ✅ FIX #2: Update state instead of full page reload
-                    setIsSyncing(true);
-                    try {
-                      const { conversationSyncService } = await import('../services/conversationSyncService');
-                      const { atlasDB } = await import('../database/atlasDB');
-                      const supabase = (await import('../lib/supabaseClient')).default;
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (user) {
-                        logger.debug('[ConversationHistoryDrawer] 🚀 Starting manual delta sync...');
-                        
-                        // ✅ CRITICAL FIX: Clear syncMetadata to force first sync (if IndexedDB is empty)
-                        const localCount = await atlasDB.conversations
-                          .where('userId')
-                          .equals(user.id)
-                          .count();
-                        
-                        if (localCount === 0) {
-                          logger.debug('[ConversationHistoryDrawer] 🔄 IndexedDB empty - clearing syncMetadata to force first sync');
-                          await atlasDB.syncMetadata.delete(user.id);
-                        }
-                        
-                        await conversationSyncService.deltaSync(user.id);
-                        logger.debug('[ConversationHistoryDrawer] ✅ Delta sync completed');
-                        
-                        // ✅ Refresh the conversations list via callback (no page reload)
-                        if (onRefresh) {
-                          await onRefresh();
-                          logger.debug('[ConversationHistoryDrawer] ✅ Conversation list refreshed');
-                        }
-                      }
-                    } catch (error) {
-                      logger.error('[ConversationHistoryDrawer] ❌ Delta sync failed:', error);
-                      // ✅ Show error to user (better than silent failure)
-                      toast.error('Sync failed. Please check your connection and try again.');
-                    } finally {
-                      setIsSyncing(false);
-                    }
-                  }}
-                  disabled={isSyncing}
-                  className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 min-h-[44px] sm:min-h-0 bg-[#8FA67E]/20 hover:bg-[#8FA67E]/30 text-[#8FA67E] rounded-lg transition-all duration-200 border border-[#8FA67E]/30 hover:border-[#8FA67E]/50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-                  title="Delta sync - only fetches changed data"
-                >
-                  {isSyncing ? (
-                    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 9 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  )}
-                  <span className="text-xs font-medium">{isSyncing ? 'Syncing...' : 'Delta Sync'}</span>
-                </button>
+                {/* ✅ BEST PRACTICE: Removed manual sync button - auto-sync is invisible and happens automatically
+                    Modern apps (Gmail, Slack, Notion) don't show manual sync buttons.
+                    Sync happens automatically:
+                    - On app load (background sync)
+                    - Every 2 minutes (active users)
+                    - On app focus/visibility change
+                    - When conversation history drawer opens (force refresh)
+                    - Via real-time WebSocket updates (<1 second)
+                */}
               </div>
             </div>
             </motion.div>

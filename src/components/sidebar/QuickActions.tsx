@@ -77,15 +77,17 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
       logger.debug('[QuickActions] 🔄 Fetching fresh conversations from database');
       
       // ✅ FIX: Always sync from Supabase when force refresh to ensure mobile/web parity
+      // ✅ BEST PRACTICE: Auto-sync happens invisibly when drawer opens (no manual button needed)
       if (forceRefresh) {
-        logger.debug('[QuickActions] 📡 Force refresh - syncing from Supabase...');
+        logger.debug('[QuickActions] 📡 Force refresh - auto-syncing from Supabase...');
         try {
           const { conversationSyncService } = await import('../../services/conversationSyncService');
+          // ✅ CRITICAL: Force sync bypasses cooldown to ensure mobile/web parity
           await conversationSyncService.deltaSync(user.id, true); // force=true bypasses cooldown
-          logger.debug('[QuickActions] ✅ Force sync completed');
+          logger.debug('[QuickActions] ✅ Auto-sync completed - conversations synced');
         } catch (syncError) {
-          logger.error('[QuickActions] ❌ Force sync failed:', syncError);
-          // Continue anyway - will use whatever is in IndexedDB
+          logger.error('[QuickActions] ❌ Auto-sync failed:', syncError);
+          // Continue anyway - will use whatever is in IndexedDB (graceful degradation)
         }
       }
       
