@@ -7,6 +7,8 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+const MAGICBELL_API_KEY = Deno.env.get("MAGICBELL_API_KEY");
+
 /**
  * 🔒 SECURITY: Verify FastSpring webhook signature
  * This prevents unauthorized tier escalation attacks by ensuring
@@ -69,6 +71,80 @@ export const mapEventType = (eventType: string, oldTier?: string, newTier?: stri
       return null;
   }
 };
+
+/**
+ * Send MagicBell notification for subscription events
+ */
+async function sendMagicBellNotification(
+  userId: string,
+  eventType: string,
+  newTier: string,
+  oldTier?: string
+): Promise<void> {
+  if (!MAGICBELL_API_KEY) {
+    console.log("[FastSpring Webhook] MagicBell not configured - skipping notification");
+    return;
+  }
+
+  try {
+    const tierNames: Record<string, string> = {
+      core: "Atlas Core",
+      studio: "Atlas Studio",
+      free: "Free",
+    };
+
+    let title = "";
+    let content = "";
+    let category = "subscription";
+
+    if (eventType === "activation" || eventType === "upgrade") {
+      title = `Welcome to ${tierNames[newTier] || newTier}! 🎉`;
+      content = `Your subscription is now active. Enjoy unlimited messages and premium features!`;
+    } else if (eventType === "cancellation") {
+      title = "Subscription Cancelled";
+      content = `Your ${tierNames[oldTier || "subscription"]} subscription has been cancelled. You'll retain access until the end of your billing period.`;
+    } else if (eventType === "downgrade") {
+      title = "Subscription Changed";
+      content = `Your subscription has been changed to ${tierNames[newTier] || newTier}.`;
+    }
+
+    if (!title) {
+      console.log(`[FastSpring Webhook] No notification template for event: ${eventType}`);
+      return;
+    }
+
+    const response = await fetch("https://api.magicbell.com/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MAGICBELL-API-KEY": MAGICBELL_API_KEY,
+      },
+      body: JSON.stringify({
+        recipients: [{ external_id: userId }],
+        title,
+        content,
+        category,
+        action_url: "/chat",
+        custom_attributes: {
+          tier: newTier,
+          old_tier: oldTier,
+          event_type: eventType,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
+      console.error(`[FastSpring Webhook] Failed to send notification: ${response.status} - ${errorText}`);
+      return;
+    }
+
+    console.log(`[FastSpring Webhook] ✅ Notification sent for ${eventType} to user ${userId}`);
+  } catch (error) {
+    console.error("[FastSpring Webhook] Error sending notification:", error);
+    // Don't throw - notification failure shouldn't break webhook
+  }
+}
 
 serve(async (req) => {
   try {
@@ -178,6 +254,9 @@ serve(async (req) => {
     }
 
     console.log(`[FastSpring Webhook] Successfully processed ${eventType} for user ${userId} -> ${newTier}`);
+
+    // Send MagicBell notification (non-blocking - don't fail webhook if notification fails)
+    await sendMagicBellNotification(userId, mappedEvent || 'unknown', newTier, oldTier);
     
     return new Response(JSON.stringify({ 
       success: true,

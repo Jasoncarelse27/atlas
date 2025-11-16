@@ -2,6 +2,8 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
+import { getApiEndpoint } from '../utils/apiClient';
+import { fetchWithAuth } from '../utils/authFetch';
 
 // Login Toggle Component
 const LoginToggle = ({ mode, setMode }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void }) => (
@@ -66,11 +68,23 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
           navigate('/chat');
         }
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error, data } = await supabase.auth.signUp({ email, password });
         if (error) {
           setError(error.message);
         } else {
           setError('Check your email for verification link');
+          
+          // ✅ Send welcome notification (non-blocking - fire and forget)
+          if (data?.user?.id) {
+            const welcomeEndpoint = getApiEndpoint('/api/magicbell/welcome');
+            fetchWithAuth(welcomeEndpoint, {
+              method: 'POST',
+              preventRedirect: true, // Don't redirect on 401 (user just signed up)
+              showErrorToast: false, // Silent failure - don't show errors
+            }).catch(() => {
+              // Silent catch - welcome notification failure shouldn't affect signup
+            });
+          }
         }
       }
     } catch (_err) {

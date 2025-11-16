@@ -25,6 +25,7 @@ import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
 import { imageAnalysisRateLimit, messageRateLimit } from './middleware/rateLimitMiddleware.mjs';
 import tierGateMiddleware from './middleware/tierGateMiddleware.mjs';
 import { processMessage } from './services/messageService.js';
+import { notificationService } from './services/notificationService.mjs';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
 
@@ -3957,6 +3958,72 @@ app.get('/api/magicbell/token', verifyJWT, async (req, res) => {
       disabled: true,
       token: null,
     });
+  }
+});
+
+// ======================================
+// MAGICBELL NOTIFICATION ENDPOINT
+// ======================================
+app.post('/api/magicbell/notify', verifyJWT, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || !user.id) {
+      return res.status(401).json({ error: 'Unauthorized: Missing user session' });
+    }
+
+    const { title, content, category = 'system', actionUrl, customAttributes } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Missing required fields: title, content' });
+    }
+
+    const result = await notificationService.sendNotification(user.id, {
+      title,
+      content,
+      category,
+      actionUrl,
+      customAttributes,
+    });
+
+    if (!result.success) {
+      if (result.reason === 'not_configured') {
+        return res.status(200).json({ 
+          success: false, 
+          disabled: true,
+          message: 'MagicBell not configured' 
+        });
+      }
+      return res.status(500).json({ 
+        error: 'Failed to send notification',
+        reason: result.reason 
+      });
+    }
+
+    return res.status(200).json({ success: true, data: result.data });
+  } catch (err) {
+    logger.error('[MagicBell Notify] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ======================================
+// MAGICBELL WELCOME NOTIFICATION ENDPOINT
+// ======================================
+app.post('/api/magicbell/welcome', verifyJWT, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || !user.id) {
+      return res.status(401).json({ error: 'Unauthorized: Missing user session' });
+    }
+
+    // Import userOnboardingService dynamically to avoid circular dependencies
+    const { sendWelcomeNotification } = await import('./services/userOnboardingService.mjs');
+    await sendWelcomeNotification(user.id);
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error('[MagicBell Welcome] Error:', err);
+    // Fail soft – never block signup/login
+    return res.status(200).json({ success: false });
   }
 });
 
