@@ -166,6 +166,18 @@ export function useRealtimeConversations(userId?: string) {
             }
           }
           
+          // ✅ CRITICAL FIX: Check if message already exists before saving (prevent duplicates)
+          const existingMessage = await atlasDB.messages.get(newMessage.id);
+          if (existingMessage) {
+            logger.debug('[Realtime] ⚠️ Message already exists in Dexie, skipping duplicate:', newMessage.id);
+            return; // Skip - message already saved
+          }
+          
+          // ✅ CRITICAL FIX: Deduplicate attachments before saving
+          const uniqueAttachments = parsedAttachments && parsedAttachments.length > 0
+            ? [...new Map(parsedAttachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()]
+            : undefined;
+          
           // Save to Dexie immediately
           await atlasDB.messages.put({
             id: newMessage.id,
@@ -177,7 +189,7 @@ export function useRealtimeConversations(userId?: string) {
             timestamp: newMessage.created_at,
             synced: true,
             updatedAt: newMessage.created_at,
-            attachments: parsedAttachments, // ✅ CRITICAL FIX: Use parsed attachments
+            attachments: uniqueAttachments, // ✅ CRITICAL FIX: Use deduplicated attachments
             imageUrl: newMessage.image_url || undefined, // ✅ Legacy image support
             deletedAt: newMessage.deleted_at || undefined, // ✅ Sync deleted status
             deletedBy: newMessage.deleted_by || undefined  // ✅ Sync deleted type

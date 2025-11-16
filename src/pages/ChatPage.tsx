@@ -1197,8 +1197,29 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             hasAttachments: !!messageToSave.attachments
           });
           
-          // ✅ TYPESCRIPT FIX: messageToSave already matches Message interface from atlasDB
-          await atlasDB.messages.put(messageToSave);
+          // ✅ CRITICAL FIX: Check if message already exists before saving (prevent duplicates)
+          const existingMessage = await atlasDB.messages.get(messageToSave.id);
+          if (existingMessage) {
+            logger.debug('[ChatPage] ⚠️ Message already exists in Dexie, skipping duplicate:', messageToSave.id);
+            // Update existing message instead of creating duplicate
+            await atlasDB.messages.update(messageToSave.id, {
+              ...messageToSave,
+              attachments: Array.isArray(messageToSave.attachments)
+                ? [...new Map(messageToSave.attachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()]
+                : undefined
+            });
+          } else {
+            // ✅ CRITICAL FIX: Deduplicate attachments before saving
+            const uniqueAttachments = messageToSave.attachments && Array.isArray(messageToSave.attachments) && messageToSave.attachments.length > 0
+              ? [...new Map(messageToSave.attachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()]
+              : undefined;
+            
+            // ✅ TYPESCRIPT FIX: messageToSave already matches Message interface from atlasDB
+            await atlasDB.messages.put({
+              ...messageToSave,
+              attachments: uniqueAttachments
+            });
+          }
           
           logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
