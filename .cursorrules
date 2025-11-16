@@ -48,14 +48,15 @@ if (userTier === 'free') {
 ## 🚫 **What NOT to Build (V1)**
 
 ### **Deferred Features**
-- ❌ Voice/audio processing (expensive, V2+)
-- ❌ Image analysis (expensive, V2+)
-- ❌ Complex analytics dashboards (V2+)
-- ❌ Enterprise features
-- ❌ Generic wellness widgets
+- ❌ Enterprise features (V2+)
+- ❌ Generic wellness widgets (V2+)
+- ⚠️ Voice calls (implemented but soft-launch disabled - enable when ready)
 
 ### **V1 Focus Only**
 - ✅ Text chat with tier enforcement
+- ✅ Voice/audio processing (voice notes, TTS) - Core+ tiers
+- ✅ Image analysis - Core+ tiers
+- ✅ Analytics dashboards (rituals insights) - Core+ tiers
 - ✅ Simple habit logging
 - ✅ Daily EQ challenges
 - ✅ Basic subscription management
@@ -70,8 +71,8 @@ if (userTier === 'free') {
 
 ### **Tier Value Proposition**
 - **Free**: 15 messages/month, Claude Haiku, basic tips
-- **Core**: Unlimited chat, Claude Sonnet, voice/image features
-- **Studio**: Unlimited chat, Claude Opus, advanced features
+- **Core**: Unlimited chat, Claude Sonnet, voice/image features, analytics dashboards
+- **Studio**: Unlimited chat, Claude Opus, advanced features, analytics dashboards
 
 ## 🔧 **Development Workflow**
 
@@ -105,4 +106,4 @@ if (userTier === 'free') {
 
 ---
 
-**Remember: Atlas is an emotionally intelligent AI assistant, not a generic chat app. Build the conversation interface first, add habit tracking, enforce the tier system, then iterate toward advanced features in future versions.**
+**Remember: Atlas is an emotionally intelligent productivity AI assistant, not a generic chat app. Build the conversation interface first, add habit tracking, enforce the tier system, then iterate toward advanced features in future versions.**

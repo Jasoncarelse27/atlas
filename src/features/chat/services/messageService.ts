@@ -102,18 +102,23 @@ class MessageService {
 
   /**
    * Get messages for a conversation
+   * ✅ SCALABILITY: Limited to last 100 messages by default
    */
-  async getMessages(conversationId: string): Promise<MediaMessage[]> {
+  async getMessages(conversationId: string, limit: number = 100): Promise<MediaMessage[]> {
     try {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
       if (error) throw error;
 
-      return (data || []).map(msg => ({
+      // Reverse to show oldest first (normal chat order)
+      const reversed = (data || []).reverse();
+
+      return reversed.map(msg => ({
         ...msg,
         messageType: msg.message_type || 'text',
         metadata: msg.metadata || {},

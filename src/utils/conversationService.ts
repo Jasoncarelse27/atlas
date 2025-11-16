@@ -61,20 +61,31 @@ export async function getUserConversations(user_id: string): Promise<Conversatio
 
 /**
  * Get messages for a specific conversation
+ * ✅ SCALABILITY: Supports pagination with limit and offset
  */
-export async function getConversationMessages(conversation_id: string): Promise<Message[]> {
+export async function getConversationMessages(
+  conversation_id: string, 
+  options?: { limit?: number; offset?: number }
+): Promise<Message[]> {
   try {
-    const { data, error } = await supabase
+    const limit = options?.limit ?? 100; // Default to 100 messages
+    const offset = options?.offset ?? 0;
+    
+    let query = supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', conversation_id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data, error } = await query;
 
     if (error) {
       return [];
     }
 
-    return data || [];
+    // Reverse to show oldest first (normal chat order)
+    return (data || []).reverse();
   } catch (error) {
     return [];
   }

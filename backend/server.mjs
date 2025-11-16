@@ -3366,7 +3366,11 @@ app.post('/api/transcribe', verifyJWT, tierGateMiddleware, async (req, res) => {
     }
 
     if (!openai) {
-      return res.status(503).json({ error: 'Audio transcription service unavailable' });
+      logger.error('[Transcribe] OpenAI client not initialized - OPENAI_API_KEY missing');
+      return res.status(503).json({ 
+        error: 'Audio transcription service unavailable',
+        details: 'OpenAI API key not configured'
+      });
     }
 
 
@@ -3394,14 +3398,24 @@ app.post('/api/transcribe', verifyJWT, tierGateMiddleware, async (req, res) => {
 
     // Create a temporary file for Whisper API (it requires a file, not buffer)
     const { writeFile, unlink } = await import('fs/promises');
-    const tmpFile = path.join('/tmp', `audio_${Date.now()}.webm`);
+    const tmpDir = process.env.TMPDIR || '/tmp';
+    const tmpFile = path.join(tmpDir, `audio_${Date.now()}_${Math.random().toString(36).substring(7)}.webm`);
     
     try {
+      // ✅ CRITICAL FIX: Ensure tmp directory exists
+      const { mkdir } = await import('fs/promises');
+      await mkdir(tmpDir, { recursive: true }).catch(() => {}); // Ignore if exists
+      
       await writeFile(tmpFile, audioBuffer);
+      logger.debug(`✅ [Transcribe] Temp file created: ${tmpFile} (${audioBuffer.length} bytes)`);
+      
+      // ✅ CRITICAL FIX: Import fs synchronously for createReadStream
+      const fs = await import('fs');
+      const fileStream = fs.createReadStream(tmpFile);
       
       // Transcribe with OpenAI Whisper
       const transcription = await openai.audio.transcriptions.create({
-        file: await import('fs').then(fs => fs.createReadStream(tmpFile)),
+        file: fileStream,
         model: 'whisper-1',
         language: language,
         response_format: 'verbose_json'
@@ -3450,16 +3464,31 @@ app.post('/api/transcribe', verifyJWT, tierGateMiddleware, async (req, res) => {
     } catch (whisperError) {
       await unlink(tmpFile).catch(() => {});
       
+      logger.error('[Transcribe] Whisper API error:', {
+        error: whisperError.message,
+        stack: whisperError.stack,
+        audioUrl: audioUrl,
+        userId: userId,
+        tier: tier
+      });
+      
       return res.status(500).json({ 
         error: 'Transcription failed',
-        details: whisperError.message
+        details: whisperError.message || 'Unknown error occurred'
       });
     }
     
   } catch (error) {
+    logger.error('[Transcribe] Unexpected error:', {
+      error: error.message,
+      stack: error.stack,
+      audioUrl: req.body?.audioUrl,
+      userId: req.user?.id
+    });
+    
     res.status(500).json({ 
       error: 'Internal server error',
-      details: error.message
+      details: error.message || 'Unknown error occurred'
     });
   }
 });

@@ -599,6 +599,24 @@ export const stopMessageStream = () => {
 };
 
 // Export the sendMessageWithAttachments function for resendService
+// ✅ CRITICAL FIX: Type inference for mixed attachments
+function inferMessageType(attachments: Array<{ type: string; url?: string; publicUrl?: string }>): 'text' | 'image' | 'audio' | 'mixed' {
+  if (!attachments || attachments.length === 0) return 'text';
+  
+  const types = new Set(attachments.map(att => att.type).filter(Boolean));
+  
+  // If multiple types, it's mixed
+  if (types.size > 1) return 'mixed';
+  
+  // Single type
+  if (types.has('image')) return 'image';
+  if (types.has('audio')) return 'audio';
+  if (types.has('file')) return 'text'; // Files are treated as text messages
+  
+  // Default to text if no type detected
+  return 'text';
+}
+
 export async function sendMessageWithAttachments(
   conversationId: string,
   attachments: Array<{ type: string; url?: string; publicUrl?: string }>,
@@ -609,14 +627,14 @@ export async function sendMessageWithAttachments(
 
   const tempId = `temp-${generateUUID()}`;
 
-  // ✅ FUTURE-PROOF FIX: Format message to match what EnhancedMessageBubble expects
-  const imageUrl = attachments[0]?.url || attachments[0]?.publicUrl;
+  // ✅ CRITICAL FIX: Infer message type from attachments (supports mixed)
+  const messageType = inferMessageType(attachments);
   
   const newMessage: Message = {
     id: tempId,
     conversationId,
     role: "user",
-    type: 'image', // ✅ ADD: Explicitly set type to 'image'
+    type: messageType, // ✅ FIX: Use inferred type (supports 'mixed')
     content: caption || "", // ✅ user caption as content
     // ✅ FIX: Don't duplicate image in both url AND attachments - use attachments only
     attachments: attachments.map(att => ({
@@ -660,9 +678,52 @@ export async function sendMessageWithAttachments(
       
       logger.debug("[chatService] 🧠 Sending attachments to backend for AI analysis...");
       
-      // Handle image and file attachments separately
+      // ✅ CRITICAL FIX: Save user message with ALL attachments first (for mixed attachments support)
+      // This ensures all attachments (image + audio) are saved even if image analysis fails
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user?.id && conversationId) {
+        try {
+          // Save user message with all attachments
+          const { error: saveError } = await supabase
+            .from('messages')
+            .insert({
+              user_id: session.user.id,
+              conversation_id: conversationId,
+              role: 'user',
+              content: caption || '',
+              attachments: uploadedAttachments.map(att => ({
+                type: att.type,
+                url: att.url || att.publicUrl
+              })),
+              created_at: new Date().toISOString()
+            });
+          
+          if (saveError) {
+            logger.error('[chatService] Failed to save user message with attachments:', saveError);
+          } else {
+            logger.debug('[chatService] ✅ Saved user message with all attachments');
+          }
+        } catch (saveErr) {
+          logger.error('[chatService] Error saving user message:', saveErr);
+          // Continue - don't fail the whole operation
+        }
+      }
+      
+      // Handle image, audio, and file attachments separately
       const imageAttachment = uploadedAttachments.find(att => att.type === 'image');
+      const audioAttachment = uploadedAttachments.find(att => att.type === 'audio');
       const fileAttachment = uploadedAttachments.find(att => att.type === 'file');
+      
+      // ✅ CRITICAL FIX: Handle audio-only messages (voice notes)
+      // Note: User message is already saved above, so we just need to trigger AI response
+      // The AI response will be handled by real-time listeners, so we don't need to stream here
+      if (audioAttachment && !imageAttachment) {
+        logger.debug('[chatService] 🎤 Audio-only message saved, AI response will come via real-time');
+        // Message is already saved, real-time listener will pick up AI response
+        // No additional action needed - backend will process the message automatically
+      }
       
       if (imageAttachment) {
         // Use the dedicated image analysis endpoint
@@ -710,13 +771,14 @@ export async function sendMessageWithAttachments(
             // Token refresh logic would go here
           }
           
-          const errorMessage = (errorData.details || errorData.error || `Image analysis failed (${response.status})`) as string;
-          throw new Error(errorMessage);
+          // ✅ CRITICAL FIX: Don't throw error - user message is already saved
+          // Just log and continue (for mixed attachments, audio is already saved)
+          logger.warn('[chatService] Image analysis failed but user message saved');
+        } else {
+          const analysisResult = await response.json();
+          logger.debug("[chatService] ✅ Image analysis complete");
+          // Analysis is saved to conversation by backend
         }
-        
-        const analysisResult = await response.json();
-        logger.debug("[chatService] ✅ Image analysis complete");
-        // Analysis is saved to conversation by backend
       } else if (fileAttachment) {
         // Use the file analysis endpoint
         const apiEndpoint = getApiEndpoint('/api/file-analysis');

@@ -231,6 +231,23 @@ const EnhancedInputToolbar = React.memo(({
     }
   };
 
+  // ✅ CRITICAL FIX: Clear draft attachments when conversation changes
+  useEffect(() => {
+    // Clear attachments when switching conversations
+    if (attachmentPreviews.length > 0) {
+      // Cleanup preview URLs
+      attachmentPreviews.forEach(att => {
+        const previewUrl = att.previewUrl || att.url;
+        if (previewUrl && previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(previewUrl);
+          previewUrlsRef.current.delete(previewUrl);
+        }
+      });
+      setAttachmentPreviews([]);
+      setText('');
+    }
+  }, [conversationId]); // Only run when conversationId changes
+
   // ✅ Cleanup timers and preview URLs on unmount
   useEffect(() => {
     return () => {
@@ -321,7 +338,7 @@ const EnhancedInputToolbar = React.memo(({
   const handleSend = useCallback(async () => {
     if (isProcessing || disabled) return;
     
-    // ✅ IMMEDIATE UI CLEAR - Clear attachments and text instantly for better UX
+    // ✅ CRITICAL FIX: Don't clear attachments until upload succeeds
     const currentText = text.trim();
     const currentAttachments = [...attachmentPreviews];
     
@@ -334,24 +351,13 @@ const EnhancedInputToolbar = React.memo(({
       return;
     }
     
-    // ✅ DON'T revoke preview URLs yet - wait until upload succeeds
-    // If upload fails, we need to keep preview URLs for retry
-    
-    // ✅ FIX: Clear UI immediately but prevent height animation glitch
-    // Temporarily disable transitions on textarea
-    if (inputRef.current) {
-      inputRef.current.style.transition = 'none';
+    // ✅ CRITICAL FIX: Validate total attachment size (prevent crashes on low-end devices)
+    const totalSize = currentAttachments.reduce((sum, att) => sum + (att.file?.size || 0), 0);
+    const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB total limit
+    if (totalSize > MAX_TOTAL_SIZE) {
+      modernToast.error('Files Too Large', `Total size exceeds ${(MAX_TOTAL_SIZE / 1024 / 1024).toFixed(0)}MB limit. Please reduce file sizes.`);
+      return;
     }
-    
-    setAttachmentPreviews([]);
-    setText('');
-    
-    // Re-enable transitions after clearing (smooth for future typing)
-    requestAnimationFrame(() => {
-      if (inputRef.current) {
-        inputRef.current.style.transition = '';
-      }
-    });
     
     // Show immediate feedback
     if (onSoundPlay) {
@@ -364,67 +370,96 @@ const EnhancedInputToolbar = React.memo(({
       setIsUploading(true);
       
       try {
-        // ✅ CRITICAL: Upload files first to get HTTP/HTTPS URLs (backend requires HTTP/HTTPS, not blob URLs)
-        logger.debug('[EnhancedInputToolbar] 📤 Uploading files before sending...');
+        // ✅ CRITICAL FIX: Sequential upload with rollback on failure
+        logger.debug('[EnhancedInputToolbar] 📤 Uploading files sequentially before sending...');
         
-        const uploadedAttachments = await Promise.all(
-          currentAttachments.map(async (att) => {
-            // Update status to uploading
-            if (att.id) {
-              setUploadStatus(prev => ({ ...prev, [att.id!]: 'uploading' as const }));
-            }
-            
-            // If file exists and we don't have a publicUrl yet, upload it
-            if (att.file && !att.publicUrl && (!att.url || att.url.startsWith('blob:'))) {
-              try {
-                if (!user?.id) {
-                  throw new Error('User ID required for upload');
-                }
-                
-                logger.debug('[EnhancedInputToolbar] Uploading file:', att.file.name);
-                
-                // Use appropriate service based on attachment type
-                let uploadResult;
-                if (att.type === 'file') {
-                  uploadResult = await fileService.uploadFile(att.file, user.id);
-                } else {
-                  uploadResult = await imageService.uploadImage(att.file, user.id);
-                }
-                
-                // Update status to processing
-                if (att.id) {
-                  setUploadStatus(prev => ({ ...prev, [att.id!]: 'processing' as const }));
-                }
-                
-                return {
-                  id: att.id,
-                  type: att.type,
-                  url: uploadResult.publicUrl,
-                  publicUrl: uploadResult.publicUrl,
-                  name: att.name || att.file.name
-                };
-              } catch (uploadError) {
-                logger.error('[EnhancedInputToolbar] Upload failed for attachment:', uploadError);
-                // Update status to error
-                if (att.id) {
-                  setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
-                }
-                throw uploadError;
+        const uploadedAttachments: Array<{ id?: string; type: string; url: string; publicUrl: string; name?: string }> = [];
+        
+        // Upload one at a time (safer, allows rollback)
+        for (const att of currentAttachments) {
+          // Update status to uploading
+          if (att.id) {
+            setUploadStatus(prev => ({ ...prev, [att.id!]: 'uploading' as const }));
+          }
+          
+          // ✅ CRITICAL FIX: Check if already uploaded (voice notes are uploaded when added to draft)
+          // If file exists and we don't have a publicUrl yet, upload it
+          if (att.file && !att.publicUrl && (!att.url || att.url.startsWith('blob:'))) {
+            try {
+              if (!user?.id) {
+                throw new Error('User ID required for upload');
               }
+              
+              logger.debug('[EnhancedInputToolbar] Uploading file:', att.file.name, 'type:', att.type);
+              
+              // Use appropriate service based on attachment type
+              let uploadResult;
+              if (att.type === 'audio') {
+                // ✅ CRITICAL FIX: Use voiceService for audio uploads
+                const { voiceService } = await import('../services/voiceService');
+                const audioMetadata = await voiceService.uploadAudio(att.file);
+                uploadResult = { publicUrl: audioMetadata.url };
+              } else if (att.type === 'file') {
+                uploadResult = await fileService.uploadFile(att.file, user.id);
+              } else {
+                uploadResult = await imageService.uploadImage(att.file, user.id);
+              }
+              
+              // Update status to processing
+              if (att.id) {
+                setUploadStatus(prev => ({ ...prev, [att.id!]: 'processing' as const }));
+              }
+              
+              uploadedAttachments.push({
+                id: att.id,
+                type: att.type,
+                url: uploadResult.publicUrl,
+                publicUrl: uploadResult.publicUrl,
+                name: att.name || att.file.name
+              });
+            } catch (uploadError) {
+              logger.error('[EnhancedInputToolbar] Upload failed for attachment:', uploadError);
+              // Update status to error
+              if (att.id) {
+                setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
+              }
+              
+              // ✅ CRITICAL FIX: Rollback - restore attachments on failure
+              setAttachmentPreviews(currentAttachments);
+              setText(currentText);
+              
+              throw uploadError;
             }
-            
-            // Already uploaded, use existing URL
-            return {
+          } else {
+            // ✅ CRITICAL FIX: Already uploaded (voice notes are uploaded when added to draft)
+            // Use existing URL (voice notes already have publicUrl from uploadAudio)
+            uploadedAttachments.push({
               id: att.id,
               type: att.type,
-              url: att.publicUrl || att.url,
-              publicUrl: att.publicUrl || att.url,
+              url: att.publicUrl || att.url || '',
+              publicUrl: att.publicUrl || att.url || '',
               name: att.name
-            };
-          })
-        );
+            });
+          }
+        }
         
         logger.debug('[EnhancedInputToolbar] ✅ Files uploaded, sending message...');
+        
+        // ✅ CRITICAL FIX: Only clear UI after successful upload
+        // Temporarily disable transitions on textarea
+        if (inputRef.current) {
+          inputRef.current.style.transition = 'none';
+        }
+        
+        setAttachmentPreviews([]);
+        setText('');
+        
+        // Re-enable transitions after clearing
+        requestAnimationFrame(() => {
+          if (inputRef.current) {
+            inputRef.current.style.transition = '';
+          }
+        });
         
         // Use Promise.race for timeout protection (increased timeout for image analysis)
         if (addMessage) {
@@ -447,19 +482,12 @@ const EnhancedInputToolbar = React.memo(({
           }
         });
         
-        // ✅ PROFESSIONAL UX: Ensure attachments and text are cleared after successful send
-        setAttachmentPreviews([]);
-        setText('');
-        
         // Update status to success
         uploadedAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id!]: 'success' as const }));
           }
         });
-        
-        // ✅ REMOVED: Success toast - floating overlay is sufficient
-        // Professional, non-intrusive UX
         
         // Clear upload status after success
         setTimeout(() => {
@@ -469,38 +497,25 @@ const EnhancedInputToolbar = React.memo(({
       } catch (error) {
         logger.error('[EnhancedInputToolbar] ❌ sendMessageWithAttachments failed:', error);
         
-        // ✅ PROFESSIONAL UX: Keep UI cleared even on error (user can re-upload if needed)
-        // Don't restore attachments - they've already been cleared and user expects clean state
-        setAttachmentPreviews([]);
-        setText('');
+        // ✅ CRITICAL FIX: Rollback - restore attachments on failure
+        setAttachmentPreviews(currentAttachments);
+        setText(currentText);
         
-        // Update status to error (use currentAttachments for logging only)
+        // Update status to error
         currentAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
           }
         });
         
-        // ✅ REMOVED: Toast dismiss (no toast to dismiss)
-        // Error handling through floating overlay only
-        
         // More specific error messages
         if (error instanceof Error && error.message === 'Send timeout') {
           modernToast.error("Analysis Timeout", "Image is taking too long. Try a smaller file or check your connection.");
         } else if (error instanceof Error) {
-          modernToast.error("Analysis Failed", error.message || "Could not send attachment. Please try again.");
+          modernToast.error("Upload Failed", error.message || "Could not send attachment. Please try again.");
         } else {
           modernToast.error("Upload Failed", "Could not send attachment. Please try again.");
         }
-        
-        // ✅ CLEANUP: Revoke blob URLs even on error (they're no longer needed)
-        currentAttachments.forEach(att => {
-          const previewUrl = att.previewUrl || att.url;
-          if (previewUrl && previewUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(previewUrl);
-            previewUrlsRef.current.delete(previewUrl);
-          }
-        });
         
         // Clear error status after 3 seconds
         setTimeout(() => {
@@ -509,7 +524,8 @@ const EnhancedInputToolbar = React.memo(({
         }, 3000);
       }
     } else if (currentText) {
-      // Regular text message
+      // Regular text message - clear immediately
+      setText('');
       onSendMessage(currentText);
     }
     
@@ -772,20 +788,87 @@ const EnhancedInputToolbar = React.memo(({
             
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             
-            // 🎯 Transcribe audio and send immediately (ChatGPT-style)
-            const transcript = await voiceService.recordAndTranscribe(audioBlob, tier as 'free' | 'core' | 'studio');
-            
-            // Auto-send the transcribed message
-            if (transcript && transcript.trim()) {
-              // Send immediately
-              onSendMessage(transcript);
-            } else {
-              modernToast.error('No Speech Detected', 'Please speak clearly and try again');
+            // ✅ CRITICAL FIX: Add audio to draft attachments instead of sending immediately
+            // This allows users to combine image + voice note
+            try {
+              // Upload audio to get URL
+              const { voiceService } = await import('../services/voiceService');
+              const audioMetadata = await voiceService.uploadAudio(audioBlob);
+              
+              // Add to draft attachments
+              const audioAttachment = {
+                id: generateUUID(),
+                type: 'audio' as const,
+                url: audioMetadata.url,
+                publicUrl: audioMetadata.url,
+                file: audioBlob,
+                previewUrl: URL.createObjectURL(audioBlob), // Preview for UI
+                name: `voice-note-${Date.now()}.webm`
+              };
+              
+              handleAddAttachment(audioAttachment);
+              
+              // ✅ OPTIONAL: Auto-transcribe for caption (user can edit)
+              try {
+                const transcriptResult = await voiceService.transcribeAudio(audioMetadata.url);
+                const transcript = transcriptResult.transcript;
+                
+                if (transcript && transcript.trim()) {
+                  // ✅ BEST PRACTICE: Log STT transcript for debugging and transparency
+                  logger.info('[EnhancedInputToolbar] 🎤 STT Transcript:', {
+                    transcript: transcript,
+                    audioUrl: audioMetadata.url,
+                    confidence: transcriptResult.confidence,
+                    duration: transcriptResult.duration,
+                    language: transcriptResult.language
+                  });
+                  
+                  // Set as caption text (user can edit before sending)
+                  setText(transcript);
+                }
+              } catch (transcribeError) {
+                // ✅ CRITICAL FIX: Transcription failed but audio is saved - don't show error toast
+                // User can still send the voice note without transcription
+                logger.warn('[EnhancedInputToolbar] Transcription failed, but audio saved:', transcribeError);
+                // Don't show error toast - audio upload succeeded, transcription is optional
+              }
+              
+              modernToast.success('Voice Note Added', 'You can add an image or send now');
+            } catch (uploadError) {
+              // ✅ CRITICAL FIX: Better error handling for upload failures
+              const errorMessage = uploadError instanceof Error ? uploadError.message : 'Failed to save voice note';
+              
+              // Check if it's a network error
+              if (errorMessage.includes('network') || errorMessage.includes('Failed to fetch') || errorMessage.includes('connection')) {
+                logger.error('[EnhancedInputToolbar] Network error during audio upload:', uploadError);
+                modernToast.error('Network Error', 'Please check your connection and try again');
+              } else {
+                logger.error('[EnhancedInputToolbar] Audio upload failed:', uploadError);
+                modernToast.error('Upload Failed', errorMessage);
+              }
+              
+              // Clean up attachment if upload failed
+              setAttachmentPreviews(prev => prev.filter(att => att.id !== audioAttachment.id));
+            } finally {
+              setIsProcessingAudio(false);
             }
             
           } catch (error) {
+            // ✅ CRITICAL FIX: Better error handling for recording failures
             const errorMessage = error instanceof Error ? error.message : 'Failed to process voice message';
-            modernToast.error('Transcription Failed', errorMessage);
+            
+            // Check error type for better user messaging
+            if (errorMessage.includes('permission') || errorMessage.includes('microphone')) {
+              logger.error('[EnhancedInputToolbar] Microphone permission error:', error);
+              modernToast.error('Microphone Access', 'Please allow microphone access to record voice notes');
+            } else if (errorMessage.includes('network') || errorMessage.includes('Failed to fetch')) {
+              logger.error('[EnhancedInputToolbar] Network error during recording:', error);
+              modernToast.error('Network Error', 'Please check your connection and try again');
+            } else {
+              logger.error('[EnhancedInputToolbar] Recording failed:', error);
+              modernToast.error('Recording Failed', errorMessage);
+            }
+            
             setIsProcessingAudio(false); // ✅ FIX: Clear processing state on error
           } finally {
             setIsListening(false);
@@ -1166,6 +1249,84 @@ const EnhancedInputToolbar = React.memo(({
         </motion.div>
       )}
       
+      {/* ✅ CRITICAL FIX: Attachment Preview Tray - Shows selected images and voice notes */}
+      {attachmentPreviews.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="w-full max-w-4xl mx-auto px-2 sm:px-4 mb-2"
+        >
+          <div className="flex flex-wrap gap-2 p-2 bg-white/50 backdrop-blur-sm rounded-xl border border-atlas-sand/30">
+            {attachmentPreviews.map((att) => (
+              <motion.div
+                key={att.id}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className="relative group"
+              >
+                {att.type === 'image' && att.previewUrl && (
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border-2 border-atlas-sand">
+                    <img
+                      src={att.previewUrl}
+                      alt={att.name || 'Image preview'}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={() => removeAttachment(att.id!)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      aria-label="Remove image"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    {uploadStatus[att.id!] === 'uploading' && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {att.type === 'audio' && (
+                  <div className="relative w-16 h-16 rounded-lg bg-purple-500/20 border-2 border-purple-300 flex items-center justify-center">
+                    <Mic className="w-6 h-6 text-purple-600" />
+                    <button
+                      onClick={() => removeAttachment(att.id!)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      aria-label="Remove voice note"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    {uploadStatus[att.id!] === 'uploading' && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                        <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {att.type === 'file' && (
+                  <div className="relative w-16 h-16 rounded-lg bg-blue-500/20 border-2 border-blue-300 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                    <button
+                      onClick={() => removeAttachment(att.id!)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      aria-label="Remove file"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    {uploadStatus[att.id!] === 'uploading' && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                        <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* ✅ UNIFIED INPUT BAR: Mobile floating overlay + Desktop static footer */}
       <motion.div 
         data-input-area

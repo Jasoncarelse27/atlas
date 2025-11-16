@@ -258,7 +258,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         hasMore: totalCount > storedMessages.length,
         loadTime: `${(performance.now() - startTime).toFixed(0)}ms`,
         firstTimestamp: storedMessages[0]?.timestamp,
-        lastTimestamp: storedMessages[storedMessages.length - 1]?.timestamp
+        lastTimestamp: storedMessages[storedMessages.length - 1]?.timestamp,
+        userMessages: storedMessages.filter(m => m.role === 'user').length,
+        assistantMessages: storedMessages.filter(m => m.role === 'assistant').length,
+        unsyncedMessages: storedMessages.filter(m => !m.synced).length
       });
       
       const formattedMessages = storedMessages.map(msg => ({
@@ -337,6 +340,29 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           // This ensures we get the latest message that was just saved
           await loadMessages(conversationId);
           
+          // ✅ CRITICAL FIX: Force UI update on mobile (sometimes React doesn't detect state change)
+          const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile) {
+            // Force re-render by updating messages state
+            const updatedMessages = await atlasDB.messages
+              .where("conversationId")
+              .equals(conversationId)
+              .filter(msg => !msg.deletedAt)
+              .sortBy("timestamp");
+            
+            const formatted = updatedMessages.slice(-100).map(msg => ({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp,
+              type: msg.type || 'text',
+              attachments: msg.attachments
+            } as Message));
+            
+            setMessages(formatted);
+            logger.debug('[ChatPage] ✅ Mobile: Force-updated messages after real-time event');
+          }
+          
           // Clear typing/streaming indicators
           setIsTyping(false);
           setIsStreaming(false);
@@ -355,6 +381,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('newMessageReceived', handleNewMessage as EventListener);
       }
+    };
+  }, [conversationId, loadMessages]);
+
+  // ✅ CRITICAL FIX: Reload messages when page becomes visible on mobile (cross-device sync)
+  useEffect(() => {
+    if (!conversationId || typeof document === 'undefined') return;
+    
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          logger.debug('[ChatPage] 📱 Page visible on mobile, reloading messages for sync...');
+          await loadMessages(conversationId);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [conversationId, loadMessages]);
 
@@ -2071,7 +2117,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               <MessageListWithPreviews>
                 {(() => {
                   const safeMessages = messages || [];
-                  // Debug logging removed - messages rendering correctly
+                  // ✅ CRITICAL FIX: Debug logging for mobile message display issue
+                  if (typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                    logger.debug('[ChatPage] 📱 Mobile message rendering:', {
+                      totalMessages: safeMessages.length,
+                      userMessages: safeMessages.filter(m => m.role === 'user').length,
+                      assistantMessages: safeMessages.filter(m => m.role === 'assistant').length,
+                      unsyncedMessages: safeMessages.filter(m => !m.synced).length,
+                      messageRoles: safeMessages.map(m => ({ id: m.id, role: m.role, content: m.content?.substring(0, 30) }))
+                    });
+                  }
                   if (safeMessages.length > 0) {
                     return (
                       <>
