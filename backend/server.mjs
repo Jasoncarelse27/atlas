@@ -2583,19 +2583,28 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
       hasBody: !!req.body,
       hasUser: !!req.user,
       userId: req.user?.id,
-      imageUrl: req.body?.imageUrl?.substring(0, 50) + '...'
+      imageUrl: req.body?.imageUrl?.substring(0, 50) + '...',
+      attachmentsCount: req.body?.attachments?.length || 0
     });
     
-    const { imageUrl, prompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand." } = req.body;
+    const { imageUrl, attachments, prompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand." } = req.body;
     const authenticatedUserId = req.user?.id;
     // ✅ Use tier from tierGateMiddleware (already validated)
     const tier = req.tier || 'free';
     const selectedModel = req.selectedModel || 'claude-sonnet-4-5-20250929';
     
-    if (!imageUrl) {
-      logger.warn('[Image Analysis] Missing imageUrl in request');
-      return res.status(400).json({ error: 'Image URL is required' });
+    // ✅ FIX: Support both single imageUrl (legacy) and attachments array (new)
+    const imageAttachments = attachments && Array.isArray(attachments) && attachments.length > 0
+      ? attachments.filter(att => att.type === 'image' && att.url)
+      : imageUrl ? [{ type: 'image', url: imageUrl }] : [];
+    
+    if (imageAttachments.length === 0) {
+      logger.warn('[Image Analysis] Missing imageUrl or attachments in request');
+      return res.status(400).json({ error: 'Image URL or attachments array is required' });
     }
+    
+    // Use first image for analysis (Claude Vision analyzes one at a time)
+    const primaryImageUrl = imageAttachments[0].url;
 
     if (!authenticatedUserId) {
       logger.error('[Image Analysis] ❌ No authenticated user ID found');
@@ -2693,7 +2702,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
                     type: 'image',
                     source: {
                       type: 'url',
-                      url: imageUrl  // ✅ Direct URL - no download/encoding needed!
+                      url: primaryImageUrl  // ✅ Direct URL - no download/encoding needed! (analyze first image)
                     }
                   }
                 ]
@@ -2931,8 +2940,8 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
             conversation_id: conversationId,
             role: 'user',
             content: prompt,
-            // ✅ FIX: Use ONLY attachments array, not both image_url and attachments
-            attachments: [{ type: 'image', url: imageUrl }],
+            // ✅ FIX: Save ALL image attachments, not just the first one
+            attachments: imageAttachments,
             created_at: new Date().toISOString()
           });
 
@@ -2969,7 +2978,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
       try {
         await supabase.from('image_analyses').insert({
           user_id: authenticatedUserId,
-          image_url: imageUrl,
+          image_url: primaryImageUrl, // Store primary image URL for analysis record
           analysis: analysis,
           prompt: prompt,
           created_at: new Date().toISOString()
@@ -2982,7 +2991,8 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
     res.json({
       success: true,
       analysis: analysis,
-      imageUrl: imageUrl,
+      imageUrl: primaryImageUrl, // Primary image analyzed
+      attachments: imageAttachments, // ✅ Return all attachments for frontend
       model: selectedModel,
       tier: tier,
       tokens: tokenUsage,
@@ -2999,6 +3009,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
       name: error?.name,
       userId: req.user?.id,
       imageUrl: req.body?.imageUrl?.substring(0, 50) + '...',
+      attachmentsCount: req.body?.attachments?.length || 0,
       body: req.body ? JSON.stringify(req.body).substring(0, 200) : 'no body'
     };
     

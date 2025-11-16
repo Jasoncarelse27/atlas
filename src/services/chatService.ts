@@ -758,6 +758,9 @@ export async function sendMessageWithAttachments(
           }, 60000); // 60 second timeout for image analysis
 
           try {
+            // ✅ FIX: Send ALL image attachments, not just the first one
+            const imageAttachments = uploadedAttachments.filter(att => att.type === 'image');
+            
             // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
             const response = await fetch(apiEndpoint, {
               method: "POST",
@@ -766,7 +769,11 @@ export async function sendMessageWithAttachments(
                 "Authorization": `Bearer ${token}`
               },
               body: JSON.stringify({
-                imageUrl: imageAttachment.url,
+                imageUrl: imageAttachment.url, // First image for analysis (Claude Vision supports one at a time)
+                attachments: imageAttachments.map(att => ({ // ✅ Send ALL attachments for saving
+                  type: att.type,
+                  url: att.url || att.publicUrl
+                })),
                 userId: userId,
                 conversationId: conversationId, // ✅ NEW: Pass conversationId
                 prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
