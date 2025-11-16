@@ -731,22 +731,33 @@ export async function sendMessageWithAttachments(
         logger.debug("[chatService] 📡 Calling image analysis endpoint:", apiEndpoint);
         logger.debug("[chatService] 🔐 Token preview:", token.substring(0, 20) + '...' + token.substring(token.length - 10));
 
-        // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-        const response = await fetch(apiEndpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            imageUrl: imageAttachment.url,
-            userId: userId,
-            conversationId: conversationId, // ✅ NEW: Pass conversationId
-            prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
-          }),
-        });
-        
-        if (!response.ok) {
+        // ✅ CRITICAL FIX: Add timeout to prevent hanging requests (60s for image analysis)
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          timeoutController.abort();
+          logger.error('[chatService] ⏱️ Image analysis timeout after 60s');
+        }, 60000); // 60 second timeout for image analysis
+
+        try {
+          // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+          const response = await fetch(apiEndpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              imageUrl: imageAttachment.url,
+              userId: userId,
+              conversationId: conversationId, // ✅ NEW: Pass conversationId
+              prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
+            }),
+            signal: timeoutController.signal, // ✅ FIX: Add abort signal for timeout
+          });
+          
+          clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on success
+          
+          if (!response.ok) {
           // Handle image analysis error (existing code below)
           let errorData: ApiErrorResponse = {};
           try {
@@ -779,26 +790,47 @@ export async function sendMessageWithAttachments(
           logger.debug("[chatService] ✅ Image analysis complete");
           // Analysis is saved to conversation by backend
         }
+        } catch (error) {
+          clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on error
+          if (error instanceof Error && error.name === 'AbortError') {
+            logger.error('[chatService] ⏱️ Image analysis request timed out');
+            // Don't throw - user message is already saved, just log the timeout
+          } else {
+            logger.error('[chatService] Image analysis request failed:', error);
+            // Don't throw - user message is already saved
+          }
+        }
       } else if (fileAttachment) {
         // Use the file analysis endpoint
         const apiEndpoint = getApiEndpoint('/api/file-analysis');
         logger.debug("[chatService] 📡 Calling file analysis endpoint:", apiEndpoint);
 
-        const response = await fetch(apiEndpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            fileUrl: fileAttachment.url,
-            userId: userId,
-            conversationId: conversationId,
-            prompt: caption || "Please analyze this file and provide detailed insights about its content."
-          }),
-        });
-        
-        if (!response.ok) {
+        // ✅ CRITICAL FIX: Add timeout to prevent hanging requests (60s for file analysis)
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          timeoutController.abort();
+          logger.error('[chatService] ⏱️ File analysis timeout after 60s');
+        }, 60000); // 60 second timeout for file analysis
+
+        try {
+          const response = await fetch(apiEndpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              fileUrl: fileAttachment.url,
+              userId: userId,
+              conversationId: conversationId,
+              prompt: caption || "Please analyze this file and provide detailed insights about its content."
+            }),
+            signal: timeoutController.signal, // ✅ FIX: Add abort signal for timeout
+          });
+          
+          clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on success
+          
+          if (!response.ok) {
           let errorData: ApiErrorResponse = {};
           try {
             const errorText = await response.text();
@@ -816,11 +848,22 @@ export async function sendMessageWithAttachments(
           
           const errorMessage = (errorData.details || errorData.error || `File analysis failed (${response.status})`) as string;
           throw new Error(errorMessage);
+        } else {
+          const analysisResult = await response.json();
+          logger.debug("[chatService] ✅ File analysis complete");
+          // Analysis is saved to conversation by backend
         }
-        
-        const analysisResult = await response.json();
-        logger.debug("[chatService] ✅ File analysis complete");
-        // Analysis is saved to conversation by backend
+        } catch (error) {
+          clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on error
+          if (error instanceof Error && error.name === 'AbortError') {
+            logger.error('[chatService] ⏱️ File analysis request timed out');
+            // Don't throw - user message is already saved, just log the timeout
+          } else {
+            logger.error('[chatService] File analysis request failed:', error);
+            // Re-throw non-timeout errors
+            throw error;
+          }
+        }
       } else {
         throw new Error('No image or file attachment found');
       }

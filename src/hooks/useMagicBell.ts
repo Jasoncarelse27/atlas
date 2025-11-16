@@ -47,7 +47,16 @@ export function useMagicBell() {
           method: 'GET',
         });
 
+        // ✅ FIX: Handle 401 gracefully (MagicBell is non-critical, don't break app)
+        if (response.status === 401) {
+          logger.warn('[MagicBell] 401 Unauthorized - token may be expired, skipping MagicBell initialization');
+          setError(null); // Clear error - MagicBell is optional
+          setIsLoading(false);
+          return; // Exit gracefully without showing error to user
+        }
+
         if (!response.ok) {
+          // Only throw for non-401 errors
           throw new Error(`Failed to get MagicBell token: ${response.statusText}`);
         }
 

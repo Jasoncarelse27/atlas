@@ -1366,7 +1366,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'Accept', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'Accept', 'X-Requested-With', 'Cache-Control', 'cache-control', 'Pragma'], // ✅ FIX: Allow Cache-Control headers from frontend
   exposedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400 // 24 hours
 }));
