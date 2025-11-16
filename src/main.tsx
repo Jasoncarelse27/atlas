@@ -12,7 +12,7 @@ import './lib/vercel-rebuild'
 // ✅ DEPLOYMENT VERIFICATION: Log build version to verify deployment
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || Date.now().toString();
 const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();
-const CACHE_BUSTER_VERSION = 'mobile-loading-fix-v3'; // ✅ Force cache clear for mobile loading fix
+const CACHE_BUSTER_VERSION = 'magicbell-fix-v1'; // ✅ Force cache clear for MagicBell fix
 
 // ✅ CRITICAL: Check if cached version matches current version
 const CACHE_KEY = 'atlas-app-version';
