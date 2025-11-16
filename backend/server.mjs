@@ -3911,35 +3911,50 @@ app.get('/api/magicbell/token', verifyJWT, async (req, res) => {
       });
     }
 
-    const MAGICBELL_API_SECRET = process.env.MAGICBELL_API_SECRET;
+    // ✅ CRITICAL FIX: Check both possible env var names
+    const MAGICBELL_API_SECRET = process.env.MAGICBELL_API_SECRET || process.env.MAGICBELL_SECRET;
     
     if (!MAGICBELL_API_SECRET) {
-      logger.warn('[MagicBell] API secret not configured');
-      return res.status(500).json({ 
-        error: 'MagicBell service not configured' 
+      logger.warn('[MagicBell] ⚠️ API secret not configured - MagicBell notifications disabled');
+      // ✅ FIX: Return 200 with disabled flag (non-critical feature, don't break app)
+      return res.status(200).json({ 
+        success: false,
+        disabled: true,
+        token: null
       });
     }
 
-    // Generate MagicBell user token (JWT)
-    // MagicBell expects: { external_id, email } signed with API secret
-    // The API key is passed separately to MagicBellProvider, not in the JWT
+    // ✅ CRITICAL FIX: Generate MagicBell user token with proper claims
+    // MagicBell requires:
+    // - typ: "JWT" in header (MANDATORY)
+    // - alg: "HS256" in header (MANDATORY)
+    // - iat (issued at) claim (MANDATORY)
+    // - external_id and email in payload (MagicBell format)
+    // - Signed with HS256 using API secret
+    const now = Math.floor(Date.now() / 1000);
     const token = jwt.sign(
       {
-        external_id: userId,
-        email: userEmail,
+        external_id: userId, // ✅ MagicBell expects external_id (not sub)
+        email: userEmail,     // ✅ MagicBell expects email
+        iat: now,             // ✅ CRITICAL: Explicit issued-at timestamp (required)
       },
       MAGICBELL_API_SECRET,
       {
-        expiresIn: '7d', // Token valid for 7 days
+        expiresIn: '7d', // Token valid for 7 days (adds exp claim automatically)
         algorithm: 'HS256',
+        header: {
+          typ: 'JWT',    // ✅ CRITICAL FIX: MagicBell requires this header
+          alg: 'HS256',  // ✅ CRITICAL FIX: MagicBell requires this header
+        },
       }
     );
 
-    logger.debug(`[MagicBell] Generated token for user ${userId}`);
+    logger.debug(`[MagicBell] ✅ Generated token for user ${userId} (expires in 7d)`);
     
     res.json({ 
       success: true,
       token: token,
+      disabled: false,
       user: {
         external_id: userId,
         email: userEmail,
@@ -3947,10 +3962,18 @@ app.get('/api/magicbell/token', verifyJWT, async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('[MagicBell] Failed to generate token:', error.message);
-    res.status(500).json({ 
-      error: 'Failed to generate MagicBell token',
-      details: error.message 
+    logger.error('[MagicBell] ❌ Failed to generate token:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    });
+    
+    // ✅ FIX: Return 200 with error (MagicBell is non-critical, don't break app)
+    res.status(200).json({ 
+      success: false,
+      disabled: true,
+      token: null,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

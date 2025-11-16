@@ -11,6 +11,30 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
   const { config, isLoading, error, isReady } = useMagicBell();
   const [isOpen, setIsOpen] = useState(false);
 
+  // ✅ CRITICAL FIX: Suppress MagicBell SDK uncaught promise rejections (non-critical feature)
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // Suppress MagicBell 401 errors (non-critical feature, don't break app)
+      if (
+        event.reason?.message?.includes('jwt_auth_failed') || 
+        event.reason?.message?.includes('MagicBell') ||
+        event.reason?.message?.includes('Unable to authenticate the JWT') ||
+        event.reason?.code === 'jwt_auth_failed' ||
+        (typeof event.reason === 'object' && event.reason !== null && 'errors' in event.reason && 
+         Array.isArray((event.reason as any).errors) &&
+         (event.reason as any).errors.some((e: any) => e.code === 'jwt_auth_failed'))
+      ) {
+        event.preventDefault(); // Prevent uncaught error
+        console.debug('[NotificationCenter] Suppressed MagicBell error (non-critical):', event.reason);
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   // Debug logging
   useEffect(() => {
     console.log('[NotificationCenter] Status:', { isLoading, error, isReady, hasConfig: !!config });

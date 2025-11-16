@@ -461,17 +461,23 @@ const EnhancedInputToolbar = React.memo(({
           }
         });
         
-        // Use Promise.race for timeout protection (increased timeout for image analysis)
+        // ✅ CRITICAL FIX: Match backend timeout (60s) to prevent premature timeouts
+        // Backend image analysis timeout is 60s, so UI must match to avoid false "Send timeout" errors
         if (addMessage) {
           await Promise.race([
             sendMessageWithAttachments(conversationId || '', uploadedAttachments, addMessage, currentText || undefined, user?.id),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Send timeout')), 15000) // Reduced from 30000ms for better mobile UX
+              setTimeout(() => reject(new Error('Send timeout')), 60000) // ✅ FIX: Match backend 60s timeout
             )
           ]);
         }
         
         logger.debug('[EnhancedInputToolbar] ✅ sendMessageWithAttachments completed');
+        
+        // ✅ CRITICAL FIX: Clear attachments immediately on success (not after delay)
+        // This prevents attachments from appearing "stuck" in UI
+        setAttachmentPreviews([]);
+        setText('');
         
         // ✅ CLEANUP: Now safe to revoke preview URLs after successful upload
         currentAttachments.forEach(att => {
@@ -482,26 +488,24 @@ const EnhancedInputToolbar = React.memo(({
           }
         });
         
-        // Update status to success
+        // Update status to success (briefly, then clear)
         uploadedAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id!]: 'success' as const }));
           }
         });
         
-        // Clear upload status after success
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadStatus({});
-        }, 1500);
+        // Clear upload status immediately (no delay needed)
+        setIsUploading(false);
+        setUploadStatus({});
       } catch (error) {
         logger.error('[EnhancedInputToolbar] ❌ sendMessageWithAttachments failed:', error);
         
-        // ✅ CRITICAL FIX: Rollback - restore attachments on failure
+        // ✅ CRITICAL FIX: Rollback - restore attachments on failure (user can retry)
         setAttachmentPreviews(currentAttachments);
         setText(currentText);
         
-        // Update status to error
+        // Update status to error (so user can see "Failed" and retry)
         currentAttachments.forEach((att: { id?: string; type: string; url?: string }) => {
           if (att.id) {
             setUploadStatus(prev => ({ ...prev, [att.id!]: 'error' as const }));
@@ -510,18 +514,16 @@ const EnhancedInputToolbar = React.memo(({
         
         // More specific error messages
         if (error instanceof Error && error.message === 'Send timeout') {
-          modernToast.error("Analysis Timeout", "Image is taking too long. Try a smaller file or check your connection.");
+          modernToast.error("Analysis Timeout", "Image analysis is taking longer than expected. The message may still be processing. Check back in a moment.");
         } else if (error instanceof Error) {
           modernToast.error("Upload Failed", error.message || "Could not send attachment. Please try again.");
         } else {
           modernToast.error("Upload Failed", "Could not send attachment. Please try again.");
         }
         
-        // Clear error status after 3 seconds
-        setTimeout(() => {
-          setIsUploading(false);
-          setUploadStatus({});
-        }, 3000);
+        // ✅ FIX: Clear uploading state immediately, but keep error status for retry UI
+        setIsUploading(false);
+        // Don't clear error status - let user see "Failed" and retry button
       }
     } else if (currentText) {
       // Regular text message - clear immediately
