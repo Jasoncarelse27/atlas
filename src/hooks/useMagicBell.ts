@@ -47,40 +47,43 @@ export function useMagicBell() {
           method: 'GET',
         });
 
-        // ✅ FIX: Handle 401 gracefully (MagicBell is non-critical, don't break app)
-        if (response.status === 401) {
-          logger.warn('[MagicBell] 401 Unauthorized - token may be expired, skipping MagicBell initialization');
-          setError(null); // Clear error - MagicBell is optional
+        // Backend disabled MagicBell → do not init
+        if (response.status === 200) {
+          const data = await response.json();
+          if (data?.disabled || !data?.token) {
+            logger.warn('[MagicBell] 🔕 Disabled or missing token (safe fallback)');
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
+
+          setConfig({
+            apiKey,
+            userToken: data.token,
+            userEmail: user.email!,
+            userId: user.id,
+          });
+
+          logger.debug('[MagicBell] ✅ Initialized successfully');
+          console.log('[MagicBell] ✅ Initialized successfully');
           setIsLoading(false);
-          return; // Exit gracefully without showing error to user
+          return;
         }
 
-        if (!response.ok) {
-          // Only throw for non-401 errors
-          throw new Error(`Failed to get MagicBell token: ${response.statusText}`);
+        // 401 → Non-critical, swallow
+        if (response.status === 401) {
+          logger.warn('[MagicBell] 401 Unauthorized - treating as disabled');
+          setError(null);
+          setIsLoading(false);
+          return;
         }
 
-        const data = await response.json();
-        
-        if (!data.success || !data.token) {
-          throw new Error('Invalid response from MagicBell token endpoint');
-        }
-
-        setConfig({
-          apiKey,
-          userToken: data.token,
-          userEmail: user.email!,
-          userId: user.id,
-        });
-
-        logger.debug('[MagicBell] Initialized successfully');
-        console.log('[MagicBell] ✅ Initialized successfully');
+        logger.error('[MagicBell] Unexpected status:', response.status);
+        setError(null);
+        setIsLoading(false);
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Failed to initialize MagicBell';
-        logger.error('[MagicBell] Failed to initialize:', err);
-        console.error('[MagicBell] ❌ Failed to initialize:', errorMsg, err);
-        setError(errorMsg);
-      } finally {
+        logger.debug('[NotificationCenter] Suppressed MagicBell error:', err);
+        setError(null);
         setIsLoading(false);
       }
     }
