@@ -124,6 +124,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   
+  // ✅ CRITICAL FIX: Declare ref BEFORE useAutoScroll hook (dependency)
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  
+  // ✅ CRITICAL FIX: Move useAutoScroll to top (BEFORE useCallbacks/useEffects)
+  // This MUST be called before any conditional logic or effects to prevent hook order violations
+  const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages.length], messagesContainerRef);
+
+  // ✅ CRITICAL FIX: Move useTutorial to top (BEFORE useCallbacks/useEffects)
+  // This MUST be called before any conditional logic or effects to prevent hook order violations
+  const { startTutorial, isCompleted, isLoading: tutorialLoading } = useTutorial();
+  
   // ✅ Add message function for image uploads
   // ✅ CRITICAL FIX: Maintain chronological order when adding messages
   const addMessage = useCallback((message: Message) => {
@@ -412,12 +423,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     setSidebarOpen(false); // ✅ Close main sidebar when opening history
   };
 
-  // Messages container ref for scroll detection
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Modern scroll system with golden sparkle
-  const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages.length], messagesContainerRef);
-  
   // Auto-scroll when messages change (only if length changes, not on every re-render)
   useEffect(() => {
     if (messages && messages.length > 0) {
@@ -1482,8 +1487,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     };
   }, [userId, conversationId, loadMessages]);
 
-  // ✅ TUTORIAL: Trigger tutorial for first-time users
-  const { startTutorial, isCompleted, isLoading: tutorialLoading } = useTutorial();
+  // ✅ TUTORIAL: Trigger tutorial for first-time users (hook already declared at top)
   useEffect(() => {
     // Diagnostic logging (visible in production)
     console.log('[ChatPage] Tutorial check:', { 
