@@ -26,15 +26,9 @@ export function useMagicBell() {
       }
 
       const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY;
-      console.log('[MagicBell] API Key check:', { 
-        hasApiKey: !!apiKey, 
-        apiKeyPrefix: apiKey?.substring(0, 10) || 'undefined' 
-      });
       if (!apiKey) {
-        const errorMsg = 'MagicBell API key not configured';
-        logger.warn('[MagicBell]', errorMsg);
-        console.error('[MagicBell]', errorMsg, '- Check VITE_MAGICBELL_API_KEY in .env');
-        setError(errorMsg);
+        // Silent fallback - no error logging
+        setError(null);
         setIsLoading(false);
         return;
       }
@@ -43,58 +37,67 @@ export function useMagicBell() {
         // Fetch user token from backend
         const tokenEndpoint = getApiEndpoint('/api/magicbell/token');
         
-        const response = await fetchWithAuth(tokenEndpoint, {
-          method: 'GET',
-        });
+        let response: Response;
+        try {
+          response = await fetchWithAuth(tokenEndpoint, {
+            method: 'GET',
+          });
+        } catch (fetchError) {
+          // fetchWithAuth threw an error → treat as disabled (never throw)
+          logger.debug('[MagicBell] Fetch error (safe fallback):', fetchError);
+          setError(null);
+          setIsLoading(false);
+          return;
+        }
 
         // Handle all response statuses gracefully
         if (response.status === 200) {
+          let data: any = null;
           try {
-            const data = await response.json();
-            
-            // Backend disabled MagicBell → do not init
-            if (data?.disabled || !data?.token) {
-              logger.warn('[MagicBell] 🔕 Disabled or missing token (safe fallback)');
-              setError(null);
-              setIsLoading(false);
-              return;
-            }
-
-            setConfig({
-              apiKey,
-              userToken: data.token,
-              userEmail: user.email!,
-              userId: user.id,
-            });
-
-            logger.debug('[MagicBell] ✅ Initialized successfully');
-            console.log('[MagicBell] ✅ Initialized successfully');
-            setIsLoading(false);
-            return;
+            data = await response.json();
           } catch (parseError) {
             // JSON parse failed - backend might have returned non-JSON
-            logger.warn('[MagicBell] Failed to parse response as JSON - treating as disabled');
+            logger.debug('[MagicBell] Failed to parse response as JSON - treating as disabled');
             setError(null);
             setIsLoading(false);
             return;
           }
+          
+          // Backend disabled MagicBell → do not init
+          if (data?.disabled || !data?.token) {
+            logger.debug('[MagicBell] 🔕 Disabled or missing token (safe fallback)');
+            setError(null);
+            setIsLoading(false);
+            return;
+          }
+
+          setConfig({
+            apiKey,
+            userToken: data.token,
+            userEmail: user.email!,
+            userId: user.id,
+          });
+
+          logger.debug('[MagicBell] ✅ Initialized successfully');
+          setIsLoading(false);
+          return;
         }
 
         // 401 → Non-critical, swallow
         if (response.status === 401) {
-          logger.warn('[MagicBell] 401 Unauthorized - treating as disabled');
+          logger.debug('[MagicBell] 401 Unauthorized - treating as disabled');
           setError(null);
           setIsLoading(false);
           return;
         }
 
         // Any other status → Non-critical, disable gracefully
-        logger.warn('[MagicBell] Unexpected status:', response.status, '- treating as disabled');
+        logger.debug('[MagicBell] Non-200 status:', response.status, '- treating as disabled');
         setError(null);
         setIsLoading(false);
       } catch (err) {
-        // Any error → Non-critical, disable gracefully
-        logger.debug('[NotificationCenter] Suppressed MagicBell error:', err);
+        // Any error → Non-critical, disable gracefully (never throw)
+        logger.debug('[MagicBell] Suppressed error (safe fallback):', err);
         setError(null);
         setIsLoading(false);
       }

@@ -1242,12 +1242,27 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             let updatedMessages = [...prev];
             
             if (realMessage.role === 'user') {
-              // For user messages, find and replace the matching temp message
-              const tempIndex = updatedMessages.findIndex(m => 
-                m.id.startsWith('temp-') && 
-                m.content === realMessage.content &&
-                m.role === 'user'
-              );
+              // ✅ CRITICAL FIX: Match by attachments (image URL) instead of content
+              // Content may differ (frontend uses caption, backend uses prompt)
+              const tempIndex = updatedMessages.findIndex(m => {
+                if (!m.id.startsWith('temp-') || m.role !== 'user') return false;
+                
+                // Match by attachments (image URL) - more reliable than content
+                const tempHasImage = m.attachments?.some(att => att.type === 'image');
+                const realHasImage = realMessage.attachments?.some(att => att.type === 'image');
+                
+                if (tempHasImage && realHasImage) {
+                  // Match by image URL
+                  const tempImageUrl = m.attachments.find(att => att.type === 'image')?.url || 
+                                      m.attachments.find(att => att.type === 'image')?.publicUrl;
+                  const realImageUrl = realMessage.attachments.find(att => att.type === 'image')?.url ||
+                                      realMessage.attachments.find(att => att.type === 'image')?.publicUrl;
+                  return tempImageUrl === realImageUrl;
+                }
+                
+                // Fallback: match by content if no images
+                return m.content === realMessage.content;
+              });
               
               if (tempIndex !== -1) {
                 // Replace the temp message with the real one

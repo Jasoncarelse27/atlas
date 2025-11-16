@@ -11,21 +11,31 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
   const { config, isLoading, error, isReady } = useMagicBell();
   const [isOpen, setIsOpen] = useState(false);
 
-  // ✅ CRITICAL FIX: Suppress MagicBell SDK uncaught promise rejections (non-critical feature)
+  // ✅ CRITICAL FIX: Suppress ALL MagicBell-related errors (non-critical feature)
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      // Suppress MagicBell 401 errors (non-critical feature, don't break app)
+      // Suppress ALL MagicBell-related errors (non-critical feature, don't break app)
+      const reason = event.reason;
+      const message = reason?.message || '';
+      const errorString = JSON.stringify(reason || {}).toLowerCase();
+      
       if (
-        event.reason?.message?.includes('jwt_auth_failed') || 
-        event.reason?.message?.includes('MagicBell') ||
-        event.reason?.message?.includes('Unable to authenticate the JWT') ||
-        event.reason?.code === 'jwt_auth_failed' ||
-        (typeof event.reason === 'object' && event.reason !== null && 'errors' in event.reason && 
-         Array.isArray((event.reason as any).errors) &&
-         (event.reason as any).errors.some((e: any) => e.code === 'jwt_auth_failed'))
+        message.includes('MagicBell') ||
+        message.includes('Invalid response') ||
+        message.includes('token endpoint') ||
+        message.includes('jwt_auth_failed') ||
+        message.includes('Unable to authenticate') ||
+        errorString.includes('magicbell') ||
+        reason?.code === 'jwt_auth_failed' ||
+        (typeof reason === 'object' && reason !== null && 'errors' in reason && 
+         Array.isArray((reason as any).errors) &&
+         (reason as any).errors.some((e: any) => 
+           e.code === 'jwt_auth_failed' || 
+           e.message?.toLowerCase().includes('magicbell')
+         ))
       ) {
         event.preventDefault(); // Prevent uncaught error
-        console.debug('[NotificationCenter] Suppressed MagicBell error (non-critical):', event.reason);
+        // Silent suppression - no console log
       }
     };
 
@@ -35,22 +45,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
     };
   }, []);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[NotificationCenter] Status:', { isLoading, error, isReady, hasConfig: !!config });
-  }, [isLoading, error, isReady, config]);
-
   if (!isReady) {
     // Don't show anything if not ready (user not logged in or still loading)
-    if (isLoading) {
-      return null; // Silent loading
-    }
-    if (error) {
-      // Log error for debugging
-      console.warn('[NotificationCenter] Not showing due to error:', error);
-      return null;
-    }
-    console.debug('[NotificationCenter] Not ready - returning null');
+    // Silent fallback - no console logs
     return null;
   }
 
