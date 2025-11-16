@@ -45,14 +45,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
     };
   }, []);
 
-  if (!isReady) {
-    // Don't show anything if not ready (user not logged in or still loading)
-    // Silent fallback - no console logs
-    return null;
+  // Show bell icon even when MagicBell is disabled (for UI consistency)
+  // Only hide if still loading (to prevent flash)
+  if (isLoading) {
+    return null; // Silent loading
   }
 
-  if (!config) {
-    return null;
+  // If MagicBell is not ready/configured, show disabled bell icon
+  if (!isReady || !config) {
+    return (
+      <div className={`relative ${className || ''}`}>
+        <button
+          disabled
+          className="relative p-2 rounded-md bg-white/80 border border-gray-300 opacity-50 cursor-not-allowed flex items-center justify-center"
+          aria-label="Notifications (not available)"
+          title="Notifications are not available"
+        >
+          <Bell className="w-5 h-5 text-gray-400" />
+        </button>
+      </div>
+    );
   }
 
   return (
