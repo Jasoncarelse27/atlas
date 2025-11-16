@@ -1200,13 +1200,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           // ✅ CRITICAL FIX: Check if message already exists before saving (prevent duplicates)
           const existingMessage = await atlasDB.messages.get(messageToSave.id);
           if (existingMessage) {
-            logger.debug('[ChatPage] ⚠️ Message already exists in Dexie, skipping duplicate:', messageToSave.id);
-            // Update existing message instead of creating duplicate
+            logger.debug('[ChatPage] ⚠️ Message already exists in Dexie, merging attachments:', messageToSave.id);
+            // ✅ FIX: Merge attachments instead of replacing (preserve all images)
+            const existingAttachments = Array.isArray(existingMessage.attachments) ? existingMessage.attachments : [];
+            const newAttachments = Array.isArray(messageToSave.attachments) ? messageToSave.attachments : [];
+            // Merge and deduplicate by URL
+            const mergedAttachments = [...existingAttachments, ...newAttachments];
+            const uniqueAttachments = [...new Map(mergedAttachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()];
+            
             await atlasDB.messages.update(messageToSave.id, {
               ...messageToSave,
-              attachments: Array.isArray(messageToSave.attachments)
-                ? [...new Map(messageToSave.attachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()]
-                : undefined
+              attachments: uniqueAttachments.length > 0 ? uniqueAttachments : undefined
             });
           } else {
             // ✅ CRITICAL FIX: Deduplicate attachments before saving
@@ -1252,12 +1256,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 const realHasImage = realMessage.attachments?.some(att => att.type === 'image');
                 
                 if (tempHasImage && realHasImage) {
-                  // Match by image URL
-                  const tempImageUrl = m.attachments.find(att => att.type === 'image')?.url || 
-                                      m.attachments.find(att => att.type === 'image')?.publicUrl;
-                  const realImageUrl = realMessage.attachments.find(att => att.type === 'image')?.url ||
-                                      realMessage.attachments.find(att => att.type === 'image')?.publicUrl;
-                  return tempImageUrl === realImageUrl;
+                  // ✅ FIX: Match by ALL image URLs (not just first) to handle multiple images correctly
+                  const tempImageUrls = m.attachments
+                    .filter(att => att.type === 'image')
+                    .map(att => att.url || att.publicUrl)
+                    .filter(Boolean)
+                    .sort();
+                  const realImageUrls = realMessage.attachments
+                    .filter(att => att.type === 'image')
+                    .map(att => att.url || att.publicUrl)
+                    .filter(Boolean)
+                    .sort();
+                  
+                  // Match if any image URL matches (for same message with multiple images)
+                  // Or if all URLs match (exact match)
+                  const hasMatchingUrl = tempImageUrls.some(url => realImageUrls.includes(url));
+                  const allUrlsMatch = tempImageUrls.length === realImageUrls.length && 
+                                      tempImageUrls.every(url => realImageUrls.includes(url));
+                  
+                  return hasMatchingUrl || allUrlsMatch;
                 }
                 
                 // Fallback: match by content if no images
@@ -1265,8 +1282,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               });
               
               if (tempIndex !== -1) {
-                // Replace the temp message with the real one
-                updatedMessages[tempIndex] = realMessage;
+                // ✅ FIX: Merge attachments instead of replacing (preserve all images)
+                const tempMessage = updatedMessages[tempIndex];
+                const tempAttachments = Array.isArray(tempMessage.attachments) ? tempMessage.attachments : [];
+                const realAttachments = Array.isArray(realMessage.attachments) ? realMessage.attachments : [];
+                // Merge and deduplicate by URL
+                const mergedAttachments = [...tempAttachments, ...realAttachments];
+                const uniqueAttachments = [...new Map(mergedAttachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()];
+                
+                // Replace the temp message with the real one, but preserve merged attachments
+                updatedMessages[tempIndex] = {
+                  ...realMessage,
+                  attachments: uniqueAttachments.length > 0 ? uniqueAttachments : realMessage.attachments
+                };
                 // ✅ CRITICAL FIX: Re-sort after update to maintain chronological order
                 updatedMessages.sort((a, b) => {
                   const timeA = new Date(a.timestamp).getTime();
@@ -1281,8 +1309,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             const existingIndex = updatedMessages.findIndex(m => m.id === realMessage.id);
             
             if (existingIndex !== -1) {
-              // Update existing message
-              updatedMessages[existingIndex] = realMessage;
+              // ✅ FIX: Merge attachments instead of replacing (preserve all images)
+              const existingMessage = updatedMessages[existingIndex];
+              const existingAttachments = Array.isArray(existingMessage.attachments) ? existingMessage.attachments : [];
+              const realAttachments = Array.isArray(realMessage.attachments) ? realMessage.attachments : [];
+              // Merge and deduplicate by URL
+              const mergedAttachments = [...existingAttachments, ...realAttachments];
+              const uniqueAttachments = [...new Map(mergedAttachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()];
+              
+              // Update existing message with merged attachments
+              updatedMessages[existingIndex] = {
+                ...realMessage,
+                attachments: uniqueAttachments.length > 0 ? uniqueAttachments : realMessage.attachments
+              };
               // ✅ CRITICAL FIX: Re-sort after update to maintain chronological order
               updatedMessages.sort((a, b) => {
                 const timeA = new Date(a.timestamp).getTime();
