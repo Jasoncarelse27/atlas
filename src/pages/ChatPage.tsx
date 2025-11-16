@@ -611,8 +611,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         userId
       );
       
-      // ✅ CRITICAL FIX: Trigger usage counter refresh immediately after message send
-      window.dispatchEvent(new CustomEvent('messageSent', { detail: { userId } }));
+      // ✅ BEST PRACTICE: Usage counter now updates automatically via Supabase Realtime
+      // No need for custom events - Realtime subscription in UsageCounter listens to INSERT events
+      // This provides instant cross-device sync (mobile ↔ web) automatically
       
       logger.debug('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
       

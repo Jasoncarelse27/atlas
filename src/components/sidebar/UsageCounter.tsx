@@ -1,5 +1,5 @@
 import { Crown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { hasUnlimitedMessages } from '../../config/featureAccess';
 import { getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/useTierQuery';
 import { logger } from '../../lib/logger';
@@ -32,6 +32,7 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(true);
   const [actualUserId, setActualUserId] = useState<string | null>(propUserId || null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   // ✅ Get userId from session if not provided
   useEffect(() => {
@@ -120,21 +121,64 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
       }
     };
     
+    // Initial fetch
     fetchUsage();
     
-    // ✅ CRITICAL FIX: Listen for message sent event to refresh immediately
-    const handleMessageSent = () => {
-      logger.debug('[UsageCounter] 🔔 Message sent event received, refreshing usage...');
-      fetchUsage();
-    };
+    // ✅ BEST PRACTICE: Supabase Realtime subscription for instant cross-device sync
+    // Follows pattern from useRealtimeConversations and useTierQuery
+    if (actualUserId) {
+      const sanitizedId = actualUserId.replace(/-/g, "_");
+      const channelName = `usage_counter_${sanitizedId}`;
+      
+      // Clean up existing channel if any
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+      
+      // Create channel for user message INSERT events
+      const channel = supabase.channel(channelName);
+      
+      // ✅ CRITICAL: Listen for user message INSERTs (only count user messages, not assistant)
+      channel.on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `user_id=eq.${actualUserId} AND role=eq.user`,
+        },
+        async (payload) => {
+          const newMessage = payload.new;
+          logger.debug('[UsageCounter] 🔔 New user message inserted via Realtime, refreshing usage count...', {
+            messageId: newMessage.id,
+            userId: actualUserId
+          });
+          
+          // ✅ Refresh usage count immediately when new user message is inserted
+          // This provides instant cross-device sync (mobile ↔ web)
+          await fetchUsage();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.debug('[UsageCounter] ✅ Subscribed to message INSERT events for usage updates');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          logger.warn('[UsageCounter] ⚠️ Realtime channel closed, falling back to polling');
+        }
+      });
+      
+      channelRef.current = channel;
+    }
     
-    window.addEventListener('messageSent', handleMessageSent as EventListener);
-    
-    // Refresh every 30 seconds
+    // ✅ FALLBACK: Poll every 30 seconds as backup (in case Realtime fails)
     const interval = setInterval(fetchUsage, 30000);
+    
     return () => {
       clearInterval(interval);
-      window.removeEventListener('messageSent', handleMessageSent as EventListener);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [actualUserId, tier]);
   
