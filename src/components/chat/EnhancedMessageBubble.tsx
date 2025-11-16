@@ -25,10 +25,10 @@ interface EnhancedMessageBubbleProps {
   isLatestUserMessage?: boolean;
   isTyping?: boolean;
   onDelete?: (messageId: string, deleteForEveryone: boolean) => void;
-  onEdit?: (messageId: string, newContent: string) => void;
+  // ✅ REMOVED: onEdit prop - edit functionality removed per user request
 }
 
-export default function EnhancedMessageBubble({ message, isLatest = false, isLatestUserMessage = false, isTyping = false, onDelete, onEdit }: EnhancedMessageBubbleProps) {
+export default function EnhancedMessageBubble({ message, isLatest = false, isLatestUserMessage = false, isTyping = false, onDelete }: EnhancedMessageBubbleProps) {
   
 
   // ✅ Collect all attachments (check both locations for compatibility)
@@ -114,10 +114,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeletingForEveryone, setIsDeletingForEveryone] = useState(false);
   
-  // ✅ Edit state
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState('');
-  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // ✅ REMOVED: Edit state and functionality per user request
   
   const { tier, userId } = useTierAccess(); // ✅ FIX: Removed unused 'loading' variable
 
@@ -174,12 +171,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     setShowDeleteModal(false);
   };
 
-  const handleEditClick = () => {
-    setEditedContent(messageContent);
-    setIsEditing(true);
-    setShowContextMenu(false);
-    setTimeout(() => editTextareaRef.current?.focus(), 0);
-  };
+  // ✅ REMOVED: handleEditClick - edit functionality removed per user request
 
   const handleDeleteClick = () => {
     setShowDeleteModal(true);
@@ -327,10 +319,8 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
             message={message}
             position={contextMenuPosition}
             onClose={() => setShowContextMenu(false)}
-            onEdit={handleEditClick}
             onDelete={handleDeleteClick}
             onCopy={handleCopy}
-            canEdit={isUser && !message.deletedAt && isLatestUserMessage}
             canDelete={!isUser && !message.deletedAt}
           />
         )}
@@ -662,32 +652,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     };
   }, []);
 
-  const handleEditSave = () => {
-    if (!editedContent.trim() || editedContent === messageContent) {
-      setIsEditing(false);
-      return;
-    }
-    
-    if (onEdit) {
-      onEdit(message.id, editedContent.trim());
-      toast.success('Message edited');
-    }
-    setIsEditing(false);
-  };
-
-  const handleEditCancel = () => {
-    setIsEditing(false);
-    setEditedContent('');
-  };
-
-  const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleEditSave();
-    } else if (e.key === 'Escape') {
-      handleEditCancel();
-    }
-  };
+  // ✅ REMOVED: Edit handlers - edit functionality removed per user request
 
   // ✅ Show deleted message placeholder
   if (message.deletedAt) {
@@ -777,34 +742,6 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
               <div className="flex items-center space-x-3">
                 <TypingDots />
               </div>
-            ) : isEditing ? (
-              // ✅ Edit Mode UI
-              <div className="space-y-2">
-                <textarea
-                  ref={editTextareaRef}
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  onKeyDown={handleEditKeyDown}
-                  className="w-full min-h-[80px] px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 resize-none"
-                  placeholder="Edit your message..."
-                />
-                <div className="flex items-center gap-2 justify-end">
-                  <button
-                    onClick={handleEditCancel}
-                    className="px-3 py-1.5 text-sm text-white/70 hover:text-white transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleEditSave}
-                    disabled={!editedContent.trim() || editedContent === messageContent}
-                    className="px-3 py-1.5 text-sm bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  >
-                    Save
-                  </button>
-                </div>
-                <p className="text-xs text-white/50 italic">Press Enter to save, Esc to cancel</p>
-              </div>
             ) : (
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -863,12 +800,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
             </div>
           )}
 
-          {/* ✅ Edited indicator */}
-          {message.editedAt && !isEditing && (
-            <div className="mt-1 text-xs opacity-50 italic">
-              (edited)
-            </div>
-          )}
+          {/* ✅ REMOVED: Edited indicator - edit functionality removed per user request */}
 
           {/* ✅ Show uploading status */}
           {message.status === "uploading" && (

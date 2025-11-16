@@ -904,61 +904,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
-  // ✅ Edit message handler
-  const handleEditMessage = async (messageId: string, newContent: string) => {
-    if (!conversationId || !userId) {
-      logger.error('[ChatPage] ❌ Cannot edit message: missing conversationId or userId');
-      return;
-    }
-
-    try {
-      logger.debug('[ChatPage] ✏️ Editing message:', { messageId, newContent });
-
-      // Store original message for rollback
-      const originalMessage = messages.find(msg => msg.id === messageId);
-      if (!originalMessage) {
-        logger.error('[ChatPage] ❌ Message not found for editing');
-        return;
-      }
-
-      // ✅ Optimistic update: Update message in UI immediately
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { 
-              ...msg, 
-              content: newContent,
-              editedAt: new Date().toISOString()
-            } 
-          : msg
-      ));
-
-      // ✅ Update Dexie
-      await atlasDB.messages.update(messageId, {
-        content: newContent,
-        editedAt: new Date().toISOString()
-      });
-
-      // ✅ Update Supabase (backend)
-      await messageService.editMessage(messageId, newContent, conversationId);
-
-      logger.debug('[ChatPage] ✅ Message edited successfully');
-    } catch (error) {
-      logger.error('[ChatPage] ❌ Failed to edit message:', error);
-      
-      // Revert optimistic update on error
-      const originalMessage = messages.find(msg => msg.id === messageId);
-      if (originalMessage) {
-        setMessages(prev => prev.map(msg => 
-          msg.id === messageId 
-            ? { ...msg, content: originalMessage.content, editedAt: undefined } 
-            : msg
-        ));
-      }
-      
-      // Show error to user
-      toast.error('Failed to edit message. Please try again.');
-    }
-  };
+  // ✅ REMOVED: Edit message handler - edit functionality removed per user request
 
   // ✅ PHASE 2B: Navigate to message from search
   const handleNavigateToMessage = async (targetConversationId: string, messageId: string) => {
@@ -2168,7 +2114,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                               isLatestUserMessage={isLatestUserMessage}
                               isTyping={false}
                               onDelete={handleDeleteMessage}
-                              onEdit={handleEditMessage}
                             />
                           );
                         })}

@@ -678,38 +678,9 @@ export async function sendMessageWithAttachments(
       
       logger.debug("[chatService] 🧠 Sending attachments to backend for AI analysis...");
       
-      // ✅ CRITICAL FIX: Save user message with ALL attachments first (for mixed attachments support)
-      // This ensures all attachments (image + audio) are saved even if image analysis fails
-      const { supabase } = await import('../lib/supabaseClient');
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user?.id && conversationId) {
-        try {
-          // Save user message with all attachments
-          const { error: saveError } = await supabase
-            .from('messages')
-            .insert({
-              user_id: session.user.id,
-              conversation_id: conversationId,
-              role: 'user',
-              content: caption || '',
-              attachments: uploadedAttachments.map(att => ({
-                type: att.type,
-                url: att.url || att.publicUrl
-              })),
-              created_at: new Date().toISOString()
-            });
-          
-          if (saveError) {
-            logger.error('[chatService] Failed to save user message with attachments:', saveError);
-          } else {
-            logger.debug('[chatService] ✅ Saved user message with all attachments');
-          }
-        } catch (saveErr) {
-          logger.error('[chatService] Error saving user message:', saveErr);
-          // Continue - don't fail the whole operation
-        }
-      }
+      // ✅ CRITICAL FIX: Backend saves user message - don't duplicate save here
+      // Backend /api/image-analysis endpoint saves the user message with attachments
+      // This prevents double-upload and ensures single source of truth
       
       // Handle image, audio, and file attachments separately
       const imageAttachment = uploadedAttachments.find(att => att.type === 'image');
@@ -717,12 +688,36 @@ export async function sendMessageWithAttachments(
       const fileAttachment = uploadedAttachments.find(att => att.type === 'file');
       
       // ✅ CRITICAL FIX: Handle audio-only messages (voice notes)
-      // Note: User message is already saved above, so we just need to trigger AI response
-      // The AI response will be handled by real-time listeners, so we don't need to stream here
-      if (audioAttachment && !imageAttachment) {
-        logger.debug('[chatService] 🎤 Audio-only message saved, AI response will come via real-time');
-        // Message is already saved, real-time listener will pick up AI response
-        // No additional action needed - backend will process the message automatically
+      // Backend saves user message, but we need to trigger AI response via /api/message endpoint
+      if (audioAttachment && !imageAttachment && !fileAttachment) {
+        logger.debug('[chatService] 🎤 Audio-only message - triggering AI response via /api/message');
+        
+        // Call regular message endpoint to trigger AI response for audio
+        const messageEndpoint = getApiEndpoint('/api/message?stream=1');
+        const messageResponse = await fetch(messageEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            conversationId: conversationId,
+            message: caption || 'Please respond to my voice note.',
+            attachments: uploadedAttachments.map(att => ({
+              type: att.type,
+              url: att.url || att.publicUrl
+            }))
+          })
+        });
+        
+        if (!messageResponse.ok) {
+          logger.error('[chatService] Failed to trigger AI response for audio:', messageResponse.status);
+        } else {
+          logger.debug('[chatService] ✅ AI response triggered for audio-only message');
+        }
+        
+        // Return early - AI response will come via real-time
+        return;
       }
       
       if (imageAttachment) {

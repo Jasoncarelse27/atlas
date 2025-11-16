@@ -1,17 +1,16 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Copy, Edit3, Trash2 } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
 import type { Message } from '../../types/chat';
 
 interface MessageContextMenuProps {
-  message: Message; // Used for future edit functionality
+  message: Message;
   position: { x: number; y: number };
   onClose: () => void;
-  onEdit?: () => void;
   onDelete?: () => void;
   onCopy?: () => void;
-  canEdit?: boolean;
   canDelete?: boolean;
+  // ✅ REMOVED: Edit props - edit functionality removed per user request
 }
 
 /**
@@ -19,13 +18,11 @@ interface MessageContextMenuProps {
  * Industry-standard pattern from WhatsApp/Telegram
  */
 export function MessageContextMenu({
-  // message, // Reserved for future edit functionality
+  message,
   position,
   onClose,
-  onEdit,
   onDelete,
   onCopy,
-  canEdit = false,
   canDelete = false,
 }: MessageContextMenuProps) {
   
@@ -59,12 +56,6 @@ export function MessageContextMenu({
   }, [onClose]);
 
   const menuItems = [
-    ...(canEdit && onEdit ? [{
-      icon: Edit3,
-      label: 'Edit',
-      onClick: onEdit,
-      className: 'text-[#8FA67E] hover:bg-[#8FA67E]/10',
-    }] : []),
     ...(onCopy ? [{
       icon: Copy,
       label: 'Copy',
