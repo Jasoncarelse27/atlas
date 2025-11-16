@@ -32,8 +32,13 @@ class ConversationService {
 
   /**
    * Get conversations with intelligent caching
+   * ✅ SCALABILITY: Supports pagination with limit and offset
    */
-  async getConversations(userId: string, forceRefresh = false): Promise<Conversation[]> {
+  async getConversations(
+    userId: string, 
+    forceRefresh = false,
+    options?: { limit?: number; offset?: number }
+  ): Promise<Conversation[]> {
     const now = Date.now();
     
     // Get user tier for cache configuration
@@ -67,13 +72,17 @@ class ConversationService {
 
       // ⚡ SCALABILITY FIX: Limit at database level, not in-memory
       // ✅ CRITICAL: Filter out deleted conversations
-      const conversations = await atlasDB.conversations
+      const limit = options?.limit ?? 50; // Default to 50 conversations
+      const offset = options?.offset ?? 0;
+      
+      let conversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
         .filter(conv => !conv.deletedAt) // ✅ Filter out soft-deleted conversations
-        .reverse() // Most recent first (indexed)
-        .limit(50) // Limit BEFORE loading into memory
-        .toArray();
+        .sortBy('updatedAt');
+      
+      // Reverse to get most recent first, then apply pagination
+      conversations = conversations.reverse().slice(offset, offset + limit);
 
       // Transform to consistent format
       this.cache = conversations.map((conv: { id: string; title?: string; user_id: string; created_at: string; updated_at: string; last_message_at?: string; deletedAt?: string }) => ({

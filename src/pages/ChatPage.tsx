@@ -121,17 +121,86 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // ✅ PHASE 2: Messages state - only updated by loadMessages (from Dexie)
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   
   // ✅ Add message function for image uploads
+  // ✅ CRITICAL FIX: Maintain chronological order when adding messages
   const addMessage = useCallback((message: Message) => {
-    setMessages(prev => [...prev, message]);
+    setMessages(prev => {
+      const newMessages = [...prev, message];
+      // Sort by timestamp to maintain chronological order
+      newMessages.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeA - timeB; // Ascending order (oldest first)
+      });
+      return newMessages;
+    });
   }, []);
   
   // ✅ OPTIMIZATION: Session-scoped cache to prevent redundant message loads (5s window)
   const messageLoadCache = useRef(new Map<string, { timestamp: number; promise: Promise<Message[]> }>()).current;
   
+  // ✅ SCALABILITY: Load older messages (pagination support)
+  const loadOlderMessages = useCallback(async (conversationId: string, currentOldestTimestamp: string) => {
+    setIsLoadingOlderMessages(prev => {
+      if (prev) return prev; // Already loading
+      return true;
+    });
+    
+    try {
+      await ensureDatabaseReady();
+      
+      // Load 50 messages older than the current oldest message
+      // Use sortBy then filter/limit in JavaScript (Dexie pattern)
+      let olderMessages = await atlasDB.messages
+        .where("conversationId")
+        .equals(conversationId)
+        .filter(msg => !msg.deletedAt && msg.timestamp < currentOldestTimestamp)
+        .sortBy("timestamp");
+      
+      // ✅ CRITICAL FIX: Ensure messages are sorted chronologically (oldest first)
+      olderMessages.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeA - timeB; // Ascending order (oldest first)
+      });
+      
+      // Take last 50 messages (most recent of the older ones) - but keep chronological order
+      olderMessages = olderMessages.slice(-50);
+      
+      if (olderMessages.length > 0) {
+        const formattedOlder = olderMessages.map(msg => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          type: msg.type || 'text',
+          attachments: msg.attachments
+        } as Message));
+        
+        // ✅ CRITICAL FIX: Prepend older messages to the top (already in chronological order)
+        setMessages(prev => [...formattedOlder, ...prev]);
+        
+        // Check if there are more messages to load
+        const hasMore = olderMessages.length === 50;
+        setHasMoreMessages(hasMore);
+        
+        logger.debug('[ChatPage] ✅ Loaded', olderMessages.length, 'older messages');
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      logger.error('[ChatPage] ❌ Failed to load older messages:', error);
+    } finally {
+      setIsLoadingOlderMessages(false);
+    }
+  }, []);
+  
   // ✅ PHASE 2: Load messages from Dexie (read-only, single source of truth)
   // ✅ CRITICAL FIX: Declare loadMessages BEFORE useEffect that uses it
+  // ✅ SCALABILITY: Limit initial load to last 100 messages
   const loadMessages = useCallback(async (conversationId: string) => {
     const startTime = performance.now();
     try {
@@ -154,19 +223,42 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE FIX: Ensure database is ready before use
       await ensureDatabaseReady();
       
-      // ✅ PERFORMANCE: Load all messages in one optimized query
+      // ✅ SCALABILITY: Load only last 100 messages (chronological order: oldest first)
+      // ✅ CRITICAL FIX: Always sort by timestamp ascending for consistent ordering
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
+        .filter(msg => !msg.deletedAt)
         .sortBy("timestamp");
       
-      // ✅ PERFORMANCE: Filter deleted messages in JavaScript (already in memory)
-      storedMessages = storedMessages.filter(msg => !msg.deletedAt);
+      // ✅ CRITICAL FIX: Ensure messages are sorted chronologically (oldest first)
+      // This ensures consistent ordering across web and mobile
+      storedMessages.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeA - timeB; // Ascending order (oldest first)
+      });
+      
+      // Take last 100 messages (most recent) - but keep them in chronological order
+      storedMessages = storedMessages.slice(-100);
+      
+      // ✅ SCALABILITY: Check if there are more messages to load
+      const totalCount = await atlasDB.messages
+        .where("conversationId")
+        .equals(conversationId)
+        .filter(msg => !msg.deletedAt)
+        .count();
+      
+      setHasMoreMessages(totalCount > storedMessages.length);
       
       logger.debug('[ChatPage] 🔍 Loaded messages for conversation:', {
         conversationId,
         count: storedMessages.length,
-        loadTime: `${(performance.now() - startTime).toFixed(0)}ms`
+        totalCount,
+        hasMore: totalCount > storedMessages.length,
+        loadTime: `${(performance.now() - startTime).toFixed(0)}ms`,
+        firstTimestamp: storedMessages[0]?.timestamp,
+        lastTimestamp: storedMessages[storedMessages.length - 1]?.timestamp
       });
       
       const formattedMessages = storedMessages.map(msg => ({
@@ -202,8 +294,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         errorStack: error instanceof Error ? error.stack : undefined
       });
       setMessages([]);
+      setHasMoreMessages(false);
     }
-  }, [userId]); // ✅ MOBILE FIX: Add userId dependency to ensure proper filtering
+  }, [userId, conversationId]); // ✅ MOBILE FIX: Add userId dependency to ensure proper filtering
 
   // ✅ CRITICAL FIX: Listen for new messages from real-time (mobile-safe)
   useEffect(() => {
@@ -212,15 +305,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     const handleNewMessage = async (event: CustomEvent) => {
       const { message, conversationId: msgConversationId } = event.detail;
       
-      // Only handle messages for current conversation
-      if (msgConversationId !== conversationId) return;
-      
       logger.debug('[ChatPage] 📨 New message received via real-time:', {
         id: message.id,
         role: message.role,
-        conversationId: msgConversationId,
+        messageConversationId: msgConversationId,
+        currentConversationId: conversationId,
+        isForCurrentConversation: msgConversationId === conversationId,
         isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       });
+      
+      // ✅ CRITICAL FIX: Only handle messages for current conversation
+      // Messages for other conversations are already saved to Dexie by useRealtimeConversations hook
+      if (msgConversationId !== conversationId) {
+        logger.debug('[ChatPage] ⏭️ Message is for different conversation, skipping UI update:', {
+          messageConversationId: msgConversationId,
+          currentConversationId: conversationId
+        });
+        return;
+      }
       
       // Clear fallback timer if it exists
       if (fallbackTimerRef.current) {
@@ -231,15 +333,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE SAFETY: Use requestAnimationFrame to ensure UI updates even if page was backgrounded
       requestAnimationFrame(async () => {
         try {
-          // Reload messages to show the new one
+          // ✅ CRITICAL FIX: Reload messages from Dexie (useRealtimeConversations already saved it)
+          // This ensures we get the latest message that was just saved
           await loadMessages(conversationId);
           
           // Clear typing/streaming indicators
           setIsTyping(false);
           setIsStreaming(false);
           isProcessingRef.current = false;
+          
+          logger.debug('[ChatPage] ✅ UI updated with new message from real-time');
         } catch (error) {
-          logger.error('[ChatPage] Error handling new message:', error);
+          logger.error('[ChatPage] ❌ Error handling new message:', error);
         }
       });
     };
@@ -1046,12 +1151,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             }
           }
           
+          // ✅ CRITICAL FIX: Detect message type from attachments array (not just image_url)
+          let messageType: 'text' | 'image' | 'audio' = 'text';
+          if (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.length > 0) {
+            // Check attachments array for type
+            const hasImage = newMsg.attachments.some((att: any) => att.type === 'image' || att.type === 'photo');
+            const hasAudio = newMsg.attachments.some((att: any) => att.type === 'audio' || att.type === 'voice');
+            if (hasImage) messageType = 'image';
+            else if (hasAudio) messageType = 'audio';
+          } else if (newMsg.image_url) {
+            // Fallback to legacy image_url field
+            messageType = 'image';
+          }
+          
           const messageToSave = {
             id: newMsg.id,
             conversationId: newMsg.conversation_id,
             userId: userId, // ✅ ALWAYS use authenticated userId, never trust backend
             role: newMsg.role,
-            type: (newMsg.image_url ? 'image' : 'text') as 'text' | 'image' | 'audio', // ✅ Detect type from message data
+            type: messageType, // ✅ CRITICAL FIX: Use detected type from attachments
             content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: newMsg.created_at,
             synced: true,
@@ -1077,7 +1195,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           const realMessage: Message = {
             id: messageToSave.id,
             role: messageToSave.role,
-            type: messageToSave.type as 'text' | 'image' | 'audio',
+            type: messageType, // ✅ CRITICAL FIX: Use detected type
             content: messageToSave.content,
             timestamp: messageToSave.timestamp,
             status: 'sent' as const,
@@ -1102,6 +1220,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               if (tempIndex !== -1) {
                 // Replace the temp message with the real one
                 updatedMessages[tempIndex] = realMessage;
+                // ✅ CRITICAL FIX: Re-sort after update to maintain chronological order
+                updatedMessages.sort((a, b) => {
+                  const timeA = new Date(a.timestamp).getTime();
+                  const timeB = new Date(b.timestamp).getTime();
+                  return timeA - timeB; // Ascending order (oldest first)
+                });
                 return updatedMessages;
               }
             }
@@ -1112,10 +1236,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             if (existingIndex !== -1) {
               // Update existing message
               updatedMessages[existingIndex] = realMessage;
+              // ✅ CRITICAL FIX: Re-sort after update to maintain chronological order
+              updatedMessages.sort((a, b) => {
+                const timeA = new Date(a.timestamp).getTime();
+                const timeB = new Date(b.timestamp).getTime();
+                return timeA - timeB; // Ascending order (oldest first)
+              });
               return updatedMessages;
             } else {
-              // Add new message
-              return [...updatedMessages, realMessage];
+              // Add new message and sort to maintain chronological order
+              const newMessages = [...updatedMessages, realMessage];
+              newMessages.sort((a, b) => {
+                const timeA = new Date(a.timestamp).getTime();
+                const timeB = new Date(b.timestamp).getTime();
+                return timeA - timeB; // Ascending order (oldest first)
+              });
+              return newMessages;
             }
           });
           
@@ -1276,6 +1412,28 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       logger.debug('[ChatPage] 🔄 Both userId and conversationId available, loading messages...');
       loadMessages(conversationId);
     }
+  }, [userId, conversationId, loadMessages]);
+
+  // ✅ CROSS-DEVICE SYNC FIX: Reload messages when page becomes visible
+  // This ensures messages typed on mobile appear on web when you switch tabs/windows
+  useEffect(() => {
+    if (!userId || !conversationId || typeof window === 'undefined') return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        logger.debug('[ChatPage] 👁️ Page became visible, reloading messages for sync...');
+        // Small delay to ensure real-time subscriptions are active
+        setTimeout(async () => {
+          await loadMessages(conversationId);
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [userId, conversationId, loadMessages]);
 
   // ✅ TUTORIAL: Trigger tutorial for first-time users
@@ -1917,6 +2075,23 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   if (safeMessages.length > 0) {
                     return (
                       <>
+                        {/* ✅ SCALABILITY: Load Older Messages button */}
+                        {hasMoreMessages && conversationId && (
+                          <div className="flex justify-center py-4">
+                            <button
+                              onClick={() => {
+                                const oldestMessage = safeMessages[0];
+                                if (oldestMessage?.timestamp) {
+                                  loadOlderMessages(conversationId, oldestMessage.timestamp);
+                                }
+                              }}
+                              disabled={isLoadingOlderMessages}
+                              className="px-4 py-2 text-sm font-medium text-atlas-text-medium bg-atlas-button hover:bg-atlas-button-hover rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isLoadingOlderMessages ? 'Loading...' : 'Load Older Messages'}
+                            </button>
+                          </div>
+                        )}
                         {safeMessages.map((message: Message, index: number) => {
                           // Find the last user message index
                           const lastUserMessageIndex = safeMessages

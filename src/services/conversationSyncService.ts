@@ -25,6 +25,8 @@ interface SupabaseMessage {
   created_at: string;
   deleted_at?: string | null;
   deleted_by?: 'user' | 'everyone' | null;
+  attachments?: Json; // ✅ CRITICAL FIX: Add attachments field (JSONB array)
+  image_url?: string | null; // ✅ Legacy image support
 }
 
 // Type for message insert/update (content can be object during transformation)
@@ -255,11 +257,14 @@ export class ConversationSyncService {
     try {
       logger.debug('[ConversationSync] Syncing messages for conversation:', conversationId);
       
+      // ✅ SCALABILITY: Limit sync to last 100 messages to prevent memory overload
+      // For full history, users can use "Load Older Messages" in the UI
       const { data: remoteMessages, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true }) as SupabaseQueryResponse<SupabaseMessage[]>;
+        .order('created_at', { ascending: false })
+        .limit(100) as SupabaseQueryResponse<SupabaseMessage[]>;
 
       if (error) {
         // ✅ BETTER ERROR LOGGING: Capture full error details
@@ -279,9 +284,12 @@ export class ConversationSyncService {
         .equals(conversationId)
         .toArray();
 
+      // ✅ SCALABILITY: Reverse to process oldest first (normal order)
+      const reversedMessages = remoteMessages ? [...remoteMessages].reverse() : [];
+      
       // ✅ PHASE 2: Only add missing messages (duplicate check)
       // Real-time listener is primary writer; this is for offline catch-up only
-      for (const remoteMsg of remoteMessages || []) {
+      for (const remoteMsg of reversedMessages) {
         // ✅ CRITICAL: Skip messages with invalid userId
         if (!remoteMsg.user_id || remoteMsg.user_id === 'anonymous') {
           logger.warn('[ConversationSync] ⚠️ Skipping message with invalid userId:', remoteMsg.id);
@@ -314,19 +322,72 @@ export class ConversationSyncService {
               : String(remoteMsg.content || '');
           }
           
+          // ✅ CRITICAL FIX: Parse attachments from JSONB field
+          let parsedAttachments: Array<{ type: string; url: string; name?: string }> | undefined;
+          if (remoteMsg.attachments) {
+            try {
+              // Handle both string and object formats
+              const attachmentsData = typeof remoteMsg.attachments === 'string' 
+                ? JSON.parse(remoteMsg.attachments)
+                : remoteMsg.attachments;
+              
+              if (Array.isArray(attachmentsData) && attachmentsData.length > 0) {
+                parsedAttachments = attachmentsData.map((att: any) => ({
+                  type: att.type || 'file',
+                  url: att.url || att.publicUrl || '',
+                  name: att.name || att.fileName
+                }));
+              }
+            } catch (e) {
+              logger.warn('[ConversationSync] Failed to parse attachments:', e);
+            }
+          }
+          
+          // ✅ CRITICAL FIX: Determine message type from attachments or message_type
+          let messageType: 'text' | 'image' | 'audio' = 'text';
+          if (parsedAttachments && parsedAttachments.length > 0) {
+            // Check first attachment type to determine message type
+            const firstAttachmentType = parsedAttachments[0].type;
+            if (firstAttachmentType === 'audio') {
+              messageType = 'audio';
+            } else if (firstAttachmentType === 'image') {
+              messageType = 'image';
+            }
+          } else if (remoteMsg.message_type) {
+            // Fallback to message_type field
+            const msgType = remoteMsg.message_type.toLowerCase();
+            if (msgType === 'audio' || msgType === 'voice') {
+              messageType = 'audio';
+            } else if (msgType === 'image' || msgType === 'photo') {
+              messageType = 'image';
+            }
+          } else if (remoteMsg.image_url) {
+            // Legacy image support
+            messageType = 'image';
+            if (!parsedAttachments) {
+              parsedAttachments = [{ type: 'image', url: remoteMsg.image_url }];
+            }
+          }
+          
           // Add new message only if it doesn't exist
           await atlasDB.messages.put({
             id: remoteMsg.id,
             conversationId: remoteMsg.conversation_id,
             userId: _userId, // ✅ Use function parameter, not remoteMsg.user_id
             role: remoteMsg.role, // ✅ CRITICAL: Use actual role from DB (user/assistant)
-            type: 'text', // Default to text for now
+            type: messageType, // ✅ FIX: Use determined message type (not hardcoded 'text')
             content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: remoteMsg.created_at,
             synced: true,
-            updatedAt: remoteMsg.created_at
+            updatedAt: remoteMsg.created_at,
+            attachments: parsedAttachments, // ✅ CRITICAL FIX: Sync attachments for audio/image messages
+            imageUrl: remoteMsg.image_url || undefined // ✅ Legacy image support
           });
-          logger.debug('[ConversationSync] ✅ Added missing message:', remoteMsg.id);
+          logger.debug('[ConversationSync] ✅ Added missing message:', {
+            id: remoteMsg.id,
+            type: messageType,
+            hasAttachments: !!parsedAttachments?.length
+          });
         }
         // Silent skip - no console spam
       }
@@ -589,10 +650,12 @@ export class ConversationSyncService {
       
       // ✅ CRITICAL FIX: Check if IndexedDB is actually empty (even if syncMetadata exists)
       // This handles cases where IndexedDB was cleared but syncMetadata wasn't
-      const localConversationCount = await atlasDB.conversations
+      // ✅ SCALABILITY FIX: Only count non-deleted conversations (matches remote count logic)
+      const allLocalConversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
-        .count();
+        .toArray();
+      const localConversationCount = allLocalConversations.filter(conv => !conv.deletedAt).length;
       
       const isFirstSync = !syncMeta || localConversationCount === 0;
       

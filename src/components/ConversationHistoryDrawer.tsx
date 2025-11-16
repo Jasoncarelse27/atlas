@@ -24,6 +24,9 @@ interface ConversationHistoryDrawerProps {
   deletingId: string | null;
   onRefresh?: () => Promise<void>;
   userId?: string; // ✅ For live insight widgets (optional, falls back to getUser())
+  onLoadMore?: () => Promise<void>; // ✅ SCALABILITY: Load more conversations
+  hasMore?: boolean; // ✅ SCALABILITY: Whether more conversations are available
+  isLoadingMore?: boolean; // ✅ SCALABILITY: Loading state for pagination
 }
 
 export function ConversationHistoryDrawer({ 
@@ -33,7 +36,10 @@ export function ConversationHistoryDrawer({
   onDeleteConversation: _onDeleteConversation, // ✅ Kept for backward compatibility, but we handle delete directly now
   deletingId,
   onRefresh,
-  userId: _userId // ✅ Reserved for future live insight widgets (optional, currently unused)
+  userId: _userId, // ✅ Reserved for future live insight widgets (optional, currently unused)
+  onLoadMore, // ✅ SCALABILITY: Load more conversations
+  hasMore = false, // ✅ SCALABILITY: Whether more conversations are available
+  isLoadingMore = false // ✅ SCALABILITY: Loading state for pagination
 }: ConversationHistoryDrawerProps) {
   // ✅ MOBILE FIX: Use React Router's navigate for proper navigation
   const navigate = useNavigate();
@@ -267,6 +273,19 @@ export function ConversationHistoryDrawer({
                 ))
               )}
               </div>
+              
+              {/* ✅ SCALABILITY: Load More Conversations button */}
+              {hasMore && onLoadMore && (
+                <div className="flex justify-center py-4 px-3 sm:px-4">
+                  <button
+                    onClick={() => onLoadMore()}
+                    disabled={isLoadingMore}
+                    className="px-4 py-2 text-sm font-medium text-[#8B7E74] bg-[#F0E6DC] hover:bg-[#E8DDD2] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-[#E8DDD2]"
+                  >
+                    {isLoadingMore ? 'Loading...' : 'Load More Conversations'}
+                  </button>
+                </div>
+              )}
             </div>
             
             {/* Footer - ✅ RESPONSIVE: Better mobile layout */}

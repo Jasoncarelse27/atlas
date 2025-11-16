@@ -111,12 +111,13 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   hydrateFromOffline: async (conversationId: string) => {
     try {
       
-      // Fetch messages from Supabase
+      // ✅ SCALABILITY: Fetch only last 100 messages from Supabase
       const { data: messages, error } = await (supabase as any)
         .from("messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (error) {
         set({ isHydrated: true });
@@ -124,8 +125,11 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
       }
 
       if (messages && messages.length > 0) {
+        // ✅ SCALABILITY: Reverse to show oldest first (normal chat order)
+        const reversedMessages = [...messages].reverse();
+        
         // Convert Supabase messages to local format
-        const localMessages: Message[] = messages.map(msg => ({
+        const localMessages: Message[] = reversedMessages.map(msg => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant' | 'system',
           type: (msg.message_type || 'text') as 'text' | 'image' | 'audio' | 'file' | 'mixed' | 'system' | 'attachment',

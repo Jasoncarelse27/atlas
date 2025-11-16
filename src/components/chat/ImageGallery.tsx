@@ -32,9 +32,21 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   const [viewerIndex, setViewerIndex] = useState<number>(0);
   const [isLongPressing, setIsLongPressing] = useState<boolean>(false);
 
-  const getFileType = (url: string): string => {
+  // ✅ CRITICAL FIX: Check attachment.type field FIRST (most reliable)
+  // This handles Supabase Storage URLs without file extensions
+  const getFileType = (url: string, attachmentType?: string): string => {
+    // ✅ STEP 1: Check attachment.type field (most reliable - from database)
+    if (attachmentType) {
+      const normalized = attachmentType.toLowerCase();
+      if (['image', 'photo', 'picture'].includes(normalized)) return 'image';
+      if (['audio', 'voice', 'sound'].includes(normalized)) return 'audio';
+      if (['video', 'movie'].includes(normalized)) return 'video';
+    }
+    
+    // ✅ STEP 2: Fallback to URL extension check (remove query params first)
     if (!url) return 'unknown';
-    const ext = url.split('.').pop()?.toLowerCase() || '';
+    const cleanUrl = url.split('?')[0]; // Remove query params (Supabase Storage URLs have tokens)
+    const ext = cleanUrl.split('.').pop()?.toLowerCase() || '';
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
     if (['mp4', 'mov', 'webm', 'avi'].includes(ext)) return 'video';
     if (['mp3', 'wav', 'm4a', 'ogg'].includes(ext)) return 'audio';
@@ -42,8 +54,13 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
     return 'file';
   };
 
-  const imageAttachments = attachments.filter(att => getFileType(att.url) === 'image');
-  const otherAttachments = attachments.filter(att => getFileType(att.url) !== 'image');
+  // ✅ CRITICAL FIX: Use attachment.type field for filtering (handles Supabase Storage URLs)
+  const imageAttachments = attachments.filter(att => 
+    getFileType(att.url, att.type) === 'image'
+  );
+  const otherAttachments = attachments.filter(att => 
+    getFileType(att.url, att.type) !== 'image'
+  );
 
   const handleImageClick = (index: number, e?: React.MouseEvent) => {
     // Don't open viewer if user is long-pressing for context menu
@@ -180,8 +197,8 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
       {/* 📎 Other Attachments */}
       {otherAttachments.length > 0 && (
         <div className="mt-3 space-y-2">
-          {otherAttachments.map((att, idx) => {
-            const fileType = getFileType(att.url) || att.type;
+            {otherAttachments.map((att, idx) => {
+              const fileType = getFileType(att.url, att.type) || att.type;
             
             // 🎙️ Special rendering for audio messages
             if (fileType === 'audio' || att.type === 'audio') {

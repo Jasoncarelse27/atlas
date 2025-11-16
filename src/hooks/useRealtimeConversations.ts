@@ -111,18 +111,76 @@ export function useRealtimeConversations(userId?: string) {
             return;
           }
           
+          // ✅ CRITICAL FIX: Parse JSON content if it's a stringified object (matches ChatPage logic)
+          let parsedContent = newMessage.content;
+          if (typeof newMessage.content === 'string') {
+            try {
+              // Check if content looks like JSON
+              if (newMessage.content.trim().startsWith('{') && newMessage.content.includes('"type"') && newMessage.content.includes('"text"')) {
+                const parsed = JSON.parse(newMessage.content);
+                // Extract the actual text from {type: "text", text: "..."}
+                parsedContent = parsed.text || parsed.content || newMessage.content;
+              }
+            } catch (e) {
+              // Not JSON, keep as-is
+              parsedContent = newMessage.content;
+            }
+          }
+          
+          // ✅ CRITICAL FIX: Parse attachments from JSONB field (same logic as sync service)
+          let parsedAttachments: Array<{ type: string; url: string; name?: string }> | undefined;
+          if (newMessage.attachments) {
+            try {
+              // Handle both string and object formats
+              const attachmentsData = typeof newMessage.attachments === 'string' 
+                ? JSON.parse(newMessage.attachments)
+                : newMessage.attachments;
+              
+              if (Array.isArray(attachmentsData) && attachmentsData.length > 0) {
+                parsedAttachments = attachmentsData.map((att: any) => ({
+                  type: att.type || 'file',
+                  url: att.url || att.publicUrl || '',
+                  name: att.name || att.fileName
+                }));
+              }
+            } catch (e) {
+              logger.warn('[Realtime] Failed to parse attachments:', e);
+            }
+          }
+          
+          // ✅ CRITICAL FIX: Detect message type from attachments or image_url
+          let messageType: 'text' | 'image' | 'audio' = 'text';
+          if (parsedAttachments && parsedAttachments.length > 0) {
+            // Check first attachment type to determine message type
+            const firstAttachmentType = parsedAttachments[0].type;
+            if (firstAttachmentType === 'audio') {
+              messageType = 'audio';
+            } else if (firstAttachmentType === 'image') {
+              messageType = 'image';
+            }
+          } else if (newMessage.image_url) {
+            // Legacy image support
+            messageType = 'image';
+            if (!parsedAttachments) {
+              parsedAttachments = [{ type: 'image', url: newMessage.image_url }];
+            }
+          }
+          
           // Save to Dexie immediately
           await atlasDB.messages.put({
             id: newMessage.id,
             conversationId: newMessage.conversation_id,
             userId: newMessage.user_id,
             role: newMessage.role,
-            type: 'text',
-            content: newMessage.content,
+            type: messageType, // ✅ FIX: Use determined message type
+            content: parsedContent,
             timestamp: newMessage.created_at,
             synced: true,
             updatedAt: newMessage.created_at,
-            attachments: newMessage.attachments || undefined,
+            attachments: parsedAttachments, // ✅ CRITICAL FIX: Use parsed attachments
+            imageUrl: newMessage.image_url || undefined, // ✅ Legacy image support
+            deletedAt: newMessage.deleted_at || undefined, // ✅ Sync deleted status
+            deletedBy: newMessage.deleted_by || undefined  // ✅ Sync deleted type
           });
           
           // ✅ CRITICAL: Trigger message update event so ChatPage can refresh
