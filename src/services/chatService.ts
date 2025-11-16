@@ -758,65 +758,66 @@ export async function sendMessageWithAttachments(
           }, 60000); // 60 second timeout for image analysis
 
           try {
-          // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
-          const response = await fetch(apiEndpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              imageUrl: imageAttachment.url,
-              userId: userId,
-              conversationId: conversationId, // ✅ NEW: Pass conversationId
-              prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
-            }),
-            signal: timeoutController.signal, // ✅ FIX: Add abort signal for timeout
-          });
-          
-          clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on success
-          
-          if (!response.ok) {
-          // Handle image analysis error (existing code below)
-          let errorData: ApiErrorResponse = {};
-          try {
-            const errorText = await response.text();
-            errorData = errorText ? JSON.parse(errorText) : {};
-          } catch (parseError) {
-            logger.error('[chatService] Failed to parse error response:', parseError);
-            errorData = { error: `Server error (${response.status})` };
-          }
-          
-          logger.error('[chatService] Image analysis failed:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData.error,
-            details: errorData.details,
-            requestId: errorData.requestId,
-            fullErrorData: errorData
-          });
-          
-          if (response.status === 401) {
-            logger.warn('[chatService] 401 Unauthorized - attempting token refresh and retry...');
-            // Token refresh logic would go here
-          }
-          
-          // ✅ CRITICAL FIX: Don't throw error - user message is already saved
-          // Just log and continue (for mixed attachments, audio is already saved)
-          logger.warn('[chatService] Image analysis failed but user message saved');
-        } else {
-          const analysisResult = await response.json();
-          logger.debug("[chatService] ✅ Image analysis complete");
-          // Analysis is saved to conversation by backend
-        }
-        } catch (error) {
-          clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on error
-          if (error instanceof Error && error.name === 'AbortError') {
-            logger.error('[chatService] ⏱️ Image analysis request timed out');
-            // Don't throw - user message is already saved, just log the timeout
-          } else {
-            logger.error('[chatService] Image analysis request failed:', error);
-            // Don't throw - user message is already saved
+            // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+            const response = await fetch(apiEndpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                imageUrl: imageAttachment.url,
+                userId: userId,
+                conversationId: conversationId, // ✅ NEW: Pass conversationId
+                prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
+              }),
+              signal: timeoutController.signal, // ✅ FIX: Add abort signal for timeout
+            });
+            
+            clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on success
+            
+            if (!response.ok) {
+              // Handle image analysis error (existing code below)
+              let errorData: ApiErrorResponse = {};
+              try {
+                const errorText = await response.text();
+                errorData = errorText ? JSON.parse(errorText) : {};
+              } catch (parseError) {
+                logger.error('[chatService] Failed to parse error response:', parseError);
+                errorData = { error: `Server error (${response.status})` };
+              }
+              
+              logger.error('[chatService] Image analysis failed:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorData.error,
+                details: errorData.details,
+                requestId: errorData.requestId,
+                fullErrorData: errorData
+              });
+              
+              if (response.status === 401) {
+                logger.warn('[chatService] 401 Unauthorized - attempting token refresh and retry...');
+                // Token refresh logic would go here
+              }
+              
+              // ✅ CRITICAL FIX: Don't throw error - user message is already saved
+              // Just log and continue (for mixed attachments, audio is already saved)
+              logger.warn('[chatService] Image analysis failed but user message saved');
+            } else {
+              const analysisResult = await response.json();
+              logger.debug("[chatService] ✅ Image analysis complete");
+              // Analysis is saved to conversation by backend
+            }
+          } catch (error) {
+            clearTimeout(timeoutId); // ✅ CLEANUP: Clear timeout on error
+            if (error instanceof Error && error.name === 'AbortError') {
+              logger.error('[chatService] ⏱️ Image analysis request timed out');
+              // Don't throw - user message is already saved, just log the timeout
+            } else {
+              logger.error('[chatService] Image analysis request failed:', error);
+              // Don't throw - user message is already saved
+            }
           }
         } finally {
           sendingLock = false; // ✅ CRITICAL FIX: Always release lock
