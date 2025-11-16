@@ -396,7 +396,7 @@ const EnhancedInputToolbar = React.memo(({
               let uploadResult;
               if (att.type === 'audio') {
                 // ✅ CRITICAL FIX: Use voiceService for audio uploads
-                const { voiceService } = await import('../services/voiceService');
+                const { voiceService } = await import('../../services/voiceService');
                 const audioMetadata = await voiceService.uploadAudio(att.file);
                 uploadResult = { publicUrl: audioMetadata.url };
               } else if (att.type === 'file') {
@@ -792,7 +792,7 @@ const EnhancedInputToolbar = React.memo(({
             // This allows users to combine image + voice note
             try {
               // Upload audio to get URL
-              const { voiceService } = await import('../services/voiceService');
+              const { voiceService } = await import('../../services/voiceService');
               const audioMetadata = await voiceService.uploadAudio(audioBlob);
               
               // Add to draft attachments
