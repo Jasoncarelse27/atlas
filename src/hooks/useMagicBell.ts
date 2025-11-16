@@ -47,27 +47,37 @@ export function useMagicBell() {
           method: 'GET',
         });
 
-        // Backend disabled MagicBell → do not init
+        // Handle all response statuses gracefully
         if (response.status === 200) {
-          const data = await response.json();
-          if (data?.disabled || !data?.token) {
-            logger.warn('[MagicBell] 🔕 Disabled or missing token (safe fallback)');
+          try {
+            const data = await response.json();
+            
+            // Backend disabled MagicBell → do not init
+            if (data?.disabled || !data?.token) {
+              logger.warn('[MagicBell] 🔕 Disabled or missing token (safe fallback)');
+              setError(null);
+              setIsLoading(false);
+              return;
+            }
+
+            setConfig({
+              apiKey,
+              userToken: data.token,
+              userEmail: user.email!,
+              userId: user.id,
+            });
+
+            logger.debug('[MagicBell] ✅ Initialized successfully');
+            console.log('[MagicBell] ✅ Initialized successfully');
+            setIsLoading(false);
+            return;
+          } catch (parseError) {
+            // JSON parse failed - backend might have returned non-JSON
+            logger.warn('[MagicBell] Failed to parse response as JSON - treating as disabled');
             setError(null);
             setIsLoading(false);
             return;
           }
-
-          setConfig({
-            apiKey,
-            userToken: data.token,
-            userEmail: user.email!,
-            userId: user.id,
-          });
-
-          logger.debug('[MagicBell] ✅ Initialized successfully');
-          console.log('[MagicBell] ✅ Initialized successfully');
-          setIsLoading(false);
-          return;
         }
 
         // 401 → Non-critical, swallow
@@ -78,10 +88,12 @@ export function useMagicBell() {
           return;
         }
 
-        logger.error('[MagicBell] Unexpected status:', response.status);
+        // Any other status → Non-critical, disable gracefully
+        logger.warn('[MagicBell] Unexpected status:', response.status, '- treating as disabled');
         setError(null);
         setIsLoading(false);
       } catch (err) {
+        // Any error → Non-critical, disable gracefully
         logger.debug('[NotificationCenter] Suppressed MagicBell error:', err);
         setError(null);
         setIsLoading(false);
