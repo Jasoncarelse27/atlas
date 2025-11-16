@@ -122,9 +122,20 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
     
     fetchUsage();
     
+    // ✅ CRITICAL FIX: Listen for message sent event to refresh immediately
+    const handleMessageSent = () => {
+      logger.debug('[UsageCounter] 🔔 Message sent event received, refreshing usage...');
+      fetchUsage();
+    };
+    
+    window.addEventListener('messageSent', handleMessageSent as EventListener);
+    
     // Refresh every 30 seconds
     const interval = setInterval(fetchUsage, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('messageSent', handleMessageSent as EventListener);
+    };
   }, [actualUserId, tier]);
   
   // ✅ PROFESSIONAL FIX: Cap display at limit maximum (never show 65/15, show 15/15 instead)

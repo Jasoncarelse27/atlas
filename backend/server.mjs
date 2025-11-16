@@ -815,7 +815,7 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
     }
 
     // ✅ COMPREHENSIVE ATLAS SYSTEM PROMPT - Matches detailed personality spec
-    finalUserContent = personalizedContent + `\n\nYou are Atlas, an emotionally intelligent AI companion designed to help people understand how their emotions shape their actions.
+    finalUserContent = personalizedContent + `\n\nYou are Atlas, an emotionally intelligent productivity assistant designed to help people understand how their emotions shape their actions and build sustainable productivity habits.
 
 ATLAS'S IDENTITY:
 You are NOT:
@@ -825,10 +825,19 @@ You are NOT:
 - A productivity guru with rigid rules
 
 You ARE:
+- An emotionally intelligent productivity assistant
 - A reflective mirror that helps people see patterns they might be missing
-- A thoughtful companion for emotional processing
+- A thoughtful companion for emotional processing and productivity
 - A guide for building sustainable rituals rooted in self-awareness
 - A non-judgmental space for honest exploration
+
+FIRST-TIME INTRODUCTIONS:
+When greeting a new user for the first time, keep it brief and professional:
+- Introduce yourself as "Atlas, your emotionally intelligent productivity assistant"
+- Keep the introduction to 2-3 sentences maximum
+- Don't over-explain your capabilities or approach
+- Be warm but professional
+- Example: "Hello! I'm Atlas, your emotionally intelligent productivity assistant. I'm here to help you understand how your emotions shape your actions and build sustainable productivity habits. What would you like to explore today?"
 
 ATLAS'S TONE & APPROACH:
 TONE:
@@ -837,6 +846,7 @@ TONE:
 - Honest without being harsh
 - Curious without being intrusive
 - Grounded in what the user shares, not assumptions
+- Professional, especially in introductions
 
 LANGUAGE:
 - Use "you" (not "we" or "let's" unless contextually natural)
@@ -844,6 +854,7 @@ LANGUAGE:
 - No corporate jargon or therapy-speak
 - No toxic positivity ("Everything happens for a reason!")
 - No empty reassurance ("You've got this!" without context)
+- Be concise - avoid over-explaining
 
 ATLAS'S CORE PRINCIPLES:
 
@@ -1479,24 +1490,25 @@ app.get('/api/usage', verifyJWT, async (req, res) => {
 
     const tier = profile?.subscription_tier || 'free';
     
-    // Calculate monthly usage (sum of conversations_count from daily_usage for current month)
-    const monthStart = new Date().toISOString().slice(0, 7) + '-01'; // First day of month
+    // ✅ CRITICAL FIX: Count messages directly from messages table (not daily_usage)
+    // This ensures accurate count that updates immediately when messages are sent
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
     
-    const { data: monthlyData, error: usageError } = await supabase
-      .from('daily_usage')
-      .select('conversations_count')
+    const { count: monthlyCount, error: countError } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .gte('date', monthStart);
+      .eq('role', 'user')
+      .gte('created_at', startOfMonth.toISOString());
 
-    if (usageError) {
-      logger.error('[Usage API] Error fetching usage data:', usageError.message || usageError);
+    if (countError) {
+      logger.error('[Usage API] Error counting messages:', countError.message || countError);
     }
 
-    // Sum conversations for the month
-    const monthlyCount = monthlyData?.reduce(
-      (sum, day) => sum + (day.conversations_count || 0),
-      0
-    ) || 0;
+    // ✅ CRITICAL FIX: Default to 0 if count is null/undefined
+    const finalMonthlyCount = monthlyCount ?? 0;
 
     // Get tier limits (matching frontend logic)
     const TIER_LIMITS = {
@@ -1506,12 +1518,12 @@ app.get('/api/usage', verifyJWT, async (req, res) => {
     };
 
     const monthlyLimit = TIER_LIMITS[tier] || TIER_LIMITS.free;
-    const remaining = monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - monthlyCount);
+    const remaining = monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - finalMonthlyCount);
     const isUnlimited = monthlyLimit === -1;
 
     // Return format matching UsageCounter expectations
     return res.json({
-      monthlyCount,
+      monthlyCount: finalMonthlyCount,
       monthlyLimit,
       remaining,
       isUnlimited,
@@ -2342,7 +2354,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
                 max_tokens: is_voice_call ? 300 : 2000, // 🚀 Shorter responses for voice
                 // ✅ FIX: Move system message to top-level for Claude API
                 ...(is_voice_call && {
-                  system: `You're Atlas, a warm and emotionally intelligent AI companion.
+                  system: `You're Atlas, a warm and emotionally intelligent productivity assistant.
 
 Voice call guidelines:
 - Speak naturally (use "I'm", "you're", "let's")

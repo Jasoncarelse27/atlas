@@ -611,6 +611,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         userId
       );
       
+      // ✅ CRITICAL FIX: Trigger usage counter refresh immediately after message send
+      window.dispatchEvent(new CustomEvent('messageSent', { detail: { userId } }));
+      
       logger.debug('[ChatPage] ✅ Message sent to backend, waiting for real-time updates...');
       
       // ✅ AUTO TITLE GENERATION: Generate title for first user message OR if conversation has generic title
@@ -1987,7 +1990,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
                 className="fixed inset-0 bg-black/50 z-40"
-                onClick={() => {
+                onClick={(e) => {
+                  // ✅ CRITICAL FIX: Prevent event bubbling and ensure sidebar closes
+                  e.stopPropagation();
                   if (!sidebarClosingRef.current) {
                     sidebarClosingRef.current = true;
                     setSidebarOpen(false);
@@ -1995,6 +2000,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       sidebarClosingRef.current = false;
                     }, 450);
                   }
+                }}
+                onTouchStart={(e) => {
+                  // ✅ MOBILE FIX: Handle touch events for mobile devices
+                  e.stopPropagation();
                 }}
               />
               
@@ -2006,6 +2015,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl border-r border-atlas-border z-50 overflow-y-auto shadow-xl"
+                onClick={(e) => {
+                  // ✅ CRITICAL FIX: Prevent sidebar content clicks from closing sidebar
+                  e.stopPropagation();
+                }}
               >
                 <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
                   {/* Header with Profile and Close Buttons */}

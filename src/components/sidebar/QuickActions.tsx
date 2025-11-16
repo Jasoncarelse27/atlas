@@ -94,14 +94,15 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
         }
       }
       
-      // ⚡ SCALABILITY FIX: Limit at database level
+      // ⚡ SCALABILITY FIX: Limit at database level with pagination
       // ✅ CRITICAL: Filter out deleted conversations
+      // ✅ PERFORMANCE: Load only 20 conversations initially (faster load)
       let conversations = await atlasDB.conversations
         .where('userId')
         .equals(user.id)
         .filter(conv => !conv.deletedAt) // ✅ Filter out soft-deleted conversations
         .reverse() // Most recent first
-        .limit(50) // Prevent memory overload
+        .limit(20) // ✅ PERFORMANCE: Reduced from 50 to 20 for faster initial load
         .toArray();
       
       logger.debug(`[QuickActions] 📊 Found ${conversations.length} conversations in IndexedDB`);

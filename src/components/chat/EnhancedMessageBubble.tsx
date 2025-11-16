@@ -342,7 +342,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
             duration: 0.15,
             ease: "easeOut"
           }}
-          className={`flex items-start mb-3 ${isUser ? 'flex-row-reverse' : ''}`}
+          className={`flex items-start mb-5 ${isUser ? 'flex-row-reverse' : ''}`}
           onContextMenu={handleContextMenu}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -392,7 +392,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           duration: 0.15,
           ease: "easeOut"
         }}
-        className={`flex items-start space-x-3 mb-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
+        className={`flex items-start space-x-3 mb-5 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
       >
         {/* Avatar */}
         <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
@@ -661,7 +661,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
         id={`message-${message.id}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className={`flex items-start mb-3 ${isUser ? 'flex-row-reverse' : ''}`}
+        className={`flex items-start mb-5 ${isUser ? 'flex-row-reverse' : ''}`}
       >
         <div className={`flex-1 ${isUser ? 'max-w-[75%] flex justify-end' : 'w-full max-w-[75%]'}`}>
           <div className={`px-4 py-3 rounded-2xl flex items-center gap-2 text-sm ${
@@ -706,7 +706,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       <div
         id={`message-${message.id}`}
         className={`flex items-start ${isUser ? 'flex-row-reverse' : ''}`}
-        style={{ marginBottom: '12px' }}
+        style={{ marginBottom: '20px' }}
         onContextMenu={handleContextMenu} // ✅ Right-click handler (desktop)
         onTouchStart={handleTouchStart}   // ✅ Long-press start (mobile)
         onTouchMove={handleTouchMove}     // ✅ Long-press move detection (mobile)
@@ -752,10 +752,10 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                     ) : (
                       // Keep markdown for assistant messages with enhanced spacing matching MessageRenderer
                       <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0 
-                        [&_.prose_p]:mb-4 [&_.prose_p:last-child]:mb-0 [&_.prose_p]:leading-relaxed
-                        [&_.prose_h1]:mb-3 [&_.prose_h2]:mb-2 [&_.prose_h3]:mb-2
-                        [&_.prose_ul]:mb-5 [&_.prose_ul]:space-y-2.5
-                        [&_.prose_ol]:mb-5 [&_.prose_ol]:space-y-2.5
+                        [&_.prose_p]:mb-5 [&_.prose_p:last-child]:mb-0 [&_.prose_p]:leading-relaxed
+                        [&_.prose_h1]:mb-4 [&_.prose_h2]:mb-3 [&_.prose_h3]:mb-3
+                        [&_.prose_ul]:mb-6 [&_.prose_ul]:space-y-3
+                        [&_.prose_ol]:mb-6 [&_.prose_ol]:space-y-3
                         [&_.prose_li]:leading-relaxed
                         [&_.prose_blockquote]:my-3
                         [&_.prose_table]:my-6

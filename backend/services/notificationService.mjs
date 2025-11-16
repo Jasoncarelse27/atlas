@@ -140,7 +140,7 @@ class NotificationService {
   async sendWelcomeNotification(userId) {
     return this.sendNotification(userId, {
       title: 'Welcome to Atlas! 🌱',
-      content: 'Your emotionally intelligent AI assistant is ready. Start a conversation to begin!',
+      content: 'Your emotionally intelligent productivity assistant is ready. Start a conversation to begin!',
       category: 'system',
       actionUrl: '/chat',
       customAttributes: {
