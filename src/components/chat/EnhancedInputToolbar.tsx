@@ -551,7 +551,15 @@ const EnhancedInputToolbar = React.memo(({
       previewUrlsRef.current.add(previewUrl);
     }
     
-    setAttachmentPreviews(prev => [...prev, attachmentWithId]);
+    // ✅ CRITICAL FIX: Prevent duplicate attachment previews
+    setAttachmentPreviews(prev => {
+      const exists = prev.some(att => 
+        att.url === attachmentWithId.url || 
+        att.publicUrl === attachmentWithId.publicUrl ||
+        (att.id === attachmentWithId.id)
+      );
+      return exists ? prev : [...prev, attachmentWithId];
+    });
     
     // ✅ Set status to 'pending' (file selected but not uploaded yet)
     setUploadStatus(prev => ({ ...prev, [attachmentWithId.id]: 'pending' }));

@@ -27,6 +27,9 @@ let abortController: AbortController | null = null;
 // 🧠 ATLAS GOLDEN STANDARD - Prevent duplicate message calls
 const pendingMessages = new Set<string>();
 
+// ✅ CRITICAL FIX: Prevent duplicate sends (attachment messages)
+let sendingLock = false;
+
 // Simple function to send messages with attachments (legacy function, kept for compatibility)
 export async function sendAttachmentMessage(
   _conversationId: string,
@@ -690,50 +693,71 @@ export async function sendMessageWithAttachments(
       // ✅ CRITICAL FIX: Handle audio-only messages (voice notes)
       // Backend saves user message, but we need to trigger AI response via /api/message endpoint
       if (audioAttachment && !imageAttachment && !fileAttachment) {
-        logger.debug('[chatService] 🎤 Audio-only message - triggering AI response via /api/message');
-        
-        // Call regular message endpoint to trigger AI response for audio
-        const messageEndpoint = getApiEndpoint('/api/message?stream=1');
-        const messageResponse = await fetch(messageEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            conversationId: conversationId,
-            message: caption || 'Please respond to my voice note.',
-            attachments: uploadedAttachments.map(att => ({
-              type: att.type,
-              url: att.url || att.publicUrl
-            }))
-          })
-        });
-        
-        if (!messageResponse.ok) {
-          logger.error('[chatService] Failed to trigger AI response for audio:', messageResponse.status);
-        } else {
-          logger.debug('[chatService] ✅ AI response triggered for audio-only message');
+        // ✅ CRITICAL FIX: Prevent duplicate sends
+        if (sendingLock) {
+          logger.warn('[chatService] ⚠️ Send already in progress, skipping duplicate');
+          return;
         }
         
-        // Return early - AI response will come via real-time
-        return;
+        sendingLock = true;
+        
+        try {
+          logger.debug('[chatService] 🎤 Audio-only message - triggering AI response via /api/message');
+          
+          // Call regular message endpoint to trigger AI response for audio
+          const messageEndpoint = getApiEndpoint('/api/message?stream=1');
+          const messageResponse = await fetch(messageEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              conversationId: conversationId,
+              message: caption || 'Please respond to my voice note.',
+              attachments: uploadedAttachments.map(att => ({
+                type: att.type,
+                url: att.url || att.publicUrl
+              }))
+            })
+          });
+          
+          if (!messageResponse.ok) {
+            logger.error('[chatService] Failed to trigger AI response for audio:', messageResponse.status);
+          } else {
+            logger.debug('[chatService] ✅ AI response triggered for audio-only message');
+          }
+          
+          // Return early - AI response will come via real-time
+          return;
+        } finally {
+          sendingLock = false; // ✅ CRITICAL FIX: Always release lock
+        }
       }
       
       if (imageAttachment) {
-        // Use the dedicated image analysis endpoint
-        const apiEndpoint = getApiEndpoint('/api/image-analysis');
-        logger.debug("[chatService] 📡 Calling image analysis endpoint:", apiEndpoint);
-        logger.debug("[chatService] 🔐 Token preview:", token.substring(0, 20) + '...' + token.substring(token.length - 10));
-
-        // ✅ CRITICAL FIX: Add timeout to prevent hanging requests (60s for image analysis)
-        const timeoutController = new AbortController();
-        const timeoutId = setTimeout(() => {
-          timeoutController.abort();
-          logger.error('[chatService] ⏱️ Image analysis timeout after 60s');
-        }, 60000); // 60 second timeout for image analysis
-
+        // ✅ CRITICAL FIX: Prevent duplicate sends
+        if (sendingLock) {
+          logger.warn('[chatService] ⚠️ Send already in progress, skipping duplicate');
+          return;
+        }
+        
+        sendingLock = true;
+        
         try {
+          // Use the dedicated image analysis endpoint
+          const apiEndpoint = getApiEndpoint('/api/image-analysis');
+          logger.debug("[chatService] 📡 Calling image analysis endpoint:", apiEndpoint);
+          logger.debug("[chatService] 🔐 Token preview:", token.substring(0, 20) + '...' + token.substring(token.length - 10));
+
+          // ✅ CRITICAL FIX: Add timeout to prevent hanging requests (60s for image analysis)
+          const timeoutController = new AbortController();
+          const timeoutId = setTimeout(() => {
+            timeoutController.abort();
+            logger.error('[chatService] ⏱️ Image analysis timeout after 60s');
+          }, 60000); // 60 second timeout for image analysis
+
+          try {
           // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
           const response = await fetch(apiEndpoint, {
             method: "POST",
@@ -794,6 +818,8 @@ export async function sendMessageWithAttachments(
             logger.error('[chatService] Image analysis request failed:', error);
             // Don't throw - user message is already saved
           }
+        } finally {
+          sendingLock = false; // ✅ CRITICAL FIX: Always release lock
         }
       } else if (fileAttachment) {
         // Use the file analysis endpoint

@@ -86,9 +86,14 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
 
   // Handle messages with multiple attachments
   if (message.attachments && message.attachments.length > 0) {
-    const images = message.attachments.filter((a) => a.type === "image");
-    const audios = message.attachments.filter((a) => a.type === "audio");
-    const files = message.attachments.filter((a) => a.type === "file");
+    // ✅ CRITICAL FIX: Deduplicate attachments by URL before filtering
+    const uniqueAttachments = Array.isArray(message.attachments)
+      ? [...new Map(message.attachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()]
+      : [];
+    
+    const images = uniqueAttachments.filter((a) => a.type === "image");
+    const audios = uniqueAttachments.filter((a) => a.type === "audio");
+    const files = uniqueAttachments.filter((a) => a.type === "file");
 
     return (
       <div className={`flex flex-col gap-2 ${className}`}>
@@ -104,7 +109,7 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
             }`}
           >
             {images.map((img, idx) => (
-              <div key={idx} className="relative border rounded p-1">
+              <div key={img.url || img.publicUrl || img.id || idx} className="relative border rounded p-1">
                 <ImageMessageBubble 
                   message={{ ...message, content: img.url, type: 'image' }}
                 />

@@ -188,7 +188,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           content: msg.content,
           timestamp: msg.timestamp,
           type: msg.type || 'text',
-          attachments: msg.attachments
+          // ✅ CRITICAL FIX: Deduplicate attachments by URL
+          attachments: Array.isArray(msg.attachments)
+            ? msg.attachments.filter(
+                (att, index, self) => index === self.findIndex(a => a.url === att.url)
+              )
+            : []
         } as Message));
         
         // ✅ CRITICAL FIX: Prepend older messages to the top (already in chronological order)
@@ -281,8 +286,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         content: msg.content,
         timestamp: msg.timestamp,
         type: msg.type || 'text',
-        // ✅ FIX: Don't duplicate - use ONLY attachments array
-        attachments: msg.attachments // ✅ Include attachments
+        // ✅ CRITICAL FIX: Deduplicate attachments by URL
+        attachments: Array.isArray(msg.attachments)
+          ? msg.attachments.filter(
+              (att, index, self) => index === self.findIndex(a => a.url === att.url)
+            )
+          : []
       } as Message));
       
       // Set React state (Dexie is authoritative source)
@@ -367,7 +376,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               content: msg.content,
               timestamp: msg.timestamp,
               type: msg.type || 'text',
-              attachments: msg.attachments
+              // ✅ CRITICAL FIX: Deduplicate attachments by URL
+              attachments: Array.isArray(msg.attachments)
+                ? msg.attachments.filter(
+                    (att, index, self) => index === self.findIndex(a => a.url === att.url)
+                  )
+                : []
             } as Message));
             
             setMessages(formatted);
