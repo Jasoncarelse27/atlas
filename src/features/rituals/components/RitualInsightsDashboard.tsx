@@ -65,24 +65,24 @@ export const RitualInsightsDashboard: React.FC = () => {
   // Tier gate for Free users
   if (tier === 'free') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl border-2 border-[#E8DCC8] p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-4">
-            <TrendingUp size={32} className="text-orange-600" />
+      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl border-2 border-[#E8DCC8] dark:border-gray-700 p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center mx-auto mb-4">
+            <TrendingUp size={32} className="text-orange-600 dark:text-orange-400" />
           </div>
-          <h2 className="text-2xl font-bold text-[#3B3632] mb-2">Unlock Insights</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-bold text-[#3B3632] dark:text-white mb-2">Unlock Insights</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             Upgrade to <strong>Core</strong> to see your ritual analytics, mood trends, and personalized insights.
           </p>
           <button
             onClick={() => showGenericUpgrade('audio')}
-            className="w-full px-6 py-3 bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] transition-colors font-medium"
+            className="w-full px-6 py-3 bg-[#3B3632] dark:bg-gray-700 text-white rounded-xl hover:bg-[#2A2621] dark:hover:bg-gray-600 transition-colors font-medium"
           >
             Upgrade to Core ($19.99)
           </button>
           <button
             onClick={() => navigate('/rituals')}
-            className="mt-3 text-sm text-gray-600 hover:text-gray-800 underline"
+            className="mt-3 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 underline"
           >
             Back to Ritual Library
           </button>

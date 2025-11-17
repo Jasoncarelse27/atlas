@@ -278,7 +278,7 @@ const EnhancedResponseArea = forwardRef<HTMLDivElement, EnhancedResponseAreaProp
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 flex items-center justify-center">
                 <LoadingSpinner size="sm" color="primary" />
               </div>
-              <div className="absolute -bottom-1 -right-1 p-1 bg-white rounded-full">
+              <div className="absolute -bottom-1 -right-1 p-1 bg-white dark:bg-gray-800 rounded-full">
                 {getModeIcon()}
               </div>
             </div>

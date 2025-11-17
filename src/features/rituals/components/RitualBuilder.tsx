@@ -12,7 +12,7 @@
 import { DndContext, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowLeft, Copy, GripVertical, Info, Plus, Save, Sparkles, TrendingUp, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Copy, GripVertical, Info, Plus, Save, Sparkles, Trash2, TrendingUp, X } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -71,7 +71,7 @@ const SortableStepCard: React.FC<SortableStepCardProps> = React.memo(({
   return (
     <div ref={setNodeRef} style={style} className="group">
       <div
-        className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-lg border-2 ${stepDef.color} 
+        className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg border-2 ${stepDef.color} 
           transition-all hover:shadow-md
           ${isMobile ? 'min-h-[60px]' : ''}`}
       >
@@ -229,24 +229,24 @@ export const RitualBuilder: React.FC = () => {
   // Tier gate
   if (tier === 'free') {
     return (
-      <div className="min-h-screen bg-[#F9F6F1] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl border-2 border-[#E8DCC8] p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-4">
-            <Sparkles size={32} className="text-orange-600" />
+      <div className="min-h-screen bg-[#F9F6F1] dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl border-2 border-[#E8DCC8] dark:border-gray-700 p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center mx-auto mb-4">
+            <Sparkles size={32} className="text-orange-600 dark:text-orange-400" />
           </div>
-          <h2 className="text-2xl font-bold text-[#3B3632] mb-2">Unlock Custom Rituals</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-bold text-[#3B3632] dark:text-white mb-2">Unlock Custom Rituals</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             Upgrade to <strong>Core</strong> to create personalized rituals tailored to your needs.
           </p>
           <button
             onClick={() => showGenericUpgrade('audio')}
-            className="w-full px-6 py-3 bg-[#3B3632] text-white rounded-xl hover:bg-[#2A2621] transition-colors font-medium"
+            className="w-full px-6 py-3 bg-[#3B3632] dark:bg-gray-700 text-white rounded-xl hover:bg-[#2A2621] dark:hover:bg-gray-600 transition-colors font-medium"
           >
             Upgrade to Core ($19.99)
           </button>
           <button
             onClick={() => navigate('/rituals')}
-            className="mt-3 text-sm text-gray-600 hover:text-gray-800 underline"
+            className="mt-3 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 underline"
           >
             Back to Ritual Library
           </button>
@@ -258,30 +258,30 @@ export const RitualBuilder: React.FC = () => {
   // ✅ PHASE 3: Skeleton loader for initial load
   if (isInitializing) {
     return (
-      <div className="h-screen overflow-y-auto bg-[#F9F6F1] overscroll-contain">
+      <div className="h-screen overflow-y-auto bg-[#F9F6F1] dark:bg-gray-900 overscroll-contain">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
           <div className="animate-pulse space-y-6">
             {/* Header skeleton */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-gray-200 rounded-lg" />
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg" />
               <div className="flex-1">
-                <div className="h-8 bg-gray-200 rounded w-64 mb-2" />
-                <div className="h-4 bg-gray-200 rounded w-48" />
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-64 mb-2" />
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-48" />
               </div>
-              <div className="w-32 h-12 bg-gray-200 rounded-xl" />
+              <div className="w-32 h-12 bg-gray-200 dark:bg-gray-700 rounded-xl" />
             </div>
             {/* Content skeleton */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-xl p-6 space-y-4">
-                  <div className="h-6 bg-gray-200 rounded w-32" />
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 space-y-4">
+                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-32" />
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-16 bg-gray-200 rounded-lg" />
+                    <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg" />
                   ))}
                 </div>
               </div>
               <div className="lg:col-span-1 space-y-6">
-                <div className="bg-white rounded-xl p-6 space-y-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 space-y-4">
                   <div className="h-6 bg-gray-200 rounded w-40" />
                   <div className="h-12 bg-gray-200 rounded-lg" />
                   <div className="h-12 bg-gray-200 rounded-lg" />

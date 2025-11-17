@@ -346,19 +346,19 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
       
       {/* Mode Selection */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Mode</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Mode</h3>
         <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => handleModeChange('light')}
             className={`p-4 rounded-lg border transition-colors ${
               selectedMode === 'light' 
-                ? 'border-blue-300 bg-blue-50' 
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-blue-300 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
             }`}
           >
             <div className="flex flex-col items-center gap-2">
-              <Sun className="w-6 h-6 text-amber-500" />
-              <span className="font-medium">Light</span>
+              <Sun className="w-6 h-6 text-amber-500 dark:text-amber-400" />
+              <span className="font-medium text-gray-900 dark:text-white">Light</span>
             </div>
           </button>
           
@@ -366,13 +366,13 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             onClick={() => handleModeChange('dark')}
             className={`p-4 rounded-lg border transition-colors ${
               selectedMode === 'dark' 
-                ? 'border-blue-300 bg-blue-50' 
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-blue-300 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
             }`}
           >
             <div className="flex flex-col items-center gap-2">
-              <Moon className="w-6 h-6 text-indigo-600" />
-              <span className="font-medium">Dark</span>
+              <Moon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              <span className="font-medium text-gray-900 dark:text-white">Dark</span>
             </div>
           </button>
           
@@ -380,8 +380,8 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
             onClick={() => handleModeChange('auto')}
             className={`p-4 rounded-lg border transition-colors ${
               selectedMode === 'auto' 
-                ? 'border-blue-300 bg-blue-50' 
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-blue-300 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
             }`}
           >
             <div className="flex flex-col items-center gap-2">
@@ -389,7 +389,7 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
                 <Sun className="w-6 h-6 text-amber-500 absolute -left-1 -top-1 transform scale-75" />
                 <Moon className="w-6 h-6 text-indigo-600 absolute -right-1 -bottom-1 transform scale-75" />
               </div>
-              <span className="font-medium">Auto</span>
+              <span className="font-medium text-gray-900 dark:text-white">Auto</span>
             </div>
           </button>
         </div>

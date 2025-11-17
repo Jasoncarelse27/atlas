@@ -114,7 +114,7 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onRetry }) =
       )}
 
       {isAssistant && (
-        <div style={{ backgroundColor: '#222', borderRadius: 8, padding: 10 }}>
+        <div>
           {isLoading ? (
             <div style={{ color: '#999' }}>Loading...</div>
           ) : hasError ? (
@@ -122,7 +122,7 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({ message, onRetry }) =
               ⚠️ Error. Click to retry.
             </div>
           ) : (
-            <div style={{ color: '#fff' }}>{renderContent()}</div>
+            <div>{renderContent()}</div>
           )}
         </div>
       )}

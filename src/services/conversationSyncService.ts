@@ -75,9 +75,12 @@ export class ConversationSyncService {
   private syncInProgress = false;
   private lastSyncTime = 0;
   private syncDebounceTimer: NodeJS.Timeout | null = null;
-  private readonly SYNC_COOLDOWN = 120000; // ✅ OPTIMIZED: 120 seconds (2 min) minimum between syncs - prevents slow sync warnings
-  private readonly SYNC_DEBOUNCE = 10000; // ✅ OPTIMIZED: 10 second debounce to prevent rapid-fire syncs
+  // ✅ PERFORMANCE OPTIMIZATION: Adaptive sync cooldown based on activity
+  private readonly SYNC_COOLDOWN_ACTIVE = 60000; // 1 min for active users
+  private readonly SYNC_COOLDOWN_IDLE = 180000; // 3 min for idle users
+  private readonly SYNC_DEBOUNCE = 8000; // ✅ OPTIMIZED: 8 second debounce (reduced from 10s)
   private readonly RECENT_DATA_DAYS = 30; // ✅ FIX: Reduced from 90 to 30 days for faster sync
+  private readonly JITTER_MAX_MS = 2000; // ✅ PERFORMANCE: Max 2s jitter to prevent sync storms
 
   static getInstance(): ConversationSyncService {
     if (!ConversationSyncService.instance) {
@@ -610,10 +613,15 @@ export class ConversationSyncService {
       return;
     }
     
-    // ✅ OPTIMIZATION: Rate limit syncs
+    // ✅ PERFORMANCE: Adaptive cooldown based on user activity
     const now = Date.now();
-    if (!force && now - this.lastSyncTime < this.SYNC_COOLDOWN) {
-      logger.debug('[ConversationSync] ⏳ Sync cooldown active, skipping...');
+    const timeSinceLastSync = now - this.lastSyncTime;
+    const adaptiveCooldown = timeSinceLastSync < 300000 // 5 min threshold
+      ? this.SYNC_COOLDOWN_ACTIVE // Active users: 1 min
+      : this.SYNC_COOLDOWN_IDLE;  // Idle users: 3 min
+    
+    if (!force && timeSinceLastSync < adaptiveCooldown) {
+      logger.debug(`[ConversationSync] ⏳ Sync cooldown active (${Math.round((adaptiveCooldown - timeSinceLastSync) / 1000)}s remaining), skipping...`);
       return;
     }
     
@@ -623,11 +631,17 @@ export class ConversationSyncService {
       return;
     }
     
-    // Set debounce timer
+    // ✅ PERFORMANCE: Add jitter to prevent synchronized sync storms
     if (!force) {
+      const jitter = Math.floor(Math.random() * this.JITTER_MAX_MS);
       this.syncDebounceTimer = setTimeout(() => {
         this.syncDebounceTimer = null;
-      }, this.SYNC_DEBOUNCE);
+      }, this.SYNC_DEBOUNCE + jitter);
+      
+      // If jitter is significant, delay the actual sync
+      if (jitter > 500) {
+        await new Promise(resolve => setTimeout(resolve, jitter));
+      }
     }
     
     this.syncInProgress = true;
@@ -919,8 +933,11 @@ export class ConversationSyncService {
           messagesSynced = newMessages?.length || 0;
           logger.debug(`[ConversationSync] ✅ Found ${messagesSynced} new messages`);
           
-          // ✅ PHASE 2: Only add missing messages (duplicate check)
+          // ✅ PERFORMANCE OPTIMIZATION: Batch IndexedDB operations for faster sync
           // Real-time listener is primary writer; this is for offline catch-up only
+          const messagesToAdd: Message[] = [];
+          const messagesToUpdate: Array<{ id: string; updates: Partial<Message> }> = [];
+          
           for (const msg of newMessages || []) {
             // ✅ CRITICAL: Skip messages with invalid userId
             if (!msg.user_id || msg.user_id === 'anonymous') {
@@ -954,7 +971,8 @@ export class ConversationSyncService {
                   : String(msg.content || '');
               }
               
-              await atlasDB.messages.put({
+              // ✅ PERFORMANCE: Collect messages for batch insert
+              messagesToAdd.push({
                 id: msg.id,
                 conversationId: msg.conversation_id,
                 userId: userId, // ✅ Use authenticated userId from function parameter
@@ -967,16 +985,31 @@ export class ConversationSyncService {
                 deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
                 deletedBy: msg.deleted_by || undefined  // ✅ PHASE 2: Sync delete type
               });
-              logger.debug('[ConversationSync] ✅ Added missing message:', msg.id);
             } else if (msg.deleted_at && !existingMsg.deletedAt) {
-              // ✅ PHASE 2: Update existing message if it was deleted remotely
-              await atlasDB.messages.update(msg.id, {
-                deletedAt: msg.deleted_at,
-                deletedBy: msg.deleted_by || 'user'
+              // ✅ PERFORMANCE: Collect updates for batch operation
+              messagesToUpdate.push({
+                id: msg.id,
+                updates: {
+                  deletedAt: msg.deleted_at,
+                  deletedBy: msg.deleted_by || 'user'
+                }
               });
-              logger.debug('[ConversationSync] ✅ Synced delete status for message:', msg.id);
             }
             // Silent skip - no console spam
+          }
+          
+          // ✅ PERFORMANCE OPTIMIZATION: Batch insert all messages at once (faster than individual puts)
+          if (messagesToAdd.length > 0) {
+            await atlasDB.messages.bulkPut(messagesToAdd);
+            logger.debug(`[ConversationSync] ✅ Batch added ${messagesToAdd.length} messages`);
+          }
+          
+          // ✅ PERFORMANCE OPTIMIZATION: Batch update deleted status
+          if (messagesToUpdate.length > 0) {
+            await Promise.all(messagesToUpdate.map(({ id, updates }) => 
+              atlasDB.messages.update(id, updates)
+            ));
+            logger.debug(`[ConversationSync] ✅ Batch updated ${messagesToUpdate.length} message deletion statuses`);
           }
         }
       }

@@ -108,11 +108,11 @@ export function ConfirmDialog({
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.95, y: 20 }}
           transition={{ type: 'spring', duration: 0.3 }}
-          className="relative w-full max-w-md bg-atlas-pearl rounded-2xl shadow-2xl border border-atlas-border overflow-hidden"
+          className="relative w-full max-w-md bg-atlas-pearl dark:bg-gray-900 rounded-2xl shadow-2xl border border-atlas-border dark:border-gray-700 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-atlas-border">
+          <div className="flex items-center justify-between p-6 border-b border-atlas-border dark:border-gray-700">
             <div className="flex items-center gap-3">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -129,7 +129,7 @@ export function ConfirmDialog({
               </div>
               <h2
                 id="confirm-dialog-title"
-                className="text-xl font-bold text-atlas-text-dark"
+                className="text-xl font-bold text-atlas-text-dark dark:text-white"
               >
                 {title}
               </h2>
@@ -140,7 +140,7 @@ export function ConfirmDialog({
               aria-label="Close dialog"
               disabled={isLoading}
             >
-              <X className="w-5 h-5 text-atlas-text-medium" />
+              <X className="w-5 h-5 text-atlas-text-medium dark:text-gray-400" />
             </button>
           </div>
 
@@ -148,19 +148,19 @@ export function ConfirmDialog({
           <div className="p-6">
             <p
               id="confirm-dialog-message"
-              className="text-atlas-text-medium leading-relaxed"
+              className="text-atlas-text-medium dark:text-gray-300 leading-relaxed"
             >
               {message}
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 p-6 border-t border-atlas-border">
+          <div className="flex gap-3 p-6 border-t border-atlas-border dark:border-gray-700">
             <button
               ref={cancelButtonRef}
               onClick={onClose}
               disabled={isLoading}
-              className="flex-1 px-4 py-3 bg-atlas-button hover:bg-atlas-button-hover text-atlas-text-dark rounded-xl font-medium transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-atlas-sage focus-visible:outline-none"
+              className="flex-1 px-4 py-3 bg-atlas-button dark:bg-gray-700 hover:bg-atlas-button-hover dark:hover:bg-gray-600 text-atlas-text-dark dark:text-white rounded-xl font-medium transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-atlas-sage focus-visible:outline-none"
               aria-label={cancelLabel}
             >
               {cancelLabel}

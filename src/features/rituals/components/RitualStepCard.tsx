@@ -3,7 +3,7 @@
  * Shows ritual info with goal badge, duration, and tier lock
  */
 
-import { Edit2, Heart, Lock, Sparkles, Target, Trash2, Zap, Star } from 'lucide-react';
+import { Edit2, Heart, Lock, Sparkles, Star, Target, Trash2, Zap } from 'lucide-react';
 import React from 'react';
 import { formatDuration } from '../services/ritualTemplates';
 import type { Ritual } from '../types/rituals';
@@ -117,7 +117,7 @@ export const RitualStepCard: React.FC<RitualStepCardProps> = React.memo(({
         {isCustom && !isLocked && onEdit && (
           <button
             onClick={handleEdit}
-            className="p-2 rounded-lg bg-white/80 hover:bg-white border border-[#E8DCC8] 
+            className="p-2 rounded-lg bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border border-[#E8DCC8] dark:border-gray-700 
               transition-all hover:shadow-md active:scale-95
               min-h-[36px] min-w-[36px]"
             aria-label="Edit ritual"

@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
 
@@ -95,7 +95,8 @@ const applyCustomization = (custom: UserCustomization) => {
   // Apply CSS custom properties for theme
   root.style.setProperty('--primary-color', custom.theme.primaryColor);
   root.style.setProperty('--accent-color', custom.theme.accentColor);
-  root.style.setProperty('--background-color', custom.theme.backgroundColor);
+  // ✅ REMOVED: --background-color - Tailwind dark mode classes handle backgrounds now
+  // root.style.setProperty('--background-color', custom.theme.backgroundColor);
   root.style.setProperty('--text-color', custom.theme.textColor);
   root.style.setProperty('--border-radius', `${custom.theme.borderRadius}px`);
   root.style.setProperty('--font-size', `${custom.theme.fontSize}px`);
@@ -107,20 +108,22 @@ const applyCustomization = (custom: UserCustomization) => {
   root.style.setProperty('--primary-color-rgb', `${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}`);
   root.style.setProperty('--accent-color-rgb', `${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}`);
 
-  // Apply theme mode
-  if (custom.theme.mode === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else if (custom.theme.mode === 'light') {
-    document.documentElement.classList.remove('dark');
-  } else {
-    // Auto mode - detect system preference
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (prefersDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }
+  // ✅ FIX: Don't apply theme mode here - useThemeMode handles it
+  // This prevents conflicts between two theme systems applying the same DOM changes
+  // useThemeMode is the single source of truth for theme mode application
+  // if (custom.theme.mode === 'dark') {
+  //   document.documentElement.classList.add('dark');
+  // } else if (custom.theme.mode === 'light') {
+  //   document.documentElement.classList.remove('dark');
+  // } else {
+  //   // Auto mode - detect system preference
+  //   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  //   if (prefersDark) {
+  //     document.documentElement.classList.add('dark');
+  //   } else {
+  //     document.documentElement.classList.remove('dark');
+  //   }
+  // }
 
   // Apply layout settings
   if (custom.layout.compactMode) {
@@ -152,10 +155,11 @@ const applyCustomization = (custom: UserCustomization) => {
     document.documentElement.classList.remove('high-contrast');
   }
 
-  // Force a repaint to ensure changes are applied
-  document.body.style.display = 'none';
-  document.body.offsetHeight; // Trigger reflow
-  document.body.style.display = '';
+  // ✅ FIX: Force a repaint to ensure changes are applied
+  // ✅ CRITICAL: DO NOT touch theme class - useThemeMode is the single source of truth
+  // Theme class is managed exclusively by useThemeMode hook
+  // Just trigger a reflow to ensure CSS custom properties are applied
+  void document.body.offsetHeight;
 
   logger.debug('✅ Customization applied to DOM');
 };
@@ -255,6 +259,14 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalCustomization, setOriginalCustomization] = useState<UserCustomization | null>(null);
+  
+  // ✅ FIX: Track last saved snapshot to prevent save/load loops
+  const lastSavedCustomizationRef = useRef<UserCustomization | null>(null);
+  // ✅ FIX: Track last loaded user to prevent duplicate loads
+  const lastLoadedUserIdRef = useRef<string | null>(null);
+  // ✅ SCALABILITY: Rate limiting - track last save time (max 1 save per 2 seconds)
+  const lastSaveTimeRef = useRef<number>(0);
+  const MIN_SAVE_INTERVAL_MS = 2000; // 2 seconds minimum between saves
 
   // Load customization from database or localStorage
   const loadCustomization = useCallback(async () => {
@@ -315,6 +327,9 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
 
       setCustomization(loadedCustomization);
       
+      // ✅ FIX: Update snapshot when loading to prevent false "no changes" detection
+      lastSavedCustomizationRef.current = deepClone(loadedCustomization) as UserCustomization;
+      
       const clonedOriginal = deepClone(loadedCustomization) as UserCustomization;
       setOriginalCustomization(clonedOriginal);
       
@@ -365,6 +380,21 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
   const saveCustomization = useCallback(async () => {
     if (!customization || !user) return;
 
+    // ✅ FIX: Prevent "save → load → save" loop - skip if identical to last saved
+    if (lastSavedCustomizationRef.current && isEqual(customization, lastSavedCustomizationRef.current)) {
+      logger.debug('[Customization] ⏭️ Skipping save (no changes detected)');
+      return;
+    }
+
+    // ✅ SCALABILITY: Rate limiting - prevent saves too close together
+    const now = Date.now();
+    const timeSinceLastSave = now - lastSaveTimeRef.current;
+    if (timeSinceLastSave < MIN_SAVE_INTERVAL_MS) {
+      logger.debug(`[Customization] ⏭️ Rate limited - ${Math.round((MIN_SAVE_INTERVAL_MS - timeSinceLastSave) / 1000)}s until next save`);
+      return;
+    }
+    lastSaveTimeRef.current = now;
+
     setIsLoading(true);
     setError(null);
 
@@ -375,6 +405,8 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
         updated_at: new Date().toISOString()
       };
 
+      // ✅ FIX: Update snapshot BEFORE writing to avoid race conditions
+      lastSavedCustomizationRef.current = deepClone(updatedCustomization) as UserCustomization;
 
       // Save to localStorage first (always works)
       localStorage.setItem(`atlas-customization-${user.id}`, JSON.stringify(updatedCustomization));
@@ -387,6 +419,12 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
             .upsert([updatedCustomization], { onConflict: 'user_id' });
 
           if (dbError) {
+            // ✅ SCALABILITY: Handle rate limits gracefully
+            if (dbError.code === 'PGRST301' || dbError.message.includes('rate limit') || dbError.message.includes('429')) {
+              logger.debug('[Customization] ⚠️ Rate limited by Supabase - will retry on next change');
+              // Don't throw - allow localStorage save, will sync on next change
+              return false;
+            }
             throw new Error(`Database save failed: ${dbError.message}`);
           }
 
@@ -399,6 +437,9 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
             dbErr.message.includes('NetworkError') ||
             dbErr.message.includes('TypeError: Failed to fetch')) {
           setError('Running in offline mode - customization saved locally only');
+        } else if (dbErr.message.includes('rate limit') || dbErr.message.includes('429')) {
+          // Rate limit handled above, just log
+          logger.debug('[Customization] ⚠️ Rate limited - saved locally, will sync later');
         } else {
           setError('Failed to sync customization to cloud, but saved locally');
         }
@@ -488,8 +529,20 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
 
   // Load customization when user changes
   useEffect(() => {
-    loadCustomization();
-  }, [loadCustomization]);
+    if (!user) {
+      // Clear customization when user logs out
+      setCustomization(null);
+      lastSavedCustomizationRef.current = null;
+      lastLoadedUserIdRef.current = null;
+      return;
+    }
+    
+    // ✅ FIX: Prevent duplicate loads - only load if user changed or never loaded
+    if (lastLoadedUserIdRef.current !== user.id) {
+      lastLoadedUserIdRef.current = user.id;
+      loadCustomization();
+    }
+  }, [user?.id, loadCustomization]); // ✅ FIX: Depend on user.id to detect user changes
 
   // Check for unsaved changes
   useEffect(() => {

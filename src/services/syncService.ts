@@ -216,9 +216,9 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     return;
   }
 
-  // ✅ COMPREHENSIVE SYNC FIX: Track when we last checked for missing conversations
+  // ✅ PERFORMANCE OPTIMIZATION: Track when we last checked for missing conversations
   let lastMissingCheck = 0;
-  const MISSING_CHECK_INTERVAL = 10 * 60 * 1000; // Check every 10 minutes
+  const MISSING_CHECK_INTERVAL = 15 * 60 * 1000; // ✅ OPTIMIZED: Check every 15 minutes (reduced from 10 min)
 
   // Run delta sync immediately on load (skip if voice call active)
   if (!voiceCallState.getActive()) {

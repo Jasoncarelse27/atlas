@@ -2,12 +2,15 @@
 import { create } from '@/lib/zustand-wrapper';
 
 interface SettingsState {
+  // ⚠️ DEPRECATED: Theme is now managed by useThemeMode hook
+  // Keeping for backwards compatibility - DO NOT USE
   theme: 'dark' | 'light';
   privacyMode: boolean;
   reduceMotion: boolean;
   increaseContrast: boolean;
   screenReader: boolean;
   
+  // ⚠️ DEPRECATED: Use useThemeMode().toggleTheme() instead
   toggleTheme: () => void;
   togglePrivacy: () => void;
   toggleReduceMotion: () => void;
@@ -19,12 +22,14 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  theme: 'dark',
+  theme: 'dark', // ⚠️ DEPRECATED - kept for compatibility
   privacyMode: false,
   reduceMotion: false,
   increaseContrast: false,
   screenReader: false,
   
+  // ⚠️ DEPRECATED: This no longer syncs with DOM or database
+  // Use useThemeMode().toggleTheme() instead
   toggleTheme: () => set((state) => {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('atlas:theme', newTheme);

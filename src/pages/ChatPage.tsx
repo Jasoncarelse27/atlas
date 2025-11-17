@@ -33,13 +33,14 @@ import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
 import { ConversationHistoryDrawer } from '../components/ConversationHistoryDrawer';
+import { NotificationCenter } from '../components/NotificationCenter';
 import { PWAInstallPrompt } from '../components/PWAInstallPrompt'; // ✅ PWA: Install prompt for mobile users
 import { SearchDrawer } from '../components/SearchDrawer';
+import { UserQuestionnaire } from '../components/onboarding/UserQuestionnaire';
 import { EmotionalInsightsWidgets } from '../components/sidebar/EmotionalInsightsWidgets';
 import PrivacyToggle from '../components/sidebar/PrivacyToggle';
 import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
-import { NotificationCenter } from '../components/NotificationCenter';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
@@ -81,6 +82,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   
   // History modal state
   const [showHistory, setShowHistory] = useState(false);
+  
+  // Questionnaire state
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
   // ✅ TYPESCRIPT FIX: Use proper Conversation type instead of any[]
   interface HistoryModalData {
     conversations: Array<{
@@ -1494,6 +1499,44 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
     initializeConversation();
   }, [userId]);
+
+  // Check if user should see questionnaire (new user with no conversations)
+  useEffect(() => {
+    if (!userId || hasCheckedQuestionnaire) return;
+
+    const checkQuestionnaire = async () => {
+      try {
+        // Check if user has any conversations
+        const { count } = await supabase
+          .from('conversations')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId);
+
+        const isNewUser = (count || 0) === 0;
+
+        if (isNewUser) {
+          // Check if user has already completed questionnaire
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('preferences')
+            .eq('id', userId)
+            .single();
+
+          // Show questionnaire if preferences are null/empty
+          if (!profile?.preferences || Object.keys(profile.preferences).length === 0) {
+            setShowQuestionnaire(true);
+          }
+        }
+
+        setHasCheckedQuestionnaire(true);
+      } catch (error) {
+        logger.error('[ChatPage] Error checking questionnaire:', error);
+        setHasCheckedQuestionnaire(true); // Don't retry on error
+      }
+    };
+
+    checkQuestionnaire();
+  }, [userId, hasCheckedQuestionnaire]);
   
   // ✅ CRITICAL FIX: Ensure messages load when BOTH userId and conversationId are available
   // This handles the race condition where conversationId is set before userId on refresh
@@ -1759,17 +1802,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-atlas-pearl'}`}>
+      <div className="min-h-screen bg-atlas-pearl dark:bg-gray-900 transition-colors duration-200">
         {/* Header Skeleton - White gradient effect (visible fade) */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300`}
+          className={`sticky top-0 z-30 transition-all duration-300 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700`}
           style={{ 
-            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
-            backgroundColor: 'var(--atlas-surface)',
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1911,27 +1950,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div 
-        className="min-h-screen bg-atlas-pearl text-gray-900"
+        className="min-h-screen bg-atlas-pearl dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-200"
         style={{
           // ✅ FIX: Use consistent 100dvh to prevent layout jumps
           minHeight: '100dvh',
           height: '100dvh', // Fixed height prevents jumps when browser UI changes
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          backgroundColor: 'var(--atlas-pearl)', // ✅ ALWAYS PEARL: Ensure background is always pearl white
+          // ✅ REMOVED: Hardcoded backgroundColor - now uses Tailwind dark: classes
           // ✅ FIX: Prevent layout shifts from browser UI
           overflow: 'hidden', // Prevent scroll on container
         }}
       >
         {/* Header - White gradient effect (visible fade) */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300`}
+          className="sticky top-0 z-30 transition-all duration-300 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-gray-800/50"
           style={{ 
-            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.7) 100%)',
-            backgroundColor: 'var(--atlas-surface)',
+            // ✅ REMOVED: Hardcoded light mode styles - now uses Tailwind dark: classes
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
           }}
         >
           <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
@@ -1949,13 +1985,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       setSidebarOpen(true);
                     }
                   }}
-                  className="p-2 rounded-lg bg-atlas-sage/10 hover:bg-atlas-sage/20 transition-colors"
+                  className="p-2 rounded-lg bg-atlas-sage/10 dark:bg-gray-800/50 hover:bg-atlas-sage/20 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <Menu className="w-5 h-5 text-atlas-stone" />
+                  <Menu className="w-5 h-5 text-atlas-stone dark:text-gray-300" />
                 </button>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-atlas-text-dark" style={{ fontWeight: 700 }}>Atlas AI</h1>
-                  <p className="text-gray-600 text-sm sm:text-base hidden sm:block">Your emotionally intelligent AI assistant</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-atlas-text-dark dark:text-white" style={{ fontWeight: 700 }}>Atlas AI</h1>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base hidden sm:block">Emotionally intelligent productivity assistant</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
@@ -1966,11 +2002,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 {/* Search Button - PHASE 2B */}
                 <button
                   onClick={() => setShowSearch(true)}
-                  className="p-2 rounded-lg bg-atlas-sage/10 hover:bg-atlas-sage/20 transition-colors group"
+                  className="p-2 rounded-lg bg-atlas-sage/10 dark:bg-gray-800/50 hover:bg-atlas-sage/20 dark:hover:bg-gray-700 transition-colors group"
                   title="Search messages (Cmd+K)"
                   aria-label="Search messages"
                 >
-                  <Search className="w-5 h-5 text-atlas-stone group-hover:text-atlas-sage" />
+                  <Search className="w-5 h-5 text-atlas-stone dark:text-gray-300 group-hover:text-atlas-sage dark:group-hover:text-gray-200" />
                 </button>
                 {/* Sync status hidden per design requirements */}
                 {/* <SyncStatus isOnline={true} /> */}
@@ -2015,7 +2051,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl border-r border-atlas-border z-50 overflow-y-auto shadow-xl"
+                className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl dark:bg-gray-900 border-r border-atlas-border dark:border-gray-700 z-50 overflow-y-auto shadow-xl"
                 onClick={(e) => {
                   // ✅ CRITICAL FIX: Prevent sidebar content clicks from closing sidebar
                   e.stopPropagation();
@@ -2125,7 +2161,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {/* Chat Container - ✅ WCAG AA: Semantic <main> landmark */}
         <main 
           id="main-chat"
-          className="flex flex-col bg-atlas-pearl"
+          className="flex flex-col bg-atlas-pearl dark:bg-gray-900"
           style={{
             // ✅ FIX: Use dvh consistently to prevent jumps
             height: 'calc(100dvh - 120px)', // Account for header height
@@ -2149,7 +2185,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           {/* Messages */}
           <div 
             ref={messagesContainerRef} 
-            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-atlas-pearl"
+            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-atlas-pearl dark:bg-gray-900 transition-colors duration-200"
             role="log"
             aria-live="polite"
             aria-label="Message list"
@@ -2261,7 +2297,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         
                         {/* Description - Atlas text-medium color */}
                         <p className="text-base sm:text-lg text-atlas-text-medium mb-4 sm:mb-6 max-w-md mx-auto leading-relaxed">
-                          Your emotionally intelligent productivity assistant is ready to help.
+                          Emotionally intelligent productivity assistant is ready to help.
                         </p>
                         
                         {/* Call to action - Atlas text-muted color */}
@@ -2326,12 +2362,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {/* ✅ Use VoiceUpgradeModal for ALL upgrade scenarios (consistent warm UI) */}
         <ErrorBoundary fallback={
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-2">Upgrade Modal Error</h3>
-              <p className="text-sm text-gray-600 mb-4">There was an issue loading the upgrade modal. Please try again.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Upgrade Modal Error</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">There was an issue loading the upgrade modal. Please try again.</p>
               <button
                 onClick={hideGenericUpgrade}
-                className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+                className="px-4 py-2 bg-atlas-sage dark:bg-gray-700 text-white rounded-md hover:bg-atlas-success dark:hover:bg-gray-600"
               >
                 Close
               </button>
@@ -2351,12 +2387,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {historyData && (
           <ErrorBoundary fallback={
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 max-w-md mx-4">
-                <h3 className="text-lg font-semibold mb-2">Conversation History Error</h3>
-                <p className="text-sm text-gray-600 mb-4">There was an issue loading conversation history. Please try again.</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Conversation History Error</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">There was an issue loading conversation history. Please try again.</p>
                 <button
                   onClick={() => setShowHistory(false)}
-                  className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+                  className="px-4 py-2 bg-atlas-sage dark:bg-gray-700 text-white rounded-md hover:bg-atlas-success dark:hover:bg-gray-600"
                 >
                   Close
                 </button>
@@ -2379,12 +2415,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {userId && (
           <ErrorBoundary fallback={
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 max-w-md mx-4">
-                <h3 className="text-lg font-semibold mb-2">Search Error</h3>
-                <p className="text-sm text-gray-600 mb-4">There was an issue loading search. Please try again.</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Search Error</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">There was an issue loading search. Please try again.</p>
                 <button
                   onClick={() => setShowSearch(false)}
-                  className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+                  className="px-4 py-2 bg-atlas-sage dark:bg-gray-700 text-white rounded-md hover:bg-atlas-success dark:hover:bg-gray-600"
                 >
                   Close
                 </button>
@@ -2404,12 +2440,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {/* Profile Settings Modal */}
         <ErrorBoundary fallback={
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md mx-4">
-              <h3 className="text-lg font-semibold mb-2">Settings Error</h3>
-              <p className="text-sm text-gray-600 mb-4">There was an issue loading settings. Please try again.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Settings Error</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">There was an issue loading settings. Please try again.</p>
               <button
                 onClick={() => setShowProfile(false)}
-                className="px-4 py-2 bg-atlas-sage text-white rounded-md hover:bg-atlas-success"
+                className="px-4 py-2 bg-atlas-sage dark:bg-gray-700 text-white rounded-md hover:bg-atlas-success dark:hover:bg-gray-600"
               >
                 Close
               </button>
@@ -2425,6 +2461,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         {/* ✅ PWA Install Prompt - Shows on mobile for better UX */}
         <PWAInstallPrompt />
+
+        {/* User Questionnaire */}
+        {userId && (
+          <UserQuestionnaire
+            isOpen={showQuestionnaire}
+            onClose={() => setShowQuestionnaire(false)}
+            userId={userId}
+          />
+        )}
         
       </div>
     </ErrorBoundary>

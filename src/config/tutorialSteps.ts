@@ -25,7 +25,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     title: 'Welcome to Atlas!',
-    description: "Your emotionally intelligent productivity AI assistant is ready. Let's get you started.",
+    description: "Emotionally intelligent productivity assistant is ready. Let's get you started.",
     targetSelector: 'body', // Full screen - centered on mobile
     position: {
       desktop: 'bottom',
@@ -79,7 +79,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'complete',
     title: "You're All Set!",
-    description: 'Start chatting with Atlas to begin your journey toward greater emotional intelligence.',
+    description: 'Start chatting with Atlas to begin your journey toward greater emotional intelligence and productivity.',
     targetSelector: 'body', // Full screen
     position: {
       desktop: 'center',

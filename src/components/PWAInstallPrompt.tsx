@@ -206,7 +206,7 @@ export function PWAInstallPrompt() {
       >
         <button
           onClick={() => setShowPrompt(true)}
-          className="bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 text-sm font-medium py-2 px-4 rounded-lg shadow-lg transition-colors"
+          className="bg-[#D3DCAB] hover:bg-[#C5D09F] dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-medium py-2 px-4 rounded-lg shadow-lg transition-colors"
           aria-label="Install Atlas for a full-screen experience"
         >
           Install Atlas
@@ -226,7 +226,7 @@ export function PWAInstallPrompt() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -100 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="fixed top-0 left-0 right-0 z-[100] p-3 sm:p-4 bg-gradient-to-b from-[#F9F6F3] via-[#F9F6F3] to-transparent"
+        className="fixed top-0 left-0 right-0 z-[100] p-3 sm:p-4 bg-gradient-to-b from-[#F9F6F3] dark:from-gray-900 via-[#F9F6F3] dark:via-gray-900 to-transparent"
         style={{
           paddingTop: `max(8px, env(safe-area-inset-top, 8px))`,
         }}
@@ -234,7 +234,7 @@ export function PWAInstallPrompt() {
         role="status"
       >
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#E8DDD2] p-4 flex items-start gap-3 max-w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-[#E8DDD2] dark:border-gray-700 p-4 flex items-start gap-3 max-w-full">
           {/* Icon */}
           <div className="flex-shrink-0 w-12 h-12 bg-[#D3DCAB] rounded-xl flex items-center justify-center">
             <svg

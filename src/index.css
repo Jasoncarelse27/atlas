@@ -11,13 +11,18 @@
 
 /* ✅ FIX: HTML element - prevent layout jumps */
 html {
-  background-color: #F9F6F3;
+  background-color: #f9f6f3; /* Light mode default */
   height: 100dvh; /* Fixed height prevents jumps when browser UI changes */
   min-height: 100dvh;
   overflow: hidden; /* Prevent scroll on html element */
   /* ✅ FIX: Prevent Safari bar animation on scroll */
   overscroll-behavior: none;
   overscroll-behavior-y: none;
+}
+
+/* ✅ DARK MODE: Override html background for dark mode */
+html.dark {
+  background-color: #111827 !important; /* gray-900 - !important to override base html rule */
 }
 
 /* === Viewport height fix for Safari + Chrome Mobile === */
@@ -52,7 +57,7 @@ body {
 /* ✅ FIX: Apply touch-action to all interactive elements to prevent preventDefault() warnings */
 button,
 a,
-[role="button"],
+[role='button'],
 input,
 textarea,
 select {
@@ -191,22 +196,22 @@ body {
 /* Atlas Color CSS Variables - Complete Theme System */
 :root {
   /* Primary Atlas Brand Colors */
-  --atlas-brand: #B2BDA3;
-  --atlas-accent: #F4E5D9;
-  
+  --atlas-brand: #b2bda3;
+  --atlas-accent: #f4e5d9;
+
   /* Core Palette */
   --atlas-sage: #d3dcab;
   --atlas-sand: #cec1b8;
   --atlas-pearl: #f9f6f3;
   --atlas-peach: #f3d3b8;
   --atlas-stone: #978671;
-  
+
   /* UI Colors */
   --atlas-bg: #f9f6f3;
   --atlas-surface: #ffffff;
   --atlas-border: #e8ddd2;
   --atlas-border-sand: #cec1b8;
-  
+
   /* Text Colors */
   --atlas-text-dark: #3b3632;
   --atlas-text-medium: #5a524a;
@@ -214,35 +219,65 @@ body {
   --atlas-text-primary: #222222;
   --atlas-text-secondary: #4a4a4a;
   --atlas-text-subtle: #6b7280;
-  
+
   /* Button Colors */
   --atlas-button: #f0e6dc;
   --atlas-button-hover: #e8ddd2;
-  
+
   /* Accent Colors */
   --atlas-accent-1: #c8956a;
   --atlas-accent-2: #cf9a96;
   --atlas-accent-3: #a67571;
-  
+
   /* Gradient Colors */
   --atlas-gradient-start: #b2bda3;
   --atlas-gradient-end: #f4e5d9;
-  
+
   /* Semantic Colors */
   --atlas-success: #a7c080;
   --atlas-warning: #e8c88e;
   --atlas-error: #d89090;
-  
+
   /* Tier-Specific Colors */
   --atlas-tier-free: #cec1b8;
   --atlas-tier-core: #d3dcab;
   --atlas-tier-studio: #978671;
-  
+
   /* Safe Area Insets (mobile notch/navigation) */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ✅ DARK MODE: CSS Variables override for dark mode */
+html.dark {
+  /* Background Colors */
+  --atlas-bg: #111827; /* gray-900 */
+  --atlas-surface: #1f2937; /* gray-800 */
+  --atlas-pearl: #111827; /* gray-900 */
+
+  /* Border Colors */
+  --atlas-border: #374151; /* gray-700 */
+  --atlas-border-sand: #4b5563; /* gray-600 */
+
+  /* Text Colors */
+  --atlas-text-dark: #f9fafb; /* gray-50 */
+  --atlas-text-medium: #e5e7eb; /* gray-200 */
+  --atlas-text-muted: #9ca3af; /* gray-400 */
+  --atlas-text-primary: #ffffff;
+  --atlas-text-secondary: #d1d5db; /* gray-300 */
+  --atlas-text-subtle: #9ca3af; /* gray-400 */
+
+  /* Button Colors */
+  --atlas-button: #374151; /* gray-700 */
+  --atlas-button-hover: #4b5563; /* gray-600 */
+}
+
+/* ✅ DARK MODE: Body background for dark mode */
+html.dark body {
+  background-color: #111827 !important; /* gray-900 - !important to override any conflicting rules */
+  color: #f9fafb !important; /* gray-50 */
 }
 
 /* ✅ UNIFIED INPUT BAR: Responsive shadow (mobile vs desktop) */
@@ -291,135 +326,137 @@ a[href]:not([class*="button"]):not([class*="btn"]),
 .prose-invert li a,
 .prose div a,
 .prose-invert div a {
-  color: #B2BDA3 !important; /* Atlas sage green - override ANY blue */
+  color: #b2bda3 !important; /* Atlas sage green - override ANY blue */
   text-decoration: underline !important;
-  text-decoration-color: #B2BDA3 !important;
-  -webkit-text-decoration-color: #B2BDA3 !important;
+  text-decoration-color: #b2bda3 !important;
+  -webkit-text-decoration-color: #b2bda3 !important;
 }
 
 /* Force override visited and active link colors */
 .prose a:visited,
 .prose-invert a:visited,
-[class*="prose"] a:visited,
+[class*='prose'] a:visited,
 .prose a[href]:visited,
 .prose-invert a[href]:visited {
-  color: #B2BDA3 !important;
+  color: #b2bda3 !important;
 }
 
 .prose a:active,
 .prose-invert a:active,
-[class*="prose"] a:active,
+[class*='prose'] a:active,
 .prose a[href]:active,
 .prose-invert a[href]:active {
-  color: #A3B295 !important;
+  color: #a3b295 !important;
 }
 
 .prose a:hover,
 .prose-invert a:hover,
-[class*="prose"] a:hover,
-div[class*="message"] a:hover,
-div[class*="Message"] a:hover,
-[id^="message-"] a:hover,
-[class*="MessageRenderer"] a:hover,
-[class*="message-renderer"] a:hover,
-main[aria-label*="chat"] a:hover,
-main[aria-label*="Chat"] a:hover,
-div[role="log"] a:hover,
-div[class*="EnhancedMessageBubble"] a:hover,
-div[class*="enhanced-message-bubble"] a:hover,
-div[class*="chat"] a:hover,
-section[class*="chat"] a:hover,
+[class*='prose'] a:hover,
+div[class*='message'] a:hover,
+div[class*='Message'] a:hover,
+[id^='message-'] a:hover,
+[class*='MessageRenderer'] a:hover,
+[class*='message-renderer'] a:hover,
+main[aria-label*='chat'] a:hover,
+main[aria-label*='Chat'] a:hover,
+div[role='log'] a:hover,
+div[class*='EnhancedMessageBubble'] a:hover,
+div[class*='enhanced-message-bubble'] a:hover,
+div[class*='chat'] a:hover,
+section[class*='chat'] a:hover,
 .markdown a:hover,
-[class*="markdown"] a:hover,
-a[href]:not([class*="button"]):not([class*="btn"]):hover {
-  color: #A3B295 !important; /* Darker sage on hover */
+[class*='markdown'] a:hover,
+a[href]:not([class*='button']):not([class*='btn']):hover {
+  color: #a3b295 !important; /* Darker sage on hover */
   text-decoration: underline !important;
 }
 
 /* ✅ Additional fix: Override Tailwind's default prose link colors */
-.prose a:not([class*="button"]):not([class*="btn"]) {
-  color: #B2BDA3 !important;
+.prose a:not([class*='button']):not([class*='btn']) {
+  color: #b2bda3 !important;
 }
 
-.prose-invert a:not([class*="button"]):not([class*="btn"]) {
-  color: #B2BDA3 !important;
+.prose-invert a:not([class*='button']):not([class*='btn']) {
+  color: #b2bda3 !important;
 }
 
 /* ✅ NUCLEAR OPTION: Target ALL links everywhere in the app with maximum specificity */
 /* This must be at the END of the CSS file to ensure it loads last */
 html body .prose a,
 html body .prose-invert a,
-html body [class*="prose"] a,
-html body div[class*="message"] a,
-html body div[class*="Message"] a,
-html body [id^="message-"] a,
-html body [class*="MessageRenderer"] a,
-html body [class*="message-renderer"] a,
-html body main[aria-label*="chat"] a,
-html body main[aria-label*="Chat"] a,
-html body div[role="log"] a,
-html body div[class*="EnhancedMessageBubble"] a,
-html body div[class*="enhanced-message-bubble"] a,
-html body div[class*="chat"] a,
-html body section[class*="chat"] a,
+html body [class*='prose'] a,
+html body div[class*='message'] a,
+html body div[class*='Message'] a,
+html body [id^='message-'] a,
+html body [class*='MessageRenderer'] a,
+html body [class*='message-renderer'] a,
+html body main[aria-label*='chat'] a,
+html body main[aria-label*='Chat'] a,
+html body div[role='log'] a,
+html body div[class*='EnhancedMessageBubble'] a,
+html body div[class*='enhanced-message-bubble'] a,
+html body div[class*='chat'] a,
+html body section[class*='chat'] a,
 html body .markdown a,
-html body [class*="markdown"] a,
-html body a[href]:not([class*="button"]):not([class*="btn"]):not([class*="nav"]):not([class*="menu"]) {
-  color: #B2BDA3 !important;
-  text-decoration-color: #B2BDA3 !important;
-  -webkit-text-decoration-color: #B2BDA3 !important;
+html body [class*='markdown'] a,
+html
+  body
+  a[href]:not([class*='button']):not([class*='btn']):not([class*='nav']):not([class*='menu']) {
+  color: #b2bda3 !important;
+  text-decoration-color: #b2bda3 !important;
+  -webkit-text-decoration-color: #b2bda3 !important;
 }
 
 html body .prose a:visited,
 html body .prose-invert a:visited,
-html body [class*="prose"] a:visited {
-  color: #B2BDA3 !important;
+html body [class*='prose'] a:visited {
+  color: #b2bda3 !important;
 }
 
 html body .prose a:hover,
 html body .prose-invert a:hover,
-html body [class*="prose"] a:hover {
-  color: #A3B295 !important;
-  text-decoration-color: #A3B295 !important;
-  -webkit-text-decoration-color: #A3B295 !important;
+html body [class*='prose'] a:hover {
+  color: #a3b295 !important;
+  text-decoration-color: #a3b295 !important;
+  -webkit-text-decoration-color: #a3b295 !important;
 }
 
-/* ✅ CRITICAL: Force black text for maximum legibility - highest specificity */
-html body div[class*="EnhancedMessageBubble"] div[style*="color"] {
+/* ✅ CRITICAL: Force black text for maximum legibility - LIGHT MODE ONLY */
+html:not(.dark) body div[class*='EnhancedMessageBubble'] div[style*='color'] {
   color: #000000 !important;
 }
 
-html body div[class*="message"] div[style*="color"] {
+html:not(.dark) body div[class*='message'] div[style*='color'] {
   color: #000000 !important;
 }
 
-html body .prose p,
-html body .prose h1,
-html body .prose h2,
-html body .prose h3,
-html body .prose ul,
-html body .prose ol,
-html body .prose li,
-html body .prose strong,
-html body .prose blockquote,
-html body .prose em {
+html:not(.dark) body .prose p,
+html:not(.dark) body .prose h1,
+html:not(.dark) body .prose h2,
+html:not(.dark) body .prose h3,
+html:not(.dark) body .prose ul,
+html:not(.dark) body .prose ol,
+html:not(.dark) body .prose li,
+html:not(.dark) body .prose strong,
+html:not(.dark) body .prose blockquote,
+html:not(.dark) body .prose em {
   color: #000000 !important;
 }
 
 /* ✅ CRITICAL: Override ANY blue colors in header and footer */
 header a,
 footer a,
-[class*="header"] a,
-[class*="Header"] a,
-[class*="footer"] a,
-[class*="Footer"] a,
+[class*='header'] a,
+[class*='Header'] a,
+[class*='footer'] a,
+[class*='Footer'] a,
 nav a,
-[class*="nav"] a,
-[class*="Nav"] a,
-button[class*="header"],
-button[class*="Header"],
-div[class*="header"] button,
-div[class*="Header"] button {
+[class*='nav'] a,
+[class*='Nav'] a,
+button[class*='header'],
+button[class*='Header'],
+div[class*='header'] button,
+div[class*='Header'] button {
   color: inherit !important;
 }
 
@@ -427,57 +464,57 @@ div[class*="Header"] button {
 /* No backdrop-filter or blur effects to prevent any blue tint */
 
 /* ✅ Prevent any blue links/buttons in header/footer */
-div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"] a,
-div[class*="backdrop-blur-xl"][class*="sticky"][class*="top-0"] button,
-div[class*="fixed"][class*="bottom"][class*="z-30"] a,
-div[class*="fixed"][class*="bottom"][class*="z-30"] button {
+div[class*='backdrop-blur-xl'][class*='sticky'][class*='top-0'] a,
+div[class*='backdrop-blur-xl'][class*='sticky'][class*='top-0'] button,
+div[class*='fixed'][class*='bottom'][class*='z-30'] a,
+div[class*='fixed'][class*='bottom'][class*='z-30'] button {
   color: inherit !important;
 }
 
-/* ✅ Override any blue backgrounds */
-.bg-blue-50,
-.bg-blue-100,
-.bg-blue-200,
-.bg-blue-300,
-.bg-blue-400,
-.bg-blue-500,
-.bg-blue-600,
-.bg-blue-700,
-.bg-blue-800,
-.bg-blue-900,
-[class*="bg-blue"] {
+/* ✅ Override any blue backgrounds - LIGHT MODE ONLY */
+html:not(.dark) .bg-blue-50,
+html:not(.dark) .bg-blue-100,
+html:not(.dark) .bg-blue-200,
+html:not(.dark) .bg-blue-300,
+html:not(.dark) .bg-blue-400,
+html:not(.dark) .bg-blue-500,
+html:not(.dark) .bg-blue-600,
+html:not(.dark) .bg-blue-700,
+html:not(.dark) .bg-blue-800,
+html:not(.dark) .bg-blue-900,
+html:not(.dark) [class*='bg-blue'] {
   background-color: white !important;
   background: white !important;
 }
 
 /* ✅ TEXT SELECTION: Make highlighted text visible with Atlas colors */
 ::selection {
-  background-color: #D3DCAB; /* Atlas sage - light green background */
-  color: #3B3632; /* Dark text for contrast */
-  -webkit-text-fill-color: #3B3632;
+  background-color: #d3dcab; /* Atlas sage - light green background */
+  color: #3b3632; /* Dark text for contrast */
+  -webkit-text-fill-color: #3b3632;
 }
 
 ::-moz-selection {
-  background-color: #D3DCAB; /* Atlas sage - light green background */
-  color: #3B3632; /* Dark text for contrast */
+  background-color: #d3dcab; /* Atlas sage - light green background */
+  color: #3b3632; /* Dark text for contrast */
 }
 
 /* ✅ Ensure selection is visible in chat messages */
 .prose ::selection,
 .prose-invert ::selection,
-[class*="message"] ::selection,
-[class*="Message"] ::selection,
-div[class*="EnhancedMessageBubble"] ::selection {
-  background-color: #D3DCAB !important; /* Atlas sage */
-  color: #3B3632 !important; /* Dark text */
-  -webkit-text-fill-color: #3B3632 !important;
+[class*='message'] ::selection,
+[class*='Message'] ::selection,
+div[class*='EnhancedMessageBubble'] ::selection {
+  background-color: #d3dcab !important; /* Atlas sage */
+  color: #3b3632 !important; /* Dark text */
+  -webkit-text-fill-color: #3b3632 !important;
 }
 
 .prose ::-moz-selection,
 .prose-invert ::-moz-selection,
-[class*="message"] ::-moz-selection,
-[class*="Message"] ::-moz-selection,
-div[class*="EnhancedMessageBubble"] ::-moz-selection {
-  background-color: #D3DCAB !important; /* Atlas sage */
-  color: #3B3632 !important; /* Dark text */
+[class*='message'] ::-moz-selection,
+[class*='Message'] ::-moz-selection,
+div[class*='EnhancedMessageBubble'] ::-moz-selection {
+  background-color: #d3dcab !important; /* Atlas sage */
+  color: #3b3632 !important; /* Dark text */
 }

@@ -1,5 +1,5 @@
-import React from 'react';
 import { Loader2 } from 'lucide-react';
+import React from 'react';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -45,7 +45,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   };
 
   return (
-    <div className={`flex items-center justify-center min-h-screen bg-[#F9F6F3] space-x-2 ${className}`}>
+    <div className={`flex items-center justify-center min-h-screen bg-[#F9F6F3] dark:bg-gray-900 space-x-2 ${className}`}>
       <Loader2 className={`animate-spin ${getSizeClasses()} ${getColorClasses()}`} />
       {text && (
         <span className={`${getColorClasses()} ${getTextSizeClasses()} font-medium`}>

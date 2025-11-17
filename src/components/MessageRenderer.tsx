@@ -15,15 +15,14 @@ const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       <div
         className={`
-          max-w-[80%] px-4 py-3 rounded-2xl
+          ${isUser ? 'max-w-[80%] px-4 py-3 rounded-2xl' : ''}
           ${isUser 
-            ? 'bg-[#F4E5D9] text-black rounded-br-md' 
+            ? 'bg-[#F4E5D9] dark:bg-gray-700 text-black dark:text-white rounded-br-md shadow-sm dark:shadow-gray-900/50' 
             : hasError 
-              ? 'bg-red-100 text-red-800 border border-red-200'
-              : 'bg-[#B2BDA3] text-white rounded-bl-md'
+              ? 'px-4 py-3 rounded-2xl bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+              : 'text-black dark:text-white'
           }
           ${isStreaming ? 'animate-pulse' : ''}
-          shadow-sm
         `}
       >
         {hasError ? (

@@ -476,7 +476,7 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             initial="hidden"
             animate="show"
             exit="exit"
-            className="fixed w-[280px] sm:w-[340px] max-w-[calc(100vw-16px)] rounded-3xl bg-gradient-to-br from-atlas-pearl to-atlas-peach shadow-2xl border-2 border-atlas-sand p-6 sm:p-8"
+            className="fixed w-[280px] sm:w-[340px] max-w-[calc(100vw-16px)] rounded-3xl bg-gradient-to-br from-atlas-pearl to-atlas-peach dark:from-gray-800 dark:to-gray-900 shadow-2xl border-2 border-atlas-sand dark:border-gray-700 p-6 sm:p-8"
             style={{
               top: `${displayPosition.top}px`,
               left: `${displayPosition.left}px`,
@@ -558,8 +558,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             }}
             className={`relative flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
               isUploading || !canUseImage
-                ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-                : 'bg-gradient-to-br from-atlas-sage/30 to-atlas-peach/20 border-atlas-sage/50 hover:border-atlas-sage shadow-lg hover:shadow-xl'
+                ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-60' 
+                : 'bg-gradient-to-br from-atlas-sage/30 to-atlas-peach/20 dark:from-gray-700/50 dark:to-gray-800/50 border-atlas-sage/50 dark:border-gray-600 hover:border-atlas-sage dark:hover:border-gray-500 shadow-lg hover:shadow-xl'
             }`}
             aria-label={canUseImage ? "Choose photos or videos from gallery" : "Upgrade to Core or Studio to upload images"}
             aria-disabled={isUploading || !canUseImage}
@@ -586,8 +586,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                 </motion.div>
               )}
             </motion.div>
-            <span className="text-xs sm:text-sm font-semibold text-gray-900">Photo</span>
-            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
+            <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Photo</span>
+            <span className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 hidden sm:block">
               {!canUseImage ? 'Upgrade' : 'Gallery'}
             </span>
           </motion.button>
@@ -601,8 +601,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             onClick={handleCameraClick}
             className={`relative flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
               isUploading || !canUseCamera
-                ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-                : 'bg-white/80 hover:bg-atlas-peach/30 border-atlas-sand hover:border-atlas-sage shadow-md hover:shadow-lg'
+                ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-60' 
+                : 'bg-white/80 dark:bg-gray-800/80 hover:bg-atlas-peach/30 dark:hover:bg-gray-700/50 border-atlas-sand dark:border-gray-700 hover:border-atlas-sage dark:hover:border-gray-600 shadow-md hover:shadow-lg'
             }`}
             aria-label={canUseCamera ? "Take photo with camera" : "Upgrade to Studio to use camera"}
             aria-disabled={isUploading || !canUseCamera}
@@ -627,8 +627,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                 </motion.div>
               )}
             </motion.div>
-            <span className="text-xs sm:text-sm font-semibold text-gray-900">Camera</span>
-            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
+            <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">Camera</span>
+            <span className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 hidden sm:block">
               {!canUseCamera ? 'Studio' : 'Capture'}
             </span>
           </motion.button>
@@ -642,8 +642,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
             onClick={handleFileClick}
             className={`relative flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-5 rounded-2xl transition-all duration-200 border-2 group ${
               isUploading || !canUseFile
-                ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-                : 'bg-white/80 hover:bg-atlas-peach/30 border-atlas-sand hover:border-atlas-sage shadow-md hover:shadow-lg'
+                ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-60' 
+                : 'bg-white/80 dark:bg-gray-800/80 hover:bg-atlas-peach/30 dark:hover:bg-gray-700/50 border-atlas-sand dark:border-gray-700 hover:border-atlas-sage dark:hover:border-gray-600 shadow-md hover:shadow-lg'
             }`}
             aria-label={canUseFile ? "Attach files, documents, or PDFs" : "Upgrade to Core or Studio to upload files"}
             aria-disabled={isUploading || !canUseFile}
@@ -668,8 +668,8 @@ const AttachmentMenu: React.FC<AttachmentMenuProps> = ({
                 </motion.div>
               )}
             </motion.div>
-            <span className="text-xs sm:text-sm font-semibold text-gray-900">File</span>
-            <span className="text-[10px] sm:text-xs text-gray-600 hidden sm:block">
+            <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">File</span>
+            <span className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 hidden sm:block">
               {!canUseFile ? 'Upgrade' : 'Upload'}
             </span>
           </motion.button>

@@ -180,7 +180,7 @@ const Background: React.FC = () => {
       window.removeEventListener('resize', createStars);
       observer.disconnect();
     };
-  }, []);
+  }, [isDarkMode]); // ✅ Watch for theme changes
 
   return (
     <canvas 

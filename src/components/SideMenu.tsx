@@ -159,12 +159,12 @@ const SideMenu: React.FC<SideMenuProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-[#F9F6F3] shadow-xl z-50 flex flex-col"
+            className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-[#F9F6F3] dark:bg-gray-900 shadow-xl z-50 flex flex-col transition-colors duration-200"
             style={{ filter: 'none', backdropFilter: 'none' }}
           >
             {/* Header */}
             <div className="p-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-[#3B3632]">Menu</h2>
+              <h2 className="text-xl font-bold text-[#3B3632] dark:text-white">Menu</h2>
               <button
                 onClick={handleClose}
                 className="p-2 text-atlas-stone/70 hover:text-atlas-stone hover:bg-atlas-sand/30 rounded-full transition-colors"
@@ -191,8 +191,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   
                   {/* Subscription Info - Current Tier */}
                   {profile && (
-                    <div className="mt-4 p-4 bg-white/50 rounded-xl">
-                      <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-2 flex items-center justify-between">
+                     <div className="mt-4 p-4 bg-white/50 dark:bg-gray-800/50 rounded-xl">
+                       <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                         <span>Current Tier</span>
                         <span className="text-xs font-normal text-[#8B7E74]/70">{TIER_CONFIGS_IMPORT[profile.tier]?.displayName || 'Atlas Free'}</span>
                       </h3>
@@ -205,24 +205,24 @@ const SideMenu: React.FC<SideMenuProps> = ({
                           }`} />
                         </div>
                         <div className="text-center">
-                          <div className="font-semibold text-[#3B3632]">
-                            {TIER_CONFIGS_IMPORT[profile.tier]?.displayName || 'Atlas Free'}
-                          </div>
-                          {TIER_CONFIGS_IMPORT[profile.tier]?.limits.text_messages_per_month === -1 ? (
-                            <>
-                              <div className="text-sm text-[#8B7E74]">Unlimited Messages</div>
-                              {profile.tier === 'studio' && (
-                                <div className="text-sm text-[#8B7E74]">All features unlocked</div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-sm text-[#8B7E74]">
-                                {profile.usage_stats?.text_messages_this_month || 0} / {TIER_CONFIGS_IMPORT[profile.tier]?.limits.text_messages_per_month || 15} messages
-                              </div>
-                              <div className="text-xs text-[#8B7E74]/70 mt-1">
-                                {TIER_CONFIGS_IMPORT[profile.tier]?.price || '$0/month'}
-                              </div>
+                           <div className="font-semibold text-[#3B3632] dark:text-white">
+                              {TIER_CONFIGS_IMPORT[profile.tier]?.displayName || 'Atlas Free'}
+                            </div>
+                            {TIER_CONFIGS_IMPORT[profile.tier]?.limits.text_messages_per_month === -1 ? (
+                              <>
+                               <div className="text-sm text-[#8B7E74] dark:text-gray-400">Unlimited Messages</div>
+                                {profile.tier === 'studio' && (
+                                 <div className="text-sm text-[#8B7E74] dark:text-gray-400">All features unlocked</div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                               <div className="text-sm text-[#8B7E74] dark:text-gray-400">
+                                  {profile.usage_stats?.text_messages_this_month || 0} / {TIER_CONFIGS_IMPORT[profile.tier]?.limits.text_messages_per_month || 15} messages
+                                </div>
+                               <div className="text-xs text-[#8B7E74]/70 dark:text-gray-500 mt-1">
+                                  {TIER_CONFIGS_IMPORT[profile.tier]?.price || '$0/month'}
+                                </div>
                             </>
                           )}
                         </div>
@@ -231,14 +231,14 @@ const SideMenu: React.FC<SideMenuProps> = ({
                   )}
                   
                   {/* Emotional Insights */}
-                  <div className="mt-4 p-4 bg-white/50 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-[#B8A5D6]/30 flex items-center justify-center">
-                        <TrendingUp className="w-4 h-4 text-[#8B7AB8]" />
+                   <div className="mt-4 p-4 bg-white/50 dark:bg-gray-800/50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-[#B8A5D6]/30 flex items-center justify-center">
+                          <TrendingUp className="w-4 h-4 text-[#8B7AB8]" />
+                        </div>
+                       <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider">Emotional Insights</h3>
                       </div>
-                      <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider">Emotional Insights</h3>
-                    </div>
-                    <div className="text-sm text-[#5A524A] text-center py-8">
+                     <div className="text-sm text-[#5A524A] dark:text-gray-500 text-center py-8">
                       Track your emotional patterns and conversation insights
                     </div>
                   </div>
@@ -247,7 +247,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               
               {/* Mode Selection */}
               <div className="p-4">
-                <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Mode</h3>
+                 <h3 className="text-sm font-medium text-atlas-stone/70 dark:text-gray-400 uppercase tracking-wider mb-3">Mode</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleModeChange('text')}
@@ -290,7 +290,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               {/* Usage Stats */}
               {profile && (
                 <div className="p-4">
-                  <h3 className="text-sm font-medium text-atlas-stone/70 uppercase tracking-wider mb-3">Usage</h3>
+                   <h3 className="text-sm font-medium text-atlas-stone/70 dark:text-gray-400 uppercase tracking-wider mb-3">Usage</h3>
                   
                   <div className="space-y-3">
                     {/* Requests */}
@@ -372,7 +372,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               
               {/* Quick Actions */}
               <div className="p-4">
-                <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Quick Actions</h3>
+                 <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleAction(() => {
@@ -421,7 +421,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               
               {/* Theme Settings */}
               <div className="p-4">
-                <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Theme</h3>
+                 <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider mb-3">Theme</h3>
                 <ThemeToggle 
                   themeMode={themeMode}
                   onThemeChange={onThemeChange}
@@ -432,7 +432,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               
               {/* Settings */}
               <div className="p-4">
-                <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Settings</h3>
+                 <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider mb-3">Settings</h3>
                 <div className="space-y-3">
                   {/* Audio Toggle */}
                   <div className="flex items-center justify-between">
@@ -496,7 +496,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
               </button>
               
               {/* Version Info */}
-              <div className="mt-3 text-center text-xs text-[#8B7E74]/50">
+               <div className="mt-3 text-center text-xs text-[#8B7E74]/50 dark:text-gray-500">
                 Atlas 2.0 • Version 2025.06.1
               </div>
             </div>

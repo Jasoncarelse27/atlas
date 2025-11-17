@@ -10,13 +10,12 @@ import '../../styles/voice-animations.css';
 import type { Message } from '../../types/chat';
 // Removed useMessageStore import - using props from parent component
 import { logger } from '../../lib/logger';
-import { voiceService } from '../../services/voiceService';
-import { isAudioRecordingSupported } from '../../utils/audioHelpers';
-import { generateUUID } from '../../utils/uuid';
-import { validateImageFile } from '../../utils/imageCompression';
-import { imageService } from '../../services/imageService';
-import { validateFile, getFileTypeName, getFileTypeCategory } from '../../utils/fileValidation';
 import { fileService } from '../../services/fileService';
+import { imageService } from '../../services/imageService';
+import { isAudioRecordingSupported } from '../../utils/audioHelpers';
+import { getFileTypeCategory, getFileTypeName, validateFile } from '../../utils/fileValidation';
+import { validateImageFile } from '../../utils/imageCompression';
+import { generateUUID } from '../../utils/uuid';
 import AttachmentMenu from './AttachmentMenu';
 
 // ✅ DEBUG: Conditional logging (dev only)
@@ -1029,7 +1028,7 @@ const EnhancedInputToolbar = React.memo(({
         <div className="mb-3 px-4 sm:px-6">
           {/* Subtle Hint */}
           <div className="flex items-center gap-2 mb-2 px-1 max-w-4xl mx-auto">
-            <span className="text-xs text-gray-400">Add an optional caption below</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Add an optional caption below</span>
           </div>
           
           <div className="flex flex-wrap gap-2 max-w-4xl mx-auto">
@@ -1041,7 +1040,7 @@ const EnhancedInputToolbar = React.memo(({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center justify-between rounded-2xl bg-white/90 border border-atlas-sand/30 p-2 mt-2 transition-all max-w-[90vw]"
+                  className="flex items-center justify-between rounded-2xl bg-white/90 dark:bg-gray-800/90 border border-atlas-sand/30 dark:border-gray-700 p-2 mt-2 transition-all max-w-[90vw]"
                 >
                   <div className="flex items-center space-x-3">
                     {attachment.type === 'image' && (
@@ -1068,12 +1067,12 @@ const EnhancedInputToolbar = React.memo(({
                       </div>
                     )}
                     {attachment.type === 'file' && !attachment.file && (
-                      <FileText className="w-4 h-4 text-neutral-400" />
+                      <FileText className="w-4 h-4 text-neutral-400 dark:text-gray-500" />
                     )}
                     {attachment.type === 'image' && (
-                      <Image className="w-4 h-4 text-neutral-400" />
+                      <Image className="w-4 h-4 text-neutral-400 dark:text-gray-500" />
                     )}
-                    <span className="text-sm text-neutral-200 truncate">
+                    <span className="text-sm text-neutral-200 dark:text-gray-300 truncate">
                       {attachment.type === 'file' && attachment.file
                         ? getFileTypeName(attachment.file)
                         : attachment.name || attachment.file?.name || (attachment.type === 'image' ? 'Image' : 'File')}
@@ -1089,8 +1088,8 @@ const EnhancedInputToolbar = React.memo(({
                     )}
                     {status === 'uploading' && (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
-                        <span className="text-xs text-neutral-400">Uploading...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-neutral-400 dark:text-gray-500" />
+                        <span className="text-xs text-neutral-400 dark:text-gray-500">Uploading...</span>
                       </>
                     )}
                     {status === 'processing' && (
@@ -1178,11 +1177,11 @@ const EnhancedInputToolbar = React.memo(({
                     
                     <button
                       onClick={() => removeAttachment(attachment.id)}
-                      className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                      className="p-1 rounded-full hover:bg-white/10 dark:hover:bg-gray-700/50 transition-colors"
                       title="Remove attachment"
                       aria-label="Remove attachment"
                     >
-                      <X className="w-4 h-4 text-neutral-400" />
+                      <X className="w-4 h-4 text-neutral-400 dark:text-gray-500" />
                     </button>
                   </div>
                 </motion.div>
@@ -1214,14 +1213,14 @@ const EnhancedInputToolbar = React.memo(({
         >
           <div className={`flex items-center space-x-3 rounded-full px-6 py-3.5 shadow-2xl border backdrop-blur-md ${
             isProcessingAudio 
-              ? 'bg-white/95 border-gray-300/50' 
-              : 'bg-red-500/95 border-red-400/50'
+              ? 'bg-white/95 dark:bg-gray-800/95 border-gray-300/50 dark:border-gray-600/50' 
+              : 'bg-red-500/95 dark:bg-red-600/95 border-red-400/50 dark:border-red-500/50'
           }`}>
             {/* ✅ IMPROVED: Pulsing animation - more professional */}
             {isListening && (
               <div className="relative flex items-center justify-center">
-                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-                <div className="absolute w-3 h-3 bg-white rounded-full animate-ping"></div>
+                <div className="w-3 h-3 bg-white dark:bg-gray-200 rounded-full animate-pulse"></div>
+                <div className="absolute w-3 h-3 bg-white dark:bg-gray-200 rounded-full animate-ping"></div>
               </div>
             )}
             
@@ -1235,7 +1234,7 @@ const EnhancedInputToolbar = React.memo(({
             {/* ✅ IMPROVED: Clear status text - dark grey for better visibility */}
             <span className={`font-medium text-sm sm:text-base whitespace-nowrap ${
               isProcessingAudio 
-                ? 'text-gray-700' 
+                ? 'text-gray-700 dark:text-gray-200' 
                 : 'text-white'
             }`}>
               {isProcessingAudio 
@@ -1248,7 +1247,7 @@ const EnhancedInputToolbar = React.memo(({
             {isListening && (
               <button
                 onClick={handleCancelRecording}
-                className="ml-2 p-1.5 rounded-full hover:bg-white/20 active:bg-white/30 transition-colors touch-manipulation"
+                className="ml-2 p-1.5 rounded-full hover:bg-white/20 dark:hover:bg-gray-700/50 active:bg-white/30 dark:active:bg-gray-600/50 transition-colors touch-manipulation"
                 title="Cancel recording"
                 aria-label="Cancel recording"
               >
@@ -1267,7 +1266,7 @@ const EnhancedInputToolbar = React.memo(({
           exit={{ opacity: 0, y: -10 }}
           className="w-full max-w-4xl mx-auto px-2 sm:px-4 mb-2"
         >
-          <div className="flex flex-wrap gap-2 p-2 bg-white/50 backdrop-blur-sm rounded-xl border border-atlas-sand/30">
+          <div className="flex flex-wrap gap-2 p-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-atlas-sand/30 dark:border-gray-700">
             {attachmentPreviews.map((att) => (
               <motion.div
                 key={att.id}
@@ -1344,9 +1343,10 @@ const EnhancedInputToolbar = React.memo(({
           unified-input-bar
           flex items-center w-full max-w-4xl mx-auto px-2 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 
           rounded-[2rem] sm:rounded-[2rem]
-          bg-white/70 backdrop-blur-md shadow-lg mb-0
+          bg-white/70 dark:bg-gray-800/70 backdrop-blur-md shadow-lg mb-0
           sm:bg-gradient-to-r sm:from-atlas-pearl sm:via-atlas-peach sm:to-atlas-pearl
-          sm:backdrop-blur-0 sm:border-2 sm:border-atlas-sand sm:shadow-lg sm:mb-2
+          dark:sm:from-gray-800 dark:sm:via-gray-800 dark:sm:to-gray-800
+          sm:backdrop-blur-0 sm:border-2 sm:border-atlas-sand dark:sm:border-gray-700 sm:shadow-lg sm:mb-2
         "
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -1551,7 +1551,7 @@ const EnhancedInputToolbar = React.memo(({
                     ? (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? "Add a caption..." : "Add a caption (optional)...")
                     : placeholder
                 }
-                className="flex-1 w-full bg-transparent sm:bg-white/95 text-gray-900 placeholder-atlas-text-muted focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out shadow-sm"
+                className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand dark:border-gray-700 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out shadow-sm"
                 style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
                 disabled={isProcessing || disabled}
                 autoComplete="off"
@@ -1592,7 +1592,7 @@ const EnhancedInputToolbar = React.memo(({
                     ? 'bg-blue-500 text-white'
                     : isPressHoldActive
                     ? 'bg-red-400 text-white scale-95'
-                    : 'bg-atlas-sand hover:bg-atlas-stone text-gray-700'
+                    : 'bg-atlas-sand hover:bg-atlas-stone text-gray-700 dark:text-gray-300'
                 }`}
                 style={{ 
                   WebkitTapHighlightColor: 'transparent',

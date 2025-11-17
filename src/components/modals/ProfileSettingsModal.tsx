@@ -1,9 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Calendar, Eye, Loader2, Lock, LogOut, Minimize2, Moon, Sparkles, Trash2, Volume2, X } from 'lucide-react';
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { logger } from '../../lib/logger';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
+import { useThemeMode } from '../../hooks/useThemeMode';
+import { logger } from '../../lib/logger';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -15,13 +16,26 @@ interface ProfileSettingsModalProps {
 
 export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSettingsModalProps) {
   const { user, tier } = useSupabaseAuth();
+  
+  // ✅ FIX: Use useThemeMode for theme (single source of truth - syncs DOM + DB)
+  const { isDarkMode, toggleTheme } = useThemeMode();
+  
+  // ✅ FIX: Force re-render when theme changes (ensures toggle switch updates visually)
+  const [, forceUpdate] = useState({});
+  useEffect(() => {
+    const handleThemeChange = () => {
+      forceUpdate({});
+    };
+    window.addEventListener('themechange', handleThemeChange);
+    return () => window.removeEventListener('themechange', handleThemeChange);
+  }, []);
+  
+  // Keep other settings from useSettingsStore (privacy, accessibility)
   const {
-    theme,
     privacyMode,
     reduceMotion,
     increaseContrast,
     screenReader,
-    toggleTheme,
     togglePrivacy,
     toggleReduceMotion,
     toggleIncreaseContrast,
@@ -67,9 +81,10 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <motion.div key="profile-modal-root">
           {/* Backdrop */}
           <motion.div
+            key="modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -79,6 +94,7 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
 
           {/* Modal */}
           <motion.div
+            key="modal-panel"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -86,25 +102,25 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-md bg-[#F9F6F3] rounded-2xl shadow-2xl border border-[#E8DDD2] overflow-hidden">
+            <div className="w-full max-w-md bg-[#F9F6F3] dark:bg-gray-900 rounded-2xl shadow-2xl border border-[#E8DDD2] dark:border-gray-700 overflow-hidden transition-colors duration-200">
               {/* Header */}
-              <div className="p-6 border-b border-[#E8DDD2] bg-white">
+              <div className="p-6 border-b border-[#E8DDD2] dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors duration-200">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] flex items-center justify-center text-2xl font-semibold text-gray-900">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#B2BDA3] to-[#F4E5D9] dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-2xl font-semibold text-gray-900 dark:text-white">
                       {user?.email?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-[#3B3632]">Profile</h2>
-                      <p className="text-sm text-[#8B7E74]">{user?.email}</p>
+                      <h2 className="text-lg font-semibold text-[#3B3632] dark:text-white">Profile</h2>
+                      <p className="text-sm text-[#8B7E74] dark:text-gray-400">{user?.email}</p>
                     </div>
                   </div>
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-xl bg-[#F0E6DC] hover:bg-[#E8DDD2] transition-colors"
+                    className="p-2 rounded-xl bg-[#F0E6DC] dark:bg-gray-700 hover:bg-[#E8DDD2] dark:hover:bg-gray-600 transition-colors"
                     aria-label="Close profile"
                   >
-                    <X className="w-5 h-5 text-[#8B7E74]" />
+                    <X className="w-5 h-5 text-[#8B7E74] dark:text-gray-400" />
                   </button>
                 </div>
               </div>
@@ -114,10 +130,11 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
                 {/* Appearance Section */}
                 <Section title="Appearance">
                   <ToggleItem
+                    key={`dark-mode-toggle-${isDarkMode}`}
                     icon={<Moon className="w-5 h-5" />}
                     label="Dark Mode"
                     description="Switch between light and dark themes"
-                    checked={theme === 'dark'}
+                    checked={isDarkMode}
                     onChange={toggleTheme}
                   />
                 </Section>
@@ -180,10 +197,10 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
 
                 {/* Account Section */}
                 <Section title="Account">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-[#E8DDD2]">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 transition-colors duration-200">
                     <div>
-                      <p className="text-sm font-medium text-[#3B3632]">Subscription Tier</p>
-                      <p className="text-xs text-[#8B7E74] mt-1">{getTierDisplay(tier)}</p>
+                      <p className="text-sm font-medium text-[#3B3632] dark:text-white">Subscription Tier</p>
+                      <p className="text-xs text-[#8B7E74] dark:text-gray-400 mt-1">{getTierDisplay(tier)}</p>
                     </div>
                     <div className="px-3 py-1 rounded-full bg-[#B8A5D6]/20 border border-[#B8A5D6]/30">
                       <span className="text-xs font-semibold text-[#8B7AB8]">{tier?.toUpperCase() || 'FREE'}</span>
@@ -212,29 +229,32 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
                   >
                     <LogOut className="w-5 h-5 text-[#A67571]" />
                     <div className="text-left">
-                      <p className="text-sm font-medium text-[#3B3632]">Sign Out</p>
-                      <p className="text-xs text-[#8B7E74]">End your session</p>
+                      <p className="text-sm font-medium text-[#3B3632] dark:text-white">Sign Out</p>
+                      <p className="text-xs text-[#8B7E74] dark:text-gray-400">End your session</p>
                     </div>
                   </button>
                 </Section>
               </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
       
       {/* ✅ Clear All Data Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={showClearDataConfirm}
-        onClose={() => setShowClearDataConfirm(false)}
-        onConfirm={confirmClearData}
-        title="Clear All Data"
-        message="This will clear all local conversations and cache. Your account data is safe on the server. This action cannot be undone."
-        confirmLabel="Clear All Data"
-        cancelLabel="Cancel"
-        variant="destructive"
-        isLoading={isClearingData}
-      />
+      {showClearDataConfirm && (
+        <ConfirmDialog
+          key="confirm-dialog"
+          isOpen={showClearDataConfirm}
+          onClose={() => setShowClearDataConfirm(false)}
+          onConfirm={confirmClearData}
+          title="Clear All Data"
+          message="This will clear all local conversations and cache. Your account data is safe on the server. This action cannot be undone."
+          confirmLabel="Clear All Data"
+          cancelLabel="Cancel"
+          variant="destructive"
+          isLoading={isClearingData}
+        />
+      )}
     </AnimatePresence>
   );
 }
@@ -243,7 +263,7 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-semibold text-[#8B7E74] uppercase tracking-wider">{title}</h3>
+      <h3 className="text-xs font-semibold text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider">{title}</h3>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -260,32 +280,76 @@ interface ToggleItemProps {
 }
 
 function ToggleItem({ icon, label, description, checked, onChange, disabled, comingSoon }: ToggleItemProps) {
+  // ✅ FIX: Use local state to ensure checkbox updates immediately
+  const [isChecked, setIsChecked] = React.useState(checked);
+  
+  // ✅ FIX: Sync local state with prop changes
+  useEffect(() => {
+    setIsChecked(checked);
+  }, [checked]);
+  
+  // ✅ BEST PRACTICE: Handle toggle via onChange only (let browser handle click/touch naturally)
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ✅ BEST PRACTICE: Don't prevent default - let checkbox handle its own state
+    if (!disabled && !comingSoon) {
+      const newChecked = e.target.checked;
+      setIsChecked(newChecked); // Update local state immediately
+      logger.debug(`[ToggleItem] Toggle changed for ${label}, calling onChange`);
+      onChange();
+    }
+  };
+
+  // ✅ BEST PRACTICE: Handle label click separately (prevents double-firing)
+  const handleLabelClick = (e: React.MouseEvent<HTMLLabelElement>) => {
+    // Only prevent default if disabled/coming soon (prevents checkbox activation)
+    if (disabled || comingSoon) {
+      e.preventDefault();
+    }
+    // Otherwise, let the label's natural behavior trigger the input
+  };
+
   return (
-    <div className={`flex items-center justify-between p-4 rounded-xl bg-white border border-[#E8DDD2] ${disabled ? 'opacity-60' : ''}`}>
+    <div className={`flex items-center justify-between p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 transition-colors duration-200 ${disabled ? 'opacity-60' : ''}`}>
       <div className="flex items-center gap-3 flex-1">
-        <div className="text-[#8B7E74]">{icon}</div>
+        <div className="text-[#8B7E74] dark:text-gray-400">{icon}</div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-[#3B3632]">{label}</p>
+            <p className="text-sm font-medium text-[#3B3632] dark:text-white">{label}</p>
             {comingSoon && (
               <span className="px-2 py-0.5 text-xs font-medium bg-[#8FA67E]/20 text-[#8FA67E] rounded-full border border-[#8FA67E]/30">
                 Coming Soon
               </span>
             )}
           </div>
-          <p className="text-xs text-[#8B7E74] mt-0.5">{description}</p>
+          <p className="text-xs text-[#8B7E74] dark:text-gray-400 mt-0.5">{description}</p>
         </div>
       </div>
       
-      <label className="relative inline-flex items-center cursor-pointer">
+      <label 
+        className="relative inline-flex items-center cursor-pointer"
+        onClick={handleLabelClick}
+        htmlFor={`toggle-${label.replace(/\s+/g, '-').toLowerCase()}`}
+      >
         <input
+          id={`toggle-${label.replace(/\s+/g, '-').toLowerCase()}`}
           type="checkbox"
-          checked={checked}
-          onChange={onChange}
-          disabled={disabled}
+          checked={isChecked}
+          onChange={handleChange}
+          disabled={disabled || comingSoon}
           className="sr-only peer"
+          aria-label={label}
+          aria-describedby={`toggle-desc-${label.replace(/\s+/g, '-').toLowerCase()}`}
+          role="switch"
+          aria-checked={isChecked}
         />
-        <div className="w-11 h-6 bg-[#E8DDD2] peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#8FA67E]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#E8DDD2] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#8FA67E] disabled:opacity-50 disabled:cursor-not-allowed"></div>
+        <div className={`w-11 h-6 rounded-full transition-all duration-200 ${
+          isChecked 
+            ? 'bg-[#8FA67E] dark:bg-gray-600' 
+            : 'bg-[#E8DDD2] dark:bg-gray-700'
+        } peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#8FA67E]/20 dark:peer-focus:ring-gray-500/20 peer-focus-visible:ring-4 peer-focus-visible:ring-[#8FA67E]/20 dark:peer-focus-visible:ring-gray-500/20 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-200 after:border-[#E8DDD2] dark:after:border-gray-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+          isChecked ? 'after:translate-x-full' : 'after:translate-x-0'
+        } disabled:opacity-50 disabled:cursor-not-allowed`}></div>
+        <span id={`toggle-desc-${label.replace(/\s+/g, '-').toLowerCase()}`} className="sr-only">{description}</span>
       </label>
     </div>
   );

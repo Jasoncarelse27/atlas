@@ -100,17 +100,17 @@ export const RitualRunView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] flex items-center justify-center">
-        <div className="text-[#8B7E74] text-lg">Loading ritual...</div>
+      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-[#8B7E74] dark:text-gray-400 text-lg">Loading ritual...</div>
       </div>
     );
   }
 
   if (!ritual) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-[#3B3632] text-xl font-semibold mb-4">Ritual not found</div>
+          <div className="text-[#3B3632] dark:text-white text-xl font-semibold mb-4">Ritual not found</div>
           <button
             onClick={() => navigate('/rituals')}
             className="px-6 py-2 bg-[#C8956A] text-white rounded-lg hover:bg-[#B8855A] transition-colors"
@@ -303,21 +303,21 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
   // PRE-RITUAL: Mood selection
   if (!hasStarted) {
     return (
-      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6 overscroll-contain">
+      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 overscroll-contain">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <button
                 onClick={handleExit}
-                className="p-2 rounded-lg hover:bg-white/50 transition-colors"
+                className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-800/50 transition-colors"
                 aria-label="Back to library"
               >
-                <ArrowLeft className="w-6 h-6 text-[#3B3632]" />
+                <ArrowLeft className="w-6 h-6 text-[#3B3632] dark:text-white" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-[#3B3632]">{ritual.title}</h1>
-                <p className="text-[#8B7E74]">
+                <h1 className="text-2xl font-bold text-[#3B3632] dark:text-white">{ritual.title}</h1>
+                <p className="text-[#8B7E74] dark:text-gray-400">
                   {ritual.steps.length} steps • {Math.ceil(ritual.steps.reduce((sum, step) => sum + step.duration, 0) / 60)} min
                 </p>
               </div>
@@ -326,29 +326,29 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             {/* Back to Chat Button - Mobile Optimized */}
             <button
               onClick={() => navigate('/chat')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/80 hover:bg-white border-2 border-[#E8DCC8] 
+              className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 
                 rounded-xl transition-all hover:shadow-md active:scale-95
                 min-h-[44px] touch-manipulation" // 44px minimum touch target
               aria-label="Back to chat"
             >
-              <MessageCircle className="w-5 h-5 text-[#8B7E74]" />
-              <span className="hidden sm:inline text-[#3B3632] font-medium">Chat</span>
+              <MessageCircle className="w-5 h-5 text-[#8B7E74] dark:text-gray-400" />
+              <span className="hidden sm:inline text-[#3B3632] dark:text-white font-medium">Chat</span>
             </button>
           </div>
 
           {/* Mood Selection - Mobile Optimized */}
-          <div className="bg-white/80 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg safe-area-inset">
+          <div className="bg-white/80 dark:bg-gray-800/80 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg safe-area-inset">
             {/* Animated Mood Display */}
             <div className="flex flex-col items-center mb-6 sm:mb-8 py-4 sm:py-6">
-              <h2 className="text-xl sm:text-2xl font-semibold text-[#3B3632] mb-4 sm:mb-6 text-center px-2">
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#3B3632] dark:text-white mb-4 sm:mb-6 text-center px-2">
                 How Do You Feel Today?
               </h2>
               
               <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 flex items-center justify-center mb-4">
                 {/* Animated ripples */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 opacity-20 animate-ripple" />
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 opacity-40 animate-ripple" style={{ animationDelay: '0.5s' }} />
-                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-purple-50 to-pink-50 opacity-30 animate-ripple" style={{ animationDelay: '1s' }} />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 opacity-20 animate-ripple" />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 opacity-40 animate-ripple" style={{ animationDelay: '0.5s' }} />
+                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 opacity-30 animate-ripple" style={{ animationDelay: '1s' }} />
                 
                 {/* Main animated emoji */}
                 <div 
@@ -359,7 +359,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                 </div>
               </div>
               
-              <p className="text-base sm:text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center px-2">
+              <p className="text-base sm:text-lg md:text-xl font-medium text-[#8B7E74] dark:text-gray-400 transition-all duration-300 text-center px-2">
                 {MOOD_OPTIONS.find(m => m.value === selectedMoodBefore)?.label || 'Select your mood below'}
               </p>
             </div>
@@ -377,16 +377,16 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                   className={`mood-button p-4 sm:p-5 rounded-xl ${mood.color} border-2 
                     min-h-[110px] sm:min-h-[120px] md:min-h-[130px] touch-manipulation
                     transition-all duration-200 active:scale-95
-                    focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2
+                    focus:outline-none focus:ring-2 focus:ring-[#C8956A] dark:focus:ring-gray-500 focus:ring-offset-2
                     ${selectedMoodBefore === mood.value
-                      ? 'mood-button-selected border-[#C8956A] shadow-md scale-[1.02]'
-                      : 'border-transparent hover:border-gray-300 hover:shadow-sm'
+                      ? 'mood-button-selected border-[#C8956A] dark:border-gray-500 shadow-md scale-[1.02]'
+                      : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
                   }`}
                   aria-label={`Select ${mood.label} mood`}
                   aria-pressed={selectedMoodBefore === mood.value}
                 >
                   <div className="text-5xl sm:text-4xl md:text-3xl mb-2 flex items-center justify-center">{mood.emoji}</div>
-                  <div className="text-sm sm:text-base font-medium text-[#3B3632] text-center">{mood.label}</div>
+                  <div className="text-sm sm:text-base font-medium text-[#3B3632] dark:text-white text-center">{mood.label}</div>
                 </button>
               ))}
             </div>
@@ -411,20 +411,20 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
   // POST-RITUAL: Completion screen
   if (runner.isComplete) {
     return (
-      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-6 overscroll-contain">
+      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 overscroll-contain">
         <div className="max-w-2xl mx-auto">
           {/* Celebration Header */}
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">🎉</div>
-            <h1 className="text-3xl font-bold text-[#3B3632] mb-2">Ritual Complete!</h1>
-            <p className="text-[#8B7E74]">Great work completing {ritual.title}</p>
+            <h1 className="text-3xl font-bold text-[#3B3632] dark:text-white mb-2">Ritual Complete!</h1>
+            <p className="text-[#8B7E74] dark:text-gray-400">Great work completing {ritual.title}</p>
           </div>
 
           {/* Mood After Selection - Mobile Optimized */}
-          <div className="bg-white/80 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg mb-4 safe-area-inset">
+          <div className="bg-white/80 dark:bg-gray-800/80 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg mb-4 safe-area-inset">
             {/* Animated Mood Display */}
             <div className="flex flex-col items-center mb-6 sm:mb-8 py-4 sm:py-6">
-              <h2 className="text-xl sm:text-2xl font-semibold text-[#3B3632] mb-4 sm:mb-6 text-center px-2">
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#3B3632] dark:text-white mb-4 sm:mb-6 text-center px-2">
                 How Do You Feel Now?
               </h2>
               
@@ -443,7 +443,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                 </div>
               </div>
               
-              <p className="text-base sm:text-lg md:text-xl font-medium text-[#8B7E74] transition-all duration-300 text-center px-2">
+              <p className="text-base sm:text-lg md:text-xl font-medium text-[#8B7E74] dark:text-gray-400 transition-all duration-300 text-center px-2">
                 {MOOD_OPTIONS.find(m => m.value === selectedMoodAfter)?.label || 'Select your current mood'}
               </p>
             </div>
@@ -461,16 +461,16 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                   className={`mood-button p-4 sm:p-5 rounded-xl ${mood.color} border-2 
                     min-h-[110px] sm:min-h-[120px] md:min-h-[130px] touch-manipulation
                     transition-all duration-200 active:scale-95
-                    focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2
+                    focus:outline-none focus:ring-2 focus:ring-[#C8956A] dark:focus:ring-gray-500 focus:ring-offset-2
                     ${selectedMoodAfter === mood.value
-                      ? 'mood-button-selected border-[#C8956A] shadow-md scale-[1.02]'
-                      : 'border-transparent hover:border-gray-300 hover:shadow-sm'
+                      ? 'mood-button-selected border-[#C8956A] dark:border-gray-500 shadow-md scale-[1.02]'
+                      : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
                   }`}
                   aria-label={`Select ${mood.label} mood`}
                   aria-pressed={selectedMoodAfter === mood.value}
                 >
                   <div className="text-5xl sm:text-4xl md:text-3xl mb-2 flex items-center justify-center">{mood.emoji}</div>
-                  <div className="text-sm sm:text-base font-medium text-[#3B3632] text-center">{mood.label}</div>
+                  <div className="text-sm sm:text-base font-medium text-[#3B3632] dark:text-white text-center">{mood.label}</div>
                 </button>
               ))}
             </div>
@@ -480,8 +480,8 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
               placeholder="Any reflections or notes? (optional)"
               value={completionNotes}
               onChange={(e) => setCompletionNotes(e.target.value)}
-              className="w-full p-4 rounded-xl border border-[#E8DDD2] bg-white/50 text-[#3B3632]
-                placeholder-[#8B7E74]/50 focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2
+              className="w-full p-4 rounded-xl border border-[#E8DDD2] dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-[#3B3632] dark:text-white
+                placeholder-[#8B7E74]/50 dark:placeholder-gray-500/50 focus:outline-none focus:ring-2 focus:ring-[#C8956A] dark:focus:ring-gray-500 focus:ring-offset-2
                 min-h-[100px] sm:min-h-[80px] text-base resize-none"
               rows={3}
               aria-label="Completion notes (optional)"
@@ -502,7 +502,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
           <button
             onClick={() => navigate('/rituals')}
-            className="w-full py-3 text-[#8B7E74] hover:text-[#3B3632] transition-colors"
+            className="w-full py-3 text-[#8B7E74] dark:text-gray-400 hover:text-[#3B3632] dark:hover:text-white transition-colors"
           >
             Back to Library
           </button>
@@ -539,7 +539,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
   // DURING RITUAL: Timer + Step Display
   return (
-    <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] p-4 md:p-6
+    <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-4 md:p-6
       landscape:flex landscape:items-center landscape:py-4 overscroll-contain">
       <div className="max-w-4xl mx-auto w-full 
         landscape:flex landscape:flex-row landscape:gap-6 landscape:items-start">
@@ -548,15 +548,15 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           <div className="flex items-center gap-4">
             <button
               onClick={handleExit}
-              className="p-2 rounded-lg hover:bg-white/50 transition-colors
+              className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-800/50 transition-colors
                 min-w-[44px] min-h-[44px] touch-manipulation"
               aria-label="Exit ritual"
             >
-              <X className="w-6 h-6 text-[#3B3632]" />
+              <X className="w-6 h-6 text-[#3B3632] dark:text-white" />
             </button>
             <div>
-              <h1 className="text-lg md:text-xl font-bold text-[#3B3632]">{ritual.title}</h1>
-              <p className="text-xs md:text-sm text-[#8B7E74]">
+              <h1 className="text-lg md:text-xl font-bold text-[#3B3632] dark:text-white">{ritual.title}</h1>
+              <p className="text-xs md:text-sm text-[#8B7E74] dark:text-gray-400">
                 Step {runner.currentStepIndex + 1} of {ritual.steps.length}
               </p>
             </div>
@@ -565,19 +565,19 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           {/* Back to Chat Button - Mobile Optimized */}
           <button
             onClick={() => navigate('/chat')}
-            className="flex items-center gap-2 px-4 py-2 bg-white/80 hover:bg-white border-2 border-[#E8DCC8] 
+            className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 
               rounded-xl transition-all hover:shadow-md active:scale-95
               min-h-[44px] touch-manipulation"
             aria-label="Back to chat"
           >
-            <MessageCircle className="w-5 h-5 text-[#8B7E74]" />
-            <span className="hidden sm:inline text-[#3B3632] font-medium">Chat</span>
+            <MessageCircle className="w-5 h-5 text-[#8B7E74] dark:text-gray-400" />
+            <span className="hidden sm:inline text-[#3B3632] dark:text-white font-medium">Chat</span>
           </button>
         </div>
 
         {/* Progress Bar */}
         <div className="mb-6 md:mb-8 landscape:hidden">
-          <div className="h-2 bg-white/50 rounded-full overflow-hidden">
+          <div className="h-2 bg-white/50 dark:bg-gray-800/50 rounded-full overflow-hidden">
             <div
               className="h-full bg-[#C8956A] transition-all duration-1000"
               style={{ width: `${runner.progress}%` }}
@@ -592,28 +592,28 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="bg-white/80 rounded-2xl p-6 md:p-8 shadow-lg mb-6
+          className="bg-white/80 dark:bg-gray-800/80 rounded-2xl p-6 md:p-8 shadow-lg mb-6
             landscape:flex-1 landscape:mb-0"
         >
           {/* Timer - Larger on mobile */}
           <div className="text-center mb-6 md:mb-8">
-            <div className={`font-bold text-[#3B3632] mb-2
+            <div className={`font-bold text-[#3B3632] dark:text-white mb-2
               ${isMobile ? 'text-7xl' : 'text-7xl md:text-8xl'}
               landscape:text-6xl`}>
               {formatTime(runner.timeRemaining)}
             </div>
-            <div className="text-base md:text-lg text-[#8B7E74]">
+            <div className="text-base md:text-lg text-[#8B7E74] dark:text-gray-400">
               {runner.currentStep?.config.title || 'Step'}
             </div>
             {/* Step counter for landscape mode */}
-            <div className="hidden landscape:block text-sm text-[#8B7E74] mt-2">
+            <div className="hidden landscape:block text-sm text-[#8B7E74] dark:text-gray-400 mt-2">
               Step {runner.currentStepIndex + 1} of {ritual.steps.length}
             </div>
           </div>
 
           {/* Instructions */}
-          <div className="bg-[#F5F0E8] rounded-xl p-4 md:p-6 mb-6">
-            <p className="text-[#3B3632] text-base md:text-lg leading-relaxed">
+          <div className="bg-[#F5F0E8] dark:bg-gray-800 rounded-xl p-4 md:p-6 mb-6">
+            <p className="text-[#3B3632] dark:text-white text-base md:text-lg leading-relaxed">
               {runner.currentStep?.config.instructions}
             </p>
           </div>
@@ -623,7 +623,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <button
               onClick={runner.previousStep}
               disabled={runner.currentStepIndex === 0}
-              className="p-4 md:p-3 rounded-lg bg-white/50 hover:bg-white disabled:opacity-30 transition-colors
+              className="p-4 md:p-3 rounded-lg bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 disabled:opacity-30 transition-colors
                 min-w-[64px] min-h-[64px] md:min-w-[60px] md:min-h-[60px] touch-manipulation
                 active:scale-95"
               aria-label="Previous step"
@@ -648,7 +648,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <button
               onClick={runner.nextStep}
               disabled={runner.currentStepIndex === ritual.steps.length - 1}
-              className="p-4 md:p-3 rounded-lg bg-white/50 hover:bg-white disabled:opacity-30 transition-colors
+              className="p-4 md:p-3 rounded-lg bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 disabled:opacity-30 transition-colors
                 min-w-[64px] min-h-[64px] md:min-w-[60px] md:min-h-[60px] touch-manipulation
                 active:scale-95"
               aria-label="Next step"
@@ -676,9 +676,9 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
         {/* Landscape: Progress sidebar */}
         <div className="hidden landscape:block landscape:w-48">
-          <div className="bg-white/80 rounded-2xl p-4 shadow-lg sticky top-4">
-            <h3 className="text-sm font-semibold text-[#3B3632] mb-2">{ritual.title}</h3>
-            <div className="text-xs text-[#8B7E74] mb-4">
+          <div className="bg-white/80 dark:bg-gray-800/80 rounded-2xl p-4 shadow-lg sticky top-4">
+            <h3 className="text-sm font-semibold text-[#3B3632] dark:text-white mb-2">{ritual.title}</h3>
+            <div className="text-xs text-[#8B7E74] dark:text-gray-400 mb-4">
               {runner.progress}% Complete
             </div>
             <div className="space-y-2">
@@ -689,8 +689,8 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
                     index === runner.currentStepIndex
                       ? 'bg-[#C8956A] text-white'
                       : index < runner.currentStepIndex
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-600'
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                   }`}
                 >
                   {step.config.title}
@@ -699,7 +699,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             </div>
             <button
               onClick={handleExit}
-              className="mt-4 w-full py-2 text-sm text-[#8B7E74] hover:text-[#3B3632] transition-colors"
+              className="mt-4 w-full py-2 text-sm text-[#8B7E74] dark:text-gray-400 hover:text-[#3B3632] dark:hover:text-white transition-colors"
             >
               Exit
             </button>

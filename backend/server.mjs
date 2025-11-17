@@ -760,7 +760,7 @@ function filterResponse(text) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null, preferences = null }) {
   if (!ANTHROPIC_API_KEY) {
     logger.error('[streamAnthropicResponse] ❌ ANTHROPIC_API_KEY is missing or empty');
     throw new Error('Missing Anthropic API key - check Railway environment variables');
@@ -815,7 +815,17 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
     }
 
     // ✅ COMPREHENSIVE ATLAS SYSTEM PROMPT - Matches detailed personality spec
-    finalUserContent = personalizedContent + `\n\nYou are Atlas, an emotionally intelligent productivity assistant designed to help people understand how their emotions shape their actions and build sustainable productivity habits.
+    let personalizationNote = '';
+    if (preferences) {
+      const parts = [];
+      if (preferences.workFunction) parts.push(`Work function: ${preferences.workFunction}`);
+      if (preferences.goals && preferences.goals.length > 0) parts.push(`Goals: ${preferences.goals.join(', ')}`);
+      if (preferences.communicationStyle) parts.push(`Communication style: ${preferences.communicationStyle}`);
+      if (parts.length > 0) {
+        personalizationNote = `\n\nPERSONALIZATION:\n${parts.join('\n')}`;
+      }
+    }
+    finalUserContent = personalizedContent + `\n\nYou are Atlas, an emotionally intelligent productivity assistant designed to help people understand how their emotions shape their actions and build sustainable productivity habits.${personalizationNote}
 
 ATLAS'S IDENTITY:
 You are NOT:
@@ -1946,13 +1956,15 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
 
     // 🔒 SECURITY: Always fetch tier from database (never trust client)
     let effectiveTier = 'free';
+    let userPreferences = null;
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('subscription_tier')
+        .select('subscription_tier, preferences')
         .eq('id', userId)
         .single();
       effectiveTier = profile?.subscription_tier || 'free';
+      userPreferences = profile?.preferences || null;
     } catch (error) {
       logger.warn(`[Message] Failed to fetch tier for ${userId}, defaulting to free`);
       effectiveTier = 'free'; // Fail closed: Default to free tier
@@ -2207,7 +2219,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           try {
             logger.debug(`[API CALL] Calling streamAnthropicResponse with userId: ${userId}, model: ${selectedModel}`);
-            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier });
+            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier, preferences: userPreferences });
             streamCompleted = true;
             logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
             // ✅ CRITICAL: If stream returned empty, it means no data was received

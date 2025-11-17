@@ -140,7 +140,7 @@ const TextInputArea = forwardRef<HTMLDivElement, TextInputAreaProps>(({
       
       <form onSubmit={handleSubmit} className="relative">
         {/* ✅ UNIFIED LAYOUT: Flex container matching mobile design */}
-        <div className="flex items-center justify-between gap-2 bg-atlas-pearl border border-atlas-border rounded-2xl px-3 py-2">
+        <div className="flex items-center justify-between gap-2 bg-atlas-pearl dark:bg-gray-800 border border-atlas-border dark:border-gray-700 rounded-2xl px-3 py-2">
           {/* Left: "+" Attachment Button */}
           {showAttachments && (
             <div className="relative flex-shrink-0">

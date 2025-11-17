@@ -73,16 +73,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default error UI
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
           <div className="max-w-md w-full space-y-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-red-800 mb-1">
+                  <h3 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
                     Something went wrong
                   </h3>
-                  <p className="text-sm text-red-700">
+                  <p className="text-sm text-red-700 dark:text-red-400">
                     We've encountered an unexpected error. Our team has been notified and is working on a fix.
                   </p>
                 </div>
@@ -91,12 +91,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Error details in development */}
             {import.meta.env.DEV && this.state.error && (
-              <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-                <h4 className="font-mono text-sm font-semibold text-gray-900 mb-2">
+              <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4">
+                <h4 className="font-mono text-sm font-semibold text-gray-900 dark:text-white mb-2">
                   {this.state.error.name}: {this.state.error.message}
                 </h4>
                 {this.state.errorInfo && (
-                  <pre className="text-xs overflow-auto max-h-40 p-2 bg-white rounded border border-gray-200 text-gray-800">
+                  <pre className="text-xs overflow-auto max-h-40 p-2 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
                     {this.state.errorInfo.componentStack}
                   </pre>
                 )}
@@ -106,7 +106,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex gap-3">
               <button 
                 onClick={this.handleReset}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-gray-700 dark:text-gray-300 transition-colors"
               >
                 Try Again
               </button>
@@ -119,7 +119,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </button>
             </div>
 
-            <p className="text-sm text-gray-600 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
               If this problem persists, please contact support.
             </p>
           </div>

@@ -372,8 +372,8 @@ const Header: React.FC<HeaderProps> = ({
           )}
           
           {/* Current Mode Badge - Mobile */}
-          <div className={`neumorphic-button bg-white/80 border border-gray-300 rounded-md shadow-sm ${getButtonSize()}`}>
-            <span className="text-text font-medium text-xs">
+          <div className={`neumorphic-button bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm ${getButtonSize()}`}>
+            <span className="text-text dark:text-white font-medium text-xs">
               {getModeDisplayName(currentMode)}
             </span>
           </div>
@@ -381,14 +381,14 @@ const Header: React.FC<HeaderProps> = ({
           {/* Mobile Menu Button */}
           <button
             onClick={toggleMobileMenu}
-            className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
+            className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
             aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? (
-              <XIcon className={`text-text ${getIconSize()}`} />
+              <XIcon className={`text-text dark:text-white ${getIconSize()}`} />
             ) : (
-              <Menu className={`text-text ${getIconSize()}`} />
+              <Menu className={`text-text dark:text-white ${getIconSize()}`} />
             )}
           </button>
         </div>
@@ -423,10 +423,10 @@ const Header: React.FC<HeaderProps> = ({
           <Tooltip content="Conversation history" position="bottom">
             <button
               onClick={handleShowConversationHistory}
-              className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
+              className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
               aria-label="View conversation history"
             >
-              <History className={`text-gray-600 ${getIconSize()}`} />
+              <History className={`text-gray-600 dark:text-gray-300 ${getIconSize()}`} />
             </button>
           </Tooltip>
 
@@ -460,10 +460,10 @@ const Header: React.FC<HeaderProps> = ({
             <Tooltip content="Open control center" position="bottom">
               <button
                 onClick={handleShowControlCenter}
-                className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
+                className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
                 aria-label="Open control center"
               >
-                <SlidersIcon className={`text-gray-600 ${getIconSize()}`} />
+                <SlidersIcon className={`text-gray-600 dark:text-gray-300 ${getIconSize()}`} />
               </button>
             </Tooltip>
           )}
@@ -473,10 +473,10 @@ const Header: React.FC<HeaderProps> = ({
             <Tooltip content="Open widget dashboard" position="bottom">
               <button
                 onClick={handleShowWidgets}
-                className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
+                className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
                 aria-label="Open widget dashboard"
               >
-                <Grid3X3 className={`text-gray-600 ${getIconSize()}`} />
+                <Grid3X3 className={`text-gray-600 dark:text-gray-300 ${getIconSize()}`} />
               </button>
             </Tooltip>
           )}
@@ -486,10 +486,10 @@ const Header: React.FC<HeaderProps> = ({
             <Tooltip content="View keyboard shortcuts and tips" position="bottom">
               <button
                 onClick={handleShowHelp}
-                className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
+                className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
                 aria-label="View help and keyboard shortcuts"
               >
-                <HelpCircle className={`text-gray-600 ${getIconSize()}`} />
+                <HelpCircle className={`text-gray-600 dark:text-gray-300 ${getIconSize()}`} />
               </button>
             </Tooltip>
           )}
@@ -501,14 +501,14 @@ const Header: React.FC<HeaderProps> = ({
           >
             <button
               onClick={handleMuteToggle}
-              className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
+              className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center shadow-sm ${getButtonSize()}`}
               aria-label={isMuted ? "Unmute audio responses" : "Mute audio responses"}
               aria-pressed={isMuted}
             >
               {isMuted ? (
-                <VolumeX className={`text-red-500 ${getIconSize()}`} />
+                <VolumeX className={`text-red-500 dark:text-red-400 ${getIconSize()}`} />
               ) : (
-                <VolumeIcon className={`text-text ${getIconSize()}`} />
+                <VolumeIcon className={`text-text dark:text-white ${getIconSize()}`} />
               )}
             </button>
           </Tooltip>
@@ -519,14 +519,14 @@ const Header: React.FC<HeaderProps> = ({
               <Tooltip content="Select voice for audio responses" position="bottom">
                 <button
                   onClick={toggleVoiceDropdown}
-                  className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm ${getButtonSize()}`}
+                  className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm ${getButtonSize()}`}
                   aria-label="Select voice for audio responses"
                   aria-expanded={isVoiceOpen}
                   aria-haspopup="listbox"
                 >
-                  <Settings className={`text-text ${getIconSize()}`} />
+                  <Settings className={`text-text dark:text-white ${getIconSize()}`} />
                   {headerStyle === 'expanded' && (
-                    <span className="text-text font-medium max-w-[120px] truncate">
+                    <span className="text-text dark:text-white font-medium max-w-[120px] truncate">
                       {currentVoice?.name || 'Default Voice'}
                     </span>
                   )}
@@ -537,16 +537,16 @@ const Header: React.FC<HeaderProps> = ({
               </Tooltip>
               
               {isVoiceOpen && voices.length > 0 && (
-                <div className="absolute right-0 mt-2 w-72 z-30 neumorphic-card bg-white/95 border border-gray-300 rounded-lg overflow-hidden max-h-96 overflow-y-auto" role="listbox">
-                  <div className="p-3 border-b border-gray-200">
-                    <h3 className="text-sm font-medium text-text">Select Voice</h3>
-                    <p className="text-xs text-text/70 mt-1">Choose your preferred voice for audio responses</p>
+                <div className="absolute right-0 mt-2 w-72 z-30 neumorphic-card bg-white/95 dark:bg-gray-900/95 border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden max-h-96 overflow-y-auto" role="listbox">
+                  <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-text dark:text-white">Select Voice</h3>
+                    <p className="text-xs text-text/70 dark:text-gray-400 mt-1">Choose your preferred voice for audio responses</p>
                   </div>
                   {voices.map((voice) => (
                     <button 
                       key={voice.name}
-                      className={`w-full px-4 py-3 text-left cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between group
-                        ${voice.name === currentVoice?.name ? 'text-text bg-gray-100' : 'text-text'}`}
+                      className={`w-full px-4 py-3 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-between group
+                        ${voice.name === currentVoice?.name ? 'text-text dark:text-white bg-gray-100 dark:bg-gray-800' : 'text-text dark:text-white'}`}
                       onClick={() => handleVoiceSelect(voice)}
                       role="option"
                       aria-selected={voice.name === currentVoice?.name}
@@ -570,12 +570,12 @@ const Header: React.FC<HeaderProps> = ({
             <Tooltip content={getModeDescription(currentMode)} position="bottom">
               <button
                 onClick={toggleDropdown}
-                className={`neumorphic-button rounded-md bg-white/80 border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm ${getButtonSize()}`}
+                className={`neumorphic-button rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm ${getButtonSize()}`}
                 aria-label={`Current mode: ${getModeDisplayName(currentMode)}. Click to change mode.`}
                 aria-expanded={isOpen}
                 aria-haspopup="menu"
               >
-                <span className="text-text font-semibold">
+                <span className="text-text dark:text-white font-semibold">
                   {getModeDisplayName(currentMode)}
                 </span>
                 <span className={`text-xs opacity-70 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
@@ -585,15 +585,15 @@ const Header: React.FC<HeaderProps> = ({
             </Tooltip>
             
             {isOpen && (
-              <div className="absolute right-0 mt-2 w-48 z-30 neumorphic-card bg-white/95 border border-gray-300 rounded-lg overflow-hidden" role="menu">
-                <div className="p-3 border-b border-gray-200">
-                  <h3 className="text-sm font-medium text-text">Interaction Mode</h3>
+              <div className="absolute right-0 mt-2 w-48 z-30 neumorphic-card bg-white/95 dark:bg-gray-900/95 border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden" role="menu">
+                <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-medium text-text dark:text-white">Interaction Mode</h3>
                 </div>
                 {(['text', 'voice', 'image'] as const).map((mode) => (
                   <button 
                     key={mode}
-                    className={`w-full px-4 py-3 text-left cursor-pointer hover:bg-gray-50 transition-colors group
-                      ${currentMode === mode ? 'text-text bg-gray-100' : 'text-text'}`}
+                    className={`w-full px-4 py-3 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group
+                      ${currentMode === mode ? 'text-text dark:text-white bg-gray-100 dark:bg-gray-800' : 'text-text dark:text-white'}`}
                     onClick={() => handleModeSelect(mode)}
                     role="menuitem"
                     aria-label={`Switch to ${getModeDisplayName(mode)} mode`}
@@ -626,7 +626,7 @@ const Header: React.FC<HeaderProps> = ({
                     {getUserInitials()}
                   </div>
                   {headerStyle === 'expanded' && (
-                    <span className="text-text font-medium max-w-[100px] truncate">
+                    <span className="text-text dark:text-white font-medium max-w-[100px] truncate">
                       {getUserDisplayName()}
                     </span>
                   )}
@@ -637,15 +637,15 @@ const Header: React.FC<HeaderProps> = ({
               </Tooltip>
               
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-80 z-30 neumorphic-card bg-white/95 border border-gray-300 rounded-lg overflow-hidden" role="menu">
-                  <div className="p-4 border-b border-gray-200">
+                <div className="absolute right-0 mt-2 w-80 z-30 neumorphic-card bg-white/95 dark:bg-gray-900/95 border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden" role="menu">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white text-sm font-bold">
                         {getUserInitials()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-text truncate">{getUserDisplayName()}</h3>
-                        <p className="text-xs text-text/70 truncate">{user.email}</p>
+                        <h3 className="text-sm font-medium text-text dark:text-white truncate">{getUserDisplayName()}</h3>
+                        <p className="text-xs text-text/70 dark:text-gray-400 truncate">{user.email}</p>
                       </div>
                     </div>
                     
@@ -671,8 +671,8 @@ const Header: React.FC<HeaderProps> = ({
 
                   {/* Usage Stats */}
                   {profile && (
-                    <div className="p-4 border-b border-gray-200">
-                      <h4 className="text-sm font-medium text-text mb-3 flex items-center gap-2">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-medium text-text dark:text-white mb-3 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4" />
                         Usage This Month
                       </h4>
@@ -696,7 +696,7 @@ const Header: React.FC<HeaderProps> = ({
 
                     <button
                       onClick={handleShowControlCenter}
-                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-md text-gray-600 hover:text-gray-700 mb-2 neumorphic-button"
+                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 mb-2 neumorphic-button"
                       role="menuitem"
                     >
                       <SlidersIcon className="w-4 h-4" />
@@ -705,7 +705,7 @@ const Header: React.FC<HeaderProps> = ({
 
                     <button
                       onClick={handleShowWidgets}
-                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-md text-gray-600 hover:text-gray-700 mb-2 neumorphic-button"
+                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 mb-2 neumorphic-button"
                       role="menuitem"
                     >
                       <Grid3X3 className="w-4 h-4" />
@@ -714,7 +714,7 @@ const Header: React.FC<HeaderProps> = ({
 
                     <button
                       onClick={handleShowAccount}
-                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-md text-gray-600 hover:text-gray-700 mb-2 neumorphic-button"
+                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 mb-2 neumorphic-button"
                       role="menuitem"
                     >
                       <UserIcon className="w-4 h-4" />
@@ -723,7 +723,7 @@ const Header: React.FC<HeaderProps> = ({
                     
                     <button
                       onClick={handleShowSpeedTest}
-                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-md text-gray-600 hover:text-gray-700 mb-2 neumorphic-button"
+                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 mb-2 neumorphic-button"
                       role="menuitem"
                     >
                       {connectionStatus === 'online' ? (
@@ -736,7 +736,7 @@ const Header: React.FC<HeaderProps> = ({
                     
                     <button
                       onClick={handleLogout}
-                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-md text-red-600 hover:text-red-700 neumorphic-button"
+                      className="w-full px-3 py-2 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3 rounded-md text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 neumorphic-button"
                       role="menuitem"
                     >
                       <LogOut className="w-4 h-4" />
@@ -757,11 +757,11 @@ const Header: React.FC<HeaderProps> = ({
             }
             setIsMobileMenuOpen(false);
           }}>
-            <div className="absolute top-0 right-0 w-80 max-w-[90vw] h-full neumorphic-card bg-white/95 border-l border-gray-300 shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Mobile menu">
+            <div className="absolute top-0 right-0 w-80 max-w-[90vw] h-full neumorphic-card bg-white/95 dark:bg-gray-900/95 border-l border-gray-300 dark:border-gray-700 shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Mobile menu">
               {/* Mobile Menu Header */}
-              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold text-text">Settings</h2>
+                  <h2 className="text-lg font-semibold text-text dark:text-white">Settings</h2>
                   {/* Status Indicator in Mobile Menu Header */}
                   <button
                     onClick={handleShowSpeedTest}
@@ -782,10 +782,10 @@ const Header: React.FC<HeaderProps> = ({
                     }
                     setIsMobileMenuOpen(false);
                   }}
-                  className="neumorphic-button p-2 rounded-md hover:bg-gray-100 transition-colors"
+                  className="neumorphic-button p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   aria-label="Close mobile menu"
                 >
-                  <XIcon className="w-5 h-5 text-gray-600" />
+                  <XIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 </button>
               </div>
 
@@ -793,14 +793,14 @@ const Header: React.FC<HeaderProps> = ({
                 {/* User Info */}
                 {user && (
                   <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wide">Account</h3>
-                    <div className="flex items-center gap-3 p-3 neumorphic-card bg-gray-100 rounded-lg">
+                    <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Account</h3>
+                    <div className="flex items-center gap-3 p-3 neumorphic-card bg-gray-100 dark:bg-gray-800 rounded-lg">
                       <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white text-sm font-bold">
                         {getUserInitials()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-text truncate">{getUserDisplayName()}</h4>
-                        <p className="text-xs text-text/70 truncate">{user.email}</p>
+                        <h4 className="text-sm font-medium text-text dark:text-white truncate">{getUserDisplayName()}</h4>
+                        <p className="text-xs text-text/70 dark:text-gray-400 truncate">{user.email}</p>
                       </div>
                     </div>
                     
@@ -815,8 +815,8 @@ const Header: React.FC<HeaderProps> = ({
                         />
                         
                         {/* Usage Stats */}
-                        <div className="p-3 neumorphic-card bg-gray-100 rounded-lg space-y-3">
-                          <h4 className="text-sm font-medium text-text">Usage This Month</h4>
+                        <div className="p-3 neumorphic-card bg-gray-100 dark:bg-gray-800 rounded-lg space-y-3">
+                          <h4 className="text-sm font-medium text-text dark:text-white">Usage This Month</h4>
                           <UsageIndicator profile={profile} type="requests" />
                           <UsageIndicator profile={profile} type="audio" />
                           <UsageIndicator profile={profile} type="storage" />
@@ -880,7 +880,7 @@ const Header: React.FC<HeaderProps> = ({
 
                 {/* Conversation Management */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wide">Conversations</h3>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Conversations</h3>
                   <div className="space-y-2">
                     <button
                       onClick={handleNewConversation}
@@ -910,7 +910,7 @@ const Header: React.FC<HeaderProps> = ({
 
                 {/* Mode Selection */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wide">Interaction Mode</h3>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Interaction Mode</h3>
                   <div className="space-y-2">
                     {(['voice', 'text', 'image'] as const).map((mode) => (
                       <button
@@ -918,8 +918,8 @@ const Header: React.FC<HeaderProps> = ({
                         onClick={() => handleModeSelect(mode)}
                         className={`w-full p-4 rounded-lg border transition-colors text-left neumorphic-button ${
                           currentMode === mode
-                            ? 'bg-gray-100 border-gray-300 text-text'
-                            : 'bg-white border-gray-200 text-text hover:bg-gray-50'
+                            ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-text dark:text-white'
+                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-text dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
                         }`}
                         aria-label={`Switch to ${getModeDisplayName(mode)} mode`}
                       >
@@ -932,15 +932,15 @@ const Header: React.FC<HeaderProps> = ({
 
                 {/* Audio Controls */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wide">Audio Settings</h3>
+                  <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Audio Settings</h3>
                   
                   {/* Mute Toggle */}
                   <button
                     onClick={handleMuteToggle}
                     className={`w-full p-4 rounded-lg border transition-colors flex items-center gap-3 neumorphic-button ${
                       isMuted 
-                        ? 'bg-red-50 border-red-200 text-red-600' 
-                        : 'bg-gray-100 border-gray-300 text-text'
+                        ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400' 
+                        : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-text dark:text-white'
                     }`}
                     aria-label={isMuted ? "Enable audio responses" : "Disable audio responses"}
                     aria-pressed={isMuted}
@@ -955,7 +955,7 @@ const Header: React.FC<HeaderProps> = ({
                   {/* Voice Selection */}
                   {currentMode === 'voice' && !isMuted && voices.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-text">Voice Selection</h4>
+                      <h4 className="text-sm font-medium text-text dark:text-white">Voice Selection</h4>
                       <div className="max-h-48 overflow-y-auto space-y-2 scrollbar-thin">
                         {voices.map((voice) => (
                           <button
@@ -963,8 +963,8 @@ const Header: React.FC<HeaderProps> = ({
                             onClick={() => handleVoiceSelect(voice)}
                             className={`w-full p-3 rounded-lg border transition-colors text-left neumorphic-button ${
                               voice.name === currentVoice?.name
-                                ? 'bg-gray-100 border-gray-300 text-text'
-                                : 'bg-white border-gray-200 text-text hover:bg-gray-50'
+                                ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-text dark:text-white'
+                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-text dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
                             }`}
                             aria-label={`Select ${voice.name} voice`}
                           >
@@ -981,7 +981,7 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="space-y-4">
                   <button
                     onClick={handleShowHelp}
-                    className="w-full p-4 neumorphic-button bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 rounded-lg transition-colors flex items-center gap-3"
+                    className="w-full p-4 neumorphic-button bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg transition-colors flex items-center gap-3"
                     aria-label="View help and keyboard shortcuts"
                   >
                     <HelpCircle className="w-5 h-5" />
@@ -999,22 +999,22 @@ const Header: React.FC<HeaderProps> = ({
         {/* Help Modal */}
         {showHelp && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="help-title">
-            <div className="neumorphic-card bg-white/95 rounded-xl border border-gray-300 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="neumorphic-card bg-white/95 dark:bg-gray-900/95 rounded-xl border border-gray-300 dark:border-gray-700 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h2 id="help-title" className="text-xl font-bold text-text">Atlas Help</h2>
+                <h2 id="help-title" className="text-xl font-bold text-text dark:text-white">Atlas Help</h2>
                 <button
                   onClick={handleCloseHelp}
-                  className="neumorphic-button text-gray-600 hover:text-gray-900 transition-colors p-1"
+                  className="neumorphic-button text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors p-1"
                   aria-label="Close help dialog"
                 >
                   <XIcon className="w-5 h-5" />
                 </button>
               </div>
               
-              <div className="space-y-4 text-sm text-text">
+              <div className="space-y-4 text-sm text-text dark:text-white">
                 <div>
-                  <h3 className="font-semibold text-text mb-2">Voice Mode</h3>
-                  <ul className="space-y-1 text-text/70">
+                  <h3 className="font-semibold text-text dark:text-white mb-2">Voice Mode</h3>
+                  <ul className="space-y-1 text-text/70 dark:text-gray-400">
                     <li>• Hold the microphone button to speak</li>
                     <li>• Release to send your message</li>
                     <li>• Toggle mute to disable audio responses</li>

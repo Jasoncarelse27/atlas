@@ -91,14 +91,7 @@
   }
 }
 
-/* ✅ Dark Mode Preparation (Future) */
-@media (prefers-color-scheme: dark) {
-  /* Currently using light mode only, but prepared for dark mode */
-  :root {
-    --text-primary: #ffffff;
-    --bg-primary: #1a1a1a;
-  }
-}
+/* ✅ REMOVED: Conflicting dark mode media query - Atlas uses class-based dark mode (html.dark) */
 
 /* ✅ Orientation Lock Warning (Landscape on mobile) */
 @media (orientation: landscape) and (max-height: 500px) {

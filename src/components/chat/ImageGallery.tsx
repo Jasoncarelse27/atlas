@@ -174,7 +174,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
                   
                   {/* Mobile-optimized touch indicator */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div className="w-6 h-6 bg-white/80 rounded-full flex items-center justify-center">
+                    <div className="w-6 h-6 bg-white/80 dark:bg-gray-800/80 rounded-full flex items-center justify-center">
                       <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
                     </div>
                   </div>

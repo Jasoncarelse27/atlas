@@ -346,13 +346,13 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
   return (
     <>
       <div className="p-4">
-        <h3 className="text-sm font-medium text-[#8B7E74] uppercase tracking-wider mb-3">Quick Actions</h3>
+        <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h3>
         <ul className="space-y-2">
           <li>
             <button
               onClick={handleNewChat}
               aria-label="Start a new conversation"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-[#8FA67E] focus-visible:outline-none"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] dark:bg-gray-700 dark:hover:bg-gray-600 active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-[#8FA67E] dark:focus-visible:ring-gray-500 focus-visible:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
                 <Plus className="w-4 h-4 text-white" aria-hidden="true" />
@@ -367,19 +367,19 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
               disabled={isLoadingHistory}
               aria-label={isLoadingHistory ? 'Loading conversation history' : 'View conversation history'}
               aria-busy={isLoadingHistory}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] bg-[#C6D4B0] hover:bg-[#B8C6A2] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#8FA67E] focus-visible:outline-none relative"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#5A524A] dark:text-gray-300 bg-[#C6D4B0] dark:bg-gray-700 hover:bg-[#B8C6A2] dark:hover:bg-gray-600 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#8FA67E] dark:focus-visible:ring-gray-500 focus-visible:outline-none relative"
             >
               {/* ✅ UX IMPROVEMENT: Loading overlay for better visual feedback */}
               {isLoadingHistory && (
-                <div className="absolute inset-0 bg-[#C6D4B0]/80 rounded-xl flex items-center justify-center z-10">
-                  <Loader2 className="w-5 h-5 text-[#5A524A] animate-spin" />
+                <div className="absolute inset-0 bg-[#C6D4B0]/80 dark:bg-gray-700/80 rounded-xl flex items-center justify-center z-10">
+                  <Loader2 className="w-5 h-5 text-[#5A524A] dark:text-gray-300 animate-spin" />
                 </div>
               )}
-              <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-[#5A524A]/20 dark:bg-gray-300/20 flex items-center justify-center flex-shrink-0">
                 {isLoadingHistory ? (
-                  <Loader2 className="w-4 h-4 text-[#5A524A] animate-spin" aria-hidden="true" />
+                  <Loader2 className="w-4 h-4 text-[#5A524A] dark:text-gray-300 animate-spin" aria-hidden="true" />
                 ) : (
-                  <History className="w-4 h-4 text-[#5A524A]" aria-hidden="true" />
+                  <History className="w-4 h-4 text-[#5A524A] dark:text-gray-300" aria-hidden="true" />
                 )}
               </div>
               <span className="font-medium flex-1 text-left">

@@ -42,7 +42,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
   };
 
   return (
-    <div className={`flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200 ${className}`}>
+    <div className={`flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 ${className}`}>
       {/* Usage Indicator */}
       <div className="flex items-center space-x-2">
         <div className={`text-sm ${getDisplayClasses()}`}>
@@ -52,7 +52,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
         {/* Refresh Button */}
         <button
           onClick={refreshUsage}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
           title="Refresh usage"
         >
           <svg 
@@ -75,7 +75,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
       {shouldShowUpgradePrompt() && (
         <button
           onClick={handleUpgradeClick}
-          className="px-3 py-1.5 text-xs font-medium text-white bg-atlas-sage hover:bg-atlas-success rounded-md transition-colors"
+          className="px-3 py-1.5 text-xs font-medium text-white bg-atlas-sage hover:bg-atlas-success dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md transition-colors"
         >
           Upgrade
         </button>
@@ -86,10 +86,10 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
         <div className="flex items-center space-x-2">
           <div className={`px-2 py-1 text-xs font-medium rounded-full ${
             usage.tier === 'core' 
-              ? 'bg-green-100 text-green-800' 
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' 
               : isStudioTier(usage.tier)
-              ? 'bg-purple-100 text-purple-800'
-              : 'bg-gray-100 text-gray-800'
+              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300'
           }`}>
             {usage.tier === 'core' ? '🌱 Core' : isStudioTier(usage.tier) ? '🚀 Studio' : 'Free'}
           </div>
@@ -98,7 +98,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
 
       {/* Error State */}
       {error && !loading && (
-        <div className="text-xs text-red-500">
+        <div className="text-xs text-red-500 dark:text-red-400">
           Usage data unavailable
         </div>
       )}

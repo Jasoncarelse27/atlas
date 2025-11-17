@@ -11,7 +11,10 @@
     <link rel="apple-touch-icon" href="/atlas-logo.png" />
     <!-- ✅ PWA: Manifest and theme colors -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#F9F6F3" />
+    <!-- ✅ DARK MODE: Dynamic theme-color for browser UI (light & dark) -->
+    <meta name="theme-color" content="#F9F6F3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

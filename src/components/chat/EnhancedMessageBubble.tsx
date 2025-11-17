@@ -352,10 +352,10 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
           {/* Message Content */}
           <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
-          <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
+          <div className={`relative ${
             isUser
-              ? 'bg-atlas-sage text-white rounded-br-md'
-              : 'bg-white/70 border border-gray-200 text-black rounded-bl-md'
+              ? 'px-4 py-3 rounded-2xl shadow-sm bg-atlas-sage text-white rounded-br-md'
+              : 'text-black dark:text-white'
           }`}>
               {/* 🖼️ Enhanced Image Gallery */}
               {attachments.length > 0 && (
@@ -407,10 +407,10 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
         {/* Message Content - Debug Fallback */}
         <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
-          <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
+          <div className={`relative ${
             isUser 
-              ? 'bg-atlas-sage text-white rounded-br-md' 
-              : 'bg-gradient-to-br from-atlas-gradient-start/10 to-atlas-gradient-end/10 border border-atlas-gradient-start/20 text-gray-100 rounded-bl-md'
+              ? 'px-4 py-3 rounded-2xl shadow-sm bg-atlas-sage text-white rounded-br-md' 
+              : 'text-black dark:text-white'
           }`}>
             <pre style={{ color: "red", fontSize: 12, whiteSpace: "pre-wrap" }}>
               {JSON.stringify(message, null, 2)}
@@ -665,7 +665,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
       >
         <div className={`flex-1 ${isUser ? 'max-w-[75%] flex justify-end' : 'w-full max-w-[75%]'}`}>
           <div className={`px-4 py-3 rounded-2xl flex items-center gap-2 text-sm ${
-            isUser ? 'bg-gray-800/30 text-gray-400' : 'bg-gray-100 text-gray-500'
+            isUser ? 'bg-gray-800/30 dark:bg-gray-700/30 text-gray-400 dark:text-gray-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-300'
           }`}>
             <Ban className="w-4 h-4 flex-shrink-0" />
             <span className="italic">
@@ -729,13 +729,13 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
           className={`relative ${
             isUser 
               ? 'px-4 py-2 rounded-2xl bg-atlas-sage text-white shadow-md text-[15px] leading-relaxed' 
-              : 'px-5 py-3 max-w-none text-[16px] leading-relaxed'
+              : 'text-[16px] leading-relaxed text-black dark:text-white'
           }`} 
           style={{ 
             wordBreak: "break-word", 
             overflowWrap: "anywhere",
             overflowX: "hidden", // ✅ FIX: Prevent horizontal scroll
-            color: isUser ? undefined : '#000000' // Pure black for maximum visibility
+            color: isUser ? undefined : undefined // Let Tailwind handle color
           }}
         >
           {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
@@ -766,7 +766,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                       </div>
                     )
                   ) : (
-                    <span className="text-gray-400 italic">Empty message</span>
+                    <span className="text-gray-400 dark:text-gray-500 italic">Empty message</span>
                   )}
                 </div>
                 {message.status === 'sending' && displayedText && !isUser && (
@@ -795,7 +795,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
 
           {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
           {isUser && messageContent && messageContent.trim() && attachments.length > 0 && (
-            <div className="mt-3 text-sm italic text-gray-300">
+            <div className="mt-3 text-sm italic text-gray-300 dark:text-gray-200">
               {messageContent.replace(/^"|"$/g, '')}
             </div>
           )}
@@ -981,12 +981,12 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                   </button>
 
                   {/* ✅ ULTRA-COMPACT: Minimal timer - no padding, tight spacing */}
-                  <div className="flex items-center gap-0.5 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-white/60 rounded sm:rounded-md justify-center flex-shrink-0">
-                    <span className="text-[10px] sm:text-xs font-mono font-medium text-gray-700 tabular-nums whitespace-nowrap">
+                  <div className="flex items-center gap-0.5 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-white/60 dark:bg-gray-800/60 rounded sm:rounded-md justify-center flex-shrink-0">
+                    <span className="text-[10px] sm:text-xs font-mono font-medium text-gray-700 dark:text-gray-300 tabular-nums whitespace-nowrap">
                       {formatTime(audioProgress)}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] text-gray-400 font-normal">/</span>
-                    <span className="text-[10px] sm:text-xs font-mono font-medium text-gray-700 tabular-nums whitespace-nowrap">
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 font-normal">/</span>
+                    <span className="text-[10px] sm:text-xs font-mono font-medium text-gray-700 dark:text-gray-300 tabular-nums whitespace-nowrap">
                       {formatTime(audioDuration || 0)}
                     </span>
                   </div>
@@ -1002,7 +1002,7 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
                       e.stopPropagation();
                     }}
                     className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0
-                               bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-600 hover:text-gray-800
+                               bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 active:bg-gray-400 dark:active:bg-gray-500 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100
                                transition-all duration-200 touch-manipulation shadow-sm"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Stop and close audio player"

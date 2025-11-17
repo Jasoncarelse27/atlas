@@ -146,7 +146,7 @@ export function SearchDrawer({
             onClick={handleClose}
           >
             <motion.div
-              className="w-full max-w-2xl max-h-[85vh] bg-[#F9F6F3] rounded-2xl border border-[#E8DDD2] flex flex-col shadow-2xl overflow-hidden"
+              className="w-full max-w-2xl max-h-[85vh] bg-[#F9F6F3] dark:bg-gray-900 rounded-2xl border border-[#E8DDD2] dark:border-gray-700 flex flex-col shadow-2xl overflow-hidden"
               initial={{ 
                 opacity: 0,
                 scale: 0.9,
@@ -166,21 +166,21 @@ export function SearchDrawer({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 md:px-6 md:py-5 border-b border-[#E8DDD2] bg-white rounded-t-2xl">
+              <div className="flex items-center justify-between px-5 py-4 md:px-6 md:py-5 border-b border-[#E8DDD2] dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-2xl">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="p-2.5 bg-[#8FA67E]/20 rounded-lg border border-[#8FA67E]/30">
                     <Search className="w-5 h-5 text-[#8FA67E]" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-lg md:text-xl font-bold text-[#3B3632]">Search Messages</h2>
-                    <p className="text-xs text-[#8B7E74] hidden sm:block">
+                    <h2 className="text-lg md:text-xl font-bold text-[#3B3632] dark:text-white">Search Messages</h2>
+                    <p className="text-xs text-[#8B7E74] dark:text-gray-400 hidden sm:block">
                       Search across {searchScope === 'all' ? 'all conversations' : 'current conversation'}
                     </p>
                   </div>
                 </div>
                 <button 
                   onClick={handleClose} 
-                  className="p-2 hover:bg-[#F0E6DC] rounded-lg transition-all duration-200 text-[#8B7E74] hover:text-[#5A524A]"
+                  className="p-2 hover:bg-[#F0E6DC] dark:hover:bg-gray-700 rounded-lg transition-all duration-200 text-[#8B7E74] dark:text-gray-400 hover:text-[#5A524A] dark:hover:text-gray-300"
                   aria-label="Close search"
                 >
                   <X size={20} />
@@ -188,7 +188,7 @@ export function SearchDrawer({
               </div>
 
               {/* Search Input */}
-              <div className="px-4 py-4 md:px-6 border-b border-[#E8DDD2]/50">
+              <div className="px-4 py-4 md:px-6 border-b border-[#E8DDD2]/50 dark:border-gray-700/50">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8B7E74]" />
                   <input
@@ -197,7 +197,7 @@ export function SearchDrawer({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search messages..."
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-[#E8DDD2] rounded-lg text-[#3B3632] placeholder-[#B8A9A0] focus:outline-none focus:ring-2 focus:ring-[#8FA67E]/50 focus:border-[#8FA67E]/50 transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 rounded-lg text-[#3B3632] dark:text-white placeholder-[#B8A9A0] dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8FA67E]/50 focus:border-[#8FA67E]/50 transition-all"
                   />
                   {isSearching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -236,13 +236,13 @@ export function SearchDrawer({
               {/* Results */}
               <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 min-h-0">
                 {query.trim().length < 2 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-[#8B7E74] py-12">
+                  <div className="flex flex-col items-center justify-center h-full text-[#8B7E74] dark:text-gray-400 py-12">
                     <Search className="w-12 h-12 mb-3 opacity-30" />
                     <p className="text-sm">Type at least 2 characters to search</p>
                     <p className="text-xs mt-1 opacity-70">Press Esc to close</p>
                   </div>
                 ) : results.length === 0 && !isSearching ? (
-                  <div className="flex flex-col items-center justify-center h-full text-[#8B7E74] py-12">
+                  <div className="flex flex-col items-center justify-center h-full text-[#8B7E74] dark:text-gray-400 py-12">
                     <MessageSquare className="w-12 h-12 mb-3 opacity-30" />
                     <p className="text-sm">No messages found</p>
                     <p className="text-xs mt-1 opacity-70">Try a different search term</p>
@@ -252,7 +252,7 @@ export function SearchDrawer({
                     <motion.button
                       key={result.messageId}
                       onClick={() => handleResultClick(result)}
-                      className="w-full p-4 bg-white hover:bg-[#F0E6DC] border border-[#E8DDD2] hover:border-[#C6D4B0] rounded-xl text-left transition-all group"
+                      className="w-full p-4 bg-white dark:bg-gray-800 hover:bg-[#F0E6DC] dark:hover:bg-gray-700 border border-[#E8DDD2] dark:border-gray-700 hover:border-[#C6D4B0] dark:hover:border-gray-600 rounded-xl text-left transition-all group"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ scale: 1.01 }}
@@ -264,7 +264,7 @@ export function SearchDrawer({
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span className="truncate max-w-[200px]">{result.conversationTitle}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-[#8B7E74]">
+                        <div className="flex items-center gap-1 text-xs text-[#8B7E74] dark:text-gray-400">
                           <Clock className="w-3 h-3" />
                           <span>{formatTimestamp(result.timestamp)}</span>
                         </div>
@@ -272,7 +272,7 @@ export function SearchDrawer({
 
                       {/* Message Snippet */}
                       <div 
-                        className="text-sm text-[#5A524A] line-clamp-2 mb-2"
+                        className="text-sm text-[#5A524A] dark:text-gray-300 line-clamp-2 mb-2"
                         dangerouslySetInnerHTML={{ 
                           __html: highlightSearchTerm(result.snippet, query) 
                         }}

@@ -125,17 +125,17 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
           <div className="p-2 rounded-xl bg-[#B8A5D6]/20">
             <BarChart3 className="w-4 h-4 text-[#8B7AB8]" />
           </div>
-          <h3 className="text-[#5A524A] font-medium text-sm">Emotional Insights</h3>
+          <h3 className="text-[#5A524A] dark:text-white font-medium text-sm">Emotional Insights</h3>
         </div>
         
         <div className="space-y-3">
           <div className="text-center py-4">
             <div className="flex items-center justify-center mb-2">
-              <div className="p-3 rounded-xl bg-[#B8A5D6]/20">
-                <Brain className="w-8 h-8 text-[#8B7AB8]" />
+              <div className="p-3 rounded-xl bg-[#B8A5D6]/20 dark:bg-gray-700/50">
+                <Brain className="w-8 h-8 text-[#8B7AB8] dark:text-gray-300" />
               </div>
             </div>
-            <p className="text-[#8B7E74] text-sm mb-4">
+            <p className="text-[#8B7E74] dark:text-gray-400 text-sm mb-4">
               Track your emotional patterns and conversation insights
             </p>
             <div 
@@ -159,16 +159,16 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
           
           <div className="space-y-2 text-xs">
             <div className="flex justify-between items-center">
-              <span className="text-[#8B7E74]">Mood Tracking</span>
-              <span className="text-[#8FA67E] font-medium bg-[#8FA67E]/10 px-2 py-0.5 rounded">Active</span>
+              <span className="text-[#8B7E74] dark:text-gray-400">Mood Tracking</span>
+              <span className="text-[#8FA67E] dark:text-green-400 font-medium bg-[#8FA67E]/10 dark:bg-green-400/10 px-2 py-0.5 rounded">Active</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[#8B7E74]">Conversation Analysis</span>
-              <span className="text-[#F3B562] font-medium bg-[#F3B562]/10 px-2 py-0.5 rounded">Coming Soon</span>
+              <span className="text-[#8B7E74] dark:text-gray-400">Conversation Analysis</span>
+              <span className="text-[#F3B562] dark:text-yellow-400 font-medium bg-[#F3B562]/10 dark:bg-yellow-400/10 px-2 py-0.5 rounded">Coming Soon</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[#8B7E74]">Wellness Score</span>
-              <span className="text-[#9B8FDB] font-medium bg-[#9B8FDB]/10 px-2 py-0.5 rounded">Beta</span>
+              <span className="text-[#8B7E74] dark:text-gray-400">Wellness Score</span>
+              <span className="text-[#9B8FDB] dark:text-purple-400 font-medium bg-[#9B8FDB]/10 dark:bg-purple-400/10 px-2 py-0.5 rounded">Beta</span>
             </div>
           </div>
         </div>
@@ -207,11 +207,11 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
           <div className="p-2 rounded-xl bg-[#B8A5D6]/20">
             <BarChart3 className="w-4 h-4 text-[#8B7AB8]" />
           </div>
-          <h3 className="text-[#5A524A] font-medium text-sm">Emotional Insights</h3>
+          <h3 className="text-[#5A524A] dark:text-white font-medium text-sm">Emotional Insights</h3>
         </div>
         <div className="space-y-3">
-          <div className="h-32 bg-white/50 rounded-xl border border-[#E8DDD2] animate-pulse" />
-          <div className="h-32 bg-white/50 rounded-xl border border-[#E8DDD2] animate-pulse" />
+          <div className="h-32 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-[#E8DDD2] dark:border-gray-700 animate-pulse" />
+          <div className="h-32 bg-white/50 dark:bg-gray-800/50 rounded-xl border border-[#E8DDD2] dark:border-gray-700 animate-pulse" />
         </div>
       </div>
     );
@@ -223,15 +223,15 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
         <div className="p-2 rounded-xl bg-[#B8A5D6]/20">
           <BarChart3 className="w-4 h-4 text-[#8B7AB8]" />
         </div>
-        <h3 className="text-[#5A524A] font-medium text-sm">Emotional Insights</h3>
+        <h3 className="text-[#5A524A] dark:text-white font-medium text-sm">Emotional Insights</h3>
       </div>
       
       <div className="space-y-3">
         {/* Mood Tracking Widget */}
-        <div className="bg-white rounded-xl border border-[#E8DDD2] p-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#E8DDD2] dark:border-gray-700 p-3">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-[#8B7E74] text-xs font-medium">Mood Tracking</span>
-            <span className="text-[#8FA67E] font-medium bg-[#8FA67E]/10 px-2 py-0.5 rounded text-xs">Active</span>
+            <span className="text-[#8B7E74] dark:text-gray-400 text-xs font-medium">Mood Tracking</span>
+            <span className="text-[#8FA67E] dark:text-green-400 font-medium bg-[#8FA67E]/10 dark:bg-green-400/10 px-2 py-0.5 rounded text-xs">Active</span>
           </div>
           {moodChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={80}>
@@ -256,17 +256,17 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-20 flex items-center justify-center text-[#8B7E74] text-xs">
+            <div className="h-20 flex items-center justify-center text-[#8B7E74] dark:text-gray-400 text-xs">
               Complete rituals to see mood trends
             </div>
           )}
         </div>
 
         {/* Conversation Analysis Widget */}
-        <div className="bg-white rounded-xl border border-[#E8DDD2] p-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#E8DDD2] dark:border-gray-700 p-3">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-[#8B7E74] text-xs font-medium">Conversation Analysis</span>
-            <span className="text-[#F3B562] font-medium bg-[#F3B562]/10 px-2 py-0.5 rounded text-xs">Active</span>
+            <span className="text-[#8B7E74] dark:text-gray-400 text-xs font-medium">Conversation Analysis</span>
+            <span className="text-[#F3B562] dark:text-yellow-400 font-medium bg-[#F3B562]/10 dark:bg-yellow-400/10 px-2 py-0.5 rounded text-xs">Active</span>
           </div>
           {goalData.length > 0 ? (
             <div className="flex items-center gap-3">
@@ -303,25 +303,25 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-xs text-[#8B7E74] font-medium">
-                      {item.name}: <span className="text-[#3B3632]">{item.value}</span>
+                    <span className="text-xs text-[#8B7E74] dark:text-gray-400 font-medium">
+                      {item.name}: <span className="text-[#3B3632] dark:text-white">{item.value}</span>
                     </span>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="h-20 flex items-center justify-center text-[#8B7E74] text-xs">
+            <div className="h-20 flex items-center justify-center text-[#8B7E74] dark:text-gray-400 text-xs">
               Complete rituals to see analysis
             </div>
           )}
         </div>
 
         {/* Wellness Score Widget */}
-        <div className="bg-white rounded-xl border border-[#E8DDD2] p-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#E8DDD2] dark:border-gray-700 p-3">
           <div className="flex justify-between items-center">
-            <span className="text-[#8B7E74] text-xs font-medium">Wellness Score</span>
-            <span className="text-[#9B8FDB] font-medium bg-[#9B8FDB]/10 px-2 py-0.5 rounded text-xs">Beta</span>
+            <span className="text-[#8B7E74] dark:text-gray-400 text-xs font-medium">Wellness Score</span>
+            <span className="text-[#9B8FDB] dark:text-purple-400 font-medium bg-[#9B8FDB]/10 dark:bg-purple-400/10 px-2 py-0.5 rounded text-xs">Beta</span>
           </div>
         </div>
       </div>

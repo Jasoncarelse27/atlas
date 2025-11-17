@@ -1,32 +1,23 @@
-import React, { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '../types/subscription';
-import { 
-  Plus, 
-  X, 
-  Settings, 
-  Clock, 
-  TrendingUp, 
-  MessageSquare, 
-  Calendar, 
-  Activity,
-  BarChart3,
-  Zap,
-  Globe,
+import {
   Bookmark,
-  Calculator,
-  Timer,
-  Target,
   Brain,
-  Lightbulb,
-  GripVertical,
+  Calculator,
   Edit3,
-  Trash2,
-  Eye,
-  EyeOff
+  EyeOff,
+  Globe,
+  GripVertical,
+  MessageSquare,
+  Plus,
+  Settings,
+  Target,
+  Timer,
+  TrendingUp,
+  X,
+  Zap
 } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
-import LoadingSpinner from './LoadingSpinner';
+import React, { useEffect, useState } from 'react';
+import type { UserProfile } from '../types/subscription';
 import Tooltip from './Tooltip';
 
 interface Widget {
@@ -634,43 +625,43 @@ const WidgetSystem: React.FC<WidgetSystemProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 p-4">
-      {/* Widget Canvas */}
-      <div className="relative w-full h-full bg-gray-100/50 rounded-xl overflow-hidden">
-        {/* Header */}
-        <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white rounded-lg shadow-sm">
-              <Settings className="w-5 h-5 text-gray-600" />
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 p-4">
+        {/* Widget Canvas */}
+        <div className="relative w-full h-full bg-gray-100/50 dark:bg-gray-900/50 rounded-xl overflow-hidden">
+          {/* Header */}
+          <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Widget Dashboard</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Customize your Atlas experience • Layout: {widgetLayout}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Widget Dashboard</h2>
-              <p className="text-sm text-gray-600">
-                Customize your Atlas experience • Layout: {widgetLayout}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Tooltip content="Add new widget" position="bottom">
-              <button
-                onClick={() => setShowAddWidget(true)}
-                className="p-2 bg-atlas-sage hover:bg-atlas-sage text-white rounded-lg shadow-sm transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </Tooltip>
             
-            <Tooltip content="Close widget dashboard" position="bottom">
-              <button
-                onClick={onToggle}
-                className="p-2 bg-white hover:bg-gray-50 text-gray-600 rounded-lg shadow-sm transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </Tooltip>
+            <div className="flex items-center gap-2">
+              <Tooltip content="Add new widget" position="bottom">
+                <button
+                  onClick={() => setShowAddWidget(true)}
+                  className="p-2 bg-atlas-sage hover:bg-atlas-sage text-white rounded-lg shadow-sm transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </Tooltip>
+              
+              <Tooltip content="Close widget dashboard" position="bottom">
+                <button
+                  onClick={onToggle}
+                  className="p-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg shadow-sm transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
-        </div>
 
         {/* Widgets Container */}
         <div className={`pt-20 pb-4 px-4 h-full ${getContainerClasses()}`}>

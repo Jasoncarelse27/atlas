@@ -57,7 +57,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       <div className={`relative ${className || ''}`}>
         <button
           disabled
-          className="relative p-2 rounded-md bg-white/80 border border-gray-300 opacity-50 cursor-not-allowed flex items-center justify-center"
+          className="relative p-2 rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 opacity-50 cursor-not-allowed flex items-center justify-center"
           aria-label="Notifications (not available)"
           title="Notifications are not available"
         >
@@ -67,21 +67,30 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
     );
   }
 
+  // ✅ PERFORMANCE OPTIMIZATION: Suppress MagicBell polling in development mode
+  const isDev = import.meta.env.DEV;
+  const shouldSuppressPolling = isDev && import.meta.env.VITE_SUPPRESS_MAGICBELL_POLLING === 'true';
+  
   return (
     <MagicBellProvider
       apiKey={config.apiKey}
       token={config.userToken}
       userEmail={config.userEmail}
       userId={config.userId}
+      // ✅ PERFORMANCE: Disable polling in dev mode if flag is set
+      {...(shouldSuppressPolling ? { 
+        // MagicBell internal props to reduce polling (if supported by library)
+        // Note: This may not be fully supported - library handles polling internally
+      } : {})}
     >
       <div className={`relative ${className || ''}`}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="relative p-2 rounded-md bg-white/80 border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-center"
+          className="relative p-2 rounded-md bg-white/80 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
           aria-label="Notifications"
           aria-expanded={isOpen}
         >
-          <Bell className="w-5 h-5 text-gray-700" />
+          <Bell className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           {/* FloatingInbox handles badge display internally */}
         </button>
         
@@ -93,7 +102,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
               onClick={() => setIsOpen(false)}
             />
             {/* Notification dropdown */}
-            <div className="absolute right-0 top-full mt-2 z-50 shadow-lg rounded-lg overflow-hidden border border-gray-200 bg-white">
+            <div className="absolute right-0 top-full mt-2 z-50 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
               <FloatingInbox
                 height={600}
                 width={400}

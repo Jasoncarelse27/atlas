@@ -24,7 +24,6 @@ export function getApiUrl(): string {
   // construct the backend URL from the current hostname with port 8000
   if (!apiUrl && typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
     
     // Check if we're accessing from a network IP (not localhost)
     const isNetworkIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(hostname);
@@ -32,14 +31,14 @@ export function getApiUrl(): string {
     
     // If accessing from network IP (mobile device), use backend directly on port 8000
     if (isNetworkIP && import.meta.env.DEV) {
-      // ✅ BEST PRACTICE: Match frontend protocol to prevent mixed content blocking
-      // HTTPS frontend MUST use HTTPS backend (browsers block HTTP from HTTPS)
-      // Backend runs HTTPS on port 8000, so use same protocol as frontend
-      const backendProtocol = window.location.protocol === 'https:' ? 'https' : 'http';
+      // ✅ FIX: Backend runs on HTTP in dev mode, not HTTPS
+      // Use HTTP for backend even if frontend is HTTPS (dev mode only)
+      // In production, backend should be HTTPS
+      const backendProtocol = 'http'; // Always HTTP in dev mode
       const backendUrl = `${backendProtocol}://${hostname}:8000`;
       logger.debug(
         `[API Client] 📱 Mobile/Network access detected (${hostname}). ` +
-        `Using backend URL: ${backendUrl} (protocol matches frontend: ${window.location.protocol})`
+        `Using backend URL: ${backendUrl} (HTTP for dev mode)`
       );
       return backendUrl;
     }
@@ -72,27 +71,28 @@ export function getApiUrl(): string {
       return apiUrl;
     }
     
-    // ✅ CRITICAL FIX: Frontend HTTPS + backend HTTP → upgrade to HTTPS
+    // ✅ CRITICAL FIX: Frontend HTTPS + backend HTTP → handle mixed content
     // Mixed content blocking prevents HTTPS pages from loading HTTP resources
-    // Backend runs HTTPS on port 8000, so upgrade HTTP to HTTPS
+    // In dev mode, backend may be HTTP, so we need to handle this
     if (isFrontendHttps && isBackendHttp && isLocalDev) {
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const isNetworkIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(window.location.hostname);
       
       // If localhost, try Vite proxy first (but it may not work with HTTPS frontend)
       if (isLocalhost) {
         logger.debug(
           '[API Client] ℹ️ Local dev: Frontend HTTPS, backend HTTP. ' +
-          'Trying Vite proxy first, but may need HTTPS backend.'
+          'Using relative URLs (Vite proxy) to avoid mixed content.'
         );
-        // Still upgrade to HTTPS for consistency (backend supports HTTPS)
-        apiUrl = apiUrl.replace('http://', 'https://');
-      } else {
-        // Network IP: Must upgrade HTTP to HTTPS (no proxy available)
+        return ''; // Use relative URLs for Vite proxy
+      } else if (isNetworkIP) {
+        // Network IP: Backend is HTTP, but frontend is HTTPS
+        // Keep HTTP - browsers will show mixed content warning but allow it in dev
         logger.warn(
-          '[API Client] ⚠️ Mixed content fix: Frontend HTTPS, backend HTTP. ' +
-          'Upgrading backend URL to HTTPS to prevent mixed content blocking.'
+          '[API Client] ⚠️ Mixed content: Frontend HTTPS, backend HTTP. ' +
+          'Using HTTP backend (dev mode only - will show browser warning).'
         );
-        apiUrl = apiUrl.replace('http://', 'https://');
+        // Keep HTTP - don't upgrade
       }
     }
     

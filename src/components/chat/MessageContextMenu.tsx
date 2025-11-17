@@ -88,7 +88,7 @@ export function MessageContextMenu({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.15 }}
-        className="fixed z-[100] bg-[#F9F6F3] backdrop-blur-xl rounded-xl shadow-2xl border border-[#E8DDD2] overflow-hidden"
+        className="fixed z-[100] bg-[#F9F6F3] dark:bg-gray-800 backdrop-blur-xl rounded-xl shadow-2xl border border-[#E8DDD2] dark:border-gray-700 overflow-hidden"
         style={{
           left: `${adjustedPosition.x}px`,
           top: `${adjustedPosition.y}px`,
@@ -108,7 +108,7 @@ export function MessageContextMenu({
               w-full flex items-center gap-3 px-4 py-3
               transition-colors duration-150
               ${item.className}
-              ${index > 0 ? 'border-t border-[#E8DDD2]/50' : ''}
+              ${index > 0 ? 'border-t border-[#E8DDD2]/50 dark:border-gray-700/50' : ''}
             `}
           >
             <item.icon className="w-4 h-4" />

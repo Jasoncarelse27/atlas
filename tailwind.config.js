@@ -3,6 +3,7 @@ import forms from '@tailwindcss/forms';
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: 'class', // Enable class-based dark mode (required for useThemeMode)
   theme: {
     extend: {
       colors: {

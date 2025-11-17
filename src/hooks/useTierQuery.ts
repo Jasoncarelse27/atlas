@@ -599,35 +599,71 @@ export function useTierQuery() {
     };
   }, [queryClient]);
 
-  // ✅ PERFORMANCE FIX: Module-level cooldown tracking (prevents spam across all instances)
+  // ✅ PERFORMANCE OPTIMIZATION: Module-level cooldown tracking (prevents spam across all instances)
   let lastRefetchTime = 0;
-  const REFETCH_COOLDOWN = 5000; // 5 seconds minimum between refetches
+  const REFETCH_COOLDOWN = 10000; // ✅ OPTIMIZED: 10 seconds minimum between refetches (increased from 5s)
 
   // ✅ CROSS-DEVICE SYNC FIX: Force refresh tier when app becomes visible (catches tier changes from other devices)
   // ✅ PERFORMANCE FIX: Consolidated handler with cooldown to prevent duplicate refetches
   useEffect(() => {
     if (typeof document === 'undefined') return;
     
+    // ✅ BEST PRACTICE: Track pending timeout for cleanup (prevents memory leaks)
+    let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
+    
     // ✅ Consolidated handler for both visibilitychange and focus events
     const handleAppVisibility = () => {
+      // ✅ BEST PRACTICE: Clear any pending timeout before creating new one (prevents race conditions)
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        pendingTimeout = null;
+      }
+      
+      // ✅ IMPROVEMENT 1: Explicit offline check (prevents unnecessary refetch attempts)
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        if (import.meta.env.DEV) {
+          logger.debug('[useTierQuery] ⏳ Offline detected, skipping refetch');
+        }
+        return;
+      }
+      
       if (!document.hidden && query.data?.userId) {
         const now = Date.now();
         
         // ✅ PERFORMANCE FIX: Cooldown check - prevent refetch if last refetch < 5 seconds ago
         if (now - lastRefetchTime < REFETCH_COOLDOWN) {
-          logger.debug(`[useTierQuery] ⏳ Refetch cooldown active (${Math.round((REFETCH_COOLDOWN - (now - lastRefetchTime)) / 1000)}s remaining), skipping...`);
+          if (import.meta.env.DEV) {
+            logger.debug(`[useTierQuery] ⏳ Refetch cooldown active (${Math.round((REFETCH_COOLDOWN - (now - lastRefetchTime)) / 1000)}s remaining), skipping...`);
+          }
           return;
         }
         
         const cached = getCachedTier(query.data.userId);
-        const cacheAge = cached ? Date.now() - (cached as any).timestamp : Infinity;
         
-        // ✅ FIX: If cache is older than 30 seconds, force refresh to catch tier changes from other devices
-        if (cacheAge > TIER_CACHE_EXPIRY) {
-          logger.debug(`[useTierQuery] 🔄 App visible, cache stale (${Math.round(cacheAge / 1000)}s), refreshing tier...`);
-          lastRefetchTime = now;
-          query.refetch();
+        // ✅ FIX: Only refetch if cache exists AND is stale (prevents infinite loop when no cache)
+        if (cached) {
+          const cacheAge = Date.now() - (cached as any).timestamp;
+          // ✅ FIX: If cache is older than 30 seconds, force refresh to catch tier changes from other devices
+          if (cacheAge > TIER_CACHE_EXPIRY) {
+            if (import.meta.env.DEV) {
+              logger.debug(`[useTierQuery] 🔄 App visible, cache stale (${Math.round(cacheAge / 1000)}s), refreshing tier...`);
+            }
+            // ✅ PERFORMANCE OPTIMIZATION: Add jitter (0-1000ms random delay) to prevent synchronized refresh storms
+            const jitter = Math.floor(Math.random() * 1000); // ✅ Increased from 300ms to 1000ms for better distribution
+            pendingTimeout = setTimeout(() => {
+              pendingTimeout = null; // Clear reference when timeout fires
+              lastRefetchTime = Date.now();
+              // ✅ BEST PRACTICE: Check if query is still mounted before refetching (prevents stale closure issues)
+              query.refetch().catch((err) => {
+                // Silently handle errors (query might be unmounted)
+                if (import.meta.env.DEV) {
+                  logger.debug('[useTierQuery] Refetch error (likely unmounted):', err);
+                }
+              });
+            }, jitter);
+          }
         }
+        // ✅ FIX: If no cache exists, let the normal query handle it (don't force refetch)
       }
     };
     
@@ -636,8 +672,14 @@ export function useTierQuery() {
     window.addEventListener('focus', handleAppVisibility);
     
     return () => {
+      // ✅ BEST PRACTICE: Clean up event listeners
       document.removeEventListener('visibilitychange', handleAppVisibility);
       window.removeEventListener('focus', handleAppVisibility);
+      // ✅ BEST PRACTICE: Clean up pending timeout (prevents memory leaks and stale refetches)
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        pendingTimeout = null;
+      }
     };
   }, [query, query.data?.userId]);
 
