@@ -207,10 +207,10 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
   if (isLoading || !tier) {
     logger.debug(`[UsageCounter] ⏳ Waiting for tier... isLoading: ${isLoading}, tier: ${tier}`);
     return (
-      <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
+      <div className="bg-atlas-pearl/50 dark:bg-[#1A1D26]/80 border border-atlas-border dark:border-[#2A2E3A] p-4 rounded-xl shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[#8B7E74] text-sm font-medium uppercase tracking-wider">Current Tier</h3>
-          <span className="text-xs font-semibold text-[#9B8FDB]">Loading...</span>
+          <h3 className="text-atlas-text-muted dark:text-gray-400 text-sm font-medium uppercase tracking-wider">Current Tier</h3>
+          <span className="text-xs font-semibold text-atlas-sage dark:text-[#F4E5D9]">Loading...</span>
         </div>
       </div>
     );
@@ -220,11 +220,11 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
   logger.info(`[UsageCounter] 🎨 Rendering with tier: ${tier.toUpperCase()}, display name: ${getTierDisplayName(tier)}`);
 
   return (
-    <div className="bg-white/50 border border-[#E8DDD2] p-4 rounded-xl shadow-sm">
+    <div className="bg-atlas-pearl/50 dark:bg-[#1A1D26]/80 border border-atlas-border dark:border-[#2A2E3A] p-4 rounded-xl shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[#8B7E74] text-sm font-medium uppercase tracking-wider">Current Tier</h3>
+        <h3 className="text-atlas-text-muted dark:text-gray-400 text-sm font-medium uppercase tracking-wider">Current Tier</h3>
         <span 
-          className="text-xs font-semibold text-[#9B8FDB] cursor-help"
+          className="text-xs font-semibold text-atlas-sage dark:text-[#F4E5D9] cursor-help"
           title={getTierTooltip(tier)}
         >
           {getTierDisplayName(tier)}
@@ -234,33 +234,41 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
       {isUnlimited ? (
         <div className="text-center py-2">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="p-2 rounded-xl bg-[#8FA67E]/20">
-              <Crown className="w-5 h-5 text-[#8FA67E]" />
+            <div className="p-2 rounded-xl bg-atlas-sage/20 dark:bg-[#F4E5D9]/20">
+              <Crown className="w-5 h-5 text-atlas-sage dark:text-[#F4E5D9]" />
             </div>
           </div>
-          <p className="text-[#8FA67E] text-sm font-semibold">Unlimited Messages</p>
-          <p className="text-[#8B7E74] text-xs mt-1">All features unlocked</p>
+          <p className="text-atlas-sage dark:text-[#F4E5D9] text-sm font-semibold">Unlimited Messages</p>
+          <p className="text-atlas-text-muted dark:text-gray-400 text-xs mt-1">All features unlocked</p>
         </div>
       ) : (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-[#8B7E74]">Messages This Month</span>
-            <span className={`font-medium ${messageCount >= maxMessages ? 'text-red-600' : 'text-[#5A524A]'}`}>
+            <span className="text-atlas-text-muted dark:text-gray-400">Messages This Month</span>
+            <span className={`font-medium ${
+              messageCount >= maxMessages 
+                ? 'text-red-600 dark:text-red-400' 
+                : 'text-atlas-text-dark dark:text-gray-300'
+            }`}>
               {messageCount} / {maxMessages}
             </span>
           </div>
           
-          <div className="w-full bg-[#E8DDD2] rounded-full h-2">
+          <div className="w-full bg-atlas-border dark:bg-[#2A2E3A] rounded-full h-2">
             <div 
               className={`h-2 rounded-full transition-all duration-300 ${
-                messageCount >= maxMessages ? 'bg-red-500' : 'bg-[#F3B562]'
+                messageCount >= maxMessages 
+                  ? 'bg-red-500 dark:bg-red-400' 
+                  : 'bg-atlas-sage dark:bg-[#F4E5D9]'
               }`}
               style={{ width: `${Math.min(100, (messageCount / maxMessages) * 100)}%` }}
             />
           </div>
           
           <p className={`text-xs text-center ${
-            messageCount >= maxMessages ? 'text-red-600 font-semibold' : 'text-[#8B7E74]'
+            messageCount >= maxMessages 
+              ? 'text-red-600 dark:text-red-400 font-semibold' 
+              : 'text-atlas-text-muted dark:text-gray-400'
           }`}>
             {messageCount >= maxMessages 
               ? 'Limit reached - Upgrade to continue' 
