@@ -1571,13 +1571,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // ✅ TUTORIAL: Trigger tutorial for first-time users (hook already declared at top)
   useEffect(() => {
-    // Diagnostic logging (visible in production)
-    console.log('[ChatPage] Tutorial check:', { 
-      userId, 
-      isCompleted, 
-      tutorialLoading,
-      shouldTrigger: userId && !isCompleted && !tutorialLoading 
-    });
+    // Diagnostic logging
+    if (import.meta.env.DEV) {
+      console.log('[ChatPage] Tutorial check:', { 
+        userId, 
+        isCompleted, 
+        tutorialLoading,
+        shouldTrigger: userId && !isCompleted && !tutorialLoading 
+      });
+    }
     
     // Only trigger tutorial if:
     // 1. User is authenticated
@@ -1587,7 +1589,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     if (userId && !isCompleted && !tutorialLoading) {
       // Small delay to ensure page is fully rendered
       const timer = setTimeout(() => {
-        console.log('[ChatPage] 🎓 TRIGGERING TUTORIAL NOW');
+        if (import.meta.env.DEV) {
+          console.log('[ChatPage] 🎓 TRIGGERING TUTORIAL NOW');
+        }
         logger.info('[ChatPage] 🎓 Starting tutorial for first-time user');
         startTutorial();
       }, 1000); // 1 second delay for smooth UX
@@ -1802,10 +1806,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className="min-h-screen bg-atlas-pearl dark:bg-gray-900 transition-colors duration-200">
+      <div className="min-h-screen bg-[#0F121A] transition-colors duration-200">
         {/* Header Skeleton - White gradient effect (visible fade) */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700`}
+          className={`sticky top-0 z-30 transition-all duration-300 bg-[#1A1D26] border-b border-[#2A2E3A]`}
           style={{ 
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
@@ -1950,7 +1954,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div 
-        className="min-h-screen bg-atlas-pearl dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-200"
+        className="min-h-screen bg-[#0F121A] text-white transition-colors duration-200"
         style={{
           // ✅ FIX: Use consistent 100dvh to prevent layout jumps
           minHeight: '100dvh',
@@ -1963,7 +1967,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       >
         {/* Header - White gradient effect (visible fade) */}
         <div 
-          className="sticky top-0 z-30 transition-all duration-300 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-gray-800/50"
+          className="sticky top-0 z-30 transition-all duration-300 bg-[#1A1D26] border-b border-[#2A2E3A] shadow-sm"
           style={{ 
             // ✅ REMOVED: Hardcoded light mode styles - now uses Tailwind dark: classes
             backdropFilter: 'none !important',
@@ -1985,13 +1989,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       setSidebarOpen(true);
                     }
                   }}
-                  className="p-2 rounded-lg bg-atlas-sage/10 dark:bg-gray-800/50 hover:bg-atlas-sage/20 dark:hover:bg-gray-700 transition-colors"
+                  className="p-2 rounded-lg bg-[#2A2E3A]/50 hover:bg-[#2A2E3A] transition-colors"
                 >
-                  <Menu className="w-5 h-5 text-atlas-stone dark:text-gray-300" />
+                  <Menu className="w-5 h-5 text-gray-300" />
                 </button>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-atlas-text-dark dark:text-white" style={{ fontWeight: 700 }}>Atlas AI</h1>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base hidden sm:block">Emotionally intelligent productivity assistant</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white" style={{ fontWeight: 700 }}>Atlas AI</h1>
+                  <p className="text-gray-400 text-sm sm:text-base hidden sm:block">Emotionally intelligent productivity assistant</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
@@ -2002,11 +2006,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 {/* Search Button - PHASE 2B */}
                 <button
                   onClick={() => setShowSearch(true)}
-                  className="p-2 rounded-lg bg-atlas-sage/10 dark:bg-gray-800/50 hover:bg-atlas-sage/20 dark:hover:bg-gray-700 transition-colors group"
+                  className="p-2 rounded-lg bg-[#2A2E3A]/50 hover:bg-[#2A2E3A] transition-colors group"
                   title="Search messages (Cmd+K)"
                   aria-label="Search messages"
                 >
-                  <Search className="w-5 h-5 text-atlas-stone dark:text-gray-300 group-hover:text-atlas-sage dark:group-hover:text-gray-200" />
+                  <Search className="w-5 h-5 text-gray-300 group-hover:text-gray-200" />
                 </button>
                 {/* Sync status hidden per design requirements */}
                 {/* <SyncStatus isOnline={true} /> */}
@@ -2051,7 +2055,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl dark:bg-gray-900 border-r border-atlas-border dark:border-gray-700 z-50 overflow-y-auto shadow-xl"
+                className="fixed left-0 top-0 h-full w-full sm:w-80 bg-[#1A1D26] border-r border-[#2A2E3A] z-50 overflow-y-auto shadow-xl"
                 onClick={(e) => {
                   // ✅ CRITICAL FIX: Prevent sidebar content clicks from closing sidebar
                   e.stopPropagation();
@@ -2161,7 +2165,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {/* Chat Container - ✅ WCAG AA: Semantic <main> landmark */}
         <main 
           id="main-chat"
-          className="flex flex-col bg-atlas-pearl dark:bg-gray-900"
+          className="flex flex-col bg-[#0F121A]"
           style={{
             // ✅ FIX: Use dvh consistently to prevent jumps
             height: 'calc(100dvh - 120px)', // Account for header height
@@ -2185,7 +2189,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           {/* Messages */}
           <div 
             ref={messagesContainerRef} 
-            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-atlas-pearl dark:bg-gray-900 transition-colors duration-200"
+            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-[#0F121A] transition-colors duration-200"
             role="log"
             aria-live="polite"
             aria-label="Message list"
@@ -2281,27 +2285,40 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                     // ✅ MODERN: Web-style empty state matching reference design with Atlas branding
                     return (
                       <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center min-h-[60vh] sm:min-h-[400px]">
-                        {/* Atlas Logo - Same as web version */}
+                        {/* Atlas Logo - Brain/Heart icon with peach accent */}
                         <div className="mb-8 sm:mb-10">
-                          <img
-                            src="/atlas-logo.png"
-                            alt="Atlas AI Logo"
-                            className="mx-auto h-24 w-24 sm:h-32 sm:w-32"
-                          />
+                          {/* Using brain + heart design with peach colors */}
+                          <div className="relative w-24 h-24 sm:w-32 sm:h-32 mx-auto flex items-center justify-center">
+                            <div className="absolute inset-0 bg-gradient-to-br from-[#F4E5D9]/20 to-[#F3D3B8]/20 rounded-full blur-xl"></div>
+                            <div className="relative w-20 h-20 sm:w-28 sm:h-28 bg-[#F4E5D9]/10 rounded-full flex items-center justify-center">
+                              <svg viewBox="0 0 100 100" className="w-14 h-14 sm:w-20 sm:h-20" fill="none">
+                                {/* Brain icon merged with heart */}
+                                <path d="M50 20 C30 20 20 35 20 45 C20 65 50 80 50 80 C50 80 80 65 80 45 C80 35 70 20 50 20 Z" 
+                                      fill="#F4E5D9" opacity="0.8"/>
+                                {/* Brain texture */}
+                                <path d="M35 35 Q40 30 45 35 T55 35 Q60 30 65 35" 
+                                      stroke="#F3D3B8" strokeWidth="2" fill="none" opacity="0.6"/>
+                                <path d="M35 45 Q40 40 45 45 T55 45 Q60 40 65 45" 
+                                      stroke="#F3D3B8" strokeWidth="2" fill="none" opacity="0.6"/>
+                                {/* Heart center */}
+                                <circle cx="50" cy="45" r="8" fill="#F3D3B8" opacity="0.7"/>
+                              </svg>
+                            </div>
+                          </div>
                         </div>
                         
-                        {/* Welcome heading - Atlas text-dark color */}
-                        <h2 className="text-3xl sm:text-4xl font-bold text-atlas-text-dark mb-3 sm:mb-4" style={{ fontWeight: 700 }}>
+                        {/* Welcome heading - White text for dark mode */}
+                        <h2 className="text-3xl sm:text-4xl font-semibold text-white mb-3 sm:mb-4">
                           Welcome to Atlas AI
                         </h2>
                         
-                        {/* Description - Atlas text-medium color */}
-                        <p className="text-base sm:text-lg text-atlas-text-medium mb-4 sm:mb-6 max-w-md mx-auto leading-relaxed">
+                        {/* Description - Light gray text for dark mode */}
+                        <p className="text-base sm:text-lg text-gray-300 mb-4 sm:mb-6 max-w-md mx-auto leading-relaxed">
                           Emotionally intelligent productivity assistant is ready to help.
                         </p>
                         
-                        {/* Call to action - Atlas text-muted color */}
-                        <p className="text-sm sm:text-base text-atlas-text-muted mb-8 sm:mb-10 max-w-sm mx-auto">
+                        {/* Call to action - Muted gray text */}
+                        <p className="text-sm sm:text-base text-gray-400 mb-8 sm:mb-10 max-w-sm mx-auto">
                           Start a conversation below!
                         </p>
                       </div>

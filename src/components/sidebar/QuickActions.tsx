@@ -167,13 +167,17 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
 
   const handleNewChat = async () => {
     logger.debug('[QuickActions] 🚀 Starting new chat...');
-    console.log('[QuickActions] 🚀 Starting new chat...'); // ✅ DEBUG: Visible in production
+    if (import.meta.env.DEV) {
+      console.log('[QuickActions] 🚀 Starting new chat...');
+    }
     
     try {
       // ✅ FIX: Close sidebar immediately for better UX
       if (onNewChat) {
         onNewChat();
-        console.log('[QuickActions] 🚪 Sidebar closed'); // ✅ DEBUG
+        if (import.meta.env.DEV) {
+          console.log('[QuickActions] 🚪 Sidebar closed');
+        }
       }
       
       // ✅ Get authenticated user
@@ -187,7 +191,9 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
       // ✅ Create new conversation ID (browser-compatible)
       const newConversationId = generateUUID();
       logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
-      console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId); // ✅ DEBUG
+      if (import.meta.env.DEV) {
+        console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
+      }
       
       // ✅ CRITICAL FIX: Create conversation record immediately (not wait for first message)
       // This ensures it appears in conversation history right away
@@ -221,12 +227,16 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
           // ✅ Navigate to new conversation
           const targetUrl = `/chat?conversation=${finalId}`;
           logger.debug('[QuickActions] 🔄 Navigating to:', targetUrl);
-          console.log('[QuickActions] 🔄 Navigating to:', targetUrl); // ✅ DEBUG
+          if (import.meta.env.DEV) {
+            console.log('[QuickActions] 🔄 Navigating to:', targetUrl);
+          }
           
           navigate(targetUrl, { replace: true });
           
           logger.debug('[QuickActions] ✅ Navigation triggered via React Router');
-          console.log('[QuickActions] ✅ Navigation complete'); // ✅ DEBUG
+          if (import.meta.env.DEV) {
+            console.log('[QuickActions] ✅ Navigation complete');
+          }
         } else {
           // Fallback: Use generated ID if creation failed
           logger.warn('[QuickActions] ⚠️ Conversation creation returned null, using generated ID');
@@ -352,12 +362,12 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
             <button
               onClick={handleNewChat}
               aria-label="Start a new conversation"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] dark:bg-gray-700 dark:hover:bg-gray-600 active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-[#8FA67E] dark:focus-visible:ring-gray-500 focus-visible:outline-none"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#F4E5D9] hover:bg-[#F3D3B8] active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-[#F4E5D9] focus-visible:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
-                <Plus className="w-4 h-4 text-white" aria-hidden="true" />
+                <Plus className="w-4 h-4 text-[#8B7E74]" aria-hidden="true" />
               </div>
-              <span className="font-medium">Start New Chat</span>
+              <span className="font-medium text-[#8B7E74]">Start New Chat</span>
             </button>
           </li>
           

@@ -21,6 +21,9 @@ type SupabaseMessage = {
 export let lastSyncedAt = 0
 export let isSyncingNow = false
 
+// Sync lock to prevent concurrent syncs
+let syncLock = false
+
 let syncInterval: NodeJS.Timeout | null = null;
 let focusHandler: (() => void) | null = null;
 // ✅ MEMORY LEAK FIX: Track activity listeners for cleanup
@@ -35,20 +38,25 @@ export async function markSyncing(state: boolean) {
 
 export const syncService = {
   async syncAll(userId: string, tier: 'free' | 'core' | 'studio') {
-    // ✅ Use centralized tier config for cloud sync
-    if (!canSyncCloud(tier)) {
-      logger.debug("[SYNC] Cloud sync disabled for tier:", tier);
-      return
-    }
+    // Prevent concurrent syncs
+    if (syncLock) return;
+    syncLock = true;
+    
+    try {
+      // ✅ Use centralized tier config for cloud sync
+      if (!canSyncCloud(tier)) {
+        logger.debug("[SYNC] Cloud sync disabled for tier:", tier);
+        return
+      }
 
-    // ✅ Check if user is authenticated before syncing
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session || !session.user) {
-      logger.debug("[SYNC] No authenticated session - skipping sync")
-      return
-    }
+      // ✅ Check if user is authenticated before syncing
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session || !session.user) {
+        logger.debug("[SYNC] No authenticated session - skipping sync")
+        return
+      }
 
-    await markSyncing(true)
+      await markSyncing(true)
 
     try {
       // ✅ Pull remote messages from Supabase (filtered by user)
@@ -200,6 +208,9 @@ export const syncService = {
       logger.error("[SYNC] Sync error:", err)
     } finally {
       await markSyncing(false)
+    }
+    } finally {
+      syncLock = false
     }
   },
 }
