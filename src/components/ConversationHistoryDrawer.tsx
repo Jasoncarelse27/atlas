@@ -97,7 +97,7 @@ export function ConversationHistoryDrawer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             onClick={onClose}
           />
 
@@ -107,7 +107,7 @@ export function ConversationHistoryDrawer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
           >
             <motion.div
               className="w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] sm:max-h-[85vh] bg-[#F9F6F3] dark:bg-gray-900 rounded-2xl border border-[#E8DDD2] dark:border-gray-700 flex flex-col shadow-2xl overflow-hidden pointer-events-auto"

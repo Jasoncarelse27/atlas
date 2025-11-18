@@ -1984,7 +1984,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       setSidebarOpen(false);
                       setTimeout(() => {
                         sidebarClosingRef.current = false;
-                      }, 450);
+                      }, 300);
                     } else if (!sidebarOpen) {
                       setSidebarOpen(true);
                     }
@@ -2029,7 +2029,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.15 }}
                 className="fixed inset-0 bg-black/50 z-40"
                 onClick={(e) => {
                   // ✅ CRITICAL FIX: Prevent event bubbling and ensure sidebar closes
@@ -2054,7 +2054,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 initial={{ x: -320 }}
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl dark:bg-[#1A1D26] border-r border-atlas-border dark:border-[#2A2E3A] z-50 overflow-y-auto shadow-xl"
                 onClick={(e) => {
                   // ✅ CRITICAL FIX: Prevent sidebar content clicks from closing sidebar
