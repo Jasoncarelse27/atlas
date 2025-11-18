@@ -123,10 +123,10 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
                   handleMuteToggle();
                   if (onSoundPlay) onSoundPlay('toggle');
                 }}
-                className="w-12 h-12 rounded-full bg-[#1A1D26] dark:bg-[#1A1D26] flex items-center justify-center transition-colors hover:bg-[#2A2E3A] dark:hover:bg-[#2A2E3A] focus:outline-none focus:ring-2 focus:ring-[#F4E5D9]/50"
+                className="w-12 h-12 rounded-full bg-[#F4E5D9] dark:bg-[#F4E5D9] flex items-center justify-center transition-colors hover:bg-[#F3D3B8] dark:hover:bg-[#F3D3B8] focus:outline-none focus:ring-2 focus:ring-[#F4E5D9]/50"
                 aria-label={isMuted ? "Unmute audio" : "Mute audio"}
               >
-                {isMuted ? <VolumeX className="w-5 h-5 text-white" /> : <Volume2 className="w-5 h-5 text-white" />}
+                {isMuted ? <VolumeX className="w-5 h-5 text-[#1F2937]" /> : <Volume2 className="w-5 h-5 text-[#1F2937]" />}
               </button>
             </Tooltip>
           )}
