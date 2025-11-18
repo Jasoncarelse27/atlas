@@ -18,6 +18,22 @@ function preserveZustand(): Plugin {
   }
 }
 
+// ✅ CRITICAL FIX: Plugin to strip all sourcemap comments from output
+function stripSourcemapComments(): Plugin {
+  return {
+    name: 'strip-sourcemap-comments',
+    generateBundle(_options, bundle) {
+      for (const [, chunk] of Object.entries(bundle)) {
+        if (chunk.type === 'chunk' && chunk.code) {
+          // Remove all sourceMappingURL comments
+          chunk.code = chunk.code.replace(/\/\/# sourceMappingURL=.*/g, '');
+          chunk.code = chunk.code.replace(/\/\*# sourceMappingURL=.*\*\//g, '');
+        }
+      }
+    }
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
@@ -31,7 +47,7 @@ export default defineConfig(({ mode }) => {
   }
   
   return {
-    plugins: [react(), preserveZustand()],
+    plugins: [react(), preserveZustand(), stripSourcemapComments()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -101,7 +117,7 @@ export default defineConfig(({ mode }) => {
       // Note: esbuild doesn't support terserOptions, but it's safer for exports
       // ✅ CRITICAL FIX: Rollup options - preserve all exports
       rollupOptions: {
-        plugins: [preserveZustand()], // ✅ Apply safeguard plugin
+        plugins: [preserveZustand(), stripSourcemapComments()], // ✅ Apply safeguard plugins
         // ✅ CRITICAL FIX: Preserve entry signatures to keep exports (must be at root level)
         preserveEntrySignatures: 'strict',
         // ✅ CRITICAL FIX: Ensure zustand is bundled, not externalized
@@ -123,6 +139,9 @@ export default defineConfig(({ mode }) => {
           },
           // ✅ CRITICAL FIX: Ensure zustand/react exports are preserved
           interop: 'compat',
+          // ✅ CRITICAL FIX: Remove sourceMappingURL comments to prevent 404 errors
+          sourcemap: false,
+          sourcemapExcludeSources: true,
         },
       },
       // ✅ CRITICAL FIX: Ensure zustand is properly resolved in production build
