@@ -2007,7 +2007,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
 
         {/* Sidebar Drawer */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {sidebarOpen && (
             <>
               {/* ✅ BEST PRACTICE: Backdrop with explicit transition */}
@@ -2027,9 +2027,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               {/* ✅ BEST PRACTICE: Sidebar with consistent animation */}
               {/* ✅ RESPONSIVE: Full width on mobile, fixed width on desktop */}
               <motion.div
-                initial={{ x: -320 }}
+                initial={{ x: '-100%' }}
                 animate={{ x: 0 }}
-                exit={{ x: -320 }}
+                exit={{ x: '-100%' }}
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl dark:bg-[#1A1D26] border-r border-atlas-border dark:border-[#2A2E3A] z-50 overflow-y-auto shadow-xl"
                 onClick={(e) => {
