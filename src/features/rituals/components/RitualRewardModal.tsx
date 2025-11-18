@@ -179,10 +179,22 @@ export function RitualRewardModal({
     return () => clearTimeout(timer);
   }, [isOpen, autoDismiss, onClose]);
   
+  const portalRoot = document.getElementById('modal-portal-root') || document.body;
+  
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ 
+            zIndex: 999999,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -190,6 +202,7 @@ export function RitualRewardModal({
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
+            style={{ zIndex: 999998 }}
           />
 
           {/* Modal */}
@@ -200,6 +213,7 @@ export function RitualRewardModal({
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="relative w-full max-w-md bg-[#F9F6F3] rounded-3xl shadow-2xl border border-[#E8DDD2] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            style={{ zIndex: 999999 }}
           >
             {/* Close Button */}
             <button
@@ -289,7 +303,7 @@ export function RitualRewardModal({
         </div>
       )}
     </AnimatePresence>,
-    document.body
+    portalRoot
   );
 }
 

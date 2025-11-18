@@ -510,3 +510,19 @@ div[class*='EnhancedMessageBubble'] ::-moz-selection {
   background-color: #d3dcab !important; /* Atlas sage */
   color: #3b3632 !important; /* Dark text */
 }
+
+/* ✅ CRITICAL: Modal portal root styling to ensure proper z-index stacking */
+#modal-portal-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9999999;
+  isolation: isolate;
+}
+
+#modal-portal-root > * {
+  pointer-events: auto;
+}
