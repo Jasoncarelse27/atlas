@@ -70,7 +70,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const sidebarClosingRef = useRef(false); // ✅ FIX: Prevent double-close animation glitch
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   
@@ -1617,14 +1616,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       setMessages([]);
       console.log('[ChatPage] 🧹 Cleared messages for new conversation'); // ✅ DEBUG
       
-      // ✅ FIX: Close sidebar smoothly (only if not already closing to prevent animation glitch)
-      if (sidebarOpen && !sidebarClosingRef.current) {
-        sidebarClosingRef.current = true;
+      // ✅ FIX: Close sidebar smoothly
+      if (sidebarOpen) {
         setSidebarOpen(false);
-        // Reset flag after animation completes (~400ms for spring animation)
-        setTimeout(() => {
-          sidebarClosingRef.current = false;
-        }, 450);
       }
       
       // Update conversation ID and load messages
@@ -1979,15 +1973,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               <div className="flex items-center space-x-3 sm:space-x-4">
                 <button
                   onClick={() => {
-                    if (sidebarOpen && !sidebarClosingRef.current) {
-                      sidebarClosingRef.current = true;
-                      setSidebarOpen(false);
-                      setTimeout(() => {
-                        sidebarClosingRef.current = false;
-                      }, 300);
-                    } else if (!sidebarOpen) {
-                      setSidebarOpen(true);
-                    }
+                    setSidebarOpen(!sidebarOpen);
                   }}
                   className="p-2 rounded-lg bg-atlas-sage/10 dark:bg-[#2A2E3A]/50 hover:bg-atlas-sage/20 dark:hover:bg-[#2A2E3A] transition-colors"
                 >
@@ -2031,17 +2017,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 className="fixed inset-0 bg-black/50 z-40"
-                onClick={(e) => {
-                  // ✅ CRITICAL FIX: Prevent event bubbling and ensure sidebar closes
-                  e.stopPropagation();
-                  if (!sidebarClosingRef.current) {
-                    sidebarClosingRef.current = true;
-                    setSidebarOpen(false);
-                    setTimeout(() => {
-                      sidebarClosingRef.current = false;
-                    }, 450);
-                  }
-                }}
+                onClick={() => setSidebarOpen(false)}
                 onTouchStart={(e) => {
                   // ✅ MOBILE FIX: Handle touch events for mobile devices
                   e.stopPropagation();
@@ -2077,15 +2053,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         </div>
                       </button>
                       <button
-                        onClick={() => {
-                          if (!sidebarClosingRef.current) {
-                            sidebarClosingRef.current = true;
-                            setSidebarOpen(false);
-                            setTimeout(() => {
-                              sidebarClosingRef.current = false;
-                            }, 450);
-                          }
-                        }}
+                        onClick={() => setSidebarOpen(false)}
                         className="p-2 rounded-xl bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] transition-colors"
                         aria-label="Close menu"
                       >
@@ -2097,17 +2065,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   {/* Sidebar Content */}
                   <QuickActions 
                     onViewHistory={handleViewHistory}
-                    onNewChat={() => {
-                      // ✅ FIX: Close sidebar smoothly (prevent double-close glitch)
-                      if (!sidebarClosingRef.current) {
-                        sidebarClosingRef.current = true;
-                        setSidebarOpen(false);
-                        // Reset flag after animation completes
-                        setTimeout(() => {
-                          sidebarClosingRef.current = false;
-                        }, 450);
-                      }
-                    }}
+                    onNewChat={() => setSidebarOpen(false)}
                   />
                   <UsageCounter userId={userId ?? ''} />
                   {/* ✅ EMOTIONAL INSIGHTS WIDGETS: Show mood tracking and conversation analysis */}
