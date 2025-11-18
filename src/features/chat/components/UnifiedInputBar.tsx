@@ -142,10 +142,10 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
               className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
                 isListening 
                   ? 'bg-red-500 text-white' 
-                  : 'bg-[#1A1D26] dark:bg-[#1A1D26] text-white hover:bg-[#2A2E3A] dark:hover:bg-[#2A2E3A]'
+                  : 'bg-[#F4E5D9] dark:bg-[#F4E5D9] hover:bg-[#F3D3B8] dark:hover:bg-[#F3D3B8]'
               }`}
             >
-              <Mic className="w-5 h-5" />
+              <Mic className="w-5 h-5 text-[#1F2937]" />
             </button>
           )}
           
