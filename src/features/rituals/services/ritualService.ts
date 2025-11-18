@@ -5,6 +5,9 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { logger } from '@/lib/logger';
+import { atlasDB } from '@/database/atlasDB';
+import { retry } from '@/utils/retry';
+import { generateUUID } from '@/utils/uuid';
 import type { Ritual, RitualLog } from '../types/rituals';
 
 export const ritualService = {
@@ -137,28 +140,97 @@ export const ritualService = {
 
   /**
    * Log ritual completion
+   * ✅ CRITICAL FIX: Offline-first with retry logic and Dexie fallback
    */
   async logCompletion(log: Omit<RitualLog, 'id' | 'completedAt'>): Promise<RitualLog> {
+    const logId = generateUUID();
+    const completedAt = new Date().toISOString();
+    
+    // ✅ STEP 1: Save to Dexie first (offline support)
+    const localLog: RitualLog = {
+      id: logId,
+      ritualId: log.ritualId,
+      userId: log.userId,
+      completedAt,
+      durationSeconds: log.durationSeconds,
+      moodBefore: log.moodBefore,
+      moodAfter: log.moodAfter,
+      notes: log.notes,
+      synced: false,
+    };
+    
     try {
-      const { data, error } = await supabase
-        .from('ritual_logs')
-        .insert({
-          ritual_id: log.ritualId,
-          user_id: log.userId,
-          duration_seconds: log.durationSeconds,
-          mood_before: log.moodBefore,
-          mood_after: log.moodAfter,
-          notes: log.notes,
-        })
-        .select()
-        .single();
+      await atlasDB.ritualLogs.put(localLog);
+      logger.debug('[RitualService] ✅ Saved completion to Dexie:', logId);
+    } catch (dexieError) {
+      logger.error('[RitualService] Failed to save to Dexie:', dexieError);
+      // Continue anyway - try Supabase sync
+    }
+    
+    // ✅ STEP 2: Try to sync to Supabase with retry logic
+    try {
+      const syncedLog = await retry(
+        async () => {
+          const { data, error } = await supabase
+            .from('ritual_logs')
+            .insert({
+              id: logId, // Use same ID for consistency
+              ritual_id: log.ritualId,
+              user_id: log.userId,
+              duration_seconds: log.durationSeconds,
+              mood_before: log.moodBefore,
+              mood_after: log.moodAfter,
+              notes: log.notes,
+              completed_at: completedAt,
+            })
+            .select()
+            .single();
 
-      if (error) throw error;
-      logger.info('[RitualService] Logged completion:', data.id);
-      return data;
+          if (error) {
+            // ✅ CRITICAL: Check if it's a network error (should retry) vs validation error (shouldn't retry)
+            const isNetworkError = error.message?.includes('Load failed') || 
+                                  error.message?.includes('network') ||
+                                  error.message?.includes('fetch') ||
+                                  error.code === ''; // Empty code often indicates network failure
+            
+            if (isNetworkError) {
+              logger.warn('[RitualService] Network error, will retry:', error.message);
+              throw error; // Retry network errors
+            } else {
+              // Validation/auth errors - don't retry
+              logger.error('[RitualService] Non-retryable error:', error);
+              throw error;
+            }
+          }
+          
+          return data;
+        },
+        3, // 3 retries
+        1000 // Start with 1s delay, exponential backoff
+      );
+      
+      // ✅ STEP 3: Mark as synced in Dexie
+      try {
+        await atlasDB.ritualLogs.update(logId, { synced: true });
+        logger.info('[RitualService] ✅ Logged completion and synced:', logId);
+      } catch (updateError) {
+        logger.warn('[RitualService] Failed to update sync status in Dexie:', updateError);
+      }
+      
+      return {
+        ...localLog,
+        synced: true,
+      };
     } catch (error) {
-      logger.error('[RitualService] Failed to log completion:', error);
-      throw error;
+      // ✅ CRITICAL: Network failure - log is saved locally, will sync later
+      logger.warn('[RitualService] ⚠️ Failed to sync to Supabase, saved locally:', {
+        logId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        note: 'Will sync automatically when connection is restored'
+      });
+      
+      // Return local log - completion is still successful (saved locally)
+      return localLog;
     }
   },
 

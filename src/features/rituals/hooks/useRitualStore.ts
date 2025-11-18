@@ -230,14 +230,15 @@ export const useRitualStore = create<RitualStore>((set) => ({
   },
 
   // Log ritual completion
+  // ✅ CRITICAL FIX: Handle offline completion gracefully
   logCompletion: async (log) => {
     try {
       const created = await ritualService.logCompletion(log);
 
-      // Update Dexie
+      // ✅ CRITICAL: Update Dexie with correct sync status
       await atlasDB.ritualLogs.put({
         ...created,
-        synced: true,
+        synced: created.synced ?? false, // Use actual sync status from service
       });
 
       // Update state
@@ -245,8 +246,16 @@ export const useRitualStore = create<RitualStore>((set) => ({
         logs: [created, ...state.logs],
       }));
 
-      logger.info('[RitualStore] Logged completion:', created.id);
+      if (created.synced) {
+        logger.info('[RitualStore] ✅ Logged completion and synced:', created.id);
+      } else {
+        logger.info('[RitualStore] ✅ Logged completion (saved locally, will sync later):', created.id);
+      }
+      
+      // ✅ CRITICAL: Don't throw error if saved locally - completion is successful
+      // The service now handles network failures gracefully
     } catch (error) {
+      // Only throw if it's a critical error (not just network failure)
       logger.error('[RitualStore] Failed to log completion:', error);
       throw error;
     }
