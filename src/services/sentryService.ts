@@ -183,10 +183,54 @@ export function initSentry() {
         'Non-Error promise rejection captured',
         // Safari specific
         'SecurityError: Blocked a frame with origin',
+        // ✅ CRITICAL: MagicBell errors (non-critical feature)
+        'Load failed',
+        'api.magicbell.com',
+        'MagicBell',
+        'magicbell',
+        'jwt_auth_failed',
+        'Unable to authenticate',
+        'Unexpected response body for error status',
+        'Unexpected response body for error status. StatusCode: 401',
       ],
       
       // PII Masking
       beforeSend(event) {
+        // ✅ CRITICAL: Filter out MagicBell errors (non-critical feature)
+        const message = event.message || '';
+        const errorValue = event.exception?.values?.[0]?.value || '';
+        const errorType = event.exception?.values?.[0]?.type || '';
+        const errorMessage = `${message} ${errorValue} ${errorType}`.toLowerCase();
+        
+        // Check for MagicBell errors in multiple places
+        const hasMagicBellInMessage = errorMessage.includes('magicbell') || errorMessage.includes('api.magicbell.com');
+        const hasJwtAuthFailed = errorMessage.includes('jwt_auth_failed') || errorMessage.includes('unable to authenticate');
+        const hasUnexpectedResponse = errorMessage.includes('unexpected response body for error status');
+        const hasStatusCode401 = errorMessage.includes('statuscode: 401') || errorMessage.includes('status: 401');
+        
+        // Check request URLs
+        const requestUrl = event.request?.url || '';
+        const hasMagicBellUrl = requestUrl.includes('magicbell.com') || requestUrl.includes('api.magicbell.com');
+        
+        // Check breadcrumbs for MagicBell-related requests
+        const hasMagicBellBreadcrumb = event.breadcrumbs?.some(b => 
+          b.message?.toLowerCase().includes('magicbell') ||
+          b.data?.url?.includes('magicbell.com')
+        );
+        
+        if (
+          hasMagicBellInMessage ||
+          hasMagicBellUrl ||
+          hasMagicBellBreadcrumb ||
+          (hasJwtAuthFailed && hasStatusCode401) ||
+          (hasUnexpectedResponse && hasStatusCode401) ||
+          errorMessage.includes('load failed') ||
+          event.tags?.magicbell === true
+        ) {
+          // Silent suppression - return null to prevent sending to Sentry
+          return null;
+        }
+        
         // Mask PII in error messages
         if (event.message) {
           event.message = maskPII(event.message);

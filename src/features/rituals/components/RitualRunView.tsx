@@ -6,6 +6,7 @@
 import { atlasDB } from '@/database/atlasDB';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useContextualUpgrade } from '@/hooks/useContextualUpgrade';
 import { supabase } from '@/lib/supabaseClient';
 import { ensureConversationExists } from '@/services/conversationGuard';
 import { generateUUID } from '@/utils/uuid';
@@ -25,6 +26,7 @@ export const RitualRunView: React.FC = () => {
   const { user } = useSupabaseAuth();
   const { presets, userRituals, loading } = useRitualStore();
   const { isMobile } = useMobileOptimization();
+  const { checkAndShowCompletionPrompt, getCompletionCount } = useContextualUpgrade();
 
   const [selectedMoodBefore, setSelectedMoodBefore] = useState<string | null>(null);
   const [selectedMoodAfter, setSelectedMoodAfter] = useState<string | null>(null);
@@ -171,6 +173,15 @@ export const RitualRunView: React.FC = () => {
       postRitualSummaryToChat(ritual!, selectedMoodBefore!, selectedMoodAfter, completionNotes, runner.totalDuration)
         .catch(err => logger.error('[RitualRunView] Failed to post to chat:', err));
       
+      // ✅ PHASE 2: Check completion count and show contextual upgrade prompt
+      try {
+        const completionCount = await getCompletionCount();
+        await checkAndShowCompletionPrompt(completionCount);
+      } catch (error) {
+        logger.debug('[RitualRunView] Failed to check completion count for upgrade prompt:', error);
+        // Non-blocking - don't fail ritual completion if this fails
+      }
+      
     } catch (error) {
       logger.error('[RitualRunView] Failed to complete ritual:', error);
       modernToast.error('Failed to save ritual completion');
@@ -303,7 +314,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
   // PRE-RITUAL: Mood selection
   if (!hasStarted) {
     return (
-      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 overscroll-contain">
+      <div className="min-h-screen h-[100dvh] overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 pb-32 sm:pb-6 overscroll-contain safe-top safe-bottom" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px) + 6rem)' }}>
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -394,7 +405,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <button
               onClick={handleStart}
               disabled={!selectedMoodBefore}
-              className="mt-6 sm:mt-8 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-base sm:text-lg
+              className="mt-6 sm:mt-8 mb-8 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-base sm:text-lg
                 hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all
                 min-h-[56px] sm:min-h-[60px] touch-manipulation active:scale-95
                 focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2"
@@ -411,7 +422,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
   // POST-RITUAL: Completion screen
   if (runner.isComplete) {
     return (
-      <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 overscroll-contain">
+      <div className="min-h-screen h-[100dvh] overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 pb-32 sm:pb-6 overscroll-contain safe-top safe-bottom" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px) + 6rem)' }}>
         <div className="max-w-2xl mx-auto">
           {/* Celebration Header */}
           <div className="text-center mb-8">
@@ -490,7 +501,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             <button
               onClick={handleComplete}
               disabled={!selectedMoodAfter || isSubmitting}
-              className="mt-4 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-base sm:text-lg
+              className="mt-4 mb-6 w-full py-4 bg-[#C8956A] text-white rounded-xl font-semibold text-base sm:text-lg
                 hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-all
                 min-h-[56px] sm:min-h-[60px] touch-manipulation active:scale-95
                 focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2"
@@ -502,7 +513,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
           <button
             onClick={() => navigate('/rituals')}
-            className="w-full py-3 text-[#8B7E74] dark:text-gray-400 hover:text-[#3B3632] dark:hover:text-white transition-colors"
+            className="w-full py-3 mb-8 text-[#8B7E74] dark:text-gray-400 hover:text-[#3B3632] dark:hover:text-white transition-colors"
           >
             Back to Library
           </button>
@@ -525,7 +536,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             }}
             onViewInsights={() => {
               setShowRewardModal(false);
-              navigate('/ritual-insights'); // ✅ FIX: Navigate to insights page
+              navigate('/rituals/insights'); // ✅ FIX: Navigate to insights page
             }}
             onStartAnother={() => {
               setShowRewardModal(false);
@@ -539,8 +550,8 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
   // DURING RITUAL: Timer + Step Display
   return (
-    <div className="h-screen overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-4 md:p-6
-      landscape:flex landscape:items-center landscape:py-4 overscroll-contain">
+    <div className="min-h-screen h-[100dvh] overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-4 md:p-6 pb-28 sm:pb-6
+      landscape:flex landscape:items-center landscape:py-4 overscroll-contain safe-top safe-bottom" style={{ paddingBottom: 'max(7rem, env(safe-area-inset-bottom, 0px) + 5rem)' }}>
       <div className="max-w-4xl mx-auto w-full 
         landscape:flex landscape:flex-row landscape:gap-6 landscape:items-start">
         {/* Header - Hide in landscape to save space */}
@@ -633,10 +644,26 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
             <button
               onClick={runner.isPaused ? runner.resume : runner.pause}
-              className="p-6 md:p-6 rounded-full bg-[#C8956A] hover:bg-[#B8855A] transition-colors
+              disabled={runner.isComplete}
+              onKeyDown={(e) => {
+                // ✅ KEYBOARD SUPPORT: Space or Enter to toggle pause/play
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault();
+                  if (runner.isPaused) {
+                    runner.resume();
+                  } else {
+                    runner.pause();
+                  }
+                }
+              }}
+              className="p-6 md:p-6 rounded-full bg-[#C8956A] hover:bg-[#B8855A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors
                 min-w-[80px] min-h-[80px] md:min-w-[88px] md:min-h-[88px] touch-manipulation
-                active:scale-95 shadow-lg"
-              aria-label={runner.isPaused ? 'Resume' : 'Pause'}
+                active:scale-95 shadow-lg
+                focus:outline-none focus:ring-2 focus:ring-[#C8956A] focus:ring-offset-2"
+              aria-label={runner.isPaused ? 'Resume ritual' : 'Pause ritual'}
+              aria-pressed={!runner.isPaused}
+              role="button"
+              tabIndex={0}
             >
               {runner.isPaused ? (
                 <Play className="w-8 h-8 md:w-8 md:h-8 text-white" />
@@ -724,7 +751,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           }}
           onViewInsights={() => {
             setShowRewardModal(false);
-            navigate('/chat'); // Navigate to chat with ritual summary visible
+            navigate('/rituals/insights'); // ✅ FIX: Navigate to insights page
           }}
           onStartAnother={() => {
             setShowRewardModal(false);

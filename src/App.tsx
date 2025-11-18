@@ -15,6 +15,8 @@ import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 const UpgradePage = lazy(() => import("./pages/UpgradePage"));
+const SubscriptionSuccess = lazy(() => import("./pages/SubscriptionSuccess"));
+const SubscriptionCancel = lazy(() => import("./pages/SubscriptionCancel"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary })));
@@ -150,6 +152,8 @@ function App() {
                   <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
                   <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
                   <Route path="/upgrade" element={<UpgradePage />} />
+                  <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+                  <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
                   <Route path="/terms" element={<TermsPage />} />
                   <Route path="/privacy" element={<PrivacyPage />} />
                   <Route path="/" element={<Navigate to="/chat" replace />} />

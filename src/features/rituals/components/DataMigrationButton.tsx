@@ -4,6 +4,7 @@
  */
 
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { logger } from '@/lib/logger';
 import { Wrench } from 'lucide-react';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
@@ -41,7 +42,7 @@ export const DataMigrationButton: React.FC = () => {
       }
     } catch (error) {
       toast.error('Failed to fix rituals. Please try again.');
-      console.error(error);
+      logger.error('Failed to fix rituals:', error);
     } finally {
       setFixing(false);
     }

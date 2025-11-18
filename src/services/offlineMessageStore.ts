@@ -1,5 +1,6 @@
 // Minimal stub for offlineMessageStore to unblock build
-// TODO: Implement full offline message storage functionality
+// ✅ FUTURE ENHANCEMENT: Implement full offline message storage functionality
+// Current implementation uses Dexie for offline storage - this service can be enhanced later
 
 interface FailedMessage {
   id: string;

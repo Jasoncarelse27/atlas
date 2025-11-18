@@ -92,6 +92,13 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
 
   // Timer logic
   useEffect(() => {
+    // ✅ EXPLICIT CLEANUP: Clear interval when paused or when dependencies change
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Only start timer when not paused and time remaining
     if (!isPaused && timeRemaining > 0) {
       timerRef.current = setInterval(() => {
         setTimeRemaining((prev) => {
@@ -126,6 +133,7 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
   }, [isPaused, timeRemaining, currentStepIndex, ritual.steps]);
@@ -144,12 +152,20 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
   // Pause
   const pause = useCallback(() => {
     setIsPaused(true);
+    // ✅ HAPTIC FEEDBACK: Light tap on pause
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
     logger.debug('[RitualRunner] Paused');
   }, []);
 
   // Resume
   const resume = useCallback(() => {
     setIsPaused(false);
+    // ✅ HAPTIC FEEDBACK: Light tap on resume
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
     logger.debug('[RitualRunner] Resumed');
   }, []);
 

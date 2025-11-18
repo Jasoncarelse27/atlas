@@ -7,6 +7,7 @@ import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useTierQuery } from '@/hooks/useTierQuery';
 import { logger } from '@/lib/logger';
+import { getDisplayPrice } from '@/config/pricing';
 import { format, subDays } from 'date-fns';
 import { ArrowLeft, Award, Calendar, Sparkles, TrendingUp, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -78,7 +79,7 @@ export const RitualInsightsDashboard: React.FC = () => {
             onClick={() => showGenericUpgrade('audio')}
             className="w-full px-6 py-3 bg-[#3B3632] dark:bg-gray-700 text-white rounded-xl hover:bg-[#2A2621] dark:hover:bg-gray-600 transition-colors font-medium"
           >
-            Upgrade to Core ($19.99)
+            Upgrade to Core ({getDisplayPrice('core')})
           </button>
           <button
             onClick={() => navigate('/rituals')}

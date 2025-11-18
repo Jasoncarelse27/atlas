@@ -5,6 +5,7 @@
 
 import { useTierQuery } from '@/hooks/useTierQuery';
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
+import { logger } from '@/lib/logger';
 import { Shield, Snowflake, Check } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -40,7 +41,7 @@ export const StreakFreeze: React.FC = () => {
           setFreezeUsedDate(profile.streak_freeze_used_at);
         }
       } catch (error) {
-        console.error('Failed to check freeze status:', error);
+        logger.error('Failed to check freeze status:', error);
       } finally {
         setLoading(false);
       }

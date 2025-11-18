@@ -228,8 +228,8 @@ class FastSpringService {
           tier,
           email,
           productId: product.productId,
-          successUrl: `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/success`,
-          cancelUrl: `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/cancel`
+          successUrl: `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/success?tier=${tier}`,
+          cancelUrl: `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/cancel?tier=${tier}`
         })
       });
 

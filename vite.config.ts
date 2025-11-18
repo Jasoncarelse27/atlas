@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
+import https from 'https'
 import path from 'path'
 import type { Plugin } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
@@ -162,13 +163,30 @@ export default defineConfig(({ mode }) => {
         console.log(`🔒 [Vite Proxy] Backend protocol detected: ${backendProtocol.toUpperCase()}`);
         console.log(`   Proxy target: ${backendTarget}`);
         
+        // ✅ FIX: In development, accept self-signed certificates
+        const isDevelopment = mode === 'development';
+        const acceptSelfSigned = isDevelopment && backendProtocol === 'https';
+        
+        // ✅ Create HTTPS agent factory outside configure callback
+        const createHttpsAgent = () => {
+          if (acceptSelfSigned) {
+            return new https.Agent({
+              rejectUnauthorized: false
+            });
+          }
+          return undefined;
+        };
+        
+        const httpsAgent = createHttpsAgent();
+        
         return {
           // API routes
           '/v1': {
             target: backendTarget,
             changeOrigin: true,
-            secure: backendProtocol === 'https', // ✅ Accept self-signed certs when using HTTPS
+            secure: false, // ✅ Accept self-signed certs in development
             ws: true, // Enable WebSocket support
+            agent: httpsAgent, // ✅ Set agent directly instead of in configure
             configure: (proxy, options) => {
               proxy.on('error', (err) => {
                 console.error('Proxy error:', err);
@@ -181,13 +199,15 @@ export default defineConfig(({ mode }) => {
           '/api': {
             target: backendTarget,
             changeOrigin: true,
-            secure: backendProtocol === 'https',
-            ws: true
+            secure: false, // ✅ Accept self-signed certs in development
+            ws: true,
+            agent: httpsAgent // ✅ Set agent directly
           },
           '/message': {
             target: backendTarget,
             changeOrigin: true,
-            secure: backendProtocol === 'https'
+            secure: false, // ✅ Accept self-signed certs in development
+            agent: httpsAgent // ✅ Set agent directly
           }
         };
       })()

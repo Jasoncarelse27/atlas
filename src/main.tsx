@@ -53,6 +53,45 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// ✅ CRITICAL FIX: Global MagicBell error handler (must be BEFORE Sentry init)
+// This catches unhandled promise rejections from MagicBell library before Sentry sees them
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const message = reason?.message || String(reason || '').toLowerCase();
+    const errorString = JSON.stringify(reason || {}).toLowerCase();
+    const stack = reason?.stack || '';
+    
+    // Check if this is a MagicBell-related error
+    const isMagicBellError = 
+      message.includes('magicbell') ||
+      message.includes('MagicBell') ||
+      message.includes('api.magicbell.com') ||
+      message.includes('jwt_auth_failed') ||
+      message.includes('Unable to authenticate') ||
+      message.includes('Unexpected response body for error status') ||
+      errorString.includes('magicbell') ||
+      errorString.includes('jwt_auth_failed') ||
+      stack.includes('magicbell') ||
+      (typeof reason === 'object' && reason !== null && 'errors' in reason && 
+       Array.isArray((reason as any).errors) &&
+       (reason as any).errors.some((e: any) => 
+         e.code === 'jwt_auth_failed' || 
+         e.message?.toLowerCase().includes('magicbell') ||
+         e.message?.toLowerCase().includes('unable to authenticate')
+       ));
+    
+    if (isMagicBellError) {
+      // Prevent error from reaching Sentry
+      event.preventDefault();
+      // Silent suppression - MagicBell is non-critical
+      if (import.meta.env.DEV) {
+        console.debug('[MagicBell] Suppressed unhandled rejection:', reason);
+      }
+    }
+  });
+}
+
 // Initialize Sentry before rendering app
 initSentry()
 

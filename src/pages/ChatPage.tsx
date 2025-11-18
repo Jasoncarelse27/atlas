@@ -1604,17 +1604,21 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useEffect(() => {
     const urlConversationId = searchParams.get('conversation');
     
-    logger.debug('[ChatPage] 🔍 Checking URL conversation ID:', { urlConversationId, currentConversationId: conversationId }); // ✅ DEBUG
-    console.log('[ChatPage] 🔍 Checking URL conversation ID:', { urlConversationId, currentConversationId: conversationId }); // ✅ DEBUG: Visible in production
+    if (import.meta.env.DEV) {
+      logger.debug('[ChatPage] 🔍 Checking URL conversation ID:', { urlConversationId, currentConversationId: conversationId });
+    }
     
     // Only switch if URL has a different conversation ID
     if (urlConversationId && urlConversationId !== conversationId) {
-      logger.debug('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId);
-      console.log('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId); // ✅ DEBUG
+      if (import.meta.env.DEV) {
+        logger.debug('[ChatPage] 🔄 URL changed (via React Router), switching conversation:', urlConversationId);
+      }
       
       // ✅ FIX: Clear messages immediately to show new conversation (prevents showing old messages)
       setMessages([]);
-      console.log('[ChatPage] 🧹 Cleared messages for new conversation'); // ✅ DEBUG
+      if (import.meta.env.DEV) {
+        logger.debug('[ChatPage] 🧹 Cleared messages for new conversation');
+      }
       
       // ✅ FIX: Close sidebar smoothly
       if (sidebarOpen) {

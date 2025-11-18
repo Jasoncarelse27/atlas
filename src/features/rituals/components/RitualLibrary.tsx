@@ -14,7 +14,9 @@ import '../styles/mobile.css';
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useContextualUpgrade } from '@/hooks/useContextualUpgrade';
 import { logger } from '@/lib/logger';
+import { getDisplayPrice } from '@/config/pricing';
 import { Lock, MessageCircle, Plus, Sparkles, TrendingUp, X } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +35,7 @@ export const RitualLibrary: React.FC = () => {
   const navigate = useNavigate();
   const { tier, userId } = useTierQuery();
   const { showGenericUpgrade } = useUpgradeModals();
+  const { showLockedRitualPrompt } = useContextualUpgrade();
   const { presets, userRituals, loading, loadPresets, loadUserRituals, deleteRitual } = useRitualStore();
   const { isMobile, triggerHaptic } = useMobileOptimization();
   const { favoriteIds, toggleFavorite, isFavorite } = useFavoriteRituals();
@@ -186,6 +189,11 @@ export const RitualLibrary: React.FC = () => {
     triggerHaptic(10); // Light tap
     // Show bottom sheet instead of immediate modal
     setSelectedLockedRitual(ritual);
+    
+    // ✅ PHASE 2: Show contextual upgrade prompt when viewing locked ritual
+    if (tier === 'free' && ritual.tierRequired) {
+      showLockedRitualPrompt(ritual.title, ritual.tierRequired);
+    }
   };
 
   const handleCloseBottomSheet = () => {
@@ -582,7 +590,7 @@ export const RitualLibrary: React.FC = () => {
                 className="w-full py-4 bg-[#3B3632] text-white rounded-xl font-semibold text-lg
                   active:scale-95 transition-transform shadow-lg min-h-[56px]"
               >
-                Upgrade to {selectedLockedRitual.tierRequired === 'core' ? 'Core ($19.99/mo)' : 'Studio ($149.99/mo)'} {/* ✅ CORRECTED */}
+                Upgrade to {selectedLockedRitual.tierRequired === 'core' ? `Core (${getDisplayPrice('core')})` : `Studio (${getDisplayPrice('studio')})`}
               </button>
 
               <p className="text-center text-xs text-gray-500 mt-4">

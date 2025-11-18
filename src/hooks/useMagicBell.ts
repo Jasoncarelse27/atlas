@@ -41,10 +41,26 @@ export function useMagicBell() {
         try {
           response = await fetchWithAuth(tokenEndpoint, {
             method: 'GET',
+            preventRedirect: true, // ✅ Prevent redirect on 401 (silent failure)
+            showErrorToast: false, // ✅ Silent failure - no toast
           });
         } catch (fetchError) {
-          // fetchWithAuth threw an error → treat as disabled (never throw)
-          logger.debug('[MagicBell] Fetch error (safe fallback):', fetchError);
+          // ✅ CRITICAL: Suppress ALL MagicBell fetch errors (network, SSL, CORS, etc.)
+          // This includes: "Load failed", "NetworkError", "Failed to fetch", etc.
+          if (import.meta.env.DEV) {
+            logger.debug('[MagicBell] Fetch error (safe fallback):', fetchError);
+          }
+          setError(null);
+          setIsLoading(false);
+          return;
+        }
+
+        // ✅ CRITICAL: Handle network errors (Load failed, CORS, SSL, etc.)
+        if (!response.ok && response.status === 0) {
+          // Network error (CORS, SSL, connection failed)
+          if (import.meta.env.DEV) {
+            logger.debug('[MagicBell] Network error (status 0) - treating as disabled');
+          }
           setError(null);
           setIsLoading(false);
           return;
@@ -57,7 +73,9 @@ export function useMagicBell() {
             data = await response.json();
           } catch (parseError) {
             // JSON parse failed - backend might have returned non-JSON
-            logger.debug('[MagicBell] Failed to parse response as JSON - treating as disabled');
+            if (import.meta.env.DEV) {
+              logger.debug('[MagicBell] Failed to parse response as JSON - treating as disabled');
+            }
             setError(null);
             setIsLoading(false);
             return;
@@ -65,7 +83,9 @@ export function useMagicBell() {
           
           // Backend disabled MagicBell → do not init
           if (data?.disabled || !data?.token) {
-            logger.debug('[MagicBell] 🔕 Disabled or missing token (safe fallback)');
+            if (import.meta.env.DEV) {
+              logger.debug('[MagicBell] 🔕 Disabled or missing token (safe fallback)');
+            }
             setError(null);
             setIsLoading(false);
             return;
@@ -78,26 +98,35 @@ export function useMagicBell() {
             userId: user.id,
           });
 
-          logger.debug('[MagicBell] ✅ Initialized successfully');
+          if (import.meta.env.DEV) {
+            logger.debug('[MagicBell] ✅ Initialized successfully');
+          }
           setIsLoading(false);
           return;
         }
 
         // 401 → Non-critical, swallow
         if (response.status === 401) {
-          logger.debug('[MagicBell] 401 Unauthorized - treating as disabled');
+          if (import.meta.env.DEV) {
+            logger.debug('[MagicBell] 401 Unauthorized - treating as disabled');
+          }
           setError(null);
           setIsLoading(false);
           return;
         }
 
         // Any other status → Non-critical, disable gracefully
-        logger.debug('[MagicBell] Non-200 status:', response.status, '- treating as disabled');
+        if (import.meta.env.DEV) {
+          logger.debug('[MagicBell] Non-200 status:', response.status, '- treating as disabled');
+        }
         setError(null);
         setIsLoading(false);
       } catch (err) {
-        // Any error → Non-critical, disable gracefully (never throw)
-        logger.debug('[MagicBell] Suppressed error (safe fallback):', err);
+        // ✅ CRITICAL: Suppress ALL errors (network, SSL, CORS, parse, etc.)
+        // Never throw - MagicBell is non-critical
+        if (import.meta.env.DEV) {
+          logger.debug('[MagicBell] Suppressed error (safe fallback):', err);
+        }
         setError(null);
         setIsLoading(false);
       }

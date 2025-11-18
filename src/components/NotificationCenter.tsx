@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MagicBellProvider, FloatingInbox } from '@magicbell/react';
 import { useMagicBell } from '../hooks/useMagicBell';
+import { logger } from '../lib/logger';
 import { Bell } from 'lucide-react';
 
 interface NotificationCenterProps {
@@ -16,17 +17,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       // Suppress ALL MagicBell-related errors (non-critical feature, don't break app)
       const reason = event.reason;
-      const message = reason?.message || '';
+      const message = reason?.message || String(reason || '').toLowerCase();
       const errorString = JSON.stringify(reason || {}).toLowerCase();
+      const stack = reason?.stack || '';
       
+      // ✅ ENHANCED: Catch "Load failed" and network errors
       if (
         message.includes('MagicBell') ||
+        message.includes('magicbell') ||
         message.includes('Invalid response') ||
         message.includes('token endpoint') ||
         message.includes('jwt_auth_failed') ||
         message.includes('Unable to authenticate') ||
+        message.includes('Load failed') ||
+        message.includes('api.magicbell.com') ||
+        message.includes('NetworkError') ||
+        message.includes('Failed to fetch') ||
         errorString.includes('magicbell') ||
+        stack.includes('magicbell') ||
         reason?.code === 'jwt_auth_failed' ||
+        reason?.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' ||
         (typeof reason === 'object' && reason !== null && 'errors' in reason && 
          Array.isArray((reason as any).errors) &&
          (reason as any).errors.some((e: any) => 
@@ -34,14 +44,38 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
            e.message?.toLowerCase().includes('magicbell')
          ))
       ) {
-        event.preventDefault(); // Prevent uncaught error
-        // Silent suppression - no console log
+        event.preventDefault(); // Prevent uncaught error from reaching Sentry
+        // Silent suppression - no console log in production
+        if (import.meta.env.DEV) {
+          logger.debug('[NotificationCenter] Suppressed MagicBell error:', reason);
+        }
+      }
+    };
+
+    const handleError = (event: ErrorEvent) => {
+      // Also catch synchronous errors
+      const message = event.message || '';
+      const filename = event.filename || '';
+      
+      if (
+        message.includes('magicbell') ||
+        message.includes('MagicBell') ||
+        message.includes('api.magicbell.com') ||
+        filename.includes('magicbell')
+      ) {
+        event.preventDefault(); // Prevent error from reaching Sentry
+        if (import.meta.env.DEV) {
+          logger.debug('[NotificationCenter] Suppressed MagicBell error event:', event);
+        }
       }
     };
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleError);
+    
     return () => {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleError);
     };
   }, []);
 
