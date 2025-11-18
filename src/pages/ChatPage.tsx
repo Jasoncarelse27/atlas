@@ -1806,10 +1806,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ FIX: Show authentication status with skeleton loading
   if (!userId) {
     return (
-      <div className="min-h-screen bg-[#0F121A] transition-colors duration-200">
+      <div className="min-h-screen bg-atlas-pearl dark:bg-[#0F121A] transition-colors duration-200">
         {/* Header Skeleton - White gradient effect (visible fade) */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300 bg-[#1A1D26] border-b border-[#2A2E3A]`}
+          className={`sticky top-0 z-30 transition-all duration-300 bg-white dark:bg-[#1A1D26] border-b border-gray-200 dark:border-[#2A2E3A]`}
           style={{ 
             backdropFilter: 'none !important',
             WebkitBackdropFilter: 'none !important',
@@ -1954,7 +1954,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   return (
     <ErrorBoundary>
       <div 
-        className="min-h-screen bg-[#0F121A] text-white transition-colors duration-200"
+        className="min-h-screen bg-atlas-pearl dark:bg-[#0F121A] text-atlas-text-dark dark:text-white transition-colors duration-200"
         style={{
           // ✅ FIX: Use consistent 100dvh to prevent layout jumps
           minHeight: '100dvh',
@@ -1967,7 +1967,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       >
         {/* Header - White gradient effect (visible fade) */}
         <div 
-          className="sticky top-0 z-30 transition-all duration-300 bg-[#1A1D26] border-b border-[#2A2E3A] shadow-sm"
+          className="sticky top-0 z-30 transition-all duration-300 bg-white dark:bg-[#1A1D26] border-b border-gray-200 dark:border-[#2A2E3A] shadow-sm"
           style={{ 
             // ✅ REMOVED: Hardcoded light mode styles - now uses Tailwind dark: classes
             backdropFilter: 'none !important',
@@ -1989,13 +1989,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       setSidebarOpen(true);
                     }
                   }}
-                  className="p-2 rounded-lg bg-[#2A2E3A]/50 hover:bg-[#2A2E3A] transition-colors"
+                  className="p-2 rounded-lg bg-atlas-sage/10 dark:bg-[#2A2E3A]/50 hover:bg-atlas-sage/20 dark:hover:bg-[#2A2E3A] transition-colors"
                 >
-                  <Menu className="w-5 h-5 text-gray-300" />
+                  <Menu className="w-5 h-5 text-atlas-stone dark:text-gray-300" />
                 </button>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-white" style={{ fontWeight: 700 }}>Atlas AI</h1>
-                  <p className="text-gray-400 text-sm sm:text-base hidden sm:block">Emotionally intelligent productivity assistant</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-atlas-text-dark dark:text-white" style={{ fontWeight: 700 }}>Atlas AI</h1>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base hidden sm:block">Emotionally intelligent productivity assistant</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">
@@ -2006,11 +2006,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 {/* Search Button - PHASE 2B */}
                 <button
                   onClick={() => setShowSearch(true)}
-                  className="p-2 rounded-lg bg-[#2A2E3A]/50 hover:bg-[#2A2E3A] transition-colors group"
+                  className="p-2 rounded-lg bg-atlas-sage/10 dark:bg-[#2A2E3A]/50 hover:bg-atlas-sage/20 dark:hover:bg-[#2A2E3A] transition-colors group"
                   title="Search messages (Cmd+K)"
                   aria-label="Search messages"
                 >
-                  <Search className="w-5 h-5 text-gray-300 group-hover:text-gray-200" />
+                  <Search className="w-5 h-5 text-atlas-stone dark:text-gray-300 group-hover:text-atlas-sage dark:group-hover:text-gray-200" />
                 </button>
                 {/* Sync status hidden per design requirements */}
                 {/* <SyncStatus isOnline={true} /> */}
@@ -2055,7 +2055,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 h-full w-full sm:w-80 bg-[#1A1D26] border-r border-[#2A2E3A] z-50 overflow-y-auto shadow-xl"
+                className="fixed left-0 top-0 h-full w-full sm:w-80 bg-atlas-pearl dark:bg-[#1A1D26] border-r border-atlas-border dark:border-[#2A2E3A] z-50 overflow-y-auto shadow-xl"
                 onClick={(e) => {
                   // ✅ CRITICAL FIX: Prevent sidebar content clicks from closing sidebar
                   e.stopPropagation();
@@ -2064,11 +2064,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                 <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
                   {/* Header with Profile and Close Buttons */}
                   <div className="flex items-center justify-between">
-                    <h2 className="text-base sm:text-lg font-semibold text-atlas-text-dark">Menu</h2>
+                    <h2 className="text-base sm:text-lg font-semibold text-atlas-text-dark dark:text-white">Menu</h2>
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <button
                         onClick={() => setShowProfile(true)}
-                        className="p-2 rounded-xl bg-atlas-button hover:bg-atlas-button-hover transition-colors"
+                        className="p-2 rounded-xl bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] transition-colors"
                         aria-label="Open profile settings"
                         title="Profile Settings"
                       >
@@ -2086,10 +2086,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                             }, 450);
                           }
                         }}
-                        className="p-2 rounded-xl bg-atlas-button hover:bg-atlas-button-hover transition-colors"
+                        className="p-2 rounded-xl bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] transition-colors"
                         aria-label="Close menu"
                       >
-                        <X className="w-5 h-5 text-atlas-text-medium" />
+                        <X className="w-5 h-5 text-atlas-text-medium dark:text-gray-300" />
                       </button>
                     </div>
                   </div>
@@ -2119,14 +2119,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                       navigate('/rituals');
                       setSidebarOpen(false); // Close sidebar after navigation
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-atlas-text-medium bg-atlas-button hover:bg-atlas-button-hover transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-atlas-text-medium dark:text-gray-300 bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] transition-colors"
                   >
                     <div className="w-8 h-8 rounded-full bg-atlas-accent-1/30 flex items-center justify-center">
                       <Sparkles className="w-4 h-4 text-atlas-accent-1" />
                     </div>
                     <div className="text-left flex-1">
                       <span className="font-medium text-sm">Rituals</span>
-                      <p className="text-atlas-text-muted text-xs">Mindfulness & Focus</p>
+                      <p className="text-atlas-text-muted dark:text-gray-400 text-xs">Mindfulness & Focus</p>
                     </div>
                   </button>
                   
@@ -2138,14 +2138,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   {/* Logout Button */}
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-atlas-text-medium bg-atlas-button hover:bg-atlas-button-hover transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-atlas-text-medium dark:text-gray-300 bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] transition-colors"
                   >
                     <div className="w-8 h-8 rounded-full bg-atlas-accent-2/30 flex items-center justify-center">
                       <LogOut className="w-4 h-4 text-atlas-accent-3" />
                     </div>
                     <div className="text-left flex-1">
                       <span className="font-medium text-sm">Sign Out</span>
-                      <p className="text-atlas-text-muted text-xs">End your session</p>
+                      <p className="text-atlas-text-muted dark:text-gray-400 text-xs">End your session</p>
                     </div>
                   </button>
                 </div>
@@ -2165,7 +2165,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         {/* Chat Container - ✅ WCAG AA: Semantic <main> landmark */}
         <main 
           id="main-chat"
-          className="flex flex-col bg-[#0F121A]"
+          className="flex flex-col bg-atlas-pearl dark:bg-[#0F121A]"
           style={{
             // ✅ FIX: Use dvh consistently to prevent jumps
             height: 'calc(100dvh - 120px)', // Account for header height
@@ -2189,7 +2189,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           {/* Messages */}
           <div 
             ref={messagesContainerRef} 
-            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-[#0F121A] transition-colors duration-200"
+            className="flex-1 overflow-y-auto px-4 py-6 pt-4 pb-32 bg-atlas-pearl dark:bg-[#0F121A] transition-colors duration-200"
             role="log"
             aria-live="polite"
             aria-label="Message list"
@@ -2234,7 +2234,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                                 }
                               }}
                               disabled={isLoadingOlderMessages}
-                              className="px-4 py-2 text-sm font-medium text-atlas-text-medium bg-atlas-button hover:bg-atlas-button-hover rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-4 py-2 text-sm font-medium text-atlas-text-medium dark:text-gray-300 bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {isLoadingOlderMessages ? 'Loading...' : 'Load Older Messages'}
                             </button>
@@ -2285,40 +2285,27 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                     // ✅ MODERN: Web-style empty state matching reference design with Atlas branding
                     return (
                       <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center min-h-[60vh] sm:min-h-[400px]">
-                        {/* Atlas Logo - Brain/Heart icon with peach accent */}
+                        {/* Atlas Logo - Original logo */}
                         <div className="mb-8 sm:mb-10">
-                          {/* Using brain + heart design with peach colors */}
-                          <div className="relative w-24 h-24 sm:w-32 sm:h-32 mx-auto flex items-center justify-center">
-                            <div className="absolute inset-0 bg-gradient-to-br from-[#F4E5D9]/20 to-[#F3D3B8]/20 rounded-full blur-xl"></div>
-                            <div className="relative w-20 h-20 sm:w-28 sm:h-28 bg-[#F4E5D9]/10 rounded-full flex items-center justify-center">
-                              <svg viewBox="0 0 100 100" className="w-14 h-14 sm:w-20 sm:h-20" fill="none">
-                                {/* Brain icon merged with heart */}
-                                <path d="M50 20 C30 20 20 35 20 45 C20 65 50 80 50 80 C50 80 80 65 80 45 C80 35 70 20 50 20 Z" 
-                                      fill="#F4E5D9" opacity="0.8"/>
-                                {/* Brain texture */}
-                                <path d="M35 35 Q40 30 45 35 T55 35 Q60 30 65 35" 
-                                      stroke="#F3D3B8" strokeWidth="2" fill="none" opacity="0.6"/>
-                                <path d="M35 45 Q40 40 45 45 T55 45 Q60 40 65 45" 
-                                      stroke="#F3D3B8" strokeWidth="2" fill="none" opacity="0.6"/>
-                                {/* Heart center */}
-                                <circle cx="50" cy="45" r="8" fill="#F3D3B8" opacity="0.7"/>
-                              </svg>
-                            </div>
-                          </div>
+                          <img
+                            src="/atlas-logo.png"
+                            alt="Atlas AI Logo"
+                            className="mx-auto h-24 w-24 sm:h-32 sm:w-32"
+                          />
                         </div>
                         
-                        {/* Welcome heading - White text for dark mode */}
-                        <h2 className="text-3xl sm:text-4xl font-semibold text-white mb-3 sm:mb-4">
+                        {/* Welcome heading - Theme-aware text */}
+                        <h2 className="text-3xl sm:text-4xl font-semibold text-atlas-text-dark dark:text-white mb-3 sm:mb-4">
                           Welcome to Atlas AI
                         </h2>
                         
-                        {/* Description - Light gray text for dark mode */}
-                        <p className="text-base sm:text-lg text-gray-300 mb-4 sm:mb-6 max-w-md mx-auto leading-relaxed">
+                        {/* Description - Theme-aware text */}
+                        <p className="text-base sm:text-lg text-atlas-text-medium dark:text-gray-300 mb-4 sm:mb-6 max-w-md mx-auto leading-relaxed">
                           Emotionally intelligent productivity assistant is ready to help.
                         </p>
                         
-                        {/* Call to action - Muted gray text */}
-                        <p className="text-sm sm:text-base text-gray-400 mb-8 sm:mb-10 max-w-sm mx-auto">
+                        {/* Call to action - Theme-aware text */}
+                        <p className="text-sm sm:text-base text-atlas-text-muted dark:text-gray-400 mb-8 sm:mb-10 max-w-sm mx-auto">
                           Start a conversation below!
                         </p>
                       </div>

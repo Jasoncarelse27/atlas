@@ -86,8 +86,8 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
     <div className="fixed bottom-0 left-0 right-0 p-4 pb-8 pointer-events-none unified-input-bar z-[999] flex items-center justify-center">
       <div className="max-w-4xl mx-auto relative">
         <div className={`backdrop-blur-md rounded-full border shadow-lg flex items-center h-14 relative pointer-events-auto ${
-          isFocused && currentMode === 'text' ? 'ring-1 ring-[#F4E5D9]/50' : ''
-        } bg-[#1A1D26]/80 border-[#2A2E3A] px-2`}>
+          isFocused && currentMode === 'text' ? 'ring-1 ring-atlas-sage/50 dark:ring-[#F4E5D9]/50' : ''
+        } bg-white/90 dark:bg-[#1A1D26]/80 border-gray-300 dark:border-[#2A2E3A] px-2`}>
           
           {/* Mute Toggle Button - Always visible */}
           {currentMode === 'voice' && (
@@ -114,7 +114,7 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder="Ask anything..."
-            className="flex-1 bg-transparent border-none outline-none px-5 py-2 focus:ring-0 focus:outline-none text-white placeholder-gray-500"
+            className="flex-1 bg-transparent border-none outline-none px-5 py-2 focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-500"
             disabled={isProcessing || isListening}
             autoComplete="off"
           />
@@ -154,8 +154,8 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
             disabled={!message.trim() || isProcessing || isListening}
             className={`p-2 mr-2 rounded-full transition-colors focus:outline-none focus:ring-0 ${
               message.trim() && !isProcessing && !isListening  
-                ? 'text-[#F4E5D9] hover:text-[#F3D3B8] hover:bg-[#2A2E3A]/50'
-                : 'text-gray-600'
+                ? 'text-atlas-sage dark:text-[#F4E5D9] hover:text-atlas-sage/80 dark:hover:text-[#F3D3B8] hover:bg-gray-200/50 dark:hover:bg-[#2A2E3A]/50'
+                : 'text-gray-400 dark:text-gray-600'
             }`}
             aria-label="Send message"
           >
@@ -182,7 +182,7 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
           
           <button
             onClick={handleToggleActions}
-            className="p-2 text-gray-400 hover:text-gray-200 hover:bg-[#2A2E3A]/50 rounded-full transition-colors mr-2 focus:outline-none focus:ring-0"
+            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-[#2A2E3A]/50 rounded-full transition-colors mr-2 focus:outline-none focus:ring-0"
             aria-label="More actions"
           > 
             <MoreHorizontal className="w-5 h-5" />
@@ -196,14 +196,14 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }} 
                 transition={{ duration: 0.2 }} 
-                className="absolute right-0 bottom-16 bg-[#1A1D26]/95 backdrop-blur-md rounded-2xl shadow-xl border-[#2A2E3A] p-2 flex flex-col gap-1"
+                className="absolute right-0 bottom-16 bg-white/95 dark:bg-[#1A1D26]/95 backdrop-blur-md rounded-2xl shadow-xl border-gray-300 dark:border-[#2A2E3A] p-2 flex flex-col gap-1"
               >
                 <button
                   onClick={() => {
                     handleMuteToggle();
                     setShowActions(false);
                   }}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-white"
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100/70 dark:hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-gray-900 dark:text-white"
                 >
                   {isMuted ? (
                     <> 
@@ -223,7 +223,7 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
                     handleFileButtonClick();
                     setShowActions(false);
                   }}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-white"
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100/70 dark:hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-gray-900 dark:text-white"
                 >
                   <ImageIcon className="w-5 h-5 text-purple-500" />
                   <span>Upload Image</span>
@@ -234,7 +234,7 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
                     if (onSoundPlay) onSoundPlay('click');
                     setShowActions(false);
                   }}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-white"
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100/70 dark:hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-gray-900 dark:text-white"
                 >
                   <Paperclip className="w-5 h-5 text-atlas-sage" />
                   <span>Attach File</span>
@@ -245,7 +245,7 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
                     if (onSoundPlay) onSoundPlay('click');
                     setShowActions(false);
                   }}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-white"
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100/70 dark:hover:bg-[#2A2E3A]/70 rounded-xl transition-colors whitespace-nowrap text-gray-900 dark:text-white"
                 >
                   <X className="w-5 h-5 dark:text-gray-400 text-gray-500" />
                   <span>Close</span>

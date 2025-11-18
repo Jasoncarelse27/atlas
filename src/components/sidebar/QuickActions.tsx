@@ -362,12 +362,12 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
             <button
               onClick={handleNewChat}
               aria-label="Start a new conversation"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#F4E5D9] hover:bg-[#F3D3B8] active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-[#F4E5D9] focus-visible:outline-none"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] dark:bg-[#F4E5D9] dark:hover:bg-[#F3D3B8] active:scale-[0.98] transition-all focus-visible:ring-2 focus-visible:ring-[#8FA67E] dark:focus-visible:ring-[#F4E5D9] focus-visible:outline-none"
             >
               <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
-                <Plus className="w-4 h-4 text-[#8B7E74]" aria-hidden="true" />
+                <Plus className="w-4 h-4 text-white dark:text-[#8B7E74]" aria-hidden="true" />
               </div>
-              <span className="font-medium text-[#8B7E74]">Start New Chat</span>
+              <span className="font-medium dark:text-[#8B7E74]">Start New Chat</span>
             </button>
           </li>
           
