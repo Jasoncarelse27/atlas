@@ -160,14 +160,14 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
             disabled={isProcessing || isListening}
           />
           
-          {/* Send Button - Always visible, dark background */}
+          {/* Send Button - Always visible, darker gray background with black icon */}
           <button
             onClick={handleSend}
             disabled={!message.trim() || isProcessing || isListening}
-            className={`w-12 h-12 rounded-full bg-[#1A1D26] dark:bg-[#1A1D26] flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#F4E5D9]/50 ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#F4E5D9]/50 ${
               message.trim() && !isProcessing && !isListening  
-                ? 'text-white hover:bg-[#2A2E3A] dark:hover:bg-[#2A2E3A]'
-                : 'text-gray-600 dark:text-gray-600 cursor-not-allowed'
+                ? 'bg-[#2A2E3A] dark:bg-[#2A2E3A] text-[#1F2937] dark:text-[#1F2937] hover:bg-[#3A3E4A] dark:hover:bg-[#3A3E4A]'
+                : 'bg-[#2A2E3A] dark:bg-[#2A2E3A] text-gray-500 dark:text-gray-500 cursor-not-allowed'
             }`}
             aria-label="Send message"
           >
