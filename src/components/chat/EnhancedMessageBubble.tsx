@@ -3,12 +3,13 @@ import { audioUsageService } from '@/services/audioUsageService';
 import { stopMessageStream } from '@/services/chatService';
 import { voiceService } from '@/services/voiceService';
 import { motion } from 'framer-motion';
-import { Ban, Bot, Check, Copy, Loader2, Pause, Play, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Ban, Bot, Check, Copy, Loader2, Pause, Play, RefreshCw, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { canUseAudio } from '../../config/featureAccess';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
+import { resendService } from '../../services/resendService';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
 import { DeleteMessageModal } from '../modals/DeleteMessageModal';
@@ -28,7 +29,8 @@ interface EnhancedMessageBubbleProps {
   // ✅ REMOVED: onEdit prop - edit functionality removed per user request
 }
 
-export default function EnhancedMessageBubble({ message, isLatest = false, isLatestUserMessage = false, isTyping = false, onDelete }: EnhancedMessageBubbleProps) {
+// ✅ PERFORMANCE: Memoized component to prevent unnecessary re-renders
+const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage = false, isTyping = false, onDelete }: EnhancedMessageBubbleProps) => {
   
 
   // ✅ Collect all attachments (check both locations for compatibility)
@@ -176,6 +178,37 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
   const handleDeleteClick = () => {
     setShowDeleteModal(true);
     setShowContextMenu(false);
+  };
+
+  // ✅ UX IMPROVEMENT: Retry failed message
+  const [isRetrying, setIsRetrying] = useState(false);
+  const handleRetry = async () => {
+    if (!message.id || isRetrying) return;
+    
+    setIsRetrying(true);
+    try {
+      // Convert message to FailedMessage format for resendService
+      const failedMessage = {
+        id: message.id,
+        content: messageContent,
+        role: message.role,
+        conversationId: message.conversationId || '',
+        attachments: attachments.map(att => ({
+          type: att.type,
+          url: att.url || '',
+          file: att.file,
+          caption: att.caption
+        }))
+      };
+      
+      await resendService.resendSingleMessage(failedMessage);
+      toast.success('Message sent');
+    } catch (error) {
+      logger.error('[EnhancedMessageBubble] Retry failed:', error);
+      toast.error('Failed to resend message. Please try again.');
+    } finally {
+      setIsRetrying(false);
+    }
   };
 
   const handleCopy = async () => {
@@ -810,6 +843,45 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
             </div>
           )}
 
+          {/* ✅ UX IMPROVEMENT: Retry button for failed messages */}
+          {isUser && (message.status === 'failed' || message.status === 'error') && (
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleRetry();
+                }}
+                onKeyDown={(e) => {
+                  // ✅ BEST PRACTICE: Keyboard accessibility - Enter or Space to retry
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleRetry();
+                  }
+                }}
+                disabled={isRetrying}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[44px] focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                aria-label="Retry sending message"
+                aria-busy={isRetrying}
+              >
+                {isRetrying ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Retrying...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Retry</span>
+                  </>
+                )}
+              </button>
+              <span className="text-xs text-red-500 dark:text-red-400 opacity-70">
+                Failed to send
+              </span>
+            </div>
+          )}
+
           {/* Message Status Indicators removed - cleaner UI */}
           
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
@@ -1031,4 +1103,20 @@ export default function EnhancedMessageBubble({ message, isLatest = false, isLat
     </div>
     </>
   );
-}
+};
+
+// ✅ PERFORMANCE: Memoize component with custom comparison for optimal re-renders
+// Returns true if props are equal (skip re-render), false if different (re-render)
+export default React.memo(EnhancedMessageBubble, (prevProps, nextProps) => {
+  // Skip re-render if all key props are equal
+  const propsEqual = (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.status === nextProps.message.status &&
+    prevProps.isLatest === nextProps.isLatest &&
+    prevProps.isLatestUserMessage === nextProps.isLatestUserMessage &&
+    prevProps.isTyping === nextProps.isTyping &&
+    JSON.stringify(prevProps.message.attachments || []) === JSON.stringify(nextProps.message.attachments || [])
+  );
+  return propsEqual; // true = skip re-render, false = re-render
+});

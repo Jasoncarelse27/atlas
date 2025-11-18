@@ -1,8 +1,7 @@
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
-import https from 'https'
 import path from 'path'
-import type { Plugin } from 'vite'
+import type { Plugin, ProxyOptions } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
 
 // ✅ Zustand Rollup safeguard plugin
@@ -22,7 +21,14 @@ function preserveZustand(): Plugin {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  const env = loadEnv(mode, process.cwd(), '')
+  // Note: env loaded but may not be used directly in config
+  loadEnv(mode, process.cwd(), '')
+  
+  // ✅ CRITICAL FIX: In development, disable certificate validation for self-signed certs
+  if (mode === 'development') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    console.log('⚠️  [Vite] NODE_TLS_REJECT_UNAUTHORIZED=0 (development mode - accepting self-signed certificates)');
+  }
   
   return {
     plugins: [react(), preserveZustand()],
@@ -163,35 +169,19 @@ export default defineConfig(({ mode }) => {
         console.log(`🔒 [Vite Proxy] Backend protocol detected: ${backendProtocol.toUpperCase()}`);
         console.log(`   Proxy target: ${backendTarget}`);
         
-        // ✅ FIX: In development, accept self-signed certificates
-        const isDevelopment = mode === 'development';
-        const acceptSelfSigned = isDevelopment && backendProtocol === 'https';
-        
-        // ✅ Create HTTPS agent factory outside configure callback
-        const createHttpsAgent = () => {
-          if (acceptSelfSigned) {
-            return new https.Agent({
-              rejectUnauthorized: false
-            });
-          }
-          return undefined;
-        };
-        
-        const httpsAgent = createHttpsAgent();
-        
-        return {
+        // ✅ SIMPLIFIED: With NODE_TLS_REJECT_UNAUTHORIZED=0, we don't need complex agent setup
+        const proxyConfig: Record<string, ProxyOptions> = {
           // API routes
           '/v1': {
             target: backendTarget,
             changeOrigin: true,
             secure: false, // ✅ Accept self-signed certs in development
             ws: true, // Enable WebSocket support
-            agent: httpsAgent, // ✅ Set agent directly instead of in configure
             configure: (proxy, options) => {
               proxy.on('error', (err) => {
                 console.error('Proxy error:', err);
               });
-              proxy.on('proxyReq', (proxyReq, req) => {
+              proxy.on('proxyReq', (_proxyReq, req) => {
                 console.log(`[Proxy] ${req.method} ${req.url} → ${options.target}${req.url}`);
               });
             }
@@ -200,16 +190,16 @@ export default defineConfig(({ mode }) => {
             target: backendTarget,
             changeOrigin: true,
             secure: false, // ✅ Accept self-signed certs in development
-            ws: true,
-            agent: httpsAgent // ✅ Set agent directly
+            ws: true
           },
           '/message': {
             target: backendTarget,
             changeOrigin: true,
-            secure: false, // ✅ Accept self-signed certs in development
-            agent: httpsAgent // ✅ Set agent directly
+            secure: false // ✅ Accept self-signed certs in development
           }
         };
+        
+        return proxyConfig;
       })()
     }
   }

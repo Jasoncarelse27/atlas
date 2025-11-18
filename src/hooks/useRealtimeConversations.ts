@@ -25,6 +25,61 @@ export function useRealtimeConversations(userId?: string) {
     // Create single unified channel
     const channel = supabase.channel(channelName);
 
+    // ✅ CRITICAL FIX: Handle NEW conversations (INSERT events)
+    // This ensures conversations created on mobile appear on web instantly
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "conversations",
+        filter: `user_id=eq.${userId}`,
+      },
+      async (payload) => {
+        const newConv = payload.new;
+        
+        try {
+          // ✅ CRITICAL: Only sync non-deleted conversations
+          if (newConv.deleted_at) {
+            logger.debug('[Realtime] ⚠️ Skipping deleted conversation INSERT:', newConv.id);
+            return;
+          }
+          
+          // Check if conversation already exists locally
+          const localExists = await atlasDB.conversations.get(newConv.id);
+          if (localExists) {
+            logger.debug('[Realtime] ⚠️ Conversation already exists locally, skipping:', newConv.id);
+            return;
+          }
+          
+          // Save new conversation to Dexie
+          await atlasDB.conversations.put({
+            id: newConv.id,
+            userId: newConv.user_id,
+            title: newConv.title,
+            createdAt: newConv.created_at,
+            updatedAt: newConv.updated_at,
+            deletedAt: undefined,
+          });
+          
+          logger.info('[Realtime] ✅ New conversation received:', {
+            id: newConv.id,
+            title: newConv.title,
+            isMobile: typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+          });
+          
+          // Trigger conversation list refresh
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('conversationCreated', {
+              detail: { conversationId: newConv.id }
+            }));
+          }
+        } catch (error) {
+          logger.error('[Realtime] Failed to handle new conversation:', error);
+        }
+      }
+    );
+
     // ✅ CRITICAL: Handle conversation soft deletions (UPDATE events)
     // Note: We only use soft delete (delete_conversation_soft RPC), so DELETE events never fire
     // When deleted_at is set, mark conversation as deleted locally

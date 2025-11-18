@@ -43,6 +43,7 @@ import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
+import { useMobileOptimization } from '../hooks/useMobileOptimization'; // ✅ UX IMPROVEMENT: Mobile optimization for pull-to-refresh
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 import { useTutorial } from '../hooks/useTutorial';
 
@@ -54,6 +55,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
   useAndroidBackButton();
   const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
+  const { isMobile, triggerHaptic } = useMobileOptimization(); // ✅ UX IMPROVEMENT: Mobile features for pull-to-refresh
   const navigate = useNavigate();
   const [searchParams] = useSearchParams(); // ✅ FIX: Use React Router's searchParams to detect URL changes
   const {
@@ -127,6 +129,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  
+  // ✅ UX IMPROVEMENT: Pull-to-refresh state (mobile)
+  const [pullStartY, setPullStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const lastRefreshTimeRef = useRef<number>(0);
+  const touchStartTimeRef = useRef<number>(0);
   
   // ✅ CRITICAL FIX: Declare ref BEFORE useAutoScroll hook (dependency)
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1925,7 +1934,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                     duration: 5000,
                     action: {
                       label: 'Refresh',
-                      onClick: () => window.location.reload()
+                      onClick: async () => {
+                        // ✅ UX IMPROVEMENT: Use React Router refresh instead of hard reload
+                        // Preserves React state and provides better mobile UX
+                        if (conversationId) {
+                          try {
+                            await loadMessages(conversationId);
+                            setHealthError(null);
+                            toast.success('Messages refreshed');
+                          } catch (error) {
+                            logger.error('[ChatPage] Refresh failed:', error);
+                            // Fallback to React Router refresh if loadMessages fails
+                            navigate(0);
+                          }
+                        } else {
+                          // No conversation loaded, use React Router refresh
+                          navigate(0);
+                        }
+                      }
                     }
                   });
                   // Don't auto-reload - let user decide
@@ -2159,6 +2185,90 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               // ✅ FIX: Ensure proper scrolling with dvh
               minHeight: 0, // Allow flex child to shrink
               WebkitOverflowScrolling: 'touch', // Smooth iOS scrolling
+              // ✅ BEST PRACTICE: Optimize touch performance for pull-to-refresh
+              touchAction: pullDistance > 0 ? 'pan-y' : 'auto', // Allow vertical scroll when not pulling
+              // ✅ UX IMPROVEMENT: Pull-to-refresh visual feedback
+              transform: pullDistance > 0 ? `translateY(${Math.min(pullDistance, 150)}px)` : undefined,
+              transition: pullDistance > 0 ? 'none' : 'transform 0.2s ease-out',
+            }}
+            onTouchStart={(e) => {
+              // ✅ UX IMPROVEMENT: Pull-to-refresh touch start handler
+              if (!isMobile || isRefreshing || !conversationId) return;
+              const container = messagesContainerRef.current;
+              if (container && container.scrollTop > 10) return;
+              const now = Date.now();
+              if (now - lastRefreshTimeRef.current < 2000) return;
+              touchStartTimeRef.current = now;
+              setPullStartY(e.touches[0].clientY);
+            }}
+            onTouchMove={(e) => {
+              // ✅ UX IMPROVEMENT: Pull-to-refresh touch move handler
+              if (!isMobile || pullStartY === 0 || isRefreshing || !conversationId) return;
+              const container = messagesContainerRef.current;
+              if (container && container.scrollTop > 10) {
+                setPullDistance(0);
+                setPullStartY(0);
+                return;
+              }
+              const distance = Math.max(0, e.touches[0].clientY - pullStartY);
+              // ✅ BEST PRACTICE: Prevent default scroll when actively pulling
+              if (distance > 10) {
+                e.preventDefault();
+              }
+              if (distance > 0 && distance < 150) {
+                setPullDistance(distance);
+              } else if (distance >= 150) {
+                setPullDistance(150);
+              }
+            }}
+            onTouchEnd={async () => {
+              // ✅ UX IMPROVEMENT: Pull-to-refresh touch end handler
+              if (!isMobile || pullDistance < 100 || isRefreshing || !conversationId) {
+                setPullDistance(0);
+                setPullStartY(0);
+                touchStartTimeRef.current = 0;
+                return;
+              }
+              const touchDuration = Date.now() - touchStartTimeRef.current;
+              if (touchDuration < 200) {
+                setPullDistance(0);
+                setPullStartY(0);
+                touchStartTimeRef.current = 0;
+                return;
+              }
+              const now = Date.now();
+              if (now - lastRefreshTimeRef.current < 2000) {
+                setPullDistance(0);
+                setPullStartY(0);
+                touchStartTimeRef.current = 0;
+                return;
+              }
+              setIsRefreshing(true);
+              lastRefreshTimeRef.current = now;
+              triggerHaptic(50);
+              setPullDistance(0);
+              setPullStartY(0);
+              touchStartTimeRef.current = 0;
+              
+              try {
+                // Load older messages on pull-to-refresh
+                const oldestMessage = messages[0];
+                if (oldestMessage?.timestamp) {
+                  await loadOlderMessages(conversationId, oldestMessage.timestamp);
+                  triggerHaptic(100);
+                  toast.success('Loaded older messages');
+                } else {
+                  // If no messages, reload current messages
+                  await loadMessages(conversationId);
+                  triggerHaptic(100);
+                  toast.success('Messages refreshed');
+                }
+              } catch (error) {
+                logger.error('[ChatPage] Pull-to-refresh failed:', error);
+                toast.error('Failed to refresh. Please try again.');
+              } finally {
+                setIsRefreshing(false);
+              }
             }}
             onScroll={() => {
               // 📱 Dismiss keyboard when scrolling (ChatGPT-like behavior)
@@ -2185,8 +2295,27 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   if (safeMessages.length > 0) {
                     return (
                       <>
-                        {/* ✅ SCALABILITY: Load Older Messages button */}
-                        {hasMoreMessages && conversationId && (
+                        {/* ✅ UX IMPROVEMENT: Pull-to-refresh indicator */}
+                        {isRefreshing && (
+                          <div className="flex justify-center py-2">
+                            <div className="flex items-center gap-2 text-sm text-atlas-text-medium dark:text-gray-400">
+                              <div className="w-5 h-5 border-2 border-atlas-text-medium dark:border-gray-400 border-t-transparent rounded-full animate-spin" />
+                              <span>Loading older messages...</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* ✅ UX IMPROVEMENT: Pull-to-refresh hint (mobile only, when at top) */}
+                        {isMobile && pullDistance > 0 && pullDistance < 100 && !isRefreshing && (
+                          <div className="flex justify-center py-2">
+                            <div className="text-xs text-atlas-text-medium dark:text-gray-400">
+                              Pull to load older messages
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* ✅ SCALABILITY: Load Older Messages button (desktop fallback) */}
+                        {hasMoreMessages && conversationId && !isMobile && (
                           <div className="flex justify-center py-4">
                             <button
                               onClick={() => {
@@ -2195,8 +2324,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                                   loadOlderMessages(conversationId, oldestMessage.timestamp);
                                 }
                               }}
+                              onKeyDown={(e) => {
+                                // ✅ BEST PRACTICE: Keyboard accessibility
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  const oldestMessage = safeMessages[0];
+                                  if (oldestMessage?.timestamp) {
+                                    loadOlderMessages(conversationId, oldestMessage.timestamp);
+                                  }
+                                }
+                              }}
                               disabled={isLoadingOlderMessages}
-                              className="px-4 py-2 text-sm font-medium text-atlas-text-medium dark:text-gray-300 bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-4 py-2 text-sm font-medium text-atlas-text-medium dark:text-gray-300 bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-atlas-sage focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                              aria-label="Load older messages"
+                              aria-busy={isLoadingOlderMessages}
                             >
                               {isLoadingOlderMessages ? 'Loading...' : 'Load Older Messages'}
                             </button>

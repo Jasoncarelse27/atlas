@@ -2,6 +2,7 @@ import confetti from 'canvas-confetti';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sparkles, TrendingUp, X } from 'lucide-react';
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface RitualRewardModalProps {
   isOpen: boolean;
@@ -178,16 +179,16 @@ export function RitualRewardModal({
     return () => clearTimeout(timer);
   }, [isOpen, autoDismiss, onClose]);
   
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/40 backdrop-blur-md"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -287,7 +288,8 @@ export function RitualRewardModal({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

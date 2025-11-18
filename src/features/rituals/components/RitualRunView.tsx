@@ -41,7 +41,9 @@ export const RitualRunView: React.FC = () => {
     moodBefore: string;
     moodAfter: string;
     reflection: string;
+    conversationId?: string; // Store conversationId for navigation
   } | null>(null);
+  const [ritualSummaryConversationId, setRitualSummaryConversationId] = useState<string | null>(null); // Store conversationId separately for navigation
 
   // Swipe gesture support
   const touchStartX = useRef<number>(0);
@@ -170,7 +172,21 @@ export const RitualRunView: React.FC = () => {
       setShowRewardModal(true);
       
       // 🎯 POST RITUAL COMPLETION SUMMARY TO CHAT (async, non-blocking)
+      // Update modal data with conversationId after posting
       postRitualSummaryToChat(ritual!, selectedMoodBefore!, selectedMoodAfter, completionNotes, runner.totalDuration)
+        .then(convId => {
+          if (convId) {
+            logger.info('[RitualRunView] ✅ Ritual summary posted to conversation:', convId);
+            // Store conversationId in separate state for reliable navigation
+            setRitualSummaryConversationId(convId);
+            // Update modal data with conversationId so navigation works correctly
+            setCompletedRitualData(prev => prev ? { ...prev, conversationId: convId } : null);
+            // ✅ CRITICAL: Update localStorage so ChatPage loads the correct conversation
+            localStorage.setItem('atlas:lastConversationId', convId);
+          } else {
+            logger.warn('[RitualRunView] ⚠️ No conversationId returned from postRitualSummaryToChat');
+          }
+        })
         .catch(err => logger.error('[RitualRunView] Failed to post to chat:', err));
       
       // ✅ PHASE 2: Check completion count and show contextual upgrade prompt
@@ -191,32 +207,66 @@ export const RitualRunView: React.FC = () => {
   };
 
   // ✨ Helper: Post ritual completion summary as a chat message
+  // Returns the conversationId where the message was posted
   const postRitualSummaryToChat = async (
     ritual: Ritual,
     moodBefore: string,
     moodAfter: string,
     notes: string,
     durationSeconds: number
-  ) => {
+  ): Promise<string | null> => {
     try {
       // Get or create active conversation
       let conversationId: string;
       
-      // Check Supabase first for existing conversation
-      const { data: existingConvos, error: fetchError } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // ✅ FIX: Check localStorage for current conversation first (user's active conversation)
+      const lastConversationId = localStorage.getItem('atlas:lastConversationId');
+      logger.debug('[RitualRunView] 🔍 Checking for current conversation:', {
+        lastConversationId,
+        userId: user!.id
+      });
       
-      if (fetchError) {
-        logger.error('[RitualRunView] Failed to fetch conversations:', fetchError);
+      if (lastConversationId) {
+        // Verify this conversation exists and belongs to the user
+        // Use ensureConversationExists which handles errors gracefully
+        try {
+          const conversationExists = await ensureConversationExists(
+            lastConversationId,
+            user!.id
+          );
+          
+          if (conversationExists) {
+            conversationId = lastConversationId;
+            logger.info('[RitualRunView] ✅ Using current conversation from localStorage:', conversationId);
+          } else {
+            logger.warn('[RitualRunView] ⚠️ Conversation from localStorage not found or invalid, will use most recent');
+          }
+        } catch (error) {
+          logger.error('[RitualRunView] Error checking conversation from localStorage:', error);
+          // Continue to fallback logic
+        }
       }
       
-      if (existingConvos && existingConvos.length > 0 && existingConvos[0]?.id) {
-        conversationId = existingConvos[0].id;
-      } else {
+      // If no current conversation, get most recent one
+      if (!conversationId) {
+        const { data: existingConvos, error: fetchError } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('user_id', user!.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (fetchError) {
+          logger.error('[RitualRunView] Failed to fetch conversations:', fetchError);
+        }
+        
+        if (existingConvos && existingConvos.length > 0 && existingConvos[0]?.id) {
+          conversationId = existingConvos[0].id;
+        }
+      }
+      
+      // If still no conversation, create a new one
+      if (!conversationId) {
         // Create new conversation ID and ensure it exists
         conversationId = generateUUID();
         const created = await ensureConversationExists(conversationId, user!.id);
@@ -280,6 +330,11 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           
           if (error) {
             logger.error('[RitualRunView] Supabase insert error:', error);
+            // Keep synced: false so syncService can retry later
+          } else {
+            // ✅ BEST PRACTICE: Mark as synced after successful Supabase insert
+            await atlasDB.messages.update(message.id, { synced: true });
+            logger.debug('[RitualRunView] ✅ Message synced to Supabase, marked as synced:', message.id);
           }
         } else {
           logger.error('[RitualRunView] Cannot sync message - conversation creation failed:', {
@@ -294,9 +349,14 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
         updatedAt: new Date().toISOString(),
       });
       
+      logger.info('[RitualRunView] ✅ Ritual summary posted to conversation:', conversationId);
+      
+      return conversationId; // Return conversationId so we can navigate to it
+      
     } catch (error) {
       logger.error('[RitualRunView] Failed to post ritual summary to chat:', error);
       // Don't throw - completion should still work even if chat post fails
+      return null;
     }
   };
 
@@ -518,32 +578,6 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             Back to Library
           </button>
         </div>
-
-        {/* ✨ Reward Modal - Show after completion */}
-        {completedRitualData && (
-          <RitualRewardModal
-            isOpen={showRewardModal}
-            onClose={() => {
-              setShowRewardModal(false);
-              navigate('/chat'); // Navigate to chat on close
-            }}
-            ritualData={{
-              title: completedRitualData.title,
-              durationMinutes: completedRitualData.durationMinutes,
-              moodBefore: completedRitualData.moodBefore,
-              moodAfter: completedRitualData.moodAfter,
-              reflection: completedRitualData.reflection,
-            }}
-            onViewInsights={() => {
-              setShowRewardModal(false);
-              navigate('/rituals/insights'); // ✅ FIX: Navigate to insights page
-            }}
-            onStartAnother={() => {
-              setShowRewardModal(false);
-              navigate('/rituals');
-            }}
-          />
-        )}
       </div>
     );
   }
@@ -740,7 +774,27 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           isOpen={showRewardModal}
           onClose={() => {
             setShowRewardModal(false);
-            navigate('/chat'); // Navigate to chat on close
+            // Navigate to chat, using the conversationId where the message was actually posted
+            // Use ritualSummaryConversationId first (most reliable), then fallback to completedRitualData
+            const targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
+            logger.info('[RitualRunView] 🚪 Closing modal, navigating to chat:', {
+              ritualSummaryConversationId,
+              completedRitualDataConversationId: completedRitualData?.conversationId,
+              targetConversationId,
+              hasConversationId: !!targetConversationId
+            });
+            
+            if (targetConversationId) {
+              // ✅ BEST PRACTICE: Update localStorage BEFORE navigation so ChatPage loads correct conversation
+              localStorage.setItem('atlas:lastConversationId', targetConversationId);
+              const targetUrl = `/chat?conversation=${targetConversationId}`;
+              logger.info('[RitualRunView] 🚪 Navigating to:', targetUrl);
+              // ✅ BEST PRACTICE: Use replace: false to allow back navigation, but ensure URL is set
+              navigate(targetUrl);
+            } else {
+              logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to /chat');
+              navigate('/chat');
+            }
           }}
           ritualData={{
             title: completedRitualData.title,
