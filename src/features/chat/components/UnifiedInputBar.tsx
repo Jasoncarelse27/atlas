@@ -141,11 +141,11 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
               disabled={isProcessing}
               className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
                 isListening 
-                  ? 'bg-red-500 text-white' 
-                  : 'bg-[#F4E5D9] dark:bg-[#F4E5D9] hover:bg-[#F3D3B8] dark:hover:bg-[#F3D3B8]'
+                  ? 'bg-red-500' 
+                  : 'bg-[#2A2E3A] dark:bg-[#2A2E3A] hover:bg-[#3A3E4A] dark:hover:bg-[#3A3E4A]'
               }`}
             >
-              <Mic className="w-5 h-5 text-[#1F2937]" />
+              <Mic className={`w-5 h-5 ${isListening ? 'text-white' : 'text-white'}`} />
             </button>
           )}
           
@@ -160,21 +160,21 @@ const UnifiedInputBar: React.FC<UnifiedInputBarProps> = ({
             disabled={isProcessing || isListening}
           />
           
-          {/* Send Button - Always visible, darker gray background with black icon */}
+          {/* Send Button - Always visible, peach background with black icon (matches plus button) */}
           <button
             onClick={handleSend}
             disabled={!message.trim() || isProcessing || isListening}
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#F4E5D9]/50 ${
               message.trim() && !isProcessing && !isListening  
-                ? 'bg-[#2A2E3A] dark:bg-[#2A2E3A] text-[#1F2937] dark:text-[#1F2937] hover:bg-[#3A3E4A] dark:hover:bg-[#3A3E4A]'
-                : 'bg-[#2A2E3A] dark:bg-[#2A2E3A] text-gray-500 dark:text-gray-500 cursor-not-allowed'
+                ? 'bg-[#F4E5D9] dark:bg-[#F4E5D9] hover:bg-[#F3D3B8] dark:hover:bg-[#F3D3B8]'
+                : 'bg-[#2A2E3A] dark:bg-[#2A2E3A] cursor-not-allowed opacity-50'
             }`}
             aria-label="Send message"
           >
             {isProcessing ? (
-              <LoadingSpinner size="sm" color="white" />
+              <LoadingSpinner size="sm" color="#1F2937" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Send className={`w-5 h-5 ${message.trim() && !isProcessing && !isListening ? 'text-[#1F2937]' : 'text-gray-400'}`} />
             )}
           </button>
 
