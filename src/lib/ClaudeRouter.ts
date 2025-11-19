@@ -195,8 +195,8 @@ export async function handlePrompt(
  */
 export function getModelInfo(model: string) {
   const models = {
-    'claude-3-5-sonnet-latest': {
-      name: 'Claude 3.5 Sonnet',
+    'claude-3-sonnet-20240229': {
+      name: 'Claude 3 Sonnet',
       description: 'Fast and efficient for most tasks',
       tier: 'core' as const,
     },
@@ -204,6 +204,11 @@ export function getModelInfo(model: string) {
       name: 'Claude 3.5 Haiku',
       description: 'Fast and cost-effective',
       tier: 'free' as const,
+    },
+    'claude-3-5-sonnet-latest': {
+      name: 'Claude 3.5 Sonnet',
+      description: 'Fast and efficient for most tasks',
+      tier: 'core' as const,
     },
     'claude-sonnet-4-5-20250929': {
       name: 'Claude Sonnet 4.5',
@@ -239,5 +244,5 @@ export function getModelInfo(model: string) {
     },
   };
   
-  return models[model as keyof typeof models] || models['claude-3-5-sonnet-latest'];
+  return models[model as keyof typeof models] || models['claude-3-sonnet-20240229'];
 }

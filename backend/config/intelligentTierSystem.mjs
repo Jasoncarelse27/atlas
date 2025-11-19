@@ -45,11 +45,11 @@ export const SYSTEM_LIMITS = {
 
 export function selectOptimalModel(userTier, messageContent = '', requestType = '') {
   // ✅ PRODUCTION MODELS: Use billing-enabled models that return usage data
-  // Studio tier uses Sonnet 3.5 (not Opus) for launch - matches frontend configuration
+  // Studio tier uses Sonnet (not Opus) for launch - matches frontend configuration
   const MODEL_MAP = {
     free: 'claude-3-5-haiku-latest', // ✅ Verified working - billing-enabled
-    core: 'claude-3-5-sonnet-latest', // ✅ Billing-enabled model
-    studio: 'claude-3-5-sonnet-latest', // ✅ Billing-enabled model
+    core: 'claude-3-sonnet-20240229', // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
+    studio: 'claude-3-sonnet-20240229', // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
   };
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;
