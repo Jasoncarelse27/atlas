@@ -4,6 +4,7 @@
 
 import { logger } from '../lib/simpleLogger.mjs';
 import { supabase } from '../config/supabaseClient.mjs';
+import { normalizeTier, getUserTierSafe } from './tierService.mjs';
 
 /**
  * Get or create current billing period for a user
@@ -43,28 +44,19 @@ export async function getOrCreateCurrentBillingPeriod(userId) {
       return existingPeriod.id;
     }
 
-    // Period doesn't exist - get user's current tier and create new period
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .single();
+    // Period doesn't exist - get user's current tier using centralized tierService
+    // ✅ CRITICAL: Normalize tier before storing in billing_periods to prevent overage calculation errors
+    const tier = await getUserTierSafe(userId);
+    const normalizedTier = normalizeTier(tier); // Double-normalize for safety
 
-    if (profileError) {
-      logger.error('[BillingPeriod] Error fetching user tier:', profileError);
-      throw new Error(`Failed to fetch user tier: ${profileError.message}`);
-    }
-
-    const tier = profile?.subscription_tier || 'free';
-
-    // Create new billing period
+    // Create new billing period with normalized tier
     const { data: newPeriod, error: createError } = await supabase
       .from('billing_periods')
       .insert({
         user_id: userId,
         period_start: periodStart.toISOString(),
         period_end: periodEnd.toISOString(),
-        tier: tier
+        tier: normalizedTier // ✅ CRITICAL: Always store normalized tier
       })
       .select('id')
       .single();
@@ -89,7 +81,7 @@ export async function getOrCreateCurrentBillingPeriod(userId) {
       throw createError;
     }
 
-    logger.info(`[BillingPeriod] ✅ Created new billing period: ${newPeriod.id} for user ${userId} (tier: ${tier})`);
+    logger.info(`[BillingPeriod] ✅ Created new billing period: ${newPeriod.id} for user ${userId} (tier: ${normalizedTier})`);
     return newPeriod.id;
 
   } catch (error) {

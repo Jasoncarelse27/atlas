@@ -2,6 +2,7 @@ import { logger } from '../lib/simpleLogger.mjs';
 import express from 'express';
 import { supabase } from '../config/supabaseClient.mjs';
 import { requireAdmin } from '../middleware/adminAuth.mjs';
+import { getUserTierSafe } from '../services/tierService.mjs';
 
 const router = express.Router();
 
@@ -104,18 +105,8 @@ router.get("/usage", async (req, res) => {
       });
     }
 
-    // Get user's tier from profiles
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .single();
-
-    if (profileError) {
-      logger.error('[Admin] Error fetching profile:', profileError.message || profileError);
-    }
-
-    const tier = profile?.subscription_tier || 'free';
+    // ✅ CRITICAL: Use centralized tierService (single source of truth with normalization)
+    const tier = await getUserTierSafe(userId);
     const today = new Date().toISOString().slice(0, 10);
 
     // Get today's usage count
@@ -486,9 +477,10 @@ router.get('/subscriptions/overview', async (req, res) => {
     }
     
     // Transform data to match expected format
+    const { normalizeTier } = await import('../services/tierService.mjs');
     const overview = (profiles || []).map(profile => ({
       email: profile.email,
-      current_tier: profile.subscription_tier,
+      current_tier: normalizeTier(profile.subscription_tier), // ✅ CRITICAL: Normalize for display
       activations: 0, // TODO: Implement with subscription_audit table
       cancellations: 0, // TODO: Implement with subscription_audit table
       upgrades: 0, // TODO: Implement with subscription_audit table

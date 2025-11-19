@@ -39,6 +39,15 @@ BEGIN
     v_tier := 'free';
   END IF;
   
+  -- ✅ CRITICAL: Normalize tier to lowercase (handles case variations from profiles table)
+  -- This ensures billing_periods.tier is always normalized for consistent overage calculations
+  v_tier := LOWER(TRIM(v_tier));
+  
+  -- ✅ VALIDATION: Ensure tier is one of the expected values (fail closed to 'free')
+  IF v_tier NOT IN ('free', 'core', 'studio') THEN
+    v_tier := 'free';
+  END IF;
+  
   -- Find or create billing period for this user and period
   INSERT INTO billing_periods (user_id, period_start, period_end, tier)
   VALUES (p_user_id, v_period_start, v_period_end, v_tier)

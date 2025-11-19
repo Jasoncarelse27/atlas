@@ -5,6 +5,7 @@
 import { logger } from '../lib/simpleLogger.mjs';
 import { supabase } from '../config/supabaseClient.mjs';
 import { getIncludedCreditsUsdForTier } from '../config/intelligentTierSystem.mjs';
+import { normalizeTier } from './tierService.mjs';
 import { getOrCreateCurrentBillingPeriod } from './billingPeriodService.mjs';
 import { createOverageInvoice, getFastSpringOrderReceiptUrl } from './fastspringOverageService.mjs';
 
@@ -37,7 +38,8 @@ export async function calculateOverageForPeriod(userId, billingPeriodId) {
       throw new Error(`Billing period not found: ${periodError?.message || 'Not found'}`);
     }
 
-    const tier = billingPeriod.tier || 'free';
+    // ✅ CRITICAL: Normalize tier from billing_periods (handles any legacy non-normalized data)
+    const tier = normalizeTier(billingPeriod.tier || 'free');
 
     // Sum total cost from usage_snapshots for this billing period
     const { data: snapshots, error: snapshotsError } = await supabase

@@ -238,11 +238,14 @@ serve(async (req) => {
       throw auditError;
     }
 
+    // ✅ CRITICAL: Normalize tier to lowercase before storing (handles case variations)
+    const normalizedNewTier = newTier.toLowerCase().trim();
+    
     // Update user's subscription tier
     const { error: updateError } = await supabase
       .from("profiles")
       .update({ 
-        subscription_tier: newTier,
+        subscription_tier: normalizedNewTier,
         subscription_status: eventType.includes('canceled') || eventType.includes('deactivated') ? 'cancelled' : 'active',
         updated_at: new Date().toISOString()
       })
@@ -253,10 +256,10 @@ serve(async (req) => {
       throw updateError;
     }
 
-    console.log(`[FastSpring Webhook] Successfully processed ${eventType} for user ${userId} -> ${newTier}`);
+    console.log(`[FastSpring Webhook] Successfully processed ${eventType} for user ${userId} -> ${normalizedNewTier}`);
 
     // Send MagicBell notification (non-blocking - don't fail webhook if notification fails)
-    await sendMagicBellNotification(userId, mappedEvent || 'unknown', newTier, oldTier);
+    await sendMagicBellNotification(userId, mappedEvent || 'unknown', normalizedNewTier, oldTier);
     
     return new Response(JSON.stringify({ 
       success: true,

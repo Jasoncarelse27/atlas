@@ -159,30 +159,16 @@ async function generateConversationTitle(text, tier) {
 }
 
 /**
- * Get subscription tier for a user from Supabase profiles
+ * Get subscription tier for a user using centralized tierService.
+ * This function is deprecated - use getUserTierSafe from tierService.mjs directly.
+ * Kept for backwards compatibility with existing call sites.
+ * 
+ * @deprecated Use getUserTierSafe from '../services/tierService.mjs' instead
  */
 async function getUserTier(userId) {
-  if (!userId) {
-    return "free";
-  }
-
-  try {
-    const { data, error } = await getSupabase()
-      .from("profiles")
-      .select("subscription_tier")
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      return "free"; // Always default to free on error
-    }
-
-    const tier = data?.subscription_tier || "free";
-    logger.debug(`✅ [MessageService] User ${userId} tier: ${tier}`);
-    return tier;
-  } catch (err) {
-    return "free"; // Always default to free on exception
-  }
+  // ✅ CRITICAL: Use centralized tierService for consistent normalization
+  const { getUserTierSafe } = await import('../services/tierService.mjs');
+  return getUserTierSafe(userId);
 }
 
 /**

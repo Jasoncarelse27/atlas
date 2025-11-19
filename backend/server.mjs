@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { selectOptimalModel } from './config/intelligentTierSystem.mjs';
 import { flushSentry, getSentryMiddleware, initSentry } from './lib/sentryService.mjs';
 import { logger } from './lib/simpleLogger.mjs';
+import { getUserTierSafe } from './services/tierService.mjs';
 import authMiddleware from './middleware/authMiddleware.mjs';
 import { apiCacheMiddleware, cacheTierMiddleware, invalidateCacheMiddleware } from './middleware/cacheMiddleware.mjs';
 import cooldownMiddleware from './middleware/cooldownMiddleware.mjs';
@@ -168,8 +169,10 @@ app.get('/healthz', async (req, res) => {
       
       // Count tiers efficiently
       const tierCounts = { free: 0, core: 0, studio: 0 };
+      const { normalizeTier } = await import('./services/tierService.mjs');
       (profiles || []).forEach(profile => {
-        const tier = profile?.subscription_tier || 'free';
+        // ✅ CRITICAL: Normalize tier for accurate metrics
+        const tier = normalizeTier(profile?.subscription_tier || 'free');
         if (tier === 'free' || tier === 'core' || tier === 'studio') {
           tierCounts[tier]++;
         }
@@ -1503,21 +1506,8 @@ app.get('/api/usage', verifyJWT, async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Get user's tier from profiles
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .single();
-
-    if (profileError) {
-      logger.error('[Usage API] Error fetching profile:', profileError.message || profileError);
-    }
-
-    const tier = profile?.subscription_tier || 'free';
-    
-    // ✅ CRITICAL: Log tier resolution for debugging tier discrepancies
-    logger.info(`[Usage API] 🔍 Tier resolution for user ${userId}: ${tier} (from database: ${profile?.subscription_tier || 'not found'})`);
+    // ✅ CRITICAL: Use centralized tierService (single source of truth with normalization)
+    const tier = await getUserTierSafe(userId);
     
     // ✅ CRITICAL FIX: Count messages directly from messages table (not daily_usage)
     // This ensures accurate count that updates immediately when messages are sent
@@ -2187,30 +2177,24 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
       }
     }
 
-    // 🔒 SECURITY: Always fetch tier from database (never trust client)
-    let effectiveTier = 'free';
+    // ✅ CRITICAL: Use centralized tierService (single source of truth with normalization)
+    const effectiveTier = await getUserTierSafe(userId);
+    
+    // Fetch user preferences separately (not part of tierService)
     let userPreferences = null;
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('subscription_tier, preferences')
+        .select('preferences')
         .eq('id', userId)
         .single();
       
-      if (profileError) {
-        logger.error(`[Message] ❌ Error fetching tier for ${userId}:`, profileError.message || profileError);
-        effectiveTier = 'free'; // Fail closed: Default to free tier
-      } else {
-        // ✅ CRITICAL FIX: Normalize tier to lowercase to handle case variations
-        const rawTier = profile?.subscription_tier || 'free';
-        effectiveTier = typeof rawTier === 'string' ? rawTier.toLowerCase().trim() : 'free';
-        userPreferences = profile?.preferences || null;
-        // ✅ CRITICAL: Log tier resolution for debugging tier discrepancies
-        logger.info(`[Message] 🔍 Tier resolution for user ${userId}: raw=${rawTier}, normalized=${effectiveTier} (from database: ${profile?.subscription_tier || 'not found'})`);
+      if (!profileError && profile) {
+        userPreferences = profile.preferences || null;
       }
     } catch (error) {
-      logger.warn(`[Message] ❌ Exception fetching tier for ${userId}, defaulting to free:`, error.message || error);
-      effectiveTier = 'free'; // Fail closed: Default to free tier
+      logger.debug(`[Message] Could not fetch preferences for ${userId}:`, error.message);
+      // Preferences are optional, continue without them
     }
 
     // ✅ CRITICAL FIX: Check paid tiers first to prevent false positives
@@ -4094,12 +4078,19 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
     } else {
       // If not authenticated, fetch tier by email from database
       try {
+        // ✅ CRITICAL: Use centralized tierService for consistent normalization
+        // First get userId from email
         const { data: profile } = await supabase
           .from('profiles')
-          .select('subscription_tier')
+          .select('id')
           .eq('email', email)
           .single();
-        tier = profile?.subscription_tier || 'free';
+        
+        if (profile?.id) {
+          tier = await getUserTierSafe(profile.id);
+        } else {
+          tier = 'free'; // Fail closed
+        }
       } catch (dbError) {
         logger.debug('[MailerLite] Could not fetch tier for email:', email);
         tier = 'free'; // Fail closed
@@ -4470,14 +4461,13 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
     // Fetch actual tier from database (single source of truth)
     let tier = requestedTier; // Default to requested tier
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', userId)
-        .single();
-      
+      // ✅ CRITICAL: Use centralized tierService for consistent normalization
       // Use actual tier if available, otherwise use requested tier (for new signups)
-      tier = profile?.subscription_tier || requestedTier;
+      tier = await getUserTierSafe(userId);
+      if (tier === 'free' && requestedTier) {
+        // For new signups, use requested tier (will be normalized by tierService later)
+        tier = requestedTier;
+      }
     } catch (dbError) {
       logger.debug('[FastSpring] Could not fetch tier for userId:', userId);
       // Use requested tier as fallback (this is OK for checkout creation)
@@ -4592,12 +4582,8 @@ app.post('/api/feature-attempts', async (req, res) => {
     } else {
       // If not authenticated or userId mismatch, fetch tier from database
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', userId)
-          .single();
-        tier = profile?.subscription_tier || 'free';
+        // ✅ CRITICAL: Use centralized tierService for consistent normalization
+        tier = await getUserTierSafe(userId);
       } catch (dbError) {
         logger.debug('[FeatureAttempts] Could not fetch tier for userId:', userId);
         tier = 'free'; // Fail closed

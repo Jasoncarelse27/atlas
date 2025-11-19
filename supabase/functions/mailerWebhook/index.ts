@@ -193,10 +193,18 @@ async function handleSubscriberUpdate(data: any, context: LogContext) {
   log('INFO', 'Processing subscriber update', context);
 
   const result = await withRetry(async () => {
+    // ✅ CRITICAL: Normalize tier to lowercase before storing (handles case variations)
+    const rawTier = data.fields?.plan || "free";
+    const normalizedTier = typeof rawTier === 'string' ? rawTier.toLowerCase().trim() : 'free';
+    
+    // ✅ VALIDATION: Ensure tier is one of the expected values (fail closed to 'free')
+    const validTiers = ['free', 'core', 'studio'];
+    const finalTier = validTiers.includes(normalizedTier) ? normalizedTier : 'free';
+    
     const { error } = await supabase
       .from("profiles")
       .update({
-        subscription_tier: data.fields?.plan || "free",
+        subscription_tier: finalTier,
         updated_at: new Date().toISOString(),
       })
       .eq("email", data.email);
@@ -219,7 +227,7 @@ async function handleSubscriberDelete(data: any, context: LogContext) {
     const { error } = await supabase
       .from("profiles")
       .update({
-        subscription_tier: "free",
+        subscription_tier: "free", // Already normalized
         updated_at: new Date().toISOString(),
       })
       .eq("email", data.email);
@@ -242,7 +250,7 @@ async function handleSubscriberUnsubscribed(data: any, context: LogContext) {
     const { error } = await supabase
       .from("profiles")
       .update({
-        subscription_tier: "free",
+        subscription_tier: "free", // Already normalized
         status: "unsubscribed",
         updated_at: new Date().toISOString(),
       })

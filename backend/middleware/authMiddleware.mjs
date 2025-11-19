@@ -2,6 +2,7 @@
 
 import { logger } from '../lib/simpleLogger.mjs';
 import { redisService } from '../services/redisService.mjs';
+import { normalizeTier, getUserTier } from '../services/tierService.mjs';
 
 export default async function authMiddleware(req, res, next) {
   const hdr = req.headers.authorization || "";
@@ -28,7 +29,8 @@ export default async function authMiddleware(req, res, next) {
     try {
       const cachedTier = await redisService.getCachedTierStatus(userId);
       if (cachedTier) {
-        tier = cachedTier.tier;
+        // ✅ CRITICAL: Normalize cached tier (handles old non-normalized cache data)
+        tier = normalizeTier(cachedTier.tier);
         fromCache = true;
         logger.debug(`[Auth] Tier cache hit for user ${userId}: ${tier}`);
       }
@@ -36,44 +38,29 @@ export default async function authMiddleware(req, res, next) {
       logger.debug('[Auth] Cache error:', cacheError.message);
     }
     
-    // If not in cache, fetch from database
+    // If not in cache, fetch from database using centralized tierService
     if (!fromCache) {
       try {
-        const { supabase } = await import('../config/supabaseClient.mjs');
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', userId)
-          .single();
+        // ✅ CRITICAL: Use centralized tierService for consistent normalization
+        tier = await getUserTier(userId);
         
-        if (error) {
-          // Try to create profile if it doesn't exist
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: userId,
-              email: user.email,
-              subscription_tier: 'free'
-            });
-          
-          if (insertError) {
-            logger.debug('Profile insert error:', insertError.message);
-          }
-        } else {
-          tier = profile?.subscription_tier || 'free';
-          
-          // Cache the tier for future requests
-          const tierData = {
-            tier,
-            userId,
-            cachedAt: new Date().toISOString()
-          };
-          await redisService.cacheTierStatus(userId, tierData).catch(err => {
-            logger.debug('[Auth] Failed to cache tier:', err.message);
-          });
-        }
+        // ✅ CRITICAL: Normalize tier BEFORE caching in Redis
+        const normalizedTier = normalizeTier(tier);
+        
+        // Cache the normalized tier for future requests
+        const tierData = {
+          tier: normalizedTier, // Always store normalized tier in cache
+          userId,
+          cachedAt: new Date().toISOString()
+        };
+        await redisService.cacheTierStatus(userId, tierData).catch(err => {
+          logger.debug('[Auth] Failed to cache tier:', err.message);
+        });
+        
+        tier = normalizedTier; // Use normalized tier
       } catch (profileError) {
         logger.debug('Profile error:', profileError.message);
+        tier = 'free'; // Fail closed
       }
     }
 

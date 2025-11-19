@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { supabase } from "../config/supabaseClient.mjs";
+import { getUserTierSafe } from "../services/tierService.mjs";
 
 const router = Router();
 
@@ -14,24 +15,14 @@ router.post("/", async (req, res) => {
     });
   }
 
-  // ✅ SECURITY: Fetch tier from database (never trust client-sent tier)
+  // ✅ CRITICAL: Use centralized tierService (single source of truth with normalization)
+  // If authenticated and userId matches, use verified tier from authMiddleware (already normalized)
+  // Otherwise, fetch from database using tierService
   let tier = 'free'; // Default
   if (req.user?.id && req.user.id === userId) {
-    // If authenticated and userId matches, use verified tier from authMiddleware
-    tier = req.user.tier || 'free';
+    tier = req.user.tier || 'free'; // Already normalized by authMiddleware
   } else {
-    // If not authenticated or userId mismatch, fetch tier from database
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', userId)
-        .single();
-      tier = profile?.subscription_tier || 'free';
-    } catch (dbError) {
-      console.debug('[FeatureAttempts] Could not fetch tier for userId:', userId);
-      tier = 'free'; // Fail closed
-    }
+    tier = await getUserTierSafe(userId);
   }
 
   try {

@@ -2,7 +2,7 @@
 // 🔒 SECURITY: Never trust client-sent tier. Always fetch from database.
 import { logger } from '../lib/simpleLogger.mjs';
 import { TIER_DEFINITIONS, selectOptimalModel } from '../config/intelligentTierSystem.mjs';
-import { supabase } from '../config/supabaseClient.mjs';
+import { getUserTierSafe } from '../services/tierService.mjs';
 
 /**
  * Middleware to select the appropriate AI model based on user tier
@@ -24,28 +24,8 @@ export default async function tierGateMiddleware(req, res, next) {
       });
     }
 
-    // ✅ SECURITY: Always fetch tier from database (single source of truth)
-    let tier = 'free'; // Default to free tier
-    
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('subscription_tier')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        logger.error(`[TierGate] Failed to fetch tier for user ${user.id}:`, error.message);
-        // Fail closed: Use free tier if we can't verify
-        tier = 'free';
-      } else {
-        tier = profile?.subscription_tier || 'free';
-      }
-    } catch (dbError) {
-      logger.error(`[TierGate] Database error for user ${user.id}:`, dbError.message);
-      // Fail closed: Use free tier on error
-      tier = 'free';
-    }
+    // ✅ CRITICAL: Use centralized tierService (single source of truth with normalization)
+    const tier = await getUserTierSafe(user.id);
 
     // ✅ Validate tier against known configurations
     const tierConfig = TIER_DEFINITIONS[tier];
