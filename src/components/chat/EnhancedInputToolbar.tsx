@@ -60,6 +60,7 @@ const EnhancedInputToolbar = React.memo(({
   const { canUse: canUseImage, attemptFeature: attemptImage } = useFeatureAccess('image');
   const { canUse: canUseAudio, attemptFeature: attemptAudio } = useFeatureAccess('audio'); // ✅ Add audio feature access
   const { canUse: canUseCamera, attemptFeature: attemptCamera } = useFeatureAccess('camera'); // ✅ SECURITY FIX: Add camera access check
+  const { canUse: canUseFile, attemptFeature: attemptFile } = useFeatureAccess('file'); // ✅ Add file feature access
   const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ REMOVED: isStudioTier check (call button removed)
@@ -1080,12 +1081,7 @@ const EnhancedInputToolbar = React.memo(({
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    {status === 'pending' && (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 text-blue-400" />
-                        <span className="text-xs text-blue-400">Ready</span>
-                      </>
-                    )}
+                    {/* ✅ REMOVED: 'Ready' status - too busy, attachment preview is sufficient */}
                     {status === 'uploading' && (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-neutral-400 dark:text-gray-500" />

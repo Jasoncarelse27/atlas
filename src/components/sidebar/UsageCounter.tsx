@@ -1,5 +1,7 @@
 import { Crown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import { hasUnlimitedMessages } from '../../config/featureAccess';
 import { getTierDisplayName, getTierTooltip, useTierQuery } from '../../hooks/useTierQuery';
 import { logger } from '../../lib/logger';
@@ -215,8 +217,33 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
     return (
       <div className="bg-atlas-pearl/50 dark:bg-[#1A1D26]/80 border border-atlas-border dark:border-[#2A2E3A] p-4 rounded-xl shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-atlas-text-muted dark:text-gray-400 text-sm font-medium uppercase tracking-wider">Current Tier</h3>
-          <span className="text-xs font-semibold text-atlas-sage dark:text-[#F4E5D9]">Loading...</span>
+          <Skeleton width={80} height={16} className="dark:bg-gray-700" />
+          <Skeleton width={60} height={14} className="dark:bg-gray-700" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton height={16} className="dark:bg-gray-700" />
+          <Skeleton height={8} className="dark:bg-gray-700" />
+          <Skeleton height={12} width="60%" className="dark:bg-gray-700" />
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ LAUNCH CRITICAL: Show skeleton during usage loading
+  if (loadingUsage) {
+    return (
+      <div className="bg-atlas-pearl/50 dark:bg-[#1A1D26]/80 border border-atlas-border dark:border-[#2A2E3A] p-4 rounded-xl shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <Skeleton width={100} height={16} className="dark:bg-gray-700" />
+          <Skeleton width={60} height={14} className="dark:bg-gray-700" />
+        </div>
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <Skeleton width={120} height={16} className="dark:bg-gray-700" />
+            <Skeleton width={60} height={16} className="dark:bg-gray-700" />
+          </div>
+          <Skeleton height={8} className="dark:bg-gray-700" />
+          <Skeleton height={12} width="70%" className="dark:bg-gray-700" />
         </div>
       </div>
     );

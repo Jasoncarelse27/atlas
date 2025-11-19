@@ -81,23 +81,26 @@ export function ImageUpload({ onImageProcessed, userId, className = '' }: ImageU
         onClick={handleClick}
         disabled={isProcessing || !canUse}
         className={`
-          flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200
+          flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full transition-all duration-200 touch-manipulation
+          min-h-[44px] min-w-[44px]
           ${canUse 
-            ? 'bg-atlas-sage text-white hover:bg-atlas-sage active:scale-95' 
+            ? 'bg-atlas-sage text-white hover:bg-atlas-success active:scale-95 active:bg-atlas-success' 
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }
           ${isProcessing ? 'opacity-50 cursor-wait' : ''}
         `}
+        aria-label={isProcessing ? 'Analyzing image...' : 'Add image for analysis'}
+        aria-disabled={isProcessing || !canUse}
       >
         {isProcessing ? (
           <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            <span>Analyzing...</span>
+            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm sm:text-base">Analyzing...</span>
           </>
         ) : (
           <>
-            <Camera className="w-4 h-4" />
-            <span>Add Image</span>
+            <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base font-medium">Add Image</span>
           </>
         )}
       </button>

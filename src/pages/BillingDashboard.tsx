@@ -2,7 +2,7 @@
 // Cursor-Style Billing System - Billing Dashboard Page
 // Displays included usage, on-demand usage, and invoices
 
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink, ArrowLeft } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -124,7 +124,27 @@ const BillingDashboard: React.FC = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="bg-white/50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Billing</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {/* Back Button - Mobile & Web */}
+                <button
+                  onClick={() => navigate('/chat')}
+                  className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  aria-label="Back to Chat"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Billing</h1>
+              </div>
+              <button
+                onClick={() => {
+                  window.location.reload();
+                }}
+                className="px-4 py-2 text-sm bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
           {/* Content */}

@@ -14,11 +14,20 @@ export function useBillingSummary() {
   return useQuery<BillingSummary, Error>({
     queryKey: ['billing-summary'],
     queryFn: fetchBillingSummary,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 30 * 1000, // 30 seconds - refresh more frequently to see new usage
+    cacheTime: 2 * 60 * 1000, // 2 minutes
     retry: 2,
+    refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
     onError: (error) => {
       logger.error('[useBillingSummary] Query error:', error);
+    },
+    onSuccess: (data) => {
+      logger.debug('[useBillingSummary] ✅ Billing summary loaded:', {
+        tier: data.tier,
+        models: data.models.length,
+        totalCost: data.usedCreditsUsd,
+        period: `${data.period.start} - ${data.period.end}`
+      });
     }
   });
 }

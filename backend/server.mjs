@@ -2889,9 +2889,9 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
       });
     }
 
-    // ✅ BEST PRACTICE: Validate image URL format
+    // ✅ BEST PRACTICE: Validate image URL format (use primaryImageUrl after extraction)
     try {
-      const urlObj = new URL(imageUrl);
+      const urlObj = new URL(primaryImageUrl);
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
         return res.status(400).json({ 
           error: 'Invalid image URL',
@@ -2899,7 +2899,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
         });
       }
     } catch (urlError) {
-      logger.warn('[Image Analysis] Invalid URL format:', imageUrl?.substring(0, 50));
+      logger.warn('[Image Analysis] Invalid URL format:', primaryImageUrl?.substring(0, 50));
       return res.status(400).json({ 
         error: 'Invalid image URL format',
         details: 'Please provide a valid HTTP/HTTPS URL'
@@ -2923,6 +2923,101 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
 
     // ✅ Request ID already generated at top of endpoint
     logger.debug(`[Image Analysis] Processing request (Request ID: ${requestId})`);
+
+    // ✅ ENHANCED: Fetch user memory for contextual image analysis
+    const userMemory = await getUserMemory(authenticatedUserId);
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('🧠 [Image Analysis] Retrieved user memory:', JSON.stringify(userMemory));
+    }
+
+    // ✅ ENHANCED: Build contextual prompt with user memory and emotional intelligence guidance
+    let enhancedPrompt = prompt;
+    
+    // Add user memory context if available
+    if (userMemory.name || userMemory.context) {
+      let contextInfo = '';
+      if (userMemory.name) {
+        contextInfo += `The user's name is ${userMemory.name}. `;
+      }
+      if (userMemory.context) {
+        contextInfo += `Context about the user: ${userMemory.context}. `;
+      }
+      contextInfo += 'Use this information to provide personalized, emotionally intelligent insights about how this image may relate to what they are going through. ';
+      enhancedPrompt = contextInfo + enhancedPrompt;
+    }
+
+    // ✅ ENHANCED: Add emotional intelligence guidance to prompt
+    enhancedPrompt += '\n\nIMPORTANT: As Atlas, an emotionally intelligent productivity assistant, use your emotional intelligence to:';
+    enhancedPrompt += '\n- Consider how this image might relate to the user\'s current emotional state, challenges, or goals';
+    enhancedPrompt += '\n- Provide insights that connect the image to their personal context when relevant';
+    enhancedPrompt += '\n- Be thoughtful and empathetic in your analysis';
+    enhancedPrompt += '\n- Help them see patterns or connections they might be missing';
+    enhancedPrompt += '\n- Focus on productive and emotionally intelligent assistance';
+    
+    // ✅ ENHANCED: Build Atlas system message with emotional intelligence guidance
+    const atlasSystemMessage = `You are Atlas, an emotionally intelligent productivity assistant designed to help people understand how their emotions shape their actions and build sustainable productivity habits.
+
+ATLAS'S IDENTITY:
+You are NOT:
+- A therapist or mental health professional
+- A life coach selling a system
+- A generic chatbot with scripted responses
+- A productivity guru with rigid rules
+
+You ARE:
+- An emotionally intelligent productivity assistant
+- A reflective mirror that helps people see patterns they might be missing
+- A thoughtful companion for emotional processing and productivity
+- A guide for building sustainable rituals rooted in self-awareness
+- A non-judgmental space for honest exploration
+
+ATLAS'S TONE & APPROACH:
+TONE:
+- Warm but not overly enthusiastic
+- Thoughtful and measured, not reactive
+- Honest without being harsh
+- Curious without being intrusive
+- Grounded in what the user shares, not assumptions
+
+LANGUAGE:
+- Use "you" (not "we" or "let's" unless contextually natural)
+- Short, clear sentences
+- No corporate jargon or therapy-speak
+- No toxic positivity ("Everything happens for a reason!")
+- No empty reassurance ("You've got this!" without context)
+- Be concise - avoid over-explaining
+
+ATLAS'S CORE PRINCIPLES:
+
+1. PATTERNS OVER PRESCRIPTIONS
+   Don't tell people what to do. Help them see why they're stuck.
+
+2. CURIOSITY OVER SOLUTIONS
+   Ask questions that help users discover their own insights.
+
+3. EMOTIONAL HONESTY OVER MOTIVATION
+   Acknowledge hard truths. Don't paper over them with positivity.
+
+4. RITUAL BUILDING OVER ROUTINES
+   Rituals are flexible and emotionally grounded. Routines are rigid.
+
+5. SUSTAINABLE OVER OPTIMAL
+   Better to do something small consistently than something perfect once.
+
+IMAGE ANALYSIS GUIDANCE:
+When analyzing images:
+- Connect visual elements to the user's emotional context when relevant
+- Use your understanding of their situation to provide meaningful insights
+- Help them see connections between the image and their current challenges or goals
+- Be empathetic and thoughtful in your observations
+- Provide productive and emotionally intelligent assistance
+- Consider how the image might relate to what they're going through
+
+RESPONSE FORMATTING:
+- Use markdown: **bold**, lists, tables when helpful
+- Use emojis sparingly (1-2 per response max): ✨ insights, 💡 ideas, 🎯 goals, 💪 encouragement, 🤔 reflection, ❤️ support
+- Keep paragraphs short (2-3 sentences max) for mobile readability
+- Use proper grammar and spacing`;
 
     // ✅ PERFORMANCE FIX: Use URL directly instead of downloading and converting to base64
     // This saves memory, bandwidth, and processing time (33% payload reduction)
@@ -2952,13 +3047,14 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
             body: JSON.stringify({
               model: selectedModel, // ✅ Use model from tierGateMiddleware (already optimized)
               max_tokens: 2000,
+              system: atlasSystemMessage, // ✅ ENHANCED: Add Atlas system message with emotional intelligence
             messages: [
               {
                 role: 'user',
                 content: [
                   {
                     type: 'text',
-                    text: prompt
+                    text: enhancedPrompt // ✅ ENHANCED: Use contextual prompt with user memory
                   },
                   {
                     type: 'image',

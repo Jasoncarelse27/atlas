@@ -280,7 +280,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   if (variant === 'minimal') {
     return (
-      <div className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm w-full max-w-full ${className}`}>
+      <div className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm w-full max-w-full overflow-hidden ${className}`}>
         <audio ref={audioRef} src={audioUrl} preload="metadata" />
         
         {/* ✅ MOBILE FIX: Larger touch target (44x44px minimum) for mobile, red pause button */}
@@ -301,19 +301,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           )}
         </button>
         
-        {/* ✅ MOBILE FIX: Responsive text sizing and proper overflow handling */}
-        <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 overflow-hidden">
-          <div className="flex-1 min-w-0">
+        {/* ✅ MOBILE FIX: Responsive text sizing and proper overflow handling with flex-shrink */}
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2 overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-hidden">
             {/* Hide title on very small screens, show on sm+ */}
             <div className="hidden sm:block text-sm font-medium text-gray-900 dark:text-white truncate mb-0.5">{title}</div>
             {/* ✅ MOBILE FIX: Larger, more readable time display on mobile */}
-            <div className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap tabular-nums">
+            <div className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap tabular-nums truncate">
               {formatTime(currentTime)}<span className="text-gray-400 dark:text-gray-500 mx-0.5">/</span>{formatTime(duration)}
             </div>
           </div>
         </div>
         
-        {/* ✅ MOBILE FIX: Close button with larger touch target (replacing mute button) */}
+        {/* ✅ MOBILE FIX: Close button with larger touch target and proper spacing - always visible */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -327,11 +327,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           onTouchStart={(e) => {
             e.stopPropagation();
           }}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-9 h-9 sm:w-10 sm:h-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 active:text-gray-700 dark:active:text-gray-200 rounded-full transition-colors touch-manipulation flex-shrink-0"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-10 h-10 sm:w-11 sm:h-11 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 active:text-gray-700 dark:active:text-gray-200 rounded-full transition-colors touch-manipulation flex-shrink-0 ml-auto"
           style={{ touchAction: 'manipulation' }}
           aria-label="Close audio player"
         >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+          <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
