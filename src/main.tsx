@@ -60,6 +60,26 @@ if (typeof window !== 'undefined') {
 // ✅ CRITICAL FIX: Global MagicBell error handler (must be BEFORE Sentry init)
 // This catches unhandled promise rejections from MagicBell library before Sentry sees them
 if (typeof window !== 'undefined') {
+  // Suppress console errors for MagicBell 401 errors
+  const originalError = console.error;
+  console.error = (...args: any[]) => {
+    const errorString = args.map(arg => String(arg)).join(' ');
+    if (
+      errorString.includes('api.magicbell.com') ||
+      errorString.includes('401') ||
+      errorString.includes('Unauthorized') ||
+      errorString.includes('magicbell') ||
+      errorString.includes('MagicBell')
+    ) {
+      // Suppress MagicBell errors silently
+      if (import.meta.env.DEV) {
+        console.debug('[MagicBell] Suppressed console error:', args);
+      }
+      return;
+    }
+    originalError.apply(console, args);
+  };
+
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const message = reason?.message || String(reason || '').toLowerCase();

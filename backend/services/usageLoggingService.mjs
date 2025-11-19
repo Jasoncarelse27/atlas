@@ -80,10 +80,28 @@ export async function logTokenUsage({
       });
 
     if (snapshotError) {
-      logger.error('[UsageLogging] Failed to upsert usage_snapshot:', snapshotError);
+      logger.error('[UsageLogging] ❌ Failed to upsert usage_snapshot:', {
+        error: snapshotError,
+        message: snapshotError.message,
+        details: snapshotError.details,
+        hint: snapshotError.hint,
+        code: snapshotError.code,
+        userId,
+        model,
+        inputTokens,
+        outputTokens,
+        costUsd
+      });
       // Continue anyway - don't break the request
     } else {
-      logger.debug(`[UsageLogging] ✅ Updated usage_snapshot for billing_period_id: ${billingPeriodId}`);
+      logger.debug(`[UsageLogging] ✅ Updated usage_snapshot for billing_period_id: ${billingPeriodId}`, {
+        userId,
+        model,
+        inputTokens,
+        outputTokens,
+        costUsd,
+        billingPeriodId
+      });
     }
 
   } catch (error) {

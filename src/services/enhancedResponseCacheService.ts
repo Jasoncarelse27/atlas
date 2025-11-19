@@ -220,7 +220,7 @@ class EnhancedResponseCacheService {
       // First try exact match
       let { data, error } = await supabase
         .from('response_cache')
-        .select('response_text, hit_count, id, similarity_score')
+        .select('response_text, hit_count, id')
         .eq('query_hash', queryHash)
         .eq('tier', tier)
         .gt('expires_at', new Date().toISOString())
@@ -230,7 +230,7 @@ class EnhancedResponseCacheService {
         // Try similarity matching
         const { data: similarData, error: similarError } = await supabase
           .from('response_cache')
-          .select('response_text, hit_count, id, query_text, similarity_score')
+          .select('response_text, hit_count, id, query_text')
           .eq('tier', tier)
           .gt('expires_at', new Date().toISOString())
           .order('hit_count', { ascending: false })
@@ -259,12 +259,11 @@ class EnhancedResponseCacheService {
         data = bestMatch;
       }
 
-      // Update hit count and last accessed
+      // Update hit count (removed last_accessed - column doesn't exist in schema)
       await supabase
         .from('response_cache')
         .update({ 
-          hit_count: data.hit_count + 1,
-          last_accessed: new Date().toISOString()
+          hit_count: data.hit_count + 1
         })
         .eq('id', data.id);
 
@@ -289,11 +288,6 @@ class EnhancedResponseCacheService {
       const expiresAt = new Date();
       expiresAt.setSeconds(expiresAt.getSeconds() + this.getCacheTTL(tier));
 
-      // Calculate similarity score with common queries
-      const similarityScore = Math.max(...this.COMMON_QUERIES.map(commonQuery => 
-        this.calculateAdvancedSimilarity(query.toLowerCase(), commonQuery.toLowerCase())
-      ));
-
       const { error } = await supabase
         .from('response_cache')
         .upsert({
@@ -302,9 +296,7 @@ class EnhancedResponseCacheService {
           response_text: response,
           tier,
           hit_count: 1,
-          similarity_score: similarityScore,
-          expires_at: expiresAt.toISOString(),
-          last_accessed: new Date().toISOString()
+          expires_at: expiresAt.toISOString()
         }, {
           onConflict: 'query_hash'
         });
