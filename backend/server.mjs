@@ -522,7 +522,7 @@ async function verifyAnthropicConfig() {
     logger.info('[Server] 🔍 Verifying Anthropic API configuration...');
     
     // ✅ Use Haiku for verification (known working model)
-    const model = 'claude-3-haiku-20240307'; // ✅ Verified working
+    const model = 'claude-3-5-haiku-latest'; // ✅ Verified working
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
     
@@ -926,7 +926,7 @@ You are having a natural voice conversation. Respond as if you can hear them cle
 
   // ✅ CRITICAL DEBUG: Log exact model being sent to Anthropic
   const requestBody = {
-    model: is_voice_call ? 'claude-3-haiku-20240307' : model, // ✅ Use fast Haiku for voice calls
+    model: is_voice_call ? 'claude-3-5-haiku-latest' : model, // ✅ Use fast Haiku for voice calls
     max_tokens: is_voice_call ? 300 : 2000, // ✅ Shorter responses for voice
     stream: true,
     ...(systemPrompt && { system: systemPrompt }), // ✅ Add system prompt for voice calls
@@ -1031,15 +1031,17 @@ You are having a natural voice conversation. Respond as if you can hear them cle
                 // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"
               }
-            } else if (parsed.type === 'message_stop') {
+            } else if (parsed.type === 'message_stop' || parsed.type === 'content_block_stop') {
               // ✅ TOKEN TRACKING: Capture usage data from stream completion
+              // ✅ ENHANCED: Check both event types (some models send usage in content_block_stop)
               if (parsed.usage) {
                 tokenUsage = {
                   input_tokens: parsed.usage.input_tokens || 0,
                   output_tokens: parsed.usage.output_tokens || 0
                 };
-                logger.debug(`[streamAnthropicResponse] ✅ Token usage captured: ${tokenUsage.input_tokens} input, ${tokenUsage.output_tokens} output`);
-              } else {
+                logger.info(`[streamAnthropicResponse] ✅ Token usage captured from ${parsed.type}: ${tokenUsage.input_tokens} input, ${tokenUsage.output_tokens} output`);
+              } else if (parsed.type === 'message_stop') {
+                // Only warn on message_stop (content_block_stop may not always have usage)
                 logger.warn('[streamAnthropicResponse] ⚠️ message_stop received but no usage data');
               }
             } else if (parsed.type === 'error') {
@@ -2645,7 +2647,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
                 'anthropic-version': '2023-06-01'
               },
               body: JSON.stringify({
-                model: is_voice_call ? 'claude-3-haiku-20240307' : selectedModel, // 🚀 Use fast Haiku for voice
+                model: is_voice_call ? 'claude-3-5-haiku-latest' : selectedModel, // 🚀 Use fast Haiku for voice
                 max_tokens: is_voice_call ? 300 : 2000, // 🚀 Shorter responses for voice
                 // ✅ FIX: Move system message to top-level for Claude API
                 ...(is_voice_call && {
@@ -2898,7 +2900,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
     const authenticatedUserId = req.user?.id;
     // ✅ Use tier from tierGateMiddleware (already validated)
     const tier = req.tier || 'free';
-    const selectedModel = req.selectedModel || 'claude-sonnet-4-5-20250929';
+    const selectedModel = req.selectedModel || 'claude-3-5-sonnet-latest';
     
     // ✅ FIX: Support both single imageUrl (legacy) and attachments array (new)
     const imageAttachments = attachments && Array.isArray(attachments) && attachments.length > 0

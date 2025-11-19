@@ -15,13 +15,16 @@ export const FEATURE_GATES = {
 };
 
 export const MODEL_COSTS = {
-  // Current models (updated Dec 2024)
-  'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 }, // ✅ Correct Haiku model name
-  'claude-3-sonnet-20240229': { input: 0.003,   output: 0.015   }, // ✅ Updated to correct format (Nov 2025)
-  'claude-3-opus-20240229': { input: 0.015,   output: 0.075   }, // ✅ Updated to correct format (Nov 2025)
-  // Legacy model names for backward compatibility
-  'claude-sonnet-4-5-20250929': { input: 0.003,   output: 0.015   }, // Legacy (keep for compatibility)
-  // ✅ REMOVED: claude-3.5-sonnet-20240620 (wrong format, returns 404)
+  // ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
+  'claude-3-5-haiku-latest':   { input: 0.00025, output: 0.00050 },
+  'claude-3-5-sonnet-latest':  { input: 0.00300, output: 0.01500 },
+  'claude-3-opus-latest':      { input: 0.01500, output: 0.07500 },
+  
+  // Legacy models (keep for backward compatibility with existing data)
+  'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 },
+  'claude-3-sonnet-20240229': { input: 0.003,   output: 0.015   },
+  'claude-3-opus-20240229':   { input: 0.015,   output: 0.075   },
+  'claude-sonnet-4-5-20250929': { input: 0.003, output: 0.015 },
   'claude-3-haiku':  { input: 0.00025, output: 0.00125 },
   'claude-3-sonnet': { input: 0.003,   output: 0.015   },
   'claude-3-opus':   { input: 0.015,   output: 0.075   }
@@ -40,12 +43,12 @@ export const SYSTEM_LIMITS = {
 };
 
 export function selectOptimalModel(userTier, messageContent = '', requestType = '') {
-  // ✅ Tier-based model selection (aligned with messageService.js)
-  // ✅ FIXED: Using claude-sonnet-4-5-20250929 (claude-3-sonnet-20240229 returns 404)
+  // ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
+  // These models reliably return token usage metadata in streaming responses
   const MODEL_MAP = {
-    free: 'claude-3-haiku-20240307', // ✅ Correct Haiku model name
-    core: 'claude-sonnet-4-5-20250929', // ✅ FIXED: Updated from claude-3-sonnet-20240229 (returns 404)
-    studio: 'claude-sonnet-4-5-20250929', // ✅ FIXED: Updated from claude-3-opus-20240229 (returns 404)
+    free: 'claude-3-5-haiku-latest',
+    core: 'claude-3-5-sonnet-latest',
+    studio: 'claude-3-opus-latest',
   };
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;
@@ -77,10 +80,16 @@ export function estimateRequestCost(model, inputTokens = 0, outputTokens = 0) {
  * Reuses existing MODEL_COSTS structure for consistency
  */
 export const MODEL_PRICING = {
+  // ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
+  'claude-3-5-haiku-latest':   { inputPer1K: 0.00025, outputPer1K: 0.00050 },
+  'claude-3-5-sonnet-latest':  { inputPer1K: 0.00300, outputPer1K: 0.01500 },
+  'claude-3-opus-latest':      { inputPer1K: 0.01500, outputPer1K: 0.07500 },
+  
+  // Legacy models (keep for backward compatibility)
   'claude-3-haiku-20240307': { inputPer1K: 0.00025, outputPer1K: 0.00125 },
   'claude-3-sonnet-20240229': { inputPer1K: 0.003, outputPer1K: 0.015 },
   'claude-3-opus-20240229': { inputPer1K: 0.015, outputPer1K: 0.075 },
-  'claude-sonnet-4-5-20250929': { inputPer1K: 0.003, outputPer1K: 0.015 }, // Legacy compatibility
+  'claude-sonnet-4-5-20250929': { inputPer1K: 0.003, outputPer1K: 0.015 },
   'claude-3-haiku': { inputPer1K: 0.00025, outputPer1K: 0.00125 },
   'claude-3-sonnet': { inputPer1K: 0.003, outputPer1K: 0.015 },
   'claude-3-opus': { inputPer1K: 0.015, outputPer1K: 0.075 }

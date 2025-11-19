@@ -43,8 +43,17 @@ export const adminDashboardService = {
 
       const modelAgg = { haiku:0, sonnet:0, opus:0 };
       (modelUsage.data ?? []).forEach(r => {
-        const key = (r.model || '').replace('claude-3-','');
-        if (modelAgg[key] != null) modelAgg[key] += Number(r.count||0);
+        // ✅ FIXED: Handle both old and new model name formats
+        // New format: claude-3-5-haiku-latest, claude-3-5-sonnet-latest, claude-3-opus-latest
+        // Old format: claude-3-haiku-20240307, claude-sonnet-4-5-20250929
+        const modelName = (r.model || '').toLowerCase();
+        if (modelName.includes('haiku')) {
+          modelAgg.haiku += Number(r.count||0);
+        } else if (modelName.includes('sonnet')) {
+          modelAgg.sonnet += Number(r.count||0);
+        } else if (modelName.includes('opus')) {
+          modelAgg.opus += Number(r.count||0);
+        }
       });
 
       const hits = cache.data?.hits ?? 0;

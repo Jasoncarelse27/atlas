@@ -56,7 +56,7 @@ export default async function tierGateMiddleware(req, res, next) {
     // ✅ COST CONTROL: Override to Haiku for short messages (<1k chars) regardless of tier
     // This saves costs while maintaining quality for simple queries
     const finalModel = messageLength > 0 && messageLength < 1000 
-      ? 'claude-3-haiku-20240307' 
+      ? 'claude-3-5-haiku-latest' 
       : selectedModel;
     
     req.selectedModel = finalModel;

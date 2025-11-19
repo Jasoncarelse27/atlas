@@ -107,11 +107,11 @@ function getSupabase() {
   return supabase;
 }
 
-// ✅ Tier → Model map (updated to latest non-deprecated models)
+// ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
 const MODEL_MAP = {
-  free: "claude-3-haiku-20240307",   // ✅ Verified working
-  core: "claude-sonnet-4-5-20250929",  // ✅ FIXED: Updated from claude-3-sonnet-20240229 (returns 404)
-  studio: "claude-sonnet-4-5-20250929"   // ✅ FIXED: Updated from claude-3-opus-20240229 (returns 404)
+  free: "claude-3-5-haiku-latest",
+  core: "claude-3-5-sonnet-latest",
+  studio: "claude-3-opus-latest"
 };
 
 /**
@@ -128,7 +128,7 @@ async function generateConversationTitle(text, tier) {
   // ✅ CORE/STUDIO: AI-generated title (premium feature)
   try {
     const completion = await getAnthropic().messages.create({
-      model: "claude-3-haiku-20240307", // ✅ FIX: Use correct Haiku model for titles
+      model: "claude-3-5-haiku-latest", // ✅ FIX: Use correct Haiku model for titles
       max_tokens: 20, // Short title only
       messages: [{
         role: "user",
