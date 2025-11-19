@@ -280,37 +280,60 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   if (variant === 'minimal') {
     return (
-      <div className={`flex items-center gap-3 p-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm ${className}`}>
+      <div className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm w-full max-w-full ${className}`}>
         <audio ref={audioRef} src={audioUrl} preload="metadata" />
         
+        {/* ✅ MOBILE FIX: Larger touch target (44x44px minimum) for mobile, red pause button */}
         <button
           onClick={togglePlayPause}
+          onTouchStart={(e) => e.stopPropagation()}
           disabled={isLoading || !!error}
-          className="p-2 bg-atlas-sage hover:bg-atlas-sage text-white rounded-full transition-colors disabled:opacity-50"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 sm:w-12 sm:h-12 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100 shadow-md touch-manipulation flex-shrink-0"
+          style={{ touchAction: 'manipulation' }}
           aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
         >
           {isLoading ? (
             <LoadingSpinner size="sm" color="white" />
           ) : isPlaying ? (
-            <Pause className="w-4 h-4" />
+            <Pause className="w-5 h-5 sm:w-6 sm:h-6" />
           ) : (
-            <Play className="w-4 h-4" />
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5" />
           )}
         </button>
         
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{title}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {formatTime(currentTime)} / {formatTime(duration)}
+        {/* ✅ MOBILE FIX: Responsive text sizing and proper overflow handling */}
+        <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 overflow-hidden">
+          <div className="flex-1 min-w-0">
+            {/* Hide title on very small screens, show on sm+ */}
+            <div className="hidden sm:block text-sm font-medium text-gray-900 dark:text-white truncate mb-0.5">{title}</div>
+            {/* ✅ MOBILE FIX: Larger, more readable time display on mobile */}
+            <div className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap tabular-nums">
+              {formatTime(currentTime)}<span className="text-gray-400 dark:text-gray-500 mx-0.5">/</span>{formatTime(duration)}
+            </div>
           </div>
         </div>
         
+        {/* ✅ MOBILE FIX: Close button with larger touch target (replacing mute button) */}
         <button
-          onClick={toggleMute}
-          className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-          aria-label={isMuted ? 'Unmute' : 'Mute'}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+            }
+            setIsPlaying(false);
+            if (onEnded) onEnded();
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-9 h-9 sm:w-10 sm:h-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 active:text-gray-700 dark:active:text-gray-200 rounded-full transition-colors touch-manipulation flex-shrink-0"
+          style={{ touchAction: 'manipulation' }}
+          aria-label="Close audio player"
         >
-          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
     );
