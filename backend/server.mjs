@@ -1037,12 +1037,16 @@ You are having a natural voice conversation. Respond as if you can hear them cle
               if (parsed.usage) {
                 tokenUsage = {
                   input_tokens: parsed.usage.input_tokens || 0,
-                  output_tokens: parsed.usage.output_tokens || 0
+                  output_tokens: parsed.usage.output_tokens || 0,
+                  model: model // ✅ Include model in tokenUsage
                 };
                 logger.info(`[streamAnthropicResponse] ✅ Token usage captured from ${parsed.type}: ${tokenUsage.input_tokens} input, ${tokenUsage.output_tokens} output`);
-              } else if (parsed.type === 'message_stop') {
-                // Only warn on message_stop (content_block_stop may not always have usage)
-                logger.warn('[streamAnthropicResponse] ⚠️ message_stop received but no usage data');
+              } else {
+                // ✅ DEBUG: Log full parsed object to understand structure
+                logger.debug(`[streamAnthropicResponse] ⚠️ ${parsed.type} received but no usage data. Full event:`, JSON.stringify(parsed));
+                if (parsed.type === 'message_stop') {
+                  logger.warn('[streamAnthropicResponse] ⚠️ message_stop received but no usage data - Anthropic may not be returning usage for this model');
+                }
               }
             } else if (parsed.type === 'error') {
               // ✅ Handle Anthropic API errors in stream
@@ -1098,29 +1102,39 @@ You are having a natural voice conversation. Respond as if you can hear them cle
       const cost = estimateRequestCost(model, tokenUsage.input_tokens, tokenUsage.output_tokens);
       
       // Log to usage_logs table (existing system - keep for backward compatibility)
-      const { supabase } = await import('./config/supabaseClient.mjs');
-      await supabase.from('usage_logs').insert({
-        user_id: userId,
-        event: 'chat_message',
-        tier: tier, // ✅ Explicit column (best practice)
-        feature: 'chat',
-        tokens_used: tokenUsage.input_tokens + tokenUsage.output_tokens,
-        estimated_cost: cost,
-        metadata: {
-          model,
-          input_tokens: tokenUsage.input_tokens,
-          output_tokens: tokenUsage.output_tokens,
-          message_length: fullText.length
-        },
-        created_at: new Date().toISOString()
-      }).catch(err => {
-        logger.error('[streamAnthropicResponse] ❌ Failed to log usage to usage_logs:', {
+      try {
+        const { supabase } = await import('./config/supabaseClient.mjs');
+        const { error: insertError } = await supabase.from('usage_logs').insert({
+          user_id: userId,
+          event: 'chat_message',
+          tier: tier, // ✅ Explicit column (best practice)
+          feature: 'chat',
+          tokens_used: tokenUsage.input_tokens + tokenUsage.output_tokens,
+          estimated_cost: cost,
+          metadata: {
+            model,
+            input_tokens: tokenUsage.input_tokens,
+            output_tokens: tokenUsage.output_tokens,
+            message_length: fullText.length
+          },
+          created_at: new Date().toISOString()
+        });
+        
+        if (insertError) {
+          logger.error('[streamAnthropicResponse] ❌ Failed to log usage to usage_logs:', {
+            error: insertError,
+            message: insertError.message,
+            code: insertError.code,
+            details: insertError.details
+          });
+        }
+      } catch (err) {
+        logger.error('[streamAnthropicResponse] ❌ Error logging token usage:', {
           error: err,
           message: err.message,
-          code: err.code,
-          details: err.details
+          stack: err.stack
         });
-      });
+      }
       
       // ✅ CURSOR-STYLE BILLING: Also log to usage_snapshots via new service
       // ✅ CRITICAL: Only call if we have actual token usage (avoid creating empty snapshots)
