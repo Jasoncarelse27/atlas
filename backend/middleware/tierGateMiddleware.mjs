@@ -25,7 +25,7 @@ export default async function tierGateMiddleware(req, res, next) {
     }
 
     // ✅ CRITICAL: Use centralized tierService (single source of truth with normalization)
-    const tier = await getUserTierSafe(user.id);
+    let tier = await getUserTierSafe(user.id);
 
     // ✅ Validate tier against known configurations
     const tierConfig = TIER_DEFINITIONS[tier];
