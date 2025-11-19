@@ -108,11 +108,11 @@ function getSupabase() {
 }
 
 // ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
-// Note: Opus uses different naming: claude-opus-4-1-20250805 (not claude-3-opus)
+// Studio tier uses Sonnet (not Opus) for launch - matches frontend configuration
 const MODEL_MAP = {
   free: "claude-3-5-haiku-latest",
   core: "claude-3-5-sonnet-latest",
-  studio: "claude-opus-4-1-20250805" // ✅ FIX: Correct Opus model name (claude-opus-4-1, not claude-3-opus)
+  studio: "claude-3-5-sonnet-latest" // ✅ Use Sonnet (not Opus) for launch - enables billing usage tracking
 };
 
 /**

@@ -2332,7 +2332,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
 
     // 🎯 Dynamic model selection based on user tier
     // ✅ FIX: Use centralized selectOptimalModel function (tier-based model selection)
-    // Studio → Opus, Core → Sonnet, Free → Haiku (handled by selectOptimalModel)
+    // Studio → Sonnet, Core → Sonnet, Free → Haiku (handled by selectOptimalModel)
     let selectedModel = selectOptimalModel(effectiveTier, message.trim(), 'chat_message');
     let routedProvider = 'claude';
     

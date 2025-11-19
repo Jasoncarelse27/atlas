@@ -4,7 +4,7 @@ import { logger } from '../lib/simpleLogger.mjs';
 export const TIER_DEFINITIONS = {
   free:   { dailyMessages: 15, models: ['haiku'],              features: ['basic_chat','habit_logging'],                     budgetCeiling: 20,  priority: 1, monthlyPrice: 0 },
   core:   { dailyMessages: -1, models: ['haiku','sonnet'],     features: ['all_basic','persistent_memory','eq_challenges'],  budgetCeiling: 100, priority: 2, monthlyPrice: 19.99 },
-  studio: { dailyMessages: -1, models: ['haiku','sonnet','opus'], features: ['all_features','priority_processing','advanced_analytics'], budgetCeiling: 80, priority: 3, monthlyPrice: 149.99 } // ✅ CORRECTED: Updated from $189.99
+  studio: { dailyMessages: -1, models: ['haiku','sonnet'], features: ['all_features','priority_processing','advanced_analytics'], budgetCeiling: 80, priority: 3, monthlyPrice: 149.99 } // ✅ Use Sonnet (not Opus) for launch
 };
 
 export const FEATURE_GATES = {
@@ -45,11 +45,11 @@ export const SYSTEM_LIMITS = {
 
 export function selectOptimalModel(userTier, messageContent = '', requestType = '') {
   // ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
-  // Note: Opus uses different naming: claude-opus-4-1-20250805 (not claude-3-opus)
+  // Studio tier uses Sonnet (not Opus) for launch - matches frontend configuration
   const MODEL_MAP = {
     free: 'claude-3-5-haiku-latest',
     core: 'claude-3-5-sonnet-latest',
-    studio: 'claude-opus-4-1-20250805', // ✅ FIX: Correct Opus model name (claude-opus-4-1, not claude-3-opus)
+    studio: 'claude-3-5-sonnet-latest', // ✅ Use Sonnet (not Opus) for launch - enables billing usage tracking
   };
   
   const selectedModel = MODEL_MAP[userTier] || MODEL_MAP.free;
