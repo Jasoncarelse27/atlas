@@ -3,6 +3,7 @@ import {
     AlertTriangle,
     Bug,
     CheckCircle,
+    CreditCard,
     Download,
     ExternalLink,
     Eye,
@@ -659,6 +660,31 @@ const AccountModal: React.FC<AccountModalProps> = ({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Management</h3>
               
               <div className="space-y-6">
+                {/* Billing Section */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    Billing & Subscription
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    View your billing history, usage, and manage your subscription.
+                  </p>
+                  <Link
+                    to="/billing"
+                    onClick={() => {
+                      if (onSoundPlay) {
+                        onSoundPlay('click');
+                      }
+                      onClose();
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    View Billing Dashboard
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
+
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                   <h4 className="font-medium text-red-900 mb-2 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4" />

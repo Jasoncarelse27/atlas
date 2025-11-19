@@ -526,3 +526,50 @@ div[class*='EnhancedMessageBubble'] ::-moz-selection {
 #modal-portal-root > * {
   pointer-events: auto;
 }
+
+/* ✅ Atlas Scrollbar Styling - Light & Dark Mode */
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+/* Light mode: Subtle scrollbar matching background */
+::-webkit-scrollbar-track {
+  background: var(--atlas-pearl); /* Light mode: #f9f6f3 - matches background */
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--atlas-pearl); /* Light mode: Same as background - invisible */
+  border-radius: 5px;
+  border: 2px solid var(--atlas-pearl);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(151, 134, 113, 0.2); /* Light mode: Very subtle stone on hover */
+}
+
+/* Dark mode scrollbar */
+html.dark ::-webkit-scrollbar-track {
+  background: #1f2937; /* gray-800 */
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563; /* gray-600 */
+  border-color: #1f2937;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280; /* gray-500 */
+}
+
+/* Firefox - Light mode: Subtle matching background */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--atlas-pearl) var(--atlas-pearl); /* Same color = invisible */
+}
+
+html.dark * {
+  scrollbar-color: #4b5563 #1f2937; /* gray-600 gray-800 */
+}
