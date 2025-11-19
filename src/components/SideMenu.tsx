@@ -194,7 +194,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
                      <div className="mt-4 p-4 bg-white/50 dark:bg-gray-800/50 rounded-xl">
                        <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                         <span>Current Tier</span>
-                        <span className="text-xs font-normal text-[#8B7E74]/70">{TIER_CONFIGS_IMPORT[profile.tier]?.displayName || 'Atlas Free'}</span>
+                        <span className="text-xs font-normal text-[#5A524A] dark:text-gray-300 font-semibold">{TIER_CONFIGS_IMPORT[profile.tier]?.displayName || 'Atlas Free'}</span>
                       </h3>
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center justify-center">
@@ -210,9 +210,9 @@ const SideMenu: React.FC<SideMenuProps> = ({
                             </div>
                             {TIER_CONFIGS_IMPORT[profile.tier]?.limits.text_messages_per_month === -1 ? (
                               <>
-                               <div className="text-sm text-[#8B7E74] dark:text-gray-400">Unlimited Messages</div>
+                               <div className="text-sm text-[#5A524A] dark:text-gray-300 font-medium">Unlimited Messages</div>
                                 {profile.tier === 'studio' && (
-                                 <div className="text-sm text-[#8B7E74] dark:text-gray-400">All features unlocked</div>
+                                 <div className="text-sm text-[#5A524A] dark:text-gray-300 font-medium">All features unlocked</div>
                                 )}
                               </>
                             ) : (

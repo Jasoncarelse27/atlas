@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Calendar, Eye, Loader2, Lock, LogOut, Minimize2, Moon, Sparkles, Trash2, Volume2, X } from 'lucide-react';
+import { Calendar, CreditCard, Eye, ExternalLink, Loader2, Lock, LogOut, Minimize2, Moon, Sparkles, Trash2, Volume2, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useThemeMode } from '../../hooks/useThemeMode';
@@ -197,6 +198,22 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
 
                 {/* Account Section */}
                 <Section title="Account">
+                  {/* Billing Link */}
+                  <Link
+                    to="/billing"
+                    onClick={onClose}
+                    className="flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 hover:border-[#D3DCAB] dark:hover:border-gray-600 transition-all group"
+                  >
+                    <div className="text-[#8B7E74] dark:text-gray-400 group-hover:text-[#8FA67E] transition-colors">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[#3B3632] dark:text-white">Billing & Subscription</p>
+                      <p className="text-xs text-[#8B7E74] dark:text-gray-400 mt-0.5">View billing history and manage subscription</p>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-[#8B7E74] dark:text-gray-400 group-hover:text-[#8FA67E] transition-colors" />
+                  </Link>
+
                   <div className="flex items-center justify-between p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 transition-colors duration-200">
                     <div>
                       <p className="text-sm font-medium text-[#3B3632] dark:text-white">Subscription Tier</p>
