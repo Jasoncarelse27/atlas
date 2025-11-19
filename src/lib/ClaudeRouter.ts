@@ -216,11 +216,6 @@ export function getModelInfo(model: string) {
       tier: 'core' as const,
     },
     // Legacy model names for backward compatibility
-    'claude-3-sonnet-20240229': {
-      name: 'Claude 3 Sonnet',
-      description: 'Fast and efficient for most tasks',
-      tier: 'core' as const,
-    },
     'claude-3-opus-20240229': {
       name: 'Claude 3 Opus',
       description: 'Most capable model for complex tasks',
