@@ -107,12 +107,12 @@ function getSupabase() {
   return supabase;
 }
 
-// ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
+// ✅ PRODUCTION MODELS: Use correct model names that return usage data
 // Studio tier uses Sonnet (not Opus) for launch - matches frontend configuration
 const MODEL_MAP = {
-  free: "claude-3-5-haiku-latest",
-  core: "claude-3-5-sonnet-latest",
-  studio: "claude-3-5-sonnet-latest" // ✅ Use Sonnet (not Opus) for launch - enables billing usage tracking
+  free: "claude-3-5-haiku-latest", // ✅ Verified working
+  core: "claude-sonnet-4-5-20250929", // ✅ Correct Sonnet model (claude-3-5-sonnet-latest returns 404)
+  studio: "claude-sonnet-4-5-20250929" // ✅ Use Sonnet (not Opus) for launch - enables billing usage tracking
 };
 
 /**

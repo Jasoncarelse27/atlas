@@ -2914,7 +2914,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
     const authenticatedUserId = req.user?.id;
     // ✅ Use tier from tierGateMiddleware (already validated)
     const tier = req.tier || 'free';
-    const selectedModel = req.selectedModel || 'claude-3-5-sonnet-latest';
+    const selectedModel = req.selectedModel || 'claude-sonnet-4-5-20250929'; // ✅ Correct Sonnet model (claude-3-5-sonnet-latest returns 404)
     
     // ✅ FIX: Support both single imageUrl (legacy) and attachments array (new)
     const imageAttachments = attachments && Array.isArray(attachments) && attachments.length > 0
