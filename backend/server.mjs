@@ -988,7 +988,11 @@ You are having a natural voice conversation. Respond as if you can hear them cle
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
-        logger.debug(`[streamAnthropicResponse] ✅ Stream complete, received data: ${hasReceivedData}`);
+        logger.debug(`[streamAnthropicResponse] ✅ Stream complete, received data: ${hasReceivedData}, tokens captured: ${tokenUsage.input_tokens + tokenUsage.output_tokens}`);
+        // ✅ CRITICAL: If stream ended but we didn't get usage, log warning
+        if (hasReceivedData && tokenUsage.input_tokens === 0 && tokenUsage.output_tokens === 0) {
+          logger.warn('[streamAnthropicResponse] ⚠️ Stream completed but no token usage captured - message_stop event may have been missed');
+        }
         break;
       }
       
@@ -1027,13 +1031,17 @@ You are having a natural voice conversation. Respond as if you can hear them cle
                 // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"
               }
-            } else if (parsed.type === 'message_stop' && parsed.usage) {
+            } else if (parsed.type === 'message_stop') {
               // ✅ TOKEN TRACKING: Capture usage data from stream completion
-              tokenUsage = {
-                input_tokens: parsed.usage.input_tokens || 0,
-                output_tokens: parsed.usage.output_tokens || 0
-              };
-              logger.debug(`[streamAnthropicResponse] ✅ Token usage captured: ${tokenUsage.input_tokens} input, ${tokenUsage.output_tokens} output`);
+              if (parsed.usage) {
+                tokenUsage = {
+                  input_tokens: parsed.usage.input_tokens || 0,
+                  output_tokens: parsed.usage.output_tokens || 0
+                };
+                logger.debug(`[streamAnthropicResponse] ✅ Token usage captured: ${tokenUsage.input_tokens} input, ${tokenUsage.output_tokens} output`);
+              } else {
+                logger.warn('[streamAnthropicResponse] ⚠️ message_stop received but no usage data');
+              }
             } else if (parsed.type === 'error') {
               // ✅ Handle Anthropic API errors in stream
               logger.error(`[streamAnthropicResponse] ❌ Anthropic stream error:`, parsed);
@@ -1075,8 +1083,15 @@ You are having a natural voice conversation. Respond as if you can hear them cle
   }
   
   // ✅ TOKEN TRACKING: Log usage to database for cost tracking
-  if (userId && tokenUsage.input_tokens > 0) {
+  // ✅ CRITICAL FIX: Log even if tokens are 0 (for debugging) but only if userId exists
+  if (userId) {
     try {
+      // ✅ CRITICAL: If no token usage captured, log a warning but still attempt to log
+      if (tokenUsage.input_tokens === 0 && tokenUsage.output_tokens === 0) {
+        logger.warn('[streamAnthropicResponse] ⚠️ No token usage captured from stream - message_stop event may have been missed');
+        // Don't skip logging - log with 0 tokens for debugging
+      }
+      
       const { estimateRequestCost } = await import('./config/intelligentTierSystem.mjs');
       const cost = estimateRequestCost(model, tokenUsage.input_tokens, tokenUsage.output_tokens);
       
@@ -1097,30 +1112,50 @@ You are having a natural voice conversation. Respond as if you can hear them cle
         },
         created_at: new Date().toISOString()
       }).catch(err => {
-        logger.warn('[streamAnthropicResponse] Failed to log usage:', err.message);
+        logger.error('[streamAnthropicResponse] ❌ Failed to log usage to usage_logs:', {
+          error: err,
+          message: err.message,
+          code: err.code,
+          details: err.details
+        });
       });
       
       // ✅ CURSOR-STYLE BILLING: Also log to usage_snapshots via new service
-      try {
-        const { logTokenUsage } = await import('./services/usageLoggingService.mjs');
-        await logTokenUsage({
-          userId,
-          model,
-          inputTokens: tokenUsage.input_tokens,
-          outputTokens: tokenUsage.output_tokens,
-          conversationId: conversationId || null,
-          messageId: null // Message ID not available at this point in the flow
-        });
-      } catch (billingLogError) {
-        logger.warn('[streamAnthropicResponse] Failed to log to billing system:', billingLogError.message);
-        // Don't fail - billing logging is non-critical
+      // ✅ CRITICAL: Only call if we have actual token usage (avoid creating empty snapshots)
+      if (tokenUsage.input_tokens > 0 || tokenUsage.output_tokens > 0) {
+        try {
+          const { logTokenUsage } = await import('./services/usageLoggingService.mjs');
+          await logTokenUsage({
+            userId,
+            model,
+            inputTokens: tokenUsage.input_tokens,
+            outputTokens: tokenUsage.output_tokens,
+            conversationId: conversationId || null,
+            messageId: null // Message ID not available at this point in the flow
+          });
+        } catch (billingLogError) {
+          logger.error('[streamAnthropicResponse] ❌ Failed to log to billing system:', {
+            error: billingLogError,
+            message: billingLogError.message,
+            stack: billingLogError.stack
+          });
+          // Don't fail - billing logging is non-critical
+        }
+      } else {
+        logger.debug('[streamAnthropicResponse] ⏭️ Skipping usage_snapshot update (no tokens)');
       }
       
       logger.debug(`[streamAnthropicResponse] ✅ Logged ${tokenUsage.input_tokens + tokenUsage.output_tokens} tokens, cost: $${cost.toFixed(6)}`);
     } catch (logError) {
-      logger.warn('[streamAnthropicResponse] Error logging token usage:', logError.message);
+      logger.error('[streamAnthropicResponse] ❌ Error logging token usage:', {
+        error: logError,
+        message: logError.message,
+        stack: logError.stack
+      });
       // Don't fail the request if logging fails
     }
+  } else {
+    logger.debug('[streamAnthropicResponse] ⏭️ Skipping usage logging (no userId)');
   }
   
   // ✅ CRITICAL FIX: Final filter pass before returning (catches any stage directions that slipped through)
