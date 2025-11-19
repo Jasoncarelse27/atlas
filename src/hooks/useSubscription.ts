@@ -279,7 +279,7 @@ export function useSubscription(userId?: string) {
       // Clear subscription flag on cleanup
       sessionStorage.removeItem(subscriptionKey);
     };
-  }, [userId, fetchProfile]);
+  }, [userId, fetchProfile]); // fetchProfile is stable via useCallback
 
   // Force refresh function - clears cache for immediate update
   const forceRefresh = useCallback(async () => {

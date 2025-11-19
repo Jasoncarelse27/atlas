@@ -65,3 +65,68 @@ export function estimateRequestCost(model, inputTokens = 0, outputTokens = 0) {
   if (!c) return 0;
   return (inputTokens * c.input / 1000) + (outputTokens * c.output / 1000);
 }
+
+// ==========================================================
+// Cursor-Style Billing System Extensions
+// ==========================================================
+// Added for Cursor-style billing with monthly credit allowances
+// and overage billing (mid-month + end-month invoices)
+
+/**
+ * MODEL_PRICING - Pricing per 1K tokens for each model
+ * Reuses existing MODEL_COSTS structure for consistency
+ */
+export const MODEL_PRICING = {
+  'claude-3-haiku-20240307': { inputPer1K: 0.00025, outputPer1K: 0.00125 },
+  'claude-3-sonnet-20240229': { inputPer1K: 0.003, outputPer1K: 0.015 },
+  'claude-3-opus-20240229': { inputPer1K: 0.015, outputPer1K: 0.075 },
+  'claude-sonnet-4-5-20250929': { inputPer1K: 0.003, outputPer1K: 0.015 }, // Legacy compatibility
+  'claude-3-haiku': { inputPer1K: 0.00025, outputPer1K: 0.00125 },
+  'claude-3-sonnet': { inputPer1K: 0.003, outputPer1K: 0.015 },
+  'claude-3-opus': { inputPer1K: 0.015, outputPer1K: 0.075 }
+};
+
+/**
+ * PLAN_INCLUDED_CREDITS_USD - Monthly credit allowance per tier (in USD)
+ * Matches subscription price: Core = $19.99, Studio = $149.99
+ */
+export const PLAN_INCLUDED_CREDITS_USD = {
+  free: 0,
+  core: 19.99,    // Matches Core subscription price
+  studio: 149.99  // Matches Studio subscription price
+};
+
+/**
+ * Calculate token cost in USD for a given model and token counts
+ * Enhanced version of estimateRequestCost() for billing system
+ * 
+ * @param {Object} params - Token usage parameters
+ * @param {string} params.model - Model name (e.g. 'claude-sonnet-4-5-20250929')
+ * @param {number} params.inputTokens - Input token count
+ * @param {number} params.outputTokens - Output token count
+ * @returns {number} Total cost in USD (rounded to 6 decimal places)
+ */
+export function calculateTokenCostUsd({ model, inputTokens, outputTokens }) {
+  const pricing = MODEL_PRICING[model];
+  if (!pricing) {
+    logger.warn(`[Billing] Unknown model pricing for: ${model}, defaulting to 0`);
+    return 0;
+  }
+  
+  const inCost = (inputTokens / 1000) * pricing.inputPer1K;
+  const outCost = (outputTokens / 1000) * pricing.outputPer1K;
+  const totalCost = inCost + outCost;
+  
+  // Round to 6 decimal places for precision
+  return Number(totalCost.toFixed(6));
+}
+
+/**
+ * Get included credits in USD for a given tier
+ * 
+ * @param {string} tier - User tier ('free' | 'core' | 'studio')
+ * @returns {number} Included credits in USD
+ */
+export function getIncludedCreditsUsdForTier(tier) {
+  return PLAN_INCLUDED_CREDITS_USD[tier] ?? 0;
+}

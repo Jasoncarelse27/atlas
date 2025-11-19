@@ -32,42 +32,34 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
   // ✅ DEBUG: Log when TutorialProvider initializes (dev only)
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('[TutorialContext] 🚀 TutorialProvider mounted', { 
-        hasUser: !!user, 
-        userId: user?.id,
-        authLoading 
-      });
-    }
+    logger.debug('[TutorialContext] 🚀 TutorialProvider mounted', { 
+      hasUser: !!user, 
+      userId: user?.id,
+      authLoading 
+    });
   }, []);
 
   // Check tutorial completion status on mount and when user changes
   useEffect(() => {
     // ✅ DEBUG: Log when this effect runs (dev only)
-    if (import.meta.env.DEV) {
-      console.log('[TutorialContext] 🔄 Effect triggered', { 
-        hasUser: !!user, 
-        userId: user?.id,
-        authLoading 
-      });
-    }
+    logger.debug('[TutorialContext] 🔄 Effect triggered', { 
+      hasUser: !!user, 
+      userId: user?.id,
+      authLoading 
+    });
 
     const checkCompletion = async () => {
       setIsLoading(true);
-      if (import.meta.env.DEV) {
-        console.log('[TutorialContext] 🔍 Checking tutorial completion...', { userId: user?.id });
-      }
+      logger.debug('[TutorialContext] 🔍 Checking tutorial completion...', { userId: user?.id });
       logger.info('[TutorialContext] 🔍 Checking tutorial completion...', { userId: user?.id });
       
       try {
         const status = await checkTutorialCompletion(user?.id || null);
-        if (import.meta.env.DEV) {
-          console.log('[TutorialContext] ✅ Check complete:', { 
-            isCompleted: status.isCompleted, 
-            source: status.source,
-            userId: user?.id 
-          });
-        }
+        logger.debug('[TutorialContext] ✅ Check complete:', { 
+          isCompleted: status.isCompleted, 
+          source: status.source,
+          userId: user?.id 
+        });
         logger.info('[TutorialContext] ✅ Check complete:', { 
           isCompleted: status.isCompleted, 
           source: status.source,
@@ -77,20 +69,14 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
         setIsCompleted(status.isCompleted);
         
         if (status.isCompleted) {
-          if (import.meta.env.DEV) {
-            console.log('[TutorialContext] ⏭️ Tutorial already completed, skipping');
-          }
+          logger.debug('[TutorialContext] ⏭️ Tutorial already completed, skipping');
           logger.info('[TutorialContext] ⏭️ Tutorial already completed, skipping');
           setIsTutorialActive(false);
         } else {
-          if (import.meta.env.DEV) {
-            console.log('[TutorialContext] ✅ Tutorial NOT completed, ready to show');
-          }
+          logger.debug('[TutorialContext] ✅ Tutorial NOT completed, ready to show');
           logger.info('[TutorialContext] ✅ Tutorial NOT completed, ready to show');
         }
       } catch (error) {
-        // ✅ Keep console.error for errors (important for debugging)
-        console.error('[TutorialContext] ❌ Error checking tutorial completion:', error);
         logger.error('[TutorialContext] ❌ Error checking tutorial completion:', error);
         // On error, assume not completed (safer to show tutorial than hide it)
         setIsCompleted(false);
@@ -104,16 +90,12 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       if (user?.id) {
         checkCompletion();
       } else {
-        if (import.meta.env.DEV) {
-          console.log('[TutorialContext] ⏳ No user after auth loaded');
-        }
+        logger.debug('[TutorialContext] ⏳ No user after auth loaded');
         logger.info('[TutorialContext] ⏳ No user after auth loaded');
         setIsLoading(false);
       }
     } else {
-      if (import.meta.env.DEV) {
-        console.log('[TutorialContext] ⏳ Auth still loading...');
-      }
+      logger.debug('[TutorialContext] ⏳ Auth still loading...');
       logger.info('[TutorialContext] ⏳ Auth still loading...');
     }
   }, [user?.id, authLoading]);

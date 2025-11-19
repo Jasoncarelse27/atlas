@@ -1486,7 +1486,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         try {
           const { conversationSyncService } = await import('../services/conversationSyncService');
           // ✅ OPTIMIZED: Delta sync already handles both conversations AND messages
-          await conversationSyncService.deltaSync(userId);
+          // ✅ ADAPTIVE SYNC: Pass isActive based on typing/streaming state for faster sync
+          const isActive = isTyping || isStreaming;
+          await conversationSyncService.deltaSync(userId, false, false, isActive);
           
           // ✅ CRITICAL FIX: Reload messages after sync if IndexedDB was empty
           // Real-time listener only handles NEW messages, not existing ones that were just synced
@@ -1580,14 +1582,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ TUTORIAL: Trigger tutorial for first-time users (hook already declared at top)
   useEffect(() => {
     // Diagnostic logging
-    if (import.meta.env.DEV) {
-      console.log('[ChatPage] Tutorial check:', { 
-        userId, 
-        isCompleted, 
-        tutorialLoading,
-        shouldTrigger: userId && !isCompleted && !tutorialLoading 
-      });
-    }
+    logger.debug('[ChatPage] Tutorial check:', { 
+      userId, 
+      isCompleted, 
+      tutorialLoading,
+      shouldTrigger: userId && !isCompleted && !tutorialLoading 
+    });
     
     // Only trigger tutorial if:
     // 1. User is authenticated
@@ -1597,9 +1597,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     if (userId && !isCompleted && !tutorialLoading) {
       // Small delay to ensure page is fully rendered
       const timer = setTimeout(() => {
-        if (import.meta.env.DEV) {
-          console.log('[ChatPage] 🎓 TRIGGERING TUTORIAL NOW');
-        }
+        logger.debug('[ChatPage] 🎓 TRIGGERING TUTORIAL NOW');
         logger.info('[ChatPage] 🎓 Starting tutorial for first-time user');
         startTutorial();
       }, 1000); // 1 second delay for smooth UX

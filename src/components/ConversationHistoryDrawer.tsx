@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { flushSync } from 'react-dom';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,117 @@ interface Conversation {
   created_at: string;
   updated_at: string;
 }
+
+// ✅ PERFORMANCE: Memoized conversation item to prevent unnecessary re-renders
+const ConversationItem = React.memo(
+  ({
+    conv,
+    index,
+    isNavigating,
+    deletingId,
+    isDeleting,
+    conversationToDelete,
+    onSelect,
+    onDelete,
+  }: {
+    conv: Conversation;
+    index: number;
+    isNavigating: string | null;
+    deletingId: string | null;
+    isDeleting: boolean;
+    conversationToDelete: string | null;
+    onSelect: (id: string) => void;
+    onDelete: (id: string) => void;
+  }) => {
+    // ✅ PERFORMANCE: Memoize formatted date (expensive operation)
+    const formattedDate = useMemo(() => {
+      const dateField = conv.updated_at || conv.created_at;
+      try {
+        const date = new Date(dateField);
+        if (isNaN(date.getTime())) return 'Invalid Date';
+        
+        return date.toLocaleString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: 'numeric', 
+          minute: '2-digit' 
+        });
+      } catch (error) {
+        logger.error('[ConversationHistoryDrawer] Date parsing error:', error, dateField);
+        return 'Invalid Date';
+      }
+    }, [conv.updated_at, conv.created_at]);
+
+    return (
+      <div
+        className={`
+          group relative bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 p-3 sm:p-3.5 md:p-4 rounded-xl hover:border-[#C6D4B0] dark:hover:border-gray-600 hover:shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer min-h-[60px] sm:min-h-[72px]
+          ${deletingId === conv.id || isNavigating === conv.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}
+        `}
+        onClick={() => onSelect(conv.id)}
+      >
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Conversation Icon or Loading Spinner */}
+          <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-[#C6D4B0]/30 rounded-lg flex items-center justify-center border border-[#C6D4B0]/50">
+            {isNavigating === conv.id ? (
+              <svg className="animate-spin w-4 h-4 md:w-5 md:h-5 text-[#8FA67E]" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 md:w-5 md:h-5 text-[#8FA67E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            )}
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs sm:text-sm md:text-base text-[#3B3632] dark:text-white font-semibold leading-tight truncate mb-0.5 sm:mb-1">
+              {conv.title || `Conversation ${index + 1}`}
+            </p>
+            <span className="text-xs text-[#8B7E74] dark:text-gray-400">{formattedDate}</span>
+          </div>
+          
+          {/* Delete Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(conv.id);
+            }}
+            disabled={deletingId === conv.id || isNavigating === conv.id || (isDeleting && conversationToDelete === conv.id)}
+            className="flex-shrink-0 min-w-[44px] min-h-[44px] p-2 sm:p-3 bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 active:bg-[#CF9A96]/30 text-[#A67571] hover:text-[#8B5F5B] rounded-lg transition-all duration-200 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 disabled:opacity-50 disabled:cursor-not-allowed group/delete flex items-center justify-center"
+            title="Delete conversation"
+            aria-label="Delete conversation"
+          >
+            {(deletingId === conv.id || (isDeleting && conversationToDelete === conv.id)) ? (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 group-hover/delete:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  },
+  (prev, next) => {
+    // Only re-render if conversation ID changes or relevant state changes
+    return (
+      prev.conv.id === next.conv.id &&
+      prev.conv.title === next.conv.title &&
+      prev.conv.updated_at === next.conv.updated_at &&
+      prev.isNavigating === next.isNavigating &&
+      prev.deletingId === next.deletingId &&
+      prev.isDeleting === next.isDeleting &&
+      prev.conversationToDelete === next.conversationToDelete
+    );
+  }
+);
 
 interface ConversationHistoryDrawerProps {
   isOpen: boolean;
@@ -176,19 +287,21 @@ export function ConversationHistoryDrawer({
                 </div>
               ) : (
                 conversations.map((conv, index) => (
-                  <div
+                  <ConversationItem
                     key={conv.id}
-                    className={`
-                      group relative bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 p-3 sm:p-3.5 md:p-4 rounded-xl hover:border-[#C6D4B0] dark:hover:border-gray-600 hover:shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer min-h-[60px] sm:min-h-[72px]
-                      ${deletingId === conv.id || isNavigating === conv.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}
-                    `}
-                    onClick={() => {
+                    conv={conv}
+                    index={index}
+                    isNavigating={isNavigating}
+                    deletingId={deletingId}
+                    isDeleting={isDeleting}
+                    conversationToDelete={conversationToDelete}
+                    onSelect={(id) => {
                       // ✅ MOBILE FIX: Close drawer IMMEDIATELY for instant feedback
                       onClose();
                       
                       // ✅ MOBILE FIX: Use React Router's navigate (works properly on mobile)
-                      setIsNavigating(conv.id);
-                      const url = `/chat?conversation=${conv.id}`;
+                      setIsNavigating(id);
+                      const url = `/chat?conversation=${id}`;
                       
                       // ✅ Use React Router navigate - triggers searchParams update in ChatPage
                       navigate(url, { replace: true });
@@ -196,80 +309,12 @@ export function ConversationHistoryDrawer({
                       // Reset loading state after navigation
                       setTimeout(() => setIsNavigating(null), 500);
                     }}
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      {/* Conversation Icon or Loading Spinner - ✅ RESPONSIVE: Smaller on mobile */}
-                      <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-[#C6D4B0]/30 rounded-lg flex items-center justify-center border border-[#C6D4B0]/50">
-                        {isNavigating === conv.id ? (
-                          <svg className="animate-spin w-4 h-4 md:w-5 md:h-5 text-[#8FA67E]" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 md:w-5 md:h-5 text-[#8FA67E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                        )}
-                      </div>
-                      
-                      {/* Content - ✅ RESPONSIVE: Better text scaling */}
-                      <div className="flex-1 min-w-0">
-                         <p className="text-xs sm:text-sm md:text-base text-[#3B3632] dark:text-white font-semibold leading-tight truncate mb-0.5 sm:mb-1">
-                            {conv.title || `Conversation ${index + 1}`}
-                          </p>
-                         <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-[#8B7E74] dark:text-gray-400">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span className="truncate">{(() => {
-                            // ✅ BULLETPROOF DATE HANDLING - Handle both Dexie and Supabase formats
-                            const dateField = conv.updated_at || conv.created_at;
-                            if (!dateField) return 'Invalid Date';
-                            
-                            try {
-                              const date = new Date(dateField);
-                              if (isNaN(date.getTime())) return 'Invalid Date';
-                              
-                              return date.toLocaleString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric', 
-                                hour: 'numeric', 
-                                minute: '2-digit' 
-                              });
-                            } catch (error) {
-                              logger.error('[ConversationHistoryDrawer] Date parsing error:', error, dateField);
-                              return 'Invalid Date';
-                            }
-                          })()}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Delete Button - ✅ RESPONSIVE: Proper touch target on mobile */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // ✅ FIX: Show confirmation dialog instead of deleting immediately
-                          setConversationToDelete(conv.id);
-                          setShowDeleteConfirm(true);
-                        }}
-                        disabled={deletingId === conv.id || isNavigating === conv.id || (isDeleting && conversationToDelete === conv.id)}
-                        className="flex-shrink-0 min-w-[44px] min-h-[44px] p-2 sm:p-3 bg-[#CF9A96]/10 hover:bg-[#CF9A96]/20 active:bg-[#CF9A96]/30 text-[#A67571] hover:text-[#8B5F5B] rounded-lg transition-all duration-200 border border-[#CF9A96]/20 hover:border-[#CF9A96]/40 disabled:opacity-50 disabled:cursor-not-allowed group/delete flex items-center justify-center"
-                        title="Delete conversation"
-                        aria-label="Delete conversation"
-                      >
-                        {(deletingId === conv.id || (isDeleting && conversationToDelete === conv.id)) ? (
-                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 group-hover/delete:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                    onDelete={(id) => {
+                      // ✅ FIX: Show confirmation dialog instead of deleting immediately
+                      setConversationToDelete(id);
+                      setShowDeleteConfirm(true);
+                    }}
+                  />
                 ))
               )}
               </div>

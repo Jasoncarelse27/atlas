@@ -760,7 +760,7 @@ function filterResponse(text) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null, preferences = null }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null, preferences = null, conversationId = null }) {
   if (!ANTHROPIC_API_KEY) {
     logger.error('[streamAnthropicResponse] ❌ ANTHROPIC_API_KEY is missing or empty');
     throw new Error('Missing Anthropic API key - check Railway environment variables');
@@ -1151,7 +1151,7 @@ You are having a natural voice conversation. Respond as if you can hear them cle
       const { estimateRequestCost } = await import('./config/intelligentTierSystem.mjs');
       const cost = estimateRequestCost(model, tokenUsage.input_tokens, tokenUsage.output_tokens);
       
-      // Log to usage_logs table
+      // Log to usage_logs table (existing system - keep for backward compatibility)
       const { supabase } = await import('./config/supabaseClient.mjs');
       await supabase.from('usage_logs').insert({
         user_id: userId,
@@ -1170,6 +1170,22 @@ You are having a natural voice conversation. Respond as if you can hear them cle
       }).catch(err => {
         logger.warn('[streamAnthropicResponse] Failed to log usage:', err.message);
       });
+      
+      // ✅ CURSOR-STYLE BILLING: Also log to usage_snapshots via new service
+      try {
+        const { logTokenUsage } = await import('./services/usageLoggingService.mjs');
+        await logTokenUsage({
+          userId,
+          model,
+          inputTokens: tokenUsage.input_tokens,
+          outputTokens: tokenUsage.output_tokens,
+          conversationId: conversationId || null,
+          messageId: null // Message ID not available at this point in the flow
+        });
+      } catch (billingLogError) {
+        logger.warn('[streamAnthropicResponse] Failed to log to billing system:', billingLogError.message);
+        // Don't fail - billing logging is non-critical
+      }
       
       logger.debug(`[streamAnthropicResponse] ✅ Logged ${tokenUsage.input_tokens + tokenUsage.output_tokens} tokens, cost: $${cost.toFixed(6)}`);
     } catch (logError) {
@@ -1500,6 +1516,9 @@ app.get('/api/usage', verifyJWT, async (req, res) => {
 
     const tier = profile?.subscription_tier || 'free';
     
+    // ✅ CRITICAL: Log tier resolution for debugging tier discrepancies
+    logger.info(`[Usage API] 🔍 Tier resolution for user ${userId}: ${tier} (from database: ${profile?.subscription_tier || 'not found'})`);
+    
     // ✅ CRITICAL FIX: Count messages directly from messages table (not daily_usage)
     // This ensures accurate count that updates immediately when messages are sent
     const startOfMonth = new Date();
@@ -1543,6 +1562,220 @@ app.get('/api/usage', verifyJWT, async (req, res) => {
   } catch (error) {
     logger.error('[Usage API] Internal error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==========================================================
+// Cursor-Style Billing System API Endpoints
+// ==========================================================
+
+/**
+ * GET /api/billing/summary
+ * Get current billing period summary for authenticated user
+ */
+app.get('/api/billing/summary', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Import billing services
+    const { getOrCreateCurrentBillingPeriod } = await import('./services/billingPeriodService.mjs');
+    const { calculateOverageForPeriod } = await import('./services/overageBillingService.mjs');
+    const { getIncludedCreditsUsdForTier } = await import('./config/intelligentTierSystem.mjs');
+
+    // Get or create current billing period
+    const billingPeriodId = await getOrCreateCurrentBillingPeriod(userId);
+
+    // Get billing period details
+    const { data: billingPeriod, error: periodError } = await supabase
+      .from('billing_periods')
+      .select('period_start, period_end, tier')
+      .eq('id', billingPeriodId)
+      .single();
+
+    if (periodError || !billingPeriod) {
+      logger.error('[Billing API] Failed to fetch billing period:', periodError);
+      return res.status(500).json({ error: 'Failed to fetch billing period' });
+    }
+
+    // Get usage snapshots for this period
+    const { data: snapshots, error: snapshotsError } = await supabase
+      .from('usage_snapshots')
+      .select('model, input_tokens, output_tokens, total_cost_usd')
+      .eq('billing_period_id', billingPeriodId)
+      .order('total_cost_usd', { ascending: false });
+
+    if (snapshotsError) {
+      logger.error('[Billing API] Failed to fetch usage snapshots:', snapshotsError);
+      return res.status(500).json({ error: 'Failed to fetch usage data' });
+    }
+
+    // Calculate totals
+    const totalCostUsd = snapshots?.reduce((sum, s) => sum + (parseFloat(s.total_cost_usd) || 0), 0) || 0;
+    const includedCreditsUsd = getIncludedCreditsUsdForTier(billingPeriod.tier);
+    const overageUsd = Math.max(0, totalCostUsd - includedCreditsUsd);
+    const remainingCreditsUsd = includedCreditsUsd === -1 ? -1 : Math.max(-Infinity, includedCreditsUsd - totalCostUsd);
+
+    // Get overage charges for this period
+    const { data: charges, error: chargesError } = await supabase
+      .from('overage_charges')
+      .select('id, description, cost_usd, status, created_at')
+      .eq('billing_period_id', billingPeriodId)
+      .order('created_at', { ascending: false });
+
+    if (chargesError) {
+      logger.warn('[Billing API] Failed to fetch overage charges:', chargesError);
+      // Don't fail - charges are optional
+    }
+
+    // Format models array
+    const models = (snapshots || []).map(s => ({
+      model: s.model,
+      inputTokens: parseInt(s.input_tokens) || 0,
+      outputTokens: parseInt(s.output_tokens) || 0,
+      totalCostUsd: parseFloat(s.total_cost_usd) || 0
+    }));
+
+    // Format charges array
+    const formattedCharges = (charges || []).map(c => ({
+      id: c.id,
+      description: c.description,
+      costUsd: parseFloat(c.cost_usd) || 0,
+      status: c.status,
+      createdAt: c.created_at
+    }));
+
+    return res.json({
+      period: {
+        start: billingPeriod.period_start,
+        end: billingPeriod.period_end
+      },
+      tier: billingPeriod.tier,
+      includedCreditsUsd,
+      usedCreditsUsd: totalCostUsd,
+      remainingCreditsUsd,
+      models,
+      overage: {
+        totalOverageUsd: overageUsd,
+        charges: formattedCharges
+      }
+    });
+
+  } catch (error) {
+    logger.error('[Billing API] Internal error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/billing/invoices
+ * Get all overage invoices for authenticated user
+ */
+app.get('/api/billing/invoices', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Optional month filter (YYYY-MM format)
+    const monthFilter = req.query.month; // e.g. "2025-11"
+
+    let query = supabase
+      .from('overage_charges')
+      .select('id, description, cost_usd, status, created_at, fastspring_order_id, billing_period_id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    // Apply month filter if provided
+    if (monthFilter && /^\d{4}-\d{2}$/.test(monthFilter)) {
+      const [year, month] = monthFilter.split('-');
+      const startDate = `${year}-${month}-01T00:00:00Z`;
+      const endDate = month === '12' 
+        ? `${parseInt(year) + 1}-01-01T00:00:00Z`
+        : `${year}-${String(parseInt(month) + 1).padStart(2, '0')}-01T00:00:00Z`;
+      
+      query = query
+        .gte('created_at', startDate)
+        .lt('created_at', endDate);
+    }
+
+    const { data: charges, error: chargesError } = await query;
+
+    if (chargesError) {
+      logger.error('[Billing API] Failed to fetch invoices:', chargesError);
+      return res.status(500).json({ error: 'Failed to fetch invoices' });
+    }
+
+    // Format invoices
+    const invoices = (charges || []).map(charge => {
+      const receiptUrl = charge.fastspring_order_id
+        ? `https://api.fastspring.com/receipt/${charge.fastspring_order_id}`
+        : null;
+
+      return {
+        id: charge.id,
+        date: charge.created_at,
+        description: charge.description,
+        status: charge.status === 'charged' ? 'paid' : charge.status, // Map 'charged' to 'paid' for UI
+        amountUsd: parseFloat(charge.cost_usd) || 0,
+        invoiceUrl: receiptUrl
+      };
+    });
+
+    return res.json(invoices);
+
+  } catch (error) {
+    logger.error('[Billing API] Internal error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /internal/billing/run-overage-cycle
+ * Internal endpoint for cron job to run overage billing cycle
+ * Protected by INTERNAL_SECRET environment variable
+ */
+app.post('/internal/billing/run-overage-cycle', async (req, res) => {
+  try {
+    // Verify internal secret
+    const authHeader = req.headers.authorization;
+    const expectedSecret = process.env.INTERNAL_SECRET || process.env.RAILWAY_INTERNAL_SECRET;
+    
+    if (!expectedSecret) {
+      logger.error('[Billing API] INTERNAL_SECRET not configured');
+      return res.status(500).json({ error: 'Internal secret not configured' });
+    }
+
+    if (!authHeader || authHeader !== `Bearer ${expectedSecret}`) {
+      logger.warn('[Billing API] Unauthorized access attempt to internal billing endpoint');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Run billing cycle
+    const { runOverageBillingCycle } = await import('./services/overageBillingService.mjs');
+    const results = await runOverageBillingCycle();
+
+    return res.json({
+      success: true,
+      results: {
+        processedUsers: results.processedUsers,
+        chargesCreated: results.chargesCreated,
+        chargesProcessed: results.chargesProcessed,
+        errors: results.errors.length > 0 ? results.errors : undefined
+      }
+    });
+
+  } catch (error) {
+    logger.error('[Billing API] Internal error in billing cycle:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
   }
 });
 
@@ -1958,15 +2191,23 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
     let effectiveTier = 'free';
     let userPreferences = null;
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('subscription_tier, preferences')
         .eq('id', userId)
         .single();
-      effectiveTier = profile?.subscription_tier || 'free';
-      userPreferences = profile?.preferences || null;
+      
+      if (profileError) {
+        logger.error(`[Message] ❌ Error fetching tier for ${userId}:`, profileError.message || profileError);
+        effectiveTier = 'free'; // Fail closed: Default to free tier
+      } else {
+        effectiveTier = profile?.subscription_tier || 'free';
+        userPreferences = profile?.preferences || null;
+        // ✅ CRITICAL: Log tier resolution for debugging tier discrepancies
+        logger.info(`[Message] 🔍 Tier resolution for user ${userId}: ${effectiveTier} (from database: ${profile?.subscription_tier || 'not found'})`);
+      }
     } catch (error) {
-      logger.warn(`[Message] Failed to fetch tier for ${userId}, defaulting to free`);
+      logger.warn(`[Message] ❌ Exception fetching tier for ${userId}, defaulting to free:`, error.message || error);
       effectiveTier = 'free'; // Fail closed: Default to free tier
     }
 
@@ -2219,7 +2460,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           try {
             logger.debug(`[API CALL] Calling streamAnthropicResponse with userId: ${userId}, model: ${selectedModel}`);
-            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier, preferences: userPreferences });
+            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier, preferences: userPreferences, conversationId: finalConversationId });
             streamCompleted = true;
             logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
             // ✅ CRITICAL: If stream returned empty, it means no data was received
@@ -2237,7 +2478,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           logger.debug('[API CALL] Using Claude fallback');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier });
+          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier, conversationId: finalConversationId });
           streamCompleted = true;
           logger.debug('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
@@ -4579,7 +4820,11 @@ async function startServer() {
     // ✅ SAFE: Additive changes only, preserves existing functionality
     // ✅ PRODUCTION-SAFE: Files won't exist in production (Railway/Vercel use platform SSL)
     const certPatterns = [
-      // ✅ NEW: mkcert LAN certificates (for mobile testing on network IPs)
+      // ✅ CURRENT IP: 192.168.0.229 (prioritized for mobile/web sync)
+      '192.168.0.229+3.pem',
+      '192.168.0.229+2.pem',
+      '192.168.0.229+1.pem',
+      // ✅ PRESERVED: Legacy IP patterns (backward compatible)
       '192.168.0.10+3.pem',
       '192.168.0.10+2.pem',
       '192.168.0.10+1.pem',

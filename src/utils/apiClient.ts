@@ -31,14 +31,14 @@ export function getApiUrl(): string {
     
     // If accessing from network IP (mobile device), use backend directly on port 8000
     if (isNetworkIP && import.meta.env.DEV) {
-      // ✅ FIX: Backend runs on HTTP in dev mode, not HTTPS
-      // Use HTTP for backend even if frontend is HTTPS (dev mode only)
-      // In production, backend should be HTTPS
-      const backendProtocol = 'http'; // Always HTTP in dev mode
-      const backendUrl = `${backendProtocol}://${hostname}:8000`;
+      // ✅ CRITICAL FIX: Match frontend protocol to prevent mixed content blocking
+      // If frontend is HTTPS, backend MUST be HTTPS (browsers block HTTP from HTTPS pages)
+      // Backend supports HTTPS via mkcert certificates (192.168.0.10+3.pem)
+      const frontendProtocol = window.location.protocol.replace(':', ''); // 'http' or 'https'
+      const backendUrl = `${frontendProtocol}://${hostname}:8000`;
       logger.debug(
         `[API Client] 📱 Mobile/Network access detected (${hostname}). ` +
-        `Using backend URL: ${backendUrl} (HTTP for dev mode)`
+        `Using backend URL: ${backendUrl} (matching frontend protocol: ${frontendProtocol})`
       );
       return backendUrl;
     }
@@ -55,6 +55,32 @@ export function getApiUrl(): string {
   // ✅ CRITICAL FIX: Mixed content prevention - HTTPS frontend requires HTTPS backend
   if (apiUrl && typeof window !== 'undefined') {
     const isFrontendHttps = window.location.protocol === 'https:';
+    const frontendHostname = window.location.hostname;
+    
+    // ✅ CRITICAL FIX: If VITE_API_URL has a different IP than frontend, update it FIRST
+    // This handles cases where VITE_API_URL is set to an old IP (e.g., 192.168.0.10)
+    // but the frontend is running on a new IP (e.g., 192.168.0.229)
+    const isNetworkIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(frontendHostname);
+    if (isNetworkIP && import.meta.env.DEV) {
+      // Extract IP from apiUrl
+      const backendUrlMatch = apiUrl.match(/^https?:\/\/([^:]+)/);
+      if (backendUrlMatch) {
+        const backendHostname = backendUrlMatch[1];
+        const backendIsNetworkIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(backendHostname);
+        
+        // If both are network IPs but different, update backend URL to match frontend
+        if (backendIsNetworkIP && backendHostname !== frontendHostname) {
+          logger.info(
+            `[API Client] 🔄 Updating backend IP from ${backendHostname} to ${frontendHostname} ` +
+            `to match frontend hostname. Backend supports HTTPS via mkcert certificates.`
+          );
+          // Replace the hostname in the URL
+          apiUrl = apiUrl.replace(`//${backendHostname}`, `//${frontendHostname}`);
+        }
+      }
+    }
+    
+    // ✅ NOW check protocol AFTER IP update
     const isBackendHttp = apiUrl.startsWith('http://');
     const isBackendHttps = apiUrl.startsWith('https://');
     
@@ -75,8 +101,7 @@ export function getApiUrl(): string {
     // Mixed content blocking prevents HTTPS pages from loading HTTP resources
     // In dev mode, backend may be HTTP, so we need to handle this
     if (isFrontendHttps && isBackendHttp && isLocalDev) {
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const isNetworkIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(window.location.hostname);
+      const isLocalhost = frontendHostname === 'localhost' || frontendHostname === '127.0.0.1';
       
       // If localhost, try Vite proxy first (but it may not work with HTTPS frontend)
       if (isLocalhost) {
@@ -86,13 +111,15 @@ export function getApiUrl(): string {
         );
         return ''; // Use relative URLs for Vite proxy
       } else if (isNetworkIP) {
-        // Network IP: Backend is HTTP, but frontend is HTTPS
-        // Keep HTTP - browsers will show mixed content warning but allow it in dev
-        logger.warn(
-          '[API Client] ⚠️ Mixed content: Frontend HTTPS, backend HTTP. ' +
-          'Using HTTP backend (dev mode only - will show browser warning).'
+        // ✅ CRITICAL FIX: Network IP with HTTPS frontend MUST use HTTPS backend
+        // Backend supports HTTPS via mkcert certificates (192.168.0.229+3.pem)
+        // Upgrade HTTP to HTTPS to prevent mixed content blocking
+        logger.info(
+          '[API Client] ✅ Upgrading HTTP backend to HTTPS for network IP (frontend is HTTPS). ' +
+          'Backend supports HTTPS via mkcert certificates.'
         );
-        // Keep HTTP - don't upgrade
+        apiUrl = apiUrl.replace('http://', 'https://');
+        return apiUrl;
       }
     }
     
@@ -112,6 +139,14 @@ export function getApiUrl(): string {
       '[API Client] ⚠️ VITE_API_URL is not set in production! ' +
       'API calls will fail. Set VITE_API_URL in your environment variables.'
     );
+  }
+  
+  // ✅ DEBUG: Log final API URL for troubleshooting
+  if (apiUrl && typeof window !== 'undefined' && import.meta.env.DEV) {
+    const isNetworkIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(window.location.hostname);
+    if (isNetworkIP) {
+      logger.debug(`[API Client] ✅ Final API URL: ${apiUrl}`);
+    }
   }
   
   return apiUrl;

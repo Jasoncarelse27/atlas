@@ -178,6 +178,11 @@ export const chatService = {
             tokenLength: freshToken?.length || 0
           });
           
+          // ✅ BEST PRACTICE: Check if already aborted BEFORE creating controllers
+          if (abortController?.signal.aborted) {
+            throw new DOMException('Request aborted by user', 'AbortError');
+          }
+          
           // ✅ CRITICAL FIX: Add timeout to prevent hanging requests
           const timeoutController = new AbortController();
           const timeoutId = setTimeout(() => {
@@ -187,27 +192,46 @@ export const chatService = {
           
           // Combine abort signals: timeout OR user abort will cancel the request
           const combinedController = new AbortController();
-          if (abortController) {
-            abortController.signal.addEventListener('abort', () => combinedController.abort());
-          }
-          timeoutController.signal.addEventListener('abort', () => combinedController.abort());
+          const cleanup: (() => void)[] = [];
           
-          response = await fetch(messageEndpoint, {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Accept": "text/event-stream",
-              "Authorization": `Bearer ${freshToken}` // ✅ Use fresh token on each attempt
-            },
-            body: JSON.stringify({ 
-              message: text, // Backend expects "message" field
-              conversationId: conversationId || null // ✅ Backend now gets userId from auth token
-              // userId removed - backend uses req.user.id from auth middleware
-            }),
-            signal: combinedController.signal,
+          // ✅ BEST PRACTICE: Attach listeners with proper cleanup
+          if (abortController && !abortController.signal.aborted) {
+            const abortHandler = () => {
+              combinedController.abort();
+              logger.debug('[ChatService] 🛑 User abort propagated to fetch request');
+            };
+            abortController.signal.addEventListener('abort', abortHandler);
+            cleanup.push(() => {
+              abortController?.signal.removeEventListener('abort', abortHandler);
+            });
+          }
+          
+          const timeoutHandler = () => combinedController.abort();
+          timeoutController.signal.addEventListener('abort', timeoutHandler);
+          cleanup.push(() => {
+            timeoutController.signal.removeEventListener('abort', timeoutHandler);
           });
           
-          clearTimeout(timeoutId);
+          try {
+            response = await fetch(messageEndpoint, {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+                "Authorization": `Bearer ${freshToken}` // ✅ Use fresh token on each attempt
+              },
+              body: JSON.stringify({ 
+                message: text, // Backend expects "message" field
+                conversationId: conversationId || null // ✅ Backend now gets userId from auth token
+                // userId removed - backend uses req.user.id from auth middleware
+              }),
+              signal: combinedController.signal,
+            });
+          } finally {
+            // ✅ BEST PRACTICE: Always clean up event listeners and timeout
+            cleanup.forEach(fn => fn());
+            clearTimeout(timeoutId);
+          }
           
           // ✅ CRITICAL DEBUG: Log response immediately
           const contentType = response.headers.get('content-type') || '';
@@ -490,10 +514,14 @@ export const chatService = {
     logger.info('[ChatService] 🛑 stopMessageStream called');
     if (abortController) {
       logger.info('[ChatService] ✅ Aborting active request');
-      abortController.abort();
+      try {
+        abortController.abort();
+      } catch (error) {
+        logger.warn('[ChatService] ⚠️ Error aborting request:', error);
+      }
       abortController = null;
     } else {
-      logger.warn('[ChatService] ⚠️ No active request to abort');
+      logger.debug('[ChatService] ℹ️ No active request to abort (request may have already completed or failed)');
     }
     // Removed useMessageStore.setIsStreaming - using callback pattern instead
   },
@@ -594,9 +622,17 @@ export const chatService = {
 
 // Export stopMessageStream function
 export const stopMessageStream = () => {
+  logger.info('[ChatService] 🛑 stopMessageStream called (exported function)');
   if (abortController) {
-    abortController.abort();
+    logger.info('[ChatService] ✅ Aborting active request');
+    try {
+      abortController.abort();
+    } catch (error) {
+      logger.warn('[ChatService] ⚠️ Error aborting request:', error);
+    }
     abortController = null;
+  } else {
+    logger.debug('[ChatService] ℹ️ No active request to abort (request may have already completed or failed)');
   }
   // Removed useMessageStore.setIsStreaming - using callback pattern instead
 };

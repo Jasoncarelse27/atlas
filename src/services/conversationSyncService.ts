@@ -78,7 +78,9 @@ export class ConversationSyncService {
   // ✅ PERFORMANCE OPTIMIZATION: Adaptive sync cooldown based on activity
   private readonly SYNC_COOLDOWN_ACTIVE = 60000; // 1 min for active users
   private readonly SYNC_COOLDOWN_IDLE = 180000; // 3 min for idle users
-  private readonly SYNC_DEBOUNCE = 8000; // ✅ OPTIMIZED: 8 second debounce (reduced from 10s)
+  private readonly SYNC_DEBOUNCE_ACTIVE = 5000; // ✅ OPTIMIZED: 5 second debounce for active users
+  private readonly SYNC_DEBOUNCE_IDLE = 8000; // ✅ OPTIMIZED: 8 second debounce for idle users (reduced from 10s)
+  private readonly SYNC_DEBOUNCE = 8000; // ✅ DEPRECATED: Use SYNC_DEBOUNCE_ACTIVE/IDLE instead
   private readonly RECENT_DATA_DAYS = 30; // ✅ FIX: Reduced from 90 to 30 days for faster sync
   private readonly JITTER_MAX_MS = 2000; // ✅ PERFORMANCE: Max 2s jitter to prevent sync storms
 
@@ -92,11 +94,14 @@ export class ConversationSyncService {
   /**
    * Sync conversations from Supabase to local Dexie
    * ⚡ OPTIMIZED: Debounced, rate-limited, recent data only
+   * @param userId - User ID to sync conversations for
+   * @param isActive - Whether user is actively typing/sending messages (uses faster cooldown)
    */
-  async syncConversationsFromRemote(userId: string): Promise<void> {
-    // ⚡ OPTIMIZATION: Skip if synced recently
+  async syncConversationsFromRemote(userId: string, isActive = false): Promise<void> {
+    // ⚡ OPTIMIZATION: Adaptive cooldown based on user activity
+    const cooldown = isActive ? this.SYNC_COOLDOWN_ACTIVE : this.SYNC_COOLDOWN_IDLE;
     const now = Date.now();
-    if (now - this.lastSyncTime < this.SYNC_COOLDOWN) {
+    if (now - this.lastSyncTime < cooldown) {
       return; // Silent skip - no console spam
     }
     this.lastSyncTime = now;
@@ -605,8 +610,12 @@ export class ConversationSyncService {
    * - Tracks data volume synced
    * 
    * ✅ OPTIMIZED: Debounced and rate-limited to prevent rapid-fire syncs
+   * @param userId - User ID to sync conversations for
+   * @param force - Force sync even if cooldown/debounce is active
+   * @param checkForMissing - Check for missing conversations and sync all if mismatch detected
+   * @param isActive - Whether user is actively typing/sending messages (uses faster cooldown/debounce)
    */
-  async deltaSync(userId: string, force: boolean = false, checkForMissing: boolean = false): Promise<void> {
+  async deltaSync(userId: string, force: boolean = false, checkForMissing: boolean = false, isActive = false): Promise<void> {
     // ✅ OPTIMIZATION: Debounce rapid sync requests
     if (!force && this.syncDebounceTimer) {
       logger.debug('[ConversationSync] ⏳ Debouncing sync request...');
@@ -616,9 +625,7 @@ export class ConversationSyncService {
     // ✅ PERFORMANCE: Adaptive cooldown based on user activity
     const now = Date.now();
     const timeSinceLastSync = now - this.lastSyncTime;
-    const adaptiveCooldown = timeSinceLastSync < 300000 // 5 min threshold
-      ? this.SYNC_COOLDOWN_ACTIVE // Active users: 1 min
-      : this.SYNC_COOLDOWN_IDLE;  // Idle users: 3 min
+    const adaptiveCooldown = isActive ? this.SYNC_COOLDOWN_ACTIVE : this.SYNC_COOLDOWN_IDLE;
     
     if (!force && timeSinceLastSync < adaptiveCooldown) {
       logger.debug(`[ConversationSync] ⏳ Sync cooldown active (${Math.round((adaptiveCooldown - timeSinceLastSync) / 1000)}s remaining), skipping...`);
@@ -631,12 +638,13 @@ export class ConversationSyncService {
       return;
     }
     
-    // ✅ PERFORMANCE: Add jitter to prevent synchronized sync storms
+    // ✅ PERFORMANCE: Adaptive debounce based on user activity
     if (!force) {
+      const debounceTime = isActive ? this.SYNC_DEBOUNCE_ACTIVE : this.SYNC_DEBOUNCE_IDLE;
       const jitter = Math.floor(Math.random() * this.JITTER_MAX_MS);
       this.syncDebounceTimer = setTimeout(() => {
         this.syncDebounceTimer = null;
-      }, this.SYNC_DEBOUNCE + jitter);
+      }, debounceTime + jitter);
       
       // If jitter is significant, delay the actual sync
       if (jitter > 500) {

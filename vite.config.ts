@@ -165,9 +165,15 @@ export default defineConfig(({ mode }) => {
         function detectBackendProtocol(): 'http' | 'https' {
           const rootDir = process.cwd();
           const certPatterns = [
+            // ✅ CURRENT IP: 192.168.0.229 (prioritized for mobile/web sync)
+            '192.168.0.229+3.pem',
+            '192.168.0.229+2.pem',
+            '192.168.0.229+1.pem',
+            // ✅ PRESERVED: Legacy IP patterns (backward compatible)
             '192.168.0.10+3.pem',
             '192.168.0.10+2.pem',
             '192.168.0.10+1.pem',
+            // ✅ PRESERVED: Localhost patterns
             'localhost+3.pem',
             'localhost+1.pem',
             'localhost.pem'

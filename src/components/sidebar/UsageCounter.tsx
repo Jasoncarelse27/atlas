@@ -73,16 +73,22 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
         
         // ✅ CRITICAL FIX: Ensure we get actual count from backend
         const monthlyCount = usageData.monthlyCount ?? 0;
-        const monthlyLimit = usageData.monthlyLimit ?? (hasUnlimitedMessages(tier) ? -1 : 15);
         
-        // ✅ CRITICAL FIX: Always use tier from useTierQuery (database source of truth), not API response
-        logger.info(`[UsageCounter] 📊 Setting usage with tier from database: ${tier.toUpperCase()}`);
+        // ✅ CRITICAL FIX: Always calculate limits based on tier from useTierQuery (database source of truth), NOT API response
+        // The API might return stale/cached tier data, so we ignore monthlyLimit from API and calculate it ourselves
+        const monthlyLimit = hasUnlimitedMessages(tier) ? -1 : 15;
+        const isUnlimited = hasUnlimitedMessages(tier);
+        const remaining = isUnlimited ? -1 : Math.max(0, monthlyLimit - monthlyCount);
+        
+        logger.info(`[UsageCounter] 📊 Setting usage with tier from database: ${tier.toUpperCase()}, monthlyLimit: ${monthlyLimit}, isUnlimited: ${isUnlimited}`);
+        logger.debug(`[UsageCounter] API returned tier: ${usageData.tier}, but using database tier: ${tier}`);
+        
         setUsage({
           tier: tier, // Always use tier from useTierQuery hook (fetches DIRECTLY from Supabase)
           monthlyCount: monthlyCount,
-          monthlyLimit: monthlyLimit,
-          remaining: usageData.remaining ?? (monthlyLimit === -1 ? -1 : Math.max(0, monthlyLimit - monthlyCount)),
-          isUnlimited: usageData.isUnlimited || monthlyLimit === -1
+          monthlyLimit: monthlyLimit, // Calculated from tier, not API response
+          remaining: remaining, // Calculated from tier, not API response
+          isUnlimited: isUnlimited // Calculated from tier, not API response
         });
       } catch (error) {
         logger.error('[UsageCounter] Failed to fetch usage:', error);

@@ -23,6 +23,7 @@ const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLib
 const RitualBuilder = lazy(() => import("./features/rituals/components/RitualBuilder").then(m => ({ default: m.RitualBuilder })));
 const RitualRunView = lazy(() => import("./features/rituals/components/RitualRunView").then(m => ({ default: m.RitualRunView })));
 const RitualInsightsDashboard = lazy(() => import("./features/rituals/components/RitualInsightsDashboard").then(m => ({ default: m.RitualInsightsDashboard })));
+const BillingDashboard = lazy(() => import("./pages/BillingDashboard"));
 
 // 🚀 Production-grade Query Client configuration
 const queryClient = new QueryClient({
@@ -111,6 +112,19 @@ function ProtectedRitualInsightsRoute() {
   );
 }
 
+function ProtectedBillingRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return (
+    <ErrorBoundary>
+      <BillingDashboard />
+    </ErrorBoundary>
+  );
+}
+
 // Component to set up global navigation
 function NavigationSetup() {
   const navigate = useNavigate();
@@ -143,23 +157,26 @@ function App() {
                       <ErrorBoundary>
                         <TutorialOverlay />
                       </ErrorBoundary>
-                      <Suspense fallback={<LoadingSpinner />}>
-                <Routes>
-                  <Route path="/login" element={<PublicAuthRoute />} />
-                  <Route path="/chat" element={<ProtectedChatRoute />} />
-                  <Route path="/rituals" element={<ProtectedRitualRoute />} />
-                  <Route path="/rituals/builder" element={<ProtectedRitualBuilderRoute />} />
-                  <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
-                  <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
-                  <Route path="/upgrade" element={<UpgradePage />} />
-                  <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-                  <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
-                  <Route path="/terms" element={<TermsPage />} />
-                  <Route path="/privacy" element={<PrivacyPage />} />
-                  <Route path="/" element={<Navigate to="/chat" replace />} />
-                  <Route path="*" element={<Navigate to="/chat" replace />} />
-                </Routes>
-              </Suspense>
+                      <ErrorBoundary>
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <Routes>
+                            <Route path="/login" element={<PublicAuthRoute />} />
+                            <Route path="/chat" element={<ProtectedChatRoute />} />
+                            <Route path="/rituals" element={<ProtectedRitualRoute />} />
+                            <Route path="/rituals/builder" element={<ProtectedRitualBuilderRoute />} />
+                            <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
+                            <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
+                            <Route path="/billing" element={<ProtectedBillingRoute />} />
+                            <Route path="/upgrade" element={<UpgradePage />} />
+                            <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+                            <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
+                            <Route path="/terms" element={<TermsPage />} />
+                            <Route path="/privacy" element={<PrivacyPage />} />
+                            <Route path="/" element={<Navigate to="/chat" replace />} />
+                            <Route path="*" element={<Navigate to="/chat" replace />} />
+                          </Routes>
+                        </Suspense>
+                      </ErrorBoundary>
             </Router>
           </TutorialProvider>
         </UpgradeModalProvider>

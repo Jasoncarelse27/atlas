@@ -39,7 +39,11 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
       logger.debug('[QuickActions] 🔔 Real-time deletion event received:', event.detail.conversationId);
       
       // Refresh conversation list immediately
-      await refreshConversationList();
+      try {
+        await refreshConversationList();
+      } catch (err) {
+        logger.error('[QuickActions] Failed to refresh after deletion event:', err);
+      }
     };
 
     window.addEventListener('conversationDeleted', handleConversationDeleted as unknown as EventListener);
@@ -167,17 +171,12 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
 
   const handleNewChat = async () => {
     logger.debug('[QuickActions] 🚀 Starting new chat...');
-    if (import.meta.env.DEV) {
-      console.log('[QuickActions] 🚀 Starting new chat...');
-    }
     
     try {
       // ✅ FIX: Close sidebar immediately for better UX
       if (onNewChat) {
         onNewChat();
-        if (import.meta.env.DEV) {
-          console.log('[QuickActions] 🚪 Sidebar closed');
-        }
+        logger.debug('[QuickActions] 🚪 Sidebar closed');
       }
       
       // ✅ Get authenticated user
@@ -191,9 +190,6 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
       // ✅ Create new conversation ID (browser-compatible)
       const newConversationId = generateUUID();
       logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
-      if (import.meta.env.DEV) {
-        console.log('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
-      }
       
       // ✅ CRITICAL FIX: Create conversation record immediately (not wait for first message)
       // This ensures it appears in conversation history right away
@@ -227,16 +223,11 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
           // ✅ Navigate to new conversation
           const targetUrl = `/chat?conversation=${finalId}`;
           logger.debug('[QuickActions] 🔄 Navigating to:', targetUrl);
-          if (import.meta.env.DEV) {
-            console.log('[QuickActions] 🔄 Navigating to:', targetUrl);
-          }
           
           navigate(targetUrl, { replace: true });
           
           logger.debug('[QuickActions] ✅ Navigation triggered via React Router');
-          if (import.meta.env.DEV) {
-            console.log('[QuickActions] ✅ Navigation complete');
-          }
+          logger.debug('[QuickActions] ✅ Navigation complete');
         } else {
           // Fallback: Use generated ID if creation failed
           logger.warn('[QuickActions] ⚠️ Conversation creation returned null, using generated ID');

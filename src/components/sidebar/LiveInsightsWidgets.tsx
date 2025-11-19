@@ -39,17 +39,13 @@ const INSIGHTS_CACHE_TTL = 30 * 1000; // 30 seconds (matches Atlas sync pattern)
 
 export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps) {
   // ✅ DEBUG
-  if (import.meta.env.DEV) {
-    console.log('[LiveInsightsWidgets] Component rendered:', { userId, isOpen });
-  }
+  logger.debug('[LiveInsightsWidgets] Component rendered:', { userId, isOpen });
   
   const { tier } = useTierQuery();
   const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ DEBUG
-  if (import.meta.env.DEV) {
-    console.log('[LiveInsightsWidgets] Tier:', tier);
-  }
+  logger.debug('[LiveInsightsWidgets] Tier:', tier);
   
   const [widgetData, setWidgetData] = useState<WidgetData>({
     streak: null,
@@ -180,8 +176,7 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
 
   // ✅ DEBUG: Log rendering state
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('[LiveInsightsWidgets] useEffect triggered:', {
+    logger.debug('[LiveInsightsWidgets] useEffect triggered:', {
       isOpen,
       userId,
       tier,
@@ -190,9 +185,8 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
         streak: widgetData.streak?.currentStreak,
         completions: widgetData.completions,
         moodBoost: widgetData.moodBoost,
-        }
-      });
-    }
+      }
+    });
   }, [isOpen, userId, tier, isLoading, widgetData]);
   
   // ✅ WIDGETS: Horizontal scrollable row (only show if we have data)
@@ -201,26 +195,22 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
   
   if (!hasData) {
     // ✅ DEBUG
-    if (import.meta.env.DEV) {
-      console.log('[LiveInsightsWidgets] ❌ No data to display, hiding widgets', {
+    logger.debug('[LiveInsightsWidgets] ❌ No data to display, hiding widgets', {
       hasData,
       isLoading,
       streak: widgetData.streak,
-        completions: widgetData.completions
-      });
-    }
+      completions: widgetData.completions
+    });
     return null;
   }
   
   // ✅ DEBUG
-  if (import.meta.env.DEV) {
-    console.log('[LiveInsightsWidgets] ✅ Rendering widgets with data:', {
+  logger.debug('[LiveInsightsWidgets] ✅ Rendering widgets with data:', {
     streak: widgetData.streak?.currentStreak,
     completions: widgetData.completions,
     moodBoost: widgetData.moodBoost,
-      quickInsight: widgetData.quickInsight
-    });
-  }
+    quickInsight: widgetData.quickInsight
+  });
 
   return (
     <div className="mb-4 px-3 sm:px-4">
