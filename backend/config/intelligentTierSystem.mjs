@@ -18,12 +18,13 @@ export const MODEL_COSTS = {
   // ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
   'claude-3-5-haiku-latest':   { input: 0.00025, output: 0.00050 },
   'claude-3-5-sonnet-latest':  { input: 0.00300, output: 0.01500 },
-  'claude-3-opus-latest':      { input: 0.01500, output: 0.07500 },
+  'claude-opus-4-1-20250805': { input: 0.01500, output: 0.07500 }, // ✅ Correct Opus model
   
   // Legacy models (keep for backward compatibility with existing data)
   'claude-3-haiku-20240307':  { input: 0.00025, output: 0.00125 },
   'claude-3-sonnet-20240229': { input: 0.003,   output: 0.015   },
   'claude-3-opus-20240229':   { input: 0.015,   output: 0.075   },
+  'claude-3-opus-latest':     { input: 0.01500, output: 0.07500 }, // Legacy alias
   'claude-sonnet-4-5-20250929': { input: 0.003, output: 0.015 },
   'claude-3-haiku':  { input: 0.00025, output: 0.00125 },
   'claude-3-sonnet': { input: 0.003,   output: 0.015   },
@@ -83,12 +84,13 @@ export const MODEL_PRICING = {
   // ✅ PRODUCTION MODELS: Use -latest aliases for guaranteed usage reporting
   'claude-3-5-haiku-latest':   { inputPer1K: 0.00025, outputPer1K: 0.00050 },
   'claude-3-5-sonnet-latest':  { inputPer1K: 0.00300, outputPer1K: 0.01500 },
-  'claude-3-opus-latest':      { inputPer1K: 0.01500, outputPer1K: 0.07500 },
+  'claude-opus-4-1-20250805': { inputPer1K: 0.01500, outputPer1K: 0.07500 }, // ✅ Correct Opus model
   
   // Legacy models (keep for backward compatibility)
   'claude-3-haiku-20240307': { inputPer1K: 0.00025, outputPer1K: 0.00125 },
   'claude-3-sonnet-20240229': { inputPer1K: 0.003, outputPer1K: 0.015 },
   'claude-3-opus-20240229': { inputPer1K: 0.015, outputPer1K: 0.075 },
+  'claude-3-opus-latest': { inputPer1K: 0.01500, outputPer1K: 0.07500 }, // Legacy alias
   'claude-sonnet-4-5-20250929': { inputPer1K: 0.003, outputPer1K: 0.015 },
   'claude-3-haiku': { inputPer1K: 0.00025, outputPer1K: 0.00125 },
   'claude-3-sonnet': { inputPer1K: 0.003, outputPer1K: 0.015 },
