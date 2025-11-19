@@ -1043,9 +1043,11 @@ You are having a natural voice conversation. Respond as if you can hear them cle
                 logger.info(`[streamAnthropicResponse] ✅ Token usage captured from ${parsed.type}: ${tokenUsage.input_tokens} input, ${tokenUsage.output_tokens} output`);
               } else {
                 // ✅ DEBUG: Log full parsed object to understand structure
-                logger.debug(`[streamAnthropicResponse] ⚠️ ${parsed.type} received but no usage data. Full event:`, JSON.stringify(parsed));
+                // ✅ CRITICAL: Use INFO level to see in production logs
+                logger.info(`[streamAnthropicResponse] ⚠️ ${parsed.type} received but no usage data. Full event:`, JSON.stringify(parsed, null, 2));
                 if (parsed.type === 'message_stop') {
                   logger.warn('[streamAnthropicResponse] ⚠️ message_stop received but no usage data - Anthropic may not be returning usage for this model');
+                  logger.info(`[streamAnthropicResponse] 🔍 Full message_stop event keys:`, Object.keys(parsed));
                 }
               }
             } else if (parsed.type === 'error') {
