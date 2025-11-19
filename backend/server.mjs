@@ -29,6 +29,7 @@ import { processMessage } from './services/messageService.js';
 import { notificationService } from './services/notificationService.mjs';
 import { redisService } from './services/redisService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
+import { buildSmarterPrompt } from './services/promptOrchestrator.mjs';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -763,7 +764,7 @@ function filterResponse(text) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null, preferences = null, conversationId = null }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null, preferences = null, conversationId = null, enhancedSystemPrompt = null, enhancedUserPrompt = null }) {
   if (!ANTHROPIC_API_KEY) {
     logger.error('[streamAnthropicResponse] ❌ ANTHROPIC_API_KEY is missing or empty');
     throw new Error('Missing Anthropic API key - check Railway environment variables');
@@ -771,9 +772,11 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
   
   logger.debug('[streamAnthropicResponse] ✅ API key found, length:', ANTHROPIC_API_KEY.length);
   
-  // ✅ VOICE CALL FIX: For voice calls, use simple content without text-based instructions
+  // ✅ SMARTER ATLAS: Use enhanced prompts if provided (skip for voice calls)
   let finalUserContent;
+  let finalSystemPrompt;
   
+  // Skip intel enhancement for voice calls - use existing voice call logic
   if (is_voice_call) {
     // For voice calls: Just use the user's message with memory context (no enhanced instructions)
     const userMemory = await getUserMemory(userId);
@@ -789,8 +792,15 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
     } else {
       finalUserContent = content;
     }
+    // Voice calls use their own system prompt (set later)
+    finalSystemPrompt = null;
+  } else if (enhancedSystemPrompt && enhancedUserPrompt) {
+    // ✅ Use enhanced prompts from orchestrator
+    finalSystemPrompt = enhancedSystemPrompt;
+    finalUserContent = enhancedUserPrompt;
+    logger.debug('[streamAnthropicResponse] ✅ Using enhanced prompts from orchestrator');
   } else {
-    // For text chat: Use full enhanced content with all instructions
+    // For text chat: Use full enhanced content with all instructions (existing logic)
     const userMemory = await getUserMemory(userId);
     if (process.env.NODE_ENV === 'development') {
       logger.debug('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
@@ -950,6 +960,7 @@ TIER-AWARE RESPONSES:
 - Free users hitting limit: "You've used all your free messages this month. Want to keep going? Atlas Core gives you unlimited conversations and the full ritual builder. [Upgrade →]"
 - Core users hitting cooldown: "You've had a deep conversation session today. To maintain service quality during our early launch, there's a brief cooldown. More messages unlock in [X hours]. Studio users never experience cooldowns. [Learn more →]"
 - Free users trying custom rituals: "Custom rituals are part of Atlas Core. With Core, you can build personalized rituals designed around your emotional rhythms. Want to upgrade? [Learn more →]"`;
+    finalSystemPrompt = null; // Will use default (no system prompt for text chat in existing logic)
   }
 
   // 🧠 MEMORY 100%: Build messages array with conversation history
@@ -974,7 +985,8 @@ TIER-AWARE RESPONSES:
   messages.push({ role: 'user', content: finalUserContent });
 
   // ✅ VOICE CALL FIX: Strong system prompt - override any conversation history confusion
-  const systemPrompt = is_voice_call ? `You are Atlas in a VOICE CALL - a real-time voice conversation. The user speaks out loud and you respond with voice. 
+  // ✅ SMARTER ATLAS: Use enhanced system prompt if provided, otherwise use voice call prompt or undefined
+  const systemPrompt = finalSystemPrompt || (is_voice_call ? `You are Atlas in a VOICE CALL - a real-time voice conversation. The user speaks out loud and you respond with voice. 
 
 CRITICAL: You CAN hear them. NEVER mention:
 - "I can't hear" / "can't hear audio" / "don't have ears"
@@ -989,7 +1001,7 @@ PROFESSIONAL RESPONSE GUIDELINES:
 - Just speak naturally - your tone will come through the conversation itself
 - Show empathy through your words, not through descriptions of how you're speaking
 
-You are having a natural voice conversation. Respond as if you can hear them clearly. Keep responses brief (1-2 sentences).` : undefined;
+You are having a natural voice conversation. Respond as if you can hear them clearly. Keep responses brief (1-2 sentences).` : undefined);
 
   // ✅ PRODUCTION-SAFE: Add timeout to Anthropic API call (50 seconds)
   const controller = new AbortController();
@@ -2457,7 +2469,55 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
         if (routedProvider === 'claude' && ANTHROPIC_API_KEY) {
           try {
             logger.debug(`[API CALL] Calling streamAnthropicResponse with userId: ${userId}, model: ${selectedModel}`);
-            finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier, preferences: userPreferences, conversationId: finalConversationId });
+            
+            // ✅ SMARTER ATLAS: Build enhanced prompts (skip for voice calls)
+            let enhancedSystemPrompt = null;
+            let enhancedUserPrompt = null;
+            
+            if (!is_voice_call) {
+              try {
+                // Get user name from user metadata or email
+                const userName = req.user?.user_metadata?.full_name || req.user?.email?.split('@')[0] || 'Atlas user';
+                
+                // Build smarter prompt using orchestrator
+                const smarterPrompt = buildSmarterPrompt({
+                  userId,
+                  userName,
+                  latestUserText: message.trim(),
+                  recentMessages: conversationHistory,
+                  conversationTags: [], // Empty for now - can add DB persistence later
+                });
+                
+                if (smarterPrompt) {
+                  enhancedSystemPrompt = smarterPrompt.systemPrompt;
+                  enhancedUserPrompt = smarterPrompt.userPrompt;
+                  logger.debug('[SmarterAtlas] ✅ Enhanced prompts built successfully', {
+                    mode: smarterPrompt.intel?.mode,
+                    emotion: smarterPrompt.intel?.emotion,
+                    goal: smarterPrompt.intel?.goal,
+                  });
+                } else {
+                  logger.debug('[SmarterAtlas] Orchestrator returned null, using default prompts');
+                }
+              } catch (intelError) {
+                logger.warn('[SmarterAtlas] Error building enhanced prompts, falling back to default:', intelError.message);
+                // Continue with default prompts - don't break the request
+              }
+            }
+            
+            finalText = await streamAnthropicResponse({ 
+              content: message.trim(), 
+              model: selectedModel, 
+              res, 
+              userId, 
+              conversationHistory, 
+              is_voice_call, 
+              tier: effectiveTier, 
+              preferences: userPreferences, 
+              conversationId: finalConversationId,
+              enhancedSystemPrompt,
+              enhancedUserPrompt
+            });
             streamCompleted = true;
             logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
             // ✅ CRITICAL: If stream returned empty, it means no data was received
@@ -2475,7 +2535,43 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
         } else if (ANTHROPIC_API_KEY) {
           // Fallback to Claude if available
           logger.debug('[API CALL] Using Claude fallback');
-          finalText = await streamAnthropicResponse({ content: message.trim(), model: selectedModel, res, userId, conversationHistory, is_voice_call, tier: effectiveTier, conversationId: finalConversationId });
+          
+          // ✅ SMARTER ATLAS: Build enhanced prompts for fallback too (skip for voice calls)
+          let enhancedSystemPrompt = null;
+          let enhancedUserPrompt = null;
+          
+          if (!is_voice_call) {
+            try {
+              const userName = req.user?.user_metadata?.full_name || req.user?.email?.split('@')[0] || 'Atlas user';
+              const smarterPrompt = buildSmarterPrompt({
+                userId,
+                userName,
+                latestUserText: message.trim(),
+                recentMessages: conversationHistory,
+                conversationTags: [],
+              });
+              
+              if (smarterPrompt) {
+                enhancedSystemPrompt = smarterPrompt.systemPrompt;
+                enhancedUserPrompt = smarterPrompt.userPrompt;
+              }
+            } catch (intelError) {
+              logger.warn('[SmarterAtlas] Error building enhanced prompts for fallback:', intelError.message);
+            }
+          }
+          
+          finalText = await streamAnthropicResponse({ 
+            content: message.trim(), 
+            model: selectedModel, 
+            res, 
+            userId, 
+            conversationHistory, 
+            is_voice_call, 
+            tier: effectiveTier, 
+            conversationId: finalConversationId,
+            enhancedSystemPrompt,
+            enhancedUserPrompt
+          });
           streamCompleted = true;
           logger.debug('✅ Claude fallback completed, final text length:', finalText.length);
         } else {
