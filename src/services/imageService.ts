@@ -137,7 +137,7 @@ export const imageService = {
       user_id: userId,
       event_name: "image_scan_request",
       file_path: filePath,
-      metadata: { model: "claude-sonnet-4-5-20250929" }, // ✅ FIXED: Updated from claude-3-sonnet-20240229 (returns 404)
+      metadata: { model: "claude-3-5-sonnet-latest" }, // ✅ Billing-enabled model
     });
 
     // Get the public URL for the image

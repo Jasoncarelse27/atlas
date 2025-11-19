@@ -139,9 +139,9 @@ export const TIER_CONFIGS: Record<string, TierInfo> = {
 
 // AI Model allocation by tier
 export const AI_MODELS = {
-  free: 'claude-3-haiku-20240307',
-  core: 'claude-sonnet-4-5-20250929', // ✅ FIXED: Updated from claude-3-sonnet-20240229 (returns 404)
-  studio: 'claude-sonnet-4-5-20250929' // ✅ FIXED: Updated from claude-3-opus-20240229 (returns 404)
+  free: 'claude-3-5-haiku-latest', // ✅ Billing-enabled model
+  core: 'claude-3-5-sonnet-latest', // ✅ Billing-enabled model
+  studio: 'claude-3-5-sonnet-latest' // ✅ Billing-enabled model
 };
 
 // Hard limits for cost protection
