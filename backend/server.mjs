@@ -1094,10 +1094,29 @@ You are having a natural voice conversation. Respond as if you can hear them cle
   // ✅ CRITICAL FIX: Log even if tokens are 0 (for debugging) but only if userId exists
   if (userId) {
     try {
-      // ✅ CRITICAL: If no token usage captured, log a warning but still attempt to log
+      // ✅ CRITICAL: If no token usage captured, estimate tokens as fallback (4.x models don't return usage)
       if (tokenUsage.input_tokens === 0 && tokenUsage.output_tokens === 0) {
-        logger.warn('[streamAnthropicResponse] ⚠️ No token usage captured from stream - message_stop event may have been missed');
-        // Don't skip logging - log with 0 tokens for debugging
+        logger.warn('[streamAnthropicResponse] ⚠️ No token usage captured from stream - estimating tokens as fallback');
+        
+        // ✅ TOKEN ESTIMATION: Rough estimate (4 characters ≈ 1 token for English text)
+        // Estimate input tokens from user message + conversation history
+        const userMessageLength = (content || '').length;
+        const historyLength = conversationHistory.reduce((sum, msg) => sum + (msg.content || '').length, 0);
+        const systemPromptLength = (finalSystemPrompt || '').length;
+        const estimatedInputTokens = Math.ceil((userMessageLength + historyLength + systemPromptLength) / 4);
+        
+        // Estimate output tokens from response
+        const estimatedOutputTokens = Math.ceil((fullText || '').length / 4);
+        
+        // Update tokenUsage with estimates
+        tokenUsage = {
+          input_tokens: estimatedInputTokens,
+          output_tokens: estimatedOutputTokens,
+          model: model,
+          estimated: true // Flag to indicate these are estimates
+        };
+        
+        logger.info(`[streamAnthropicResponse] 📊 Estimated tokens: ${estimatedInputTokens} input, ${estimatedOutputTokens} output (model: ${model})`);
       }
       
       const { estimateRequestCost } = await import('./config/intelligentTierSystem.mjs');
@@ -1117,7 +1136,8 @@ You are having a natural voice conversation. Respond as if you can hear them cle
             model,
             input_tokens: tokenUsage.input_tokens,
             output_tokens: tokenUsage.output_tokens,
-            message_length: fullText.length
+            message_length: fullText.length,
+            estimated: tokenUsage.estimated || false // Flag if tokens were estimated
           },
           created_at: new Date().toISOString()
         });
@@ -2916,7 +2936,7 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
     const authenticatedUserId = req.user?.id;
     // ✅ Use tier from tierGateMiddleware (already validated)
     const tier = req.tier || 'free';
-    const selectedModel = req.selectedModel || 'claude-3-sonnet-20240229'; // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
+    const selectedModel = req.selectedModel || 'claude-sonnet-4-5-20250929'; // ✅ Works (4.x models don't return usage, we estimate)
     
     // ✅ FIX: Support both single imageUrl (legacy) and attachments array (new)
     const imageAttachments = attachments && Array.isArray(attachments) && attachments.length > 0

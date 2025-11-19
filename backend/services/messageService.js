@@ -107,12 +107,13 @@ function getSupabase() {
   return supabase;
 }
 
-// ✅ PRODUCTION MODELS: Use billing-enabled models that return usage data
+// ✅ PRODUCTION MODELS: Use working models (claude-3-sonnet-20240229 and claude-3-5-sonnet-latest both return 404)
 // Studio tier uses Sonnet (not Opus) for launch - matches frontend configuration
+// Note: claude-sonnet-4-5-20250929 works but doesn't return usage - we estimate tokens as fallback
 const MODEL_MAP = {
   free: "claude-3-5-haiku-latest", // ✅ Verified working - billing-enabled
-  core: "claude-3-sonnet-20240229", // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
-  studio: "claude-3-sonnet-20240229" // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
+  core: "claude-sonnet-4-5-20250929", // ✅ Works (4.x models don't return usage, we estimate)
+  studio: "claude-sonnet-4-5-20250929" // ✅ Works (4.x models don't return usage, we estimate)
 };
 
 /**

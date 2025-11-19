@@ -208,9 +208,10 @@ export function isValidTier(tier: string): tier is Tier {
 
 // Map tiers → Claude model with exact model names
 export function getClaudeModelName(tier: Tier): string {
-  // ✅ Billing-enabled models that return usage data in streaming
-  if (tier === 'studio') return 'claude-3-sonnet-20240229'; // ✅ Billing-enabled (claude-3-5-sonnet-latest returns 404)
-  if (tier === 'core') return 'claude-3-sonnet-20240229'; // ✅ Billing-enabled (claude-3-5-sonnet-latest returns 404)
+  // ✅ Working models (claude-3-sonnet-20240229 and claude-3-5-sonnet-latest both return 404)
+  // Note: claude-sonnet-4-5-20250929 works but doesn't return usage - backend estimates tokens
+  if (tier === 'studio') return 'claude-sonnet-4-5-20250929';
+  if (tier === 'core') return 'claude-sonnet-4-5-20250929';
   return 'claude-3-5-haiku-latest'; // ✅ Billing-enabled model
 }
 

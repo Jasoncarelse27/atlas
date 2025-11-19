@@ -239,5 +239,5 @@ export function getModelInfo(model: string) {
     },
   };
   
-  return models[model as keyof typeof models] || models['claude-3-sonnet-20240229'];
+  return models[model as keyof typeof models] || models['claude-sonnet-4-5-20250929'];
 }

@@ -166,9 +166,9 @@ export function useAIProvider({ userTier, selectedModel }: UseAIProviderParams) 
       case 'groq':
         return { perToken: 0.0000002, model: 'llama3.3-70b-versatile' }; // Very cheap
       case 'claude':
-        return { perToken: 0.000003, model: 'claude-3-sonnet-20240229' }; // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
+        return { perToken: 0.000003, model: 'claude-sonnet-4-5-20250929' }; // ✅ Works (4.x models don't return usage, backend estimates)
       case 'opus':
-        return { perToken: 0.000015, model: 'claude-3-sonnet-20240229' }; // ✅ Changed from Opus to Sonnet (billing-enabled, claude-3-5-sonnet-latest returns 404)
+        return { perToken: 0.000015, model: 'claude-sonnet-4-5-20250929' }; // ✅ Changed from Opus to Sonnet (works, backend estimates tokens)
       default:
         return { perToken: 0.0000002, model: 'unknown' };
     }

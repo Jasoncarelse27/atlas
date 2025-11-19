@@ -140,8 +140,8 @@ export const TIER_CONFIGS: Record<string, TierInfo> = {
 // AI Model allocation by tier
 export const AI_MODELS = {
   free: 'claude-3-5-haiku-latest', // ✅ Billing-enabled model
-  core: 'claude-3-sonnet-20240229', // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
-  studio: 'claude-3-sonnet-20240229' // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
+  core: 'claude-sonnet-4-5-20250929', // ✅ Works (4.x models don't return usage, backend estimates)
+  studio: 'claude-sonnet-4-5-20250929' // ✅ Works (4.x models don't return usage, backend estimates)
 };
 
 // Hard limits for cost protection

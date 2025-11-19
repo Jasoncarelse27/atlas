@@ -137,7 +137,7 @@ export const imageService = {
       user_id: userId,
       event_name: "image_scan_request",
       file_path: filePath,
-      metadata: { model: "claude-3-sonnet-20240229" }, // ✅ Billing-enabled model (claude-3-5-sonnet-latest returns 404)
+      metadata: { model: "claude-sonnet-4-5-20250929" }, // ✅ Works (4.x models don't return usage, backend estimates)
     });
 
     // Get the public URL for the image
