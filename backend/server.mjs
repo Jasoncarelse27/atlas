@@ -2566,25 +2566,97 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
               }
             }
             
-            finalText = await streamAnthropicResponse({ 
-              content: message.trim(), 
-              model: selectedModel, 
-              res, 
-              userId, 
-              conversationHistory, 
-              is_voice_call, 
-              tier: effectiveTier, 
-              preferences: userPreferences, 
-              conversationId: finalConversationId,
-              enhancedSystemPrompt,
-              enhancedUserPrompt
-            });
-            streamCompleted = true;
-            logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
-            // ✅ CRITICAL: If stream returned empty, it means no data was received (error messages are handled above)
-            if (!finalText || finalText.trim().length === 0) {
-              logger.error(`❌ [API CALL] Stream completed but returned empty response`);
-              throw new Error('Anthropic API stream completed without sending any data chunks');
+            // ✅ RETRY LOGIC: Retry on overloaded_error with exponential backoff
+            const MAX_RETRIES = 2; // Retry up to 2 times (3 total attempts)
+            let retryAttempt = 0;
+            let lastError = null;
+            
+            while (retryAttempt <= MAX_RETRIES) {
+              try {
+                finalText = await streamAnthropicResponse({ 
+                  content: message.trim(), 
+                  model: selectedModel, 
+                  res, 
+                  userId, 
+                  conversationHistory, 
+                  is_voice_call, 
+                  tier: effectiveTier, 
+                  preferences: userPreferences, 
+                  conversationId: finalConversationId,
+                  enhancedSystemPrompt,
+                  enhancedUserPrompt
+                });
+                
+                // ✅ Check if response is an error message (indicates overloaded_error was handled)
+                const isOverloadError = finalText && (
+                  finalText.includes('experiencing high demand') ||
+                  finalText.includes('rate limit exceeded')
+                );
+                
+                if (isOverloadError && retryAttempt < MAX_RETRIES) {
+                  // This was an overload error - retry with exponential backoff
+                  retryAttempt++;
+                  const delay = Math.pow(2, retryAttempt) * 1000; // 2s, 4s delays
+                  logger.warn(`[API CALL] ⚠️ Overload detected, retrying in ${delay}ms (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
+                  
+                  // Send retry status to frontend
+                  writeSSE(res, { 
+                    event: 'retry',
+                    attempt: retryAttempt + 1,
+                    maxRetries: MAX_RETRIES + 1,
+                    delay: delay,
+                    message: `Retrying... (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`
+                  });
+                  
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue; // Retry
+                }
+                
+                // Success or final attempt - break out of retry loop
+                streamCompleted = true;
+                logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
+                
+                // ✅ CRITICAL: If stream returned empty, it means no data was received (error messages are handled above)
+                if (!finalText || finalText.trim().length === 0) {
+                  logger.error(`❌ [API CALL] Stream completed but returned empty response`);
+                  throw new Error('Anthropic API stream completed without sending any data chunks');
+                }
+                
+                break; // Success - exit retry loop
+              } catch (apiError) {
+                lastError = apiError;
+                const errorMessage = apiError?.message || '';
+                
+                // Only retry on overloaded errors
+                const isOverloadError = errorMessage.includes('overloaded') || 
+                                       errorMessage.includes('Overloaded') ||
+                                       errorMessage.includes('rate limit');
+                
+                if (isOverloadError && retryAttempt < MAX_RETRIES) {
+                  retryAttempt++;
+                  const delay = Math.pow(2, retryAttempt) * 1000;
+                  logger.warn(`[API CALL] ⚠️ Overload error caught, retrying in ${delay}ms (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
+                  
+                  writeSSE(res, { 
+                    event: 'retry',
+                    attempt: retryAttempt + 1,
+                    maxRetries: MAX_RETRIES + 1,
+                    delay: delay,
+                    message: `Retrying... (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`
+                  });
+                  
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue; // Retry
+                }
+                
+                // Not an overload error or max retries reached - throw
+                throw apiError;
+              }
+            }
+            
+            // If we exhausted retries and still have error message, that's fine - it was sent via SSE
+            if (lastError && finalText && finalText.includes('experiencing high demand')) {
+              streamCompleted = true; // Mark as completed - error message was sent
             }
           } catch (apiError) {
             logger.error(`❌ [API CALL] streamAnthropicResponse threw error:`, apiError);
