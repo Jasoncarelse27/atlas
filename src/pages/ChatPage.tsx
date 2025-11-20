@@ -353,8 +353,33 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           : []
       } as Message));
       
-      // Set React state (Dexie is authoritative source)
-      setMessages(formattedMessages);
+      // ✅ CRITICAL FIX: Preserve optimistic messages that haven't been synced yet
+      // This prevents messages from disappearing during the send/receive window
+      setMessages(prev => {
+        // Find optimistic messages (status: 'sending' or 'failed') that aren't in loaded messages
+        const optimisticMessages = prev.filter(msg => 
+          (msg.status === 'sending' || msg.status === 'failed') && 
+          !formattedMessages.some(loaded => loaded.id === msg.id)
+        );
+        
+        // Merge: loaded messages + optimistic messages that aren't confirmed yet
+        const merged = [...formattedMessages, ...optimisticMessages];
+        
+        // Sort by timestamp to maintain chronological order
+        merged.sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime();
+          const timeB = new Date(b.timestamp).getTime();
+          return timeA - timeB; // Ascending order (oldest first)
+        });
+        
+        logger.debug('[ChatPage] ✅ Merged messages:', {
+          loaded: formattedMessages.length,
+          optimistic: optimisticMessages.length,
+          total: merged.length
+        });
+        
+        return merged;
+      });
       logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
       
       // ✅ OPTIMIZATION: Cache the promise and result
