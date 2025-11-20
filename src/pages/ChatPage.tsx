@@ -87,21 +87,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
   const [userName, setUserName] = useState<string | undefined>(undefined);
   
-  // ✅ CRITICAL FIX: Messages state MUST be declared before useMailerAutomation (line 165 uses messages.length)
+  // ✅ CRITICAL FIX: ALL state/refs MUST be declared before ANY hooks that use them
+  // Messages state (used in useMailerAutomation line 170 and useAutoScroll line 191)
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   
-  // Custom hooks (may depend on router/context/state)
-  // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
-  // Note: useAndroidBackButton internally calls useNavigate/useLocation - that's fine, React handles it
-  useAndroidBackButton();
-  const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
-  const { isMobile, triggerHaptic } = useMobileOptimization();
-  
-  // React Query hooks (must be AFTER all other hooks to prevent initialization order issues)
-  // 🔥 Modern tier management with React Query + Realtime
-  const { tier, refreshTier } = useTierQuery();
+  // Pull-to-refresh state (used in JSX handlers)
+  const [pullStartY, setPullStartY] = useState(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const lastRefreshTimeRef = useRef<number>(0);
+  const touchStartTimeRef = useRef<number>(0);
   
   // ✅ TYPESCRIPT FIX: Use proper Conversation type instead of any[]
   interface HistoryModalData {
@@ -124,10 +121,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Removed duplicate useMessageStore - using usePersistentMessages as single source of truth
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // ✅ CRITICAL FIX: Declare refs BEFORE they're used in useEffect
+  // ✅ CRITICAL FIX: Declare refs BEFORE they're used in useEffect or hooks
   const isProcessingRef = useRef(false);
   const lastMessageRef = useRef<string>('');
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Custom hooks (may depend on router/context/state)
+  // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
+  // Note: useAndroidBackButton internally calls useNavigate/useLocation - that's fine, React handles it
+  useAndroidBackButton();
+  const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
+  const { isMobile, triggerHaptic } = useMobileOptimization();
+  
+  // React Query hooks (must be AFTER all other hooks to prevent initialization order issues)
+  // 🔥 Modern tier management with React Query + Realtime
+  const { tier, refreshTier } = useTierQuery();
 
   // Memory integration
   useMemoryIntegration({ userId: userId || undefined });
@@ -176,18 +185,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ ENTERPRISE: Real-time conversation deletion listener (clean, reliable)
   useRealtimeConversations(userId || undefined);
   
-  // ✅ UX IMPROVEMENT: Pull-to-refresh state (mobile)
-  const [pullStartY, setPullStartY] = useState(0);
-  const [pullDistance, setPullDistance] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const lastRefreshTimeRef = useRef<number>(0);
-  const touchStartTimeRef = useRef<number>(0);
-  
-  // ✅ CRITICAL FIX: Declare ref BEFORE useAutoScroll hook (dependency)
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  
   // ✅ CRITICAL FIX: Move useAutoScroll to top (BEFORE useCallbacks/useEffects)
   // This MUST be called before any conditional logic or effects to prevent hook order violations
+  // messagesContainerRef is now declared at top (line ~130) before this hook
   const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages.length], messagesContainerRef);
 
   // ✅ CRITICAL FIX: Move useTutorial to top (BEFORE useCallbacks/useEffects)
