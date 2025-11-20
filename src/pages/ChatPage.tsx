@@ -86,12 +86,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
   
-  // Custom hooks last (may depend on router/context/state)
+  // React Query hooks (must be before hooks that depend on tier)
+  // 🔥 Modern tier management with React Query + Realtime
+  const { tier, refreshTier } = useTierQuery();
+  
+  // Custom hooks (may depend on router/context/state/tier)
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
   // Note: useAndroidBackButton internally calls useNavigate/useLocation - that's fine, React handles it
   useAndroidBackButton();
   const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
   const { isMobile, triggerHaptic } = useMobileOptimization();
+  
   // ✅ TYPESCRIPT FIX: Use proper Conversation type instead of any[]
   interface HistoryModalData {
     conversations: Array<{
@@ -120,9 +125,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // Memory integration
   useMemoryIntegration({ userId: userId || undefined });
-
-  // 🔥 Modern tier management with React Query + Realtime
-  const { tier, refreshTier } = useTierQuery();
   
   // ✅ Tier refresh on focus/visibility (cross-device sync)
   useTierRefreshOnFocus();
