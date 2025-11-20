@@ -5,8 +5,9 @@
  */
 
 import { logger } from '../lib/logger';
+import { supabase } from '../lib/supabaseClient';
 import { getApiEndpoint } from '../utils/apiClient';
-import { getAuthTokenOrThrow } from '../utils/getAuthToken';
+import { getAuthToken } from '../utils/getAuthToken';
 
 export type MailerLiteEvent = 
   | 'user_signup'
@@ -53,10 +54,19 @@ class MailerLiteService {
   /**
    * Create or update subscriber
    * ✅ FIXED: Uses backend proxy to avoid CORS and API key exposure
+   * ✅ FIXED: Checks authentication before attempting token refresh to prevent rate limits
    */
   async createOrUpdateSubscriber(data: SubscriberData): Promise<void> {
     try {
-      const token = await getAuthTokenOrThrow('Authentication required for MailerLite sync').catch(() => null);
+      // ✅ FIXED: Check if user is authenticated BEFORE trying to get token
+      // This prevents rate limit loops when session is expired
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        logger.debug('[MailerLite] No session - skipping subscriber sync');
+        return;
+      }
+      
+      const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping subscriber sync');
         return;
@@ -105,10 +115,18 @@ class MailerLiteService {
   /**
    * Update custom fields for subscriber
    * ✅ FIXED: Uses backend proxy to avoid CORS and API key exposure
+   * ✅ FIXED: Checks authentication before attempting token refresh to prevent rate limits
    */
   async updateCustomFields(email: string, fields: Record<string, any>): Promise<void> {
     try {
-      const token = await getAuthTokenOrThrow('Authentication required for MailerLite sync').catch(() => null);
+      // ✅ FIXED: Check if user is authenticated BEFORE trying to get token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        logger.debug('[MailerLite] No session - skipping custom fields update');
+        return;
+      }
+      
+      const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping custom fields update');
         return;
@@ -147,10 +165,18 @@ class MailerLiteService {
   /**
    * Trigger event for subscriber
    * ✅ FIXED: Uses backend proxy to avoid CORS and API key exposure
+   * ✅ FIXED: Checks authentication before attempting token refresh to prevent rate limits
    */
   async triggerEvent(params: TriggerEventParams): Promise<void> {
     try {
-      const token = await getAuthTokenOrThrow('Authentication required for MailerLite sync').catch(() => null);
+      // ✅ FIXED: Check if user is authenticated BEFORE trying to get token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        logger.debug('[MailerLite] No session - skipping event trigger');
+        return;
+      }
+      
+      const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping event trigger');
         return;
@@ -193,10 +219,18 @@ class MailerLiteService {
   /**
    * Add subscriber to group
    * ✅ FIXED: Uses backend proxy to avoid CORS and API key exposure
+   * ✅ FIXED: Checks authentication before attempting token refresh to prevent rate limits
    */
   async segmentSubscriber(email: string, groupName: string): Promise<void> {
     try {
-      const token = await getAuthTokenOrThrow('Authentication required for MailerLite sync').catch(() => null);
+      // ✅ FIXED: Check if user is authenticated BEFORE trying to get token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        logger.debug('[MailerLite] No session - skipping group segment');
+        return;
+      }
+      
+      const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping group segment');
         return;
@@ -236,10 +270,18 @@ class MailerLiteService {
   /**
    * Remove subscriber from group
    * ✅ FIXED: Uses backend proxy to avoid CORS and API key exposure
+   * ✅ FIXED: Checks authentication before attempting token refresh to prevent rate limits
    */
   async removeFromGroup(email: string, groupName: string): Promise<void> {
     try {
-      const token = await getAuthTokenOrThrow('Authentication required for MailerLite sync').catch(() => null);
+      // ✅ FIXED: Check if user is authenticated BEFORE trying to get token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        logger.debug('[MailerLite] No session - skipping group removal');
+        return;
+      }
+      
+      const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping group removal');
         return;

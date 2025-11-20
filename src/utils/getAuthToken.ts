@@ -99,18 +99,55 @@ export async function getAuthToken(forceRefresh = false): Promise<string | null>
   }
 }
 
+// ✅ RATE LIMIT PROTECTION: Track recent refresh attempts to prevent loops
+let lastRefreshAttempt = 0;
+let consecutiveFailures = 0;
+const RATE_LIMIT_WINDOW = 5000; // 5 seconds
+const MAX_CONSECUTIVE_FAILURES = 3;
+
 /**
  * Get auth token or throw error (convenience wrapper)
+ * 
+ * ✅ FIXED: Prevents rate limit loops by:
+ * - Not forcing refresh if no session exists
+ * - Detecting rate limits and backing off
+ * - Tracking consecutive failures
  * 
  * @param errorMessage - Custom error message if token is not available
  * @returns Promise<string> - The access token (never null)
  * @throws Error if token is not available
  */
 export async function getAuthTokenOrThrow(errorMessage = 'Authentication required. Please sign in and try again.'): Promise<string> {
-  const token = await getAuthToken(true); // Force refresh attempt
-  if (!token) {
+  // ✅ RATE LIMIT PROTECTION: Check if we've hit rate limit recently
+  const now = Date.now();
+  const timeSinceLastAttempt = now - lastRefreshAttempt;
+  
+  if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES && timeSinceLastAttempt < RATE_LIMIT_WINDOW) {
+    logger.warn('[getAuthToken] ⚠️ Rate limit protection: Too many recent failures, backing off');
+    throw new Error('Authentication rate limit reached. Please wait a moment and try again.');
+  }
+  
+  // ✅ FIXED: Check if session exists BEFORE forcing refresh
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    // No session - don't try to refresh, just fail fast
+    consecutiveFailures++;
+    lastRefreshAttempt = now;
     throw new Error(errorMessage);
   }
+  
+  // Session exists - try to get token (with refresh if needed)
+  const token = await getAuthToken(true); // Force refresh attempt
+  
+  if (!token) {
+    consecutiveFailures++;
+    lastRefreshAttempt = now;
+    throw new Error(errorMessage);
+  }
+  
+  // Success - reset failure counter
+  consecutiveFailures = 0;
   return token;
 }
 
