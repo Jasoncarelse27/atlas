@@ -345,6 +345,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         content: msg.content,
         timestamp: msg.timestamp,
         type: msg.type || 'text',
+        status: msg.status, // ✅ CRITICAL: Preserve status field from Dexie
         // ✅ CRITICAL FIX: Deduplicate attachments by URL
         attachments: Array.isArray(msg.attachments)
           ? msg.attachments.filter(
@@ -666,7 +667,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         status: 'sending' // ✅ NEW: Show sending status
       };
       
-      // ✅ CRITICAL: Save user message to Dexie IMMEDIATELY
+      // ✅ CRITICAL: Save user message to Dexie IMMEDIATELY with status
       await atlasDB.messages.put({
         id: userMessageId,
         conversationId: conversationId,
@@ -675,6 +676,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         content: text,
         timestamp: optimisticUserMessage.timestamp,
         type: 'text',
+        status: 'sending', // ✅ CRITICAL: Include status so merge logic works on refresh
         synced: false, // Will be synced to Supabase by backend
         updatedAt: optimisticUserMessage.timestamp
       });
@@ -1349,6 +1351,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             
             await atlasDB.messages.update(messageToSave.id, {
               ...messageToSave,
+              status: 'sent', // ✅ CRITICAL: Mark as sent so it persists on refresh
               attachments: uniqueAttachments.length > 0 ? uniqueAttachments : undefined
             });
           } else {
@@ -1360,6 +1363,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             // ✅ TYPESCRIPT FIX: messageToSave already matches Message interface from atlasDB
             await atlasDB.messages.put({
               ...messageToSave,
+              status: 'sent', // ✅ CRITICAL: Mark as sent so it persists on refresh
               attachments: uniqueAttachments
             });
           }
