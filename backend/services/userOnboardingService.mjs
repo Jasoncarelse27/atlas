@@ -1,8 +1,8 @@
 // backend/services/userOnboardingService.mjs
 
-import { notificationService } from './notificationService.mjs';
-import { logger } from '../lib/simpleLogger.mjs';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '../lib/simpleLogger.mjs';
+import { notificationService } from './notificationService.mjs';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
