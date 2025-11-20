@@ -73,6 +73,135 @@ export const mapEventType = (eventType: string, oldTier?: string, newTier?: stri
 };
 
 /**
+ * Sync tier changes to MailerLite
+ */
+async function syncMailerLite(
+  userId: string,
+  newTier: string,
+  oldTier?: string,
+  eventType?: string
+): Promise<void> {
+  const MAILERLITE_API_KEY = Deno.env.get("MAILERLITE_API_KEY");
+  
+  if (!MAILERLITE_API_KEY) {
+    console.log("[FastSpring Webhook] MailerLite not configured - skipping sync");
+    return;
+  }
+
+  try {
+    // Get user email from Supabase
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile?.email) {
+      console.error("[FastSpring Webhook] Could not fetch user email for MailerLite sync:", profileError);
+      return;
+    }
+
+    const email = profile.email;
+
+    // Update subscriber tier
+    const subscriberData = {
+      email,
+      fields: {
+        tier: newTier,
+        last_active: new Date().toISOString(),
+        subscription_status: eventType?.includes('cancel') ? 'cancelled' : 'active',
+      },
+      resubscribe: true,
+    };
+
+    const updateResponse = await fetch("https://api.mailerlite.com/api/v2/subscribers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MailerLite-ApiKey": MAILERLITE_API_KEY,
+      },
+      body: JSON.stringify(subscriberData),
+    });
+
+    if (!updateResponse.ok) {
+      const errorData = await updateResponse.text().catch(() => "Unknown error");
+      console.error(`[FastSpring Webhook] MailerLite subscriber update failed: ${updateResponse.status} - ${errorData}`);
+      return;
+    }
+
+    // Trigger tier change event
+    const eventName = newTier === 'free' ? 'tier_downgrade' : 'tier_upgrade';
+    
+    // Update custom fields with event (MailerLite v2 API pattern)
+    const eventResponse = await fetch(`https://api.mailerlite.com/api/v2/subscribers/${encodeURIComponent(email)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MailerLite-ApiKey": MAILERLITE_API_KEY,
+      },
+      body: JSON.stringify({
+        fields: {
+          last_event: eventName,
+          last_event_time: new Date().toISOString(),
+          previous_tier: oldTier || 'free',
+          new_tier: newTier,
+        },
+      }),
+    });
+
+    if (!eventResponse.ok) {
+      const errorData = await eventResponse.text().catch(() => "Unknown error");
+      console.error(`[FastSpring Webhook] MailerLite event update failed: ${eventResponse.status} - ${errorData}`);
+      // Don't throw - continue even if event update fails
+    }
+
+    // Add/remove from tier-specific groups
+    const tierGroups: Record<string, string> = {
+      free: 'atlas_free_users',
+      core: 'core_subscribers',
+      studio: 'studio_subscribers',
+    };
+
+    // Remove from old tier group
+    if (oldTier && tierGroups[oldTier]) {
+      try {
+        await fetch(`https://api.mailerlite.com/api/v2/groups/${tierGroups[oldTier]}/subscribers/${encodeURIComponent(email)}`, {
+          method: "DELETE",
+          headers: {
+            "X-MailerLite-ApiKey": MAILERLITE_API_KEY,
+          },
+        });
+      } catch (error) {
+        // Ignore errors when removing from group
+        console.debug(`[FastSpring Webhook] Could not remove from old tier group: ${error}`);
+      }
+    }
+
+    // Add to new tier group
+    if (tierGroups[newTier]) {
+      try {
+        await fetch(`https://api.mailerlite.com/api/v2/groups/${tierGroups[newTier]}/subscribers`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-MailerLite-ApiKey": MAILERLITE_API_KEY,
+          },
+          body: JSON.stringify({ email }),
+        });
+      } catch (error) {
+        // Ignore errors when adding to group
+        console.debug(`[FastSpring Webhook] Could not add to new tier group: ${error}`);
+      }
+    }
+
+    console.log(`[FastSpring Webhook] ✅ MailerLite synced for ${email} -> ${newTier}`);
+  } catch (error) {
+    console.error("[FastSpring Webhook] MailerLite sync error:", error);
+    // Don't throw - MailerLite failures shouldn't break webhook
+  }
+}
+
+/**
  * Send MagicBell notification for subscription events
  */
 async function sendMagicBellNotification(
@@ -260,6 +389,9 @@ serve(async (req) => {
 
     // Send MagicBell notification (non-blocking - don't fail webhook if notification fails)
     await sendMagicBellNotification(userId, mappedEvent || 'unknown', normalizedNewTier, oldTier);
+    
+    // ✅ MailerLite Integration: Sync tier changes to MailerLite
+    await syncMailerLite(userId, normalizedNewTier, oldTier, mappedEvent || 'unknown');
     
     return new Response(JSON.stringify({ 
       success: true,

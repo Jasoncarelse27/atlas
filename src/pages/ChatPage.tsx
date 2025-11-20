@@ -33,6 +33,7 @@ import { generateUUID } from '../utils/uuid';
 
 // Sidebar components
 import { ConversationHistoryDrawer } from '../components/ConversationHistoryDrawer';
+import { MailerLiteIntegration } from '../components/MailerLiteIntegration';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { PWAInstallPrompt } from '../components/PWAInstallPrompt'; // ✅ PWA: Install prompt for mobile users
 import { SearchDrawer } from '../components/SearchDrawer';
@@ -43,6 +44,7 @@ import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
+import { useMailerEvents } from '../hooks/useMailer';
 import { useMobileOptimization } from '../hooks/useMobileOptimization'; // ✅ UX IMPROVEMENT: Mobile optimization for pull-to-refresh
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 import { useTutorial } from '../hooks/useTutorial';
@@ -517,6 +519,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       return;
     }
     
+    // ✅ FIX: Trigger first message event (persistent across remounts using localStorage)
+    if (userId && userEmail && messages.length === 0) {
+      const firstMessageKey = `atlas:first_message_${userId}`;
+      const hasTriggered = typeof window !== 'undefined' && localStorage.getItem(firstMessageKey) === 'true';
+      
+      if (!hasTriggered) {
+        triggerMailerLiteEvent('first_message', {
+          tier: tier || 'free',
+          timestamp: new Date().toISOString(),
+        }).then(() => {
+          // Mark as triggered in localStorage (persists across remounts)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(firstMessageKey, 'true');
+          }
+        }).catch(error => {
+          logger.debug('[ChatPage] MailerLite first message event failed (non-critical):', error);
+        });
+      }
+    }
+    
     // ✅ SECURITY: Validate message length (prevent abuse, protect API costs) - Tier-aware
     // Aligned with token monitoring system: ~4 characters per token
     // Limits based on maxTokensPerResponse × multiplier for good UX
@@ -793,6 +815,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (isMonthlyLimit) {
           logger.warn('[ChatPage] ⚠️ Monthly limit reached - showing upgrade modal');
           
+          // ✅ MailerLite: Trigger monthly limit event
+          if (userEmail) {
+            triggerMailerLiteEvent('monthly_limit_reached', {
+              tier: tier || 'free',
+              limit: 15,
+              timestamp: new Date().toISOString(),
+            }).catch(error => {
+              logger.debug('[ChatPage] MailerLite event trigger failed (non-critical):', error);
+            });
+          }
+          
           // ✅ CRITICAL: Show toast notification immediately (synchronous, no setTimeout)
           try {
             toast.error('Monthly message limit reached. Upgrade to continue!', {
@@ -1015,6 +1048,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
+  // User metadata state for MailerLite
+  const [userName, setUserName] = useState<string | undefined>(undefined);
+  
+  // MailerLite event triggers
+  const { triggerEvent: triggerMailerLiteEvent } = useMailerEvents(userEmail || '');
+
   // ✅ FIX: Get authenticated user with better logging
   useEffect(() => {
     const getAuthUser = async () => {
@@ -1029,6 +1068,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (user) {
           setUserId(user.id);
           setUserEmail(user.email || null);
+          setUserName(user.user_metadata?.full_name);
           logger.debug('[ChatPage] ✅ User authenticated:', user.id);
         } else {
           logger.warn('[ChatPage] ⚠️ No authenticated user found');
@@ -2573,6 +2613,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             isOpen={showQuestionnaire}
             onClose={() => setShowQuestionnaire(false)}
             userId={userId}
+          />
+        )}
+
+        {/* MailerLite Integration - Auto-syncs user data and triggers events */}
+        {userId && userEmail && (
+          <MailerLiteIntegration
+            userEmail={userEmail}
+            userName={userName}
+            userTier={tier || 'free'}
+            conversationsToday={0} // TODO: Track daily conversation count
+            totalConversations={messages.length} // Use message count as proxy
+            onError={(error) => {
+              logger.debug('[MailerLite] Error:', error);
+              // Don't show errors to user - MailerLite is non-critical
+            }}
+            onSuccess={(operation) => {
+              logger.debug('[MailerLite] Success:', operation);
+            }}
           />
         )}
         

@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { logger } from '../lib/logger';
 import type { Tier } from '../types/tier';
+import { getPlatform, isNativeIOS } from '../utils/platformDetection';
+import { iosIAPService } from '../services/iosIAPService';
 
 export type UpgradeTrigger = 'message_limit' | 'voice_feature' | 'image_feature' | 'general';
 
@@ -32,7 +34,58 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
     closeUpgradeModal();
     
     try {
-      // Show loading toast
+      const platform = getPlatform();
+      
+      // ✅ PLATFORM ROUTING: Route to appropriate payment provider
+      if (platform === 'ios' && isNativeIOS()) {
+        // iOS native app - use App Store IAP
+        const loadingToast = toast.loading('Connecting to App Store...');
+        
+        try {
+          // Check if IAP is available
+          const isAvailable = await iosIAPService.checkAvailability();
+          
+          if (!isAvailable) {
+            toast.dismiss(loadingToast);
+            toast.error(
+              'In-app purchases are not available. Please upgrade via the web version.',
+              { duration: 5000 }
+            );
+            return;
+          }
+          
+          // Initiate purchase
+          const result = await iosIAPService.purchaseSubscription(tier);
+          
+          toast.dismiss(loadingToast);
+          
+          if (result.success) {
+            toast.success(`Welcome to Atlas ${tier.charAt(0).toUpperCase() + tier.slice(1)}! 🎉`);
+            ConversionAnalytics.trackUpgradeSuccess(tier, triggerReason || 'general');
+            
+            // Refresh page to show new tier
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          } else {
+            if (result.error?.includes('cancelled')) {
+              toast.info('Purchase cancelled');
+            } else {
+              toast.error(result.error || 'Purchase failed. Please try again.');
+            }
+          }
+        } catch (error) {
+          toast.dismiss(loadingToast);
+          logger.error('[Upgrade] iOS IAP error:', error);
+          toast.error(
+            'Failed to connect to App Store. Please try again or upgrade via the web version.',
+            { duration: 5000 }
+          );
+        }
+        return;
+      }
+      
+      // Web or Android - use FastSpring
       const loadingToast = toast.loading('Opening secure checkout...');
       
       // ✅ BEST PRACTICE: Dynamic import to avoid circular dependencies

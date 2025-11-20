@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMailer, useMailerEvents, useMailerStats } from '../hooks/useMailer';
 
 interface MailerLiteIntegrationProps {
@@ -51,6 +51,10 @@ export function MailerLiteIntegration({
   // Stats hook for admin purposes
   const { stats, isLoading: statsLoading, refetch: refetchStats } = useMailerStats();
 
+  // ✅ IDEMPOTENCY FIX: Track sent events to prevent duplicates
+  const limitEventSentRef = useRef(false);
+  const milestoneEventSentRef = useRef<Set<number>>(new Set());
+
   // Auto-update usage when props change
   useEffect(() => {
     if (isConfigured && userEmail) {
@@ -58,14 +62,22 @@ export function MailerLiteIntegration({
     }
   }, [isConfigured, userEmail, conversationsToday, totalConversations, updateUsage]);
 
-  // Auto-trigger conversation limit event for free tier
+  // Auto-trigger conversation limit event for free tier (with idempotency)
   useEffect(() => {
-    if (isConfigured && userEmail && userTier === 'free' && conversationsToday >= 2) {
+    if (isConfigured && userEmail && userTier === 'free' && conversationsToday >= 2 && !limitEventSentRef.current) {
+      limitEventSentRef.current = true;
       triggerEvent('conversation_limit_reached', {
         conversations_today: conversationsToday,
         tier_limit: 2,
         user_tier: userTier,
+      }).catch(() => {
+        // Reset on error so it can retry
+        limitEventSentRef.current = false;
       });
+    }
+    // Reset flag if user drops below limit (allows re-triggering if needed)
+    if (conversationsToday < 2) {
+      limitEventSentRef.current = false;
     }
   }, [isConfigured, userEmail, userTier, conversationsToday, triggerEvent]);
 
@@ -79,14 +91,22 @@ export function MailerLiteIntegration({
     }
   }, [isConfigured, userEmail, totalConversations, userTier, triggerEvent]);
 
-  // Auto-trigger milestone events
+  // Auto-trigger milestone events (with idempotency)
   useEffect(() => {
     if (isConfigured && userEmail && totalConversations > 0 && totalConversations % 10 === 0) {
-      triggerEvent('feature_usage_milestone', {
-        milestone: totalConversations,
-        conversations_today: conversationsToday,
-        user_tier: userTier,
-      });
+      const milestone = totalConversations;
+      // Only trigger if we haven't sent this milestone yet
+      if (!milestoneEventSentRef.current.has(milestone)) {
+        milestoneEventSentRef.current.add(milestone);
+        triggerEvent('feature_usage_milestone', {
+          milestone: milestone,
+          conversations_today: conversationsToday,
+          user_tier: userTier,
+        }).catch(() => {
+          // Remove on error so it can retry
+          milestoneEventSentRef.current.delete(milestone);
+        });
+      }
     }
   }, [isConfigured, userEmail, totalConversations, conversationsToday, userTier, triggerEvent]);
 
@@ -114,7 +134,7 @@ export function MailerLiteIntegration({
       await triggerEvent('subscription_cancelled', {
         cancelled_tier: userTier,
         cancel_date: new Date().toISOString(),
-        total_conversations,
+        total_conversations: totalConversations,
       });
       
       onSuccess?.('subscription_cancelled');

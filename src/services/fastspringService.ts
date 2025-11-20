@@ -201,6 +201,16 @@ class FastSpringService {
       throw new Error('Cannot create checkout for free tier');
     }
 
+    // ✅ PLATFORM CHECK: Skip FastSpring for iOS native apps
+    if (typeof window !== 'undefined') {
+      const { isNativeIOS } = await import('../utils/platformDetection');
+      if (isNativeIOS()) {
+        throw new Error(
+          'iOS users must upgrade via the App Store. Please use the native app to purchase subscriptions.'
+        );
+      }
+    }
+
     // Check if we're in mock mode
     const isMockMode = !import.meta.env.VITE_FASTSPRING_API_KEY || 
                        import.meta.env.VITE_FASTSPRING_API_KEY === PENDING_PLACEHOLDER;

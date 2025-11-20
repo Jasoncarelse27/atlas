@@ -3,6 +3,10 @@ import { mailerService as mockService } from "./mailerService.mock";
 import { mailerService as realService } from "./mailerService.real";
 import * as Templates from "./emailTemplates";
 
+// Export MailerLite service (for subscriber management and events)
+export { mailerLiteService } from "./mailerLiteService";
+export type { MailerLiteEvent, SubscriberData } from "./mailerLiteService";
+
 const useMock =
   process.env.NODE_ENV === "test" || process.env.USE_MOCK_MAILER === "true";
 

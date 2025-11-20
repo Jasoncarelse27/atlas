@@ -87,3 +87,9 @@ backup.sql
 node_modules/
 dist/
 .DS_Store
+
+# Test files with tokens (should not be committed)
+test-iap-*.sh
+test-iap-*.js
+APPLY_THIS_SQL_NOW.sql
+verify-test-results.sql
