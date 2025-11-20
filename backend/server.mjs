@@ -1112,6 +1112,13 @@ You are having a natural voice conversation. Respond as if you can hear them cle
               // Set fullText so it gets saved to DB
               fullText = userMessage;
               
+              // ✅ CRITICAL: Cancel reader to prevent hanging stream
+              try {
+                reader.cancel();
+              } catch (cancelError) {
+                logger.debug('[streamAnthropicResponse] Reader cancel error (non-critical):', cancelError.message);
+              }
+              
               // Break out of loop gracefully (don't throw)
               break;
             }
