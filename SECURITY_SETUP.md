@@ -24,7 +24,11 @@ Automatically runs before every commit to detect:
 - Passwords
 - Supabase service role keys
 
-**Location:** `.husky/pre-commit` → `scripts/pre-commit-security-scan.sh`
+**Primary Tool:** Gitleaks (industry standard)  
+**Fallback:** Custom regex scanner if Gitleaks not installed  
+**Location:** `.husky/pre-commit` → Uses Gitleaks first, falls back to `scripts/pre-commit-security-scan-improved.sh`
+
+**Install Gitleaks:** `brew install gitleaks`
 
 ### 3. **Git-Secrets Integration** (Optional)
 Advanced secret detection using AWS git-secrets tool.
