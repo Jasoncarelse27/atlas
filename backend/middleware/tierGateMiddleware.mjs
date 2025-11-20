@@ -50,18 +50,15 @@ export default async function tierGateMiddleware(req, res, next) {
                        req.path.includes('file') ? 'file_analysis' : 
                        'chat';
     
-    // Select optimal model based on tier and message length
+    // ✅ Select optimal model based on tier, message length, and complexity
+    // selectOptimalModel now handles smart routing internally (simple queries → Haiku)
+    // This is cleaner and more maintainable than overriding here
     const selectedModel = selectOptimalModel(tier, messageContent, requestType);
     
-    // ✅ COST CONTROL: Override to Haiku for short messages (<1k chars) regardless of tier
-    // This saves costs while maintaining quality for simple queries
-    const finalModel = messageLength > 0 && messageLength < 1000 
-      ? 'claude-3-5-haiku-latest' 
-      : selectedModel;
+    // ✅ Use the model selected by selectOptimalModel (includes smart routing)
+    req.selectedModel = selectedModel;
     
-    req.selectedModel = finalModel;
-    
-    logger.debug(`✅ [TierGate] User ${user.id} authenticated with tier: ${tier}, model: ${finalModel}, messageLength: ${messageLength}`);
+    logger.debug(`✅ [TierGate] User ${user.id} authenticated with tier: ${tier}, model: ${selectedModel}, messageLength: ${messageLength}`);
     next();
   } catch (error) {
     logger.error('[TierGate] Unexpected error:', error);

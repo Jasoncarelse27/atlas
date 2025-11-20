@@ -2566,16 +2566,21 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
               }
             }
             
-            // ✅ RETRY LOGIC: Retry on overloaded_error with exponential backoff
+            // ✅ RETRY LOGIC WITH MODEL FALLBACK: Retry on overloaded_error with exponential backoff + model fallback
+            // Research-backed: Fallback to Haiku when Sonnet overloads (best practice)
             const MAX_RETRIES = 2; // Retry up to 2 times (3 total attempts)
             let retryAttempt = 0;
             let lastError = null;
+            let currentModel = selectedModel; // Track current model (may change on fallback)
+            
+            // ✅ Import fallback function
+            const { getFallbackModel } = await import('./config/intelligentTierSystem.mjs');
             
             while (retryAttempt <= MAX_RETRIES) {
               try {
                 finalText = await streamAnthropicResponse({ 
                   content: message.trim(), 
-                  model: selectedModel, 
+                  model: currentModel, // Use current model (may be fallback)
                   res, 
                   userId, 
                   conversationHistory, 
@@ -2594,27 +2599,62 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
                 );
                 
                 if (isOverloadError && retryAttempt < MAX_RETRIES) {
-                  // This was an overload error - retry with exponential backoff
                   retryAttempt++;
-                  const delay = Math.pow(2, retryAttempt) * 1000; // 2s, 4s delays
-                  logger.warn(`[API CALL] ⚠️ Overload detected, retrying in ${delay}ms (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
                   
-                  // Send retry status to frontend
-                  writeSSE(res, { 
-                    event: 'retry',
-                    attempt: retryAttempt + 1,
-                    maxRetries: MAX_RETRIES + 1,
-                    delay: delay,
-                    message: `Retrying... (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`
-                  });
+                  // ✅ MODEL FALLBACK: If Sonnet overloads, try Haiku (research-backed best practice)
+                  // First retry uses fallback model (different model, no delay needed)
+                  const fallbackModel = getFallbackModel(currentModel, effectiveTier);
+                  const shouldFallback = fallbackModel && currentModel.includes('sonnet') && retryAttempt === 1;
                   
-                  await new Promise(resolve => setTimeout(resolve, delay));
-                  continue; // Retry
+                  if (shouldFallback) {
+                    logger.info(`[API CALL] 🔄 Sonnet overloaded, falling back to Haiku (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
+                    currentModel = fallbackModel;
+                    
+                    // Send fallback status to frontend
+                    writeSSE(res, { 
+                      event: 'model_fallback',
+                      from: selectedModel,
+                      to: fallbackModel,
+                      attempt: retryAttempt + 1,
+                      message: 'Switching to faster model due to high demand...'
+                    });
+                    
+                    // Retry immediately with fallback model (no delay - different model)
+                    continue;
+                  } else {
+                    // Standard retry with same model (exponential backoff)
+                    const delay = Math.pow(2, retryAttempt) * 1000; // 2s, 4s delays
+                    logger.warn(`[API CALL] ⚠️ Overload detected, retrying in ${delay}ms (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
+                    
+                    writeSSE(res, { 
+                      event: 'retry',
+                      attempt: retryAttempt + 1,
+                      maxRetries: MAX_RETRIES + 1,
+                      delay: delay,
+                      message: `Retrying... (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`
+                    });
+                    
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue; // Retry
+                  }
                 }
                 
                 // Success or final attempt - break out of retry loop
                 streamCompleted = true;
-                logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
+                
+                // ✅ Log model used for cost tracking and analytics
+                if (currentModel !== selectedModel) {
+                  logger.info(`✅ [API CALL] Success with fallback model: ${currentModel} (original: ${selectedModel})`, {
+                    originalModel: selectedModel,
+                    fallbackModel: currentModel,
+                    userTier: effectiveTier
+                  });
+                } else {
+                  logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`, {
+                    model: currentModel,
+                    userTier: effectiveTier
+                  });
+                }
                 
                 // ✅ CRITICAL: If stream returned empty, it means no data was received (error messages are handled above)
                 if (!finalText || finalText.trim().length === 0) {
@@ -2634,19 +2674,41 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
                 
                 if (isOverloadError && retryAttempt < MAX_RETRIES) {
                   retryAttempt++;
-                  const delay = Math.pow(2, retryAttempt) * 1000;
-                  logger.warn(`[API CALL] ⚠️ Overload error caught, retrying in ${delay}ms (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
                   
-                  writeSSE(res, { 
-                    event: 'retry',
-                    attempt: retryAttempt + 1,
-                    maxRetries: MAX_RETRIES + 1,
-                    delay: delay,
-                    message: `Retrying... (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`
-                  });
+                  // ✅ MODEL FALLBACK: Try Haiku if Sonnet fails (first retry only)
+                  const fallbackModel = getFallbackModel(currentModel, effectiveTier);
+                  const shouldFallback = fallbackModel && currentModel.includes('sonnet') && retryAttempt === 1;
                   
-                  await new Promise(resolve => setTimeout(resolve, delay));
-                  continue; // Retry
+                  if (shouldFallback) {
+                    logger.info(`[API CALL] 🔄 Sonnet error, falling back to Haiku (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
+                    currentModel = fallbackModel;
+                    
+                    writeSSE(res, { 
+                      event: 'model_fallback',
+                      from: selectedModel,
+                      to: fallbackModel,
+                      attempt: retryAttempt + 1,
+                      message: 'Switching to faster model...'
+                    });
+                    
+                    // Retry immediately with fallback model (no delay - different model)
+                    continue;
+                  } else {
+                    // Standard retry with exponential backoff
+                    const delay = Math.pow(2, retryAttempt) * 1000;
+                    logger.warn(`[API CALL] ⚠️ Overload error caught, retrying in ${delay}ms (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`);
+                    
+                    writeSSE(res, { 
+                      event: 'retry',
+                      attempt: retryAttempt + 1,
+                      maxRetries: MAX_RETRIES + 1,
+                      delay: delay,
+                      message: `Retrying... (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})`
+                    });
+                    
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                  }
                 }
                 
                 // Not an overload error or max retries reached - throw
