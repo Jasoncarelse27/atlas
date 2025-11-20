@@ -14,5 +14,5 @@ else
   # Fallback: Custom regex scanner
   echo "[Atlas] ⚠️  Gitleaks not found, falling back to custom scanner"
   echo "[Atlas] 💡 Install Gitleaks for better detection: brew install gitleaks"
-  bash scripts/pre-commit-security-scan.sh
+  bash scripts/pre-commit-security-scan-improved.sh
 fi

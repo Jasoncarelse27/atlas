@@ -94,6 +94,8 @@ else
            [[ "$file" == *test.js ]] || \
            [[ "$file" == test-*.sh ]] || \
            [[ "$file" == test-*.js ]] || \
+           [[ "$file" == test-iap-*.sh ]] || \
+           [[ "$file" == test-iap-*.js ]] || \
            [[ "$file" == *test-*.sh ]] || \
            [[ "$file" == scripts/test-* ]] || \
            [[ "$file" == scripts/pre-commit-security-scan*.sh ]] || \

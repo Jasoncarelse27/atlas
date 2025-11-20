@@ -92,7 +92,10 @@ files = [
   "scripts/setup-git-secrets.sh",
   "scripts/setup-github-secrets.sh",
   "scripts/pre-commit-security-scan.sh",
-  "scripts/*security*.sh"
+  "scripts/*security*.sh",
+  "test-iap-endpoint.sh",
+  "test-iap-local.sh",
+  "test-iap-browser.js"
 ]
 regexes = [
   "your_api_key_here",

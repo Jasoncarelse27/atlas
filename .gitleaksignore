@@ -1,12 +1,13 @@
 # Ignore security script patterns that contain detection regex
 scripts/setup-git-secrets.sh
-scripts/pre-commit-security-scan.sh
-scripts/pre-commit-security-scan-improved.sh
+scripts/pre-commit-security-scan*.sh
 scripts/check-env.sh
 
 # Ignore documentation with example patterns
-SECURITY_SETUP.md
-archive/docs/ENABLE_REAL_AI_GUIDE.md
-archive/docs/SUPABASE_SETUP.md
+**/SECURITY_SETUP.md
+archive/**/*.md
 PUSH_VERIFICATION_OCT24.md
-archive/cleanup-oct-22-2025/FASTSPRING_INTEGRATION_COMPLETE.md
+
+# IAP test harness scripts (contain mock tokens/keys for testing)
+test-iap-*.sh
+test-iap-*.js
