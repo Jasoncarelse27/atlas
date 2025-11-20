@@ -850,17 +850,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         fallbackTimerRef.current = null;
       }
       
-      // ✅ ROLLBACK: Remove optimistic message on error (remove the last user message that failed)
-      setMessages(prev => {
-        // Find and remove the last user message with 'sending' status (the one that just failed)
-        for (let i = prev.length - 1; i >= 0; i--) {
-          if (prev[i].role === 'user' && prev[i].status === 'sending') {
-            return prev.filter((_, index) => index !== i);
-          }
+      // ✅ CRITICAL FIX: Don't remove message on error - mark it as failed instead
+      // This allows users to see their message and retry
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === userMessageId && msg.role === 'user') {
+          return {
+            ...msg,
+            status: 'failed',
+            error: errorMessage
+          };
         }
-        return prev;
-      });
-      logger.debug('[ChatPage] ⚠️ Rolled back optimistic message due to error:', errorMessage);
+        return msg;
+      }));
+      logger.debug('[ChatPage] ⚠️ Marked message as failed:', { userMessageId, errorMessage });
       
       setIsTyping(false);
       setIsStreaming(false);
@@ -880,6 +882,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             error.message === 'MONTHLY_LIMIT_REACHED' ||
             errorCode === 'MONTHLY_LIMIT_REACHED' ||
             errorLower.includes('monthly limit reached');
+            
+        // ✅ FIX: Check for auth/network errors
+        const isAuthError = errorLower.includes('auth') || 
+            errorLower.includes('unauthorized') ||
+            errorCode === '401' ||
+            error.message.includes('sign in');
+            
+        const isNetworkError = errorLower.includes('network') ||
+            errorLower.includes('fetch') ||
+            errorLower.includes('failed to fetch') ||
+            error.message === 'Failed to fetch';
         
         // ✅ COOLDOWN: Check for Core tier cooldown limit
         const isCooldownLimit = errorLower.includes('cooldown') ||
