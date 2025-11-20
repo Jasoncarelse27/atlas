@@ -1079,9 +1079,41 @@ You are having a natural voice conversation. Respond as if you can hear them cle
                 }
               }
             } else if (parsed.type === 'error') {
-              // ✅ Handle Anthropic API errors in stream
-              logger.error(`[streamAnthropicResponse] ❌ Anthropic stream error:`, parsed);
-              throw new Error(parsed.error?.message || 'Anthropic API stream error');
+              // ✅ CRITICAL FIX: Handle Anthropic API errors gracefully (don't throw - send via SSE)
+              const errorType = parsed.error?.type || 'unknown';
+              const errorMessage = parsed.error?.message || 'Anthropic API stream error';
+              logger.error(`[streamAnthropicResponse] ❌ Anthropic stream error:`, {
+                type: errorType,
+                message: errorMessage,
+                requestId: parsed.request_id
+              });
+              
+              // ✅ Set flags to prevent "no data chunks" error
+              hasReceivedData = true; // Mark as received so we don't throw "no data chunks" error
+              
+              // ✅ Send user-friendly error message based on error type
+              let userMessage = 'Sorry, I hit an error generating the response.';
+              if (errorType === 'overloaded_error') {
+                userMessage = 'Atlas is experiencing high demand right now. Please try again in a moment.';
+              } else if (errorType === 'rate_limit_error') {
+                userMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+              } else if (errorMessage.includes('overloaded') || errorMessage.includes('Overloaded')) {
+                userMessage = 'Atlas is experiencing high demand right now. Please try again in a moment.';
+              }
+              
+              // Send error via SSE immediately
+              writeSSE(res, { 
+                error: true,
+                message: errorMessage,
+                errorType: errorType,
+                chunk: userMessage
+              });
+              
+              // Set fullText so it gets saved to DB
+              fullText = userMessage;
+              
+              // Break out of loop gracefully (don't throw)
+              break;
             }
           } catch (e) {
             // Skip invalid JSON (but log in debug mode)
@@ -1093,8 +1125,8 @@ You are having a natural voice conversation. Respond as if you can hear them cle
       }
     }
     
-    // ✅ CRITICAL: If no data was received, log more details before throwing
-    if (!hasReceivedData) {
+    // ✅ CRITICAL: If no data was received, check if it was an API error (already handled above)
+    if (!hasReceivedData && !fullText) {
       logger.error('[streamAnthropicResponse] ❌ Stream completed but no data chunks received');
       logger.error('[streamAnthropicResponse] Response status:', response.status);
       logger.error('[streamAnthropicResponse] Response headers:', Object.fromEntries(response.headers.entries()));
@@ -2542,7 +2574,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
             });
             streamCompleted = true;
             logger.info(`✅ [API CALL] Claude streaming completed successfully, final text length: ${finalText?.length || 0}`);
-            // ✅ CRITICAL: If stream returned empty, it means no data was received
+            // ✅ CRITICAL: If stream returned empty, it means no data was received (error messages are handled above)
             if (!finalText || finalText.trim().length === 0) {
               logger.error(`❌ [API CALL] Stream completed but returned empty response`);
               throw new Error('Anthropic API stream completed without sending any data chunks');

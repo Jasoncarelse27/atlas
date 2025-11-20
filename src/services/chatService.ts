@@ -246,6 +246,56 @@ export const chatService = {
           // Break on success
           if (response.ok) {
             logger.error(`[ChatService] ✅ Request successful (${response.status})`);
+            
+            // ✅ CRITICAL FIX: Read SSE stream to detect errors immediately
+            // Backend sends errors via SSE even when status is 200 OK
+            // Read first chunk with timeout to catch immediate errors, then let real-time handle response
+            if (contentType.includes('text/event-stream') && response.body) {
+              try {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                // Read first chunk with 1s timeout to detect immediate errors
+                const firstChunkPromise = reader.read();
+                const timeoutPromise = new Promise<{ done: true }>((resolve) => 
+                  setTimeout(() => resolve({ done: true }), 1000)
+                );
+                
+                const result = await Promise.race([firstChunkPromise, timeoutPromise]);
+                
+                if (!result.done && 'value' in result) {
+                  const chunk = decoder.decode(result.value, { stream: true });
+                  const lines = chunk.split('\n');
+                  
+                  for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                      try {
+                        const data = JSON.parse(line.slice(6));
+                        // ✅ CRITICAL: Detect error events from backend
+                        if (data.error === true || data.error) {
+                          const errorMsg = data.message || data.chunk || 'Unknown error occurred';
+                          logger.error('[ChatService] ❌ SSE error detected:', errorMsg);
+                          reader.releaseLock();
+                          throw new Error(errorMsg);
+                        }
+                      } catch (parseError) {
+                        // Skip invalid JSON lines
+                      }
+                    }
+                  }
+                }
+                
+                // Release reader - real-time will handle the rest
+                reader.releaseLock();
+              } catch (sseError) {
+                // Only throw if it's an actual error from the stream
+                if (sseError instanceof Error && sseError.message !== 'Unknown error occurred') {
+                  throw sseError;
+                }
+                // Otherwise, let real-time handle response (backend saves to DB)
+              }
+            }
+            
             break;
           }
           
@@ -462,7 +512,6 @@ export const chatService = {
 
       // ✅ SUCCESS: Backend saves messages to DB immediately
       // Real-time Supabase listeners will pick up the assistant response
-      // No need to read the SSE stream - just return success
       logger.debug('[ChatService] ✅ Message sent successfully, real-time will handle response');
       
       // Call completion callback
