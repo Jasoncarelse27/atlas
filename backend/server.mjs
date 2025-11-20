@@ -608,8 +608,22 @@ const writeSSE = (res, payload) => {
 // Get user memory for personalized responses
 async function getUserMemory(userId) {
   try {
+    if (!userId) {
+      return {}; // Return empty if no userId
+    }
+    
     if (supabaseUrl === 'https://your-project.supabase.co') {
       return {}; // Skip in development
+    }
+    
+    // ✅ CRITICAL FIX: Use dynamic import to ensure supabase is always available
+    // This prevents undefined reference errors during cold boots
+    const { supabase } = await import('./config/supabaseClient.mjs');
+    
+    // ✅ CRITICAL: Double-check supabase is available
+    if (!supabase || typeof supabase.from !== 'function') {
+      logger.debug('[getUserMemory] Supabase client not properly initialized');
+      return {};
     }
     
     const { data: profile, error } = await supabase
@@ -624,6 +638,8 @@ async function getUserMemory(userId) {
     
     return profile.user_context || {};
   } catch (error) {
+    // ✅ CRITICAL: Never throw - always return empty object
+    logger.warn('[getUserMemory] Error fetching user memory:', error.message);
     return {};
   }
 }
@@ -693,7 +709,13 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
   // Skip intel enhancement for voice calls - use existing voice call logic
   if (is_voice_call) {
     // For voice calls: Just use the user's message with memory context (no enhanced instructions)
-    const userMemory = await getUserMemory(userId);
+    let userMemory = {};
+    try {
+      userMemory = await getUserMemory(userId) || {};
+    } catch (memoryError) {
+      logger.warn('[streamAnthropicResponse] Error fetching user memory for voice call:', memoryError.message);
+      userMemory = {}; // Fallback to empty
+    }
     if (userMemory.name || userMemory.context) {
       let contextInfo = 'Context about the user:';
       if (userMemory.name) {
@@ -715,7 +737,13 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
     logger.debug('[streamAnthropicResponse] ✅ Using enhanced prompts from orchestrator');
   } else {
     // For text chat: Use full enhanced content with all instructions (existing logic)
-    const userMemory = await getUserMemory(userId);
+    let userMemory = {};
+    try {
+      userMemory = await getUserMemory(userId) || {};
+    } catch (memoryError) {
+      logger.warn('[streamAnthropicResponse] Error fetching user memory for text chat:', memoryError.message);
+      userMemory = {}; // Fallback to empty
+    }
     if (process.env.NODE_ENV === 'development') {
       logger.debug('🧠 [Memory] Retrieved user memory:', JSON.stringify(userMemory));
     }
@@ -2467,15 +2495,22 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
                 const userName = req.user?.user_metadata?.full_name || req.user?.email?.split('@')[0] || 'Atlas user';
                 
                 // Build smarter prompt using orchestrator
-                const smarterPrompt = buildSmarterPrompt({
-                  userId,
-                  userName,
-                  latestUserText: message.trim(),
-                  recentMessages: conversationHistory,
-                  conversationTags: [], // Empty for now - can add DB persistence later
-                });
+                let smarterPrompt = null;
+                try {
+                  smarterPrompt = buildSmarterPrompt({
+                    userId,
+                    userName,
+                    latestUserText: message.trim(),
+                    recentMessages: conversationHistory || [],
+                    conversationTags: [], // Empty for now - can add DB persistence later
+                  });
+                } catch (syncError) {
+                  logger.warn('[SmarterAtlas] Synchronous error building prompts:', syncError.message);
+                  smarterPrompt = null;
+                }
                 
-                if (smarterPrompt) {
+                // ✅ CRITICAL: Validate smarterPrompt before using
+                if (smarterPrompt && typeof smarterPrompt === 'object' && smarterPrompt.systemPrompt && smarterPrompt.userPrompt) {
                   enhancedSystemPrompt = smarterPrompt.systemPrompt;
                   enhancedUserPrompt = smarterPrompt.userPrompt;
                   logger.debug('[SmarterAtlas] ✅ Enhanced prompts built successfully', {
@@ -2484,7 +2519,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
                     goal: smarterPrompt.intel?.goal,
                   });
                 } else {
-                  logger.debug('[SmarterAtlas] Orchestrator returned null, using default prompts');
+                  logger.debug('[SmarterAtlas] Orchestrator returned null/invalid, using default prompts');
                 }
               } catch (intelError) {
                 logger.warn('[SmarterAtlas] Error building enhanced prompts, falling back to default:', intelError.message);
@@ -3008,7 +3043,13 @@ app.post('/api/image-analysis', verifyJWT, imageAnalysisRateLimit, tierGateMiddl
     logger.debug(`[Image Analysis] Processing request (Request ID: ${requestId})`);
 
     // ✅ ENHANCED: Fetch user memory for contextual image analysis
-    const userMemory = await getUserMemory(authenticatedUserId);
+    let userMemory = {};
+    try {
+      userMemory = await getUserMemory(authenticatedUserId) || {};
+    } catch (memoryError) {
+      logger.warn('[Image Analysis] Error fetching user memory:', memoryError.message);
+      userMemory = {}; // Fallback to empty
+    }
     if (process.env.NODE_ENV === 'development') {
       logger.debug('🧠 [Image Analysis] Retrieved user memory:', JSON.stringify(userMemory));
     }
