@@ -109,7 +109,7 @@ export async function syncMailerLiteOnSignup(userId) {
     });
 
     // Add to new_users group
-    const tierGroups: Record<string, string> = {
+    const tierGroups = {
       free: 'atlas_free_users',
       core: 'core_subscribers',
       studio: 'studio_subscribers',
