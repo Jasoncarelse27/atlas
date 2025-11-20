@@ -113,6 +113,7 @@ export const syncService = {
             type: "text", // Default type
             content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: msg.created_at,
+            status: 'sent', // ✅ CRITICAL: Synced messages are already sent
             synced: true,
             updatedAt: msg.created_at,
             deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status

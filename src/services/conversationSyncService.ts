@@ -386,6 +386,7 @@ export class ConversationSyncService {
             type: messageType, // ✅ FIX: Use determined message type (not hardcoded 'text')
             content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: remoteMsg.created_at,
+            status: 'sent', // ✅ CRITICAL: Synced messages are already sent
             synced: true,
             updatedAt: remoteMsg.created_at,
             attachments: parsedAttachments, // ✅ CRITICAL FIX: Sync attachments for audio/image messages
@@ -988,6 +989,7 @@ export class ConversationSyncService {
                 type: 'text',
                 content: parsedContent, // ✅ FIX: Use parsed content
                 timestamp: msg.created_at,
+                status: 'sent', // ✅ CRITICAL: Synced messages are already sent
                 synced: true,
                 updatedAt: msg.created_at,
                 deletedAt: msg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status

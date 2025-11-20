@@ -242,6 +242,7 @@ export function useRealtimeConversations(userId?: string) {
             type: messageType, // ✅ FIX: Use determined message type
             content: parsedContent,
             timestamp: newMessage.created_at,
+            status: 'sent', // ✅ CRITICAL: Realtime messages are already sent
             synced: true,
             updatedAt: newMessage.created_at,
             attachments: uniqueAttachments, // ✅ CRITICAL FIX: Use deduplicated attachments

@@ -299,6 +299,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
         type: 'text' as const,
         content: summaryContent,
         timestamp: new Date().toISOString(),
+        status: 'sent', // ✅ CRITICAL: Ritual messages are immediately sent
         synced: false,
         updatedAt: new Date().toISOString(),
         attachments: undefined,
