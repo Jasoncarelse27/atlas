@@ -31,7 +31,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Mobile-safe Supabase client configuration
-const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+// ✅ TDZ FIX: Wrap browser API access in function to prevent module-scope evaluation
+function detectIsMobile(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+const isMobile = detectIsMobile();
 
 // Singleton pattern to prevent multiple client instances
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
