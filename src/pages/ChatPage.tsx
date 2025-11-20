@@ -566,6 +566,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       return;
     }
     
+    // ✅ CRITICAL FIX: Ensure userId and conversationId are available
+    if (!userId || !conversationId) {
+      logger.error('[ChatPage] ❌ Cannot send message - missing userId or conversationId', {
+        userId,
+        conversationId
+      });
+      toast.error('Unable to send message. Please refresh the page.');
+      return;
+    }
+    
     // ✅ FIX: Trigger first message event (persistent across remounts using localStorage)
     if (userId && userEmail && messages.length === 0) {
       const firstMessageKey = `atlas:first_message_${userId}`;
@@ -680,18 +690,28 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // Send to backend - real-time listener will replace optimistic with real message
       // ✅ DEBUG: Log before sending to catch any immediate errors
-      logger.error('[ChatPage] 🚀 About to call chatService.sendMessage', {
+      logger.debug('[ChatPage] 🚀 About to call chatService.sendMessage', {
         text: text.substring(0, 50),
         conversationId,
         userId
       });
       
-      await chatService.sendMessage(
-        text, 
-        () => {}, // No frontend status updates needed
-        conversationId, 
-        userId
-      );
+      try {
+        await chatService.sendMessage(
+          text, 
+          () => {}, // No frontend status updates needed
+          conversationId, 
+          userId
+        );
+      } catch (sendError) {
+        // ✅ CRITICAL FIX: More detailed error logging
+        logger.error('[ChatPage] ❌ chatService.sendMessage threw error:', {
+          error: sendError,
+          message: sendError instanceof Error ? sendError.message : String(sendError),
+          stack: sendError instanceof Error ? sendError.stack : undefined
+        });
+        throw sendError; // Re-throw to hit the outer catch block
+      }
       
       // ✅ TIER SYNC: Refresh tier after successful message send
       // Ensures tier is up-to-date (especially after upgrades or hitting limits)
