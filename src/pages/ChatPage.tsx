@@ -87,6 +87,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
   const [userName, setUserName] = useState<string | undefined>(undefined);
   
+  // ✅ CRITICAL FIX: Messages state MUST be declared before useMailerAutomation (line 165 uses messages.length)
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  
   // Custom hooks (may depend on router/context/state)
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
   // Note: useAndroidBackButton internally calls useNavigate/useLocation - that's fine, React handles it
@@ -170,11 +175,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
   // ✅ ENTERPRISE: Real-time conversation deletion listener (clean, reliable)
   useRealtimeConversations(userId || undefined);
-
-  // ✅ PHASE 2: Messages state - only updated by loadMessages (from Dexie)
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [hasMoreMessages, setHasMoreMessages] = useState(false);
-  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   
   // ✅ UX IMPROVEMENT: Pull-to-refresh state (mobile)
   const [pullStartY, setPullStartY] = useState(0);
