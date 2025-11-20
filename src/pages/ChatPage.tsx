@@ -57,12 +57,12 @@ interface ChatPageProps {
 }
 
 const ChatPage: React.FC<ChatPageProps> = () => {
-  // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
-  useAndroidBackButton();
-  const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
-  const { isMobile, triggerHaptic } = useMobileOptimization(); // ✅ UX IMPROVEMENT: Mobile features for pull-to-refresh
+  // ✅ CRITICAL FIX: Initialize hooks in correct order to prevent initialization errors
+  // Router hooks first (most stable)
   const navigate = useNavigate();
   const [searchParams] = useSearchParams(); // ✅ FIX: Use React Router's searchParams to detect URL changes
+  
+  // Context hooks next (depend on providers)
   const {
     voiceModalVisible,
     hideVoiceUpgrade,
@@ -71,6 +71,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     genericModalFeature,
     showGenericUpgrade,
   } = useUpgradeModals();
+  
+  // Custom hooks last (may depend on router/context)
+  // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
+  useAndroidBackButton();
+  const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
+  const { isMobile, triggerHaptic } = useMobileOptimization(); // ✅ UX IMPROVEMENT: Mobile features for pull-to-refresh
   
   const [healthError, setHealthError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
