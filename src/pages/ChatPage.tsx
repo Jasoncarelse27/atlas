@@ -2617,22 +2617,30 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         )}
 
         {/* MailerLite Integration - Auto-syncs user data and triggers events */}
-        {userId && userEmail && (
-          <MailerLiteIntegration
-            userEmail={userEmail}
-            userName={userName}
-            userTier={tier || 'free'}
-            conversationsToday={0} // TODO: Track daily conversation count
-            totalConversations={messages.length} // Use message count as proxy
-            onError={(error) => {
-              logger.debug('[MailerLite] Error:', error);
-              // Don't show errors to user - MailerLite is non-critical
-            }}
-            onSuccess={(operation) => {
-              logger.debug('[MailerLite] Success:', operation);
-            }}
-          />
-        )}
+        {/* ✅ FIX: Only show in development OR with ?admin=true query param for testing */}
+        {/* ✅ ULTRA PRO: Admin hardening - restrict ?admin=true to admin users only */}
+        {(() => {
+          const isDev = import.meta.env.DEV;
+          const hasAdminParam = searchParams.get('admin') === 'true';
+          const isAdminUser = userEmail === 'jasonc.jpg@gmail.com'; // ✅ Admin email check
+          
+          return (isDev || (hasAdminParam && isAdminUser)) && userId && userEmail ? (
+            <MailerLiteIntegration
+              userEmail={userEmail}
+              userName={userName}
+              userTier={tier || 'free'}
+              conversationsToday={0} // TODO: Track daily conversation count
+              totalConversations={messages.length} // Use message count as proxy
+              onError={(error) => {
+                logger.debug('[MailerLite] Error:', error);
+                // Don't show errors to user - MailerLite is non-critical
+              }}
+              onSuccess={(operation) => {
+                logger.debug('[MailerLite] Success:', operation);
+              }}
+            />
+          ) : null;
+        })()}
         
       </div>
     </ErrorBoundary>
