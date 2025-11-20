@@ -57,12 +57,12 @@ interface ChatPageProps {
 }
 
 const ChatPage: React.FC<ChatPageProps> = () => {
-  // ✅ CRITICAL FIX: Initialize hooks in correct order to prevent initialization errors
-  // Router hooks first (most stable)
+  // ✅ CRITICAL FIX: Initialize ALL hooks unconditionally at the top level
+  // Router hooks first (most stable, no dependencies)
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // ✅ FIX: Use React Router's searchParams to detect URL changes
+  const [searchParams] = useSearchParams();
   
-  // Context hooks next (depend on providers)
+  // Context hooks next (depend on providers, but providers are guaranteed by App.tsx)
   const {
     voiceModalVisible,
     hideVoiceUpgrade,
@@ -72,12 +72,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     showGenericUpgrade,
   } = useUpgradeModals();
   
-  // Custom hooks last (may depend on router/context)
-  // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
-  useAndroidBackButton();
-  const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
-  const { isMobile, triggerHaptic } = useMobileOptimization(); // ✅ UX IMPROVEMENT: Mobile features for pull-to-refresh
-  
+  // State hooks (must be before any hooks that might depend on state)
   const [healthError, setHealthError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -85,19 +80,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  
-  // Profile modal state
   const [showProfile, setShowProfile] = useState(false);
-  
-  // Get user email for avatar
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  
-  // History modal state
   const [showHistory, setShowHistory] = useState(false);
-  
-  // Questionnaire state
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
+  
+  // Custom hooks last (may depend on router/context/state)
+  // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
+  // Note: useAndroidBackButton internally calls useNavigate/useLocation - that's fine, React handles it
+  useAndroidBackButton();
+  const { isOpen: keyboardOpen, height: keyboardHeight } = useAndroidKeyboard();
+  const { isMobile, triggerHaptic } = useMobileOptimization();
   // ✅ TYPESCRIPT FIX: Use proper Conversation type instead of any[]
   interface HistoryModalData {
     conversations: Array<{
