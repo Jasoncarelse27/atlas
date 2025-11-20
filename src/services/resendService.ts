@@ -3,6 +3,16 @@ import { useMessageStore } from '../stores/useMessageStore';
 import { sendMessageWithAttachments } from './chatService';
 import { offlineMessageStore } from './offlineMessageStore';
 
+// Extended FailedMessage interface to support enhanced retry logic
+interface FailedMessage {
+  id: string;
+  content: string;
+  conversationId?: string;
+  conversation_id?: string;
+  timestamp: string;
+  attachments?: Array<{ type: string; url: string }>;
+}
+
 export interface ResendResult {
   success: boolean;
   messageId: string;
@@ -10,14 +20,39 @@ export interface ResendResult {
   retryCount?: number;
 }
 
+interface FailedMessageWithMetadata {
+  id: string;
+  content: string;
+  conversationId?: string;
+  conversation_id?: string;
+  timestamp: string;
+  attachments?: Array<{ type: string; url: string }>;
+  retryCount?: number;
+  nextRetryAt?: number | null;
+  status?: 'pending' | 'failed-permanent';
+  clientMessageId?: string;
+}
+
 class ResendService {
   private isResending = false;
   private retryAttempts = new Map<string, number>(); // Track retry attempts per message
-  private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAYS = [1000, 2000, 4000]; // 1s, 2s, 4s
+  private nextRetryTimes = new Map<string, number>(); // Track next retry time for each message
+  private readonly MAX_RETRIES = 5; // Increased for exponential backoff
+  private readonly BASE_DELAY = 2000; // 2 seconds base delay
+  private readonly MAX_DELAY = 60000; // 60 seconds max delay
+
+  /**
+   * Compute exponential backoff delay
+   * Formula: min(60s, 2s * 2^retryCount)
+   */
+  private computeNextRetryDelay(retryCount: number): number {
+    const delay = Math.min(this.MAX_DELAY, this.BASE_DELAY * Math.pow(2, retryCount));
+    return delay;
+  }
 
   /**
    * Resend all failed messages when connection is restored
+   * Enhanced with exponential backoff and permanent failure detection
    */
   async resendFailedMessages(): Promise<ResendResult[]> {
     if (this.isResending) {
@@ -34,9 +69,40 @@ class ResendService {
         return [];
       }
 
+      const now = Date.now();
 
       for (const message of failedMessages) {
         try {
+          // Skip if message has nextRetryAt in the future (exponential backoff)
+          const nextRetryAt = this.nextRetryTimes.get(message.id);
+          if (nextRetryAt && nextRetryAt > now) {
+            logger.debug(`[RESEND] Skipping message ${message.id} - next retry at ${new Date(nextRetryAt).toISOString()}`);
+            continue;
+          }
+
+          // Check for duplicate protection (if clientMessageId exists)
+          const messageWithMetadata = message as FailedMessageWithMetadata;
+          if (messageWithMetadata.clientMessageId) {
+            // Check if message already exists in Dexie (duplicate protection)
+            try {
+              const { atlasDB } = await import('../database/atlasDB');
+              const existingMessage = await atlasDB.messages.get(message.id);
+              if (existingMessage && existingMessage.synced) {
+                logger.debug(`[RESEND] Message ${message.id} already exists and synced - removing from queue`);
+                await offlineMessageStore.deleteMessage(message.id);
+                results.push({
+                  success: true,
+                  messageId: message.id,
+                  retryCount: 0,
+                });
+                continue;
+              }
+            } catch (checkError) {
+              // Continue if duplicate check fails
+              logger.debug('[RESEND] Duplicate check failed (non-critical):', checkError);
+            }
+          }
+
           const result = await this.resendSingleMessage(message);
           results.push(result);
         } catch (error) {
@@ -44,7 +110,7 @@ class ResendService {
           results.push({
             success: false,
             messageId: message.id,
-            error: error.message,
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -61,12 +127,23 @@ class ResendService {
   }
 
   /**
-   * Resend a single failed message with exponential backoff retry
+   * Resend a single failed message with exponential backoff retry and permanent failure detection
    */
   async resendSingleMessage(message: FailedMessage): Promise<ResendResult> {
     const messageId = message.id;
     const currentRetries = this.retryAttempts.get(messageId) || 0;
-    
+    const messageWithMetadata = message as FailedMessageWithMetadata;
+
+    // Check if message is marked as permanently failed
+    if (messageWithMetadata.status === 'failed-permanent') {
+      logger.warn(`[RESEND] Message ${messageId} is permanently failed - skipping retry`);
+      return {
+        success: false,
+        messageId: messageId,
+        error: 'Message permanently failed (4xx error)',
+        retryCount: currentRetries,
+      };
+    }
 
     try {
       // Mark as retried in offline store
@@ -80,9 +157,9 @@ class ResendService {
       });
 
       // Determine if this is a text message or has attachments
-      if (message.attachments && message.attachments.length > 0) {
+      if (messageWithMetadata.attachments && messageWithMetadata.attachments.length > 0) {
         // Resend message with attachments using retry logic
-        await this.resendMessageWithAttachments(message);
+        await this.resendMessageWithAttachments(message as any);
       } else {
         // Resend simple text message
         await this.resendTextMessage(message);
@@ -94,8 +171,9 @@ class ResendService {
         error: false,
       });
 
-      // Clear retry attempts on success
+      // Clear retry attempts and next retry time on success
       this.retryAttempts.delete(messageId);
+      this.nextRetryTimes.delete(messageId);
 
       logger.debug(`[RESEND] ✅ Message ${messageId} resent successfully`);
       return {
@@ -104,15 +182,50 @@ class ResendService {
         retryCount: currentRetries + 1,
       };
 
-    } catch (error) {
+    } catch (error: any) {
       // Intentionally empty - error handling not required
       
+      // Check if this is a permanent failure (4xx error, excluding 429)
+      const isPermanentFailure = error?.status >= 400 && 
+                                 error?.status < 500 && 
+                                 error?.status !== 429;
+
+      if (isPermanentFailure) {
+        // Mark as permanently failed - don't retry
+        logger.warn(`[RESEND] Message ${messageId} failed with permanent error (${error.status}) - marking as failed-permanent`);
+        
+        const messageStore = useMessageStore.getState();
+        messageStore.updateMessage(messageId, {
+          status: 'failed',
+          error: `Permanent failure: ${error.message || 'Invalid request'}`,
+        });
+
+        // Mark as permanently failed in offline store
+        await offlineMessageStore.updateMessage(messageId, {
+          status: 'failed-permanent' as any,
+        });
+
+        // Clear retry attempts
+        this.retryAttempts.delete(messageId);
+        this.nextRetryTimes.delete(messageId);
+
+        return {
+          success: false,
+          messageId: messageId,
+          error: `Permanent failure: ${error.message || 'Invalid request'}`,
+          retryCount: currentRetries + 1,
+        };
+      }
+
       const newRetryCount = currentRetries + 1;
       this.retryAttempts.set(messageId, newRetryCount);
 
       // Check if we should retry again
       if (newRetryCount < this.MAX_RETRIES) {
-        const delay = this.RETRY_DELAYS[newRetryCount - 1];
+        // Use exponential backoff
+        const delay = this.computeNextRetryDelay(newRetryCount);
+        const nextRetryAt = Date.now() + delay;
+        this.nextRetryTimes.set(messageId, nextRetryAt);
         
         // Schedule retry with exponential backoff
         setTimeout(async () => {
@@ -127,13 +240,13 @@ class ResendService {
         const messageStore = useMessageStore.getState();
         messageStore.updateMessage(messageId, {
           status: 'pending',
-          error: `Retrying in ${delay}ms...`,
+          error: `Retrying in ${Math.round(delay / 1000)}s...`,
         });
 
         return {
           success: false,
           messageId: messageId,
-          error: `Retrying in ${delay}ms...`,
+          error: `Retrying in ${Math.round(delay / 1000)}s...`,
           retryCount: newRetryCount,
         };
       } else {
@@ -141,19 +254,20 @@ class ResendService {
         const messageStore = useMessageStore.getState();
         messageStore.updateMessage(messageId, {
           status: 'failed',
-          error: error.message,
+          error: error.message || 'Max retries exceeded',
         });
 
         // Mark as sync failed in offline store
-        await offlineMessageStore.markAsSyncFailed(messageId, error.message);
+        await offlineMessageStore.markAsSyncFailed(messageId, error.message || 'Max retries exceeded');
 
         // Clear retry attempts
         this.retryAttempts.delete(messageId);
+        this.nextRetryTimes.delete(messageId);
 
         return {
           success: false,
           messageId: messageId,
-          error: error.message,
+          error: error.message || 'Max retries exceeded',
           retryCount: newRetryCount,
         };
       }

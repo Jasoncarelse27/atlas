@@ -10,6 +10,8 @@ import { AuthProvider, useAuth } from "./providers/AuthProvider";
 import { useSettingsStore } from "./stores/useSettingsStore";
 import { setGlobalNavigate } from "./utils/navigation";
 import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
+import { handleLaunchUrl } from "./utils/handleLaunchUrl";
+import { useTierQuery } from "./hooks/useTierQuery";
 
 // 🚀 Route-based code splitting for better performance
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -125,9 +127,11 @@ function ProtectedBillingRoute() {
   );
 }
 
-// Component to set up global navigation
+// Component to set up global navigation and deep link handling
 function NavigationSetup() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { forceRefresh } = useTierQuery();
   
   useEffect(() => {
     // Set global navigate function for utility functions
@@ -136,6 +140,23 @@ function NavigationSetup() {
       (window as any).__atlasNavigate = navigate;
     }
   }, [navigate]);
+
+  // Handle deep links after authentication check
+  useEffect(() => {
+    // Only handle deep links if user is authenticated (or on public routes)
+    // This ensures deep links work correctly after login
+    if (user !== undefined) {
+      // Small delay to ensure routing is ready
+      const timeoutId = setTimeout(() => {
+        handleLaunchUrl({
+          navigate,
+          refreshTier: forceRefresh,
+        });
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [navigate, user, forceRefresh]);
   
   return null;
 }

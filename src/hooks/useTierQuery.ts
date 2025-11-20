@@ -725,6 +725,7 @@ export function useTierQuery() {
     error: query.error,
     refetch: query.refetch, // Manual refetch (rarely needed - realtime handles updates)
     forceRefresh: forceRefreshTier, // ✅ MOBILE FIX: Force refresh with cache clear
+    refreshTier: forceRefreshTier, // ✅ DEEP LINK FIX: Alias for consistency (used by deep link handler)
   };
 }
 

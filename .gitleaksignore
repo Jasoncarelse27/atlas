@@ -1,6 +1,8 @@
 # Ignore security script patterns that contain detection regex
 scripts/setup-git-secrets.sh
 scripts/pre-commit-security-scan.sh
+scripts/pre-commit-security-scan-improved.sh
+scripts/check-env.sh
 
 # Ignore documentation with example patterns
 SECURITY_SETUP.md

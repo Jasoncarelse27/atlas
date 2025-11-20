@@ -8,12 +8,13 @@ export interface PendingOperation {
   type: 'send_message' | 'delete_message' | 'create_conversation' | 'update_subscription' | 'voice_transcription' | 'image_upload';
   data: Record<string, unknown>;
   priority: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'failed-permanent';
   error?: string;
   retry_count: number;
   created_at: string;
   updated_at: string;
   next_retry?: string;
+  clientMessageId?: string; // For duplicate protection
 }
 
 export interface QueueStats {
@@ -84,12 +85,56 @@ export class PendingQueueManager {
       });
 
       // Process each operation
+      const now = Date.now();
       for (const operation of sortedOperations) {
         try {
+          // Skip if next_retry is in the future (exponential backoff)
+          if (operation.next_retry) {
+            const nextRetryTime = new Date(operation.next_retry).getTime();
+            if (nextRetryTime > now) {
+              logger.debug(`[PendingQueue] Skipping operation ${operation.id} - next retry at ${operation.next_retry}`);
+              continue;
+            }
+          }
+
+          // Skip permanently failed operations
+          if (operation.status === 'failed-permanent') {
+            logger.debug(`[PendingQueue] Skipping permanently failed operation ${operation.id}`);
+            continue;
+          }
+
+          // Duplicate protection: Check if message already exists (for send_message operations)
+          if (operation.type === 'send_message' && operation.clientMessageId) {
+            try {
+              const { atlasDB } = await import('../database/atlasDB');
+              const existingMessage = await atlasDB.messages.get(operation.clientMessageId);
+              if (existingMessage && existingMessage.synced) {
+                logger.debug(`[PendingQueue] Message ${operation.clientMessageId} already exists and synced - removing from queue`);
+                await this.updateOperationStatus(operation.id, 'completed');
+                continue;
+              }
+            } catch (checkError) {
+              // Continue if duplicate check fails
+              logger.debug('[PendingQueue] Duplicate check failed (non-critical):', checkError);
+            }
+          }
+
           await this.processOperation(operation);
-        } catch (error) {
+        } catch (error: any) {
       // Intentionally empty - error handling not required
-          await this.updateOperationStatus(operation.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
+          // Check if this is a permanent failure (4xx error, excluding 429)
+          const isPermanentFailure = error?.status >= 400 && 
+                                     error?.status < 500 && 
+                                     error?.status !== 429;
+
+          if (isPermanentFailure) {
+            logger.warn(`[PendingQueue] Operation ${operation.id} failed with permanent error (${error.status}) - marking as failed-permanent`);
+            await this.updateOperationStatus(operation.id, 'failed-permanent', { 
+              error: error instanceof Error ? error.message : 'Permanent failure (4xx error)'
+            });
+          } else {
+            await this.updateOperationStatus(operation.id, 'failed', { error: error instanceof Error ? error.message : 'Unknown error' });
+          }
         }
       }
     } finally {

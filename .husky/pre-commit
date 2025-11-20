@@ -1,2 +1,18 @@
+#!/usr/bin/env bash
+set -e
+
+echo "[Atlas] 🔍 Running security scan..."
+
+# Run environment check first
 bash scripts/check-env.sh
-bash scripts/pre-commit-security-scan.sh
+
+# Primary: Use Gitleaks (industry standard)
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "[Atlas] ✅ Using Gitleaks (industry standard)"
+  gitleaks protect --staged --config .gitleaks.toml
+else
+  # Fallback: Custom regex scanner
+  echo "[Atlas] ⚠️  Gitleaks not found, falling back to custom scanner"
+  echo "[Atlas] 💡 Install Gitleaks for better detection: brew install gitleaks"
+  bash scripts/pre-commit-security-scan.sh
+fi

@@ -22,11 +22,31 @@ env:
 
 jobs:
   ##############################################
+  # 0. Security Scan (must pass before build)
+  ##############################################
+  secret-scan:
+    name: 🔒 Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Run Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+          report-format: sarif
+          sarif-file: results.sarif
+
+  ##############################################
   # 1. Build & Test
   ##############################################
   build-test:
     name: Build, Lint & Test
     runs-on: ubuntu-latest
+    needs: secret-scan
 
     steps:
       - name: 📥 Checkout code

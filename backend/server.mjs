@@ -4528,43 +4528,123 @@ app.post('/api/iap/verify', verifyJWT, async (req, res) => {
 
     let validatedReceipt = null;
     let extractedTier = tier; // Default to client-provided tier (will be replaced by validated receipt)
+    let matchingTransaction = null;
+    let productId = null;
 
     try {
-      // TODO: Implement full Apple receipt validation
-      // For now, we do basic validation and trust the receipt format
-      // In production, make actual API call:
-      // const appleResponse = await fetch(APPLE_RECEIPT_VALIDATION_URL, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     'receipt-data': receipt,
-      //     'password': process.env.APPLE_SHARED_SECRET
-      //   })
-      // });
-      // const appleData = await appleResponse.json();
-      // if (appleData.status !== 0) throw new Error('Invalid receipt');
-      // extractedTier = extractTierFromReceipt(appleData.receipt);
+      // ✅ PRODUCTION: Full Apple receipt validation with Apple verifyReceipt API
+      const APPLE_SHARED_SECRET = process.env.APPLE_SHARED_SECRET;
       
-      // ✅ SECURITY FIX #4: Basic receipt validation (production-ready structure)
-      validatedReceipt = {
-        status: 0, // Mock success
-        receipt: {
-          in_app: [{
-            transaction_id: transactionId,
-            product_id: tier === 'core' ? 'atlas-core-monthly-ios' : 'atlas-studio-monthly-ios'
-          }]
-        }
-      };
+      if (!APPLE_SHARED_SECRET) {
+        logger.error('[IAP] APPLE_SHARED_SECRET not configured');
+        return res.status(500).json({
+          success: false,
+          error: 'Receipt validation service unavailable',
+          details: 'Server configuration error'
+        });
+      }
+
+      // First attempt: production URL (or sandbox in dev)
+      let appleResponse = await fetch(APPLE_RECEIPT_VALIDATION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          'receipt-data': receipt,
+          'password': APPLE_SHARED_SECRET,
+          'exclude-old-transactions': false
+        })
+      });
+
+      let appleData = await appleResponse.json();
+
+      // Handle sandbox receipt in production (status 21007)
+      // Apple requires retrying with sandbox URL when this occurs
+      if (appleData.status === 21007 && process.env.NODE_ENV === 'production') {
+        logger.info('[IAP] Sandbox receipt detected in production, retrying with sandbox URL');
+        const SANDBOX_URL = 'https://sandbox.itunes.apple.com/verifyReceipt';
+        appleResponse = await fetch(SANDBOX_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            'receipt-data': receipt,
+            'password': APPLE_SHARED_SECRET,
+            'exclude-old-transactions': false
+          })
+        });
+        appleData = await appleResponse.json();
+      }
+
+      // Validate receipt status
+      // Status 0 = success, other statuses indicate various errors
+      if (appleData.status !== 0) {
+        const statusMessages = {
+          21000: 'The App Store could not read the receipt data',
+          21002: 'The receipt data was malformed or missing',
+          21003: 'The receipt could not be authenticated',
+          21004: 'The shared secret does not match',
+          21005: 'The receipt server is temporarily unavailable',
+          21006: 'This receipt is valid but the subscription has expired',
+          21007: 'This receipt is from the sandbox environment',
+          21008: 'This receipt is from the production environment',
+          21010: 'This receipt could not be authorized'
+        };
+        
+        const errorMessage = statusMessages[appleData.status] || `Receipt validation failed with status ${appleData.status}`;
+        logger.error(`[IAP] Receipt validation failed: ${errorMessage} (status: ${appleData.status})`);
+        
+        return res.status(400).json({
+          success: false,
+          error: 'Receipt validation failed',
+          details: errorMessage,
+          status: appleData.status
+        });
+      }
+
+      // Store validated receipt for audit trail
+      validatedReceipt = appleData;
+
+      // Extract tier from validated receipt (not client-provided tier)
+      // Apple receipts contain in_app array with all transactions
+      const inAppPurchases = appleData.receipt?.in_app || [];
       
-      // Extract tier from product_id (not client-provided tier)
-      const productId = validatedReceipt.receipt.in_app[0]?.product_id;
+      // Find the transaction matching our transactionId
+      matchingTransaction = inAppPurchases.find(
+        (purchase) => purchase.transaction_id === transactionId || 
+                      purchase.original_transaction_id === transactionId
+      );
+
+      if (!matchingTransaction) {
+        logger.error(`[IAP] Transaction ${transactionId} not found in receipt`);
+        return res.status(400).json({
+          success: false,
+          error: 'Transaction not found in receipt',
+          details: 'The transaction ID does not match any purchase in the receipt'
+        });
+      }
+
+      // Extract tier from product_id
+      productId = matchingTransaction.product_id;
       if (productId?.includes('core')) {
         extractedTier = 'core';
       } else if (productId?.includes('studio')) {
         extractedTier = 'studio';
+      } else {
+        logger.error(`[IAP] Unknown product_id: ${productId}`);
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid product ID',
+          details: `Product ID "${productId}" is not recognized`
+        });
+      }
+
+      // Verify transaction_id matches (security check)
+      if (matchingTransaction.transaction_id !== transactionId && 
+          matchingTransaction.original_transaction_id !== transactionId) {
+        logger.warn(`[IAP] Transaction ID mismatch: expected ${transactionId}, found ${matchingTransaction.transaction_id}`);
+        // Still proceed but log warning - original_transaction_id is valid for renewals
       }
       
-      logger.info(`[IAP] Receipt validated for user ${userId}, extracted tier: ${extractedTier}, transaction: ${transactionId}`);
+      logger.info(`[IAP] ✅ Receipt validated for user ${userId}, extracted tier: ${extractedTier}, transaction: ${transactionId}, product: ${productId}`);
     } catch (receiptError) {
       logger.error('[IAP] Receipt validation failed:', receiptError);
       return res.status(400).json({
@@ -4604,7 +4684,7 @@ app.post('/api/iap/verify', verifyJWT, async (req, res) => {
       });
     }
 
-    // ✅ SECURITY FIX #6: Log to subscription_audit with truncated receipt (privacy)
+    // ✅ SECURITY FIX #6: Log to subscription_audit with full Apple validation response
     const { error: auditError } = await supabase.from('subscription_audit').insert({
       profile_id: userId,
       event_type: 'activation',
@@ -4615,7 +4695,15 @@ app.post('/api/iap/verify', verifyJWT, async (req, res) => {
         transaction_id: transactionId,
         platform: platform,
         receipt_length: receipt.length,
-        receipt_preview: receipt.substring(0, 50) + '...' // Truncate for privacy
+        receipt_preview: receipt.substring(0, 50) + '...', // Truncate for privacy
+        apple_validation: {
+          status: validatedReceipt?.status,
+          environment: validatedReceipt?.receipt?.receipt_type === 'Production' ? 'production' : 'sandbox',
+          validation_date: new Date().toISOString(),
+          product_id: matchingTransaction?.product_id,
+          purchase_date_ms: matchingTransaction?.purchase_date_ms,
+          expires_date_ms: matchingTransaction?.expires_date_ms
+        }
       }
     });
 

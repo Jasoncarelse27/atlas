@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -45,8 +46,10 @@ import UsageCounter from '../components/sidebar/UsageCounter';
 import { useAndroidBackButton } from '../hooks/useAndroidBackButton'; // ✅ ANDROID: Back button handling
 import { useAndroidKeyboard } from '../hooks/useAndroidKeyboard'; // ✅ ANDROID: Keyboard handling
 import { useMailerEvents } from '../hooks/useMailer';
+import { useMailerAutomation } from '../hooks/useMailerAutomation';
 import { useMobileOptimization } from '../hooks/useMobileOptimization'; // ✅ UX IMPROVEMENT: Mobile optimization for pull-to-refresh
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
+import { useTierRefreshOnFocus } from '../hooks/useTierRefreshOnFocus';
 import { useTutorial } from '../hooks/useTutorial';
 
 interface ChatPageProps {
@@ -119,7 +122,45 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   useMemoryIntegration({ userId: userId || undefined });
 
   // 🔥 Modern tier management with React Query + Realtime
-  const { tier } = useTierQuery();
+  const { tier, refreshTier } = useTierQuery();
+  
+  // ✅ Tier refresh on focus/visibility (cross-device sync)
+  useTierRefreshOnFocus();
+  
+  // ✅ Daily conversation tracking for MailerLite integration
+  const { data: dailyUsage } = useQuery({
+    queryKey: ['dailyUsage', userId, new Date().toISOString().split('T')[0]],
+    queryFn: async () => {
+      if (!userId) return 0;
+      
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('daily_usage')
+        .select('conversations_count')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle();
+      
+      if (error) {
+        logger.debug('[ChatPage] Error fetching daily usage:', error);
+        return 0;
+      }
+      
+      return data?.conversations_count || 0;
+    },
+    enabled: !!userId,
+    refetchInterval: 60000, // Refresh every minute
+    staleTime: 30000, // Consider stale after 30 seconds
+  });
+  
+  // ✅ Silent MailerLite automation for all authenticated users (no UI)
+  useMailerAutomation({
+    userEmail: userEmail || '',
+    userName: userName,
+    userTier: tier || 'free',
+    conversationsToday: dailyUsage || 0,
+    totalConversations: messages.length,
+  });
   
   // ✅ Theme support
   const { isDarkMode } = useThemeMode();
@@ -646,6 +687,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         userId
       );
       
+      // ✅ TIER SYNC: Refresh tier after successful message send
+      // Ensures tier is up-to-date (especially after upgrades or hitting limits)
+      refreshTier().catch((err) => {
+        // Silent fail - non-critical, tier will refresh on next focus/visibility change
+        logger.debug('[ChatPage] Tier refresh after message send failed (non-critical):', err);
+      });
+      
       // ✅ BEST PRACTICE: Usage counter now updates automatically via Supabase Realtime
       // No need for custom events - Realtime subscription in UsageCounter listens to INSERT events
       // This provides instant cross-device sync (mobile ↔ web) automatically
@@ -904,7 +952,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         lastMessageRef.current = '';
       }, 1000);
     }
-  }, [tier, conversationId, userId, messages.length, navigate, addMessage]); // ✅ PERFORMANCE FIX: Memoize with dependencies
+  }, [tier, conversationId, userId, messages.length, navigate, addMessage, refreshTier]); // ✅ PERFORMANCE FIX: Memoize with dependencies
 
   // ✅ Stop generation handler
   const handleStopGeneration = () => {
@@ -2629,7 +2677,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               userEmail={userEmail}
               userName={userName}
               userTier={tier || 'free'}
-              conversationsToday={0} // TODO: Track daily conversation count
+              conversationsToday={dailyUsage || 0}
               totalConversations={messages.length} // Use message count as proxy
               onError={(error) => {
                 logger.debug('[MailerLite] Error:', error);

@@ -66,6 +66,12 @@ export function MailerLiteIntegration({
   useEffect(() => {
     if (isConfigured && userEmail && userTier === 'free' && conversationsToday >= 2 && !limitEventSentRef.current) {
       limitEventSentRef.current = true;
+      
+      // Add to upgrade-ready group for upsell campaigns
+      addToGroup('atlas_upgrade_ready').catch(() => {
+        // Silent fail - non-critical
+      });
+      
       triggerEvent('conversation_limit_reached', {
         conversations_today: conversationsToday,
         tier_limit: 2,
@@ -79,7 +85,7 @@ export function MailerLiteIntegration({
     if (conversationsToday < 2) {
       limitEventSentRef.current = false;
     }
-  }, [isConfigured, userEmail, userTier, conversationsToday, triggerEvent]);
+  }, [isConfigured, userEmail, userTier, conversationsToday, triggerEvent, addToGroup]);
 
   // Auto-trigger first conversation event
   useEffect(() => {

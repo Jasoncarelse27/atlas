@@ -13,6 +13,7 @@ import { unifiedVoiceCallService } from '../../services/unifiedVoiceCallService'
 import { voiceCallState } from '../../services/voiceCallState';
 import { getSafeUserMedia } from '../../utils/audioHelpers';
 import { isFeatureEnabled } from '../../config/featureFlags';
+import { MicrophoneHelpModal } from '../MicrophoneHelpModal';
 
 interface VoiceCallModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [showHTTPSWarning, setShowHTTPSWarning] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null); // For MicrophoneHelpModal
   
   const callStartTime = useRef<Date | null>(null);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
@@ -311,7 +313,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         
         microphone.current.connect(analyser.current);
         monitorAudioLevel();
-      } catch (audioError) {
+      } catch (audioError: any) {
         logger.error('[VoiceCall] Audio setup failed:', audioError);
         setIsCallActive(false);
         
@@ -321,10 +323,17 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           return;
         }
         
-        // Show recovery modal if permission was denied
-        if (audioError instanceof Error && 
-            (audioError.message.includes('Permission denied') || 
-             audioError.message.includes('Microphone access denied'))) {
+        // ✅ ENHANCED: Catch NotAllowedError and SecurityError specifically
+        const isPermissionError = audioError?.name === 'NotAllowedError' || 
+                                  audioError?.name === 'SecurityError' ||
+                                  (audioError instanceof Error && 
+                                   (audioError.message.includes('Permission denied') || 
+                                    audioError.message.includes('Microphone access denied') ||
+                                    audioError.message.includes('not allowed')));
+        
+        if (isPermissionError) {
+          logger.warn('[VoiceCall] Permission error detected:', audioError?.name || 'Permission denied');
+          setPermissionError(audioError?.name || 'denied');
           modernToast.error('Microphone access denied', 'Check your browser settings to enable microphone');
           setShowRecoveryModal(true);
           return;
@@ -1248,6 +1257,15 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             </motion.div>
           );
         })()}
+
+        {/* ✅ Microphone Help Modal (dedicated component) */}
+        <MicrophoneHelpModal
+          isOpen={!!permissionError}
+          onClose={() => {
+            setPermissionError(null);
+            setShowRecoveryModal(false);
+          }}
+        />
 
         {/* ✅ HTTPS Warning Modal */}
         {showHTTPSWarning && (
