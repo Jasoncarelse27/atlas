@@ -1324,6 +1324,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             type: messageType, // ✅ CRITICAL FIX: Use detected type from attachments
             content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: newMsg.created_at,
+            status: 'sent', // ✅ CRITICAL: Messages from backend are already sent
             synced: true,
             updatedAt: newMsg.created_at,
             // ✅ FIX: Don't duplicate - use ONLY attachments array
