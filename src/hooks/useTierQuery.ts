@@ -17,10 +17,26 @@ interface TierData {
 }
 
 // 🔥 SINGLETON: Prevent multiple realtime subscriptions
-// ✅ CRITICAL FIX: Use generic type to prevent TDZ error during module load
-// Don't use ReturnType<typeof supabase.channel> at module level - causes TDZ in production builds
+// ✅ CRITICAL FIX: Lazy initialization prevents TDZ in production builds
 let realtimeChannelRef: any = null;
 let subscribedUserId: string | null = null;
+
+// ✅ Lazy getter ensures channel is only created when hook runs (prevents TDZ)
+function getRealtimeChannel(userId: string) {
+  if (!realtimeChannelRef || subscribedUserId !== userId) {
+    // Clean up old channel if user changed
+    if (realtimeChannelRef && subscribedUserId !== userId) {
+      supabase.removeChannel(realtimeChannelRef);
+      realtimeChannelRef = null;
+      subscribedUserId = null;
+    }
+    
+    // Create new channel only when needed (never at module scope)
+    realtimeChannelRef = supabase.channel(`tier-updates-${userId}`);
+    subscribedUserId = userId;
+  }
+  return realtimeChannelRef;
+}
 
 // ✅ NETWORK FIX: Request deduplication - prevent multiple simultaneous queries
 let inFlightRequest: Promise<TierData> | null = null;
@@ -445,27 +461,20 @@ export function useTierQuery() {
     const userId = query.data.userId;
 
     // ✅ CRITICAL FIX: Only allow ONE realtime connection per user across ALL components
+    // ✅ Use lazy getter instead of direct channel creation (prevents TDZ)
     if (subscribedUserId === userId && realtimeChannelRef) {
       // Already subscribed for this user - do nothing
       return;
     }
 
-    // Clean up old subscription if user changed
-    if (realtimeChannelRef && subscribedUserId !== userId) {
-      logger.debug('[useTierQuery] 🔄 User changed, cleaning up old subscription');
-      supabase.removeChannel(realtimeChannelRef);
-      realtimeChannelRef = null;
-      subscribedUserId = null;
-    }
+    // Get or create channel via lazy getter (ensures no module-level Supabase calls)
+    const channel = getRealtimeChannel(userId);
 
-    // Create new subscription
     if (import.meta.env.DEV) {
-    logger.debug(`[useTierQuery] 📡 Starting realtime for user: ${userId.slice(0, 8)}...`);
+      logger.debug(`[useTierQuery] 📡 Starting realtime for user: ${userId.slice(0, 8)}...`);
     }
-    subscribedUserId = userId;
 
-    const channel = supabase
-      .channel(`tier-updates-${userId}`)
+    channel
       .on(
         'postgres_changes',
         {
@@ -494,7 +503,7 @@ export function useTierQuery() {
               try {
                 localStorage.removeItem(TIER_CACHE_KEY);
               } catch (e2) {
-              // Ignore localStorage errors
+                // Ignore localStorage errors
               }
             }
           }
@@ -516,7 +525,7 @@ export function useTierQuery() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           if (import.meta.env.DEV) {
-          logger.debug('[useTierQuery] ✅ Realtime ready');
+            logger.debug('[useTierQuery] ✅ Realtime ready');
           }
         } else if (status === 'CHANNEL_ERROR') {
           logger.error('[useTierQuery] ❌ Channel error - reconnecting...');
@@ -524,12 +533,13 @@ export function useTierQuery() {
         }
       });
 
-    realtimeChannelRef = channel;
-
-    // Cleanup on unmount - but DON'T clean up if another component is still using it
+    // Cleanup on unmount
     return () => {
-      // Only clean up if we're the last component unmounting
-      // React Query will handle the coordination
+      if (realtimeChannelRef && subscribedUserId === userId) {
+        supabase.removeChannel(realtimeChannelRef);
+        realtimeChannelRef = null;
+        subscribedUserId = null;
+      }
     };
   }, [query.data?.userId, queryClient]);
 
