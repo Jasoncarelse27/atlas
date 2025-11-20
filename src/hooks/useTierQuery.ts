@@ -17,7 +17,9 @@ interface TierData {
 }
 
 // 🔥 SINGLETON: Prevent multiple realtime subscriptions
-let realtimeChannelRef: ReturnType<typeof supabase.channel> | null = null;
+// ✅ CRITICAL FIX: Use generic type to prevent TDZ error during module load
+// Don't use ReturnType<typeof supabase.channel> at module level - causes TDZ in production builds
+let realtimeChannelRef: any = null;
 let subscribedUserId: string | null = null;
 
 // ✅ NETWORK FIX: Request deduplication - prevent multiple simultaneous queries
