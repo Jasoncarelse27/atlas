@@ -445,35 +445,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         try {
           // ✅ CRITICAL FIX: Reload messages from Dexie (useRealtimeConversations already saved it)
           // This ensures we get the latest message that was just saved
+          // loadMessages already preserves optimistic messages, no mobile override needed
           await loadMessages(conversationId);
-          
-          // ✅ CRITICAL FIX: Force UI update on mobile (sometimes React doesn't detect state change)
-          const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-          if (isMobile) {
-            // Force re-render by updating messages state
-            const updatedMessages = await atlasDB.messages
-              .where("conversationId")
-              .equals(conversationId)
-              .filter(msg => !msg.deletedAt)
-              .sortBy("timestamp");
-            
-            const formatted = updatedMessages.slice(-100).map(msg => ({
-              id: msg.id,
-              role: msg.role,
-              content: msg.content,
-              timestamp: msg.timestamp,
-              type: msg.type || 'text',
-              // ✅ CRITICAL FIX: Deduplicate attachments by URL
-              attachments: Array.isArray(msg.attachments)
-                ? msg.attachments.filter(
-                    (att, index, self) => index === self.findIndex(a => a.url === att.url)
-                  )
-                : []
-            } as Message));
-            
-            setMessages(formatted);
-            logger.debug('[ChatPage] ✅ Mobile: Force-updated messages after real-time event');
-          }
           
           // Clear typing/streaming indicators
           setIsTyping(false);
@@ -1677,28 +1650,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Updated URL with conversation ID:', newUrl);
         }
         
-        // Load existing messages immediately (through registry)
+        // ✅ BEST PRACTICE: Load messages AFTER sync and conversationId are set
+        // Sync already happened at line 1607, which syncs both conversations AND messages
+        // No need for duplicate sync - real-time listener will handle new messages
         const initialMessages = await loadMessages(id);
-        
-        // Sync to get latest messages from backend
-        try {
-          const { conversationSyncService } = await import('../services/conversationSyncService');
-          // ✅ OPTIMIZED: Delta sync already handles both conversations AND messages
-          // ✅ ADAPTIVE SYNC: Pass isActive based on typing/streaming state for faster sync
-          const isActive = isTyping || isStreaming;
-          await conversationSyncService.deltaSync(userId, false, false, isActive);
-          
-          // ✅ CRITICAL FIX: Reload messages after sync if IndexedDB was empty
-          // Real-time listener only handles NEW messages, not existing ones that were just synced
-          if (initialMessages.length === 0) {
-            logger.debug('[ChatPage] 🔄 IndexedDB was empty, reloading messages after sync...');
-            await loadMessages(id);
-          } else {
-            logger.debug('[ChatPage] ✅ Initial sync complete, real-time listener active');
-          }
-        } catch (error) {
-          logger.error('[ChatPage] Initial sync failed:', error);
-        }
+        logger.debug('[ChatPage] ✅ Conversation initialized:', {
+          conversationId: id,
+          messageCount: initialMessages.length,
+          source: urlConversationId ? 'URL' : lastConversationId ? 'localStorage' : syncedConversations.length > 0 ? 'sync' : 'new'
+        });
         
       } catch (error) {
         logger.error('[ChatPage] Failed to initialize conversation:', error);
@@ -1836,7 +1796,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // Only load messages if userId is available
       if (userId) {
-        loadMessages(urlConversationId);
+        (async () => {
+          await loadMessages(urlConversationId);
+        })();
       } else {
         logger.debug('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
       }
@@ -1863,7 +1825,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         
         // Only load messages if userId is available
         if (userId) {
-          loadMessages(urlConversationId);
+          (async () => {
+            await loadMessages(urlConversationId);
+          })();
         } else {
           logger.debug('[ChatPage] ⚠️ userId not ready yet, will load messages when available');
         }
