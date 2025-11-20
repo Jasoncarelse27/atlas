@@ -1598,7 +1598,33 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     
     const initializeConversation = async () => {
       try {
-        // ✅ PRIORITY 1: Set conversation ID FIRST (before any other operations)
+        // ✅ BEST PRACTICE: Sync FIRST to populate Dexie before checking (fixes race condition)
+        // This ensures we have all conversations before deciding which one to use
+        let syncedConversations: any[] = [];
+        try {
+          const { conversationSyncService } = await import('../services/conversationSyncService');
+          const isActive = isTyping || isStreaming;
+          await conversationSyncService.deltaSync(userId, false, false, isActive);
+          logger.debug('[ChatPage] ✅ Initial sync complete');
+          
+          await ensureDatabaseReady();
+          syncedConversations = await atlasDB.conversations
+            .where('userId')
+            .equals(userId)
+            .filter(conv => !conv.deletedAt)
+            .sortBy('updatedAt');
+        } catch (error) {
+          logger.error('[ChatPage] Initial sync failed (non-blocking):', error);
+          await ensureDatabaseReady();
+          syncedConversations = await atlasDB.conversations
+            .where('userId')
+            .equals(userId)
+            .filter(conv => !conv.deletedAt)
+            .sortBy('updatedAt')
+            .catch(() => []);
+        }
+        
+        // ✅ PRIORITY 1: Set conversation ID (URL > localStorage > most recent > new)
         const urlParams = new URLSearchParams(window.location.search);
         const urlConversationId = urlParams.get('conversation');
         const lastConversationId = localStorage.getItem('atlas:lastConversationId');
@@ -1609,52 +1635,32 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           id = urlConversationId;
           logger.debug('[ChatPage] 🔄 Restoring conversation from URL:', id);
         } else if (lastConversationId) {
-          // ✅ CRITICAL FIX: Verify conversation exists in Dexie before restoring
-          await ensureDatabaseReady();
-          const conversationExists = await atlasDB.conversations.get(lastConversationId);
+          // ✅ CRITICAL FIX: Verify conversation exists in synced data before restoring
+          const conversationExists = syncedConversations.find(c => c.id === lastConversationId);
           
-          if (conversationExists && !conversationExists.deletedAt) {
+          if (conversationExists) {
             // Auto-restore last conversation (it exists and isn't deleted)
             id = lastConversationId;
             logger.debug('[ChatPage] 🔄 Restoring last conversation from localStorage:', id);
-          } else {
-            // Last conversation doesn't exist or was deleted, find most recent one
-            const allConversations = await atlasDB.conversations
-              .where('userId')
-              .equals(userId)
-              .filter(conv => !conv.deletedAt)
-              .sortBy('updatedAt');
-            
-            if (allConversations && allConversations.length > 0) {
-              // Use most recently updated conversation
-              const mostRecent = allConversations[allConversations.length - 1];
-              id = mostRecent.id;
-              logger.debug('[ChatPage] 🔄 Restoring most recent conversation:', id);
-            } else {
-              // No conversations exist, create new one
-              id = generateUUID();
-              logger.debug('[ChatPage] 🆕 Creating new conversation:', id);
-            }
-          }
-        } else {
-          // ✅ CRITICAL FIX: Check Dexie for existing conversations before creating new one
-          await ensureDatabaseReady();
-          const allConversations = await atlasDB.conversations
-            .where('userId')
-            .equals(userId)
-            .filter(conv => !conv.deletedAt)
-            .sortBy('updatedAt');
-          
-          if (allConversations && allConversations.length > 0) {
-            // Use most recently updated conversation
-            const mostRecent = allConversations[allConversations.length - 1];
+          } else if (syncedConversations.length > 0) {
+            // Last conversation doesn't exist, use most recent synced one
+            const mostRecent = syncedConversations[syncedConversations.length - 1];
             id = mostRecent.id;
-            logger.debug('[ChatPage] 🔄 Restoring most recent conversation (no localStorage):', id);
+            logger.debug('[ChatPage] 🔄 Restoring most recent conversation (localStorage stale):', id);
           } else {
-            // Create new conversation
+            // No conversations exist, create new one
             id = generateUUID();
             logger.debug('[ChatPage] 🆕 Creating new conversation (no existing conversations):', id);
           }
+        } else if (syncedConversations.length > 0) {
+          // ✅ BEST PRACTICE: Use most recently updated conversation from sync
+          const mostRecent = syncedConversations[syncedConversations.length - 1];
+          id = mostRecent.id;
+          logger.debug('[ChatPage] 🔄 Restoring most recent conversation (no localStorage):', id);
+        } else {
+          // Create new conversation (no conversations exist)
+          id = generateUUID();
+          logger.debug('[ChatPage] 🆕 Creating new conversation (no existing conversations):', id);
         }
         
         // ✅ PHASE 2: Switching to conversation
