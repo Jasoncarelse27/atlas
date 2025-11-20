@@ -375,7 +375,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         errorMessage: error instanceof Error ? error.message : String(error),
         errorStack: error instanceof Error ? error.stack : undefined
       });
-      setMessages([]);
+      // ✅ CRITICAL FIX: DON'T clear messages on error - preserve existing messages
+      // This prevents messages from disappearing due to transient errors (auth, network, etc.)
+      // Messages are already saved in Dexie, so they'll be loaded on next successful attempt
+      logger.warn('[ChatPage] ⚠️ Preserving existing messages despite load error - will retry on next load');
       setHasMoreMessages(false);
     }
   }, [userId, conversationId]); // ✅ MOBILE FIX: Add userId dependency to ensure proper filtering
