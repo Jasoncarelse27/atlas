@@ -4852,6 +4852,192 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
   }
 });
 
+// MailerLite Proxy Endpoint - Fixes CORS and API key exposure
+// ======================================
+// Unified proxy for all MailerLite operations from frontend
+// ======================================
+app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
+  try {
+    const { operation, data } = req.body;
+    
+    if (!operation) {
+      return res.status(400).json({ 
+        error: 'Missing required field: operation' 
+      });
+    }
+
+    const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
+    
+    if (!MAILERLITE_API_KEY) {
+      logger.debug('[MailerLite Proxy] Not configured - skipping operation');
+      return res.status(200).json({ 
+        success: false,
+        disabled: true,
+        message: 'MailerLite service not configured' 
+      });
+    }
+
+    const apiUrl = 'https://api.mailerlite.com/api/v2';
+    let response;
+    let result;
+
+    switch (operation) {
+      case 'createOrUpdateSubscriber': {
+        const { email, name, tier, conversations_today, total_conversations, last_active, signup_date, subscription_status, custom_fields } = data;
+        
+        if (!email) {
+          return res.status(400).json({ error: 'Missing required field: email' });
+        }
+
+        const subscriberData = {
+          email,
+          name: name || '',
+          fields: {
+            tier: tier || 'free',
+            conversations_today: conversations_today || 0,
+            total_conversations: total_conversations || 0,
+            last_active: last_active || new Date().toISOString(),
+            signup_date: signup_date || new Date().toISOString(),
+            subscription_status: subscription_status || 'active',
+            ...custom_fields,
+          },
+          resubscribe: true,
+        };
+
+        response = await fetch(`${apiUrl}/subscribers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+          body: JSON.stringify(subscriberData),
+        });
+        break;
+      }
+
+      case 'updateCustomFields': {
+        const { email, fields } = data;
+        
+        if (!email || !fields) {
+          return res.status(400).json({ error: 'Missing required fields: email, fields' });
+        }
+
+        response = await fetch(`${apiUrl}/subscribers/${encodeURIComponent(email)}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+          body: JSON.stringify({ fields }),
+        });
+        break;
+      }
+
+      case 'triggerEvent': {
+        const { email, event, properties } = data;
+        
+        if (!email || !event) {
+          return res.status(400).json({ error: 'Missing required fields: email, event' });
+        }
+
+        // MailerLite v2 API uses custom fields for events
+        const eventFields = {
+          last_event: event,
+          last_event_time: new Date().toISOString(),
+          ...properties,
+        };
+
+        response = await fetch(`${apiUrl}/subscribers/${encodeURIComponent(email)}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+          body: JSON.stringify({ fields: eventFields }),
+        });
+        break;
+      }
+
+      case 'segmentSubscriber': {
+        const { email, groupName } = data;
+        
+        if (!email || !groupName) {
+          return res.status(400).json({ error: 'Missing required fields: email, groupName' });
+        }
+
+        response = await fetch(`${apiUrl}/groups/${encodeURIComponent(groupName)}/subscribers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+          body: JSON.stringify({ email }),
+        });
+        break;
+      }
+
+      case 'removeFromGroup': {
+        const { email, groupName } = data;
+        
+        if (!email || !groupName) {
+          return res.status(400).json({ error: 'Missing required fields: email, groupName' });
+        }
+
+        response = await fetch(`${apiUrl}/groups/${encodeURIComponent(groupName)}/subscribers/${encodeURIComponent(email)}`, {
+          method: 'DELETE',
+          headers: {
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+        });
+        break;
+      }
+
+      default:
+        return res.status(400).json({ error: `Unknown operation: ${operation}` });
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Don't fail on 404 for removeFromGroup (group might not exist)
+      if (operation === 'removeFromGroup' && response.status === 404) {
+        return res.json({ 
+          success: true, 
+          message: 'Subscriber removed from group (or already not in group)' 
+        });
+      }
+      
+      // Don't fail on 404 for segmentSubscriber (group might not exist)
+      if (operation === 'segmentSubscriber' && response.status === 404) {
+        logger.debug(`[MailerLite Proxy] Group ${data.groupName} not found - skipping`);
+        return res.json({ 
+          success: false, 
+          message: `Group ${data.groupName} not found` 
+        });
+      }
+
+      throw new Error(`MailerLite API error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+    }
+
+    result = await response.json().catch(() => ({}));
+    
+    logger.debug(`[MailerLite Proxy] ✅ Operation ${operation} completed successfully`);
+    
+    res.json({ 
+      success: true, 
+      data: result 
+    });
+
+  } catch (error) {
+    logger.error('[MailerLite Proxy] Error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to process MailerLite operation',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 // MagicBell: Generate user token for notifications
 // ======================================
 // MAGICBELL JWT TOKEN ENDPOINT (FINAL FIX)
