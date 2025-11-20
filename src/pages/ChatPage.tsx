@@ -85,6 +85,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
+  const [userName, setUserName] = useState<string | undefined>(undefined);
   
   // Custom hooks (may depend on router/context/state)
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
@@ -1098,9 +1099,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   };
 
-  // User metadata state for MailerLite
-  const [userName, setUserName] = useState<string | undefined>(undefined);
-  
   // MailerLite event triggers
   const { triggerEvent: triggerMailerLiteEvent } = useMailerEvents(userEmail || '');
 
