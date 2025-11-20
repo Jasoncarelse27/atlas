@@ -1607,12 +1607,54 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (urlConversationId) {
           // Load existing conversation from URL
           id = urlConversationId;
+          logger.debug('[ChatPage] 🔄 Restoring conversation from URL:', id);
         } else if (lastConversationId) {
-          // Auto-restore last conversation
-          id = lastConversationId;
+          // ✅ CRITICAL FIX: Verify conversation exists in Dexie before restoring
+          await ensureDatabaseReady();
+          const conversationExists = await atlasDB.conversations.get(lastConversationId);
+          
+          if (conversationExists && !conversationExists.deletedAt) {
+            // Auto-restore last conversation (it exists and isn't deleted)
+            id = lastConversationId;
+            logger.debug('[ChatPage] 🔄 Restoring last conversation from localStorage:', id);
+          } else {
+            // Last conversation doesn't exist or was deleted, find most recent one
+            const allConversations = await atlasDB.conversations
+              .where('userId')
+              .equals(userId)
+              .filter(conv => !conv.deletedAt)
+              .sortBy('updatedAt');
+            
+            if (allConversations && allConversations.length > 0) {
+              // Use most recently updated conversation
+              const mostRecent = allConversations[allConversations.length - 1];
+              id = mostRecent.id;
+              logger.debug('[ChatPage] 🔄 Restoring most recent conversation:', id);
+            } else {
+              // No conversations exist, create new one
+              id = generateUUID();
+              logger.debug('[ChatPage] 🆕 Creating new conversation:', id);
+            }
+          }
         } else {
-          // Create new conversation
-          id = generateUUID();
+          // ✅ CRITICAL FIX: Check Dexie for existing conversations before creating new one
+          await ensureDatabaseReady();
+          const allConversations = await atlasDB.conversations
+            .where('userId')
+            .equals(userId)
+            .filter(conv => !conv.deletedAt)
+            .sortBy('updatedAt');
+          
+          if (allConversations && allConversations.length > 0) {
+            // Use most recently updated conversation
+            const mostRecent = allConversations[allConversations.length - 1];
+            id = mostRecent.id;
+            logger.debug('[ChatPage] 🔄 Restoring most recent conversation (no localStorage):', id);
+          } else {
+            // Create new conversation
+            id = generateUUID();
+            logger.debug('[ChatPage] 🆕 Creating new conversation (no existing conversations):', id);
+          }
         }
         
         // ✅ PHASE 2: Switching to conversation
@@ -1626,6 +1668,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (!urlConversationId && id) {
           const newUrl = `/chat?conversation=${id}`;
           window.history.replaceState({}, '', newUrl);
+          logger.debug('[ChatPage] ✅ Updated URL with conversation ID:', newUrl);
         }
         
         // Load existing messages immediately (through registry)
