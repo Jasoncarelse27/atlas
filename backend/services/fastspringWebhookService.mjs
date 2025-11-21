@@ -146,7 +146,7 @@ export async function handleFastSpringWebhook(req, res) {
           .update({
             subscription_tier: tier,
             subscription_status: 'active',
-            fastspring_subscription_id: subscriptionId,
+            subscription_id: subscriptionId,
             updated_at: new Date().toISOString()
           })
           .eq('id', userIdFromTags);
@@ -238,7 +238,7 @@ export async function handleFastSpringWebhook(req, res) {
                     .update({
                       subscription_tier: tier,
                       subscription_status: 'active',
-                      fastspring_subscription_id: subscriptionId,
+                      subscription_id: subscriptionId,
                       updated_at: new Date().toISOString()
                     })
                     .eq('id', profile.id);
@@ -304,7 +304,7 @@ export async function handleFastSpringWebhook(req, res) {
             .update({
               subscription_tier: tier,
               subscription_status: 'active',
-              fastspring_subscription_id: subscriptionId,
+              subscription_id: subscriptionId,
               updated_at: new Date().toISOString()
             })
             .eq('id', profile.id);
@@ -364,7 +364,7 @@ export async function handleFastSpringWebhook(req, res) {
           .update({
             subscription_tier: tier,
             subscription_status: 'active',
-            fastspring_subscription_id: subscriptionId,
+            subscription_id: subscriptionId,
             updated_at: new Date().toISOString(),
           })
           .eq('id', userId);
@@ -455,7 +455,7 @@ async function handleNewSubscription(event, userId, subscriptionId, accountId) {
       .update({
         subscription_tier: tier,
         subscription_status: 'active',
-        fastspring_subscription_id: subscriptionId,
+        subscription_id: subscriptionId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId);
