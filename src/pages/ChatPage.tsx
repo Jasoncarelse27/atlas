@@ -208,13 +208,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     try {
       await ensureDatabaseReady();
       
-      // Load 50 messages older than the current oldest message
-      // Use sortBy then filter/limit in JavaScript (Dexie pattern)
+      // ✅ SCALABILITY FIX: Load 50 messages older than current oldest efficiently
+      // Note: Dexie's filter() loads into memory, but we limit to 50 results
+      // Get messages older than current oldest, sorted ascending (oldest first)
       let olderMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
+        .orderBy("timestamp")
         .filter(msg => !msg.deletedAt && msg.timestamp < currentOldestTimestamp)
-        .sortBy("timestamp");
+        .limit(100) // Get more than needed, then take last 50
+        .toArray();
+      
+      // Take last 50 messages (most recent of the older ones)
+      olderMessages = olderMessages.slice(-50);
       
       // ✅ CRITICAL FIX: Ensure messages are sorted chronologically (oldest first)
       olderMessages.sort((a, b) => {
@@ -222,9 +228,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         const timeB = new Date(b.timestamp).getTime();
         return timeA - timeB; // Ascending order (oldest first)
       });
-      
-      // Take last 50 messages (most recent of the older ones) - but keep chronological order
-      olderMessages = olderMessages.slice(-50);
       
       if (olderMessages.length > 0) {
         const formattedOlder = olderMessages.map(msg => ({
@@ -291,9 +294,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
       
       // ✅ OPTIMIZATION: Check cache first to prevent redundant loads
+      // ✅ CRITICAL FIX: Only use cache if userId is available (prevents stale empty results)
       const cacheKey = `${conversationId}-${userId}`;
       const cached = messageLoadCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < 5000) {
+      if (cached && Date.now() - cached.timestamp < 5000 && userId) {
         logger.debug(`[ChatPage] ⚡ Using cached messages for ${conversationId} (${Date.now() - cached.timestamp}ms ago)`);
         return cached.promise;
       }
@@ -303,13 +307,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE FIX: Ensure database is ready before use
       await ensureDatabaseReady();
       
-      // ✅ SCALABILITY: Load only last 100 messages (chronological order: oldest first)
-      // ✅ CRITICAL FIX: Always sort by timestamp ascending for consistent ordering
+      // ✅ SCALABILITY FIX: Use reverse().limit() to avoid loading ALL messages into memory
+      // Get last 100 messages efficiently (without loading 10k+ messages)
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .filter(msg => !msg.deletedAt)
-        .sortBy("timestamp");
+        .orderBy("timestamp")
+        .reverse()
+        .limit(100)
+        .toArray();
+      
+      // Filter deleted messages in memory (only 100 items, not 10k)
+      storedMessages = storedMessages.filter(msg => !msg.deletedAt);
       
       // ✅ CRITICAL FIX: Ensure messages are sorted chronologically (oldest first)
       // This ensures consistent ordering across web and mobile
@@ -319,17 +328,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         return timeA - timeB; // Ascending order (oldest first)
       });
       
-      // Take last 100 messages (most recent) - but keep them in chronological order
-      storedMessages = storedMessages.slice(-100);
+      // ✅ SCALABILITY: Efficient check if there are more messages
+      // If we got 100 non-deleted messages, there might be more
+      // Otherwise, check if there are any messages older than the oldest we loaded
+      let hasMore = false;
+      if (storedMessages.length === 100) {
+        // Got exactly 100, likely more exist
+        hasMore = true;
+      } else if (storedMessages.length > 0) {
+        // Check if there are messages older than the oldest we loaded
+        const oldestTimestamp = storedMessages[0].timestamp;
+        const olderCount = await atlasDB.messages
+          .where("conversationId")
+          .equals(conversationId)
+          .filter(msg => !msg.deletedAt && msg.timestamp < oldestTimestamp)
+          .count();
+        hasMore = olderCount > 0;
+      }
+      const totalCount = storedMessages.length + (hasMore ? 1 : 0); // Approximate
       
-      // ✅ SCALABILITY: Check if there are more messages to load
-      const totalCount = await atlasDB.messages
-        .where("conversationId")
-        .equals(conversationId)
-        .filter(msg => !msg.deletedAt)
-        .count();
-      
-      setHasMoreMessages(totalCount > storedMessages.length);
+      setHasMoreMessages(hasMore);
       
       logger.debug('[ChatPage] 🔍 Loaded messages for conversation:', {
         conversationId,
@@ -348,19 +366,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       const formattedMessages: Message[] = storedMessages
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
         .map((msg) => ({
-          id: msg.id,
+        id: msg.id,
           conversationId: msg.conversationId,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          type: msg.type || 'text',
-          attachments: Array.isArray(msg.attachments)
-            ? msg.attachments.filter(
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        type: msg.type || 'text',
+        attachments: Array.isArray(msg.attachments)
+          ? msg.attachments.filter(
                 (att, index, self) => index === self.findIndex((a) => a.url === att.url)
-              )
-            : []
+            )
+          : []
         }));
-
+      
       // ✅ SIMPLE: React state reflects exactly what Dexie has
       setMessages(formattedMessages);
       logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
@@ -450,7 +468,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         window.removeEventListener('newMessageReceived', handleNewMessage as EventListener);
       }
     };
-  }, [conversationId, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]); // loadMessages excluded - stable callback, event handler captures it
 
   // ✅ CRITICAL FIX: Reload messages when page becomes visible on mobile (cross-device sync)
   useEffect(() => {
@@ -470,7 +489,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [conversationId, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]); // loadMessages excluded - stable callback, event handler captures it
 
   // Handle history modal from QuickActions
   // ✅ TYPESCRIPT FIX: Use proper type instead of any[]
@@ -671,12 +691,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
       
       try {
-        await chatService.sendMessage(
-          text, 
-          () => {}, // No frontend status updates needed
-          conversationId, 
-          userId
-        );
+      await chatService.sendMessage(
+        text, 
+        () => {}, // No frontend status updates needed
+        conversationId, 
+        userId
+      );
       } catch (sendError) {
         // ✅ CRITICAL FIX: More detailed error logging
         logger.error('[ChatPage] ❌ chatService.sendMessage threw error:', {
@@ -1096,7 +1116,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       logger.error('[ChatPage] ❌ Failed to navigate to message:', error);
     }
   };
-
+  
   // MailerLite event triggers
   const { triggerEvent: triggerMailerLiteEvent } = useMailerEvents(userEmail || '');
 
@@ -1440,16 +1460,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           syncedConversations = await atlasDB.conversations
             .where('userId')
             .equals(userId)
-            .filter(conv => !conv.deletedAt)
-            .sortBy('updatedAt');
+            .orderBy('updatedAt')
+            .reverse()
+            .limit(200) // ✅ SCALABILITY: Limit to 200 most recent conversations
+            .toArray()
+            .then(convs => convs.filter(conv => !conv.deletedAt));
         } catch (error) {
           logger.error('[ChatPage] Initial sync failed (non-blocking):', error);
           await ensureDatabaseReady();
           syncedConversations = await atlasDB.conversations
             .where('userId')
             .equals(userId)
-            .filter(conv => !conv.deletedAt)
-            .sortBy('updatedAt')
+            .orderBy('updatedAt')
+            .reverse()
+            .limit(200) // ✅ SCALABILITY: Limit to 200 most recent conversations
+            .toArray()
+            .then(convs => convs.filter(conv => !conv.deletedAt))
             .catch(() => []);
         }
         
@@ -1469,16 +1495,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           if (conversationExists) {
             // Auto-restore last conversation (it exists and isn't deleted)
-            id = lastConversationId;
+          id = lastConversationId;
             logger.debug('[ChatPage] 🔄 Restoring last conversation from localStorage:', id);
           } else if (syncedConversations.length > 0) {
             // Last conversation doesn't exist, use most recent synced one
             const mostRecent = syncedConversations[syncedConversations.length - 1];
             id = mostRecent.id;
             logger.debug('[ChatPage] 🔄 Restoring most recent conversation (localStorage stale):', id);
-          } else {
+        } else {
             // No conversations exist, create new one
-            id = generateUUID();
+          id = generateUUID();
             logger.debug('[ChatPage] 🆕 Creating new conversation (no existing conversations):', id);
           }
         } else if (syncedConversations.length > 0) {
@@ -1564,15 +1590,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   
   // ✅ CRITICAL FIX: Ensure messages load when BOTH userId and conversationId are available
   // This handles the race condition where conversationId is set before userId on refresh
+  // Note: loadMessages deliberately excluded from deps to prevent infinite loop (stable callback)
   useEffect(() => {
     if (userId && conversationId) {
       logger.debug('[ChatPage] 🔄 Both userId and conversationId available, loading messages...');
       loadMessages(conversationId);
     }
-  }, [userId, conversationId, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, conversationId]); // loadMessages excluded - stable callback with userId dependency
 
   // ✅ CROSS-DEVICE SYNC FIX: Reload messages when page becomes visible
   // This ensures messages typed on mobile appear on web when you switch tabs/windows
+  // Note: loadMessages deliberately excluded from deps to prevent infinite loop (stable callback)
   useEffect(() => {
     if (!userId || !conversationId || typeof window === 'undefined') return;
 
@@ -1591,7 +1620,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [userId, conversationId, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, conversationId]); // loadMessages excluded - stable callback with userId dependency
 
   // ✅ TUTORIAL: Trigger tutorial for first-time users (hook already declared at top)
   useEffect(() => {
@@ -1698,16 +1728,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     };
   }, [conversationId, userId]); // Note: loadMessages deliberately excluded - stable callback with userId dependency
 
-  // ✅ MOBILE FIX: Load messages when userId becomes available
-  // Note: loadMessages not in deps to prevent infinite loop (stable callback with userId dependency)
-  useEffect(() => {
-    if (userId && conversationId) {
-      logger.debug('[ChatPage] 🔄 userId available, loading messages for conversation:', conversationId);
-      loadMessages(conversationId);
-    }
-  }, [userId, conversationId]); // Note: loadMessages deliberately excluded - stable callback
-
-  // Removed - redundant with main message loading useEffect
+  // ✅ REMOVED: Duplicate useEffect - messages already load via the main useEffect above (line 1590)
+  // Keeping only one useEffect prevents race conditions and duplicate loads
 
   // Removed - no longer needed with direct navigation
 
