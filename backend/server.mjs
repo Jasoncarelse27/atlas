@@ -31,6 +31,8 @@ import { redisService } from './services/redisService.mjs';
 import { cleanAIResponse } from './services/textCleaner.mjs';
 import { getUserTierSafe } from './services/tierService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
+import { handleFastSpringWebhook } from './services/fastspringWebhookService.mjs';
+import { handleMailerLiteWebhook } from './services/mailerLiteWebhookService.mjs';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -5419,6 +5421,13 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
+
+// ✅ FastSpring Webhook Handler (matches FastSpring dashboard configuration)
+// FastSpring is configured to send to: /api/fastspring/webhook
+app.post('/api/fastspring/webhook', express.raw({ type: 'application/json' }), handleFastSpringWebhook);
+
+// ✅ MailerLite Webhook Handler
+app.post('/api/mailerlite/webhook', express.json(), handleMailerLiteWebhook);
 
 // 📊 Feature attempts tracking endpoint
 app.post('/api/feature-attempts', async (req, res) => {
