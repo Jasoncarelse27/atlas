@@ -125,12 +125,25 @@ export async function handleFastSpringWebhook(req, res) {
         
         const tier = extractTierFromProduct(event?.data?.product);
         
+        // Extract period dates from FastSpring event
+        const periodEnd = event?.data?.next 
+          || event?.data?.nextValue 
+          || event?.data?.end 
+          || event?.data?.endValue 
+          || null;
+        
+        const periodStart = event?.data?.begin 
+          || event?.data?.beginValue 
+          || null;
+        
         // Create subscription record
         const { error: upsertError } = await supabase.from('fastspring_subscriptions').upsert({
           user_id: userIdFromTags,
           fastspring_subscription_id: subscriptionId,
           fastspring_account_id: fastspringAccountId,
           status: event?.data?.state || 'active',
+          current_period_start: periodStart ? new Date(periodStart).toISOString() : new Date().toISOString(),
+          current_period_end: periodEnd ? new Date(periodEnd).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'fastspring_subscription_id'
@@ -217,12 +230,25 @@ export async function handleFastSpringWebhook(req, res) {
                   
                   const tier = extractTierFromProduct(event?.data?.product);
                   
+                  // Extract period dates from FastSpring event
+                  const periodEnd = event?.data?.next 
+                    || event?.data?.nextValue 
+                    || event?.data?.end 
+                    || event?.data?.endValue 
+                    || null;
+                  
+                  const periodStart = event?.data?.begin 
+                    || event?.data?.beginValue 
+                    || null;
+                  
                   // Create subscription record
                   const { error: upsertError } = await supabase.from('fastspring_subscriptions').upsert({
                     user_id: profile.id,
                     fastspring_subscription_id: subscriptionId,
                     fastspring_account_id: fastspringAccountId,
                     status: event?.data?.state || 'active',
+                    current_period_start: periodStart ? new Date(periodStart).toISOString() : new Date().toISOString(),
+                    current_period_end: periodEnd ? new Date(periodEnd).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                     updated_at: new Date().toISOString()
                   }, {
                     onConflict: 'fastspring_subscription_id'
@@ -283,12 +309,25 @@ export async function handleFastSpringWebhook(req, res) {
           
           const tier = extractTierFromProduct(event?.data?.product);
           
+          // Extract period dates from FastSpring event
+          const periodEnd = event?.data?.next 
+            || event?.data?.nextValue 
+            || event?.data?.end 
+            || event?.data?.endValue 
+            || null;
+          
+          const periodStart = event?.data?.begin 
+            || event?.data?.beginValue 
+            || null;
+          
           // Create subscription record
           const { error: upsertError } = await supabase.from('fastspring_subscriptions').upsert({
             user_id: profile.id,
             fastspring_subscription_id: subscriptionId,
             fastspring_account_id: fastspringAccountId,
             status: event?.data?.state || 'active',
+            current_period_start: periodStart ? new Date(periodStart).toISOString() : new Date().toISOString(),
+            current_period_end: periodEnd ? new Date(periodEnd).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'fastspring_subscription_id'
@@ -331,6 +370,17 @@ export async function handleFastSpringWebhook(req, res) {
       case 'subscription.activated':
       case 'subscription.updated':
       case 'subscription.charge.completed': {
+        // Extract period dates from FastSpring event
+        const periodEnd = event?.data?.next 
+          || event?.data?.nextValue 
+          || event?.data?.end 
+          || event?.data?.endValue 
+          || null;
+        
+        const periodStart = event?.data?.begin 
+          || event?.data?.beginValue 
+          || null;
+        
         // Update fastspring_subscriptions table
         const { error: upsertError } = await supabase
           .from('fastspring_subscriptions')
@@ -339,6 +389,10 @@ export async function handleFastSpringWebhook(req, res) {
             fastspring_subscription_id: subscriptionId,
             fastspring_account_id: fastspringAccountId,
             status: event.data?.state || 'active',
+            current_period_start: periodStart ? new Date(periodStart).toISOString() : new Date().toISOString(),
+            current_period_end: periodEnd ? new Date(periodEnd).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            grace_period_end: null, // Clear any grace period on successful payment
+            cancel_at_period_end: false, // Clear cancellation flag if reactivated
             updated_at: new Date().toISOString(),
           }, {
             onConflict: 'fastspring_subscription_id'
@@ -380,37 +434,48 @@ export async function handleFastSpringWebhook(req, res) {
         
       case 'subscription.deactivated':
       case 'subscription.canceled': {
+        // Extract period end from FastSpring event (user keeps access until period ends)
+        const periodEnd = event?.data?.end 
+          || event?.data?.endValue 
+          || event?.data?.next 
+          || event?.data?.nextValue 
+          || null;
+        
+        // Mark as cancelled but DON'T downgrade tier yet - user keeps access until period_end
         await supabase
           .from('fastspring_subscriptions')
           .update({
             status: 'cancelled',
+            cancel_at_period_end: true,
+            current_period_end: periodEnd ? new Date(periodEnd).toISOString() : null,
             updated_at: new Date().toISOString(),
           })
           .eq('fastspring_subscription_id', subscriptionId);
         
-        await supabase
-          .from('profiles')
-          .update({
-            subscription_status: 'cancelled',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', userId);
+        // ✅ DON'T update profiles table - keep tier active until period ends
+        // Tier will be downgraded when period_end is reached (handled by scheduled job)
         
-        logger.info(`[FastSpring] ✅ Cancelled subscription for user ${userId}`);
+        logger.info(`[FastSpring] ✅ Cancelled subscription for user ${userId} - tier remains active until period end ${periodEnd ? new Date(periodEnd).toISOString() : '(unknown)'}`);
         break;
       }
         
       case 'subscription.charge.failed': {
-        // Handle failed payment - could downgrade or mark as past_due
+        // Set 24-hour grace period (not 7 days)
+        const gracePeriodEnd = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        
         await supabase
           .from('fastspring_subscriptions')
           .update({
             status: 'past_due',
+            grace_period_end: gracePeriodEnd.toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq('fastspring_subscription_id', subscriptionId);
         
-        logger.warn(`[FastSpring] ⚠️ Charge failed for user ${userId}`);
+        // ✅ DON'T downgrade tier - user keeps access during 24-hour grace period
+        // Tier will be downgraded if payment fails after grace period expires (handled by scheduled job)
+        
+        logger.warn(`[FastSpring] ⚠️ Charge failed for user ${userId} - 24-hour grace period until ${gracePeriodEnd.toISOString()}`);
         break;
       }
         
@@ -437,6 +502,17 @@ async function handleNewSubscription(event, userId, subscriptionId, accountId) {
                : productPath.includes('core') ? 'core' 
                : 'core';
     
+    // Extract period dates from FastSpring event
+    const periodEnd = event?.data?.next 
+      || event?.data?.nextValue 
+      || event?.data?.end 
+      || event?.data?.endValue 
+      || null;
+    
+    const periodStart = event?.data?.begin 
+      || event?.data?.beginValue 
+      || null;
+    
     // Create subscription record
     await supabase
       .from('fastspring_subscriptions')
@@ -445,6 +521,8 @@ async function handleNewSubscription(event, userId, subscriptionId, accountId) {
         fastspring_subscription_id: subscriptionId,
         fastspring_account_id: accountId,
         status: 'active',
+        current_period_start: periodStart ? new Date(periodStart).toISOString() : new Date().toISOString(),
+        current_period_end: periodEnd ? new Date(periodEnd).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
