@@ -135,47 +135,77 @@ export default function UsageCounter({ userId: propUserId }: UsageCounterProps) 
     // ✅ BEST PRACTICE: Supabase Realtime subscription for instant cross-device sync
     // Follows pattern from useRealtimeConversations and useTierQuery
     if (actualUserId) {
-      const sanitizedId = actualUserId.replace(/-/g, "_");
-      const channelName = `usage_counter_${sanitizedId}`;
-      
-      // Clean up existing channel if any
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+      try {
+        const sanitizedId = actualUserId.replace(/-/g, "_");
+        const channelName = `usage_counter_${sanitizedId}`;
+        
+        // Clean up existing channel if any
+        if (channelRef.current) {
+          try {
+            supabase.removeChannel(channelRef.current);
+            channelRef.current = null;
+          } catch (err) {
+            logger.debug('[UsageCounter] Could not remove previous channel:', err);
+          }
+        }
+        
+        // Create channel for user message INSERT events
+        const channel = supabase.channel(channelName, {
+          config: {
+            presence: {
+              key: actualUserId,
+            },
+          },
+        });
+        
+        // Store ref immediately to prevent duplicate subscriptions
+        channelRef.current = channel;
+        
+        // ✅ CRITICAL: Listen for user message INSERTs (only count user messages, not assistant)
+        channel.on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `user_id=eq.${actualUserId}`,
+          },
+          async (payload) => {
+            const newMessage = payload.new;
+            
+            // Only count user messages
+            if (newMessage.role !== 'user') {
+              return;
+            }
+            
+            logger.debug('[UsageCounter] 🔔 New user message inserted via Realtime, refreshing usage count...', {
+              messageId: newMessage.id,
+              userId: actualUserId
+            });
+            
+            // ✅ Refresh usage count immediately when new user message is inserted
+            // This provides instant cross-device sync (mobile ↔ web)
+            await fetchUsage();
+          }
+        )
+        .subscribe(async (status, err) => {
+          if (status === 'SUBSCRIBED') {
+            logger.debug('[UsageCounter] ✅ Subscribed to message INSERT events for usage updates');
+          } else if (status === 'CLOSED') {
+            logger.warn('[UsageCounter] ⚠️ Realtime channel closed, falling back to polling');
+            channelRef.current = null;
+          } else if (status === 'CHANNEL_ERROR') {
+            logger.error('[UsageCounter] ❌ Realtime channel error:', err);
+            channelRef.current = null;
+          } else if (status === 'TIMED_OUT') {
+            logger.warn('[UsageCounter] ⏱️ Realtime subscription timed out');
+            channelRef.current = null;
+          }
+        });
+      } catch (error) {
+        logger.error('[UsageCounter] Failed to setup realtime subscription:', error);
+        channelRef.current = null;
       }
-      
-      // Create channel for user message INSERT events
-      const channel = supabase.channel(channelName);
-      
-      // ✅ CRITICAL: Listen for user message INSERTs (only count user messages, not assistant)
-      channel.on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `user_id=eq.${actualUserId} AND role=eq.user`,
-        },
-        async (payload) => {
-          const newMessage = payload.new;
-          logger.debug('[UsageCounter] 🔔 New user message inserted via Realtime, refreshing usage count...', {
-            messageId: newMessage.id,
-            userId: actualUserId
-          });
-          
-          // ✅ Refresh usage count immediately when new user message is inserted
-          // This provides instant cross-device sync (mobile ↔ web)
-          await fetchUsage();
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          logger.debug('[UsageCounter] ✅ Subscribed to message INSERT events for usage updates');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          logger.warn('[UsageCounter] ⚠️ Realtime channel closed, falling back to polling');
-        }
-      });
-      
-      channelRef.current = channel;
     }
     
     // ✅ FALLBACK: Poll every 30 seconds as backup (in case Realtime fails)

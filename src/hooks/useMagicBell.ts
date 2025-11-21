@@ -28,6 +28,8 @@ export function useMagicBell() {
       const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY;
       if (!apiKey) {
         // Silent fallback - no error logging
+        // Best practice: Skip network requests when API key is missing
+        // This prevents "Failed to load resource: 401" errors in console
         setError(null);
         setIsLoading(false);
         return;
