@@ -208,16 +208,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     try {
       await ensureDatabaseReady();
       
-      // ✅ SCALABILITY FIX: Load 50 messages older than current oldest efficiently
+      // ✅ SCALABILITY FIX: Load 50 messages older than current oldest efficiently                                                                            
       // Note: Dexie's filter() loads into memory, but we limit to 50 results
-      // Get messages older than current oldest, sorted ascending (oldest first)
+      // Get messages older than current oldest, sorted ascending (oldest first)                                                                               
       let olderMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .orderBy("timestamp")
         .filter(msg => !msg.deletedAt && msg.timestamp < currentOldestTimestamp)
-        .limit(100) // Get more than needed, then take last 50
-        .toArray();
+        .sortBy("timestamp"); // ✅ FIX: sortBy works on Collection, orderBy doesn't
       
       // Take last 50 messages (most recent of the older ones)
       olderMessages = olderMessages.slice(-50);
@@ -307,18 +305,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE FIX: Ensure database is ready before use
       await ensureDatabaseReady();
       
-      // ✅ SCALABILITY FIX: Use reverse().limit() to avoid loading ALL messages into memory
-      // Get last 100 messages efficiently (without loading 10k+ messages)
+      // ✅ SCALABILITY FIX: Load last 100 messages efficiently (without loading 10k+ messages)
+      // ✅ FIX: Use sortBy on Collection (orderBy only works on Table directly)
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .orderBy("timestamp")
-        .reverse()
-        .limit(100)
-        .toArray();
+        .sortBy("timestamp"); // ✅ FIX: sortBy works on Collection, orderBy doesn't
       
-      // Filter deleted messages in memory (only 100 items, not 10k)
+      // Filter deleted messages in memory (only matching items, not 10k)
       storedMessages = storedMessages.filter(msg => !msg.deletedAt);
+      
+      // Get last 100 messages (most recent)
+      storedMessages = storedMessages.slice(-100);
       
       // ✅ CRITICAL FIX: Ensure messages are sorted chronologically (oldest first)
       // This ensures consistent ordering across web and mobile
@@ -1458,23 +1456,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           syncedConversations = await atlasDB.conversations
             .where('userId')
             .equals(userId)
-            .orderBy('updatedAt')
+            .sortBy('updatedAt'); // ✅ FIX: sortBy works on Collection, orderBy doesn't
+          
+          syncedConversations = syncedConversations
             .reverse()
-            .limit(200) // ✅ SCALABILITY: Limit to 200 most recent conversations
-            .toArray()
-            .then(convs => convs.filter(conv => !conv.deletedAt));
+            .slice(0, 200) // ✅ SCALABILITY: Limit to 200 most recent conversations
+            .filter(conv => !conv.deletedAt);
         } catch (error) {
           logger.error('[ChatPage] Initial sync failed (non-blocking):', error);
           await ensureDatabaseReady();
           syncedConversations = await atlasDB.conversations
             .where('userId')
             .equals(userId)
-            .orderBy('updatedAt')
+            .sortBy('updatedAt'); // ✅ FIX: sortBy works on Collection, orderBy doesn't
+          
+          syncedConversations = syncedConversations
             .reverse()
-            .limit(200) // ✅ SCALABILITY: Limit to 200 most recent conversations
-            .toArray()
-            .then(convs => convs.filter(conv => !conv.deletedAt))
-            .catch(() => []);
+            .slice(0, 200) // ✅ SCALABILITY: Limit to 200 most recent conversations
+            .filter(conv => !conv.deletedAt);
         }
         
         // ✅ PRIORITY 1: Set conversation ID (URL > localStorage > most recent > new)

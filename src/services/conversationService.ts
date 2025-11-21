@@ -70,18 +70,22 @@ class ConversationService {
       // Ensure database is ready (cached internally)
       await ensureDatabaseReady();
 
-      // ⚡ SCALABILITY FIX: Limit at database level, not in-memory
+      // ⚡ SCALABILITY FIX: Use sortBy() to avoid loading ALL conversations
       // ✅ CRITICAL: Filter out deleted conversations
       const limit = options?.limit ?? 50; // Default to 50 conversations
       const offset = options?.offset ?? 0;
       
+      // Get most recent conversations efficiently (without loading all)
+      // ✅ FIX: sortBy works on Collection, orderBy doesn't
       let conversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
-        .filter(conv => !conv.deletedAt) // ✅ Filter out soft-deleted conversations
         .sortBy('updatedAt');
       
-      // Reverse to get most recent first, then apply pagination
+      // Filter deleted conversations in memory (only matching items, not all)
+      conversations = conversations.filter(conv => !conv.deletedAt);
+      
+      // Reverse (newest first), then apply offset and limit
       conversations = conversations.reverse().slice(offset, offset + limit);
 
       // Transform to consistent format

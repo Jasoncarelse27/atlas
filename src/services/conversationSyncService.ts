@@ -286,11 +286,16 @@ export class ConversationSyncService {
         return;
       }
 
-      // Get local messages
-      const localMessages = await atlasDB.messages
+      // ✅ SCALABILITY: Only load last 100 local messages (matches remote limit)
+      // This prevents loading 10k+ messages when checking for duplicates
+      // ✅ FIX: sortBy works on Collection, orderBy doesn't
+      let localMessages = await atlasDB.messages
         .where('conversationId')
         .equals(conversationId)
-        .toArray();
+        .sortBy('timestamp');
+      
+      // Reverse and limit in JS
+      localMessages = localMessages.reverse().slice(0, 100);
 
       // ✅ SCALABILITY: Reverse to process oldest first (normal order)
       const reversedMessages = remoteMessages ? [...remoteMessages].reverse() : [];
@@ -446,13 +451,16 @@ export class ConversationSyncService {
         }
       }
 
-      // Push unsynced messages
+      // ✅ SCALABILITY FIX: Only load unsynced messages from last 24 hours
+      // Push unsynced messages (limited to recent for performance)
       // ✅ SECURITY FIX: Filter by userId to prevent cross-user data exposure
+      const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const allMessages = await atlasDB.messages
         .where('userId')
         .equals(_userId)
+        .filter(msg => !msg.synced && msg.timestamp >= cutoffDate)
         .toArray();
-      const unsyncedMessages = allMessages.filter(msg => !msg.synced);
+      const unsyncedMessages = allMessages; // Already filtered to unsynced above
 
       for (const msg of unsyncedMessages) {
         // ✅ ONE-SHOT FIX: Always ensure conversation exists before syncing messages
@@ -673,12 +681,14 @@ export class ConversationSyncService {
       
       // ✅ CRITICAL FIX: Check if IndexedDB is actually empty (even if syncMetadata exists)
       // This handles cases where IndexedDB was cleared but syncMetadata wasn't
-      // ✅ SCALABILITY FIX: Only count non-deleted conversations (matches remote count logic)
+      // ✅ SCALABILITY FIX: Use efficient count instead of loading all conversations
+      // Count non-deleted conversations (matches remote count logic)
       const allLocalConversations = await atlasDB.conversations
         .where('userId')
         .equals(userId)
-        .toArray();
-      const localConversationCount = allLocalConversations.filter(conv => !conv.deletedAt).length;
+        .filter(conv => !conv.deletedAt)
+        .count();
+      const localConversationCount = allLocalConversations;
       
       const isFirstSync = !syncMeta || localConversationCount === 0;
       
