@@ -1651,10 +1651,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   }, [userId, hasCheckedQuestionnaire]);
   
   // ✅ CRITICAL FIX: Ensure messages load when BOTH userId and conversationId are available
-  // BUT: Only load if messages aren't already loaded (prevents clearing loaded messages)
-  // This prevents race condition where useEffect runs before Fix Z completes
+  // This handles the race condition where conversationId is set before userId on refresh
+  // Note: loadMessages deliberately excluded from deps to prevent infinite loop (stable callback)
   useEffect(() => {
-    if (userId && conversationId && messages.length === 0) {
+    if (userId && conversationId) {
       logger.debug('[ChatPage] 🔄 Both userId and conversationId available, loading messages...');
       loadMessages(conversationId);
     }
