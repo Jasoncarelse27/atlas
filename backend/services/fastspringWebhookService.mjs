@@ -71,7 +71,7 @@ export async function handleFastSpringWebhook(req, res) {
     switch (event.type) {
       case 'subscription.activated':
       case 'subscription.updated':
-      case 'subscription.charge.completed':
+      case 'subscription.charge.completed': {
         // Update fastspring_subscriptions table
         const { error: upsertError } = await supabase
           .from('fastspring_subscriptions')
@@ -113,9 +113,10 @@ export async function handleFastSpringWebhook(req, res) {
         }
         
         break;
+      }
         
       case 'subscription.deactivated':
-      case 'subscription.canceled':
+      case 'subscription.canceled': {
         await supabase
           .from('fastspring_subscriptions')
           .update({
@@ -134,8 +135,9 @@ export async function handleFastSpringWebhook(req, res) {
         
         logger.info(`[FastSpring] ✅ Cancelled subscription for user ${userId}`);
         break;
+      }
         
-      case 'subscription.charge.failed':
+      case 'subscription.charge.failed': {
         // Handle failed payment - could downgrade or mark as past_due
         await supabase
           .from('fastspring_subscriptions')
@@ -147,6 +149,7 @@ export async function handleFastSpringWebhook(req, res) {
         
         logger.warn(`[FastSpring] ⚠️ Charge failed for user ${userId}`);
         break;
+      }
         
       default:
         logger.debug(`[FastSpring] ℹ️ Ignored event: ${event.type}`);

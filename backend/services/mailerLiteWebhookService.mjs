@@ -55,7 +55,7 @@ export async function handleMailerLiteWebhook(req, res) {
     
     switch (event) {
       case 'subscriber.created':
-      case 'subscriber.updated':
+      case 'subscriber.updated': {
         // Update profile - sync email if changed
         const { error: updateError } = await supabase
           .from('profiles')
@@ -71,8 +71,9 @@ export async function handleMailerLiteWebhook(req, res) {
           logger.info(`[MailerLite] ✅ Updated profile for ${email}`);
         }
         break;
+      }
         
-      case 'subscriber.unsubscribed':
+      case 'subscriber.unsubscribed': {
         // Mark as unsubscribed (if column exists, otherwise just log)
         const { error: unsubError } = await supabase
           .from('profiles')
@@ -87,6 +88,7 @@ export async function handleMailerLiteWebhook(req, res) {
         
         logger.info(`[MailerLite] ✅ Subscriber ${email} unsubscribed`);
         break;
+      }
         
       case 'subscriber.added_to_group':
       case 'subscriber.removed_from_group':
