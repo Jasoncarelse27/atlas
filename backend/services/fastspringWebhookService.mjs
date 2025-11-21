@@ -168,6 +168,98 @@ export async function handleFastSpringWebhook(req, res) {
       
       logger.info(`[FastSpring] Email fallback check: customerEmail = ${customerEmail || 'null'}`);
       
+      // 3️⃣ FASTSPRING API FALLBACK: Fetch account details from FastSpring API
+      if (!customerEmail && fastspringAccountId && typeof fastspringAccountId === 'string') {
+        logger.info(`[FastSpring] Attempting to fetch account details from FastSpring API: ${fastspringAccountId}`);
+        
+        try {
+          const FASTSPRING_API_USERNAME = process.env.FASTSPRING_API_USERNAME;
+          const FASTSPRING_API_PASSWORD = process.env.FASTSPRING_API_PASSWORD;
+          
+          if (FASTSPRING_API_USERNAME && FASTSPRING_API_PASSWORD) {
+            const authString = Buffer.from(`${FASTSPRING_API_USERNAME}:${FASTSPRING_API_PASSWORD}`).toString('base64');
+            
+            const accountResponse = await fetch(`https://api.fastspring.com/accounts/${fastspringAccountId}`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Basic ${authString}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (accountResponse.ok) {
+              const accountData = await accountResponse.json();
+              logger.info(`[FastSpring] Account API response:`, JSON.stringify(accountData, null, 2));
+              
+              // FastSpring account object has contact.email or email field
+              const fetchedEmail = accountData?.contact?.email || accountData?.email || null;
+              
+              if (fetchedEmail) {
+                logger.info(`[FastSpring] 🟢 Fetched email from FastSpring API: ${fetchedEmail}`);
+                // Use the fetched email for linking
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('id')
+                  .eq('email', fetchedEmail)
+                  .maybeSingle();
+                
+                if (profile?.id) {
+                  logger.info(`[FastSpring] 🟢 API email match success → user: ${profile.id}`);
+                  
+                  const tier = extractTierFromProduct(event?.data?.product);
+                  
+                  // Create subscription record
+                  const { error: upsertError } = await supabase.from('fastspring_subscriptions').upsert({
+                    user_id: profile.id,
+                    fastspring_subscription_id: subscriptionId,
+                    fastspring_account_id: fastspringAccountId,
+                    status: event?.data?.state || 'active',
+                    updated_at: new Date().toISOString()
+                  }, {
+                    onConflict: 'fastspring_subscription_id'
+                  });
+                  
+                  if (upsertError) {
+                    logger.error('[FastSpring] Failed to upsert subscription:', upsertError);
+                  }
+                  
+                  // Update profile
+                  const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({
+                      subscription_tier: tier,
+                      subscription_status: 'active',
+                      fastspring_subscription_id: subscriptionId,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', profile.id);
+                  
+                  if (profileError) {
+                    logger.error('[FastSpring] Failed to update profile:', profileError);
+                  } else {
+                    logger.info(`[FastSpring] ✅ Created subscription and updated user ${profile.id} to tier ${tier}`);
+                  }
+                  
+                  return res.status(200).send('ok');
+                } else {
+                  logger.warn(`[FastSpring] No profile found for API-fetched email: ${fetchedEmail}`);
+                }
+              } else {
+                logger.warn(`[FastSpring] FastSpring API account data has no email field`);
+              }
+            } else {
+              const errorText = await accountResponse.text().catch(() => 'Unknown error');
+              logger.warn(`[FastSpring] FastSpring API account fetch failed (${accountResponse.status}): ${errorText}`);
+            }
+          } else {
+            logger.warn('[FastSpring] FastSpring API credentials not configured - cannot fetch account details');
+          }
+        } catch (apiError) {
+          logger.error('[FastSpring] Error fetching account from FastSpring API:', apiError);
+          // Continue to final fallback
+        }
+      }
+      
       if (customerEmail) {
         logger.info(`[FastSpring] Attempting fallback email match: ${customerEmail}`);
         
