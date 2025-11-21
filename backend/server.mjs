@@ -1479,6 +1479,14 @@ app.use(cors({
   exposedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400 // 24 hours
 }));
+
+// ✅ CRITICAL: Webhook routes MUST come BEFORE express.json() to preserve raw body
+// FastSpring webhook (requires raw body for HMAC signature verification)
+app.post('/api/fastspring/webhook', express.raw({ type: 'application/json' }), handleFastSpringWebhook);
+
+// MailerLite webhook (JSON parsing OK)
+app.post('/api/mailerlite/webhook', express.json(), handleMailerLiteWebhook);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -5421,13 +5429,6 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
-
-// ✅ FastSpring Webhook Handler (matches FastSpring dashboard configuration)
-// FastSpring is configured to send to: /api/fastspring/webhook
-app.post('/api/fastspring/webhook', express.raw({ type: 'application/json' }), handleFastSpringWebhook);
-
-// ✅ MailerLite Webhook Handler
-app.post('/api/mailerlite/webhook', express.json(), handleMailerLiteWebhook);
 
 // 📊 Feature attempts tracking endpoint
 app.post('/api/feature-attempts', async (req, res) => {
