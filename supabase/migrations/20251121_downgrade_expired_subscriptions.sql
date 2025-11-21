@@ -120,14 +120,13 @@ $$;
 
 -- 4. Schedule daily job (runs every day at 03:00 UTC)
 -- Checks for expired subscriptions and downgrades users automatically
-select cron.schedule(
+-- Note: If job already exists, unschedule it first or this will error
+-- To update: SELECT cron.unschedule('downgrade-expired-subscriptions'); then re-run this
+SELECT cron.schedule(
   'downgrade-expired-subscriptions',
   '0 3 * * *', -- Daily at 3 AM UTC
-  $$ select process_expired_subscriptions(); $$
-)
-on conflict (jobname) do update
-set schedule = '0 3 * * *',
-    command = $$ select process_expired_subscriptions(); $$;
+  $$SELECT process_expired_subscriptions();$$
+);
 
 -- 5. Add comments for documentation
 comment on function downgrade_expired_cancelled_subscriptions() is 'Downgrades users whose cancelled subscription period has ended';
