@@ -34,7 +34,6 @@ interface EnhancedInputToolbarProps {
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
   isVisible?: boolean;
   onSoundPlay?: (soundType: string) => void;
-  addMessage?: (message: Message) => void;
   isStreaming?: boolean;
 }
 
@@ -48,7 +47,6 @@ const EnhancedInputToolbar = React.memo(({
   inputRef: externalInputRef,
   isVisible = true,
   onSoundPlay,
-  addMessage,
   isStreaming = false
 }: EnhancedInputToolbarProps) => {
   // ✅ CRITICAL: Log at component start to verify it's rendering
@@ -463,9 +461,9 @@ const EnhancedInputToolbar = React.memo(({
         
         // ✅ CRITICAL FIX: Match backend timeout (60s) to prevent premature timeouts
         // Backend image analysis timeout is 60s, so UI must match to avoid false "Send timeout" errors
-        if (addMessage) {
+        if (conversationId) {
           await Promise.race([
-            sendMessageWithAttachments(conversationId || '', uploadedAttachments, addMessage, currentText || undefined, user?.id),
+            sendMessageWithAttachments(conversationId, uploadedAttachments, undefined, currentText || undefined, user?.id),
             new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Send timeout')), 60000) // ✅ FIX: Match backend 60s timeout
             )
@@ -535,7 +533,7 @@ const EnhancedInputToolbar = React.memo(({
     if (isVisible && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [text, attachmentPreviews, isProcessing, disabled, maxLength, tier, onSoundPlay, addMessage, conversationId, user?.id, isVisible, onSendMessage]);
+  }, [text, attachmentPreviews, isProcessing, disabled, maxLength, tier, onSoundPlay, conversationId, user?.id, isVisible, onSendMessage]);
 
   // ✅ PERFORMANCE FIX: Memoize callbacks to prevent child re-renders
   // Handle adding attachments to input area
@@ -1136,11 +1134,11 @@ const EnhancedInputToolbar = React.memo(({
                                 name: att.name || att.file.name
                               }];
                               
-                              if (addMessage) {
+                              if (conversationId) {
                                 await sendMessageWithAttachments(
-                                  conversationId || '',
+                                  conversationId,
                                   updatedAttachments,
-                                  addMessage,
+                                  undefined,
                                   text.trim() || undefined,
                                   user.id
                                 );
@@ -1779,7 +1777,6 @@ const EnhancedInputToolbar = React.memo(({
     prevProps.isVisible === nextProps.isVisible &&
     prevProps.conversationId === nextProps.conversationId &&
     prevProps.onSendMessage === nextProps.onSendMessage &&
-    prevProps.addMessage === nextProps.addMessage &&
     prevProps.placeholder === nextProps.placeholder
   );
 });

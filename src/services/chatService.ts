@@ -8,6 +8,7 @@ import { getAuthTokenOrThrow } from "../utils/getAuthToken";
 import { generateUUID } from "../utils/uuid";
 import { enhancedResponseCacheService } from "./enhancedResponseCacheService";
 import { subscriptionApi } from "./subscriptionApi";
+import { atlasDB } from "../database/atlasDB";
 
 // Extended Error type for auth errors
 interface AuthError extends Error {
@@ -708,36 +709,39 @@ function inferMessageType(attachments: Array<{ type: string; url?: string; publi
 export async function sendMessageWithAttachments(
   conversationId: string,
   attachments: Array<{ type: string; url?: string; publicUrl?: string }>,
-  addMessage: (msg: Message) => void,
+  addMessage?: (msg: Message) => void,
   caption?: string,
   userId?: string
 ) {
+  // Get userId if not provided
+  const finalUserId = userId || (await supabase.auth.getUser()).data.user?.id;
+  if (!finalUserId) {
+    throw new Error('User not authenticated');
+  }
 
-  const tempId = `temp-${generateUUID()}`;
+  const messageId = generateUUID();
+  const now = new Date().toISOString();
 
   // ✅ CRITICAL FIX: Infer message type from attachments (supports mixed)
   const messageType = inferMessageType(attachments);
   
-  const newMessage: Message = {
-    id: tempId,
+  // ✅ SIMPLIFIED: Save directly to Dexie
+  await atlasDB.messages.put({
+    id: messageId,
     conversationId,
+    userId: finalUserId,
     role: "user",
-    type: messageType, // ✅ FIX: Use inferred type (supports 'mixed')
-    content: caption || "", // ✅ user caption as content
-    // ✅ FIX: Don't duplicate image in both url AND attachments - use attachments only
+    type: messageType,
+    content: caption || "",
+    timestamp: now,
+    synced: false,
+    updatedAt: now,
     attachments: attachments.map(att => ({
       type: (att.type || 'image') as 'image' | 'file' | 'audio',
       url: att.url || att.publicUrl,
       caption: caption || ''
-    })), // ✅ properly formatted attachments array
-    status: "pending",
-    timestamp: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-  } as Message;
-
-
-  // Show optimistically in UI
-  addMessage(newMessage);
+    }))
+  });
 
   // Use already uploaded attachments (from imageService)
   const uploadedAttachments = attachments.map(att => ({

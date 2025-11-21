@@ -194,20 +194,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // This MUST be called before any conditional logic or effects to prevent hook order violations
   const { startTutorial, isCompleted, isLoading: tutorialLoading } = useTutorial();
   
-  // ✅ Add message function for image uploads
-  // ✅ CRITICAL FIX: Maintain chronological order when adding messages
-  const addMessage = useCallback((message: Message) => {
-    setMessages(prev => {
-      const newMessages = [...prev, message];
-      // Sort by timestamp to maintain chronological order
-      newMessages.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
-        return timeA - timeB; // Ascending order (oldest first)
-      });
-      return newMessages;
-    });
-  }, []);
   
   // ✅ OPTIMIZATION: Session-scoped cache to prevent redundant message loads (5s window)
   const messageLoadCache = useRef(new Map<string, { timestamp: number; promise: Promise<Message[]> }>()).current;
@@ -255,8 +241,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             : []
         } as Message));
         
-        // ✅ CRITICAL FIX: Prepend older messages to the top (already in chronological order)
-        setMessages(prev => [...formattedOlder, ...prev]);
+        // ✅ SIMPLIFIED: Write older messages to Dexie, then reload all
+        await atlasDB.messages.bulkPut(
+          formattedOlder.map(msg => ({
+            id: msg.id,
+            conversationId: msg.conversationId,
+            userId: msg.userId || userId,
+            role: msg.role,
+            type: msg.type || 'text',
+            content: msg.content,
+            timestamp: msg.timestamp,
+            synced: msg.synced ?? true,
+            updatedAt: msg.updatedAt || msg.timestamp,
+            attachments: msg.attachments,
+            deletedAt: msg.deletedAt,
+            deletedBy: msg.deletedBy
+          }))
+        );
+        await loadMessages(conversationId); // Reload all messages from Dexie
         
         // Check if there are more messages to load
         const hasMore = olderMessages.length === 50;
@@ -339,79 +341,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         unsyncedMessages: storedMessages.filter(m => !m.synced).length
       });
       
-      const formattedMessages = storedMessages.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp,
-        type: msg.type || 'text',
-        status: msg.status, // ✅ CRITICAL: Preserve status field from Dexie
-        // ✅ CRITICAL FIX: Deduplicate attachments by URL
-        attachments: Array.isArray(msg.attachments)
-          ? msg.attachments.filter(
-              (att, index, self) => index === self.findIndex(a => a.url === att.url)
-            )
-          : []
-      } as Message));
-      
-      // ✅ BEST PRACTICE: Merge with deduplication and prioritization
-      // 1. Loaded messages are source of truth (from Dexie)
-      // 2. Preserve optimistic messages (sending/failed) that aren't yet in Dexie
-      // 3. Use Map for O(1) deduplication by ID
-      // 4. Prioritize loaded messages over prev state
-      setMessages(prev => {
-        // Step 1: Create Map from loaded messages (source of truth)
-        const loadedMap = new Map<string, Message>();
-        formattedMessages.forEach(msg => {
-          loadedMap.set(msg.id, msg);
-        });
-        
-        // Step 2: Preserve optimistic messages from prev state that aren't in loaded set
-        // Only preserve messages that are:
-        // - Optimistic (sending/failed) OR
-        // - Very recent (within last 5 seconds) to catch race conditions
-        const now = Date.now();
-        const RECENT_THRESHOLD = 5000; // 5 seconds
-        
-        const preservedMessages = prev.filter(msg => {
-          // Skip if already in loaded messages (loaded is source of truth)
-          if (loadedMap.has(msg.id)) return false;
-          
-          // Preserve optimistic messages
-          if (msg.status === 'sending' || msg.status === 'failed') return true;
-          
-          // Preserve very recent messages (catches race conditions during sync)
-          const msgTime = new Date(msg.timestamp).getTime();
-          if (now - msgTime < RECENT_THRESHOLD) return true;
-          
-          // Don't preserve stale messages
-          return false;
-        });
-        
-        // Step 3: Merge with deduplication (Map ensures no duplicates)
-        preservedMessages.forEach(msg => {
-          if (!loadedMap.has(msg.id)) {
-            loadedMap.set(msg.id, msg);
-          }
-        });
-        
-        // Step 4: Convert to array and sort chronologically
-        const merged = Array.from(loadedMap.values()).sort((a, b) => {
-          const timeA = new Date(a.timestamp).getTime();
-          const timeB = new Date(b.timestamp).getTime();
-          return timeA - timeB; // Ascending order (oldest first)
-        });
-        
-        logger.debug('[ChatPage] ✅ Merged messages:', {
-          loaded: formattedMessages.length,
-          preserved: preservedMessages.length,
-          preservedStatuses: preservedMessages.map(m => m.status),
-          total: merged.length,
-          deduplicated: prev.length + formattedMessages.length - merged.length
-        });
-        
-        return merged;
-      });
+      // ✅ SIMPLIFIED: Dexie is source of truth, no merging needed
+      const formattedMessages: Message[] = storedMessages
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .map((msg) => ({
+          id: msg.id,
+          conversationId: msg.conversationId,
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          type: msg.type || 'text',
+          attachments: Array.isArray(msg.attachments)
+            ? msg.attachments.filter(
+                (att, index, self) => index === self.findIndex((a) => a.url === att.url)
+              )
+            : []
+        }));
+
+      // ✅ SIMPLE: React state reflects exactly what Dexie has
+      setMessages(formattedMessages);
       logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
       
       // ✅ OPTIMIZATION: Cache the promise and result
@@ -687,37 +635,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         text: text.slice(0, 50)
       });
       
-      // ✅ OPTIMISTIC UPDATE: Show user message IMMEDIATELY
+      // ✅ SIMPLIFIED: Write to Dexie immediately, then reload
       const userMessageId = crypto.randomUUID();
-      const optimisticUserMessage: Message = {
-        id: userMessageId,
-        role: 'user',
-        content: text,
-        timestamp: new Date().toISOString(),
-        type: 'text',
-        status: 'sending' // ✅ NEW: Show sending status
-      };
-      
-      // ✅ CRITICAL: Save user message to Dexie IMMEDIATELY with status
+      const now = new Date().toISOString();
+
       await atlasDB.messages.put({
         id: userMessageId,
         conversationId: conversationId,
         userId: userId,
         role: 'user',
         content: text,
-        timestamp: optimisticUserMessage.timestamp,
+        timestamp: now,
         type: 'text',
-        status: 'sending', // ✅ CRITICAL: Include status so merge logic works on refresh
-        synced: false, // Will be synced to Supabase by backend
-        updatedAt: optimisticUserMessage.timestamp
+        synced: false,
+        updatedAt: now
       });
-      logger.debug('[ChatPage] ✅ User message saved to Dexie:', userMessageId);
-      
-      // ✅ FIX: Batch all updates together to prevent any glitch
-      setMessages(prev => [...prev, optimisticUserMessage]);
+
+      // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
+      await loadMessages(conversationId);
       setIsTyping(true);
       setIsStreaming(true);
-      logger.debug('[ChatPage] ✅ Optimistic user message displayed with typing indicators:', optimisticUserMessage.id);
       
       // Send to backend - real-time listener will replace optimistic with real message
       // ✅ DEBUG: Log before sending to catch any immediate errors
@@ -881,20 +818,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         fallbackTimerRef.current = null;
       }
       
-      // ✅ CRITICAL FIX: Don't remove message on error - mark it as failed instead
-      // This allows users to see their message and retry
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === userMessageId && msg.role === 'user') {
-          return {
-            ...msg,
-            status: 'failed',
-            error: errorMessage
-          };
-        }
-        return msg;
-      }));
-      logger.debug('[ChatPage] ⚠️ Marked message as failed:', { userMessageId, errorMessage });
-      
+      // ✅ SIMPLIFIED: Mark as unsynced in Dexie, then reload
+      await atlasDB.messages.update(userMessageId, { synced: false });
+      await loadMessages(conversationId); // Reload from Dexie
       setIsTyping(false);
       setIsStreaming(false);
       
@@ -1022,7 +948,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         lastMessageRef.current = '';
       }, 1000);
     }
-  }, [tier, conversationId, userId, messages.length, navigate, addMessage, refreshTier]); // ✅ PERFORMANCE FIX: Memoize with dependencies
+  }, [tier, conversationId, userId, messages.length, navigate, refreshTier]); // ✅ PERFORMANCE FIX: Memoize with dependencies
 
   // ✅ Stop generation handler
   const handleStopGeneration = () => {
@@ -1050,22 +976,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     try {
       logger.debug('[ChatPage] 🗑️ Deleting message:', { messageId, deleteForEveryone });
 
-      // ✅ Optimistic update: Mark message as deleted in UI immediately
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { 
-              ...msg, 
-              deletedAt: new Date().toISOString(),
-              deletedBy: deleteForEveryone ? 'everyone' : 'user'
-            } 
-          : msg
-      ));
-
-      // ✅ Update Dexie
+      // ✅ SIMPLIFIED: Update Dexie, then reload
       await atlasDB.messages.update(messageId, {
         deletedAt: new Date().toISOString(),
         deletedBy: deleteForEveryone ? 'everyone' : 'user'
       });
+      await loadMessages(conversationId); // Reload from Dexie
 
       // ✅ Update Supabase (backend)
       await messageService.deleteMessage(messageId, conversationId, deleteForEveryone);
@@ -1402,121 +1318,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
-          // ✅ SMOOTH UPDATE: Replace optimistic message with real one - NO RELOAD
-          const realMessage: Message = {
-            id: messageToSave.id,
-            role: messageToSave.role,
-            type: messageType, // ✅ CRITICAL FIX: Use detected type
-            content: messageToSave.content,
-            timestamp: messageToSave.timestamp,
-            status: 'sent' as const,
-            // ✅ FIX: Don't duplicate - use ONLY attachments array
-            attachments: messageToSave.attachments
-          };
-          
-          // ✅ Update UI with real message, replacing optimistic one
-          setMessages(prev => {
-            // ✅ FIX: Only remove the optimistic message if this is a user message being replaced
-            // Don't remove ALL temp messages when assistant responds!
-            let updatedMessages = [...prev];
-            
-            if (realMessage.role === 'user') {
-              // ✅ CRITICAL FIX: Match by attachments (image URL) instead of content
-              // Content may differ (frontend uses caption, backend uses prompt)
-              const tempIndex = updatedMessages.findIndex(m => {
-                if (!m.id.startsWith('temp-') || m.role !== 'user') return false;
-                
-                // Match by attachments (image URL) - more reliable than content
-                const tempHasImage = m.attachments?.some(att => att.type === 'image');
-                const realHasImage = realMessage.attachments?.some(att => att.type === 'image');
-                
-                if (tempHasImage && realHasImage) {
-                  // ✅ FIX: Match by ALL image URLs (not just first) to handle multiple images correctly
-                  const tempImageUrls = m.attachments
-                    .filter(att => att.type === 'image')
-                    .map(att => att.url || att.publicUrl)
-                    .filter(Boolean)
-                    .sort();
-                  const realImageUrls = realMessage.attachments
-                    .filter(att => att.type === 'image')
-                    .map(att => att.url || att.publicUrl)
-                    .filter(Boolean)
-                    .sort();
-                  
-                  // Match if any image URL matches (for same message with multiple images)
-                  // Or if all URLs match (exact match)
-                  const hasMatchingUrl = tempImageUrls.some(url => realImageUrls.includes(url));
-                  const allUrlsMatch = tempImageUrls.length === realImageUrls.length && 
-                                      tempImageUrls.every(url => realImageUrls.includes(url));
-                  
-                  return hasMatchingUrl || allUrlsMatch;
-                }
-                
-                // Fallback: match by content if no images
-                return m.content === realMessage.content;
-              });
-              
-              if (tempIndex !== -1) {
-                // ✅ FIX: Merge attachments instead of replacing (preserve all images)
-                const tempMessage = updatedMessages[tempIndex];
-                const tempAttachments = Array.isArray(tempMessage.attachments) ? tempMessage.attachments : [];
-                const realAttachments = Array.isArray(realMessage.attachments) ? realMessage.attachments : [];
-                // Merge and deduplicate by URL
-                const mergedAttachments = [...tempAttachments, ...realAttachments];
-                const uniqueAttachments = [...new Map(mergedAttachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()];
-                
-                // Replace the temp message with the real one, but preserve merged attachments
-                updatedMessages[tempIndex] = {
-                  ...realMessage,
-                  attachments: uniqueAttachments.length > 0 ? uniqueAttachments : realMessage.attachments
-                };
-                // ✅ CRITICAL FIX: Re-sort after update to maintain chronological order
-                updatedMessages.sort((a, b) => {
-                  const timeA = new Date(a.timestamp).getTime();
-                  const timeB = new Date(b.timestamp).getTime();
-                  return timeA - timeB; // Ascending order (oldest first)
-                });
-                return updatedMessages;
-              }
-            }
-            
-            // For assistant messages or if no temp message found, just add/update normally
-            const existingIndex = updatedMessages.findIndex(m => m.id === realMessage.id);
-            
-            if (existingIndex !== -1) {
-              // ✅ FIX: Merge attachments instead of replacing (preserve all images)
-              const existingMessage = updatedMessages[existingIndex];
-              const existingAttachments = Array.isArray(existingMessage.attachments) ? existingMessage.attachments : [];
-              const realAttachments = Array.isArray(realMessage.attachments) ? realMessage.attachments : [];
-              // Merge and deduplicate by URL
-              const mergedAttachments = [...existingAttachments, ...realAttachments];
-              const uniqueAttachments = [...new Map(mergedAttachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()];
-              
-              // Update existing message with merged attachments
-              updatedMessages[existingIndex] = {
-                ...realMessage,
-                attachments: uniqueAttachments.length > 0 ? uniqueAttachments : realMessage.attachments
-              };
-              // ✅ CRITICAL FIX: Re-sort after update to maintain chronological order
-              updatedMessages.sort((a, b) => {
-                const timeA = new Date(a.timestamp).getTime();
-                const timeB = new Date(b.timestamp).getTime();
-                return timeA - timeB; // Ascending order (oldest first)
-              });
-              return updatedMessages;
-            } else {
-              // Add new message and sort to maintain chronological order
-              const newMessages = [...updatedMessages, realMessage];
-              newMessages.sort((a, b) => {
-                const timeA = new Date(a.timestamp).getTime();
-                const timeB = new Date(b.timestamp).getTime();
-                return timeA - timeB; // Ascending order (oldest first)
-              });
-              return newMessages;
-            }
-          });
-          
-          logger.debug('[ChatPage] ✅ Smoothly replaced optimistic with real message:', newMsg.id);
+          // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
+          await loadMessages(conversationId);
+          setIsTyping(false);
+          setIsStreaming(false);
           
           // ✅ FIX GLITCH #1: Batch all state updates together to prevent double re-render
           if (newMsg.role === 'assistant') {
@@ -2646,7 +2451,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                     conversationId={conversationId || undefined}
                     inputRef={inputRef}
                     isStreaming={isStreaming}
-                    addMessage={addMessage}
                   />
                 </div>
               )}
