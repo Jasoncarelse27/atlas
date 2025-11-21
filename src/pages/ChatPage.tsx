@@ -354,20 +354,49 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           : []
       } as Message));
       
-      // ✅ CRITICAL FIX: Preserve ALL messages from prev state that aren't in loaded messages
-      // This prevents messages from disappearing during sync/refresh
+      // ✅ BEST PRACTICE: Merge with deduplication and prioritization
+      // 1. Loaded messages are source of truth (from Dexie)
+      // 2. Preserve optimistic messages (sending/failed) that aren't yet in Dexie
+      // 3. Use Map for O(1) deduplication by ID
+      // 4. Prioritize loaded messages over prev state
       setMessages(prev => {
-        // Find ALL messages from prev state that aren't in loaded messages
-        // This includes: sending, failed, sent, and any other status
-        const preservedMessages = prev.filter(msg => 
-          !formattedMessages.some(loaded => loaded.id === msg.id)
-        );
+        // Step 1: Create Map from loaded messages (source of truth)
+        const loadedMap = new Map<string, Message>();
+        formattedMessages.forEach(msg => {
+          loadedMap.set(msg.id, msg);
+        });
         
-        // Merge: loaded messages + preserved messages that aren't in Dexie yet
-        const merged = [...formattedMessages, ...preservedMessages];
+        // Step 2: Preserve optimistic messages from prev state that aren't in loaded set
+        // Only preserve messages that are:
+        // - Optimistic (sending/failed) OR
+        // - Very recent (within last 5 seconds) to catch race conditions
+        const now = Date.now();
+        const RECENT_THRESHOLD = 5000; // 5 seconds
         
-        // Sort by timestamp to maintain chronological order
-        merged.sort((a, b) => {
+        const preservedMessages = prev.filter(msg => {
+          // Skip if already in loaded messages (loaded is source of truth)
+          if (loadedMap.has(msg.id)) return false;
+          
+          // Preserve optimistic messages
+          if (msg.status === 'sending' || msg.status === 'failed') return true;
+          
+          // Preserve very recent messages (catches race conditions during sync)
+          const msgTime = new Date(msg.timestamp).getTime();
+          if (now - msgTime < RECENT_THRESHOLD) return true;
+          
+          // Don't preserve stale messages
+          return false;
+        });
+        
+        // Step 3: Merge with deduplication (Map ensures no duplicates)
+        preservedMessages.forEach(msg => {
+          if (!loadedMap.has(msg.id)) {
+            loadedMap.set(msg.id, msg);
+          }
+        });
+        
+        // Step 4: Convert to array and sort chronologically
+        const merged = Array.from(loadedMap.values()).sort((a, b) => {
           const timeA = new Date(a.timestamp).getTime();
           const timeB = new Date(b.timestamp).getTime();
           return timeA - timeB; // Ascending order (oldest first)
@@ -377,7 +406,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           loaded: formattedMessages.length,
           preserved: preservedMessages.length,
           preservedStatuses: preservedMessages.map(m => m.status),
-          total: merged.length
+          total: merged.length,
+          deduplicated: prev.length + formattedMessages.length - merged.length
         });
         
         return merged;
