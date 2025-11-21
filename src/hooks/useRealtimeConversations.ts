@@ -310,10 +310,35 @@ export function useRealtimeConversations(userId?: string) {
         logger.info(`[Realtime] ✅ Connected${isMobile ? ' (Mobile)' : ''}`);
       } else if (status === "CLOSED") {
         logger.warn(`[Realtime] ⚠️ Connection closed${isMobile ? ' (Mobile)' : ''}, will retry`);
+        
+        // ✅ MOBILE FIX: Suppress sync on mobile WebSocket disconnects
+        if (isMobile) {
+          logger.warn('[Realtime] Mobile WS close detected — skipping sync to prevent chat reset.');
+          return; // DO NOT sync on mobile WS disconnects
+        }
+        
+        // Desktop only: sync would happen here if needed
+        // (Currently no sync call, but guard prevents future additions from breaking mobile)
       } else if (status === "CHANNEL_ERROR") {
         logger.error(`[Realtime] ❌ Channel error${isMobile ? ' (Mobile)' : ''}, reconnecting...`);
+        
+        // ✅ MOBILE FIX: Suppress sync on mobile WebSocket errors
+        if (isMobile) {
+          logger.warn('[Realtime] Mobile WS error detected — skipping sync to prevent chat reset.');
+          return; // DO NOT sync on mobile WS errors
+        }
+        
+        // Desktop only: sync would happen here if needed
       } else if (status === "TIMED_OUT") {
         logger.error(`[Realtime] ⏱️ Connection timeout${isMobile ? ' (Mobile)' : ''}, will retry`);
+        
+        // ✅ MOBILE FIX: Suppress sync on mobile WebSocket timeouts
+        if (isMobile) {
+          logger.warn('[Realtime] Mobile WS timeout detected — skipping sync to prevent chat reset.');
+          return; // DO NOT sync on mobile WS timeouts
+        }
+        
+        // Desktop only: sync would happen here if needed
       } else {
         logger.debug(`[Realtime] Status: ${status}${isMobile ? ' (Mobile)' : ''}`);
       }
