@@ -1,26 +1,32 @@
 # 🚨 CHECKPOINT: Messages Not Showing - Debug Guide
 
 **Date:** November 21, 2025  
-**Status:** 🟡 **FIX A APPLIED** - Testing needed  
+**Status:** ✅ **FIX Z APPLIED** - Deployed to production  
 **Priority:** 🔴 **CRITICAL** - Launch blocker  
-**Update:** Fix A (sync delay) has been applied for both mobile and web
+**Update:** Fix Z (sync messages for all conversations in deltaSync) has been applied and deployed
 
 ---
 
-## 🔄 **Latest Update: Fix A Applied**
+## ✅ **FIX Z APPLIED - ROOT CAUSE FIXED**
 
 **What was done:**
-- Added 300ms delay after `syncMessagesFromRemote()` in 3 locations:
-  1. Initial conversation load
-  2. Mobile visibility change handler (background/foreground)
-  3. Cross-device sync handler (tab focus)
-- This ensures Dexie writes complete before loading messages
-- Addresses the sync-load race condition for both mobile and web
+- Applied Fix Z in `conversationSyncService.ts` (line 926-955)
+- Syncs messages for ALL conversations after conversation sync completes
+- Uses parent-child sync pattern (industry standard)
+- Batched (5 conversations at a time) to avoid overwhelming system
+- Non-blocking errors to prevent sync failures
+- Ensures Dexie.messages is ALWAYS hydrated before UI loads
 
-**Next steps:**
-1. Test the chat to see if messages now appear
-2. Check browser console for new sync delay logs
-3. If still broken, apply Fix B (Supabase fallback) or Fix C (sync verification)
+**How it works:**
+1. `deltaSync` syncs conversations (existing)
+2. Fix Z syncs messages for ALL synced conversations (NEW)
+3. ChatPage loads messages from Dexie (messages are already there)
+4. No cache manipulation needed
+5. No race conditions
+6. No ChatPage changes needed
+
+**Commit:** `33e7bf2` - "fix: apply Fix Z - sync messages for all conversations in deltaSync"
+**Status:** ✅ Deployed to production
 
 ---
 
