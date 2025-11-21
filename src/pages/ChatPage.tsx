@@ -374,8 +374,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           : []
         }));
       
-      // ✅ CRITICAL FIX: Only update messages if we got results (prevents clearing UI on empty query)
-      // Don't clear existing messages if query returns empty - might be timing issue with sync
+      // ✅ CRITICAL FIX: Always set messages if we got results
+      // If query returned empty but Dexie has messages, retry once (might be timing issue)
       if (formattedMessages.length > 0) {
         setMessages(formattedMessages);
         logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
@@ -391,8 +391,41 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           setMessages([]);
           logger.debug('[ChatPage] ✅ No messages found in Dexie for conversation');
         } else {
-          // Dexie has messages but query returned empty - preserve existing messages
-          logger.warn('[ChatPage] ⚠️ Dexie has', messageCount, 'messages but query returned empty - preserving existing messages');
+          // Dexie has messages but query returned empty - retry once (might be timing/index issue)
+          logger.warn('[ChatPage] ⚠️ Dexie has', messageCount, 'messages but query returned empty - retrying...');
+          
+          // Retry with a simpler query (no filter, just get all and filter in JS)
+          const retryMessages = await atlasDB.messages
+            .where("conversationId")
+            .equals(conversationId)
+            .toArray();
+          
+          const filteredRetry = retryMessages
+            .filter(msg => !msg.deletedAt)
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            .slice(-100);
+          
+          if (filteredRetry.length > 0) {
+            const retryFormatted: Message[] = filteredRetry.map((msg) => ({
+              id: msg.id,
+              conversationId: msg.conversationId,
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp,
+              type: msg.type || 'text',
+              attachments: Array.isArray(msg.attachments)
+                ? msg.attachments.filter(
+                      (att, index, self) => index === self.findIndex((a) => a.url === att.url)
+                  )
+                : []
+            }));
+            setMessages(retryFormatted);
+            logger.debug('[ChatPage] ✅ Retry successful - loaded', retryFormatted.length, 'messages');
+          } else {
+            // Still empty after retry - Dexie might have messages but they're all deleted
+            setMessages([]);
+            logger.debug('[ChatPage] ⚠️ Retry returned empty - all messages might be deleted');
+          }
         }
       }
       
@@ -1544,9 +1577,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Updated URL with conversation ID:', newUrl);
         }
         
+        // ✅ CRITICAL FIX: Sync messages for this conversation BEFORE loading
+        // deltaSync only syncs conversations, not messages - we need to sync messages explicitly
+        try {
+          const { conversationSyncService } = await import('../services/conversationSyncService');
+          await conversationSyncService.syncMessagesFromRemote(id, userId);
+          logger.debug('[ChatPage] ✅ Synced messages for conversation:', id);
+        } catch (syncError) {
+          logger.warn('[ChatPage] ⚠️ Message sync failed (non-blocking):', syncError);
+          // Continue anyway - loadMessages will try to load from Dexie
+        }
+        
         // ✅ BEST PRACTICE: Load messages AFTER sync and conversationId are set
-        // Sync already happened at line 1607, which syncs both conversations AND messages
-        // No need for duplicate sync - real-time listener will handle new messages
         const initialMessages = await loadMessages(id);
         logger.debug('[ChatPage] ✅ Conversation initialized:', {
           conversationId: id,
