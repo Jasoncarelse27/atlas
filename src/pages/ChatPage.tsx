@@ -209,23 +209,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       await ensureDatabaseReady();
       
       // ✅ SCALABILITY FIX: Load 50 messages older than current oldest efficiently                                                                            
-      // Note: Dexie's filter() loads into memory, but we limit to 50 results
-      // Get messages older than current oldest, sorted ascending (oldest first)                                                                               
+      // ✅ FIX: Use toArray() instead of sortBy() - more reliable, works everywhere (mobile + web)
       let olderMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
         .filter(msg => !msg.deletedAt && msg.timestamp < currentOldestTimestamp)
-        .sortBy("timestamp"); // ✅ FIX: sortBy works on Collection, orderBy doesn't
+        .toArray(); // ✅ More reliable than sortBy on filtered collections
       
-      // Take last 50 messages (most recent of the older ones)
-      olderMessages = olderMessages.slice(-50);
-      
-      // ✅ CRITICAL FIX: Ensure messages are sorted chronologically (oldest first)
+      // Sort in JS (works consistently on mobile + web)
       olderMessages.sort((a, b) => {
         const timeA = new Date(a.timestamp).getTime();
         const timeB = new Date(b.timestamp).getTime();
         return timeA - timeB; // Ascending order (oldest first)
       });
+      
+      // Take last 50 messages (most recent of the older ones)
+      olderMessages = olderMessages.slice(-50);
       
       if (olderMessages.length > 0) {
         const formattedOlder = olderMessages.map(msg => ({
@@ -306,25 +305,23 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       await ensureDatabaseReady();
       
       // ✅ SCALABILITY FIX: Load last 100 messages efficiently (without loading 10k+ messages)
-      // ✅ FIX: Use sortBy on Collection (orderBy only works on Table directly)
+      // ✅ FIX: Use toArray() instead of sortBy() - more reliable, works everywhere (mobile + web)
       let storedMessages = await atlasDB.messages
         .where("conversationId")
         .equals(conversationId)
-        .sortBy("timestamp"); // ✅ FIX: sortBy works on Collection, orderBy doesn't
+        .toArray(); // ✅ More reliable than sortBy on filtered collections
       
-      // Filter deleted messages in memory (only matching items, not 10k)
-      storedMessages = storedMessages.filter(msg => !msg.deletedAt);
+      // Filter deleted messages and sort in JS (works consistently on mobile + web)
+      storedMessages = storedMessages
+        .filter(msg => !msg.deletedAt)
+        .sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime();
+          const timeB = new Date(b.timestamp).getTime();
+          return timeA - timeB; // Ascending order (oldest first)
+        });
       
       // Get last 100 messages (most recent)
       storedMessages = storedMessages.slice(-100);
-      
-      // ✅ CRITICAL FIX: Ensure messages are sorted chronologically (oldest first)
-      // This ensures consistent ordering across web and mobile
-      storedMessages.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
-        return timeA - timeB; // Ascending order (oldest first)
-      });
       
       // ✅ SCALABILITY: Efficient check if there are more messages
       // If we got 100 non-deleted messages, there might be more
@@ -377,9 +374,27 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           : []
         }));
       
-      // ✅ SIMPLE: React state reflects exactly what Dexie has
-      setMessages(formattedMessages);
-      logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
+      // ✅ CRITICAL FIX: Only update messages if we got results (prevents clearing UI on empty query)
+      // Don't clear existing messages if query returns empty - might be timing issue with sync
+      if (formattedMessages.length > 0) {
+        setMessages(formattedMessages);
+        logger.debug('[ChatPage] ✅ Loaded', formattedMessages.length, 'messages from Dexie');
+      } else {
+        // Check if Dexie actually has messages for this conversation
+        const messageCount = await atlasDB.messages
+          .where("conversationId")
+          .equals(conversationId)
+          .count();
+        
+        if (messageCount === 0) {
+          // Dexie is actually empty, safe to clear
+          setMessages([]);
+          logger.debug('[ChatPage] ✅ No messages found in Dexie for conversation');
+        } else {
+          // Dexie has messages but query returned empty - preserve existing messages
+          logger.warn('[ChatPage] ⚠️ Dexie has', messageCount, 'messages but query returned empty - preserving existing messages');
+        }
+      }
       
       // ✅ OPTIMIZATION: Cache the promise and result
       const loadPromise = Promise.resolve(formattedMessages);
