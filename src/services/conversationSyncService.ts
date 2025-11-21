@@ -923,35 +923,58 @@ export class ConversationSyncService {
         }
       }
       
-      // ✅ FIX Z: Sync messages for ALL synced conversations
+      // ✅ FIX Z: Sync messages for conversations that don't have messages yet
       // Ensures Dexie.messages is hydrated before UI loads (parent-child sync pattern)
       // This fixes root cause: conversations sync but messages don't, leaving UI blank
-      const allSyncedConversations = await atlasDB.conversations
-        .where('userId')
-        .equals(userId)
-        .filter(conv => !conv.deletedAt)
-        .toArray();
-      
-      if (allSyncedConversations.length > 0) {
-        logger.debug(`[ConversationSync] 🔄 FIX Z: Syncing messages for ${allSyncedConversations.length} conversations...`);
+      // CRITICAL: Only sync messages for conversations that don't already have messages in Dexie
+      // This prevents interfering with conversations that already have messages loaded
+      if (shouldForceFullSync || messagesSynced === 0) {
+        const allSyncedConversations = await atlasDB.conversations
+          .where('userId')
+          .equals(userId)
+          .filter(conv => !conv.deletedAt)
+          .toArray();
         
-        // Batch sync (5 at a time) to avoid overwhelming system
-        const BATCH_SIZE = 5;
-        for (let i = 0; i < allSyncedConversations.length; i += BATCH_SIZE) {
-          const batch = allSyncedConversations.slice(i, i + BATCH_SIZE);
-          await Promise.all(
-            batch.map(async (conv) => {
-              try {
-                await this.syncMessagesFromRemote(conv.id, userId);
-              } catch (error) {
-                logger.warn(`[ConversationSync] ⚠️ FIX Z: Failed to sync messages for ${conv.id}:`, error);
-                // Non-blocking - continue with other conversations
-              }
-            })
-          );
+        if (allSyncedConversations.length > 0) {
+          // Check which conversations need message sync (don't have messages in Dexie)
+          const conversationsNeedingSync: string[] = [];
+          for (const conv of allSyncedConversations) {
+            const messageCount = await atlasDB.messages
+              .where('conversationId')
+              .equals(conv.id)
+              .count();
+            
+            if (messageCount === 0) {
+              conversationsNeedingSync.push(conv.id);
+            }
+          }
+          
+          if (conversationsNeedingSync.length > 0) {
+            logger.debug(`[ConversationSync] 🔄 FIX Z: Syncing messages for ${conversationsNeedingSync.length}/${allSyncedConversations.length} conversations without messages...`);
+            
+            // Batch sync (5 at a time) to avoid overwhelming system
+            const BATCH_SIZE = 5;
+            for (let i = 0; i < conversationsNeedingSync.length; i += BATCH_SIZE) {
+              const batch = conversationsNeedingSync.slice(i, i + BATCH_SIZE);
+              await Promise.all(
+                batch.map(async (convId) => {
+                  try {
+                    await this.syncMessagesFromRemote(convId, userId);
+                  } catch (error) {
+                    logger.warn(`[ConversationSync] ⚠️ FIX Z: Failed to sync messages for ${convId}:`, error);
+                    // Non-blocking - continue with other conversations
+                  }
+                })
+              );
+            }
+            
+            logger.debug(`[ConversationSync] ✅ FIX Z: Completed message sync for ${conversationsNeedingSync.length} conversations`);
+          } else {
+            logger.debug(`[ConversationSync] ⏭️ FIX Z: All conversations already have messages, skipping sync`);
+          }
         }
-        
-        logger.debug(`[ConversationSync] ✅ FIX Z: Completed message sync for all conversations`);
+      } else {
+        logger.debug(`[ConversationSync] ⏭️ FIX Z: Skipping (delta sync already synced ${messagesSynced} messages)`);
       }
       
       // 4. Fetch ONLY messages for updated conversations
