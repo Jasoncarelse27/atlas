@@ -168,6 +168,15 @@ export async function handleFastSpringWebhook(req, res) {
       
       logger.info(`[FastSpring] Email fallback check: customerEmail = ${customerEmail || 'null'}`);
       
+      // ✅ DEBUG: Log account ID check for API fallback
+      logger.info(`[FastSpring] API fallback condition check:`, {
+        customerEmail: customerEmail,
+        fastspringAccountId: fastspringAccountId,
+        accountIdType: typeof fastspringAccountId,
+        accountIdIsString: typeof fastspringAccountId === 'string',
+        shouldRunAPI: !customerEmail && fastspringAccountId && typeof fastspringAccountId === 'string'
+      });
+      
       // 3️⃣ FASTSPRING API FALLBACK: Fetch account details from FastSpring API
       if (!customerEmail && fastspringAccountId && typeof fastspringAccountId === 'string') {
         logger.info(`[FastSpring] Attempting to fetch account details from FastSpring API: ${fastspringAccountId}`);
