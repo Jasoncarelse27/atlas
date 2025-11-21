@@ -258,6 +258,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             deletedBy: msg.deletedBy
           }))
         );
+        // ✅ CRITICAL FIX: Clear cache before reload to ensure older messages are loaded
+        const cacheKey = `${conversationId}-${userId}`;
+        messageLoadCache.delete(cacheKey);
         await loadMessages(conversationId); // Reload all messages from Dexie
         
         // Check if there are more messages to load
@@ -652,6 +655,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
 
       // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
+      // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
+      const cacheKey = `${conversationId}-${userId}`;
+      messageLoadCache.delete(cacheKey);
       await loadMessages(conversationId);
       setIsTyping(true);
       setIsStreaming(true);
@@ -791,6 +797,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
         
         // Reload from Dexie to display
+        // ✅ CRITICAL FIX: Clear cache before reload
+        const cacheKey = `${conversationId}-${userId}`;
+        messageLoadCache.delete(cacheKey);
         await loadMessages(conversationId);
         setIsTyping(false);
         setIsStreaming(false);
@@ -820,6 +829,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       
       // ✅ SIMPLIFIED: Mark as unsynced in Dexie, then reload
       await atlasDB.messages.update(userMessageId, { synced: false });
+      // ✅ CRITICAL FIX: Clear cache before reload
+      const cacheKey = `${conversationId}-${userId}`;
+      messageLoadCache.delete(cacheKey);
       await loadMessages(conversationId); // Reload from Dexie
       setIsTyping(false);
       setIsStreaming(false);
@@ -981,6 +993,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         deletedAt: new Date().toISOString(),
         deletedBy: deleteForEveryone ? 'everyone' : 'user'
       });
+      // ✅ CRITICAL FIX: Clear cache before reload
+      const cacheKey = `${conversationId}-${userId}`;
+      messageLoadCache.delete(cacheKey);
       await loadMessages(conversationId); // Reload from Dexie
 
       // ✅ Update Supabase (backend)
@@ -1316,6 +1331,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
           // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
+          // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
+          const cacheKey = `${conversationId}-${userId}`;
+          messageLoadCache.delete(cacheKey);
           await loadMessages(conversationId);
           setIsTyping(false);
           setIsStreaming(false);
