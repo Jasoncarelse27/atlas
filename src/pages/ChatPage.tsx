@@ -17,6 +17,7 @@ import { ProfileSettingsModal } from '../components/modals/ProfileSettingsModal'
 import VoiceUpgradeModal from '../components/modals/VoiceUpgradeModal';
 import { useUpgradeModals } from '../contexts/UpgradeModalContext';
 import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
+import Dexie from 'dexie';
 import { messageService } from '../features/chat/services/messageService';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
@@ -730,6 +731,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         synced: false,
         updatedAt: now
       });
+
+      // ⭐ FINAL FIX: Guarantee Dexie write is fully committed before UI reload
+      // iOS Safari IndexedDB can take 20–100ms to flush writes, especially in PWA/DevTools.
+      // Dexie.waitFor waits for ALL pending transactions to complete.
+      await Dexie.waitFor(new Promise(res => setTimeout(res, 120)));
 
       // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
       // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
