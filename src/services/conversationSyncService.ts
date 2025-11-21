@@ -286,6 +286,48 @@ export class ConversationSyncService {
         return;
       }
 
+      // ✅ FIX Y: Fallback if primary query returns 0 rows (handles RLS edge cases, timing issues)
+      let messagesToProcess = remoteMessages;
+      if (!remoteMessages || remoteMessages.length === 0) {
+        logger.warn(
+          '[ConversationSync] ⚠️ FIX Y: Primary message sync returned 0 rows. Running fallback query...',
+          {
+            conversationId: conversationId.slice(0, 8) + '...',
+          }
+        );
+
+        // Fallback: Try without any extra filters (broader query)
+        const { data: fallbackMessages, error: fallbackError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false })
+          .limit(200); // Higher limit for fallback
+
+        if (fallbackError) {
+          logger.error('[ConversationSync] ❌ FIX Y: Fallback query failed:', {
+            code: fallbackError.code,
+            message: fallbackError.message,
+            conversationId: conversationId.slice(0, 8) + '...',
+          });
+          return; // Can't proceed without messages
+        }
+
+        if (fallbackMessages && fallbackMessages.length > 0) {
+          logger.debug(
+            `[ConversationSync] ✅ FIX Y: Fallback found ${fallbackMessages.length} messages, hydrating Dexie...`
+          );
+
+          // Use fallbackMessages instead of reassigning const
+          messagesToProcess = fallbackMessages;
+        } else {
+          logger.debug(
+            '[ConversationSync] ⚠️ FIX Y: Fallback also returned 0 rows - conversation may be empty'
+          );
+          return; // No messages exist for this conversation
+        }
+      }
+
       // ✅ SCALABILITY: Only load last 100 local messages (matches remote limit)
       // This prevents loading 10k+ messages when checking for duplicates
       // ✅ FIX: sortBy works on Collection, orderBy doesn't
@@ -298,7 +340,7 @@ export class ConversationSyncService {
       localMessages = localMessages.reverse().slice(0, 100);
 
       // ✅ SCALABILITY: Reverse to process oldest first (normal order)
-      const reversedMessages = remoteMessages ? [...remoteMessages].reverse() : [];
+      const reversedMessages = messagesToProcess ? [...messagesToProcess].reverse() : [];
       
       // ✅ PHASE 2: Only add missing messages (duplicate check)
       // Real-time listener is primary writer; this is for offline catch-up only
@@ -923,58 +965,49 @@ export class ConversationSyncService {
         }
       }
       
-      // ✅ FIX Z: Sync messages for conversations that don't have messages yet
-      // Ensures Dexie.messages is hydrated before UI loads (parent-child sync pattern)
+      // ✅ FIX Z: Always hydrate messages for conversations synced in this deltaSync
+      // Ensures Dexie.messages is ALWAYS hydrated before UI loads (parent-child sync pattern)
       // This fixes root cause: conversations sync but messages don't, leaving UI blank
-      // CRITICAL: Only sync messages for conversations that don't already have messages in Dexie
-      // This prevents interfering with conversations that already have messages loaded
-      if (shouldForceFullSync || messagesSynced === 0) {
-        const allSyncedConversations = await atlasDB.conversations
-          .where('userId')
-          .equals(userId)
-          .filter(conv => !conv.deletedAt)
-          .toArray();
-        
-        if (allSyncedConversations.length > 0) {
-          // Check which conversations need message sync (don't have messages in Dexie)
-          const conversationsNeedingSync: string[] = [];
-          for (const conv of allSyncedConversations) {
-            const messageCount = await atlasDB.messages
-              .where('conversationId')
-              .equals(conv.id)
-              .count();
-            
-            if (messageCount === 0) {
-              conversationsNeedingSync.push(conv.id);
-            }
+      // Unconditional hydration is safe, idempotent, and follows offline-first best practices
+      if (updatedConversations && updatedConversations.length > 0) {
+        // Only sync messages for conversations that were just synced (not all conversations)
+        const conversationsToHydrate = updatedConversations
+          .filter((conv) => !conv.deleted_at) // Skip deleted conversations
+          .map((conv) => conv.id);
+
+        if (conversationsToHydrate.length > 0) {
+          logger.debug(
+            `[ConversationSync] 🔄 FIX Z: Hydrating messages for ${conversationsToHydrate.length} synced conversations...`
+          );
+
+          // Batch sync (5 at a time) to avoid overwhelming system
+          const BATCH_SIZE = 5;
+          for (let i = 0; i < conversationsToHydrate.length; i += BATCH_SIZE) {
+            const batch = conversationsToHydrate.slice(i, i + BATCH_SIZE);
+
+            await Promise.all(
+              batch.map(async (convId) => {
+                try {
+                  await this.syncMessagesFromRemote(convId, userId);
+                  logger.debug(
+                    '[ConversationSync] ✅ FIX Z: Hydrated messages for conversation:',
+                    convId
+                  );
+                } catch (error) {
+                  logger.warn(
+                    `[ConversationSync] ⚠️ FIX Z: Failed to hydrate messages for ${convId}:`,
+                    error
+                  );
+                  // Non-blocking - continue with other conversations
+                }
+              })
+            );
           }
-          
-          if (conversationsNeedingSync.length > 0) {
-            logger.debug(`[ConversationSync] 🔄 FIX Z: Syncing messages for ${conversationsNeedingSync.length}/${allSyncedConversations.length} conversations without messages...`);
-            
-            // Batch sync (5 at a time) to avoid overwhelming system
-            const BATCH_SIZE = 5;
-            for (let i = 0; i < conversationsNeedingSync.length; i += BATCH_SIZE) {
-              const batch = conversationsNeedingSync.slice(i, i + BATCH_SIZE);
-              await Promise.all(
-                batch.map(async (convId) => {
-                  try {
-                    await this.syncMessagesFromRemote(convId, userId);
-                  } catch (error) {
-                    logger.warn(`[ConversationSync] ⚠️ FIX Z: Failed to sync messages for ${convId}:`, error);
-                    // Non-blocking - continue with other conversations
-                  }
-                })
-              );
-            }
-            
-            logger.debug(`[ConversationSync] ✅ FIX Z: Completed message sync for ${conversationsNeedingSync.length} conversations`);
-          } else {
-            logger.debug(`[ConversationSync] ⏭️ FIX Z: All conversations already have messages, skipping sync`);
-          }
+
+          logger.debug(
+            `[ConversationSync] ✅ FIX Z: Completed message hydration for ${conversationsToHydrate.length} conversations`
+          );
         }
-      } else {
-        logger.debug(`[ConversationSync] ⏭️ FIX Z: Skipping (delta sync already synced ${messagesSynced} messages)`);
       }
       
       // ✅ CRITICAL: Wait for all Dexie writes to complete before returning
