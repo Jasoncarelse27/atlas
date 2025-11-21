@@ -1590,11 +1590,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Updated URL with conversation ID:', newUrl);
         }
         
-        // ✅ CRITICAL FIX: Fix Z handles message sync during deltaSync
-        // No need to sync again here - Fix Z ensures messages are in Dexie before this runs
-        // Just wait a moment for Dexie writes to complete
-        await new Promise(resolve => setTimeout(resolve, 300));
-        logger.debug('[ChatPage] ✅ Waiting for Fix Z sync to complete...');
+        // ✅ CRITICAL FIX: Force sync for the ACTIVE conversation before loading
+        // Fix Z hydrates conversations in the background, but we still hydrate the one the user is opening
+        try {
+          const { conversationSyncService } = await import('../services/conversationSyncService');
+          await conversationSyncService.syncMessagesFromRemote(id, userId);
+          logger.debug('[ChatPage] ✅ Forced message sync for conversation:', id);
+
+          // ✅ Allow Dexie writes to complete (mobile/web safe)
+          await new Promise(resolve => setTimeout(resolve, 300));
+          logger.debug('[ChatPage] ✅ Forced sync delay complete, ready to load messages');
+        } catch (syncError) {
+          logger.warn('[ChatPage] ⚠️ Forced message sync failed (non-blocking):', syncError);
+        }
         
         // ✅ BEST PRACTICE: Load messages AFTER sync completes
         const initialMessages = await loadMessages(id);
