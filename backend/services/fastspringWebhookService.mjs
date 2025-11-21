@@ -101,7 +101,11 @@ export async function handleFastSpringWebhook(req, res) {
         
         // Update profiles table tier based on subscription
         // Extract tier from product/plan if available
-        const productPath = event.data?.product?.path || event.data?.items?.[0]?.product?.path || '';
+        // FastSpring sends product as either a string ("atlas-core") or object ({path: "atlas-core"})
+        const productValue = event.data?.product;
+        const productPath = typeof productValue === 'string' 
+          ? productValue 
+          : productValue?.path || event.data?.items?.[0]?.product?.path || event.data?.product || '';
         const tier = productPath.includes('studio') ? 'studio' 
                    : productPath.includes('core') ? 'core' 
                    : 'core'; // Default to core for paid subscriptions
@@ -175,7 +179,11 @@ export async function handleFastSpringWebhook(req, res) {
 
 async function handleNewSubscription(event, userId, subscriptionId, accountId) {
   try {
-    const productPath = event.data?.product?.path || event.data?.items?.[0]?.product?.path || '';
+    // FastSpring sends product as either a string ("atlas-core") or object ({path: "atlas-core"})
+    const productValue = event.data?.product;
+    const productPath = typeof productValue === 'string' 
+      ? productValue 
+      : productValue?.path || event.data?.items?.[0]?.product?.path || event.data?.product || '';
     const tier = productPath.includes('studio') ? 'studio' 
                : productPath.includes('core') ? 'core' 
                : 'core';
