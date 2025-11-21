@@ -977,6 +977,10 @@ export class ConversationSyncService {
         logger.debug(`[ConversationSync] ⏭️ FIX Z: Skipping (delta sync already synced ${messagesSynced} messages)`);
       }
       
+      // ✅ CRITICAL: Wait for all Dexie writes to complete before returning
+      // This ensures messages are in Dexie before ChatPage tries to load them
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       // 4. Fetch ONLY messages for updated conversations
       if (updatedConversations && updatedConversations.length > 0) {
         const conversationIds = updatedConversations.map(c => c.id);

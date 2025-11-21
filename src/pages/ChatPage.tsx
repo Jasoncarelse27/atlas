@@ -1590,23 +1590,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Updated URL with conversation ID:', newUrl);
         }
         
-        // ✅ CRITICAL FIX: Sync messages for this conversation BEFORE loading
-        // deltaSync only syncs conversations, not messages - we need to sync messages explicitly
-        try {
-          const { conversationSyncService } = await import('../services/conversationSyncService');
-          await conversationSyncService.syncMessagesFromRemote(id, userId);
-          logger.debug('[ChatPage] ✅ Synced messages for conversation:', id);
-          
-          // ✅ FIX A: Wait for Dexie writes to complete (mobile + web sync fix)
-          await new Promise(resolve => setTimeout(resolve, 300));
-          logger.debug('[ChatPage] ✅ Sync delay complete, ready to load messages');
-          
-        } catch (syncError) {
-          logger.warn('[ChatPage] ⚠️ Message sync failed (non-blocking):', syncError);
-          // Continue anyway - loadMessages will try to load from Dexie
-        }
+        // ✅ CRITICAL FIX: Fix Z handles message sync during deltaSync
+        // No need to sync again here - Fix Z ensures messages are in Dexie before this runs
+        // Just wait a moment for Dexie writes to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+        logger.debug('[ChatPage] ✅ Waiting for Fix Z sync to complete...');
         
-        // ✅ BEST PRACTICE: Load messages AFTER sync and conversationId are set
+        // ✅ BEST PRACTICE: Load messages AFTER sync completes
         const initialMessages = await loadMessages(id);
         logger.debug('[ChatPage] ✅ Conversation initialized:', {
           conversationId: id,
@@ -1661,10 +1651,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   }, [userId, hasCheckedQuestionnaire]);
   
   // ✅ CRITICAL FIX: Ensure messages load when BOTH userId and conversationId are available
-  // This handles the race condition where conversationId is set before userId on refresh
-  // Note: loadMessages deliberately excluded from deps to prevent infinite loop (stable callback)
+  // BUT: Only load if messages aren't already loaded (prevents clearing loaded messages)
+  // This prevents race condition where useEffect runs before Fix Z completes
   useEffect(() => {
-    if (userId && conversationId) {
+    if (userId && conversationId && messages.length === 0) {
       logger.debug('[ChatPage] 🔄 Both userId and conversationId available, loading messages...');
       loadMessages(conversationId);
     }
