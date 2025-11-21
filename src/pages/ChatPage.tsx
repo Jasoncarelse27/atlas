@@ -1271,7 +1271,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             type: messageType, // ✅ CRITICAL FIX: Use detected type from attachments
             content: parsedContent, // ✅ FIX: Use parsed content
             timestamp: newMsg.created_at,
-            status: 'sent', // ✅ CRITICAL: Messages from backend are already sent
             synced: true,
             updatedAt: newMsg.created_at,
             // ✅ FIX: Don't duplicate - use ONLY attachments array
@@ -1299,7 +1298,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             
             await atlasDB.messages.update(messageToSave.id, {
               ...messageToSave,
-              status: 'sent', // ✅ CRITICAL: Mark as sent so it persists on refresh
               attachments: uniqueAttachments.length > 0 ? uniqueAttachments : undefined
             });
           } else {
@@ -1311,7 +1309,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             // ✅ TYPESCRIPT FIX: messageToSave already matches Message interface from atlasDB
             await atlasDB.messages.put({
               ...messageToSave,
-              status: 'sent', // ✅ CRITICAL: Mark as sent so it persists on refresh
               attachments: uniqueAttachments
             });
           }
