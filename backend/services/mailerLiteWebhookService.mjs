@@ -6,22 +6,37 @@ const MAILERLITE_WEBHOOK_SECRET = process.env.MAILERLITE_WEBHOOK_SECRET;
 
 export async function handleMailerLiteWebhook(req, res) {
   try {
+    // ✅ CRITICAL: Use raw body for signature verification (same as FastSpring)
+    // MailerLite sends raw JSON bytes, and signature is computed from those exact bytes
+    const rawBody = req.body.toString('utf8');
+    
     // Verify signature if configured
     if (MAILERLITE_WEBHOOK_SECRET) {
       const signature = req.headers['x-mailerlite-signature'];
-      const bodyString = JSON.stringify(req.body);
+      
+      if (!signature) {
+        logger.error('[MailerLite] ❌ Missing X-MailerLite-Signature header');
+        return res.status(401).send('missing signature');
+      }
+      
       const computed = crypto
-        .createHmac('sha256', MAILERLITE_WEBHOOK_SECRET)
-        .update(bodyString)
+        .createHmac('sha256', MAILERLITE_WEBHOOK_SECRET.trim())
+        .update(rawBody)
         .digest('hex');
       
       if (signature !== computed) {
-        logger.error('[MailerLite] ❌ Invalid signature');
+        logger.error('[MailerLite] ❌ Invalid signature', {
+          received: signature?.substring(0, 20) + '...',
+          computed: computed?.substring(0, 20) + '...',
+          bodyLength: rawBody.length
+        });
         return res.status(401).send('invalid signature');
       }
     }
     
-    const { event, data } = req.body || {};
+    // Parse JSON from raw body
+    const payload = JSON.parse(rawBody);
+    const { event, data } = payload || {};
     
     if (!event) {
       logger.error('[MailerLite] ❌ No event in webhook');

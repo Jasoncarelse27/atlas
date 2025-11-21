@@ -89,6 +89,14 @@ if (!process.env.RAILWAY_ENVIRONMENT && !process.env.PORT) {
 
 const app = express();
 
+// ✅ CRITICAL: Webhook routes MUST be registered FIRST, before ANY middleware
+// This ensures raw body bytes are preserved for HMAC signature verification
+// FastSpring webhook (requires raw body for HMAC signature verification)
+app.post('/api/fastspring/webhook', express.raw({ type: 'application/json' }), handleFastSpringWebhook);
+
+// MailerLite webhook (requires raw body for HMAC signature verification)
+app.post('/api/mailerlite/webhook', express.raw({ type: 'application/json' }), handleMailerLiteWebhook);
+
 // Track server readiness
 let serverReady = false;
 
@@ -1480,12 +1488,8 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }));
 
-// ✅ CRITICAL: Webhook routes MUST come BEFORE express.json() to preserve raw body
-// FastSpring webhook (requires raw body for HMAC signature verification)
-app.post('/api/fastspring/webhook', express.raw({ type: 'application/json' }), handleFastSpringWebhook);
-
-// MailerLite webhook (JSON parsing OK)
-app.post('/api/mailerlite/webhook', express.json(), handleMailerLiteWebhook);
+// ✅ NOTE: Webhook routes are now registered at the top of the file (after app creation)
+// This ensures raw body bytes are preserved before any middleware touches the request stream
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
