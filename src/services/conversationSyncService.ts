@@ -923,6 +923,37 @@ export class ConversationSyncService {
         }
       }
       
+      // ✅ FIX Z: Sync messages for ALL synced conversations
+      // Ensures Dexie.messages is hydrated before UI loads (parent-child sync pattern)
+      // This fixes root cause: conversations sync but messages don't, leaving UI blank
+      const allSyncedConversations = await atlasDB.conversations
+        .where('userId')
+        .equals(userId)
+        .filter(conv => !conv.deletedAt)
+        .toArray();
+      
+      if (allSyncedConversations.length > 0) {
+        logger.debug(`[ConversationSync] 🔄 FIX Z: Syncing messages for ${allSyncedConversations.length} conversations...`);
+        
+        // Batch sync (5 at a time) to avoid overwhelming system
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < allSyncedConversations.length; i += BATCH_SIZE) {
+          const batch = allSyncedConversations.slice(i, i + BATCH_SIZE);
+          await Promise.all(
+            batch.map(async (conv) => {
+              try {
+                await this.syncMessagesFromRemote(conv.id, userId);
+              } catch (error) {
+                logger.warn(`[ConversationSync] ⚠️ FIX Z: Failed to sync messages for ${conv.id}:`, error);
+                // Non-blocking - continue with other conversations
+              }
+            })
+          );
+        }
+        
+        logger.debug(`[ConversationSync] ✅ FIX Z: Completed message sync for all conversations`);
+      }
+      
       // 4. Fetch ONLY messages for updated conversations
       if (updatedConversations && updatedConversations.length > 0) {
         const conversationIds = updatedConversations.map(c => c.id);
