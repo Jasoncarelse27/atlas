@@ -65,6 +65,19 @@ export async function handleFastSpringWebhook(req, res) {
     
     logger.info(`[FastSpring] 🔔 Webhook received: ${event.type}`);
     
+    // ✅ DEBUG: Full payload logging for tag discovery
+    logger.debug('[FastSpring] Raw Body Length:', rawBody.length);
+    logger.debug('[FastSpring] Payload Keys:', Object.keys(payload || {}));
+    logger.debug('[FastSpring] Event structure:', JSON.stringify(event, null, 2));
+    logger.debug('[FastSpring] Tag Locations:', {
+      'event.data.tags': event?.data?.tags,
+      'event.tags': event?.tags,
+      'payload.tags': payload?.tags,
+      'event.data.account.tags': event?.data?.account?.tags,
+      'event.data.customer': event?.data?.customer,
+      'event.data.account': event?.data?.account
+    });
+    
     // FastSpring account ID (not userId directly)
     const fastspringAccountId = event?.data?.account;
     const subscriptionId = event?.data?.subscription;
@@ -74,6 +87,24 @@ export async function handleFastSpringWebhook(req, res) {
       return res.status(200).send('ok');
     }
     
+    // ✅ TAG FALLBACK: Search all possible locations for user_id
+    const userIdFromTags = event?.data?.tags?.user_id 
+                        || event?.tags?.user_id 
+                        || payload?.tags?.user_id
+                        || event?.data?.account?.tags?.user_id
+                        || null;
+    
+    // Helper function to extract tier from product (matches existing production logic)
+    const extractTierFromProduct = (productValue) => {
+      // FastSpring sends product as either a string ("atlas-core") or object ({path: "atlas-core"})
+      const productPath = typeof productValue === 'string' 
+        ? productValue 
+        : productValue?.path || event?.data?.items?.[0]?.product?.path || event?.data?.product || '';
+      return productPath.includes('studio') ? 'studio' 
+           : productPath.includes('core') ? 'core' 
+           : 'core'; // Default to core for paid subscriptions
+    };
+    
     // Find userId from fastspring_subscriptions table
     const { data: subscription, error: subError } = await supabase
       .from('fastspring_subscriptions')
@@ -82,16 +113,108 @@ export async function handleFastSpringWebhook(req, res) {
       .maybeSingle();
     
     if (subError || !subscription) {
-      logger.warn(`[FastSpring] ⚠️ Subscription ${subscriptionId} not found in database - may be new subscription`);
-      // For new subscriptions, try to find user by FastSpring account ID or tags
-      const userIdFromTags = event?.data?.tags?.user_id;
+      logger.warn(`[FastSpring] ⚠️ Subscription ${subscriptionId} not found — linking new subscription...`);
+      
+      // 1️⃣ TAG METHOD: Use user_id from checkout tags
       if (userIdFromTags) {
-        logger.info(`[FastSpring] Found userId in tags: ${userIdFromTags}`);
-        // Handle new subscription creation
-        await handleNewSubscription(event, userIdFromTags, subscriptionId, fastspringAccountId);
+        logger.info(`[FastSpring] 🟢 Linked user from tags: ${userIdFromTags}`);
+        
+        const tier = extractTierFromProduct(event?.data?.product);
+        
+        // Create subscription record
+        const { error: upsertError } = await supabase.from('fastspring_subscriptions').upsert({
+          user_id: userIdFromTags,
+          fastspring_subscription_id: subscriptionId,
+          fastspring_account_id: fastspringAccountId,
+          status: event?.data?.state || 'active',
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'fastspring_subscription_id'
+        });
+        
+        if (upsertError) {
+          logger.error('[FastSpring] Failed to upsert subscription:', upsertError);
+        }
+        
+        // Update profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            subscription_tier: tier,
+            subscription_status: 'active',
+            fastspring_subscription_id: subscriptionId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userIdFromTags);
+        
+        if (profileError) {
+          logger.error('[FastSpring] Failed to update profile:', profileError);
+        } else {
+          logger.info(`[FastSpring] ✅ Created subscription and updated user ${userIdFromTags} to tier ${tier}`);
+        }
+        
         return res.status(200).send('ok');
       }
-      // Still return 200 to prevent FastSpring retries
+      
+      // 2️⃣ EMAIL FALLBACK: link via customer email
+      const customerEmail = event?.data?.account?.email 
+                         || event?.data?.customer?.email
+                         || event?.data?.contact?.email
+                         || null;
+      
+      if (customerEmail) {
+        logger.info(`[FastSpring] Attempting fallback email match: ${customerEmail}`);
+        
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', customerEmail)
+          .maybeSingle();
+        
+        if (profile?.id) {
+          logger.info(`[FastSpring] 🟢 Fallback email match success → user: ${profile.id}`);
+          
+          const tier = extractTierFromProduct(event?.data?.product);
+          
+          // Create subscription record
+          const { error: upsertError } = await supabase.from('fastspring_subscriptions').upsert({
+            user_id: profile.id,
+            fastspring_subscription_id: subscriptionId,
+            fastspring_account_id: fastspringAccountId,
+            status: event?.data?.state || 'active',
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'fastspring_subscription_id'
+          });
+          
+          if (upsertError) {
+            logger.error('[FastSpring] Failed to upsert subscription:', upsertError);
+          }
+          
+          // Update profile
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              subscription_tier: tier,
+              subscription_status: 'active',
+              fastspring_subscription_id: subscriptionId,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', profile.id);
+          
+          if (profileError) {
+            logger.error('[FastSpring] Failed to update profile:', profileError);
+          } else {
+            logger.info(`[FastSpring] ✅ Created subscription and updated user ${profile.id} to tier ${tier}`);
+          }
+          
+          return res.status(200).send('ok');
+        } else {
+          logger.warn(`[FastSpring] No profile found for email: ${customerEmail}`);
+        }
+      }
+      
+      logger.error('[FastSpring] 🔴 Could not resolve user — no tags + no email match');
       return res.status(200).send('ok');
     }
     
