@@ -737,6 +737,15 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Dexie.waitFor waits for ALL pending transactions to complete.
       await Dexie.waitFor(new Promise(res => setTimeout(res, 120)));
 
+      // ✅ DEBUG: Verify optimistic message was saved before reload
+      const verifyOptimistic = await atlasDB.messages.get(userMessageId);
+      logger.debug('[ChatPage] ✅ Optimistic message saved:', {
+        id: userMessageId,
+        content: text.substring(0, 30),
+        exists: !!verifyOptimistic,
+        synced: verifyOptimistic?.synced
+      });
+
       // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
       // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
       const cacheKey = `${conversationId}-${userId}`;

@@ -221,6 +221,31 @@ export function useRealtimeConversations(userId?: string) {
             }
           }
           
+          // ✅ CRITICAL FIX: For user messages, check if there's an optimistic message to replace
+          if (newMessage.role === 'user') {
+            // Find optimistic user messages with same content and conversationId (within last 10 seconds)
+            const optimisticMessages = await atlasDB.messages
+              .where('conversationId')
+              .equals(newMessage.conversation_id)
+              .and(msg => msg.role === 'user' && msg.synced === false)
+              .toArray();
+            
+            const matchingOptimistic = optimisticMessages.find(msg => {
+              const timeDiff = Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.created_at).getTime());
+              return msg.content === parsedContent && timeDiff < 10000; // 10 second window
+            });
+            
+            if (matchingOptimistic) {
+              // Delete optimistic message and replace with real one
+              await atlasDB.messages.delete(matchingOptimistic.id);
+              logger.debug('[Realtime] ✅ Replaced optimistic user message:', {
+                optimisticId: matchingOptimistic.id,
+                realId: newMessage.id,
+                content: parsedContent.substring(0, 30)
+              });
+            }
+          }
+          
           // ✅ CRITICAL FIX: Check if message already exists before saving (prevent duplicates)
           const existingMessage = await atlasDB.messages.get(newMessage.id);
           if (existingMessage) {
