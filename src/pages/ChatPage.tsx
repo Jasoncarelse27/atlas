@@ -468,7 +468,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         window.removeEventListener('newMessageReceived', handleNewMessage as EventListener);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]); // loadMessages excluded - stable callback, event handler captures it
 
   // ✅ CRITICAL FIX: Reload messages when page becomes visible on mobile (cross-device sync)
@@ -489,7 +488,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]); // loadMessages excluded - stable callback, event handler captures it
 
   // Handle history modal from QuickActions
@@ -1596,7 +1594,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       logger.debug('[ChatPage] 🔄 Both userId and conversationId available, loading messages...');
       loadMessages(conversationId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, conversationId]); // loadMessages excluded - stable callback with userId dependency
 
   // ✅ CROSS-DEVICE SYNC FIX: Reload messages when page becomes visible
@@ -1620,7 +1617,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, conversationId]); // loadMessages excluded - stable callback with userId dependency
 
   // ✅ TUTORIAL: Trigger tutorial for first-time users (hook already declared at top)
