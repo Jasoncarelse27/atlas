@@ -709,6 +709,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     // ✅ FIX: Check message count BEFORE optimistic update
     const isFirstMessage = messages.length === 0;
     
+    // ✅ CRITICAL FIX: Declare userMessageId at function scope for error handling
+    // This ensures it's available in catch block even if error occurs before optimistic write
+    const userMessageId = crypto.randomUUID();
+    
     try {
       logger.debug('[ChatPage] 📤 Sending message to backend...', {
         userId,
@@ -717,7 +721,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
       
       // ✅ SIMPLIFIED: Write to Dexie immediately, then reload
-      const userMessageId = crypto.randomUUID();
       const now = new Date().toISOString();
 
       await atlasDB.messages.put({
@@ -920,7 +923,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
       
       // ✅ SIMPLIFIED: Mark as unsynced in Dexie, then reload
-      await atlasDB.messages.update(userMessageId, { synced: false });
+      // ✅ CRITICAL FIX: Only update if optimistic message was actually saved
+      try {
+        const optimisticMessage = await atlasDB.messages.get(userMessageId);
+        if (optimisticMessage) {
+          await atlasDB.messages.update(userMessageId, { synced: false });
+        }
+      } catch (updateError) {
+        logger.debug('[ChatPage] Could not update optimistic message (may not exist yet):', updateError);
+      }
+      
       // ✅ CRITICAL FIX: Clear cache before reload
       const cacheKey = `${conversationId}-${userId}`;
       messageLoadCache.delete(cacheKey);
