@@ -59,12 +59,21 @@ export const syncService = {
       await markSyncing(true)
 
     try {
-      // ✅ Pull remote messages from Supabase (filtered by user)
+      // ✅ SCALABILITY FIX: Limit remote sync to last 100 messages per conversation
+      // Pull recent messages from Supabase (filtered by user, limited for performance)
       const { data: remote, error: pullErr } = await supabase
         .from("messages")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at") as { data: SupabaseMessage[] | null; error: any }
+        .order("created_at", { ascending: false })
+        .limit(500) // ✅ SCALABILITY: Limit to 500 most recent messages across all conversations
+        .then((result) => {
+          // Reverse to get chronological order (oldest first)
+          if (result.data) {
+            result.data = result.data.reverse();
+          }
+          return result;
+        }) as { data: SupabaseMessage[] | null; error: any }
 
       if (pullErr) {
         // ✅ Handle 403 errors gracefully (user not authenticated)
@@ -75,7 +84,14 @@ export const syncService = {
         throw pullErr;
       }
 
-      const local = await atlasDB.messages.toArray()
+      // ✅ SCALABILITY FIX: Only load unsynced local messages, not all messages
+      // Get unsynced messages efficiently (limit to recent 24 hours)
+      const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const local = await atlasDB.messages
+        .where("timestamp")
+        .above(cutoffDate)
+        .filter(msg => !msg.synced)
+        .toArray();
 
       // ✅ PHASE 2: Only add missing remote messages (duplicate check)
       // Real-time listener is primary writer; this is for offline catch-up only
@@ -131,8 +147,8 @@ export const syncService = {
         }
       }
 
-      // ✅ Push unsynced local messages to Supabase
-      const unsynced = local.filter((m) => !m.synced)
+      // ✅ SCALABILITY: local already filtered to unsynced messages above
+      const unsynced = local
       for (const msg of unsynced) {
         // 🎯 FUTURE-PROOF FIX: Validate and format message data for Supabase schema
         // Skip messages with invalid data

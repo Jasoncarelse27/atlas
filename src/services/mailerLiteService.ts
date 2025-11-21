@@ -63,9 +63,9 @@ class MailerLiteService {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         logger.debug('[MailerLite] No session - skipping subscriber sync');
-        return;
-      }
-      
+      return;
+    }
+
       const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping subscriber sync');
@@ -73,11 +73,11 @@ class MailerLiteService {
       }
 
       const response = await fetch(getApiEndpoint('/api/mailerlite/proxy'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-        },
+          },
         body: JSON.stringify({
           operation: 'createOrUpdateSubscriber',
           data: {
@@ -123,9 +123,9 @@ class MailerLiteService {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         logger.debug('[MailerLite] No session - skipping custom fields update');
-        return;
-      }
-      
+      return;
+    }
+
       const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping custom fields update');
@@ -134,14 +134,14 @@ class MailerLiteService {
 
       const response = await fetch(getApiEndpoint('/api/mailerlite/proxy'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+          headers: {
+            'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+          },
+          body: JSON.stringify({
           operation: 'updateCustomFields',
           data: { email, fields },
-        }),
+          }),
       });
 
       const result = await response.json().catch(() => ({}));
@@ -173,9 +173,9 @@ class MailerLiteService {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         logger.debug('[MailerLite] No session - skipping event trigger');
-        return;
-      }
-      
+      return;
+    }
+
       const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping event trigger');
@@ -227,9 +227,9 @@ class MailerLiteService {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         logger.debug('[MailerLite] No session - skipping group segment');
-        return;
-      }
-      
+      return;
+    }
+
       const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping group segment');
@@ -237,11 +237,11 @@ class MailerLiteService {
       }
 
       const response = await fetch(getApiEndpoint('/api/mailerlite/proxy'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-        },
+          },
         body: JSON.stringify({
           operation: 'segmentSubscriber',
           data: { email, groupName },
@@ -278,9 +278,9 @@ class MailerLiteService {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         logger.debug('[MailerLite] No session - skipping group removal');
-        return;
-      }
-      
+      return;
+    }
+
       const token = await getAuthToken().catch(() => null);
       if (!token) {
         logger.debug('[MailerLite] Not authenticated - skipping group removal');
@@ -289,10 +289,10 @@ class MailerLiteService {
 
       const response = await fetch(getApiEndpoint('/api/mailerlite/proxy'), {
         method: 'POST',
-        headers: {
+          headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-        },
+          },
         body: JSON.stringify({
           operation: 'removeFromGroup',
           data: { email, groupName },

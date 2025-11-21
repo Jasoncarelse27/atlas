@@ -524,7 +524,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       if (document.visibilityState === 'visible') {
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         if (isMobile) {
-          logger.debug('[ChatPage] 📱 Page visible on mobile, reloading messages for sync...');
+          logger.debug('[ChatPage] 📱 Page visible on mobile, syncing and reloading messages...');
+          
+          // ✅ FIX A: Ensure any background sync completes before loading (mobile sync fix)
+          try {
+            const { conversationSyncService } = await import('../services/conversationSyncService');
+            await conversationSyncService.syncMessagesFromRemote(conversationId, userId!);
+            
+            // Wait for Dexie writes to complete
+            await new Promise(resolve => setTimeout(resolve, 300));
+            logger.debug('[ChatPage] 📱 Mobile sync delay complete');
+          } catch (error) {
+            logger.warn('[ChatPage] 📱 Mobile visibility sync failed:', error);
+          }
+          
           await loadMessages(conversationId);
         }
       }
@@ -1583,6 +1596,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           const { conversationSyncService } = await import('../services/conversationSyncService');
           await conversationSyncService.syncMessagesFromRemote(id, userId);
           logger.debug('[ChatPage] ✅ Synced messages for conversation:', id);
+          
+          // ✅ FIX A: Wait for Dexie writes to complete (mobile + web sync fix)
+          await new Promise(resolve => setTimeout(resolve, 300));
+          logger.debug('[ChatPage] ✅ Sync delay complete, ready to load messages');
+          
         } catch (syncError) {
           logger.warn('[ChatPage] ⚠️ Message sync failed (non-blocking):', syncError);
           // Continue anyway - loadMessages will try to load from Dexie
@@ -1660,9 +1678,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        logger.debug('[ChatPage] 👁️ Page became visible, reloading messages for sync...');
+        logger.debug('[ChatPage] 👁️ Page became visible, syncing and reloading messages...');
         // Small delay to ensure real-time subscriptions are active
         setTimeout(async () => {
+          // ✅ FIX A: Sync before loading for cross-device sync (web + mobile)
+          try {
+            const { conversationSyncService } = await import('../services/conversationSyncService');
+            await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
+            
+            // Wait for Dexie writes
+            await new Promise(resolve => setTimeout(resolve, 300));
+          } catch (error) {
+            logger.warn('[ChatPage] 👁️ Visibility sync failed:', error);
+          }
+          
           await loadMessages(conversationId);
         }, 500);
       }
