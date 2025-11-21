@@ -354,17 +354,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           : []
       } as Message));
       
-      // ✅ CRITICAL FIX: Preserve optimistic messages that haven't been synced yet
-      // This prevents messages from disappearing during the send/receive window
+      // ✅ CRITICAL FIX: Preserve ALL messages from prev state that aren't in loaded messages
+      // This prevents messages from disappearing during sync/refresh
       setMessages(prev => {
-        // Find optimistic messages (status: 'sending' or 'failed') that aren't in loaded messages
-        const optimisticMessages = prev.filter(msg => 
-          (msg.status === 'sending' || msg.status === 'failed') && 
+        // Find ALL messages from prev state that aren't in loaded messages
+        // This includes: sending, failed, sent, and any other status
+        const preservedMessages = prev.filter(msg => 
           !formattedMessages.some(loaded => loaded.id === msg.id)
         );
         
-        // Merge: loaded messages + optimistic messages that aren't confirmed yet
-        const merged = [...formattedMessages, ...optimisticMessages];
+        // Merge: loaded messages + preserved messages that aren't in Dexie yet
+        const merged = [...formattedMessages, ...preservedMessages];
         
         // Sort by timestamp to maintain chronological order
         merged.sort((a, b) => {
@@ -375,7 +375,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         
         logger.debug('[ChatPage] ✅ Merged messages:', {
           loaded: formattedMessages.length,
-          optimistic: optimisticMessages.length,
+          preserved: preservedMessages.length,
+          preservedStatuses: preservedMessages.map(m => m.status),
           total: merged.length
         });
         
