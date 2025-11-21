@@ -6,13 +6,19 @@ const WEBHOOK_SECRET = process.env.FASTSPRING_WEBHOOK_SECRET;
 
 export async function handleFastSpringWebhook(req, res) {
   try {
-    // Verify signature
-    const signature = req.headers['fastspring-hmac-sha256'];
+    // ✅ CRITICAL FIX: FastSpring uses X-FS-Signature header (Express lowercases to x-fs-signature)
+    const signature = req.headers['x-fs-signature'];
     const rawBody = req.body.toString('utf8');
     
     if (!WEBHOOK_SECRET) {
       logger.error('[FastSpring] Webhook secret not configured');
       return res.status(500).send('webhook not configured');
+    }
+    
+    if (!signature) {
+      logger.error('[FastSpring] ❌ Missing X-FS-Signature header');
+      logger.debug('[FastSpring] Available headers:', Object.keys(req.headers).filter(h => h.toLowerCase().includes('signature') || h.toLowerCase().includes('fs')));
+      return res.status(401).send('missing signature');
     }
     
     const computed = crypto
@@ -21,7 +27,11 @@ export async function handleFastSpringWebhook(req, res) {
       .digest('base64');
     
     if (signature !== computed) {
-      logger.error('[FastSpring] ❌ Invalid signature');
+      logger.error('[FastSpring] ❌ Invalid signature', {
+        received: signature?.substring(0, 20) + '...',
+        computed: computed?.substring(0, 20) + '...',
+        headerName: 'x-fs-signature'
+      });
       return res.status(401).send('invalid signature');
     }
     
