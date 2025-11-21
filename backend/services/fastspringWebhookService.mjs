@@ -65,17 +65,19 @@ export async function handleFastSpringWebhook(req, res) {
     
     logger.info(`[FastSpring] 🔔 Webhook received: ${event.type}`);
     
-    // ✅ DEBUG: Full payload logging for tag discovery
-    logger.debug('[FastSpring] Raw Body Length:', rawBody.length);
-    logger.debug('[FastSpring] Payload Keys:', Object.keys(payload || {}));
-    logger.debug('[FastSpring] Event structure:', JSON.stringify(event, null, 2));
-    logger.debug('[FastSpring] Tag Locations:', {
+    // ✅ DEBUG: Full payload logging for tag discovery (INFO level so it shows in Railway logs)
+    logger.info('[FastSpring] Raw Body Length:', rawBody.length);
+    logger.info('[FastSpring] Payload Keys:', Object.keys(payload || {}));
+    logger.info('[FastSpring] Event structure:', JSON.stringify(event, null, 2));
+    logger.info('[FastSpring] Tag Locations:', {
       'event.data.tags': event?.data?.tags,
       'event.tags': event?.tags,
       'payload.tags': payload?.tags,
       'event.data.account.tags': event?.data?.account?.tags,
       'event.data.customer': event?.data?.customer,
-      'event.data.account': event?.data?.account
+      'event.data.account': event?.data?.account,
+      'event.data.account.email': event?.data?.account?.email,
+      'event.data.contact': event?.data?.contact
     });
     
     // FastSpring account ID (not userId directly)
@@ -93,6 +95,8 @@ export async function handleFastSpringWebhook(req, res) {
                         || payload?.tags?.user_id
                         || event?.data?.account?.tags?.user_id
                         || null;
+    
+    logger.info(`[FastSpring] Tag search result: userIdFromTags = ${userIdFromTags || 'null'}`);
     
     // Helper function to extract tier from product (matches existing production logic)
     const extractTierFromProduct = (productValue) => {
@@ -161,6 +165,8 @@ export async function handleFastSpringWebhook(req, res) {
                          || event?.data?.customer?.email
                          || event?.data?.contact?.email
                          || null;
+      
+      logger.info(`[FastSpring] Email fallback check: customerEmail = ${customerEmail || 'null'}`);
       
       if (customerEmail) {
         logger.info(`[FastSpring] Attempting fallback email match: ${customerEmail}`);
