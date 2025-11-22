@@ -67,15 +67,21 @@ export interface RitualLog {
   synced?: boolean
 }
 
+export interface AppState {
+  key: string
+  value: string
+}
+
 export class AtlasDB extends Dexie {
   conversations!: Table<Conversation, string>
   messages!: Table<Message, string>
   syncMetadata!: Table<SyncMetadata, string>
   rituals!: Table<Ritual, string>
   ritualLogs!: Table<RitualLog, string>
+  appState!: Table<AppState, string>
 
   constructor() {
-    super("AtlasDB_v10") // ✅ Version 10: Add ritual builder support
+    super("AtlasDB_v11") // ✅ Version 11: Add appState table for last conversation tracking
     
     // ✅ MOBILE FIX: Add error handling for mobile Safari
     this.on('close', () => {
@@ -160,6 +166,19 @@ export class AtlasDB extends Dexie {
       ritualLogs: "id, ritualId, userId, completedAt, synced"
     }).upgrade(() => {
       logger.debug('[AtlasDB] ✅ Upgraded to v10: Ritual builder support added');
+      return Promise.resolve();
+    })
+
+    // Version 11: Add appState table for last conversation tracking
+    this.version(11).stores({
+      conversations: "id, userId, title, createdAt, updatedAt",
+      messages: "id, conversationId, userId, role, type, timestamp, synced, updatedAt, image_url, deletedAt, editedAt",
+      syncMetadata: "userId, lastSyncedAt, syncVersion",
+      rituals: "id, userId, title, goal, isPreset, tierRequired, createdAt, updatedAt, synced",
+      ritualLogs: "id, ritualId, userId, completedAt, synced",
+      appState: "key, value"
+    }).upgrade(() => {
+      logger.debug('[AtlasDB] ✅ Upgraded to v11: AppState table added for last conversation tracking');
       return Promise.resolve();
     })
   }

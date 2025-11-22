@@ -12,6 +12,8 @@ import { setGlobalNavigate } from "./utils/navigation";
 import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
 import { handleLaunchUrl } from "./utils/handleLaunchUrl";
 import { useTierQuery } from "./hooks/useTierQuery";
+import { atlasDB } from "./database/atlasDB";
+import { logger } from "./lib/logger";
 
 // 🚀 Route-based code splitting for better performance
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -127,6 +129,55 @@ function ProtectedBillingRoute() {
   );
 }
 
+// Component to auto-load last conversation on startup (ChatGPT-style)
+function AutoLoadLastConversation() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading || !user) return;
+
+    (async () => {
+      try {
+        // 1. Try Dexie appState
+        const last = await atlasDB.appState.get('lastOpenedConversationId');
+
+        if (last?.value) {
+          logger.debug('[Startup] Auto-loading last conversation from appState', {
+            id: last.value,
+          });
+          navigate(`/chat?conversation=${last.value}`, { replace: true });
+          return;
+        }
+
+        // 2. Fallback: most recent conversation by updatedAt (filtered by userId)
+        const lastConv = await atlasDB.conversations
+          .where('userId')
+          .equals(user.id)
+          .sortBy('updatedAt')
+          .then(convs => convs.length > 0 ? convs[convs.length - 1] : null);
+
+        if (lastConv?.id) {
+          logger.debug('[Startup] Auto-loading most recent conversation', {
+            id: lastConv.id,
+          });
+          navigate(`/chat?conversation=${lastConv.id}`, { replace: true });
+          return;
+        }
+
+        // 3. No conversations → go to /chat (new chat)
+        logger.debug('[Startup] No history found — starting new conversation');
+        navigate('/chat', { replace: true });
+      } catch (err) {
+        logger.warn('[Startup] Failed to auto-load last conversation', { err });
+        navigate('/chat', { replace: true });
+      }
+    })();
+  }, [loading, user, navigate]);
+
+  return null;
+}
+
 // Component to set up global navigation and deep link handling
 function NavigationSetup() {
   const navigate = useNavigate();
@@ -173,6 +224,7 @@ function App() {
         <UpgradeModalProvider>
           <TutorialProvider>
                     <Router>
+                      <AutoLoadLastConversation />
                       <NavigationSetup />
                       <Toaster position="top-center" />
                       <ErrorBoundary>

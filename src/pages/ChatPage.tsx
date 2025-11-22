@@ -1610,6 +1610,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         localStorage.setItem('atlas:lastConversationId', id);
         setConversationId(id);
         
+        // ✅ Store last opened conversation for auto-load on next startup
+        try {
+          await atlasDB.appState.put({
+            key: 'lastOpenedConversationId',
+            value: id,
+          });
+          logger.debug('[ChatPage] Stored lastOpenedConversationId', { id });
+        } catch (err) {
+          logger.warn('[ChatPage] Failed to store lastOpenedConversationId', {
+            id,
+            error: err,
+          });
+        }
+        
         // ✅ Update URL if it's missing the conversation ID
         if (!urlConversationId && id) {
           const newUrl = `/chat?conversation=${id}`;
@@ -1617,6 +1631,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Updated URL with conversation ID:', newUrl);
         }
         
+        /**
+         * TEMPORARY MITIGATION (Atlas):
+         * Dexie writes triggered by deltaSync/FIX Z may not complete before
+         * loadMessages() is called. We use:
+         *   - A short delay
+         *   - Cache clearing
+         *   - Logging
+         * to ensure messages appear reliably.
+         *
+         * Future refactor:
+         * Replace this with an explicit "sync finished writing" signal
+         * instead of a timeout-based mitigation.
+         */
         // ✅ CRITICAL FIX: Force sync for the ACTIVE conversation before loading
         // Fix Z hydrates conversations in the background, but we still hydrate the one the user is opening
         try {
@@ -1625,14 +1652,51 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Forced message sync for conversation:', id);
 
           // ✅ Allow Dexie writes to complete (mobile/web safe)
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Increased delay from 300ms to 1000ms for slower devices
+          await new Promise(resolve => setTimeout(resolve, 1000));
           logger.debug('[ChatPage] ✅ Forced sync delay complete, ready to load messages');
+          
+          // ✅ Check Dexie message count after sync
+          try {
+            const messageCount = await atlasDB.messages
+              .where('conversationId')
+              .equals(id)
+              .count();
+            logger.debug('[ChatPage] Messages in Dexie after sync', {
+              conversationId: id,
+              messageCount,
+            });
+          } catch (err) {
+            logger.warn('[ChatPage] Failed to count Dexie messages after sync', {
+              conversationId: id,
+              error: err,
+            });
+          }
         } catch (syncError) {
           logger.warn('[ChatPage] ⚠️ Forced message sync failed (non-blocking):', syncError);
         }
         
+        // ✅ Clear message cache before loading to prevent stale empty results
+        try {
+          if (userId) {
+            messageLoadCache.delete(`${id}-${userId}`);
+            logger.debug('[ChatPage] Cleared messageLoadCache before loading', {
+              conversationId: id,
+              userId,
+            });
+          } else {
+            logger.debug('[ChatPage] Skipping cache delete, userId not ready yet', { conversationId: id });
+          }
+        } catch (err) {
+          logger.warn('[ChatPage] Failed to clear messageLoadCache', { conversationId: id, error: err });
+        }
+        
         // ✅ BEST PRACTICE: Load messages AFTER sync completes
         const initialMessages = await loadMessages(id);
+        logger.debug('[ChatPage] Loaded messages count', {
+          conversationId: id,
+          count: initialMessages?.length ?? 0,
+        });
         logger.debug('[ChatPage] ✅ Conversation initialized:', {
           conversationId: id,
           messageCount: initialMessages.length,
