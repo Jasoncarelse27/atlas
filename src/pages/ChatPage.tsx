@@ -8,7 +8,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 // Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
 // import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
-import Dexie from 'dexie';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
@@ -543,7 +542,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
             
             // Wait for Dexie writes to complete
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 100));
             logger.debug('[ChatPage] 📱 Mobile sync delay complete');
           } else {
             logger.warn('[ChatPage] 📱 Skipping sync - userId not available');
@@ -748,10 +747,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         updatedAt: now
       });
 
-      // ⭐ FINAL FIX: Guarantee Dexie write is fully committed before UI reload
-      // iOS Safari IndexedDB can take 20–100ms to flush writes, especially in PWA/DevTools.
-      // Dexie.waitFor waits for ALL pending transactions to complete.
-      await Dexie.waitFor(new Promise(res => setTimeout(res, 120)));
+      // ⭐ Minimal delay for Dexie write (reduced from 120ms for better responsiveness)
+      await new Promise(res => setTimeout(res, 50));
 
       // ✅ CRITICAL FIX: Ensure conversation exists and save user message to Supabase
       // This ensures the message is persisted and will appear after any sync/reload
@@ -801,11 +798,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         synced: verifyOptimistic?.synced
       });
 
-      // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
-      // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
-      const cacheKey = `${conversationId}-${userId}`;
-      messageLoadCache.delete(cacheKey);
-      await loadMessages(conversationId);
+      // ✅ OPTIMISTIC UPDATE: Show message immediately in UI
+      const userMsg = {
+        id: userMessageId,
+        conversationId: conversationId,
+        role: 'user' as const,
+        content: text,
+        timestamp: now,
+        type: 'text' as const,
+        attachments: []
+      };
+      
+      // Add to existing messages immediately for instant feedback
+      setMessages(prev => [...prev, userMsg]);
       setIsTyping(true);
       setIsStreaming(true);
       
@@ -1709,8 +1714,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           }
 
           // ✅ Allow Dexie writes to complete (mobile/web safe)
-          // Increased delay from 300ms to 1500ms for slower devices + mobile reliability
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          // Reduced delay to 100ms for better responsiveness
+          await new Promise(resolve => setTimeout(resolve, 100));
           logger.debug('[ChatPage] ✅ Forced sync delay complete, ready to load messages');
           
           // ✅ Check Dexie message count after sync
@@ -1765,8 +1770,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           // ✅ ULTRA FIX: Retry once if no messages (handles timing edge cases)
           if (!initialMessages || initialMessages.length === 0) {
-            logger.debug('[ChatPage] No messages on first load, retrying after 500ms...');
-            await new Promise(r => setTimeout(r, 500));
+            logger.debug('[ChatPage] No messages on first load, retrying after 100ms...');
+            await new Promise(r => setTimeout(r, 100));
             await loadMessages(id);
           }
           logger.debug('[ChatPage] ✅ Conversation initialized:', {
@@ -1841,7 +1846,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
               
               // Wait for Dexie writes
-              await new Promise(resolve => setTimeout(resolve, 300));
+              await new Promise(resolve => setTimeout(resolve, 100));
             } else {
               logger.warn('[ChatPage] 👁️ Skipping sync - userId not available');
             }
