@@ -367,8 +367,21 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
       
       // ✅ SIMPLIFIED: Dexie is source of truth, no merging needed
+      // ✅ FIX: Stable sort - messages within 2 seconds use ID as tiebreaker
       const formattedMessages: Message[] = storedMessages
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime();
+          const timeB = new Date(b.timestamp).getTime();
+          const timeDiff = timeA - timeB;
+          
+          // If messages are within 2 seconds, use ID as tiebreaker for stable order
+          if (Math.abs(timeDiff) < 2000) {
+            // UUIDs are lexicographically sortable and increase over time
+            return a.id.localeCompare(b.id);
+          }
+          
+          return timeDiff;
+        })
         .map((msg) => ({
         id: msg.id,
           conversationId: msg.conversationId,
@@ -411,7 +424,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           const filteredRetry = retryMessages
             .filter(msg => !msg.deletedAt)
-            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            .sort((a, b) => {
+              const timeA = new Date(a.timestamp).getTime();
+              const timeB = new Date(b.timestamp).getTime();
+              const timeDiff = timeA - timeB;
+              
+              // If messages are within 2 seconds, use ID as tiebreaker for stable order
+              if (Math.abs(timeDiff) < 2000) {
+                // UUIDs are lexicographically sortable and increase over time
+                return a.id.localeCompare(b.id);
+              }
+              
+              return timeDiff;
+            })
             .slice(-100);
           
           if (filteredRetry.length > 0) {
