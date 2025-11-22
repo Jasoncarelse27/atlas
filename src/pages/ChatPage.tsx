@@ -171,13 +171,37 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     staleTime: 30000, // Consider stale after 30 seconds
   });
   
+  // ✅ Total conversation count for MailerLite (cached for 5 minutes)
+  const { data: totalConversationCount } = useQuery({
+    queryKey: ['totalConversations', userId],
+    queryFn: async () => {
+      if (!userId) return 0;
+      
+      const { count, error } = await supabase
+        .from('conversations')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .is('deleted_at', null);
+      
+      if (error) {
+        logger.debug('[ChatPage] Error fetching total conversations:', error);
+        return 0;
+      }
+      
+      return count || 0;
+    },
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  });
+  
   // ✅ Silent MailerLite automation for all authenticated users (no UI)
   useMailerAutomation({
     userEmail: userEmail || '',
     userName: userName,
     userTier: tier || 'free',
     conversationsToday: dailyUsage || 0,
-    totalConversations: messages.length,
+    totalConversations: totalConversationCount || 0,  // ✅ FIX: Use actual conversation count, not message count
   });
   
   // ✅ Theme support
@@ -2873,7 +2897,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               userName={userName}
               userTier={tier || 'free'}
               conversationsToday={dailyUsage || 0}
-              totalConversations={messages.length} // Use message count as proxy
+              totalConversations={totalConversationCount || 0} // ✅ FIX: Use actual conversation count
               onError={(error) => {
                 logger.debug('[MailerLite] Error:', error);
                 // Don't show errors to user - MailerLite is non-critical

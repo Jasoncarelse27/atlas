@@ -53,12 +53,30 @@ export function useMailerAutomation(config: UseMailerAutomationConfig) {
   const milestoneEventSentRef = useRef<Set<number>>(new Set());
   const signupEventSentRef = useRef(false);
 
-  // Auto-update usage when props change
+  // ✅ FIX: Debounced usage updates to prevent API spam
+  // Only update when values actually change meaningfully
+  const lastUpdateRef = useRef({ conversationsToday: -1, totalConversations: -1 });
+  
   useEffect(() => {
+    // Only update if configured and values have actually changed
     if (isConfigured && userEmail) {
-      updateUsage(conversationsToday, totalConversations).catch(() => {
-        // Silent fail - non-critical
-      });
+      const hasChanged = 
+        conversationsToday !== lastUpdateRef.current.conversationsToday ||
+        totalConversations !== lastUpdateRef.current.totalConversations;
+      
+      if (hasChanged) {
+        lastUpdateRef.current = { conversationsToday, totalConversations };
+        
+        // Debounce the update by 5 seconds to batch rapid changes
+        const timeoutId = setTimeout(() => {
+          updateUsage(conversationsToday, totalConversations).catch(() => {
+            // Silent fail - non-critical
+            logger.debug('[MailerLite] Failed to update usage (non-critical)');
+          });
+        }, 5000);
+        
+        return () => clearTimeout(timeoutId);
+      }
     }
   }, [isConfigured, userEmail, conversationsToday, totalConversations, updateUsage]);
 
