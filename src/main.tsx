@@ -1,3 +1,9 @@
+// Polyfill for "global" in browser (fixes crash in dev/prod)
+// Must be the FIRST line of the file
+if (typeof (globalThis as any).global === 'undefined') {
+  (globalThis as any).global = globalThis;
+}
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import AtlasApp from './App'
