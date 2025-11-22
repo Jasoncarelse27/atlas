@@ -13,21 +13,13 @@ export function stableMessageSort(a: any, b: any) {
     : 0;
 
   if (aTime !== bTime) return aTime - bTime;
-
-  // Secondary: id fallback for stable ordering
-  if (a.id && b.id) {
-    return String(a.id).localeCompare(String(b.id));
-  }
-
-  return 0;
+  return String(a.id).localeCompare(String(b.id));
 }
 
-export function appendMessageSafely(prevMessages: any[], newMessage: any) {
+export function appendMessageSafely(prev: any[], incoming: any) {
   // Deduplicate by id
-  if (prevMessages.some(msg => msg.id === newMessage.id)) {
-    return prevMessages;
+  if (prev.some(msg => msg.id === incoming.id)) {
+    return prev;
   }
-
-  const merged = [...prevMessages, newMessage];
-  return merged.sort(stableMessageSort);
+  return [...prev, incoming].sort(stableMessageSort);
 }

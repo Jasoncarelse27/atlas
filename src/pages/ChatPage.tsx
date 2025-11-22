@@ -1847,45 +1847,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     checkQuestionnaire();
   }, [userId, hasCheckedQuestionnaire]);
 
-  // ✅ CROSS-DEVICE SYNC FIX: Reload messages when page becomes visible
-  // This ensures messages typed on mobile appear on web when you switch tabs/windows
-  // Note: loadMessages deliberately excluded from deps to prevent infinite loop (stable callback)
-  useEffect(() => {
-    if (!userId || !conversationId || typeof window === 'undefined') return;
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        logger.debug('[ChatPage] 👁️ Page became visible, syncing and reloading messages...');
-        // Small delay to ensure real-time subscriptions are active
-        setTimeout(async () => {
-          // ✅ FIX A: Sync before loading for cross-device sync (web + mobile)
-          try {
-            // Ensure userId is available before syncing
-            if (userId) {
-              const { conversationSyncService } = await import('../services/conversationSyncService');
-              await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
-              
-              // Wait for Dexie writes
-              await new Promise(resolve => setTimeout(resolve, 300));
-            } else {
-              logger.warn('[ChatPage] 👁️ Skipping sync - userId not available');
-            }
-          } catch (error) {
-            logger.warn('[ChatPage] 👁️ Visibility sync failed:', error);
-          }
-          
-          await loadMessages(conversationId);
-        }, 500);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [userId, conversationId]); // loadMessages excluded - stable callback with userId dependency
-
   // ✅ TUTORIAL: Trigger tutorial for first-time users (hook already declared at top)
   useEffect(() => {
     // Diagnostic logging
