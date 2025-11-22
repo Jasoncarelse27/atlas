@@ -1,5 +1,6 @@
 import { toast } from "sonner"
 import { logger } from '../lib/logger';
+import { refreshPage } from './navigation';
 
 export async function resetLocalData() {
   logger.warn("🚨 Resetting local data (IndexedDB + localStorage)…")
@@ -28,7 +29,7 @@ export async function resetLocalData() {
 
   logger.debug("✅ Local data reset complete — reloading…")
   setTimeout(() => {
-    window.location.reload()
+    refreshPage()
   }, 500) // tiny delay so toast shows
 }
 

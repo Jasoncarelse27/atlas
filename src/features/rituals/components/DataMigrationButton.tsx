@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { useRitualStore } from '../hooks/useRitualStore';
 import { fixCorruptedRitualDurations } from '../utils/ritualDataMigration';
+import { refreshPage } from '../../../utils/navigation';
 
 export const DataMigrationButton: React.FC = () => {
   const { userId } = useTierQuery();
@@ -35,7 +36,7 @@ export const DataMigrationButton: React.FC = () => {
         
         // Give user time to see the success message
         setTimeout(() => {
-          window.location.reload(); // Force full refresh to clear cache
+          refreshPage(); // Refresh to show updated data
         }, 1500);
       } else {
         toast.info('No corrupted rituals found. All durations are correct!');

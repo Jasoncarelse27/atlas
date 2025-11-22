@@ -74,7 +74,7 @@ export function UpgradeButton({
       // ✅ BEST PRACTICE: Log checkout URL for debugging
       logger.info('Redirecting to FastSpring checkout:', checkoutUrl);
       
-      // Redirect to FastSpring checkout
+      // Redirect to FastSpring checkout (external URL)
       window.location.href = checkoutUrl;
       } catch (fastspringError) {
         // ✅ FASTSPRING PENDING: Show message if not approved yet

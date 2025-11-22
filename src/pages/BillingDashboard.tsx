@@ -15,6 +15,7 @@ import { useBillingSummary } from '../hooks/useBillingSummary';
 import { useTierQuery } from '../hooks/useTierQuery';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
+import { refreshPage } from '../utils/navigation';
 
 const BillingDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ const BillingDashboard: React.FC = () => {
                   {summaryError?.message || invoicesError?.message || 'Failed to load billing information'}
                 </p>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => refreshPage()}
                   className="px-4 py-2 bg-atlas-sage dark:bg-gray-700 text-white rounded-md hover:bg-atlas-success dark:hover:bg-gray-600"
                 >
                   Retry
@@ -137,9 +138,7 @@ const BillingDashboard: React.FC = () => {
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Billing</h1>
               </div>
               <button
-                onClick={() => {
-                  window.location.reload();
-                }}
+                onClick={() => refreshPage()}
                 className="px-4 py-2 text-sm bg-atlas-sage hover:bg-atlas-success text-white rounded-lg font-medium transition-colors"
               >
                 Refresh

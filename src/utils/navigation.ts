@@ -14,9 +14,14 @@
 
 import type { NavigateFunction } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '../lib/logger';
+import { toast } from 'sonner';
 
 // Global navigation function storage (for use outside React components)
 let globalNavigate: NavigateFunction | null = null;
+
+// Track if we're in the middle of navigation to prevent double navigations
+let isNavigating = false;
 
 /**
  * Set the global navigate function (called from App.tsx)
@@ -24,6 +29,11 @@ let globalNavigate: NavigateFunction | null = null;
  */
 export function setGlobalNavigate(navigate: NavigateFunction): void {
   globalNavigate = navigate;
+  
+  // Also store in window for emergency fallback
+  if (typeof window !== 'undefined') {
+    (window as any).__atlasNavigate = navigate;
+  }
 }
 
 /**
@@ -34,8 +44,7 @@ export function useSafeNavigation() {
   const navigate = useNavigate();
   
   // Store navigate function globally for utility functions
-  if (typeof window !== 'undefined') {
-    (window as any).__atlasNavigate = navigate;
+  if (typeof window !== 'undefined' && !globalNavigate) {
     setGlobalNavigate(navigate);
   }
   
@@ -43,10 +52,28 @@ export function useSafeNavigation() {
     /**
      * Navigate to an internal route
      * @param path - Internal route path (e.g., '/login', '/chat')
-     * @param replace - Replace current history entry (default: true)
+     * @param options - Navigation options
      */
-    goTo: (path: string, replace: boolean = true) => {
-      navigate(path, { replace });
+    goTo: (path: string, options?: { replace?: boolean; state?: any }) => {
+      if (isNavigating) {
+        logger.debug('[Navigation] Navigation already in progress, ignoring');
+        return;
+      }
+      
+      isNavigating = true;
+      navigate(path, options);
+      
+      // Reset navigation flag after a short delay
+      setTimeout(() => { isNavigating = false; }, 100);
+    },
+    
+    /**
+     * Navigate to a new chat conversation
+     * @param conversationId - The conversation ID to navigate to
+     */
+    goToChat: (conversationId?: string) => {
+      const path = conversationId ? `/chat?conversation=${conversationId}` : '/chat';
+      navigate(path, { replace: true });
     },
     
     /**
@@ -57,10 +84,25 @@ export function useSafeNavigation() {
     },
     
     /**
-     * Reload page (only for critical errors)
-     * ⚠️ Use sparingly - prefer React Router navigation
+     * Refresh current route (preserves state)
      */
-    reload: () => {
+    refresh: () => {
+      navigate(0);
+    },
+    
+    /**
+     * Open external URL
+     * @param url - External URL to open
+     */
+    openExternal: (url: string) => {
+      window.location.href = url;
+    },
+    
+    /**
+     * Reload page (only for critical errors)
+     * ⚠️ Use sparingly - prefer refresh() or state updates
+     */
+    hardReload: () => {
       window.location.reload();
     },
   };
@@ -70,24 +112,92 @@ export function useSafeNavigation() {
  * Programmatic navigation helper (for use outside React components)
  * ⚠️ Prefer useSafeNavigation hook when possible
  */
-export function navigateTo(path: string, replace: boolean = true): void {
+export function navigateTo(path: string, options?: { replace?: boolean; state?: any }): void {
+  // Prevent double navigation
+  if (isNavigating) {
+    logger.debug('[Navigation] Navigation already in progress, ignoring');
+    return;
+  }
+  
   // Try to use global navigate function first
   if (globalNavigate) {
-    globalNavigate(path, { replace });
+    isNavigating = true;
+    globalNavigate(path, options);
+    setTimeout(() => { isNavigating = false; }, 100);
     return;
   }
   
   // Fallback: Try to get navigate from window (set by useSafeNavigation)
   if (typeof window !== 'undefined' && (window as any).__atlasNavigate) {
-    (window as any).__atlasNavigate(path, { replace });
+    isNavigating = true;
+    (window as any).__atlasNavigate(path, options);
+    setTimeout(() => { isNavigating = false; }, 100);
     return;
   }
   
   // Last resort: Use window.location (slower, but works)
-  // ✅ PRODUCTION LOGGING: Use logger instead of console
-  if (typeof window !== 'undefined' && (window as any).__atlasLogger) {
-    (window as any).__atlasLogger.warn('[Navigation] Using window.location fallback - consider using useSafeNavigation hook');
-  }
+  logger.warn('[Navigation] Using window.location fallback - navigation not initialized');
   window.location.href = path;
+}
+
+/**
+ * Navigate to login page
+ * Commonly used throughout the app
+ */
+export function goToLogin(message?: string): void {
+  if (message) {
+    toast.info(message);
+  }
+  navigateTo('/login', { replace: true });
+}
+
+/**
+ * Navigate to a new chat
+ */
+export function goToNewChat(): void {
+  navigateTo('/chat', { replace: true });
+}
+
+/**
+ * Navigate to a specific conversation
+ */
+export function goToConversation(conversationId: string): void {
+  navigateTo(`/chat?conversation=${conversationId}`, { replace: true });
+}
+
+/**
+ * Refresh current page (React Router way)
+ * This preserves state unlike window.location.reload()
+ */
+export function refreshPage(): void {
+  if (globalNavigate) {
+    globalNavigate(0);
+  } else {
+    // Fallback to hard reload if navigate not available
+    window.location.reload();
+  }
+}
+
+/**
+ * Check if URL is external
+ */
+export function isExternalUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url, window.location.origin);
+    return urlObj.origin !== window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Safe navigation that handles both internal and external URLs
+ */
+export function safeNavigate(url: string, options?: { replace?: boolean }): void {
+  if (isExternalUrl(url)) {
+    window.location.href = url;
+  } else {
+    navigateTo(url, options);
+  }
 }
 

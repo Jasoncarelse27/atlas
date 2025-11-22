@@ -12,7 +12,7 @@ export interface SearchResult {
 }
 
 /**
- * Search messages across all user conversations
+ * Search messages and conversation titles across all user conversations
  * Uses Supabase ILIKE for case-insensitive pattern matching
  * Filters out deleted messages automatically
  */
@@ -29,7 +29,7 @@ export async function searchMessages(
     const searchTerm = query.trim();
     logger.debug('[SearchService] Searching for:', searchTerm);
 
-    // Build Supabase query
+    // Build Supabase query - search in both message content and conversation titles
     let supabaseQuery = supabase
       .from('messages')
       .select(`
@@ -44,7 +44,7 @@ export async function searchMessages(
       `)
       .eq('user_id', userId)
       .is('deleted_at', null) // Filter out deleted messages
-      .ilike('content', `%${searchTerm}%`) // Case-insensitive search
+      .or(`content.ilike.%${searchTerm}%,conversations.title.ilike.%${searchTerm}%`) // Search in both content and title
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -69,7 +69,6 @@ export async function searchMessages(
     // ✅ TYPE SAFETY: Properly type the joined conversations data
     const results: SearchResult[] = data.map((msg: any) => {
       const content = msg.content || '';
-      const snippet = createSnippet(content, searchTerm);
       
       // ✅ TYPE SAFETY: Handle conversations join result (can be object or array)
       const conversationTitle = 
@@ -78,6 +77,15 @@ export async function searchMessages(
           : Array.isArray(msg.conversations) && msg.conversations[0]
             ? msg.conversations[0].title
             : 'Untitled Conversation';
+      
+      // Create snippet from content, but if the match is in the title, show that too
+      let snippet = createSnippet(content, searchTerm);
+      
+      // If the search term matches the conversation title, include it in the snippet
+      if (conversationTitle.toLowerCase().includes(searchTerm.toLowerCase()) && 
+          !content.toLowerCase().includes(searchTerm.toLowerCase())) {
+        snippet = `In conversation "${highlightSearchTerm(conversationTitle, searchTerm)}": ${snippet}`;
+      }
 
       return {
         messageId: msg.id,
@@ -152,5 +160,51 @@ export function highlightSearchTerm(text: string, searchTerm: string): string {
   const escapedText = escapeHtml(text);
   const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
   return escapedText.replace(regex, '<mark class="bg-yellow-200 text-gray-900 px-0.5 rounded">$1</mark>');
+}
+
+/**
+ * Search conversations by title
+ * Useful for quick conversation lookup
+ */
+export async function searchConversationsByTitle(
+  userId: string,
+  query: string
+): Promise<{ id: string; title: string; lastMessageAt: string }[]> {
+  try {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+
+    const searchTerm = query.trim();
+    logger.debug('[SearchService] Searching conversations by title:', searchTerm);
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('id, title, updated_at')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .ilike('title', `%${searchTerm}%`)
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      logger.error('[SearchService] Conversation search failed:', error);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      logger.debug('[SearchService] No conversations found');
+      return [];
+    }
+
+    return data.map(conv => ({
+      id: conv.id,
+      title: conv.title || 'Untitled Conversation',
+      lastMessageAt: conv.updated_at
+    }));
+  } catch (error) {
+    logger.error('[SearchService] Conversation search error:', error);
+    return [];
+  }
 }
 

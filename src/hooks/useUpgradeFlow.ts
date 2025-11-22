@@ -4,6 +4,7 @@ import { logger } from '../lib/logger';
 import type { Tier } from '../types/tier';
 import { getPlatform, isNativeIOS } from '../utils/platformDetection';
 import { iosIAPService } from '../services/iosIAPService';
+import { refreshPage } from '../utils/navigation';
 
 export type UpgradeTrigger = 'message_limit' | 'voice_feature' | 'image_feature' | 'general';
 
@@ -65,7 +66,7 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
             
             // Refresh page to show new tier
             setTimeout(() => {
-              window.location.reload();
+              refreshPage();
             }, 1000);
           } else {
             if (result.error?.includes('cancelled')) {
@@ -112,7 +113,7 @@ export function useUpgradeFlow(): UseUpgradeFlowReturn {
       // Track upgrade attempt
       ConversionAnalytics.trackUpgradeAttempt(tier, triggerReason || 'general');
       
-      // Redirect to FastSpring checkout
+      // Redirect to FastSpring checkout (external URL)
       window.location.href = checkoutUrl;
       
     } catch (error) {

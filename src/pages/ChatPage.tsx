@@ -52,6 +52,7 @@ import { useMobileOptimization } from '../hooks/useMobileOptimization'; // ✅ U
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 import { useTierRefreshOnFocus } from '../hooks/useTierRefreshOnFocus';
 import { useTutorial } from '../hooks/useTutorial';
+import { stableMessageSort, appendMessageSafely } from '../utils/messageSort';
 
 interface ChatPageProps {
   user?: { id: string; email?: string };
@@ -242,11 +243,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         .toArray(); // ✅ More reliable than sortBy on filtered collections
       
       // Sort in JS (works consistently on mobile + web)
-      olderMessages.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
-        return timeA - timeB; // Ascending order (oldest first)
-      });
+      olderMessages.sort(stableMessageSort);
       
       // Take last 50 messages (most recent of the older ones)
       olderMessages = olderMessages.slice(-50);
@@ -347,11 +344,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Filter deleted messages and sort in JS (works consistently on mobile + web)
       storedMessages = storedMessages
         .filter(msg => !msg.deletedAt)
-        .sort((a, b) => {
-          const timeA = new Date(a.timestamp).getTime();
-          const timeB = new Date(b.timestamp).getTime();
-          return timeA - timeB; // Ascending order (oldest first)
-        });
+        .sort(stableMessageSort);
       
       // Get last 100 messages (most recent)
       storedMessages = storedMessages.slice(-100);
@@ -391,21 +384,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
       
       // ✅ SIMPLIFIED: Dexie is source of truth, no merging needed
-      // ✅ FIX: Stable sort - messages within 2 seconds use ID as tiebreaker
+      // ✅ FIX: Stable sort using centralized function
       const formattedMessages: Message[] = storedMessages
-        .sort((a, b) => {
-          const timeA = new Date(a.timestamp).getTime();
-          const timeB = new Date(b.timestamp).getTime();
-          const timeDiff = timeA - timeB;
-          
-          // If messages are within 2 seconds, use ID as tiebreaker for stable order
-          if (Math.abs(timeDiff) < 2000) {
-            // UUIDs are lexicographically sortable and increase over time
-            return a.id.localeCompare(b.id);
-          }
-          
-          return timeDiff;
-        })
+        .sort(stableMessageSort)
         .map((msg) => ({
         id: msg.id,
           conversationId: msg.conversationId,
@@ -448,19 +429,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           const filteredRetry = retryMessages
             .filter(msg => !msg.deletedAt)
-            .sort((a, b) => {
-              const timeA = new Date(a.timestamp).getTime();
-              const timeB = new Date(b.timestamp).getTime();
-              const timeDiff = timeA - timeB;
-              
-              // If messages are within 2 seconds, use ID as tiebreaker for stable order
-              if (Math.abs(timeDiff) < 2000) {
-                // UUIDs are lexicographically sortable and increase over time
-                return a.id.localeCompare(b.id);
-              }
-              
-              return timeDiff;
-            })
+            .sort(stableMessageSort)
             .slice(-100);
           
           if (filteredRetry.length > 0) {
@@ -548,17 +517,54 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ MOBILE SAFETY: Use requestAnimationFrame to ensure UI updates even if page was backgrounded
       requestAnimationFrame(async () => {
         try {
-          // ✅ CRITICAL FIX: Reload messages from Dexie (useRealtimeConversations already saved it)
-          // This ensures we get the latest message that was just saved
-          // loadMessages already preserves optimistic messages, no mobile override needed
-          await loadMessages(conversationId);
+          // ✅ CRITICAL FIX: Append message instead of full reload to prevent flicker
+          const newMsg = event.detail.message;
+          
+          // Parse content if needed (matching useRealtimeConversations logic)
+          let parsedContent = newMsg.content;
+          if (typeof newMsg.content === 'string' && newMsg.content.trim().startsWith('{')) {
+            try {
+              const parsed = JSON.parse(newMsg.content);
+              parsedContent = parsed.text || parsed.content || newMsg.content;
+            } catch (e) {
+              // Not JSON, keep as-is
+            }
+          }
+          
+          // Parse attachments
+          let parsedAttachments = undefined;
+          if (newMsg.attachments) {
+            try {
+              const attachmentsData = typeof newMsg.attachments === 'string' 
+                ? JSON.parse(newMsg.attachments)
+                : newMsg.attachments;
+              if (Array.isArray(attachmentsData)) {
+                parsedAttachments = attachmentsData;
+              }
+            } catch (e) {
+              // Failed to parse
+            }
+          }
+          
+          const incomingMessage: Message = {
+            id: newMsg.id,
+            conversationId: newMsg.conversation_id,
+            role: newMsg.role,
+            content: parsedContent,
+            timestamp: newMsg.created_at,
+            type: newMsg.role === 'assistant' ? 'text' : (parsedAttachments?.length ? 'text' : 'text'),
+            attachments: parsedAttachments || []
+          };
+          
+          // Append safely with deduplication
+          setMessages(prev => appendMessageSafely(prev, incomingMessage));
           
           // Clear typing/streaming indicators
           setIsTyping(false);
           setIsStreaming(false);
           isProcessingRef.current = false;
           
-          logger.debug('[ChatPage] ✅ UI updated with new message from real-time');
+          logger.debug('[ChatPage] ✅ UI updated with new message from real-time (append-only)');
         } catch (error) {
           logger.error('[ChatPage] ❌ Error handling new message:', error);
         }
@@ -839,11 +845,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         // Don't throw - continue with normal flow
       }
 
-      // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
-      // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
-      const cacheKey = `${conversationId}-${userId}`;
-      messageLoadCache.delete(cacheKey);
-      await loadMessages(conversationId);
+      // ✅ SIMPLIFIED: Realtime will handle message updates - no need to reload
+      // Optimistic message is already in state, realtime will replace with synced version
       setIsTyping(true);
       setIsStreaming(true);
       
@@ -981,11 +984,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Fallback: Saved', latestMessages.length, 'messages to Dexie');
         }
         
-        // Reload from Dexie to display
-        // ✅ CRITICAL FIX: Clear cache before reload
-        const cacheKey = `${conversationId}-${userId}`;
-        messageLoadCache.delete(cacheKey);
-        await loadMessages(conversationId);
+        // Realtime will handle the new messages - no need to reload
+        // Just clear the typing indicators
         setIsTyping(false);
         setIsStreaming(false);
         isProcessingRef.current = false;
@@ -1178,15 +1178,13 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     try {
       logger.debug('[ChatPage] 🗑️ Deleting message:', { messageId, deleteForEveryone });
 
-      // ✅ SIMPLIFIED: Update Dexie, then reload
+      // ✅ SIMPLIFIED: Update Dexie, then update state
       await atlasDB.messages.update(messageId, {
         deletedAt: new Date().toISOString(),
         deletedBy: deleteForEveryone ? 'everyone' : 'user'
       });
-      // ✅ CRITICAL FIX: Clear cache before reload
-      const cacheKey = `${conversationId}-${userId}`;
-      messageLoadCache.delete(cacheKey);
-      await loadMessages(conversationId); // Reload from Dexie
+      // Remove message from state immediately for better UX
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
 
       // ✅ Update Supabase (backend)
       await messageService.deleteMessage(messageId, conversationId, deleteForEveryone);
@@ -1517,10 +1515,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
           
           // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
-          // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
-          const cacheKey = `${conversationId}-${userId}`;
-          messageLoadCache.delete(cacheKey);
-          await loadMessages(conversationId);
+          // Realtime will handle the message update - no need to reload
           setIsTyping(false);
           setIsStreaming(false);
           
@@ -2491,6 +2486,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               // ✅ FIX: Ensure proper scrolling with dvh
               minHeight: 0, // Allow flex child to shrink
               WebkitOverflowScrolling: 'touch', // Smooth iOS scrolling
+              scrollBehavior: 'auto', // Prevent animated scroll jumps
               // ✅ BEST PRACTICE: Optimize touch performance for pull-to-refresh
               touchAction: pullDistance > 0 ? 'pan-y' : 'auto', // Allow vertical scroll when not pulling
               // ✅ UX IMPROVEMENT: Pull-to-refresh visual feedback
