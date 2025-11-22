@@ -271,6 +271,7 @@ export class ConversationSyncService {
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
+        .eq('user_id', _userId)  // ✅ CRITICAL FIX: Add user_id filter for RLS
         .order('created_at', { ascending: false })
         .limit(100) as SupabaseQueryResponse<SupabaseMessage[]>;
 
@@ -301,6 +302,7 @@ export class ConversationSyncService {
           .from('messages')
           .select('*')
           .eq('conversation_id', conversationId)
+          .eq('user_id', _userId)  // ✅ CRITICAL FIX: Add user_id filter for RLS
           .order('created_at', { ascending: false })
           .limit(200); // Higher limit for fallback
 
