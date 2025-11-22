@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 // Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
 // import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
+import Dexie from 'dexie';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
@@ -542,7 +543,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
             
             // Wait for Dexie writes to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 300));
             logger.debug('[ChatPage] 📱 Mobile sync delay complete');
           } else {
             logger.warn('[ChatPage] 📱 Skipping sync - userId not available');
@@ -622,7 +623,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Placeholder variables for components that need them
   const isProcessing = isTyping;
   
-  // ✅ OPTIMISTIC UPDATES: Show user message instantly for ChatGPT-like experience
   // ✅ PERFORMANCE FIX: Memoize callback to prevent EnhancedInputToolbar re-renders
   const handleTextMessage = useCallback(async (text: string) => {
     // Prevent duplicate calls
@@ -718,11 +718,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     lastMessageRef.current = trimmedText;
     isProcessingRef.current = true;
     
-    // ✅ FIX: Check message count BEFORE optimistic update
+    // ✅ FIX: Check message count
     const isFirstMessage = messages.length === 0;
     
     // ✅ CRITICAL FIX: Declare userMessageId at function scope for error handling
-    // This ensures it's available in catch block even if error occurs before optimistic write
     const userMessageId = crypto.randomUUID();
     
     try {
@@ -747,8 +746,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         updatedAt: now
       });
 
-      // ⭐ Minimal delay for Dexie write (reduced from 120ms for better responsiveness)
-      await new Promise(res => setTimeout(res, 50));
+      // ⭐ FINAL FIX: Guarantee Dexie write is fully committed before UI reload
+      // iOS Safari IndexedDB can take 20–100ms to flush writes, especially in PWA/DevTools.
+      // Dexie.waitFor waits for ALL pending transactions to complete.
+      await Dexie.waitFor(new Promise(res => setTimeout(res, 120)));
 
       // ✅ CRITICAL FIX: Ensure conversation exists and save user message to Supabase
       // This ensures the message is persisted and will appear after any sync/reload
@@ -778,7 +779,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         if (saveError) {
           logger.error('[ChatPage] ❌ Failed to save user message to Supabase:', saveError);
-          // Don't throw - continue with optimistic UI
+          // Don't throw - continue with normal flow
         } else {
           // Mark as synced in Dexie
           await atlasDB.messages.update(userMessageId, { synced: true });
@@ -786,35 +787,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
       } catch (error) {
         logger.error('[ChatPage] ❌ Error saving user message:', error);
-        // Don't throw - continue with optimistic UI
+        // Don't throw - continue with normal flow
       }
 
-      // ✅ DEBUG: Verify optimistic message was saved before reload
-      const verifyOptimistic = await atlasDB.messages.get(userMessageId);
-      logger.debug('[ChatPage] ✅ Optimistic message saved:', {
-        id: userMessageId,
-        content: text.substring(0, 30),
-        exists: !!verifyOptimistic,
-        synced: verifyOptimistic?.synced
-      });
-
-      // ✅ OPTIMISTIC UPDATE: Show message immediately in UI
-      const userMsg = {
-        id: userMessageId,
-        conversationId: conversationId,
-        role: 'user' as const,
-        content: text,
-        timestamp: now,
-        type: 'text' as const,
-        attachments: []
-      };
-      
-      // Add to existing messages immediately for instant feedback
-      setMessages(prev => [...prev, userMsg]);
+      // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
+      // ✅ CRITICAL FIX: Clear cache before reload to ensure new message is loaded
+      const cacheKey = `${conversationId}-${userId}`;
+      messageLoadCache.delete(cacheKey);
+      await loadMessages(conversationId);
       setIsTyping(true);
       setIsStreaming(true);
       
-      // Send to backend - real-time listener will replace optimistic with real message
+      // Send to backend - real-time listener will handle response
       // ✅ DEBUG: Log before sending to catch any immediate errors
       logger.debug('[ChatPage] 🚀 About to call chatService.sendMessage', {
         text: text.substring(0, 50),
@@ -980,14 +964,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
       
       // ✅ SIMPLIFIED: Mark as unsynced in Dexie, then reload
-      // ✅ CRITICAL FIX: Only update if optimistic message was actually saved
       try {
-        const optimisticMessage = await atlasDB.messages.get(userMessageId);
-        if (optimisticMessage) {
-          await atlasDB.messages.update(userMessageId, { synced: false });
-        }
+        await atlasDB.messages.update(userMessageId, { synced: false });
       } catch (updateError) {
-        logger.debug('[ChatPage] Could not update optimistic message (may not exist yet):', updateError);
+        logger.debug('[ChatPage] Could not update message:', updateError);
       }
       
       // ✅ CRITICAL FIX: Clear cache before reload
@@ -1166,12 +1146,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     } catch (error) {
       logger.error('[ChatPage] ❌ Failed to delete message:', error);
       
-      // Revert optimistic update on error
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, deletedAt: undefined, deletedBy: undefined } 
-          : msg
-      ));
+      // Reload from Dexie to revert changes
+      await loadMessages(conversationId);
       
       // Show error to user
       toast.error('Failed to delete message. Please try again.');
@@ -1714,8 +1690,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           }
 
           // ✅ Allow Dexie writes to complete (mobile/web safe)
-          // Reduced delay to 100ms for better responsiveness
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Increased delay from 300ms to 1500ms for slower devices + mobile reliability
+          await new Promise(resolve => setTimeout(resolve, 1500));
           logger.debug('[ChatPage] ✅ Forced sync delay complete, ready to load messages');
           
           // ✅ Check Dexie message count after sync
@@ -1770,8 +1746,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           // ✅ ULTRA FIX: Retry once if no messages (handles timing edge cases)
           if (!initialMessages || initialMessages.length === 0) {
-            logger.debug('[ChatPage] No messages on first load, retrying after 100ms...');
-            await new Promise(r => setTimeout(r, 100));
+            logger.debug('[ChatPage] No messages on first load, retrying after 500ms...');
+            await new Promise(r => setTimeout(r, 500));
             await loadMessages(id);
           }
           logger.debug('[ChatPage] ✅ Conversation initialized:', {
@@ -1846,7 +1822,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
               
               // Wait for Dexie writes
-              await new Promise(resolve => setTimeout(resolve, 100));
+              await new Promise(resolve => setTimeout(resolve, 300));
             } else {
               logger.warn('[ChatPage] 👁️ Skipping sync - userId not available');
             }
