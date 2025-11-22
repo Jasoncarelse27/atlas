@@ -320,6 +320,11 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
 
   // Also sync when app regains focus (Web + React Native)
   if (typeof window !== "undefined") {
+    // ✅ MEMORY LEAK FIX: Remove existing listener before adding new one
+    if (focusHandler) {
+      window.removeEventListener("focus", focusHandler);
+    }
+    
     focusHandler = () => {
       // 🚀 Skip sync if voice call is active
       if (voiceCallState.getActive()) {
@@ -334,9 +339,6 @@ export function startBackgroundSync(userId: string, tier: 'free' | 'core' | 'stu
     };
     
     window.addEventListener("focus", focusHandler);
-    
-    // ✅ MEMORY LEAK FIX: Store handler for cleanup
-    // Cleanup handled in stopBackgroundSync()
   }
 
   logger.debug("[SYNC] ✅ Delta sync background service active - unified architecture");
