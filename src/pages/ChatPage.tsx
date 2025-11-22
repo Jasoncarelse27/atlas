@@ -982,10 +982,58 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             }))
           );
           logger.debug('[ChatPage] ✅ Fallback: Saved', latestMessages.length, 'messages to Dexie');
+
+          // ✅ CRITICAL FIX: Append fallback messages to UI (preserves scroll position)
+          // Convert Supabase messages to Message format and append safely
+          const fallbackMessages: Message[] = latestMessages
+            .reverse() // Convert descending to ascending order
+            .map((msg: SupabaseMessage) => {
+              // Parse content if needed
+              let parsedContent = msg.content;
+              if (typeof msg.content === 'string' && msg.content.trim().startsWith('{')) {
+                try {
+                  const parsed = JSON.parse(msg.content);
+                  parsedContent = parsed.text || parsed.content || msg.content;
+                } catch (e) {
+                  // Not JSON, keep as-is
+                }
+              }
+              
+              // Parse attachments
+              let parsedAttachments = undefined;
+              if (msg.attachments) {
+                try {
+                  const attachmentsData = typeof msg.attachments === 'string' 
+                    ? JSON.parse(msg.attachments)
+                    : msg.attachments;
+                  if (Array.isArray(attachmentsData)) {
+                    parsedAttachments = attachmentsData;
+                  }
+                } catch (e) {
+                  // Failed to parse
+                }
+              }
+              
+              return {
+                id: msg.id,
+                conversationId: msg.conversation_id,
+                role: msg.role,
+                content: parsedContent,
+                timestamp: msg.created_at,
+                type: 'text', // Fallback messages are text by default
+                attachments: parsedAttachments || []
+              };
+            });
+
+          // ✅ CRITICAL: Append each message safely (deduplicates, preserves scroll)
+          fallbackMessages.forEach(msg => {
+            setMessages(prev => appendMessageSafely(prev, msg));
+          });
+
+          logger.debug('[ChatPage] ✅ Fallback: Appended', fallbackMessages.length, 'messages to UI');
         }
         
-        // Realtime will handle the new messages - no need to reload
-        // Just clear the typing indicators
+        // Clear typing indicators
         setIsTyping(false);
         setIsStreaming(false);
         isProcessingRef.current = false;
@@ -1513,12 +1561,36 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           }
           
           logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
-          
-          // ✅ SIMPLIFIED: Reload from Dexie (single source of truth)
-          // Realtime will handle the message update - no need to reload
-          setIsTyping(false);
-          setIsStreaming(false);
-          
+
+          // ✅ CRITICAL FIX: Append message to UI immediately (preserves scroll position)
+          // Parse attachments if needed
+          let parsedAttachments = undefined;
+          if (newMsg.attachments) {
+            try {
+              const attachmentsData = typeof newMsg.attachments === 'string' 
+                ? JSON.parse(newMsg.attachments)
+                : newMsg.attachments;
+              if (Array.isArray(attachmentsData)) {
+                parsedAttachments = attachmentsData;
+              }
+            } catch (e) {
+              // Failed to parse
+            }
+          }
+
+          const incomingMessage: Message = {
+            id: messageToSave.id,
+            conversationId: messageToSave.conversationId,
+            role: messageToSave.role,
+            content: parsedContent,
+            timestamp: messageToSave.timestamp,
+            type: messageToSave.type,
+            attachments: parsedAttachments || []
+          };
+
+          // ✅ CRITICAL: Append to UI state (preserves scroll, prevents jump)
+          setMessages(prev => appendMessageSafely(prev, incomingMessage));
+
           // ✅ FIX GLITCH #1: Batch all state updates together to prevent double re-render
           if (newMsg.role === 'assistant') {
             // Use startTransition to batch updates (React 18+)
@@ -1527,6 +1599,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               setIsTyping(false);
             });
             logger.debug('[ChatPage] ✅ Reset typing indicators after assistant response (batched)');
+          } else {
+            setIsTyping(false);
+            setIsStreaming(false);
           }
           
         } catch (error) {
