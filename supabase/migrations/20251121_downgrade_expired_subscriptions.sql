@@ -2,6 +2,11 @@
 -- Automatically downgrades users when their subscription period ends or grace period expires
 -- Runs daily via pg_cron
 
+-- Drop existing functions if they exist (to handle return type changes)
+drop function if exists downgrade_expired_cancelled_subscriptions();
+drop function if exists downgrade_expired_grace_periods();
+drop function if exists process_expired_subscriptions();
+
 -- 1. Function to downgrade expired cancelled subscriptions
 -- Users who cancelled but period hasn't ended yet keep their tier
 -- Once period ends, downgrade to 'free'

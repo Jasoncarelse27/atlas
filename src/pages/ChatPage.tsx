@@ -1748,16 +1748,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
     checkQuestionnaire();
   }, [userId, hasCheckedQuestionnaire]);
-  
-  // ✅ CRITICAL FIX: Ensure messages load when BOTH userId and conversationId are available
-  // This handles the race condition where conversationId is set before userId on refresh
-  // Note: loadMessages deliberately excluded from deps to prevent infinite loop (stable callback)
-  useEffect(() => {
-    if (userId && conversationId) {
-      logger.debug('[ChatPage] 🔄 Both userId and conversationId available, loading messages...');
-      loadMessages(conversationId);
-    }
-  }, [userId, conversationId]); // loadMessages excluded - stable callback with userId dependency
 
   // ✅ CROSS-DEVICE SYNC FIX: Reload messages when page becomes visible
   // This ensures messages typed on mobile appear on web when you switch tabs/windows
