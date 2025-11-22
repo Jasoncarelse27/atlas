@@ -806,6 +806,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Dexie.waitFor waits for ALL pending transactions to complete.
       await Dexie.waitFor(new Promise(res => setTimeout(res, 120)));
 
+      // ✅ CRITICAL UX FIX: Add user message optimistically to UI immediately
+      // This ensures the message is visible from the moment user hits send
+      // Safe: appendMessageSafely deduplicates by ID when realtime receives it
+      const optimisticUserMessage: Message = {
+        id: userMessageId,
+        conversationId: conversationId,
+        role: 'user',
+        content: text,
+        timestamp: now,
+        type: 'text',
+        attachments: []
+      };
+
+      setMessages(prev => appendMessageSafely(prev, optimisticUserMessage));
+      logger.debug('[ChatPage] ✅ User message added optimistically to UI:', userMessageId);
+
       // ✅ CRITICAL FIX: Ensure conversation exists and save user message to Supabase
       // This ensures the message is persisted and will appear after any sync/reload
       try {
@@ -2702,23 +2718,24 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                           );
                         })}
                         
-        {/* ✅ Typing indicator - always rendered to prevent layout shift */}
-        <div className="min-h-[60px] flex items-end">
-          <div 
-            className="flex justify-start mb-4"
-            style={{ 
-              display: isStreaming && messages.some(m => m.role === 'user') ? 'block' : 'none'
+        {/* ✅ ENHANCED UX: "Atlas is thinking..." message bubble */}
+        {isStreaming && messages.some(m => m.role === 'user') && (
+          <EnhancedMessageBubble
+            message={{
+              id: 'atlas-thinking-indicator',
+              conversationId: conversationId || '',
+              role: 'assistant',
+              content: '',
+              timestamp: new Date().toISOString(),
+              type: 'text',
+              attachments: []
             }}
-          >
-            <div className="flex items-center space-x-3 px-4 py-3">
-              <div className="flex space-x-1.5">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-              </div>
-            </div>
-          </div>
-        </div>
+            isLatest={true}
+            isLatestUserMessage={false}
+            isTyping={true}
+            onDelete={() => {}}
+          />
+        )}
                         
                       </>
                     );
