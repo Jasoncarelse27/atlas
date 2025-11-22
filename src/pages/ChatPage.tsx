@@ -752,7 +752,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // This ensures the message is persisted and will appear after any sync/reload
       try {
         // First ensure the conversation exists
-        const { ensureConversationExists } = await import('../utils/ensureConversationExists');
+        const { ensureConversationExists } = await import('../services/conversationGuard');
         const conversationExists = await ensureConversationExists(conversationId, userId);
         
         if (!conversationExists) {
