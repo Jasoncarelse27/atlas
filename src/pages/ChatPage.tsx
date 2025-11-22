@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 // Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
 // import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
+import Dexie from 'dexie';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MessageListWithPreviews } from '../components/MessageListWithPreviews';
 import { ScrollToBottomButton } from '../components/ScrollToBottomButton';
@@ -17,7 +18,6 @@ import { ProfileSettingsModal } from '../components/modals/ProfileSettingsModal'
 import VoiceUpgradeModal from '../components/modals/VoiceUpgradeModal';
 import { useUpgradeModals } from '../contexts/UpgradeModalContext';
 import { atlasDB, ensureDatabaseReady } from '../database/atlasDB';
-import Dexie from 'dexie';
 import { messageService } from '../features/chat/services/messageService';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { useMemoryIntegration } from '../hooks/useMemoryIntegration';
@@ -1699,8 +1699,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           logger.debug('[ChatPage] ✅ Forced message sync for conversation:', id);
 
           // ✅ Allow Dexie writes to complete (mobile/web safe)
-          // Increased delay from 300ms to 1000ms for slower devices
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Increased delay from 300ms to 1500ms for slower devices + mobile reliability
+          await new Promise(resolve => setTimeout(resolve, 1500));
           logger.debug('[ChatPage] ✅ Forced sync delay complete, ready to load messages');
           
           // ✅ Check Dexie message count after sync
@@ -1752,9 +1752,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             conversationId: id,
             count: initialMessages?.length ?? 0,
           });
+          
+          // ✅ ULTRA FIX: Retry once if no messages (handles timing edge cases)
+          if (!initialMessages || initialMessages.length === 0) {
+            logger.debug('[ChatPage] No messages on first load, retrying after 500ms...');
+            await new Promise(r => setTimeout(r, 500));
+            await loadMessages(id);
+          }
           logger.debug('[ChatPage] ✅ Conversation initialized:', {
             conversationId: id,
-            messageCount: initialMessages.length,
+            messageCount: initialMessages?.length || 0,
             source: urlConversationId ? 'URL' : lastConversationId ? 'localStorage' : syncedConversations.length > 0 ? 'sync' : 'new'
           });
         }
