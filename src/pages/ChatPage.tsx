@@ -535,15 +535,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         if (isMobile) {
           logger.debug('[ChatPage] 📱 Page visible on mobile, syncing and reloading messages...');
           
-          // ✅ FIX A: Ensure any background sync completes before loading (mobile sync fix)
-          try {
+        // ✅ FIX A: Ensure any background sync completes before loading (mobile sync fix)
+        try {
+          // Ensure userId is available before syncing
+          if (userId) {
             const { conversationSyncService } = await import('../services/conversationSyncService');
-            await conversationSyncService.syncMessagesFromRemote(conversationId, userId!);
+            await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
             
             // Wait for Dexie writes to complete
             await new Promise(resolve => setTimeout(resolve, 300));
             logger.debug('[ChatPage] 📱 Mobile sync delay complete');
-          } catch (error) {
+          } else {
+            logger.warn('[ChatPage] 📱 Skipping sync - userId not available');
+          }
+        } catch (error) {
             logger.warn('[ChatPage] 📱 Mobile visibility sync failed:', error);
           }
           
@@ -770,8 +775,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             user_id: userId,
             role: 'user',
             content: text,
-            created_at: now,
-            updated_at: now
+            created_at: now
+            // Note: removed updated_at as messages table doesn't have this column
           } as any);
 
         if (saveError) {
@@ -1694,9 +1699,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         // ✅ CRITICAL FIX: Force sync for the ACTIVE conversation before loading
         // Fix Z hydrates conversations in the background, but we still hydrate the one the user is opening
         try {
-          const { conversationSyncService } = await import('../services/conversationSyncService');
-          await conversationSyncService.syncMessagesFromRemote(id, userId);
-          logger.debug('[ChatPage] ✅ Forced message sync for conversation:', id);
+          // Ensure userId is available before syncing
+          if (userId) {
+            const { conversationSyncService } = await import('../services/conversationSyncService');
+            await conversationSyncService.syncMessagesFromRemote(id, userId);
+            logger.debug('[ChatPage] ✅ Forced message sync for conversation:', id);
+          } else {
+            logger.warn('[ChatPage] Skipping sync - userId not available');
+          }
 
           // ✅ Allow Dexie writes to complete (mobile/web safe)
           // Increased delay from 300ms to 1500ms for slower devices + mobile reliability
@@ -1825,11 +1835,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         setTimeout(async () => {
           // ✅ FIX A: Sync before loading for cross-device sync (web + mobile)
           try {
-            const { conversationSyncService } = await import('../services/conversationSyncService');
-            await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
-            
-            // Wait for Dexie writes
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Ensure userId is available before syncing
+            if (userId) {
+              const { conversationSyncService } = await import('../services/conversationSyncService');
+              await conversationSyncService.syncMessagesFromRemote(conversationId, userId);
+              
+              // Wait for Dexie writes
+              await new Promise(resolve => setTimeout(resolve, 300));
+            } else {
+              logger.warn('[ChatPage] 👁️ Skipping sync - userId not available');
+            }
           } catch (error) {
             logger.warn('[ChatPage] 👁️ Visibility sync failed:', error);
           }
