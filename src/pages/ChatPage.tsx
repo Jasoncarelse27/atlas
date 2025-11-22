@@ -292,12 +292,20 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       }
       
       // ✅ OPTIMIZATION: Check cache first to prevent redundant loads
-      // ✅ CRITICAL FIX: Only use cache if userId is available (prevents stale empty results)
+      // ✅ CRITICAL FIX: Only use cache if userId is available AND cache has messages
       const cacheKey = `${conversationId}-${userId}`;
       const cached = messageLoadCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < 5000 && userId) {
-        logger.debug(`[ChatPage] ⚡ Using cached messages for ${conversationId} (${Date.now() - cached.timestamp}ms ago)`);
-        return cached.promise;
+        // Check if the cached promise returned non-empty messages
+        const cachedMessages = await cached.promise;
+        if (cachedMessages && cachedMessages.length > 0) {
+          logger.debug(`[ChatPage] ⚡ Using cached messages for ${conversationId} (${Date.now() - cached.timestamp}ms ago)`);
+          return cachedMessages;
+        } else {
+          // Cache returned empty - clear it and continue with fresh load
+          logger.debug(`[ChatPage] ⚠️ Cached messages empty, clearing cache and reloading`);
+          messageLoadCache.delete(cacheKey);
+        }
       }
       
       logger.debug('[ChatPage] 🔍 loadMessages called with:', { conversationId, userId });
@@ -739,6 +747,45 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // iOS Safari IndexedDB can take 20–100ms to flush writes, especially in PWA/DevTools.
       // Dexie.waitFor waits for ALL pending transactions to complete.
       await Dexie.waitFor(new Promise(res => setTimeout(res, 120)));
+
+      // ✅ CRITICAL FIX: Ensure conversation exists and save user message to Supabase
+      // This ensures the message is persisted and will appear after any sync/reload
+      try {
+        // First ensure the conversation exists
+        const { ensureConversationExists } = await import('../utils/ensureConversationExists');
+        const conversationExists = await ensureConversationExists(conversationId, userId);
+        
+        if (!conversationExists) {
+          logger.error('[ChatPage] ❌ Cannot save message - conversation creation failed');
+          toast.error('Failed to save message. Please try again.');
+          return;
+        }
+
+        // Now save the user message
+        const { error: saveError } = await supabase
+          .from('messages')
+          .insert({
+            id: userMessageId,
+            conversation_id: conversationId,
+            user_id: userId,
+            role: 'user',
+            content: text,
+            created_at: now,
+            updated_at: now
+          } as any);
+
+        if (saveError) {
+          logger.error('[ChatPage] ❌ Failed to save user message to Supabase:', saveError);
+          // Don't throw - continue with optimistic UI
+        } else {
+          // Mark as synced in Dexie
+          await atlasDB.messages.update(userMessageId, { synced: true });
+          logger.debug('[ChatPage] ✅ User message saved to Supabase:', userMessageId);
+        }
+      } catch (error) {
+        logger.error('[ChatPage] ❌ Error saving user message:', error);
+        // Don't throw - continue with optimistic UI
+      }
 
       // ✅ DEBUG: Verify optimistic message was saved before reload
       const verifyOptimistic = await atlasDB.messages.get(userMessageId);
@@ -1692,16 +1739,25 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         }
         
         // ✅ BEST PRACTICE: Load messages AFTER sync completes
-        const initialMessages = await loadMessages(id);
-        logger.debug('[ChatPage] Loaded messages count', {
-          conversationId: id,
-          count: initialMessages?.length ?? 0,
-        });
-        logger.debug('[ChatPage] ✅ Conversation initialized:', {
-          conversationId: id,
-          messageCount: initialMessages.length,
-          source: urlConversationId ? 'URL' : lastConversationId ? 'localStorage' : syncedConversations.length > 0 ? 'sync' : 'new'
-        });
+        // But only if we don't already have messages for this conversation (prevents clearing)
+        const existingMessages = messages.filter(m => m.conversationId === id);
+        if (conversationId === id && existingMessages.length > 0) {
+          logger.debug('[ChatPage] 📊 Conversation already loaded, skipping reload:', {
+            conversationId: id,
+            existingMessageCount: existingMessages.length
+          });
+        } else {
+          const initialMessages = await loadMessages(id);
+          logger.debug('[ChatPage] Loaded messages count', {
+            conversationId: id,
+            count: initialMessages?.length ?? 0,
+          });
+          logger.debug('[ChatPage] ✅ Conversation initialized:', {
+            conversationId: id,
+            messageCount: initialMessages.length,
+            source: urlConversationId ? 'URL' : lastConversationId ? 'localStorage' : syncedConversations.length > 0 ? 'sync' : 'new'
+          });
+        }
         
       } catch (error) {
         logger.error('[ChatPage] Failed to initialize conversation:', error);

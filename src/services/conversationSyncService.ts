@@ -511,17 +511,28 @@ export class ConversationSyncService {
         // Use upsert to handle both creation and existence check in one operation
         // ✅ CRITICAL: Use _userId parameter (not msg.userId) for security
         logger.info('[ConversationSync] 🔍 Ensuring conversation exists:', msg.conversationId);
-        const { error: convError } = await supabase
+        // First check if conversation exists
+        const { data: existingConv, error: checkError } = await supabase
           .from('conversations')
-          .upsert({
-            id: msg.conversationId,
-            user_id: _userId, // ✅ Use authenticated userId parameter, not msg.userId
-            title: 'Chat',
-            created_at: msg.timestamp,
-            updated_at: msg.timestamp
-          } as SupabaseConversation, {
-            onConflict: 'id' // If exists, just update; if not, create
-          });
+          .select('id')
+          .eq('id', msg.conversationId)
+          .eq('user_id', _userId)
+          .single();
+
+        let convError = null;
+        if (!existingConv && !checkError) {
+          // Only create if it doesn't exist
+          const { error: createError } = await supabase
+            .from('conversations')
+            .insert({
+              id: msg.conversationId,
+              user_id: _userId, // ✅ Use authenticated userId parameter, not msg.userId
+              title: 'Chat',
+              created_at: msg.timestamp,
+              updated_at: msg.timestamp
+            } as SupabaseConversation);
+          convError = createError;
+        }
         
         if (convError) {
           // Check if it's a conflict (conversation was created concurrently)
