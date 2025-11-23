@@ -1589,7 +1589,6 @@ const EnhancedInputToolbar = React.memo(({
                   {maxLength - currentLength} characters remaining
                 </div>
               )}
-            </div>
 
         {/* Action Buttons - ✅ BEST PRACTICE: Fixed sizes, proper spacing, no overflow */}
         <div className="flex items-center gap-2 flex-shrink-0">
