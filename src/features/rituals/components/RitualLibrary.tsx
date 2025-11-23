@@ -354,10 +354,10 @@ export const RitualLibrary: React.FC = () => {
             {/* Create Custom Ritual Button */}
             <button
               onClick={handleCreateRitual}
-              className="flex items-center gap-2 px-6 py-3 bg-[#3B3632] text-white rounded-xl 
-                hover:bg-[#2A2621] transition-all active:scale-95 min-h-[48px]"
+              className="flex items-center gap-2 px-6 py-3 bg-[#A4B494] text-white rounded-xl 
+                hover:bg-[#93A382] transition-all active:scale-95 min-h-[48px]"
             >
-              <Plus size={20} />
+              <Plus size={20} className="text-white" />
               <span className="font-medium">Create Ritual</span>
             </button>
           </div>
@@ -490,16 +490,16 @@ export const RitualLibrary: React.FC = () => {
         onClick={handleCreateRitual}
         className="sm:hidden fixed bottom-6 right-6 z-40 
           flex items-center gap-2 px-6 py-4 
-          bg-[#3B3632] text-white rounded-full shadow-2xl
-          active:scale-95 transition-transform
+          bg-[#A4B494] text-white rounded-full shadow-2xl
+          hover:bg-[#93A382] active:scale-95 transition-all
           min-h-[56px] min-w-[56px]
           touch-manipulation"
         style={{
-          boxShadow: '0 4px 20px rgba(59, 54, 50, 0.3)',
+          boxShadow: '0 4px 20px rgba(164, 180, 148, 0.3)',
         }}
         aria-label="Create ritual"
       >
-        <Plus size={24} className="flex-shrink-0" />
+        <Plus size={24} className="flex-shrink-0 text-white" />
         <span className="font-semibold">Create</span>
       </button>
 

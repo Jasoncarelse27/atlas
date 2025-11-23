@@ -22,7 +22,6 @@ import type { SoundType } from '../hooks/useSoundEffects';
 import type { UserProfile } from '../types/subscription';
 import AccountModal from './AccountModal';
 import Logo from './Logo';
-import NotificationCenter from './NotificationCenter';
 import StatusIndicator from './StatusIndicator';
 import SubscriptionBadge from './SubscriptionBadge';
 import Tooltip from './Tooltip';
@@ -606,10 +605,6 @@ const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Notifications */}
-          {user && (
-            <NotificationCenter className="mr-2" />
-          )}
 
           {/* User Menu */}
           {user && (

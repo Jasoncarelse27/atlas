@@ -21,8 +21,8 @@ export const useThemeMode = () => {
     // Check localStorage first
     const saved = localStorage.getItem('atlas:theme');
     if (saved === 'dark' || saved === 'light') return saved as ThemeMode;
-    // Default to dark
-    return 'dark';
+    // Default to light
+    return 'light';
   });
   const [systemPrefersDark, setSystemPrefersDark] = useState(
     window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches

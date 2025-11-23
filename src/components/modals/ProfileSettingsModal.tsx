@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Calendar, CreditCard, Eye, ExternalLink, Loader2, Lock, LogOut, Minimize2, Moon, Sparkles, Trash2, Volume2, X } from 'lucide-react';
+import { Bell, Calendar, CreditCard, Eye, ExternalLink, Loader2, Lock, LogOut, Mail, Minimize2, Moon, Sparkles, Trash2, User, Volume2, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { supabase } from '../../lib/supabaseClient';
 import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useThemeMode } from '../../hooks/useThemeMode';
 import { logger } from '../../lib/logger';
@@ -46,6 +47,53 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
   // ✅ Clear All Data state
   const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
   const [isClearingData, setIsClearingData] = useState(false);
+  
+  // Profile name state
+  const [fullName, setFullName] = useState<string>('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  
+  // Load profile name on mount
+  useEffect(() => {
+    if (user?.id) {
+      const loadProfile = async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        
+        if (!error && data?.full_name) {
+          setFullName(data.full_name);
+        }
+      };
+      loadProfile();
+    }
+  }, [user?.id]);
+  
+  // Save name on blur
+  const handleNameBlur = async () => {
+    if (!user?.id || isSavingName) return;
+    
+    setIsSavingName(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName || null })
+        .eq('id', user.id);
+      
+      if (error) {
+        logger.error('[ProfileSettingsModal] Failed to save name:', error);
+        toast.error('Failed to save name');
+      } else {
+        toast.success('Name saved');
+      }
+    } catch (error) {
+      logger.error('[ProfileSettingsModal] Error saving name:', error);
+      toast.error('Failed to save name');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
 
   const getTierDisplay = (tier: string) => {
     switch (tier) {
@@ -128,6 +176,42 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
 
               {/* Content */}
               <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                {/* Profile Section */}
+                <Section title="Profile">
+                  {/* Name Input */}
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700">
+                    <div className="text-[#8B7E74] dark:text-gray-400">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-[#8B7E74] dark:text-gray-400 mb-1 block">Name</label>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        onBlur={handleNameBlur}
+                        placeholder="Your Name"
+                        disabled={isSavingName}
+                        className="w-full bg-transparent text-[#3B3632] dark:text-white placeholder-[#B8A9A0] dark:placeholder-gray-500 border-none outline-none text-sm"
+                      />
+                    </div>
+                    {isSavingName && (
+                      <Loader2 className="w-4 h-4 text-[#8B7E74] dark:text-gray-400 animate-spin" />
+                    )}
+                  </div>
+                  
+                  {/* Email (Read-only) */}
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 opacity-60">
+                    <div className="text-[#8B7E74] dark:text-gray-400">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-[#8B7E74] dark:text-gray-400 mb-1 block">Email</label>
+                      <p className="text-sm text-[#3B3632] dark:text-white">{user?.email || 'Not available'}</p>
+                    </div>
+                  </div>
+                </Section>
+                
                 {/* Appearance Section */}
                 <Section title="Appearance">
                   <ToggleItem
@@ -213,6 +297,17 @@ export function ProfileSettingsModal({ isOpen, onClose, onSignOut }: ProfileSett
                     </div>
                     <ExternalLink className="w-4 h-4 text-[#8B7E74] dark:text-gray-400 group-hover:text-[#8FA67E] transition-colors" />
                   </Link>
+
+                  {/* Notifications (Coming Soon) */}
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 opacity-60 cursor-not-allowed">
+                    <div className="text-[#8B7E74] dark:text-gray-400">
+                      <Bell className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[#3B3632] dark:text-white">Notifications</p>
+                      <p className="text-xs text-[#8B7E74] dark:text-gray-400 mt-0.5">Coming Soon</p>
+                    </div>
+                  </div>
 
                   <div className="flex items-center justify-between p-4 rounded-xl bg-white dark:bg-gray-800 border border-[#E8DDD2] dark:border-gray-700 transition-colors duration-200">
                     <div>

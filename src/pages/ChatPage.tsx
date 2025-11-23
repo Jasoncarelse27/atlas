@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, Menu, Search, Sparkles, X } from 'lucide-react';
+import { Menu, Search, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -2472,23 +2472,6 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   </button>
                   
                   <PrivacyToggle />
-                  
-                  {/* Divider */}
-                  <div className="my-4 border-t border-atlas-border/50"></div>
-                  
-                  {/* Logout Button */}
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-atlas-text-medium dark:text-gray-300 bg-atlas-button dark:bg-[#2A2E3A]/50 hover:bg-atlas-button-hover dark:hover:bg-[#2A2E3A] transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-atlas-accent-2/30 flex items-center justify-center">
-                      <LogOut className="w-4 h-4 text-atlas-accent-3" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <span className="font-medium text-sm">Sign Out</span>
-                      <p className="text-atlas-text-muted dark:text-gray-400 text-xs">End your session</p>
-                    </div>
-                  </button>
                 </div>
               </motion.div>
             </>

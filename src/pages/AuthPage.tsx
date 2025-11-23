@@ -39,6 +39,8 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [gdprAccepted, setGdprAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const navigate = useNavigate();
 
   // Check Supabase health on component mount
@@ -64,6 +66,21 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         if (error) {
           setError(error.message);
         } else {
+          // Update GDPR consent in profiles table
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              gdpr_accepted: gdprAccepted,
+              gdpr_accepted_at: new Date().toISOString(),
+              marketing_opt_in: marketingOptIn,
+              marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null
+            })
+            .eq('id', (await supabase.auth.getUser()).data.user?.id);
+          
+          if (profileError) {
+            console.error('Failed to update GDPR consent:', profileError);
+          }
+          
           // Redirect to dashboard after successful login
           navigate('/chat');
         }
@@ -74,8 +91,24 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         } else {
           setError('Check your email for verification link');
           
-          // ✅ Send welcome notification (non-blocking - fire and forget)
+          // Store GDPR consent for new signup
           if (data?.user?.id) {
+            // Update GDPR consent in profiles table
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({
+                gdpr_accepted: gdprAccepted,
+                gdpr_accepted_at: new Date().toISOString(),
+                marketing_opt_in: marketingOptIn,
+                marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null
+              })
+              .eq('id', data.user.id);
+            
+            if (profileError) {
+              console.error('Failed to store GDPR consent:', profileError);
+            }
+            
+            // ✅ Send welcome notification (non-blocking - fire and forget)
             const welcomeEndpoint = getApiEndpoint('/api/magicbell/welcome');
             fetchWithAuth(welcomeEndpoint, {
               method: 'POST',
@@ -154,11 +187,48 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         </a>
       </div>
 
+      {/* GDPR Compliance Checkboxes */}
+      <div className="space-y-3 py-2">
+        {/* Required: Terms and Privacy */}
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={gdprAccepted}
+            onChange={(e) => setGdprAccepted(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-[#E8DDD2] dark:border-gray-600 text-[#8FA67E] focus:ring-[#8FA67E] dark:focus:ring-gray-500"
+            required
+          />
+          <span className="text-sm text-[#3B3632] dark:text-gray-300">
+            I agree to the{' '}
+            <Link to="/terms" className="text-[#8B7E74] dark:text-gray-400 underline hover:text-[#5A524A] dark:hover:text-gray-300 transition-colors">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link to="/privacy" className="text-[#8B7E74] dark:text-gray-400 underline hover:text-[#5A524A] dark:hover:text-gray-300 transition-colors">
+              Privacy Policy
+            </Link>
+          </span>
+        </label>
+
+        {/* Optional: Marketing emails */}
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={marketingOptIn}
+            onChange={(e) => setMarketingOptIn(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-[#E8DDD2] dark:border-gray-600 text-[#8FA67E] focus:ring-[#8FA67E] dark:focus:ring-gray-500"
+          />
+          <span className="text-sm text-[#3B3632] dark:text-gray-300">
+            I would like to receive product updates and tips via email
+          </span>
+        </label>
+      </div>
+
       {/* Login Button - Full Width, Green Background */}
       <button
         type="submit"
         className="w-full bg-[#8FA67E] dark:bg-gray-700 hover:bg-[#7E9570] dark:hover:bg-gray-600 text-white py-3 rounded-xl font-semibold flex justify-center items-center transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-        disabled={loading}
+        disabled={loading || !gdprAccepted}
       >
         {loading ? 'Signing In...' : (
           <>

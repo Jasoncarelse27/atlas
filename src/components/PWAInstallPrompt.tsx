@@ -236,9 +236,9 @@ export function PWAInstallPrompt() {
         <div className="max-w-4xl mx-auto">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-[#E8DDD2] dark:border-gray-700 p-4 flex items-start gap-3 max-w-full">
           {/* Icon */}
-          <div className="flex-shrink-0 w-12 h-12 bg-[#D3DCAB] rounded-xl flex items-center justify-center">
+          <div className="flex-shrink-0 w-12 h-12 bg-[#A4B494] rounded-xl flex items-center justify-center">
             <svg
-              className="w-6 h-6 text-[#978671]"
+              className="w-6 h-6 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -255,18 +255,15 @@ export function PWAInstallPrompt() {
           {/* Content */}
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 mb-1">
-              Install Atlas for a Better Experience
+              Install Atlas for the Best Experience
             </h3>
-            <p className="text-sm text-gray-600 mb-3">
-              {isIOS ? (
-                <>
-                  Tap <span className="font-semibold">Share</span> then{' '}
-                  <span className="font-semibold">Add to Home Screen</span> to remove the browser bar
-                </>
-              ) : (
-                'Get full-screen experience and faster access'
-              )}
-            </p>
+            <div className="text-sm text-gray-600 mb-3">
+              <ul className="space-y-1 list-disc list-inside">
+                <li>Faster loading</li>
+                <li>Offline access</li>
+                <li>App-like experience</li>
+              </ul>
+            </div>
 
             {/* iOS Instructions */}
             {isIOS && (
@@ -291,18 +288,18 @@ export function PWAInstallPrompt() {
               {!isIOS && deferredPrompt && (
                 <button
                   onClick={handleInstall}
-                  className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
+                  className="flex-1 bg-[#A4B494] hover:bg-[#93A382] text-white font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
                 >
-                  Install Now
+                  View Instructions
                 </button>
               )}
               {/* Desktop: Show install button only when beforeinstallprompt is available */}
               {!isMobile && canInstall && deferredPrompt && (
                 <button
                   onClick={handleInstall}
-                  className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
+                  className="flex-1 bg-[#A4B494] hover:bg-[#93A382] text-white font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
                 >
-                  Install Atlas
+                  View Instructions
                 </button>
               )}
               {/* Desktop: Show message if install not yet available */}
@@ -318,7 +315,7 @@ export function PWAInstallPrompt() {
                     // iOS instructions are already visible above
                     logger.debug('[PWAInstallPrompt] iOS - instructions already visible');
                   }}
-                  className="flex-1 bg-[#D3DCAB] hover:bg-[#C5D09F] text-gray-800 font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
+                  className="flex-1 bg-[#A4B494] hover:bg-[#93A382] text-white font-medium py-2.5 px-4 rounded-xl transition-colors touch-manipulation min-h-[44px] flex items-center justify-center"
                 >
                   View Instructions
                 </button>

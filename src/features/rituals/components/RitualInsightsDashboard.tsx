@@ -183,7 +183,7 @@ export const RitualInsightsDashboard: React.FC = () => {
           {/* Total Completions */}
           <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6">
             <div className="flex items-center justify-between mb-2">
-              <Award size={24} className="text-orange-600" />
+              <Award size={24} className="text-[#A4B494]" />
               <span className="text-3xl font-bold text-[#3B3632]">
                 {completionStats?.totalCompletions || 0}
               </span>
@@ -194,7 +194,7 @@ export const RitualInsightsDashboard: React.FC = () => {
           {/* Current Streak */}
           <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6">
             <div className="flex items-center justify-between mb-2">
-              <Zap size={24} className="text-orange-600" />
+              <Zap size={24} className="text-[#E8B4A0]" />
               <span className="text-3xl font-bold text-[#3B3632]">
                 {streakData?.currentStreak || 0}
               </span>
@@ -205,7 +205,7 @@ export const RitualInsightsDashboard: React.FC = () => {
           {/* Mood Improvement */}
           <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6">
             <div className="flex items-center justify-between mb-2">
-              <TrendingUp size={24} className="text-green-600" />
+              <TrendingUp size={24} className="text-[#C4B5D6]" />
               <span className="text-3xl font-bold text-[#3B3632]">
                 +{(avgMoodImprovement * 20).toFixed(0)}%
               </span>
@@ -216,7 +216,7 @@ export const RitualInsightsDashboard: React.FC = () => {
           {/* Longest Streak */}
           <div className="bg-white rounded-xl border-2 border-[#E8DCC8] p-6">
             <div className="flex items-center justify-between mb-2">
-              <Calendar size={24} className="text-purple-600" />
+              <Calendar size={24} className="text-[#D4A89D]" />
               <span className="text-3xl font-bold text-[#3B3632]">
                 {streakData?.longestStreak || 0}
               </span>
