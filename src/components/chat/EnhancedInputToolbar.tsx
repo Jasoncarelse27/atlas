@@ -1363,7 +1363,7 @@ const EnhancedInputToolbar = React.memo(({
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
         style={{
-          gap: '8px', // ✅ BEST PRACTICE: Consistent gap between elements
+          gap: '12px', // ✅ FIX: Increased gap to prevent button grouping during upload
           transform: 'translateZ(0)', // ✅ GPU acceleration - prevents blur artifacts
           willChange: 'transform' // ✅ Optimize for animations
         }}
@@ -1591,7 +1591,8 @@ const EnhancedInputToolbar = React.memo(({
               )}
 
         {/* Action Buttons - ✅ BEST PRACTICE: Fixed sizes, proper spacing, no overflow */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* ✅ FIX: Prevent button grouping during upload with proper spacing and min-width */}
+        <div className="flex items-center gap-3 flex-shrink-0 min-w-fit">
               {/* ✅ PROFESSIONAL MICROPHONE BUTTON: Enhanced UX with clear states */}
               {isVoiceSupported && canUseAudio && (tier === 'core' || tier === 'studio') && (
               <motion.button
