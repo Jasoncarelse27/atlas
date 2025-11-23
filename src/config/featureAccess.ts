@@ -189,11 +189,11 @@ export const FASTSPRING_CONFIG = {
   webhookSecret: import.meta.env.VITE_FASTSPRING_WEBHOOK_SECRET,
   products: {
     core: {
-      productId: import.meta.env.VITE_FASTSPRING_CORE_PRODUCT_ID || 'atlas-core-monthly',
+      productId: import.meta.env.VITE_FASTSPRING_CORE_PRODUCT_ID || 'atlas-core',
       price: 19.99
     },
     studio: {
-      productId: import.meta.env.VITE_FASTSPRING_STUDIO_PRODUCT_ID || 'atlas-studio-monthly',
+      productId: import.meta.env.VITE_FASTSPRING_STUDIO_PRODUCT_ID || 'atlas-studio',
       price: TIER_PRICING.studio.monthlyPrice // ✅ BEST PRACTICE: Use centralized pricing
     }
   },
