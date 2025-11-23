@@ -288,20 +288,23 @@ const EnhancedInputToolbar = React.memo(({
     }
   }, [isVisible]);
 
-  // ✅ Auto-expand textarea as user types (ChatGPT-style) - OPTIMIZED
+  // ✅ Auto-expand textarea as user types (ChatGPT-style) - FIXED
   useEffect(() => {
     const textarea = inputRef.current;
-    if (textarea) {
-      // Use requestAnimationFrame to batch DOM updates
-      requestAnimationFrame(() => {
-        // Store current scroll position to prevent jump
-        const scrollTop = textarea.scrollTop;
-        textarea.style.height = 'auto';
-        const newHeight = Math.min(textarea.scrollHeight, 140);
-        textarea.style.height = `${newHeight}px`;
-        textarea.scrollTop = scrollTop;
-      });
-    }
+    if (!textarea) return;
+
+    requestAnimationFrame(() => {
+      // Reset to natural height first
+      textarea.style.height = 'auto';
+      
+      const minHeight = 44;   // matches min-h-[44px]
+      const maxHeight = 120;  // MUST match CSS max
+      const contentHeight = textarea.scrollHeight;
+      
+      const finalHeight = Math.max(minHeight, Math.min(contentHeight, maxHeight));
+      textarea.style.height = finalHeight + 'px';
+      textarea.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
+    });
   }, [text]); // Re-run when text changes
 
   // Keyboard event handlers
@@ -1545,7 +1548,7 @@ const EnhancedInputToolbar = React.memo(({
                     ? (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? "Add a caption..." : "Add a caption (optional)...")
                     : placeholder
                 }
-                className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand dark:border-gray-700 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none min-h-[44px] max-h-[120px] transition-all duration-200 ease-in-out shadow-sm"
+                className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand dark:border-gray-700 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none min-h-[44px] transition-all duration-200 ease-in-out shadow-sm"
                 style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
                 disabled={isProcessing || disabled}
                 autoComplete="off"

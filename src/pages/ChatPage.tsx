@@ -2707,7 +2707,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         })}
                         
         {/* ✅ ENHANCED UX: "Atlas is thinking..." message bubble */}
-        {isStreaming && messages.some(m => m.role === 'user') && (
+        {isStreaming && (
           <EnhancedMessageBubble
             message={{
               id: 'atlas-thinking-indicator',
