@@ -1,6 +1,5 @@
 import { useTierAccess } from '@/hooks/useTierAccess';
 import { audioUsageService } from '@/services/audioUsageService';
-import { stopMessageStream } from '@/services/chatService';
 import { voiceService } from '@/services/voiceService';
 import { motion } from 'framer-motion';
 import { Ban, Bot, Check, Copy, Loader2, Pause, Play, RefreshCw, ThumbsDown, ThumbsUp, User, Volume2, X } from 'lucide-react';
@@ -16,7 +15,6 @@ import { DeleteMessageModal } from '../modals/DeleteMessageModal';
 import { ImageGallery } from './ImageGallery';
 import { MessageContextMenu } from './MessageContextMenu';
 import { LegacyMessageRenderer } from './MessageRenderer';
-import { StopButton } from './StopButton';
 import SystemMessage from './SystemMessage';
 import { TypingDots } from './TypingDots';
 
@@ -772,56 +770,34 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
           }}
         >
           {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center space-x-3">
-                  <TypingDots />
-                  <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking</span>
-                </div>
-                {(message.status === 'sending' || isTyping) && !isUser && (
-                  <StopButton 
-                    onPress={() => {
-                      stopMessageStream();
-                      toast.info('Response cancelled - Partial response kept');
-                    }}
-                    isVisible={true}
-                  />
-                )}
+              <div className="flex items-center space-x-3">
+                <TypingDots />
+                <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking</span>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  {displayedText ? (
-                    isUser ? (
-                      // Simple rendering for user messages - no markdown  
-                      <span className="block">{displayedText}</span>
-                    ) : (
-                      // Keep markdown for assistant messages with enhanced spacing matching MessageRenderer
-                      <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0 
-                        [&_.prose_p]:mb-5 [&_.prose_p:last-child]:mb-0 [&_.prose_p]:leading-relaxed
-                        [&_.prose_h1]:mb-4 [&_.prose_h2]:mb-3 [&_.prose_h3]:mb-3
-                        [&_.prose_ul]:mb-6 [&_.prose_ul]:space-y-3
-                        [&_.prose_ol]:mb-6 [&_.prose_ol]:space-y-3
-                        [&_.prose_li]:leading-relaxed
-                        [&_.prose_blockquote]:my-3
-                        [&_.prose_table]:my-6
-                        [&_.prose_table]:overflow-x-auto
-                        [&_.prose_table]:-mx-2
-                        [&_.prose_table]:sm:mx-0">
-                        <LegacyMessageRenderer content={displayedText} />
-                      </div>
-                    )
+              <div className="flex-1">
+                {displayedText ? (
+                  isUser ? (
+                    // Simple rendering for user messages - no markdown  
+                    <span className="block">{displayedText}</span>
                   ) : (
-                    <span className="text-gray-400 dark:text-gray-500 italic">Empty message</span>
-                  )}
-                </div>
-                {message.status === 'sending' && displayedText && !isUser && (
-                  <StopButton 
-                    onPress={() => {
-                      stopMessageStream();
-                      toast.info('Response cancelled - Partial response kept');
-                    }}
-                    isVisible={true}
-                  />
+                    // Keep markdown for assistant messages with enhanced spacing matching MessageRenderer
+                    <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0 
+                      [&_.prose_p]:mb-5 [&_.prose_p:last-child]:mb-0 [&_.prose_p]:leading-relaxed
+                      [&_.prose_h1]:mb-4 [&_.prose_h2]:mb-3 [&_.prose_h3]:mb-3
+                      [&_.prose_ul]:mb-6 [&_.prose_ul]:space-y-3
+                      [&_.prose_ol]:mb-6 [&_.prose_ol]:space-y-3
+                      [&_.prose_li]:leading-relaxed
+                      [&_.prose_blockquote]:my-3
+                      [&_.prose_table]:my-6
+                      [&_.prose_table]:overflow-x-auto
+                      [&_.prose_table]:-mx-2
+                      [&_.prose_table]:sm:mx-0">
+                      <LegacyMessageRenderer content={displayedText} />
+                    </div>
+                  )
+                ) : (
+                  <span className="text-gray-400 dark:text-gray-500 italic">Empty message</span>
                 )}
               </div>
             )}
