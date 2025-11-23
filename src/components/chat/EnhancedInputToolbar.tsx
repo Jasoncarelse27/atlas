@@ -1028,10 +1028,7 @@ const EnhancedInputToolbar = React.memo(({
       {/* ✅ BEST PRACTICE: Attachment Previews - Positioned above input, not constrained */}
       {attachmentPreviews.length > 0 && (
         <div className="mb-3 px-4 sm:px-6">
-          {/* Subtle Hint */}
-          <div className="flex items-center gap-2 mb-2 px-1 max-w-4xl mx-auto">
-            <span className="text-xs text-gray-400 dark:text-gray-500">Add an optional caption below</span>
-          </div>
+          {/* ✅ FIX: Remove 'Add an optional caption below' hint */}
           
           <div className="flex flex-wrap gap-2 max-w-4xl mx-auto">
             {attachmentPreviews.map((attachment) => {
@@ -1545,7 +1542,7 @@ const EnhancedInputToolbar = React.memo(({
                 onFocus={handleInputFocus}
                 placeholder={
                   attachmentPreviews.length > 0 
-                    ? (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? "Add a caption..." : "Add a caption (optional)...")
+                    ? "Add a caption..."  // ✅ FIX: Remove "(optional)" text
                     : placeholder
                 }
                 className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand dark:border-gray-700 rounded-3xl px-4 py-4 resize-none min-h-[56px] transition-all duration-200 ease-in-out shadow-sm"

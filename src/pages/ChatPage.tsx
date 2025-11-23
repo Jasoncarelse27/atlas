@@ -584,7 +584,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             const hasContent = incomingMessage.content && 
                                incomingMessage.content.trim() && 
                                incomingMessage.content.trim() !== '...' &&
-                               incomingMessage.content.trim().length > 3; // At least 3 characters
+                               incomingMessage.content.trim().length > 50; // ✅ FIX: Increased from 3 to 50
             
             if (hasContent && completionCallbackRef.current) {
               // Message has content - stream is complete
@@ -1101,7 +1101,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             msg.content && 
             msg.content.trim() && 
             msg.content.trim() !== '...' &&
-            msg.content.trim().length > 3 // At least 3 characters
+            msg.content.trim().length > 50 // ✅ FIX: Increased from 3 to 50 to prevent premature clearing
           );
           
           if (hasAssistantMessageWithContent) {
@@ -2631,7 +2631,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         })}
                         
         {/* ✅ ENHANCED UX: "Atlas is thinking..." message bubble */}
-        {isStreaming && (
+        {/* ✅ FIX: Only show thinking bubble if no assistant message is already showing */}
+        {isStreaming && !messages.some(m => m.role === 'assistant' && m.id !== 'atlas-thinking-indicator') && (
           <EnhancedMessageBubble
             message={{
               id: 'atlas-thinking-indicator',

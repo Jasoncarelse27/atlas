@@ -782,7 +782,8 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
             color: isUser ? undefined : undefined // Let Tailwind handle color
           }}
         >
-          {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
+          {/* ✅ FIX: Simplify thinking indicator condition */}
+          {(!isUser && isTyping && (!displayedText || displayedText === '' || displayedText === '...')) ? (
               <div className="flex items-center">
                 <span
                   className="text-base font-medium animate-pulse"
@@ -798,8 +799,18 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
               <div className="flex-1">
                 {displayedText ? (
                   isUser ? (
-                    // Simple rendering for user messages - no markdown  
-                    <span className="block">{displayedText}</span>
+                    // ✅ FIX: Hide default analysis prompt - it's not user content
+                    (() => {
+                      const defaultPrompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand.";
+                      const isDefaultPrompt = displayedText.trim() === defaultPrompt.trim();
+                      
+                      // If it's the default prompt and message has attachments, don't show text
+                      if (isDefaultPrompt && attachments.length > 0) {
+                        return null; // Hide the prompt text
+                      }
+                      
+                      return <span className="block">{displayedText}</span>;
+                    })()
                   ) : (
                     // Keep markdown for assistant messages with enhanced spacing matching MessageRenderer
                     <div className="[&>*]:m-0 [&_p]:m-0 [&_.prose]:m-0 [&_.prose>*]:m-0 

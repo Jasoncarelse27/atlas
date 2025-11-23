@@ -397,7 +397,15 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
             {/* Back to Chat Button - Mobile Optimized */}
             <button
-              onClick={() => navigate('/chat')}
+              onClick={() => {
+                // ✅ FIX: Navigate to last conversation instead of new chat
+                const lastConversationId = localStorage.getItem('atlas:lastConversationId');
+                if (lastConversationId) {
+                  navigate(`/chat?conversation=${lastConversationId}`);
+                } else {
+                  navigate('/chat'); // Fallback to new chat if no last conversation
+                }
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 
                 rounded-xl transition-all hover:shadow-md active:scale-95
                 min-h-[44px] touch-manipulation" // 44px minimum touch target
@@ -610,7 +618,15 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
 
           {/* Back to Chat Button - Mobile Optimized */}
           <button
-            onClick={() => navigate('/chat')}
+            onClick={() => {
+              // ✅ FIX: Navigate to last conversation instead of new chat
+              const lastConversationId = localStorage.getItem('atlas:lastConversationId');
+              if (lastConversationId) {
+                navigate(`/chat?conversation=${lastConversationId}`);
+              } else {
+                navigate('/chat'); // Fallback to new chat if no last conversation
+              }
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 
               rounded-xl transition-all hover:shadow-md active:scale-95
               min-h-[44px] touch-manipulation"
@@ -794,7 +810,13 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
               navigate(targetUrl);
             } else {
               logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to /chat');
-              navigate('/chat');
+              // ✅ FIX: Navigate to last conversation instead of new chat
+              const lastConversationId = localStorage.getItem('atlas:lastConversationId');
+              if (lastConversationId) {
+                navigate(`/chat?conversation=${lastConversationId}`);
+              } else {
+                navigate('/chat'); // Fallback to new chat if no last conversation
+              }
             }
           }}
           ritualData={{

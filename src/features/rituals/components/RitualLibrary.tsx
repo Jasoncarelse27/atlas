@@ -324,7 +324,13 @@ export const RitualLibrary: React.FC = () => {
             <button
               onClick={() => {
                 triggerHaptic(10);
-                navigate('/chat');
+                // ✅ FIX: Navigate to last conversation instead of new chat
+                const lastConversationId = localStorage.getItem('atlas:lastConversationId');
+                if (lastConversationId) {
+                  navigate(`/chat?conversation=${lastConversationId}`);
+                } else {
+                  navigate('/chat'); // Fallback to new chat if no last conversation
+                }
               }}
               className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 text-[#3B3632] dark:text-white 
                 rounded-xl hover:bg-[#F9F6F1] dark:hover:bg-gray-700 transition-all hover:shadow-md active:scale-95
@@ -369,7 +375,13 @@ export const RitualLibrary: React.FC = () => {
             <button
               onClick={() => {
                 triggerHaptic(10);
-                navigate('/chat');
+                // ✅ FIX: Navigate to last conversation instead of new chat
+                const lastConversationId = localStorage.getItem('atlas:lastConversationId');
+                if (lastConversationId) {
+                  navigate(`/chat?conversation=${lastConversationId}`);
+                } else {
+                  navigate('/chat'); // Fallback to new chat if no last conversation
+                }
               }}
               className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 text-[#3B3632] dark:text-white 
                 rounded-xl active:scale-95 min-h-[48px] touch-manipulation"
