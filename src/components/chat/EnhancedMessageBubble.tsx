@@ -772,7 +772,7 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
           {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
               <div className="flex items-center space-x-3">
                 <TypingDots />
-                <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking...</span>
               </div>
             ) : (
               <div className="flex-1">
