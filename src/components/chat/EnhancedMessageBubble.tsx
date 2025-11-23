@@ -799,14 +799,25 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
               <div className="flex-1">
                 {displayedText ? (
                   isUser ? (
-                    // ✅ FIX: Hide default analysis prompt - it's not user content
+                    // ✅ FIX: Hide default analysis prompt or empty content - it's not user content
                     (() => {
                       const defaultPrompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand.";
-                      const isDefaultPrompt = displayedText.trim() === defaultPrompt.trim();
+                      const displayedTextTrimmed = displayedText.trim();
+                      const defaultPromptTrimmed = defaultPrompt.trim();
                       
-                      // If it's the default prompt and message has attachments, don't show text
-                      if (isDefaultPrompt && attachments.length > 0) {
-                        return null; // Hide the prompt text
+                      // Check if it's the default prompt (exact match or contains key phrase)
+                      const isDefaultPrompt = displayedTextTrimmed === defaultPromptTrimmed || 
+                                              displayedTextTrimmed.toLowerCase().includes('please analyze this image');
+                      const isEmpty = !displayedTextTrimmed;
+                      
+                      // If it's the default prompt or empty, and message has attachments, don't show text
+                      if ((isDefaultPrompt || isEmpty) && attachments.length > 0) {
+                        return null; // Hide the prompt text or empty content
+                      }
+                      
+                      // Don't show empty content even without attachments
+                      if (isEmpty) {
+                        return null;
                       }
                       
                       return <span className="block">{displayedText}</span>;
