@@ -12,6 +12,15 @@ interface MagicBellConfig {
   userId: string;
 }
 
+/**
+ * ✅ PRE-LAUNCH HARDENING: Check if MagicBell is configured
+ * Prevents unnecessary API calls and 401 errors when API keys are missing
+ */
+function isMagicBellConfigured(): boolean {
+  const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY;
+  return Boolean(apiKey && apiKey.trim() && !apiKey.includes('__PENDING__'));
+}
+
 export function useMagicBell() {
   const { user } = useSupabaseAuth();
   const [config, setConfig] = useState<MagicBellConfig | null>(null);
@@ -25,15 +34,17 @@ export function useMagicBell() {
         return;
       }
 
-      const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY;
-      if (!apiKey) {
-        // Silent fallback - no error logging
-        // Best practice: Skip network requests when API key is missing
-        // This prevents "Failed to load resource: 401" errors in console
+      // ✅ PRE-LAUNCH HARDENING: Early return if MagicBell not configured
+      if (!isMagicBellConfigured()) {
+        if (import.meta.env.DEV) {
+          logger.debug('[MagicBell] Disabled: missing API key configuration');
+        }
         setError(null);
         setIsLoading(false);
         return;
       }
+
+      const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY!;
 
       try {
         // Fetch user token from backend

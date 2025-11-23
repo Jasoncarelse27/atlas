@@ -5346,13 +5346,31 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
       tier = requestedTier;
     }
 
+    // ✅ PRE-LAUNCH HARDENING: Check FastSpring configuration before API calls
     const FASTSPRING_API_USERNAME = process.env.FASTSPRING_API_USERNAME;
     const FASTSPRING_API_PASSWORD = process.env.FASTSPRING_API_PASSWORD;
     const FASTSPRING_STORE_ID = process.env.FASTSPRING_STORE_ID;
     const FASTSPRING_ENVIRONMENT = process.env.VITE_FASTSPRING_ENVIRONMENT || 'test';
     
-    if (!FASTSPRING_API_USERNAME || !FASTSPRING_API_PASSWORD || !FASTSPRING_STORE_ID) {
-      return res.status(500).json({ error: 'FastSpring API credentials not configured' });
+    // ✅ PRE-LAUNCH HARDENING: Helper function to check FastSpring configuration
+    const isFastSpringConfigured = () => {
+      return Boolean(
+        FASTSPRING_API_USERNAME &&
+        FASTSPRING_API_PASSWORD &&
+        FASTSPRING_STORE_ID &&
+        !FASTSPRING_API_USERNAME.includes('__PENDING__') &&
+        !FASTSPRING_API_PASSWORD.includes('__PENDING__') &&
+        !FASTSPRING_STORE_ID.includes('__PENDING__')
+      );
+    };
+    
+    if (!isFastSpringConfigured()) {
+      logger.warn('[FastSpring] API credentials not configured - returning error');
+      return res.status(503).json({ 
+        ok: false,
+        error: 'Billing temporarily unavailable. Please try again later.',
+        message: 'Payment provider is not configured. Please contact support if this persists.'
+      });
     }
 
     // Use test or production API based on environment

@@ -256,12 +256,32 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
     lastErrorRef.current = null;
   }, []);
 
+  // ✅ FIX: Track last synced values to prevent infinite loops
+  // Only sync when email/name/tier actually change, not when callback reference changes
+  const lastSyncedRef = useRef<{ email?: string; name?: string; tier?: string }>({});
+  const syncSubscriberRef = useRef(syncSubscriber);
+  
+  // Keep ref updated with latest syncSubscriber function
+  useEffect(() => {
+    syncSubscriberRef.current = syncSubscriber;
+  }, [syncSubscriber]);
+  
   // Auto-sync on mount and when key data changes
   useEffect(() => {
-    if (autoSync && isConfigured && email) {
-      syncSubscriber();
+    if (!autoSync || !isConfigured || !email) return;
+    
+    // Only sync if email, name, or tier actually changed
+    const lastSynced = lastSyncedRef.current;
+    const hasChanged = 
+      lastSynced.email !== email ||
+      lastSynced.name !== name ||
+      lastSynced.tier !== tier;
+    
+    if (hasChanged) {
+      lastSyncedRef.current = { email, name, tier };
+      syncSubscriberRef.current();
     }
-  }, [autoSync, isConfigured, email, syncSubscriber]);
+  }, [autoSync, isConfigured, email, name, tier]); // ✅ FIX: Track actual values, not callback reference
 
   // Auto-trigger signup event on first sync
   useEffect(() => {
