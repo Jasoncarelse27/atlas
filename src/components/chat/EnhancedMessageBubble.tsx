@@ -774,6 +774,7 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
           {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
               <div className="flex items-center space-x-3">
                 <TypingDots />
+                <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking</span>
               </div>
             ) : (
               <div className="flex items-center justify-between">
@@ -885,7 +886,7 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
           {/* Message Status Indicators removed - cleaner UI */}
           
           {/* Action Buttons for AI messages - Orange Icon-Only Style */}
-          {!isUser && !showTypingIndicator && message.status !== 'sending' && (
+          {!isUser && !showTypingIndicator && message.status !== 'sending' && !isTyping && (
             <div className="flex items-center gap-2 mt-2">
               {/* Copy Button - ✅ MOBILE FIX: Proper touch targets and event handling */}
               <button
