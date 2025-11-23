@@ -1570,8 +1570,8 @@ const EnhancedInputToolbar = React.memo(({
                       ? "Add a caption..."  // ✅ FIX: Remove "(optional)" text
                       : placeholder
                   }
-                  className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand dark:border-gray-700 rounded-3xl px-4 py-4 resize-none min-h-[56px] transition-all duration-200 ease-in-out shadow-sm"
-                  style={{ fontSize: '16px', borderRadius: '24px' }} // Prevent iOS zoom + extra rounded (matches rounded-3xl)
+                  className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/40 border border-atlas-sand dark:border-gray-700 rounded-3xl px-4 py-3 resize-none min-h-[56px] max-h-[160px] transition-all duration-200 ease-in-out shadow-sm leading-[1.4] break-words"
+                  style={{ fontSize: '16px', borderRadius: '24px', overflowWrap: 'anywhere' }} // Prevent iOS zoom + extra rounded (matches rounded-3xl)
                   disabled={isProcessing || disabled}
                   autoComplete="off"
                   autoCapitalize="sentences"

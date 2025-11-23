@@ -3602,13 +3602,17 @@ RESPONSE FORMATTING:
     if (conversationId && conversationId.trim() && authenticatedUserId && supabaseUrl !== 'https://your-project.supabase.co') {
       try {
         // Save user's image message
+        // ✅ FIX: Don't save default prompt as message content - it's not user content
+        const defaultPrompt = "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand.";
+        const messageContent = (prompt && prompt.trim() !== defaultPrompt.trim()) ? prompt : '';
+        
         const { error: userMsgError } = await supabase
           .from('messages')
           .insert({
             user_id: authenticatedUserId,
             conversation_id: conversationId,
             role: 'user',
-            content: prompt,
+            content: messageContent, // ✅ FIX: Empty string instead of default prompt
             // ✅ FIX: Save ALL image attachments, not just the first one
             attachments: imageAttachments,
             created_at: new Date().toISOString()

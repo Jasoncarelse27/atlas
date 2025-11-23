@@ -19,7 +19,7 @@ import {
     User as UserIcon,
     X
 } from 'lucide-react';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { SoundType } from '../hooks/useSoundEffects';
 import { logger } from '../lib/logger';
@@ -71,9 +71,40 @@ const AccountModal: React.FC<AccountModalProps> = ({
   // Account deletion states
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // GDPR/Marketing preferences states
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [gdprAccepted, setGdprAccepted] = useState(false);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
+  
   const searchInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load GDPR preferences from profile
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      const loadPreferences = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('gdpr_accepted, marketing_opt_in')
+            .eq('id', user.id)
+            .single();
+          
+          if (!error && data) {
+            setGdprAccepted(data.gdpr_accepted || false);
+            setMarketingOptIn(data.marketing_opt_in || false);
+          }
+        } catch (err) {
+          // Non-blocking - preferences will default to false
+          logger.debug('[AccountModal] Could not load GDPR preferences:', err);
+        }
+      };
+      
+      loadPreferences();
+    }
+  }, [isOpen, user?.id]);
 
   if (!isOpen) return null;
 
@@ -157,6 +188,39 @@ const AccountModal: React.FC<AccountModalProps> = ({
       setError(err.message || 'Failed to update password');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpdateMarketingPreferences = async () => {
+    if (!user?.id) return;
+    
+    setIsLoadingPreferences(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          marketing_opt_in: marketingOptIn,
+          marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      if (onSoundPlay) {
+        onSoundPlay('success');
+      }
+      setSuccess('Marketing preferences updated successfully!');
+    } catch (err: unknown) {
+      const error = err as Error;
+      if (onSoundPlay) {
+        onSoundPlay('error');
+      }
+      setError(error.message || 'Failed to update marketing preferences');
+    } finally {
+      setIsLoadingPreferences(false);
     }
   };
 
@@ -647,6 +711,58 @@ const AccountModal: React.FC<AccountModalProps> = ({
                     <li>• Usage statistics are kept for billing and analytics</li>
                     <li>• You can request data deletion at any time</li>
                   </ul>
+                </div>
+
+                {/* Marketing Preferences */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900">Email Preferences</h4>
+                  <div className="p-4 border border-gray-200 rounded-lg bg-white">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={marketingOptIn}
+                        onChange={(e) => setMarketingOptIn(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-gray-900">
+                          Receive product updates and tips via email
+                        </span>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Get notified about new features, productivity tips, and special offers
+                        </p>
+                      </div>
+                    </label>
+                    <button
+                      onClick={handleUpdateMarketingPreferences}
+                      disabled={isLoadingPreferences}
+                      className="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {isLoadingPreferences ? 'Saving...' : 'Save Preferences'}
+                    </button>
+                  </div>
+                  
+                  {/* GDPR Consent Status */}
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h5 className="text-sm font-medium text-gray-900 mb-1">
+                          Terms & Privacy Policy
+                        </h5>
+                        <p className="text-xs text-gray-600">
+                          {gdprAccepted 
+                            ? 'You have accepted our Terms of Service and Privacy Policy.'
+                            : 'Please accept our Terms of Service and Privacy Policy to continue using Atlas.'}
+                        </p>
+                        {gdprAccepted && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            You can review our policies anytime in the Legal Documents section above.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

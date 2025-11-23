@@ -26,6 +26,9 @@ interface EnhancedMessageBubbleProps {
   // ✅ REMOVED: onEdit prop - edit functionality removed per user request
 }
 
+// ✅ UI REFINEMENT: Thinking bubble animation class
+const thinkingBubbleClass = "animate-pulse text-[#D3DCAB] font-medium transition-opacity duration-300 opacity-100";
+
 // ✅ PERFORMANCE: Memoized component to prevent unnecessary re-renders
 const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage = false, isTyping = false, onDelete }: EnhancedMessageBubbleProps) => {
   
@@ -782,20 +785,14 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
             color: isUser ? undefined : undefined // Let Tailwind handle color
           }}
         >
-          {/* ✅ FIX: Simplify thinking indicator condition */}
+          {/* ✅ UI REFINEMENT: Thinking bubble with smooth animation */}
           {(!isUser && isTyping && (!displayedText || displayedText === '' || displayedText === '...')) ? (
-              <div className="flex items-center">
-                <span
-                  className="text-base font-medium animate-pulse"
-                  style={{
-                    color: '#D3DCAB',
-                    textShadow: '0 0 1px #D3DCAB'
-                  }}
-                >
-                  Atlas is thinking{dots}
-                </span>
-              </div>
-            ) : (
+            <div className="flex items-center py-2">
+              <span className={thinkingBubbleClass}>
+                Atlas is thinking{dots}
+              </span>
+            </div>
+          ) : (
               <div className="flex-1">
                 {displayedText ? (
                   isUser ? (
@@ -820,7 +817,7 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
                         return null;
                       }
                       
-                      return <span className="block">{displayedText}</span>;
+                      return <span className="block break-words overflow-wrap-anywhere leading-relaxed">{displayedText}</span>;
                     })()
                   ) : (
                     // Keep markdown for assistant messages with enhanced spacing matching MessageRenderer

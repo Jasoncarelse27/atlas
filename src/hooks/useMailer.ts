@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isPaidTier } from '../config/featureAccess';
 import { createChatError } from '../features/chat/lib/errorHandler';
 import { mailerLiteService, type MailerLiteEvent, type SubscriberData } from '../services/mailerService';
+import { logger } from '../lib/logger';
 
 // Hook configuration interface
 interface UseMailerConfig {
@@ -46,6 +47,10 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
   // State refs to avoid unnecessary re-renders
   const isLoadingRef = useRef(false);
   const lastErrorRef = useRef<Error | null>(null);
+  
+  // ✅ STABILITY: Cooldown and in-flight guards to prevent spam calls
+  const lastSyncRef = useRef<number | null>(null);
+  const syncInFlightRef = useRef(false);
   
   // Check if service is configured
   const isConfigured = mailerLiteService.isConfigured();
@@ -266,10 +271,28 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
     syncSubscriberRef.current = syncSubscriber;
   }, [syncSubscriber]);
   
-  // Auto-sync on mount and when key data changes
+  // ✅ STABILITY: Auto-sync with cooldown and in-flight guard
   useEffect(() => {
-    if (!autoSync || !isConfigured || !email) return;
-    
+    if (!autoSync) return;
+    if (!email || !name || !tier) return;
+
+    const now = Date.now();
+    const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+
+    // Respect cooldown
+    if (lastSyncRef.current && now - lastSyncRef.current < COOLDOWN_MS) {
+      logger.debug('[MailerLite] Skipping sync due to cooldown', {
+        lastSyncAt: new Date(lastSyncRef.current).toISOString(),
+      });
+      return;
+    }
+
+    // Prevent concurrent syncs
+    if (syncInFlightRef.current) {
+      logger.debug('[MailerLite] Sync already in flight, skipping.');
+      return;
+    }
+
     // Only sync if email, name, or tier actually changed
     const lastSynced = lastSyncedRef.current;
     const hasChanged = 
@@ -277,11 +300,25 @@ export function useMailer(config: UseMailerConfig): UseMailerReturn {
       lastSynced.name !== name ||
       lastSynced.tier !== tier;
     
-    if (hasChanged) {
-      lastSyncedRef.current = { email, name, tier };
-      syncSubscriberRef.current();
+    if (!hasChanged) {
+      return; // No change, skip sync
     }
-  }, [autoSync, isConfigured, email, name, tier]); // ✅ FIX: Track actual values, not callback reference
+
+    lastSyncedRef.current = { email, name, tier };
+    syncInFlightRef.current = true;
+    
+    syncSubscriberRef.current({ email, name, tier })
+      .then(() => {
+        lastSyncRef.current = Date.now();
+        logger.info('[MailerLite] Subscriber synced successfully');
+      })
+      .catch((err) => {
+        logger.warn('[MailerLite] Failed to sync subscriber', { err });
+      })
+      .finally(() => {
+        syncInFlightRef.current = false;
+      });
+  }, [email, name, tier, autoSync]);
 
   // Auto-trigger signup event on first sync
   useEffect(() => {

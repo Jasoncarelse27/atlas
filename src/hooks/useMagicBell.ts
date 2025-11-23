@@ -17,8 +17,12 @@ interface MagicBellConfig {
  * Prevents unnecessary API calls and 401 errors when API keys are missing
  */
 function isMagicBellConfigured(): boolean {
-  const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY;
-  return Boolean(apiKey && apiKey.trim() && !apiKey.includes('__PENDING__'));
+  const apiKey = import.meta.env.VITE_MAGICBELL_API_KEY || import.meta.env.NEXT_PUBLIC_MAGICBELL_API_KEY;
+  const appId = import.meta.env.VITE_MAGICBELL_APP_ID || import.meta.env.NEXT_PUBLIC_MAGICBELL_APP_ID;
+  return Boolean(
+    apiKey && apiKey.trim() && !apiKey.includes('__PENDING__') &&
+    appId && appId.trim() && !appId.includes('__PENDING__')
+  );
 }
 
 export function useMagicBell() {
@@ -36,9 +40,7 @@ export function useMagicBell() {
 
       // ✅ PRE-LAUNCH HARDENING: Early return if MagicBell not configured
       if (!isMagicBellConfigured()) {
-        if (import.meta.env.DEV) {
-          logger.debug('[MagicBell] Disabled: missing API key configuration');
-        }
+        logger.info('[MagicBell] Disabled: missing configuration');
         setError(null);
         setIsLoading(false);
         return;

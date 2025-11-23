@@ -7,8 +7,20 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
 
-  const scrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    const container = containerRef?.current;
+    if (!container) {
+      // Fallback to bottomRef if containerRef not available
+      bottomRef.current?.scrollIntoView({ behavior });
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior,
+      });
+    });
   };
 
   // FIXED: Proper scroll detection

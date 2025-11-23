@@ -867,7 +867,7 @@ export async function sendMessageWithAttachments(
                 })),
                 userId: userId,
                 conversationId: conversationId, // ✅ NEW: Pass conversationId
-                prompt: caption || "Please analyze this image and provide detailed, insightful observations about what you see. Focus on key elements, composition, colors, objects, people, text, or any notable details that would be helpful to understand."
+                prompt: caption || "" // ✅ FIX: Send empty string instead of default prompt - backend will use default for API but won't save it
               }),
               signal: timeoutController.signal, // ✅ FIX: Add abort signal for timeout
             });
