@@ -67,18 +67,27 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
           setError(error.message);
         } else {
           // Update GDPR consent in profiles table
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              gdpr_accepted: gdprAccepted,
-              gdpr_accepted_at: new Date().toISOString(),
-              marketing_opt_in: marketingOptIn,
-              marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null
-            })
-            .eq('id', (await supabase.auth.getUser()).data.user?.id);
-          
-          if (profileError) {
-            console.error('Failed to update GDPR consent:', profileError);
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.id) {
+            // ✅ FIX: Use upsert to handle case where profile doesn't exist yet
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: user.id,
+                email: user.email,
+                gdpr_accepted: gdprAccepted,
+                gdpr_accepted_at: new Date().toISOString(),
+                marketing_opt_in: marketingOptIn,
+                marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null
+              }, {
+                onConflict: 'id'
+              });
+            
+            if (profileError) {
+              // ✅ FIX: Non-blocking error - don't prevent login if GDPR update fails
+              // This can happen if migration hasn't been applied or RLS policy blocks it
+              console.error('Failed to update GDPR consent (non-blocking):', profileError);
+            }
           }
           
           // Redirect to dashboard after successful login
@@ -94,18 +103,24 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
           // Store GDPR consent for new signup
           if (data?.user?.id) {
             // Update GDPR consent in profiles table
+            // ✅ FIX: Use upsert to handle case where profile doesn't exist yet
             const { error: profileError } = await supabase
               .from('profiles')
-              .update({
+              .upsert({
+                id: data.user.id,
+                email: data.user.email,
                 gdpr_accepted: gdprAccepted,
                 gdpr_accepted_at: new Date().toISOString(),
                 marketing_opt_in: marketingOptIn,
                 marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null
-              })
-              .eq('id', data.user.id);
+              }, {
+                onConflict: 'id'
+              });
             
             if (profileError) {
-              console.error('Failed to store GDPR consent:', profileError);
+              // ✅ FIX: Non-blocking error - don't prevent signup if GDPR update fails
+              // This can happen if migration hasn't been applied or RLS policy blocks it
+              console.error('Failed to store GDPR consent (non-blocking):', profileError);
             }
             
             // ✅ Send welcome notification (non-blocking - fire and forget)

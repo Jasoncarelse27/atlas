@@ -877,7 +877,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       try {
       await chatService.sendMessage(
         text, 
-        () => {}, // No frontend status updates needed
+        () => {
+          // ✅ FIX: Clear streaming indicators when stream actually completes
+          // This ensures thinking bubble stays visible during streaming
+          setIsStreaming(false);
+          setIsTyping(false);
+          isProcessingRef.current = false;
+          logger.debug('[ChatPage] ✅ Stream completed, cleared thinking indicators');
+        },
         conversationId, 
         userId
       );
@@ -1607,18 +1614,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           // ✅ CRITICAL: Append to UI state (preserves scroll, prevents jump)
           setMessages(prev => appendMessageSafely(prev, incomingMessage));
 
-          // ✅ FIX GLITCH #1: Batch all state updates together to prevent double re-render
-          if (newMsg.role === 'assistant') {
-            // Use startTransition to batch updates (React 18+)
-            React.startTransition(() => {
-              setIsStreaming(false);
-              setIsTyping(false);
-            });
-            logger.debug('[ChatPage] ✅ Reset typing indicators after assistant response (batched)');
-          } else {
+          // ✅ FIX: Don't clear streaming indicators in realtime handler
+          // Streaming indicators are cleared by the completion callback when HTTP stream ends
+          // Realtime INSERT fires when message is saved to DB, but HTTP streaming completes first
+          // The onComplete callback (line 880) handles clearing isStreaming/isTyping
+          if (newMsg.role !== 'assistant') {
+            // User messages don't need streaming indicators
             setIsTyping(false);
             setIsStreaming(false);
           }
+          // Assistant messages: Let completion callback handle clearing (preserves thinking bubble during streaming)
           
         } catch (error) {
           logger.error('[ChatPage] ❌ Failed to write message to Dexie:', error);
