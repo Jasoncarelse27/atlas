@@ -772,9 +772,20 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
           }}
         >
           {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
-              <div className="flex items-center space-x-3">
-                <TypingDots />
-                <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center space-x-3">
+                  <TypingDots />
+                  <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking</span>
+                </div>
+                {(message.status === 'sending' || isTyping) && !isUser && (
+                  <StopButton 
+                    onPress={() => {
+                      stopMessageStream();
+                      toast.info('Response cancelled - Partial response kept');
+                    }}
+                    isVisible={true}
+                  />
+                )}
               </div>
             ) : (
               <div className="flex items-center justify-between">
