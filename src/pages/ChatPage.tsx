@@ -578,9 +578,23 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             setIsStreaming(false);
             isProcessingRef.current = false;
           } else {
-            // Assistant message received via window event - stream is complete
-            if (completionCallbackRef.current) {
+            // Assistant message received via window event
+            // ✅ FIX: Only clear streaming indicators if message has actual content
+            // Empty or minimal content means streaming is still in progress
+            const hasContent = incomingMessage.content && 
+                               incomingMessage.content.trim() && 
+                               incomingMessage.content.trim() !== '...' &&
+                               incomingMessage.content.trim().length > 3; // At least 3 characters
+            
+            if (hasContent && completionCallbackRef.current) {
+              // Message has content - stream is complete
               completionCallbackRef.current();
+            } else {
+              // Message is empty or minimal - streaming still in progress, keep thinking bubble
+              logger.debug('[ChatPage] ⏳ Assistant message received but content is minimal, keeping streaming indicators active', {
+                contentLength: incomingMessage.content?.length || 0,
+                contentPreview: incomingMessage.content?.substring(0, 20) || 'empty'
+              });
             }
           }
           
@@ -1080,12 +1094,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
           logger.debug('[ChatPage] ✅ Fallback: Appended', fallbackMessages.length, 'messages to UI');
           
-          // ✅ FIX: Only clear indicators if we found an assistant message
-          // Check if we have assistant messages in the fallback results
-          const hasAssistantMessage = fallbackMessages.some(msg => msg.role === 'assistant');
+          // ✅ FIX: Only clear indicators if we found an assistant message WITH CONTENT
+          // Check if we have assistant messages with meaningful content in the fallback results
+          const hasAssistantMessageWithContent = fallbackMessages.some(msg => 
+            msg.role === 'assistant' && 
+            msg.content && 
+            msg.content.trim() && 
+            msg.content.trim() !== '...' &&
+            msg.content.trim().length > 3 // At least 3 characters
+          );
           
-          if (hasAssistantMessage) {
-            // Assistant message found - stream is complete
+          if (hasAssistantMessageWithContent) {
+            // Assistant message with content found - stream is complete
             setIsTyping(false);
             setIsStreaming(false);
             isProcessingRef.current = false;
@@ -1095,9 +1115,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
               completionCallbackRef.current();
             }
           } else {
-            // No assistant message yet - keep streaming indicators active
+            // No assistant message with content yet - keep streaming indicators active
             // Fallback will try again or realtime will receive it
-            logger.debug('[ChatPage] ⚠️ Fallback: No assistant message yet, keeping streaming indicators active');
+            logger.debug('[ChatPage] ⚠️ Fallback: No assistant message with content yet, keeping streaming indicators active');
           }
         } else {
           // No messages found in fallback - keep streaming indicators active
