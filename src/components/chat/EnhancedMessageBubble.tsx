@@ -16,7 +16,6 @@ import { ImageGallery } from './ImageGallery';
 import { MessageContextMenu } from './MessageContextMenu';
 import { LegacyMessageRenderer } from './MessageRenderer';
 import SystemMessage from './SystemMessage';
-import { TypingDots } from './TypingDots';
 
 interface EnhancedMessageBubbleProps {
   message: Message;
@@ -115,6 +114,9 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
   const [isDeletingForEveryone, setIsDeletingForEveryone] = useState(false);
   
   // ✅ REMOVED: Edit state and functionality per user request
+  
+  // ✅ SIMPLIFIED: Animated dots for "Atlas is thinking..." indicator
+  const [dots, setDots] = useState(".");
   
   const { tier, userId } = useTierAccess(); // ✅ FIX: Removed unused 'loading' variable
 
@@ -491,6 +493,17 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
     }
   }, [messageContent, isLatest, isUser, message.role]); // ✅ Use content, not ID
 
+  // ✅ SIMPLIFIED: Animate dots for thinking indicator
+  useEffect(() => {
+    if (!isTyping) return;
+    
+    const interval = setInterval(() => {
+      setDots(prev => prev === "..." ? "." : prev + ".");
+    }, 400);
+    
+    return () => clearInterval(interval);
+  }, [isTyping]);
+
   const showTypingIndicator = isLatest && !isUser && currentIndex < messageContent.length;
   
   // ✅ IMPROVED TTS handler with audio controls
@@ -770,9 +783,16 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
           }}
         >
           {(!isUser && ((message.status === 'sending' && (!displayedText || displayedText === '...')) || isTyping)) ? (
-              <div className="flex items-center space-x-3">
-                <TypingDots />
-                <span className="text-sm text-gray-500 dark:text-gray-400 italic">Atlas is thinking...</span>
+              <div className="flex items-center">
+                <span
+                  className="text-base font-medium animate-pulse"
+                  style={{
+                    color: '#D3DCAB',
+                    textShadow: '0 0 1px #D3DCAB'
+                  }}
+                >
+                  Atlas is thinking{dots}
+                </span>
               </div>
             ) : (
               <div className="flex-1">
