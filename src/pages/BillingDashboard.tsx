@@ -8,6 +8,7 @@ import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 import QuickActions from '../components/sidebar/QuickActions';
 import UsageCounter from '../components/sidebar/UsageCounter';
 import { useBillingInvoices } from '../hooks/useBillingInvoices';
@@ -109,8 +110,8 @@ const BillingDashboard: React.FC = () => {
           <div className="p-4">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Atlas</h1>
             <QuickActions
-              onNewChat={() => navigate('/chat')}
-              onViewHistory={() => navigate('/chat')}
+              onNewChat={() => navigateToLastConversation(navigate)}
+              onViewHistory={() => navigateToLastConversation(navigate)}
               userId={userId || undefined}
             />
           </div>
@@ -129,7 +130,7 @@ const BillingDashboard: React.FC = () => {
               <div className="flex items-center gap-3">
                 {/* Back Button - Mobile & Web */}
                 <button
-                  onClick={() => navigate('/chat')}
+                  onClick={() => navigateToLastConversation(navigate)}
                   className="flex items-center justify-center p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   aria-label="Back to Chat"
                 >

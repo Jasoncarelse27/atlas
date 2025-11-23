@@ -14,6 +14,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, Pause, Play, X } f
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { modernToast } from '../../../config/toastConfig';
+import { navigateToLastConversation } from '../../../utils/chatNavigation';
 import { logger } from '../../../lib/logger';
 import { useRitualRunner } from '../hooks/useRitualRunner';
 import { useRitualStore } from '../hooks/useRitualStore';
@@ -398,13 +399,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             {/* Back to Chat Button - Mobile Optimized */}
             <button
               onClick={() => {
-                // ✅ FIX: Navigate to last conversation instead of new chat
-                const lastConversationId = localStorage.getItem('atlas:lastConversationId');
-                if (lastConversationId) {
-                  navigate(`/chat?conversation=${lastConversationId}`);
-                } else {
-                  navigate('/chat'); // Fallback to new chat if no last conversation
-                }
+                navigateToLastConversation(navigate);
               }}
               className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 
                 rounded-xl transition-all hover:shadow-md active:scale-95
@@ -620,12 +615,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           <button
             onClick={() => {
               // ✅ FIX: Navigate to last conversation instead of new chat
-              const lastConversationId = localStorage.getItem('atlas:lastConversationId');
-              if (lastConversationId) {
-                navigate(`/chat?conversation=${lastConversationId}`);
-              } else {
-                navigate('/chat'); // Fallback to new chat if no last conversation
-              }
+              navigateToLastConversation(navigate);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 border-2 border-[#E8DCC8] dark:border-gray-700 
               rounded-xl transition-all hover:shadow-md active:scale-95
@@ -811,12 +801,7 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
             } else {
               logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to /chat');
               // ✅ FIX: Navigate to last conversation instead of new chat
-              const lastConversationId = localStorage.getItem('atlas:lastConversationId');
-              if (lastConversationId) {
-                navigate(`/chat?conversation=${lastConversationId}`);
-              } else {
-                navigate('/chat'); // Fallback to new chat if no last conversation
-              }
+              navigateToLastConversation(navigate);
             }
           }}
           ritualData={{

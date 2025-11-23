@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import EnhancedUpgradeModal from "../components/EnhancedUpgradeModal";
+import { navigateToLastConversation } from "../utils/chatNavigation";
 import { useAuth } from "../providers/AuthProvider";
 
 export default function UpgradePage() {
@@ -13,7 +14,7 @@ export default function UpgradePage() {
   }
 
   const handleBackToChat = () => {
-    navigate("/chat");
+    navigateToLastConversation(navigate);
   };
 
   return (

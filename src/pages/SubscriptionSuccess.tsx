@@ -14,6 +14,7 @@ import { CheckCircle, Sparkles, ArrowRight, FileText, Receipt } from 'lucide-rea
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../providers/AuthProvider';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 import { useTierAccess } from '../hooks/useTierAccess';
 import { getDisplayPrice, getMonthlyPrice } from '../config/pricing';
 import { logger } from '../lib/logger';
@@ -58,7 +59,7 @@ export default function SubscriptionSuccess() {
   }, [user, refreshTier]);
 
   const handleContinue = () => {
-    navigate('/chat');
+    navigateToLastConversation(navigate);
   };
 
   const handleViewRituals = () => {

@@ -11,6 +11,7 @@
 import { XCircle, ArrowLeft, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../providers/AuthProvider';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import { useState } from 'react';
 
@@ -20,7 +21,7 @@ export default function SubscriptionCancel() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const handleBackToChat = () => {
-    navigate('/chat');
+    navigateToLastConversation(navigate);
   };
 
   const handleTryAgain = () => {
