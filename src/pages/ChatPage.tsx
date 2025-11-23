@@ -214,7 +214,18 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ CRITICAL FIX: Move useAutoScroll to top (BEFORE useCallbacks/useEffects)
   // This MUST be called before any conditional logic or effects to prevent hook order violations
   // messagesContainerRef is now declared at top (line ~130) before this hook
-  const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages.length], messagesContainerRef);
+  const { bottomRef, scrollToBottom, showScrollButton, shouldGlow } = useAutoScroll([messages.length, isStreaming], messagesContainerRef);
+
+  // ✅ FIX: Force scroll when thinking bubble appears
+  useEffect(() => {
+    if (isStreaming) {
+      // Small delay to ensure DOM has updated
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isStreaming, scrollToBottom]);
 
   // ✅ CRITICAL FIX: Move useTutorial to top (BEFORE useCallbacks/useEffects)
   // This MUST be called before any conditional logic or effects to prevent hook order violations

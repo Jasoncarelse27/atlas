@@ -297,7 +297,7 @@ const EnhancedInputToolbar = React.memo(({
       // Reset to natural height first
       textarea.style.height = 'auto';
       
-      const minHeight = 44;   // matches min-h-[44px]
+      const minHeight = 56;   // matches min-h-[56px]
       const maxHeight = 120;  // MUST match CSS max
       const contentHeight = textarea.scrollHeight;
       
@@ -1548,8 +1548,8 @@ const EnhancedInputToolbar = React.memo(({
                     ? (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? "Add a caption..." : "Add a caption (optional)...")
                     : placeholder
                 }
-                className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand dark:border-gray-700 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none min-h-[44px] transition-all duration-200 ease-in-out shadow-sm"
-                style={{ fontSize: '16px', borderRadius: '16px' }} // Prevent iOS zoom + extra rounded
+                className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/50 border border-atlas-sand dark:border-gray-700 rounded-3xl px-4 py-4 resize-none min-h-[56px] transition-all duration-200 ease-in-out shadow-sm"
+                style={{ fontSize: '16px', borderRadius: '24px' }} // Prevent iOS zoom + extra rounded (matches rounded-3xl)
                 disabled={isProcessing || disabled}
                 autoComplete="off"
                 autoCapitalize="sentences"
