@@ -77,3 +77,4 @@ setTimeout(() => {
 }, 1000);
 
 console.log('🎯 Monitoring active! Send messages to test...');
+
