@@ -128,6 +128,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const lastMessageRef = useRef<string>('');
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const completionCallbackRef = useRef<(() => void) | null>(null);
   
   // Custom hooks (may depend on router/context/state)
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
@@ -571,13 +572,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           setMessages(prev => appendMessageSafely(prev, incomingMessage));
           
           // ✅ FIX: Only clear streaming indicators for USER messages
-          // Assistant messages: Let completion callback handle clearing (preserves thinking bubble)
+          // Assistant messages: Call completion callback to clear isStreaming when stream ends
           if (incomingMessage.role !== 'assistant') {
             setIsTyping(false);
             setIsStreaming(false);
             isProcessingRef.current = false;
+          } else {
+            // Assistant message received via window event - stream is complete
+            if (completionCallbackRef.current) {
+              completionCallbackRef.current();
+            }
           }
-          // For assistant messages, completion callback (line 891) will clear isStreaming when stream ends
           
           logger.debug('[ChatPage] ✅ UI updated with new message from real-time (append-only)', {
             role: incomingMessage.role,
@@ -892,17 +897,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
         userId
       });
       
+      // Store completion callback in ref so handlers can call it when assistant message arrives
+      completionCallbackRef.current = () => {
+        setIsStreaming(false);
+        setIsTyping(false);
+        isProcessingRef.current = false;
+        logger.debug('[ChatPage] ✅ Stream completed, cleared thinking indicators');
+        completionCallbackRef.current = null; // Clear after calling
+      };
+
       try {
       await chatService.sendMessage(
         text, 
-        () => {
-          // ✅ FIX: Clear streaming indicators when stream actually completes
-          // This ensures thinking bubble stays visible during streaming
-          setIsStreaming(false);
-          setIsTyping(false);
-          isProcessingRef.current = false;
-          logger.debug('[ChatPage] ✅ Stream completed, cleared thinking indicators');
-        },
+        undefined, // Don't pass callback - we'll call it when assistant message arrives
         conversationId, 
         userId
       );
@@ -1072,12 +1079,30 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           });
 
           logger.debug('[ChatPage] ✅ Fallback: Appended', fallbackMessages.length, 'messages to UI');
+          
+          // ✅ FIX: Only clear indicators if we found an assistant message
+          // Check if we have assistant messages in the fallback results
+          const hasAssistantMessage = fallbackMessages.some(msg => msg.role === 'assistant');
+          
+          if (hasAssistantMessage) {
+            // Assistant message found - stream is complete
+            setIsTyping(false);
+            setIsStreaming(false);
+            isProcessingRef.current = false;
+            
+            // Call completion callback if it exists
+            if (completionCallbackRef.current) {
+              completionCallbackRef.current();
+            }
+          } else {
+            // No assistant message yet - keep streaming indicators active
+            // Fallback will try again or realtime will receive it
+            logger.debug('[ChatPage] ⚠️ Fallback: No assistant message yet, keeping streaming indicators active');
+          }
+        } else {
+          // No messages found in fallback - keep streaming indicators active
+          logger.debug('[ChatPage] ⚠️ Fallback: No messages found, keeping streaming indicators active');
         }
-        
-        // Clear typing indicators
-        setIsTyping(false);
-        setIsStreaming(false);
-        isProcessingRef.current = false;
       }, fallbackDelay); // ✅ Mobile-safe fallback delay
       
       // Keep typing indicator active until real-time listener receives response
@@ -1112,8 +1137,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       const cacheKey = `${conversationId}-${userId}`;
       messageLoadCache.delete(cacheKey);
       await loadMessages(conversationId); // Reload from Dexie
-      setIsTyping(false);
-      setIsStreaming(false);
+      // ✅ FIX: Don't clear streaming indicators on error - let completion callback handle it
+      // Only clear if we're sure the stream failed (not just a transient error)
+      // Streaming might still be active, so preserve thinking bubble
+      // setIsTyping(false);
+      // setIsStreaming(false);
       
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -1485,168 +1513,26 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   }, [sidebarOpen]);
 
-  // ✅ PHASE 2: Real-time listener as SINGLE SOURCE OF TRUTH
+  // ✅ FIX: Remove duplicate subscription - useRealtimeConversations already handles this
+  // useRealtimeConversations hook (line 212) already:
+  // - Saves ALL messages to Dexie (including current conversation)
+  // - Dispatches newMessageReceived event
+  // - handleNewMessage (line 500) updates UI from the event
+  // 
+  // The ChatPage subscription was redundant and caused:
+  // - Duplicate Dexie writes (race conditions)
+  // - Duplicate UI updates (flicker)
+  // - Conflicts in isStreaming state management
+  //
+  // We keep UPDATE handler only for message deletions/edits
   useEffect(() => {
     if (!userId || !conversationId) return;
 
-    logger.debug('[ChatPage] 🔔 Setting up real-time listener (single writer) for conversation:', conversationId);
+    logger.debug('[ChatPage] 🔔 Setting up UPDATE listener for conversation:', conversationId);
 
-    // Listen for new messages in real-time
+    // Only listen for UPDATE events (deletions/edits) - INSERT handled by useRealtimeConversations
     const subscription = supabase
-      .channel(`conversation_${conversationId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      }, async (payload) => {
-        // ✅ Clear fallback timer - real-time is working
-        if (fallbackTimerRef.current) {
-          clearTimeout(fallbackTimerRef.current);
-          fallbackTimerRef.current = null;
-          logger.debug('[ChatPage] ✅ Real-time working, fallback timer cleared');
-        }
-        
-        logger.debug('[ChatPage] 🔔 Real-time event RECEIVED:', payload.new?.id, payload.new?.role, payload.new?.content?.slice(0, 50)); // DEBUG LOG
-        const newMsg = payload.new;
-        
-        logger.debug('[ChatPage] 🔔 Real-time message received:', {
-          id: newMsg.id,
-          role: newMsg.role,
-          contentPreview: newMsg.content?.slice(0, 50),
-          hasImageData: !!(newMsg.image_url || newMsg.attachments)
-        });
-        
-        try {
-          // ✅ MOBILE FIX: Ensure database is ready before use
-          await ensureDatabaseReady();
-          
-          // ✅ SINGLE WRITE PATH: Real-time listener writes to Dexie
-          // ✅ FIX: Parse JSON content if it's a stringified object
-          let parsedContent = newMsg.content;
-          if (typeof newMsg.content === 'string') {
-            try {
-              // Check if content looks like JSON
-              if (newMsg.content.trim().startsWith('{') && newMsg.content.includes('"type"') && newMsg.content.includes('"text"')) {
-                const parsed = JSON.parse(newMsg.content);
-                // Extract the actual text from {type: "text", text: "..."}
-                parsedContent = parsed.text || parsed.content || newMsg.content;
-              }
-            } catch (e) {
-              // Not JSON, keep as-is
-              parsedContent = newMsg.content;
-            }
-          }
-          
-          // ✅ CRITICAL FIX: Detect message type from attachments array (not just image_url)
-          let messageType: 'text' | 'image' | 'audio' = 'text';
-          if (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.length > 0) {
-            // Check attachments array for type
-            const hasImage = newMsg.attachments.some((att: any) => att.type === 'image' || att.type === 'photo');
-            const hasAudio = newMsg.attachments.some((att: any) => att.type === 'audio' || att.type === 'voice');
-            if (hasImage) messageType = 'image';
-            else if (hasAudio) messageType = 'audio';
-          } else if (newMsg.image_url) {
-            // Fallback to legacy image_url field
-            messageType = 'image';
-          }
-          
-          const messageToSave = {
-            id: newMsg.id,
-            conversationId: newMsg.conversation_id,
-            userId: userId, // ✅ ALWAYS use authenticated userId, never trust backend
-            role: newMsg.role,
-            type: messageType, // ✅ CRITICAL FIX: Use detected type from attachments
-            content: parsedContent, // ✅ FIX: Use parsed content
-            timestamp: newMsg.created_at,
-            synced: true,
-            updatedAt: newMsg.created_at,
-            // ✅ FIX: Don't duplicate - use ONLY attachments array
-            attachments: newMsg.attachments || undefined, // ✅ Save attachments array
-            deletedAt: newMsg.deleted_at || undefined, // ✅ PHASE 2: Sync deleted status
-            deletedBy: newMsg.deleted_by || undefined  // ✅ PHASE 2: Sync deleted type
-          };
-          
-          logger.debug('[ChatPage] 🔔 Saving to Dexie:', {
-            id: messageToSave.id,
-            type: messageToSave.type,
-            hasAttachments: !!messageToSave.attachments
-          });
-          
-          // ✅ CRITICAL FIX: Check if message already exists before saving (prevent duplicates)
-          const existingMessage = await atlasDB.messages.get(messageToSave.id);
-          if (existingMessage) {
-            logger.debug('[ChatPage] ⚠️ Message already exists in Dexie, merging attachments:', messageToSave.id);
-            // ✅ FIX: Merge attachments instead of replacing (preserve all images)
-            const existingAttachments = Array.isArray(existingMessage.attachments) ? existingMessage.attachments : [];
-            const newAttachments = Array.isArray(messageToSave.attachments) ? messageToSave.attachments : [];
-            // Merge and deduplicate by URL
-            const mergedAttachments = [...existingAttachments, ...newAttachments];
-            const uniqueAttachments = [...new Map(mergedAttachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()];
-            
-            await atlasDB.messages.update(messageToSave.id, {
-              ...messageToSave,
-              attachments: uniqueAttachments.length > 0 ? uniqueAttachments : undefined
-            });
-          } else {
-            // ✅ CRITICAL FIX: Deduplicate attachments before saving
-            const uniqueAttachments = messageToSave.attachments && Array.isArray(messageToSave.attachments) && messageToSave.attachments.length > 0
-              ? [...new Map(messageToSave.attachments.map(att => [att.url || att.publicUrl || att.id || Math.random(), att])).values()]
-              : undefined;
-            
-            // ✅ TYPESCRIPT FIX: messageToSave already matches Message interface from atlasDB
-            await atlasDB.messages.put({
-              ...messageToSave,
-              attachments: uniqueAttachments
-            });
-          }
-          
-          logger.debug('[ChatPage] ✅ Message written to Dexie:', newMsg.id);
-
-          // ✅ CRITICAL FIX: Append message to UI immediately (preserves scroll position)
-          // Parse attachments if needed
-          let parsedAttachments = undefined;
-          if (newMsg.attachments) {
-            try {
-              const attachmentsData = typeof newMsg.attachments === 'string' 
-                ? JSON.parse(newMsg.attachments)
-                : newMsg.attachments;
-              if (Array.isArray(attachmentsData)) {
-                parsedAttachments = attachmentsData;
-              }
-            } catch (e) {
-              // Failed to parse
-            }
-          }
-
-          const incomingMessage: Message = {
-            id: messageToSave.id,
-            conversationId: messageToSave.conversationId,
-            role: messageToSave.role,
-            content: parsedContent,
-            timestamp: messageToSave.timestamp,
-            type: messageToSave.type,
-            attachments: parsedAttachments || []
-          };
-
-          // ✅ CRITICAL: Append to UI state (preserves scroll, prevents jump)
-          setMessages(prev => appendMessageSafely(prev, incomingMessage));
-
-          // ✅ FIX: Don't clear streaming indicators in realtime handler
-          // Streaming indicators are cleared by the completion callback when HTTP stream ends
-          // Realtime INSERT fires when message is saved to DB, but HTTP streaming completes first
-          // The onComplete callback (line 880) handles clearing isStreaming/isTyping
-          if (newMsg.role !== 'assistant') {
-            // User messages don't need streaming indicators
-            setIsTyping(false);
-            setIsStreaming(false);
-          }
-          // Assistant messages: Let completion callback handle clearing (preserves thinking bubble during streaming)
-          
-        } catch (error) {
-          logger.error('[ChatPage] ❌ Failed to write message to Dexie:', error);
-        }
-      })
+      .channel(`conversation_updates_${conversationId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -1682,16 +1568,16 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          logger.debug('[ChatPage] ✅ Real-time listener SUBSCRIBED for conversation:', conversationId);
+          logger.debug('[ChatPage] ✅ UPDATE listener SUBSCRIBED for conversation:', conversationId);
         } else if (status === 'CLOSED') {
-          logger.debug('[ChatPage] 🔕 Real-time listener closed (normal cleanup)');
+          logger.debug('[ChatPage] 🔕 UPDATE listener closed (normal cleanup)');
         } else if (status === 'CHANNEL_ERROR') {
-          logger.warn('[ChatPage] ⚠️ Real-time listener error, will retry on next message:', status);
+          logger.warn('[ChatPage] ⚠️ UPDATE listener error:', status);
         }
       });
 
     return () => {
-      logger.debug('[ChatPage] 🔕 Cleaning up real-time listener');
+      logger.debug('[ChatPage] 🔕 Cleaning up UPDATE listener');
       supabase.removeChannel(subscription);
     };
   }, [userId, conversationId]);

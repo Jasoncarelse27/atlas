@@ -515,8 +515,10 @@ export const chatService = {
       // Real-time Supabase listeners will pick up the assistant response
       logger.debug('[ChatService] ✅ Message sent successfully, real-time will handle response');
       
-      // Call completion callback
-      onComplete?.();
+      // ✅ FIX: Don't call completion callback here - it fires too early
+      // The HTTP request succeeds immediately, but streaming happens via SSE/realtime
+      // Completion callback should be called by ChatPage when realtime receives assistant message
+      // onComplete?.(); // REMOVED - called too early, clears isStreaming before bubble shows
       
       // Refresh profile to get updated usage stats
       try {
