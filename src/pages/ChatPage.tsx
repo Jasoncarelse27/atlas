@@ -570,12 +570,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           // Append safely with deduplication
           setMessages(prev => appendMessageSafely(prev, incomingMessage));
           
-          // Clear typing/streaming indicators
-          setIsTyping(false);
-          setIsStreaming(false);
-          isProcessingRef.current = false;
+          // ✅ FIX: Only clear streaming indicators for USER messages
+          // Assistant messages: Let completion callback handle clearing (preserves thinking bubble)
+          if (incomingMessage.role !== 'assistant') {
+            setIsTyping(false);
+            setIsStreaming(false);
+            isProcessingRef.current = false;
+          }
+          // For assistant messages, completion callback (line 891) will clear isStreaming when stream ends
           
-          logger.debug('[ChatPage] ✅ UI updated with new message from real-time (append-only)');
+          logger.debug('[ChatPage] ✅ UI updated with new message from real-time (append-only)', {
+            role: incomingMessage.role,
+            clearedStreaming: incomingMessage.role !== 'assistant'
+          });
         } catch (error) {
           logger.error('[ChatPage] ❌ Error handling new message:', error);
         }
