@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "sonner";
-import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
@@ -133,9 +133,18 @@ function ProtectedBillingRoute() {
 function AutoLoadLastConversation() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ FIX: Add location hook
 
   useEffect(() => {
     if (loading || !user) return;
+
+    // ✅ CRITICAL FIX: Only auto-redirect on root or chat routes
+    // Prevents hijacking navigation to /billing, /rituals, /settings, etc.
+    const isChatRoute = location.pathname === '/' || location.pathname.startsWith('/chat');
+    if (!isChatRoute) {
+      logger.debug('[Startup] Skipping auto-load - not on chat route:', location.pathname);
+      return;
+    }
 
     (async () => {
       try {
@@ -173,7 +182,7 @@ function AutoLoadLastConversation() {
         navigate('/chat', { replace: true });
       }
     })();
-  }, [loading, user, navigate]);
+  }, [loading, user, navigate, location.pathname]); // ✅ FIX: Add location.pathname to deps
 
   return null;
 }
