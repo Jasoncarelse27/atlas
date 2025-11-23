@@ -2447,6 +2447,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             aria-live="polite"
             aria-label="Message list"
             style={{
+              WebkitOverflowScrolling: 'touch',
               // ✅ FIX: Ensure proper scrolling with dvh
               minHeight: 0, // Allow flex child to shrink
               WebkitOverflowScrolling: 'touch', // Smooth iOS scrolling
