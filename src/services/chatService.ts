@@ -352,7 +352,6 @@ export const chatService = {
                   message: text,
                   conversationId: conversationId || null,
                   timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
-                  timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
                 }),
                   signal: combinedController.signal,
                 });
