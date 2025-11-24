@@ -781,11 +781,20 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           isOpen={showRewardModal}
           onClose={async () => {
             setShowRewardModal(false);
-            
+            // ✅ FIX: Fallback navigation if user closes modal without clicking button
+            navigateToLastConversation(navigate);
+          }}
+          ritualData={{
+            title: completedRitualData.title,
+            durationMinutes: completedRitualData.durationMinutes,
+            moodBefore: completedRitualData.moodBefore,
+            moodAfter: completedRitualData.moodAfter,
+            reflection: completedRitualData.reflection,
+          }}
+          onContinueToChat={async () => {
             // ✅ FIX: Wait for conversationId if still posting (max 2 seconds)
             let targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
             
-            // If still posting, wait a bit for it to complete
             if (!targetConversationId) {
               const maxWait = 2000; // 2 seconds max wait
               const startTime = Date.now();
@@ -795,31 +804,19 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
               }
             }
             
-            logger.info('[RitualRunView] 🚪 Closing modal, navigating to chat:', {
-              ritualSummaryConversationId,
-              completedRitualDataConversationId: completedRitualData?.conversationId,
-              targetConversationId,
-              hasConversationId: !!targetConversationId
-            });
+            // Close modal
+            setShowRewardModal(false);
             
+            // Navigate safely
             if (targetConversationId) {
-              // ✅ BEST PRACTICE: Update localStorage BEFORE navigation so ChatPage loads correct conversation
               localStorage.setItem('atlas:lastConversationId', targetConversationId);
               const targetUrl = `/chat?conversation=${targetConversationId}`;
-              logger.info('[RitualRunView] 🚪 Navigating to:', targetUrl);
+              logger.info('[RitualRunView] 🚪 Navigating to chat:', targetUrl);
               navigate(targetUrl);
             } else {
               logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to last conversation');
-              // ✅ FIX: Navigate to last conversation instead of new chat
               navigateToLastConversation(navigate);
             }
-          }}
-          ritualData={{
-            title: completedRitualData.title,
-            durationMinutes: completedRitualData.durationMinutes,
-            moodBefore: completedRitualData.moodBefore,
-            moodAfter: completedRitualData.moodAfter,
-            reflection: completedRitualData.reflection,
           }}
           onViewInsights={() => {
             setShowRewardModal(false);

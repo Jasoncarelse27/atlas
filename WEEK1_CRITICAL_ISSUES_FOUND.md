@@ -23,7 +23,7 @@ const { message, tier } = req.body || {};
 ```
 
 **Impact:** Users can send `"tier": "studio"` and bypass limits  
-**Risk:** $189.99/user revenue loss  
+**Risk:** $149.99/user revenue loss  
 **Status:** ❌ **NOT FIXED**
 
 ---
@@ -86,7 +86,7 @@ const userTier = tier;  // ❌ TRUSTS CLIENT
 ```
 
 **Impact:** Users can claim Studio tier without payment  
-**Risk:** $189.99/user revenue loss  
+**Risk:** $149.99/user revenue loss  
 **Status:** ❌ **NOT FIXED**
 
 ---

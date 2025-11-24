@@ -60,7 +60,7 @@ Client (React) → Railway Backend → API Services
 ## ✅ What's Working Well
 
 ### **1. Tier Enforcement**
-- Voice calls exclusive to Studio tier ($189.99/month)
+- Voice calls exclusive to Studio tier ($149.99/month)
 - Proper `useFeatureAccess('voice')` integration
 - Upgrade modal triggers correctly
 
@@ -118,7 +118,7 @@ Add to VoiceCallModal:
 ### **Set Expectations**
 - Document: "Studio feature in active development"
 - Target audience: Early adopters willing to test
-- Price point: $189.99/month = 5 users covers development cost
+- Price point: $149.99/month = 5 users covers development cost
 
 ### **Monitor & Iterate**
 - Track average response time per call
@@ -172,7 +172,7 @@ setInterval(() => fetch('/health'), 120000);
 
 ### **Business Goal**
 - Differentiate Studio tier from competitors
-- Justify $189.99/month pricing
+- Justify $149.99/month pricing
 - Gather data for V2 improvements
 
 ---

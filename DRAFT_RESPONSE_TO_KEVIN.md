@@ -27,7 +27,7 @@ Atlas uses **FastSpring** for payment processing, not Paddle. There are legacy P
 - **Status:** Active (5.9% plan)
 - **Products Configured:**
   - Atlas Core: $19.99/month
-  - Atlas Studio: $189.99/month
+  - Atlas Studio: $149.99/month
 - **Integration:** Live API with webhook automation
 
 ---

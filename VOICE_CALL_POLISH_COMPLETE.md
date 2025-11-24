@@ -236,7 +236,7 @@
 ### Cost Savings
 - **0%** cost increase (same API usage)
 - **-40%** support time (better errors)
-- **Profitable:** $0.36 per 10min call vs $189.99/month revenue
+- **Profitable:** $0.36 per 10min call vs $149.99/month revenue
 
 ---
 

@@ -21,7 +21,7 @@ Successfully implemented a custom, conversion-optimized voice call upgrade modal
    - Animated microphone hero with pulse + rotate
    - 4-card benefits grid (Unlimited Duration, Real-Time Processing, Opus AI, Priority)
    - Tier comparison table (Free vs Core vs Studio)
-   - $189.99 pricing with FastSpring integration
+   - $149.99 pricing with FastSpring integration
    - Trust badges (Secure Payment, Cancel Anytime, Money-Back)
    - Framer Motion animations
    - Mobile-first responsive design
@@ -66,7 +66,7 @@ Successfully implemented a custom, conversion-optimized voice call upgrade modal
    - Current tier badge ("Currently on: Atlas Free")
    - Benefits grid showing what they'll get
    - Comparison table highlighting Studio column
-   - $189.99/month pricing
+   - $149.99/month pricing
    - "Upgrade to Studio" CTA
 4. User clicks upgrade → redirected to FastSpring checkout
 5. Modal closes on backdrop click or X button

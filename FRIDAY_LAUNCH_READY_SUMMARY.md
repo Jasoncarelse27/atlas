@@ -100,12 +100,12 @@ With FastSpring active on Friday:
 
 **Conservative Estimate:**
 - 10 Core upgrades × $19.99 = $199.90
-- 2 Studio upgrades × $189.99 = $379.98
+- 2 Studio upgrades × $149.99 = $299.98
 - **Day 1 Revenue: ~$580**
 
 **Optimistic Estimate:**
 - 25 Core upgrades × $19.99 = $499.75
-- 5 Studio upgrades × $189.99 = $949.95
+- 5 Studio upgrades × $149.99 = $749.95
 - **Day 1 Revenue: ~$1,450**
 
 ---

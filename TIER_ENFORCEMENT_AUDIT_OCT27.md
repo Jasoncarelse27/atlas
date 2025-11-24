@@ -105,7 +105,7 @@ const canUse = tierAllows && !featureFlags.disableImageUpload;
 
 ### ✅ **2. Clear Value Proposition**
 - Upgrade modals show exactly what user gets
-- Pricing clearly displayed ($19.99 Core, $189.99 Studio)
+- Pricing clearly displayed ($19.99 Core, $149.99 Studio)
 - Feature comparison table in modal
 
 ### ✅ **3. Non-Intrusive Gating**

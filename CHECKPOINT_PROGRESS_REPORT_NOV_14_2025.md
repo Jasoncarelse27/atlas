@@ -42,7 +42,7 @@ Atlas is a **production-ready, emotionally intelligent AI assistant** with compr
 - **3-Tier System:**
   - **Free:** 15 messages/month, Claude Haiku, basic features
   - **Core:** Unlimited messages, Claude Sonnet, voice/image features ($19.99/month)
-  - **Studio:** Unlimited messages, Claude Opus, advanced features ($189.99/month)
+  - **Studio:** Unlimited messages, Claude Opus, advanced features ($149.99/month)
 - **Message Limits:** Enforced at API level
 - **Feature Gating:** Centralized tier access hooks (`useTierAccess`, `useFeatureAccess`)
 - **Upgrade Flows:** FastSpring checkout integration
@@ -54,7 +54,7 @@ Atlas is a **production-ready, emotionally intelligent AI assistant** with compr
 - **Status:** Active (5.9% plan)
 - **Products Configured:**
   - Atlas Core: $19.99/month
-  - Atlas Studio: $189.99/month
+  - Atlas Studio: $149.99/month
 - **Integration:** Live API with webhook automation
 - **Status:** ✅ Pre-launch (not yet launched)
 

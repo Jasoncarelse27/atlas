@@ -1,7 +1,7 @@
 # 🧪 FastSpring Integration Testing Guide
 
 ## ✅ Setup Complete!
-- Products created: `atlas-core` ($19.99), `atlas-studio` ($189.99)
+- Products created: `atlas-core` ($19.99), `atlas-studio` ($149.99)
 - Environment configured with live credentials
 - Dev server starting...
 

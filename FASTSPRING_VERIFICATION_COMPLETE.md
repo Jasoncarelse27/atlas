@@ -160,7 +160,7 @@ https://dashboard.fastspring.com/
 ### **Step 3: Verify Products**
 Ensure these products exist:
 - `atlas-core` ($19.99/month)
-- `atlas-studio` ($189.99/month)
+- `atlas-studio` ($149.99/month)
 
 ### **Step 4: Test**
 Once store is active, click "Upgrade" button again and you should see the real FastSpring checkout!

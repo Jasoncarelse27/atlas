@@ -17,7 +17,7 @@
 ### **2. Products Configured** ✅
 ```
 ✅ atlas-core ($19.99 USD Monthly)
-✅ atlas-studio ($189.99 USD Monthly)
+✅ atlas-studio ($149.99 USD Monthly)
 ✅ Both visible in FastSpring dashboard
 ```
 
@@ -157,7 +157,7 @@ I see the activation modal in the dashboard. What are the next steps to complete
 
 I'm seeing products load in the dashboard but not yet accessible via the API:
 - atlas-core ($19.99/month)
-- atlas-studio ($189.99/month)
+- atlas-studio ($149.99/month)
 
 Let me know what documentation or verification steps you need from me.
 

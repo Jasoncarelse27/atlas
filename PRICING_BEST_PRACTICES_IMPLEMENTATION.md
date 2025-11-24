@@ -109,13 +109,13 @@ studio: {
 ```typescript
 // ❌ Pricing scattered across files
 // featureAccess.ts
-monthlyPrice: 189.99
+monthlyPrice: 149.99
 
 // fastspringService.ts
-const tierPrices = { studio: 189.99 };
+const tierPrices = { studio: 149.99 };
 
 // VoiceUpgradeModal.tsx
-<div>$189.99</div>
+<div>$149.99</div>
 
 // Problem: 12+ places to update when price changes
 ```
@@ -218,6 +218,7 @@ const pricing = {
 **Status:** ✅ **BEST PRACTICES IMPLEMENTED**
 
 Your pricing system now follows industry standards used by Stripe, Paddle, and FastSpring.
+
 
 
 

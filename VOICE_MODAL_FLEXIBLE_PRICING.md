@@ -8,7 +8,7 @@
 ## 🎯 **WHAT WAS CHANGED**
 
 ### **Problem**
-The `VoiceUpgradeModal` was hardcoded to only sell **Studio ($189.99)** tier, even though:
+The `VoiceUpgradeModal` was hardcoded to only sell **Studio ($149.99)** tier, even though:
 - **Core ($19.99)** includes voice recording & image upload
 - Users accessing audio/image features should see Core as primary option
 - Voice calls (real-time) should show Studio
@@ -25,7 +25,7 @@ Made the modal **dynamically display both Core and Studio** based on feature con
 1. ✅ **Core Plan** ($19.99/month) - PRIMARY
    - "Voice & Image Features"
    - "Upgrade to Core" button
-2. ✅ **Studio Plan** ($189.99/month) - ALTERNATIVE
+2. ✅ **Studio Plan** ($149.99/month) - ALTERNATIVE
    - "Everything in Core + Voice Calls"
    - "Upgrade to Studio" button
 
@@ -34,13 +34,13 @@ Made the modal **dynamically display both Core and Studio** based on feature con
 1. ✅ **Core Plan** ($19.99/month) - PRIMARY
    - "Voice & Image Features"
    - "Upgrade to Core" button
-2. ✅ **Studio Plan** ($189.99/month) - ALTERNATIVE
+2. ✅ **Studio Plan** ($149.99/month) - ALTERNATIVE
    - "Everything in Core + Voice Calls"
    - "Upgrade to Studio" button
 
 ### **Feature: Voice Calls (Real-Time)**
 **Modal Shows**:
-1. ✅ **Studio Plan** ($189.99/month) - PRIMARY
+1. ✅ **Studio Plan** ($149.99/month) - PRIMARY
    - "Unlimited Voice Calls + Everything"
    - "Upgrade to Studio" button
 2. ✅ **Core Plan** ($19.99/month) - ALTERNATIVE
@@ -91,7 +91,7 @@ const getModalContent = () => {
 </button>
 
 <button onClick={() => handleUpgrade('studio')}>
-  Upgrade to Studio - $189.99/month
+  Upgrade to Studio - $149.99/month
 </button>
 ```
 
@@ -101,7 +101,7 @@ const getModalContent = () => {
 
 ### **For Users**
 - ✅ See appropriate pricing for their needs
-- ✅ Core users can access voice/image for $19.99 (not forced into $189.99)
+- ✅ Core users can access voice/image for $19.99 (not forced into $149.99)
 - ✅ Clear understanding of what each tier includes
 - ✅ Flexibility to choose based on budget
 
@@ -165,7 +165,7 @@ const getModalContent = () => {
 │  ┌───────────────────────────┐     │
 │  │  Studio                   │     │
 │  │  Everything + Voice Calls │     │
-│  │  $189.99/month           │     │
+│  │  $149.99/month           │     │
 │  │  [Upgrade to Studio]     │     │
 │  └───────────────────────────┘     │
 │                                     │
@@ -194,19 +194,19 @@ const getModalContent = () => {
 ### **Conversion Optimization**
 ```
 Before: 
-- Voice recording → $189.99 only → High drop-off
+- Voice recording → $149.99 only → High drop-off
 
 After:
 - Voice recording → $19.99 (Core) → Better conversion
-- Voice recording → $189.99 (Studio) → Still available as premium
+- Voice recording → $149.99 (Studio) → Still available as premium
 ```
 
 ### **Revenue Modeling**
 ```
 Scenario A (100 users want voice features):
-- Before: 10% convert at $189.99 = $1,899/month
+- Before: 10% convert at $149.99 = $1,499/month
 - After:  40% convert at $19.99 = $799/month
-         +10% convert at $189.99 = $1,899/month
+         +10% convert at $149.99 = $1,499/month
          = $2,698/month (+42% revenue)
 ```
 
@@ -218,7 +218,7 @@ Scenario A (100 users want voice features):
 
 The modal now:
 - ✅ Sells Core to audio/image users ($19.99)
-- ✅ Sells Studio to voice call users ($189.99)
+- ✅ Sells Studio to voice call users ($149.99)
 - ✅ Shows both options for informed choice
 - ✅ Maintains professional UI/UX
 - ✅ Follows all best practices

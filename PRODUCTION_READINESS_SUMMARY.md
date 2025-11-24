@@ -118,7 +118,7 @@
 
 - **Free**: 15 messages/month, Claude Haiku
 - **Core ($19.99)**: Unlimited, Claude Sonnet, Voice/Image
-- **Studio ($189.99)**: Unlimited, Claude Opus, Advanced features
+- **Studio ($149.99)**: Unlimited, Claude Opus, Advanced features
 
 ## 🚨 Post-Launch Monitoring
 

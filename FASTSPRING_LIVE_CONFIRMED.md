@@ -23,7 +23,7 @@
 
 ✅ atlas-studio
    - Display: "Atlas Studio"  
-   - Price: $189.99 USD
+   - Price: $149.99 USD
    - Interval: Monthly
    - Created: Sep 23, 2025
 ```
@@ -62,7 +62,7 @@ https://localhost:5174/
 ```
 1. ✅ Loading toast: "Opening secure checkout..."
 2. ✅ Browser redirects to FastSpring checkout
-3. ✅ Shows "Atlas Core" ($19.99) or "Atlas Studio" ($189.99)
+3. ✅ Shows "Atlas Core" ($19.99) or "Atlas Studio" ($149.99)
 4. ✅ Real payment form (test mode)
 ```
 

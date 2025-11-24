@@ -54,7 +54,7 @@
 
 3. **Expected Results**:
    - ✅ Console shows: `[ConversationDelete] ⚙️ Core tier - Hard delete (server + local)`
-   - ✅ Upgrade prompt appears: "Upgrade to Studio ($189.99/mo) to restore..."
+   - ✅ Upgrade prompt appears: "Upgrade to Studio ($149.99/mo) to restore..."
    - ✅ Conversation removed from local Dexie
    - ✅ Conversation permanently deleted from Supabase
 

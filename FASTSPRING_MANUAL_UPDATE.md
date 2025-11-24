@@ -78,7 +78,7 @@ npm run dev
 
 In FastSpring Catalog, create products with these EXACT IDs:
 - `atlas-core-monthly` ($19.99/month)
-- `atlas-studio-monthly` ($189.99/month)
+- `atlas-studio-monthly` ($149.99/month)
 
 ---
 

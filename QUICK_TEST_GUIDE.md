@@ -76,7 +76,7 @@ console.log('✅ Set to Core tier - refresh the page');
 2. Click "View History"
 3. Delete a conversation
 4. Watch the console for: `[ConversationDelete] ⚙️ Core tier - Hard delete (server + local)`
-5. You should see upgrade prompt: "Upgrade to Studio ($189.99/mo)..."
+5. You should see upgrade prompt: "Upgrade to Studio ($149.99/mo)..."
 
 ### Step 3: Verify
 
@@ -162,7 +162,7 @@ console.log('Conversations in Supabase:', conversations);
 |------|-----------|-----------|-------------|
 | **Deletion Type** | Local-only hard | Server + local hard | Soft delete |
 | **Console Log** | `📴 Free tier - Local-only` | `⚙️ Core tier - Hard delete` | `🩵 Studio tier - Soft delete` |
-| **Upgrade Prompt** | Core ($19.99/mo) | Studio ($189.99/mo) | None |
+| **Upgrade Prompt** | Core ($19.99/mo) | Studio ($149.99/mo) | None |
 | **In Supabase** | Still exists | Permanently deleted | `deleted_at` set |
 | **In Local Dexie** | Deleted | Deleted | `deletedAt` set |
 | **Cross-Device Sync** | ❌ No | ✅ Yes | ✅ Yes |

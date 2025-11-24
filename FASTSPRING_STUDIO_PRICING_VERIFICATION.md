@@ -185,7 +185,7 @@ Verify that Studio tier pricing ($149.99/month) is correctly configured across:
 - [ ] Verify user-facing error messages are clear
 
 ### **Existing Subscriptions**
-- [ ] Verify existing Studio subscriptions (at $189.99) continue working
+- [ ] Verify existing Studio subscriptions (at $149.99) continue working
 - [ ] Verify upgrade logic handles both old and new pricing
 - [ ] Verify cancellation/reactivation flows work correctly
 

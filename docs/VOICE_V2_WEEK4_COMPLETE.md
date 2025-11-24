@@ -209,7 +209,7 @@ Atlas (voice): 🔊 *You hear Atlas speaking in nova voice*
 ### **Business:**
 - ✅ Studio tier config (tts-1-hd, nova)
 - ✅ Matches featureAccess.ts settings
-- ✅ Premium feature ($189.99/month value prop)
+- ✅ Premium feature ($149.99/month value prop)
 
 ### **Architecture:**
 - ✅ Matches ChatGPT Advanced Voice Mode
@@ -266,7 +266,7 @@ Atlas (voice): 🔊 *You hear Atlas speaking in nova voice*
 - Atlas speaks back (OpenAI TTS)
 - Have a real conversation!
 
-**This is Atlas's $189.99/month premium feature** 💎
+**This is Atlas's $149.99/month premium feature** 💎
 
 ---
 

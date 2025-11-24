@@ -12,7 +12,7 @@ Voice calls allow you to have natural, real-time conversations with Atlas AI usi
 - **Browser:** Chrome, Edge, Safari, or Firefox (latest version)
 - **Connection:** Stable internet connection
 - **Microphone:** Working microphone with permissions granted
-- **Tier:** Atlas Studio subscription ($189.99/month)
+- **Tier:** Atlas Studio subscription ($149.99/month)
 
 ### Mobile
 - **Browser:** Safari (iOS) or Chrome (Android)
@@ -152,7 +152,7 @@ Voice calls allow you to have natural, real-time conversations with Atlas AI usi
 
 ## 💰 Pricing & Usage
 
-**Studio Tier:** $189.99/month
+**Studio Tier:** $149.99/month
 - Unlimited voice calls
 - No per-minute charges
 - Unlimited daily usage

@@ -16,6 +16,7 @@ interface RitualRewardModalProps {
   };
   onViewInsights: () => void;
   onStartAnother: () => void;
+  onContinueToChat?: () => void; // ✅ FIX: Add navigation to chat option
   autoDismiss?: boolean; // Optional auto-dismiss after 7s
 }
 
@@ -25,6 +26,7 @@ export function RitualRewardModal({
   ritualData,
   onViewInsights,
   onStartAnother,
+  onContinueToChat,
   autoDismiss = false
 }: RitualRewardModalProps) {
   
@@ -284,19 +286,31 @@ export function RitualRewardModal({
               </p>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={onViewInsights}
-                  className="flex-1 py-3 bg-[#C8956A] text-white rounded-xl font-semibold hover:bg-[#B8855A] transition-all active:scale-95"
-                >
-                  View Insights
-                </button>
-                <button
-                  onClick={onStartAnother}
-                  className="flex-1 py-3 bg-white border-2 border-[#E8DDD2] text-[#3B3632] rounded-xl font-semibold hover:bg-[#F9F6F3] transition-all active:scale-95"
-                >
-                  Start Another
-                </button>
+              <div className="flex flex-col gap-3">
+                {/* ✅ FIX: Continue to Chat button for mobile/web navigation */}
+                {onContinueToChat && (
+                  <button
+                    onClick={onContinueToChat}
+                    className="w-full py-3 bg-[#8FA67E] text-white rounded-xl font-semibold hover:bg-[#7A9568] transition-all active:scale-95 touch-manipulation"
+                  >
+                    Continue to Chat 💬
+                  </button>
+                )}
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={onViewInsights}
+                    className="flex-1 py-3 bg-[#C8956A] text-white rounded-xl font-semibold hover:bg-[#B8855A] transition-all active:scale-95 touch-manipulation"
+                  >
+                    View Insights
+                  </button>
+                  <button
+                    onClick={onStartAnother}
+                    className="flex-1 py-3 bg-white border-2 border-[#E8DDD2] text-[#3B3632] rounded-xl font-semibold hover:bg-[#F9F6F3] transition-all active:scale-95 touch-manipulation"
+                  >
+                    Start Another
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

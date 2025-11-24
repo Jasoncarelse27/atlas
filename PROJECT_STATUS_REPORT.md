@@ -86,7 +86,7 @@ FASTSPRING_WEBHOOK_SECRET=[configured]
 
 **Action Required for Production:**
 1. ✅ FastSpring account created
-2. ✅ Products set up: Core ($19.99), Studio ($189.99)
+2. ✅ Products set up: Core ($19.99), Studio ($149.99)
 3. ✅ Test credentials working
 4. ⏸️ Switch to live mode when ready for production
 
@@ -137,7 +137,7 @@ npm run backend:dev
 
 ### **Phase 4: FastSpring Production Launch (15 minutes)** ⏸️ READY WHEN YOU ARE
 - [x] Sign up for FastSpring account
-- [x] Create products (Core $19.99, Studio $189.99)
+- [x] Create products (Core $19.99, Studio $149.99)
 - [x] Get test credentials
 - [x] Add to .env
 - [x] Test upgrade flow (test mode working)

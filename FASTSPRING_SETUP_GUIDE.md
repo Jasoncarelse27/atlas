@@ -68,7 +68,7 @@ You need three pieces of information:
    ```
    Product Name: Atlas Studio Monthly
    Product ID: atlas-studio-monthly
-   Price: $189.99 USD
+   Price: $149.99 USD
    Billing Frequency: Monthly
    Trial Period: None (or 7 days if offering trial)
    ```

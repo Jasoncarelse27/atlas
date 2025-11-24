@@ -14,7 +14,7 @@
 
 ### **Voice Features by Tier:**
 
-| Feature | Free | Core ($19.99) | Studio ($189.99) |
+| Feature | Free | Core ($19.99) | Studio ($149.99) |
 |---------|------|---------------|------------------|
 | **TTS Enabled** | ❌ No | ✅ Yes (tts-1) | ✅ Yes (tts-1-hd) |
 | **TTS Voice** | - | alloy | **nova** ✅ |
@@ -24,10 +24,10 @@
 
 ### **Key Insight:**
 ```
-Voice Calls = STUDIO TIER ONLY ($189.99/month)
+Voice Calls = STUDIO TIER ONLY ($149.99/month)
 ```
 
-**This is Atlas's premium feature** - the thing that justifies the $189.99 price point!
+**This is Atlas's premium feature** - the thing that justifies the $149.99 price point!
 
 ---
 
@@ -64,7 +64,7 @@ if (session.userTier !== 'studio') {
   ws.send(JSON.stringify({
     type: 'error',
     code: 'TIER_REQUIRED',
-    message: 'Voice calls require Atlas Studio ($189.99/month)',
+    message: 'Voice calls require Atlas Studio ($149.99/month)',
     upgradeUrl: 'https://atlas.app/upgrade'
   }));
   return;
@@ -74,7 +74,7 @@ if (session.userTier !== 'studio') {
 **Why This Matters:**
 - Voice calls = Studio tier's **killer feature**
 - Core tier ($19.99) gets voice notes, not live calls
-- This protects your $189.99 revenue stream
+- This protects your $149.99 revenue stream
 
 ---
 
@@ -204,7 +204,7 @@ if (STUDIO_TIER_REQUIRED && tier !== 'studio') {
 
 **VERDICT: 🟢 PROCEED WITH WEEK 4**
 
-**Note:** This builds Atlas's **$189.99 premium feature**. Just remember to add tier gates before public release!
+**Note:** This builds Atlas's **$149.99 premium feature**. Just remember to add tier gates before public release!
 
 ---
 

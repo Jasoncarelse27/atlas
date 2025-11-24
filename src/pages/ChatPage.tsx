@@ -2779,7 +2779,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         {/* Modern scroll-to-bottom button with golden sparkle - hide when drawer/modal is open */}
         <ScrollToBottomButton
-          onClick={scrollToBottom}
+          onClick={() => scrollToBottom()}
           visible={showScrollButton && !sidebarOpen && !showHistory && !showProfile && !showSearch}
           shouldGlow={shouldGlow}
         />
