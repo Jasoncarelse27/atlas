@@ -127,7 +127,9 @@ function generateFallbackTitle(): string {
     hour: '2-digit',
     minute: '2-digit'
   });
-  return `Chat ${timestamp}`;
+  // ✅ FIX: Add unique suffix to prevent duplicate titles
+  const shortId = Math.random().toString(36).slice(2, 6);
+  return `Chat ${timestamp}-${shortId}`;
 }
 
 /**
@@ -212,12 +214,27 @@ export async function updateConversationTitle(
 export async function autoGenerateTitle(options: TitleGenerationOptions): Promise<string> {
   const { conversationId, userId, message, tier } = options;
   
+  logger.debug('[TitleGen] 🎯 Auto-generating title:', {
+    conversationId,
+    messagePreview: message.substring(0, 50),
+    tier
+  });
+  
   // Generate title
   const title = await generateConversationTitle({ message, tier });
   
+  logger.debug('[TitleGen] ✅ Generated title:', title);
+  
   // Update in database if we have conversation ID
   if (conversationId && userId) {
-    await updateConversationTitle(conversationId, userId, title);
+    const updated = await updateConversationTitle(conversationId, userId, title);
+    if (updated) {
+      logger.debug('[TitleGen] ✅ Title updated in database');
+    } else {
+      logger.warn('[TitleGen] ⚠️ Title update failed or skipped');
+    }
+  } else {
+    logger.debug('[TitleGen] ⚠️ Skipping database update (missing conversationId or userId)');
   }
   
   return title;

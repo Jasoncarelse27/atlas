@@ -73,7 +73,7 @@ const EnhancedInputToolbar = React.memo(({
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'pending' | 'uploading' | 'processing' | 'success' | 'error'>>({});
   const [isUploading, setIsUploading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showCaptionInput, setShowCaptionInput] = useState(false); // ✅ FIX: Control caption input visibility
+  // ✅ REMOVED: showCaptionInput state - always show input when attachments exist (cleaner UX)
   const internalInputRef = useRef<HTMLTextAreaElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const micButtonRef = useRef<HTMLButtonElement>(null);
@@ -244,7 +244,6 @@ const EnhancedInputToolbar = React.memo(({
       });
       setAttachmentPreviews([]);
       setText('');
-      setShowCaptionInput(false); // ✅ FIX: Reset caption input visibility
     }
   }, [conversationId]); // Only run when conversationId changes
 
@@ -481,7 +480,6 @@ const EnhancedInputToolbar = React.memo(({
         // This prevents attachments from appearing "stuck" in UI
         setAttachmentPreviews([]);
         setText('');
-        setShowCaptionInput(false); // ✅ FIX: Reset caption input visibility
         
         // ✅ CLEANUP: Now safe to revoke preview URLs after successful upload
         currentAttachments.forEach(att => {
@@ -1267,15 +1265,12 @@ const EnhancedInputToolbar = React.memo(({
           <div 
             className="flex flex-wrap gap-2 p-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl border border-atlas-sand/30 dark:border-gray-700 cursor-text"
             onClick={() => {
-              // ✅ FIX: Show caption input when user clicks on attachment area
-              if (!text.trim() && !showCaptionInput) {
-                setShowCaptionInput(true);
-                setTimeout(() => {
-                  if (inputRef.current) {
-                    inputRef.current.focus();
-                  }
-                }, 100);
-              }
+              // ✅ UX: Focus caption input when user clicks on attachment area
+              setTimeout(() => {
+                if (inputRef.current) {
+                  inputRef.current.focus();
+                }
+              }, 100);
             }}
           >
             {attachmentPreviews.map((att) => (
@@ -1542,45 +1537,38 @@ const EnhancedInputToolbar = React.memo(({
               )}
         </div>
 
-            {/* Text Input - ✅ BEST PRACTICE: Proper flex with min-width 0 to prevent overflow */}
-            {/* ✅ FIX: Hide empty textarea when attachments exist but no text - looks unprofessional */}
-            {!(attachmentPreviews.length > 0 && !text.trim() && !showCaptionInput) && (
-              <div className="flex-1 flex flex-col min-w-0">
-                <textarea
-                  ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
-                  value={text}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    // ✅ FIX: Show input when user starts typing
-                    if (e.target.value.trim() && attachmentPreviews.length > 0) {
-                      setShowCaptionInput(true);
-                    }
-                  }}
-                  onKeyDown={handleKeyPress}
-                  onClick={() => {
-                    // 📱 Focus the input to open keyboard ONLY
-                    if (inputRef.current) {
-                      inputRef.current.focus();
-                    }
-                  }}
-                  onBlur={handleInputBlur}
-                  onFocus={handleInputFocus}
-                  placeholder={
-                    attachmentPreviews.length > 0 
-                      ? "Add a caption..."  // ✅ FIX: Remove "(optional)" text
-                      : placeholder
+            {/* Text Input / Caption Input - ✅ PROFESSIONAL: Always visible, clear purpose */}
+            <div className="flex-1 flex flex-col min-w-0">
+              <textarea
+                ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={handleKeyPress}
+                onClick={() => {
+                  // 📱 Focus the input to open keyboard ONLY
+                  if (inputRef.current) {
+                    inputRef.current.focus();
                   }
-                  className="flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/40 border border-atlas-sand dark:border-gray-700 rounded-3xl px-4 py-3 resize-none min-h-[56px] max-h-[160px] transition-all duration-200 ease-in-out shadow-sm leading-[1.4] break-words"
-                  style={{ fontSize: '16px', borderRadius: '24px', overflowWrap: 'anywhere' }} // Prevent iOS zoom + extra rounded (matches rounded-3xl)
-                  disabled={isProcessing || disabled}
-                  autoComplete="off"
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  spellCheck="true"
-                  rows={1}
-                />
-              </div>
-            )}
+                }}
+                onBlur={handleInputBlur}
+                onFocus={handleInputFocus}
+                placeholder={
+                  attachmentPreviews.length > 0 
+                    ? "Add a caption..."  // Clear, professional placeholder
+                    : placeholder
+                }
+                className={`flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/40 border border-atlas-sand dark:border-gray-700 rounded-3xl px-4 py-3 resize-none min-h-[56px] max-h-[160px] transition-all duration-200 ease-in-out shadow-sm leading-[1.4] break-words ${
+                  attachmentPreviews.length > 0 ? 'text-sm' : ''
+                }`}
+                style={{ fontSize: '16px', borderRadius: '24px', overflowWrap: 'anywhere' }} // Prevent iOS zoom + extra rounded (matches rounded-3xl)
+                disabled={isProcessing || disabled}
+                autoComplete="off"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                spellCheck="true"
+                rows={1}
+              />
+            </div>
               {/* Character Counter - Only show when >80% used (professional, non-distracting) */}
               {showCounter && (
                 <div className={`text-right text-xs px-3 pb-1 ${

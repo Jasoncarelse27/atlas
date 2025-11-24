@@ -405,10 +405,12 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
                 />
               )}
 
-              {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
-              {isUser && messageContent && messageContent.trim() && (
-                <div className="mt-3 text-sm italic text-white">
-                  {messageContent.replace(/^"|"$/g, '')}
+              {/* ✅ Professional Caption Display - Clean, readable styling */}
+              {isUser && messageContent && messageContent.trim() && attachments.length > 0 && (
+                <div className="mt-3 px-1">
+                  <p className="text-sm text-white/90 leading-relaxed">
+                    {messageContent.replace(/^"|"$/g, '')}
+                  </p>
                 </div>
               )}
             </div>
@@ -853,10 +855,12 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
             />
           )}
 
-          {/* ✅ User Caption - Show caption text under images (only for user messages with attachments) */}
+          {/* ✅ Professional Caption Display - Clean, readable styling */}
           {isUser && messageContent && messageContent.trim() && attachments.length > 0 && (
-            <div className="mt-3 text-sm italic text-gray-300 dark:text-gray-200">
-              {messageContent.replace(/^"|"$/g, '')}
+            <div className="mt-3 px-1">
+              <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                {messageContent.replace(/^"|"$/g, '')}
+              </p>
             </div>
           )}
 
