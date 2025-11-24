@@ -14,6 +14,7 @@ import { handleLaunchUrl } from "./utils/handleLaunchUrl";
 import { useTierQuery } from "./hooks/useTierQuery";
 import { atlasDB } from "./database/atlasDB";
 import { logger } from "./lib/logger";
+import { navigateToLastConversation } from "./utils/chatNavigation";
 
 // 🚀 Route-based code splitting for better performance
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -174,12 +175,12 @@ function AutoLoadLastConversation() {
           return;
         }
 
-        // 3. No conversations → go to /chat (new chat)
-        logger.debug('[Startup] No history found — starting new conversation');
-        navigate('/chat', { replace: true });
+        // 3. No conversations → use navigateToLastConversation (will create new if needed)
+        logger.debug('[Startup] No history found — navigating to last conversation');
+        navigateToLastConversation(navigate);
       } catch (err) {
         logger.warn('[Startup] Failed to auto-load last conversation', { err });
-        navigate('/chat', { replace: true });
+        navigateToLastConversation(navigate);
       }
     })();
   }, [loading, user, navigate, location.pathname]); // ✅ FIX: Add location.pathname to deps

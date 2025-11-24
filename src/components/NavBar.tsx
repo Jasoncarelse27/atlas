@@ -1,5 +1,7 @@
 import { BarChart3, Brain, LogOut, Menu, MessageSquare, Settings, Shield, X } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { navigateToLastConversation } from "../utils/chatNavigation";
 
 interface NavBarProps {
   user?: { id: string; email?: string };
@@ -10,6 +12,15 @@ interface NavBarProps {
 
 export default function NavBar({ user, tier = "free", messageCount = 0, onLogout }: NavBarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  const handleChatClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Use navigateToLastConversation for proper navigation
+    const navigate = (path: string) => {
+      window.location.href = path;
+    };
+    navigateToLastConversation(navigate as any);
+  };
 
   const getUserInitials = () => {
     if (!user?.email) return "U";
@@ -43,8 +54,9 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
         {/* Center: Desktop Links */}
         <div className="hidden md:flex space-x-8 text-sm font-medium">
           <a 
-            href="/chat" 
-            className="flex items-center space-x-2 hover:text-[#B2BDA3] transition-colors"
+            href="/chat"
+            onClick={handleChatClick}
+            className="flex items-center space-x-2 hover:text-[#B2BDA3] transition-colors cursor-pointer"
           >
             <MessageSquare className="w-4 h-4" />
             <span>Chat</span>
@@ -142,9 +154,13 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
             {/* Navigation Links */}
             <div className="space-y-4">
               <a 
-                href="/chat" 
-                className="flex items-center space-x-3 hover:text-[#B2BDA3] transition-colors py-2"
-                onClick={() => setMobileOpen(false)}
+                href="/chat"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMobileOpen(false);
+                  handleChatClick(e);
+                }}
+                className="flex items-center space-x-3 hover:text-[#B2BDA3] transition-colors py-2 cursor-pointer"
               >
                 <MessageSquare className="w-5 h-5" />
                 <span className="text-base">Chat</span>

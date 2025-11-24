@@ -1,6 +1,7 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { getApiEndpoint } from '../utils/apiClient';
 import { fetchWithAuth } from '../utils/authFetch';
@@ -90,8 +91,8 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
             }
           }
           
-          // Redirect to dashboard after successful login
-          navigate('/chat');
+          // Redirect to last conversation after successful login
+          navigateToLastConversation(navigate);
         }
       } else {
         const { error, data } = await supabase.auth.signUp({ email, password });

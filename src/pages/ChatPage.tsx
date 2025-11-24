@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 import { toast } from 'sonner';
 // Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
 // import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
@@ -1609,9 +1610,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     const handleConversationDeleted = (event: CustomEvent) => {
       const deletedId = event.detail.conversationId;
       if (conversationId === deletedId) {
-        logger.debug('[ChatPage] 🔄 Redirecting to new chat (current conversation deleted)');
-        // ✅ FIX: Use React Router navigation instead of hard reload
-        navigate('/chat', { replace: true });
+        logger.debug('[ChatPage] 🔄 Redirecting to last conversation (current conversation deleted)');
+        // ✅ FIX: Navigate to last conversation instead of creating new one
+        navigateToLastConversation(navigate);
       }
     };
 
