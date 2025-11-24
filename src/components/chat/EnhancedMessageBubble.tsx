@@ -949,7 +949,7 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
                     const textToShare = displayedText || messageContent;
                     if (navigator.share) {
                       await navigator.share({
-                        title: 'Atlas AI Response',
+                        title: 'Atlas Response',
                         text: textToShare,
                         url: window.location.href
                       });

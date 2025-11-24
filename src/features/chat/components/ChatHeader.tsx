@@ -27,7 +27,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               <Brain className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-atlas-sage to-atlas-stone bg-clip-text text-transparent">
-              Atlas AI
+              Atlas
             </span>
           </div>
 

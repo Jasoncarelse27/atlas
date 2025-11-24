@@ -312,7 +312,7 @@ const AuthPage = () => {
         <div className="text-center">
           <img
             src="/atlas-logo.png"
-            alt="Atlas AI Logo"
+            alt="Atlas Logo"
             className="mx-auto mb-4 h-16 w-16"
           />
           <h1 className="text-2xl font-bold text-[#3B3632] dark:text-white">Atlas</h1>

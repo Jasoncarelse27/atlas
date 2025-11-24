@@ -46,7 +46,7 @@ const QuickStartSuggestions: React.FC<QuickStartSuggestionsProps> = ({
           <Sparkles className="w-5 h-5 text-purple-600" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Get Started with Atlas AI
+          Get Started with Atlas
         </h3>
         <p className="text-sm text-gray-600">
           Try these suggestions to explore what Atlas can do for you

@@ -1,7 +1,7 @@
 import { logger } from './logger';
 
 /**
- * Atlas AI Error Logger
+ * Atlas Error Logger
  * Centralized error logging with context and optional external service integration
  */
 

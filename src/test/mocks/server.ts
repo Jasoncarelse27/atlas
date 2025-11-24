@@ -206,7 +206,7 @@ export const mockData = {
   email: {
     welcome: {
       id: 'mock-welcome-email-id',
-      subject: 'Welcome to Atlas AI',
+      subject: 'Welcome to Atlas',
       status: 'sent',
     },
     upgradeNudge: {

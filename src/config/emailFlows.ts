@@ -1,7 +1,7 @@
 // src/config/emailFlows.ts
 export const EMAIL_FLOWS = {
   welcome: {
-    subject: "Welcome to Atlas AI 🌱",
+    subject: "Welcome to Atlas 🌱",
     templateId: "atlas-welcome-template",
   },
   upgrade: {

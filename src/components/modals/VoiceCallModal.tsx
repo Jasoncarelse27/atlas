@@ -1,5 +1,5 @@
 // 🎙️ Voice Call Modal - Studio Tier Exclusive Feature
-// Real-time voice conversation with Atlas AI
+// Real-time voice conversation with Atlas
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Copy, Mic, MicOff, Phone, PhoneOff, Settings, Volume2, X } from 'lucide-react';

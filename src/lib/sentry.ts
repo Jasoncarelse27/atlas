@@ -1,7 +1,7 @@
 import { logger } from './logger';
 
 /**
- * Atlas AI Sentry Integration
+ * Atlas Sentry Integration
  * Error monitoring and performance tracking with Sentry.io
  */
 

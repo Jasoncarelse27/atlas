@@ -2777,7 +2777,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
         {/* ✅ MODAL-AWARE: Check if any modals are open */}
         {(() => {
-          const hasOpenModal = sidebarOpen || showHistory || showProfile || showSearch || genericModalVisible;
+          const hasOpenModal = sidebarOpen || showHistory || showProfile || showSearch || genericModalVisible || showQuestionnaire;
           
           return (
             <>

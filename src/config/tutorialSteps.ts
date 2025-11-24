@@ -72,9 +72,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     offset: {
       desktop: { y: -10 },
       mobile: { y: -10 }
-    },
-    tierAware: true,
-    requiredTier: 'core' // Only show if user can't access these features
+    }
+    // ✅ FIX: Removed tierAware - step 4 shows to all new users as informational
   },
   {
     id: 'complete',
@@ -90,22 +89,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
 
 /**
  * Get tutorial steps filtered by tier
- * Removes tier-aware steps if user already has access
+ * ✅ FIX: Step 4 is now informational for all users, so all 5 steps always show
  */
 export function getTutorialStepsForTier(tier: 'free' | 'core' | 'studio'): TutorialStep[] {
-  return TUTORIAL_STEPS.filter(step => {
-    // If step is tier-aware and user has required tier, skip it
-    if (step.tierAware && step.requiredTier) {
-      const tierLevels = { free: 0, core: 1, studio: 2 };
-      const userTierLevel = tierLevels[tier];
-      const requiredTierLevel = tierLevels[step.requiredTier];
-      
-      // Skip if user already has access to the feature
-      if (userTierLevel >= requiredTierLevel) {
-        return false;
-      }
-    }
-    return true;
-  });
+  // ✅ FIX: Return all steps - step 4 is informational for everyone
+  return TUTORIAL_STEPS;
 }
 

@@ -121,10 +121,10 @@ vi.mock('../services/mailerService', () => ({
     }),
     // Template generation functions
     generateWelcomeEmailHTML: vi.fn().mockImplementation((data) => 
-      `<!DOCTYPE html><html><body><h1>Welcome to Atlas AI</h1><p>Hello ${data.name}!</p></body></html>`
+      `<!DOCTYPE html><html><body><h1>Welcome to Atlas</h1><p>Hello ${data.name}!</p></body></html>`
     ),
     generateWelcomeEmailText: vi.fn().mockImplementation((data) => 
-      `Welcome to Atlas AI\nHello ${data.name}!`
+      `Welcome to Atlas\nHello ${data.name}!`
     ),
     generateWeeklySummaryHTML: vi.fn().mockImplementation((data, summaryData) => 
       `<!DOCTYPE html><html><body><h1>Your Atlas Weekly Insight</h1><p>Hello ${data.name}!</p><p>Messages: ${summaryData?.messages || 25}</p><p>Focus: ${summaryData?.focus || 'AI Development'}</p></body></html>`
@@ -320,7 +320,7 @@ describe('MailerService Tests', () => {
         name: 'Test User',
       });
 
-      expect(html).toContain('Welcome to Atlas AI');
+      expect(html).toContain('Welcome to Atlas');
       expect(html).toContain('Test User');
       expect(html).toContain('<!DOCTYPE html>');
     });
@@ -331,7 +331,7 @@ describe('MailerService Tests', () => {
         name: 'Test User',
       });
 
-      expect(text).toContain('Welcome to Atlas AI');
+      expect(text).toContain('Welcome to Atlas');
       expect(text).toContain('Test User');
     });
 

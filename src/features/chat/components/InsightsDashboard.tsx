@@ -99,7 +99,7 @@ const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Conversation Insights</h2>
-                <p className="text-sm text-gray-600">Your Atlas AI usage analytics</p>
+                <p className="text-sm text-gray-600">Your Atlas usage analytics</p>
               </div>
             </div>
             <button

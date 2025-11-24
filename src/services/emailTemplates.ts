@@ -2,10 +2,10 @@ export function generateWelcomeEmailHTML({ name }: { name: string }) {
   return `<!DOCTYPE html>
 <html>
 <head>
-  <title>Welcome to Atlas AI</title>
+  <title>Welcome to Atlas</title>
 </head>
 <body>
-  <h1>Welcome to Atlas AI, ${name}!</h1>
+  <h1>Welcome to Atlas, ${name}!</h1>
   <p>We're excited to have you join our community of emotionally intelligent AI users.</p>
   <p>Get started by exploring your dashboard and taking your first EQ challenge.</p>
 </body>
@@ -13,14 +13,14 @@ export function generateWelcomeEmailHTML({ name }: { name: string }) {
 }
 
 export function generateWelcomeEmailText({ name }: { name: string }) {
-  return `Welcome to Atlas AI, ${name}!
+  return `Welcome to Atlas, ${name}!
 
 We're excited to have you join our community of emotionally intelligent AI users.
 
 Get started by exploring your dashboard and taking your first EQ challenge.
 
 Best regards,
-The Atlas AI Team`;
+The Atlas Team`;
 }
 
 export function generateWeeklySummaryHTML({ name }: { name: string }, summaryData?: { messageCount?: number; topTopics?: string[] }) {
@@ -57,5 +57,5 @@ Here's what happened this week:
 Keep up the great work on your emotional intelligence journey!
 
 Best regards,
-The Atlas AI Team`;
+The Atlas Team`;
 }

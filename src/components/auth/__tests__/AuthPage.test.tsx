@@ -191,7 +191,7 @@ describe('AuthPage', () => {
     it('displays Atlas logo', () => {
       renderWithRouter(<AuthPage />);
       
-      const logo = screen.getByAltText('Atlas AI Logo');
+      const logo = screen.getByAltText('Atlas Logo');
       expect(logo).toBeInTheDocument();
       expect(logo).toHaveAttribute('src', '/atlas-logo.png');
     });
