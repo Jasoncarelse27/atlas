@@ -24,6 +24,8 @@ import cooldownMiddleware from './middleware/cooldownMiddleware.mjs';
 import dailyLimitMiddleware from './middleware/dailyLimitMiddleware.mjs';
 import { imageAnalysisRateLimit, messageRateLimit } from './middleware/rateLimitMiddleware.mjs';
 import tierGateMiddleware from './middleware/tierGateMiddleware.mjs';
+import { handleFastSpringWebhook } from './services/fastspringWebhookService.mjs';
+import { handleMailerLiteWebhook } from './services/mailerLiteWebhookService.mjs';
 import { processMessage } from './services/messageService.js';
 import { notificationService } from './services/notificationService.mjs';
 import { buildSmarterPrompt } from './services/promptOrchestrator.mjs';
@@ -31,8 +33,6 @@ import { redisService } from './services/redisService.mjs';
 import { cleanAIResponse } from './services/textCleaner.mjs';
 import { getUserTierSafe } from './services/tierService.mjs';
 import { createQueryTimeout } from './utils/queryTimeout.mjs';
-import { handleFastSpringWebhook } from './services/fastspringWebhookService.mjs';
-import { handleMailerLiteWebhook } from './services/mailerLiteWebhookService.mjs';
 
 // ✅ CRITICAL: Handle uncaught exceptions and rejections
 // This prevents Railway from killing the container on unhandled errors
@@ -5221,12 +5221,58 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
     }
 
     const apiUrl = 'https://api.mailerlite.com/api/v2';
+    
+    // ✅ FIX: Map group names to group IDs (MailerLite V2 requires numeric IDs)
+    // Get IDs from MailerLite dashboard: Groups → Click group → URL shows ID
+    const GROUP_ID_MAP = {
+      'atlas_free_users': process.env.MAILERLITE_GROUP_FREE_ID || null,
+      'core_subscribers': process.env.MAILERLITE_GROUP_CORE_ID || null,
+      'studio_subscribers': process.env.MAILERLITE_GROUP_STUDIO_ID || null,
+      'atlas_upgrade_ready': process.env.MAILERLITE_GROUP_UPGRADE_READY_ID || null,
+    };
+    
+    // ✅ FIX: Helper function to get group ID from name (with API fallback)
+    const getGroupId = async (groupName) => {
+      // First check environment variable map
+      if (GROUP_ID_MAP[groupName]) {
+        return GROUP_ID_MAP[groupName];
+      }
+      
+      // If not in map, fetch from MailerLite API
+      try {
+        logger.debug(`[MailerLite Proxy] Fetching group ID for ${groupName} from API...`);
+        const groupsResponse = await fetch(`${apiUrl}/groups`, {
+          headers: {
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+        });
+        
+        if (groupsResponse.ok) {
+          const groups = await groupsResponse.json();
+          const group = groups.data?.find(g => g.name === groupName);
+          if (group) {
+            logger.debug(`[MailerLite Proxy] ✅ Found group ID for ${groupName}: ${group.id}`);
+            return group.id;
+          } else {
+            logger.warn(`[MailerLite Proxy] ⚠️ Group ${groupName} not found in MailerLite`);
+          }
+        } else {
+          const errorData = await groupsResponse.json().catch(() => ({}));
+          logger.warn(`[MailerLite Proxy] Failed to fetch groups: ${groupsResponse.status} - ${errorData.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        logger.warn(`[MailerLite Proxy] Error fetching group ID for ${groupName}:`, error);
+      }
+      
+      return null;
+    };
+    
     let response;
     let result;
 
     switch (operation) {
       case 'createOrUpdateSubscriber': {
-        const { email, name, tier, conversations_today, total_conversations, last_active, signup_date, subscription_status, custom_fields } = data;
+        const { email, name, tier, conversations_today, total_conversations, last_active, signup_date, subscription_status, custom_fields, groupName } = data;
         
         if (!email) {
           return res.status(400).json({ error: 'Missing required field: email' });
@@ -5247,6 +5293,7 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           resubscribe: true,
         };
 
+        // ✅ FIX: Create/update subscriber first
         response = await fetch(`${apiUrl}/subscribers`, {
           method: 'POST',
           headers: {
@@ -5255,6 +5302,44 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           },
           body: JSON.stringify(subscriberData),
         });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`MailerLite subscriber creation failed: ${response.status} - ${errorData.message || 'Unknown error'}`);
+        }
+
+        result = await response.json().catch(() => ({}));
+        
+        // ✅ FIX: Automatically add to group if groupName is provided
+        if (groupName) {
+          const groupId = await getGroupId(groupName);
+          if (groupId) {
+            try {
+              const groupResponse = await fetch(`${apiUrl}/groups/${groupId}/subscribers`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+                },
+                body: JSON.stringify({ email }),
+              });
+              
+              if (!groupResponse.ok) {
+                const groupError = await groupResponse.json().catch(() => ({}));
+                logger.warn(`[MailerLite Proxy] ⚠️ Failed to add ${email} to group ${groupName} (ID: ${groupId}): ${groupResponse.status} - ${groupError.message || 'Unknown error'}`);
+                // Don't throw - subscriber was created successfully, group add is secondary
+              } else {
+                logger.debug(`[MailerLite Proxy] ✅ Added ${email} to group ${groupName} (ID: ${groupId})`);
+              }
+            } catch (groupError) {
+              logger.warn(`[MailerLite Proxy] Error adding ${email} to group ${groupName}:`, groupError);
+              // Don't throw - subscriber was created successfully
+            }
+          } else {
+            logger.warn(`[MailerLite Proxy] ⚠️ Group ${groupName} not found - subscriber created but not added to group. Check group name or set MAILERLITE_GROUP_*_ID env vars.`);
+          }
+        }
+        
         break;
       }
 
@@ -5308,7 +5393,19 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           return res.status(400).json({ error: 'Missing required fields: email, groupName' });
         }
 
-        response = await fetch(`${apiUrl}/groups/${encodeURIComponent(groupName)}/subscribers`, {
+        // ✅ FIX: Get group ID from name
+        const groupId = await getGroupId(groupName);
+        if (!groupId) {
+          logger.error(`[MailerLite Proxy] ❌ Group ${groupName} not found - cannot add subscriber`);
+          return res.status(404).json({ 
+            success: false,
+            error: `Group ${groupName} not found`,
+            details: 'Check group name or set MAILERLITE_GROUP_*_ID environment variable'
+          });
+        }
+
+        // ✅ FIX: Use group ID instead of group name
+        response = await fetch(`${apiUrl}/groups/${groupId}/subscribers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -5326,7 +5423,19 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           return res.status(400).json({ error: 'Missing required fields: email, groupName' });
         }
 
-        response = await fetch(`${apiUrl}/groups/${encodeURIComponent(groupName)}/subscribers/${encodeURIComponent(email)}`, {
+        // ✅ FIX: Get group ID from name
+        const groupId = await getGroupId(groupName);
+        if (!groupId) {
+          // Don't fail - group might not exist, subscriber already not in group
+          logger.debug(`[MailerLite Proxy] Group ${groupName} not found - assuming subscriber already not in group`);
+          return res.json({ 
+            success: true, 
+            message: `Group ${groupName} not found - subscriber already not in group` 
+          });
+        }
+
+        // ✅ FIX: Use group ID instead of group name
+        response = await fetch(`${apiUrl}/groups/${groupId}/subscribers/${encodeURIComponent(email)}`, {
           method: 'DELETE',
           headers: {
             'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
@@ -5350,14 +5459,12 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
         });
       }
       
-      // Don't fail on 404 for segmentSubscriber (group might not exist)
-      if (operation === 'segmentSubscriber' && response.status === 404) {
-        logger.debug(`[MailerLite Proxy] Group ${data.groupName} not found - skipping`);
-        return res.json({ 
-          success: false, 
-          message: `Group ${data.groupName} not found` 
-        });
-      }
+      // ✅ FIX: Better error logging for debugging
+      logger.error(`[MailerLite Proxy] ❌ MailerLite API error for ${operation}: ${response.status} - ${errorData.message || 'Unknown error'}`, {
+        operation,
+        status: response.status,
+        error: errorData
+      });
 
       throw new Error(`MailerLite API error: ${response.status} - ${errorData.message || 'Unknown error'}`);
     }

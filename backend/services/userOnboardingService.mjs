@@ -108,24 +108,78 @@ export async function syncMailerLiteOnSignup(userId) {
       logger.debug('[UserOnboarding] MailerLite event update failed (non-critical):', error);
     });
 
-    // Add to new_users group
+    // ✅ FIX: Add to tier-specific group (using group IDs)
     const tierGroups = {
       free: 'atlas_free_users',
       core: 'core_subscribers',
       studio: 'studio_subscribers',
     };
 
+    // ✅ FIX: Helper to get group ID from name
+    const getGroupId = async (groupName) => {
+      // Check environment variables first
+      const GROUP_ID_MAP = {
+        'atlas_free_users': process.env.MAILERLITE_GROUP_FREE_ID,
+        'core_subscribers': process.env.MAILERLITE_GROUP_CORE_ID,
+        'studio_subscribers': process.env.MAILERLITE_GROUP_STUDIO_ID,
+      };
+      
+      if (GROUP_ID_MAP[groupName]) {
+        return GROUP_ID_MAP[groupName];
+      }
+      
+      // Fallback: fetch from API
+      try {
+        const groupsResponse = await fetch('https://api.mailerlite.com/api/v2/groups', {
+          headers: {
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+        });
+        
+        if (groupsResponse.ok) {
+          const groups = await groupsResponse.json();
+          const group = groups.data?.find(g => g.name === groupName);
+          if (group) {
+            logger.debug(`[UserOnboarding] Found group ID for ${groupName}: ${group.id}`);
+            return group.id;
+          }
+        }
+      } catch (error) {
+        logger.debug(`[UserOnboarding] Failed to fetch group ID for ${groupName}:`, error);
+      }
+      
+      return null;
+    };
+
     if (tierGroups[tier]) {
-      await fetch(`https://api.mailerlite.com/api/v2/groups/${tierGroups[tier]}/subscribers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
-        },
-        body: JSON.stringify({ email }),
-      }).catch(error => {
-        logger.debug('[UserOnboarding] MailerLite group add failed (non-critical):', error);
-      });
+      const groupName = tierGroups[tier];
+      const groupId = await getGroupId(groupName);
+      
+      if (groupId) {
+        // ✅ FIX: Use group ID instead of group name
+        await fetch(`https://api.mailerlite.com/api/v2/groups/${groupId}/subscribers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+          body: JSON.stringify({ email }),
+        }).then(response => {
+          if (!response.ok) {
+            return response.json().then(errorData => {
+              logger.warn(`[UserOnboarding] MailerLite group add failed: ${response.status}`, errorData);
+            }).catch(() => {
+              logger.warn(`[UserOnboarding] MailerLite group add failed: ${response.status}`);
+            });
+          } else {
+            logger.debug(`[UserOnboarding] ✅ Added ${email} to group ${groupName} (ID: ${groupId})`);
+          }
+        }).catch(error => {
+          logger.debug('[UserOnboarding] MailerLite group add failed (non-critical):', error);
+        });
+      } else {
+        logger.warn(`[UserOnboarding] ⚠️ Group ${groupName} not found - subscriber created but not added to group. Set MAILERLITE_GROUP_*_ID env vars.`);
+      }
     }
 
     logger.debug(`[UserOnboarding] ✅ MailerLite synced for new user ${email}`);

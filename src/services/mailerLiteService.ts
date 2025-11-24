@@ -72,6 +72,14 @@ class MailerLiteService {
         return;
       }
 
+      // ✅ FIX: Determine group name based on tier for automatic group assignment
+      const tierGroups: Record<string, string> = {
+        'free': 'atlas_free_users',
+        'core': 'core_subscribers',
+        'studio': 'studio_subscribers',
+      };
+      const groupName = tierGroups[data.tier || 'free'];
+
       const response = await fetch(getApiEndpoint('/api/mailerlite/proxy'), {
           method: 'POST',
           headers: {
@@ -90,6 +98,7 @@ class MailerLiteService {
             signup_date: data.signup_date,
             subscription_status: data.subscription_status,
             custom_fields: data.custom_fields,
+            groupName: groupName, // ✅ FIX: Include groupName so backend adds to group automatically
           },
         }),
       });
@@ -105,7 +114,7 @@ class MailerLiteService {
         throw new Error(result.details || result.message || `MailerLite API error: ${response.status}`);
       }
 
-      logger.debug(`[MailerLite] ✅ Subscriber ${data.email} synced successfully`);
+      logger.debug(`[MailerLite] ✅ Subscriber ${data.email} synced successfully and added to ${groupName}`);
     } catch (error) {
       logger.error('[MailerLite] Failed to sync subscriber:', error);
       // Don't throw - MailerLite failures shouldn't break the app

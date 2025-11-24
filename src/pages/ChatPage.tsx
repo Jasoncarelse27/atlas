@@ -157,12 +157,17 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // Track current date and update when day changes
   const [currentDate, setCurrentDate] = useState<string>(initialDateString);
   
+  // ✅ FIX: Use ref to track last checked date (prevents infinite loop)
+  const lastCheckedDateRef = useRef<string>(initialDateString);
+  
   // ✅ Update date when day changes (for proper cache invalidation)
   useEffect(() => {
     const checkDateChange = () => {
       const today = new Date().toISOString().split('T')[0];
-      if (today !== currentDate) {
-        logger.debug(`[ChatPage] Date changed: ${currentDate} → ${today}, invalidating dailyUsage cache`);
+      // ✅ FIX: Compare with ref instead of state to prevent infinite loop
+      if (today !== lastCheckedDateRef.current) {
+        logger.debug(`[ChatPage] Date changed: ${lastCheckedDateRef.current} → ${today}, invalidating dailyUsage cache`);
+        lastCheckedDateRef.current = today;
         setCurrentDate(today);
       }
     };
@@ -173,7 +178,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     // Check every minute (catches day changes at midnight)
     const interval = setInterval(checkDateChange, 60000);
     return () => clearInterval(interval);
-  }, [currentDate]);
+  }, []); // ✅ FIX: Empty dependency array - effect runs once on mount, interval handles updates
   
   // ✅ Daily conversation tracking for MailerLite integration
   const { data: dailyUsage } = useQuery({
