@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import type { SoundType } from '../hooks/useSoundEffects';
 import type { UserProfile } from '../types/subscription';
 import { TIER_CONFIGS as TIER_CONFIGS_IMPORT } from '../types/subscription';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 import StatusIndicator from './StatusIndicator';
 import SubscriptionBadge from './SubscriptionBadge';
 import ThemeToggle from './ThemeToggle';
@@ -375,16 +376,16 @@ const SideMenu: React.FC<SideMenuProps> = ({
                  <h3 className="text-sm font-medium text-[#8B7E74] dark:text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h3>
                 <div className="space-y-2">
                   <button
-                    onClick={() => handleAction(() => {
-                      // ✅ FIX: Use React Router navigation instead of hard reload
-                      navigate('/chat', { replace: true });
+                    onClick={() => handleAction(async () => {
+                      // ✅ FIX: Navigate to last conversation instead of always starting new chat
+                      await navigateToLastConversation(navigate);
                     })}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white bg-[#8FA67E] hover:bg-[#7E9570] transition-colors"
                   >
                     <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
-                      <span className="text-xl text-white">+</span>
+                      <MessageSquare className="w-5 h-5 text-white" />
                     </div>
-                    <span className="font-medium">Start New Chat</span>
+                    <span className="font-medium">Chat</span>
                   </button>
                   
                   <button
