@@ -167,6 +167,9 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
                     gdpr_accepted: gdprAccepted,
                     marketing_opt_in: marketingOptIn,
                   }
+                }).then(() => {
+                  // Add to free users group to trigger welcome email automation
+                  return mailerLiteService.segmentSubscriber(data.user.email!, 'atlas_free_users');
                 }).catch(() => {
                   // Silent catch - fallback attempt
                 });
