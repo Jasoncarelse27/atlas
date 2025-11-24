@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, Search, Sparkles, X } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -148,13 +148,40 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ Tier refresh on focus/visibility (cross-device sync)
   useTierRefreshOnFocus();
   
+  // ✅ FIX: Stable date string for queryKey (prevents infinite re-render loop)
+  // Memoize initial date calculation
+  const initialDateString = useMemo(() => {
+    return new Date().toISOString().split('T')[0];
+  }, []);
+  
+  // Track current date and update when day changes
+  const [currentDate, setCurrentDate] = useState<string>(initialDateString);
+  
+  // ✅ Update date when day changes (for proper cache invalidation)
+  useEffect(() => {
+    const checkDateChange = () => {
+      const today = new Date().toISOString().split('T')[0];
+      if (today !== currentDate) {
+        logger.debug(`[ChatPage] Date changed: ${currentDate} → ${today}, invalidating dailyUsage cache`);
+        setCurrentDate(today);
+      }
+    };
+    
+    // Check immediately
+    checkDateChange();
+    
+    // Check every minute (catches day changes at midnight)
+    const interval = setInterval(checkDateChange, 60000);
+    return () => clearInterval(interval);
+  }, [currentDate]);
+  
   // ✅ Daily conversation tracking for MailerLite integration
   const { data: dailyUsage } = useQuery({
-    queryKey: ['dailyUsage', userId, new Date().toISOString().split('T')[0]],
+    queryKey: ['dailyUsage', userId, currentDate], // ✅ Stable queryKey - only changes when date actually changes
     queryFn: async () => {
       if (!userId) return 0;
       
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0]; // ✅ Still calculate inside queryFn for accuracy
       const { data, error } = await supabase
         .from('daily_usage')
         .select('conversations_count')
