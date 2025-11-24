@@ -4,6 +4,7 @@
  */
 
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useFeatureAccess } from '@/hooks/useTierAccess';
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { logger } from '@/lib/logger';
 import { Shield, Snowflake, Check } from 'lucide-react';
@@ -14,6 +15,7 @@ import { format } from 'date-fns';
 
 export const StreakFreeze: React.FC = () => {
   const { userId, tier } = useTierQuery();
+  const { canUse: canUseAudio } = useFeatureAccess('audio');
   const { showGenericUpgrade } = useUpgradeModals();
   const [canUseFreeze, setCanUseFreeze] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export const StreakFreeze: React.FC = () => {
   }, [userId]);
 
   const handleUseFreeze = async () => {
-    if (tier === 'free') {
+    if (!canUseAudio) {
       showGenericUpgrade('audio');
       return;
     }
@@ -74,8 +76,8 @@ export const StreakFreeze: React.FC = () => {
 
   if (loading) return null;
 
-  // Free tier sees upgrade prompt
-  if (tier === 'free') {
+  // ✅ FIX: Use feature access check instead of hardcoded tier check
+  if (!canUseAudio) {
     return (
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 mb-4 border border-blue-200/50">
         <div className="flex items-center justify-between">

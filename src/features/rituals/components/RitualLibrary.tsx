@@ -14,6 +14,7 @@ import '../styles/mobile.css';
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useMobileOptimization } from '@/hooks/useMobileOptimization';
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useFeatureAccess } from '@/hooks/useTierAccess';
 import { useContextualUpgrade } from '@/hooks/useContextualUpgrade';
 import { logger } from '@/lib/logger';
 import { getDisplayPrice } from '@/config/pricing';
@@ -35,6 +36,8 @@ import { StreakPrediction } from './StreakPrediction';
 export const RitualLibrary: React.FC = () => {
   const navigate = useNavigate();
   const { tier, userId } = useTierQuery();
+  // ✅ FIX: Use feature access check instead of hardcoded tier check
+  const { canUse: canUseAudio } = useFeatureAccess('audio');
   const { showGenericUpgrade } = useUpgradeModals();
   const { showLockedRitualPrompt } = useContextualUpgrade();
   const { presets, userRituals, loading, loadPresets, loadUserRituals, deleteRitual } = useRitualStore();
@@ -212,7 +215,7 @@ export const RitualLibrary: React.FC = () => {
 
   const handleCreateRitual = () => {
     triggerHaptic(50); // Medium haptic
-    if (tier === 'free') {
+    if (!canUseAudio) {
       showGenericUpgrade('audio');
     } else {
       // Navigate to builder (Phase 3)

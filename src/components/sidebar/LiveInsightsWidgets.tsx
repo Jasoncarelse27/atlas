@@ -18,6 +18,7 @@ import { Flame, TrendingUp, CheckCircle2, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { logger } from '@/lib/logger';
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useFeatureAccess } from '@/hooks/useTierAccess';
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { ritualAnalyticsService, type StreakData, type CompletionStats } from '@/features/rituals/services/ritualAnalyticsService';
 import { insightsGenerator } from '@/features/rituals/services/insightsGenerator';
@@ -42,6 +43,8 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
   logger.debug('[LiveInsightsWidgets] Component rendered:', { userId, isOpen });
   
   const { tier } = useTierQuery();
+  // ✅ FIX: Use feature access check - insights require Core+ (audio feature)
+  const { canUse: canUseInsights } = useFeatureAccess('audio');
   const { showGenericUpgrade } = useUpgradeModals();
   
   // ✅ DEBUG
@@ -126,8 +129,8 @@ export function LiveInsightsWidgets({ userId, isOpen }: LiveInsightsWidgetsProps
     };
   }, [isOpen, userId]);
 
-  // ✅ TIER GATING: Free users see upgrade prompt (profitable conversion opportunity!)
-  if (tier === 'free') {
+  // ✅ FIX: Use feature access check instead of hardcoded tier check
+  if (!canUseInsights) {
     return (
       <div className="mb-4 px-3 sm:px-4">
         <div 

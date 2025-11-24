@@ -12,6 +12,7 @@
 
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useFeatureAccess } from '@/hooks/useTierAccess';
 import { logger } from '@/lib/logger';
 import { format, subDays } from 'date-fns';
 import { BarChart3, Brain, Sparkles } from 'lucide-react';
@@ -48,6 +49,8 @@ const GOAL_COLORS: Record<string, string> = {
 
 export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWidgetsProps) {
   const { tier } = useTierQuery();
+  // ✅ FIX: Use feature access check - insights require Core+ (audio feature)
+  const { canUse: canUseInsights } = useFeatureAccess('audio');
   const { showGenericUpgrade } = useUpgradeModals();
   
   const [widgetData, setWidgetData] = useState<WidgetData>({
@@ -117,8 +120,8 @@ export function EmotionalInsightsWidgets({ userId, isOpen }: EmotionalInsightsWi
     };
   }, [isOpen, userId]);
 
-  // ✅ TIER GATING: Free users see upgrade prompt
-  if (tier === 'free') {
+  // ✅ FIX: Use feature access check instead of hardcoded tier check
+  if (!canUseInsights) {
     return (
       <div className="bg-transparent border-transparent p-4 rounded-xl">
         <div className="flex items-center gap-2 mb-3">

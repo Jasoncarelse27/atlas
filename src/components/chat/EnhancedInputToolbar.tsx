@@ -1584,7 +1584,7 @@ const EnhancedInputToolbar = React.memo(({
         {/* ✅ FIX: Prevent button grouping during upload with proper spacing and min-width */}
         <div className="flex items-center gap-3 flex-shrink-0 min-w-fit">
               {/* ✅ PROFESSIONAL MICROPHONE BUTTON: Enhanced UX with clear states */}
-              {isVoiceSupported && canUseAudio && (tier === 'core' || tier === 'studio') && (
+              {isVoiceSupported && canUseAudio && (
               <motion.button
                 key="voice-recording-button"
                 ref={micButtonRef}

@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { useAndroidKeyboard } from '../../../hooks/useAndroidKeyboard';
 import { getDisplayPrice } from '../../../config/pricing';
+import { useFeatureAccess } from '../../../hooks/useTierAccess';
 import { useRitualBuilder } from '../hooks/useRitualBuilder';
 import { useRitualBuilderShortcuts } from '../hooks/useRitualBuilderShortcuts';
 import { getQuickStartTemplate } from '../services/ritualSuggestions';
@@ -331,6 +332,9 @@ export const RitualBuilder: React.FC = () => {
     triggerHaptic,
   } = useRitualBuilder();
 
+  // ✅ FIX: Use centralized feature access instead of hardcoded tier check
+  const { canUse: canUseAudio } = useFeatureAccess('audio');
+
   // ✅ PHASE 1: Delete confirmation state
   const [stepToDelete, setStepToDelete] = useState<RitualStep | null>(null);
   
@@ -441,8 +445,8 @@ export const RitualBuilder: React.FC = () => {
     );
   }
 
-  // Tier gate
-  if (tier === 'free') {
+  // ✅ FIX: Use feature access check instead of hardcoded tier check
+  if (!canUseAudio) {
     return (
       <div className="min-h-screen bg-[#F9F6F1] dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl border-2 border-[#E8DCC8] dark:border-gray-700 p-8 text-center">
@@ -557,7 +561,7 @@ export const RitualBuilder: React.FC = () => {
 
           <div className="flex items-center gap-2 sm:gap-3">
             {/* ✅ Insights Button - Show for Core/Studio tiers */}
-            {tier !== 'free' && (
+            {canUseAudio && (
               <button
                 onClick={() => {
                   triggerHaptic(10);

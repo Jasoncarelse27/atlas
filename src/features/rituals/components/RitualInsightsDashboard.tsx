@@ -6,6 +6,7 @@
 import { useUpgradeModals } from '@/contexts/UpgradeModalContext';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useFeatureAccess } from '@/hooks/useTierAccess';
 import { logger } from '@/lib/logger';
 import { getDisplayPrice } from '@/config/pricing';
 import { format, subDays } from 'date-fns';
@@ -54,6 +55,8 @@ export const RitualInsightsDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSupabaseAuth();
   const { tier } = useTierQuery();
+  // ✅ FIX: Use feature access check - insights require Core+ (audio feature)
+  const { canUse: canUseInsights } = useFeatureAccess('audio');
   const { showGenericUpgrade } = useUpgradeModals();
 
   const [loading, setLoading] = useState(true);
@@ -63,8 +66,8 @@ export const RitualInsightsDashboard: React.FC = () => {
   const [insights, setInsights] = useState<PersonalInsight[]>([]);
   const [avgMoodImprovement, setAvgMoodImprovement] = useState(0);
 
-  // Tier gate for Free users
-  if (tier === 'free') {
+  // ✅ FIX: Use feature access check instead of hardcoded tier check
+  if (!canUseInsights) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl border-2 border-[#E8DCC8] dark:border-gray-700 p-8 text-center">
