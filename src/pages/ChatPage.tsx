@@ -1940,6 +1940,56 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     }
   }, [searchParams, conversationId, userId, navigate]); // ✅ FIX: navigate is stable, loadMessages is stable callback
 
+  // ✅ FIX: Load last conversation if URL has no conversation param and userId is ready
+  useEffect(() => {
+    const urlConversationId = searchParams.get('conversation');
+    
+    // Only run if:
+    // 1. No conversation in URL
+    // 2. No conversationId in state
+    // 3. userId is available
+    if (!urlConversationId && !conversationId && userId) {
+      logger.debug('[ChatPage] 🔍 No conversation in URL, loading last conversation...');
+      
+      (async () => {
+        try {
+          // Try localStorage first (fastest)
+          const lastId = localStorage.getItem('atlas:lastConversationId');
+          if (lastId) {
+            logger.debug('[ChatPage] ✅ Found last conversation in localStorage:', lastId);
+            navigate(`/chat?conversation=${lastId}`, { replace: true });
+            return;
+          }
+          
+          // Try Dexie appState
+          const last = await atlasDB.appState.get('lastOpenedConversationId');
+          if (last?.value) {
+            logger.debug('[ChatPage] ✅ Found last conversation in Dexie:', last.value);
+            navigate(`/chat?conversation=${last.value}`, { replace: true });
+            return;
+          }
+          
+          // Try most recent conversation from Dexie
+          const lastConv = await atlasDB.conversations
+            .where('userId')
+            .equals(userId)
+            .sortBy('updatedAt')
+            .then(convs => convs.length > 0 ? convs[convs.length - 1] : null);
+          
+          if (lastConv?.id) {
+            logger.debug('[ChatPage] ✅ Found most recent conversation:', lastConv.id);
+            navigate(`/chat?conversation=${lastConv.id}`, { replace: true });
+            return;
+          }
+          
+          logger.debug('[ChatPage] ⚠️ No last conversation found, showing new chat');
+        } catch (error) {
+          logger.error('[ChatPage] ❌ Failed to load last conversation:', error);
+        }
+      })();
+    }
+  }, [searchParams, conversationId, userId, navigate]);
+
   // ✅ MOBILE FIX: Also listen to popstate for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
