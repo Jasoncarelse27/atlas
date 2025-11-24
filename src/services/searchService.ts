@@ -29,8 +29,11 @@ export async function searchMessages(
     const searchTerm = query.trim();
     logger.debug('[SearchService] Searching for:', searchTerm);
 
-    // Build Supabase query - search in both message content and conversation titles
-    let supabaseQuery = supabase
+    // ✅ FIX: PostgREST doesn't support nested relations in `or` clause
+    // Split into two queries: messages by content + conversations by title
+    
+    // Step 1: Search messages by content (original working query)
+    let messagesQuery = supabase
       .from('messages')
       .select(`
         id,
@@ -43,22 +46,85 @@ export async function searchMessages(
         )
       `)
       .eq('user_id', userId)
-      .is('deleted_at', null) // Filter out deleted messages
-      .or(`content.ilike.%${searchTerm}%,conversations.title.ilike.%${searchTerm}%`) // Search in both content and title
+      .is('deleted_at', null)
+      .ilike('content', `%${searchTerm}%`) // ✅ FIX: Search content only
       .order('created_at', { ascending: false })
       .limit(50);
 
     // Optional: Filter by specific conversation
     if (conversationId) {
-      supabaseQuery = supabaseQuery.eq('conversation_id', conversationId);
+      messagesQuery = messagesQuery.eq('conversation_id', conversationId);
     }
 
-    const { data, error } = await supabaseQuery;
+    const { data: messagesData, error: messagesError } = await messagesQuery;
 
-    if (error) {
-      logger.error('[SearchService] Search failed:', error);
-      throw error;
+    if (messagesError) {
+      logger.error('[SearchService] Messages search failed:', messagesError);
+      throw messagesError;
     }
+
+    // Step 2: Search conversations by title, then get messages from those conversations
+    const { data: conversationsData, error: conversationsError } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .ilike('title', `%${searchTerm}%`)
+      .limit(20);
+
+    let conversationMessagesData: any[] = [];
+    
+    if (!conversationsError && conversationsData && conversationsData.length > 0) {
+      // Get messages from conversations that match the title
+      const matchingConversationIds = conversationsData.map(c => c.id);
+      
+      let conversationMessagesQuery = supabase
+        .from('messages')
+        .select(`
+          id,
+          conversation_id,
+          content,
+          created_at,
+          role,
+          conversations!inner (
+            title
+          )
+        `)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .in('conversation_id', matchingConversationIds)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Optional: Filter by specific conversation
+      if (conversationId) {
+        conversationMessagesQuery = conversationMessagesQuery.eq('conversation_id', conversationId);
+      }
+
+      const { data: convMessagesData, error: convMessagesError } = await conversationMessagesQuery;
+      
+      if (!convMessagesError && convMessagesData) {
+        conversationMessagesData = convMessagesData;
+      } else if (convMessagesError) {
+        logger.warn('[SearchService] Conversation messages search failed:', convMessagesError);
+        // Don't throw - continue with content-only results
+      }
+    }
+
+    // Combine and deduplicate results by message ID
+    const allMessages = [...(messagesData || []), ...conversationMessagesData];
+    const uniqueMessages = new Map<string, any>();
+    
+    for (const msg of allMessages) {
+      if (!uniqueMessages.has(msg.id)) {
+        uniqueMessages.set(msg.id, msg);
+      }
+    }
+
+    // Sort by created_at descending and limit to 50 total results
+    const data = Array.from(uniqueMessages.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 50);
 
     if (!data || data.length === 0) {
       logger.debug('[SearchService] No results found');
