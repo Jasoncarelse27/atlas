@@ -2775,38 +2775,34 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-        {/* ✅ MODAL-AWARE: Check if any modals are open */}
+        {/* ✅ ALWAYS RENDER TOOLBAR (prevents React Error #310 - hooks must run in same order) */}
         {(() => {
           const hasOpenModal = sidebarOpen || showHistory || showProfile || showSearch || genericModalVisible || showQuestionnaire;
           
           return (
-            <>
-              {/* ✅ UNIFIED CONTAINER: Mobile floating overlay + Desktop static footer - hide when modals open */}
-              {!hasOpenModal && (
-                <div
-                  className="
-                    fixed bottom-[12px] left-0 right-0 z-[10000]
-                    pt-3 pb-3 px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
-                    sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0 sm:bottom-0
-                  "
-                  style={{
-                    backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
-                    backdropFilter: 'none',
-                    WebkitBackdropFilter: 'none',
-                    transform: 'translateZ(0)', // ✅ GPU acceleration
-                  }}
-                >
-                  <EnhancedInputToolbar
-                    onSendMessage={handleTextMessage}
-                    isProcessing={isProcessing}
-                    placeholder="Ask Atlas anything..."
-                    conversationId={conversationId || undefined}
-                    inputRef={inputRef}
-                    isStreaming={isStreaming}
-                  />
-                </div>
-              )}
-            </>
+            <div
+              className={`
+                fixed bottom-[12px] left-0 right-0 z-[10000]
+                pt-3 pb-3 px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
+                sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0 sm:bottom-0
+                ${hasOpenModal ? 'hidden pointer-events-none' : ''}
+              `}
+              style={{
+                backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
+                backdropFilter: 'none',
+                WebkitBackdropFilter: 'none',
+                transform: 'translateZ(0)', // ✅ GPU acceleration
+              }}
+            >
+              <EnhancedInputToolbar
+                onSendMessage={handleTextMessage}
+                isProcessing={isProcessing}
+                placeholder="Ask Atlas anything..."
+                conversationId={conversationId || undefined}
+                inputRef={inputRef}
+                isStreaming={isStreaming}
+              />
+            </div>
           );
         })()}
         </main>
