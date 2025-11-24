@@ -1360,7 +1360,9 @@ const EnhancedInputToolbar = React.memo(({
         style={{
           gap: '12px', // ✅ FIX: Increased gap to prevent button grouping during upload
           transform: 'translateZ(0)', // ✅ GPU acceleration - prevents blur artifacts
-          willChange: 'transform' // ✅ Optimize for animations
+          willChange: 'transform', // ✅ Optimize for animations
+          minHeight: '56px', // ✅ FIX: Ensure toolbar never collapses
+          display: 'flex', // ✅ FIX: Always flex, never hidden
         }}
       >
         {/* + Attachment Button - ✅ BEST PRACTICE: Fixed size, no flex-shrink */}
@@ -1538,7 +1540,7 @@ const EnhancedInputToolbar = React.memo(({
         </div>
 
             {/* Text Input / Caption Input - ✅ PROFESSIONAL: Always visible, clear purpose */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0" style={{ minHeight: '56px' }}>
               <textarea
                 ref={inputRef as React.LegacyRef<HTMLTextAreaElement>}
                 value={text}
@@ -1560,7 +1562,7 @@ const EnhancedInputToolbar = React.memo(({
                 className={`flex-1 w-full bg-transparent sm:bg-white/95 dark:sm:bg-gray-800/95 text-gray-900 dark:text-white placeholder-atlas-text-muted dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-atlas-sage/40 border border-atlas-sand dark:border-gray-700 rounded-3xl px-4 py-3 resize-none min-h-[56px] max-h-[160px] transition-all duration-200 ease-in-out shadow-sm leading-[1.4] break-words ${
                   attachmentPreviews.length > 0 ? 'text-sm' : ''
                 }`}
-                style={{ fontSize: '16px', borderRadius: '24px', overflowWrap: 'anywhere' }} // Prevent iOS zoom + extra rounded (matches rounded-3xl)
+                style={{ fontSize: '16px', borderRadius: '24px', overflowWrap: 'anywhere', minHeight: '56px', display: 'block' }} // ✅ FIX: Prevent iOS zoom + ensure always visible
                 disabled={isProcessing || disabled}
                 autoComplete="off"
                 autoCapitalize="sentences"

@@ -779,11 +779,22 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
       {completedRitualData && (
         <RitualRewardModal
           isOpen={showRewardModal}
-          onClose={() => {
+          onClose={async () => {
             setShowRewardModal(false);
-            // Navigate to chat, using the conversationId where the message was actually posted
-            // Use ritualSummaryConversationId first (most reliable), then fallback to completedRitualData
-            const targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
+            
+            // ✅ FIX: Wait for conversationId if still posting (max 2 seconds)
+            let targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
+            
+            // If still posting, wait a bit for it to complete
+            if (!targetConversationId) {
+              const maxWait = 2000; // 2 seconds max wait
+              const startTime = Date.now();
+              while (!targetConversationId && (Date.now() - startTime) < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
+              }
+            }
+            
             logger.info('[RitualRunView] 🚪 Closing modal, navigating to chat:', {
               ritualSummaryConversationId,
               completedRitualDataConversationId: completedRitualData?.conversationId,
@@ -796,10 +807,9 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
               localStorage.setItem('atlas:lastConversationId', targetConversationId);
               const targetUrl = `/chat?conversation=${targetConversationId}`;
               logger.info('[RitualRunView] 🚪 Navigating to:', targetUrl);
-              // ✅ BEST PRACTICE: Use replace: false to allow back navigation, but ensure URL is set
               navigate(targetUrl);
             } else {
-              logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to /chat');
+              logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to last conversation');
               // ✅ FIX: Navigate to last conversation instead of new chat
               navigateToLastConversation(navigate);
             }
