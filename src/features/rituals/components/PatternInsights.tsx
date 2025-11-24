@@ -4,6 +4,7 @@
  */
 
 import { useTierQuery } from '@/hooks/useTierQuery';
+import { useFeatureAccess } from '@/hooks/useTierAccess';
 import { Brain, TrendingUp, Lightbulb, Award } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { patternDetectionService, type RitualPattern } from '../services/patternDetectionService';
@@ -11,12 +12,14 @@ import { logger } from '@/lib/logger';
 
 export const PatternInsights: React.FC = () => {
   const { userId, tier } = useTierQuery();
+  // ✅ FIX: Use feature access check instead of hardcoded tier check
+  const { canUse: canUseInsights } = useFeatureAccess('audio');
   const [patterns, setPatterns] = useState<RitualPattern[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadPatterns = async () => {
-      if (!userId || tier === 'free') {
+      if (!userId || !canUseInsights) {
         setLoading(false);
         return;
       }
@@ -60,7 +63,7 @@ export const PatternInsights: React.FC = () => {
     );
   }
 
-  if (patterns.length === 0 || tier === 'free') {
+  if (patterns.length === 0 || !canUseInsights) {
     return null;
   }
 

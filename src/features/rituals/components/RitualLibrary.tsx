@@ -340,7 +340,7 @@ export const RitualLibrary: React.FC = () => {
             </button>
 
             {/* Insights Button (Core/Studio only) */}
-            {tier !== 'free' && (
+            {canUseAudio && (
               <button
                 onClick={() => {
                   triggerHaptic(10);
@@ -382,7 +382,7 @@ export const RitualLibrary: React.FC = () => {
               <MessageCircle className="w-5 h-5 text-[#8B7E74] dark:text-gray-400" />
             </button>
 
-            {tier !== 'free' && (
+            {canUseAudio && (
               <button
                 onClick={() => {
                   triggerHaptic(10);
