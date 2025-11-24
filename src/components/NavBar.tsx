@@ -47,7 +47,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
             <Brain className="h-5 w-5 text-white" />
           </div>
           <span className="font-bold text-lg bg-gradient-to-r from-atlas-sage to-atlas-stone bg-clip-text text-transparent">
-            Atlas AI
+            Atlas
           </span>
         </div>
 
@@ -140,7 +140,7 @@ export default function NavBar({ user, tier = "free", messageCount = 0, onLogout
                 <div className="w-6 h-6 bg-gradient-to-r from-atlas-sage to-purple-600 rounded-lg flex items-center justify-center">
                   <Brain className="h-4 w-4 text-white" />
                 </div>
-                <span className="font-bold text-lg">Atlas AI</span>
+                <span className="font-bold text-lg">Atlas</span>
               </div>
               <button 
                 onClick={() => setMobileOpen(false)}

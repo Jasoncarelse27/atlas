@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Atlas AI</Text>
+      <Text style={styles.title}>Atlas</Text>
       <Text style={styles.subtitle}>Emotional Intelligence Platform</Text>
       <Text style={styles.status}>✅ App is running successfully!</Text>
     </View>

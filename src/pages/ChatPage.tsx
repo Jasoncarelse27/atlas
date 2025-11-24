@@ -1514,10 +1514,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // Cmd+N / Ctrl+N → New conversation (industry standard)
       if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
         e.preventDefault();
+        // ✅ BEST PRACTICE: Generate conversation ID but DON'T create DB record yet
+        // Conversation will be created lazily when user sends their first message
+        // This prevents empty conversations from cluttering the database
         const newConversationId = generateUUID();
-        window.history.pushState({ conversationId: newConversationId }, '', `/chat?conversation=${newConversationId}`);
-        window.dispatchEvent(new PopStateEvent('popstate', { state: { conversationId: newConversationId } }));
-        logger.debug('[ChatPage] 💬 New conversation created via keyboard shortcut');
+        navigate(`/chat?conversation=${newConversationId}`, { replace: true });
+        logger.debug('[ChatPage] 💬 New conversation started via keyboard shortcut (will be created on first message)');
       }
 
       // Escape → Close modals/sidebar (WCAG 2.4.3 - Focus Order)
@@ -2375,7 +2377,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                   <Menu className="w-5 h-5 text-atlas-stone dark:text-gray-300" />
                 </button>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-atlas-text-dark dark:text-white" style={{ fontWeight: 700 }}>Atlas AI</h1>
+                  <h1 className="text-xl sm:text-2xl font-bold text-atlas-text-dark dark:text-white" style={{ fontWeight: 700 }}>Atlas</h1>
                   <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base hidden sm:block">Emotionally intelligent productivity assistant</p>
                 </div>
               </div>
@@ -2743,14 +2745,14 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         <div className="mb-8 sm:mb-10">
                           <img
                             src="/atlas-logo.png"
-                            alt="Atlas AI Logo"
+                            alt="Atlas Logo"
                             className="mx-auto h-24 w-24 sm:h-32 sm:w-32"
                           />
                         </div>
                         
                         {/* Welcome heading - Theme-aware text */}
                         <h2 className="text-3xl sm:text-4xl font-semibold text-atlas-text-dark dark:text-white mb-3 sm:mb-4">
-                          Welcome to Atlas AI
+                          Welcome to Atlas
                         </h2>
                         
                         {/* Description - Theme-aware text */}

@@ -182,63 +182,26 @@ export default function QuickActions({ onViewHistory, onNewChat }: QuickActionsP
       // ✅ Get authenticated user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        logger.error('[QuickActions] ❌ Cannot create conversation: not authenticated');
+        logger.error('[QuickActions] ❌ Cannot start new chat: not authenticated');
         toast.error('Please sign in to start a new chat');
         return;
       }
       
-      // ✅ Create new conversation ID (browser-compatible)
+      // ✅ BEST PRACTICE: Generate conversation ID but DON'T create DB record yet
+      // Conversation will be created lazily when user sends their first message
+      // This prevents empty conversations from cluttering the database
       const newConversationId = generateUUID();
       logger.debug('[QuickActions] ✅ Generated new conversation ID:', newConversationId);
       
-      // ✅ CRITICAL FIX: Create conversation record immediately (not wait for first message)
-      // This ensures it appears in conversation history right away
-      try {
-        const { createConversation } = await import('../../utils/conversationService');
-        const createdId = await createConversation(user.id, 'New Conversation');
-        
-        if (createdId) {
-          logger.debug('[QuickActions] ✅ Conversation created in Supabase:', createdId);
-          
-          // ✅ Also save to local Dexie for immediate availability
-          try {
-            await atlasDB.conversations.put({
-              id: createdId,
-              userId: user.id,
-              title: 'New Conversation',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            });
-            logger.debug('[QuickActions] ✅ Conversation saved to local Dexie');
-          } catch (dexieError) {
-            logger.warn('[QuickActions] ⚠️ Failed to save to Dexie (non-critical):', dexieError);
-          }
-          
-          // ✅ Use the created ID (in case it differs)
-          const finalId = createdId || newConversationId;
-          
-          // ✅ Refresh conversation list to show new conversation
-          await refreshConversationList(true);
-          
-          // ✅ Navigate to new conversation
-          const targetUrl = `/chat?conversation=${finalId}`;
-          logger.debug('[QuickActions] 🔄 Navigating to:', targetUrl);
-          
-          navigate(targetUrl, { replace: true });
-          
-          logger.debug('[QuickActions] ✅ Navigation triggered via React Router');
-          logger.debug('[QuickActions] ✅ Navigation complete');
-        } else {
-          // Fallback: Use generated ID if creation failed
-          logger.warn('[QuickActions] ⚠️ Conversation creation returned null, using generated ID');
-          navigate(`/chat?conversation=${newConversationId}`, { replace: true });
-        }
-      } catch (createError) {
-        logger.error('[QuickActions] ❌ Failed to create conversation:', createError);
-        // Fallback: Still navigate with generated ID (conversation will be created on first message)
-        toast.error('Failed to create conversation. It will be created when you send your first message.');
-        navigate(`/chat?conversation=${newConversationId}`, { replace: true });
-      }
+      // ✅ LAZY CREATION: Navigate to new chat URL
+      // The conversation will be created automatically by ensureConversationExists()
+      // when the user sends their first message (see ChatPage.handleTextMessage)
+      const targetUrl = `/chat?conversation=${newConversationId}`;
+      logger.debug('[QuickActions] 🔄 Navigating to:', targetUrl);
+      
+      navigate(targetUrl, { replace: true });
+      
+      logger.debug('[QuickActions] ✅ Navigation complete - conversation will be created on first message');
     } catch (error) {
       logger.error('[QuickActions] ❌ Error in handleNewChat:', error);
       toast.error('Failed to start new chat. Please try again.');
