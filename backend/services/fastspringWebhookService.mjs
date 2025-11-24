@@ -63,7 +63,19 @@ export async function handleFastSpringWebhook(req, res) {
       return res.status(400).send('no event');
     }
     
-    logger.info(`[FastSpring] 🔔 Webhook received: ${event.type}`);
+    // FastSpring account ID (not userId directly) - extract early for security log
+    const fastspringAccountId = event?.data?.account;
+    const subscriptionId = event?.data?.subscription;
+
+    // ✅ SECURITY LOG: Webhook received with all critical fields
+    logger.info('[FastSpring][SECURITY] Webhook received', {
+      eventType: event.type,
+      rawEventType: event?.event,
+      timestamp: new Date().toISOString(),
+      fullEventId: event?.id,
+      subscriptionId: subscriptionId || null,
+      accountId: fastspringAccountId || null
+    });
     
     // ✅ DEBUG: Full payload logging for tag discovery (INFO level so it shows in Railway logs)
     logger.info('[FastSpring] Raw Body Length:', rawBody.length);
@@ -80,10 +92,6 @@ export async function handleFastSpringWebhook(req, res) {
       'event.data.contact': event?.data?.contact
     });
     
-    // FastSpring account ID (not userId directly)
-    const fastspringAccountId = event?.data?.account;
-    const subscriptionId = event?.data?.subscription;
-    
     if (!subscriptionId) {
       logger.warn('[FastSpring] ⚠️ No subscription ID in event data');
       return res.status(200).send('ok');
@@ -97,6 +105,23 @@ export async function handleFastSpringWebhook(req, res) {
                         || null;
     
     logger.info(`[FastSpring] Tag search result: userIdFromTags = ${userIdFromTags || 'null'}`);
+    
+    // ✅ SECURITY LOG: Subscription parsed with all extracted fields
+    const customerEmail = event?.data?.account?.email
+                       || event?.data?.customer?.email
+                       || event?.data?.contact?.email
+                       || null;
+    const productId = event?.data?.product
+                   || event?.data?.items?.[0]?.product
+                   || null;
+
+    logger.info('[FastSpring][SECURITY] Subscription parsed', {
+      subscriptionId,
+      accountId: fastspringAccountId,
+      productId: productId,
+      customerEmail: customerEmail,
+      userIdFromTags: userIdFromTags || null
+    });
     
     // Helper function to extract tier from product (matches existing production logic)
     const extractTierFromProduct = (productValue) => {
@@ -167,7 +192,21 @@ export async function handleFastSpringWebhook(req, res) {
         if (profileError) {
           logger.error('[FastSpring] Failed to update profile:', profileError);
         } else {
-          logger.info(`[FastSpring] ✅ Created subscription and updated user ${userIdFromTags} to tier ${tier}`);
+          // ✅ SECURITY LOG: User linked and updated via tags
+          const productPath = typeof event?.data?.product === 'string'
+            ? event?.data?.product
+            : event?.data?.product?.path || event?.data?.items?.[0]?.product?.path || event?.data?.product || '';
+
+          logger.info('[FastSpring][SECURITY] User linked and updated', {
+            userId: userIdFromTags,
+            accountId: fastspringAccountId,
+            email: customerEmail || event?.data?.account?.email || null,
+            subscriptionId,
+            productId: productPath,
+            tier,
+            timestamp: new Date().toISOString(),
+            linkMethod: 'tags'
+          });
         }
         
         return res.status(200).send('ok');
@@ -272,7 +311,21 @@ export async function handleFastSpringWebhook(req, res) {
                   if (profileError) {
                     logger.error('[FastSpring] Failed to update profile:', profileError);
                   } else {
-                    logger.info(`[FastSpring] ✅ Created subscription and updated user ${profile.id} to tier ${tier}`);
+                    // ✅ SECURITY LOG: User linked and updated via API email fetch
+                    const productPath = typeof event?.data?.product === 'string'
+                      ? event?.data?.product
+                      : event?.data?.product?.path || event?.data?.items?.[0]?.product?.path || event?.data?.product || '';
+
+                    logger.info('[FastSpring][SECURITY] User linked and updated', {
+                      userId: profile.id,
+                      accountId: fastspringAccountId,
+                      email: fetchedEmail,
+                      subscriptionId,
+                      productId: productPath,
+                      tier,
+                      timestamp: new Date().toISOString(),
+                      linkMethod: 'api'
+                    });
                   }
                   
                   return res.status(200).send('ok');
@@ -351,7 +404,21 @@ export async function handleFastSpringWebhook(req, res) {
           if (profileError) {
             logger.error('[FastSpring] Failed to update profile:', profileError);
           } else {
-            logger.info(`[FastSpring] ✅ Created subscription and updated user ${profile.id} to tier ${tier}`);
+            // ✅ SECURITY LOG: User linked and updated via email fallback
+            const productPath = typeof event?.data?.product === 'string'
+              ? event?.data?.product
+              : event?.data?.product?.path || event?.data?.items?.[0]?.product?.path || event?.data?.product || '';
+
+            logger.info('[FastSpring][SECURITY] User linked and updated', {
+              userId: profile.id,
+              accountId: fastspringAccountId,
+              email: customerEmail,
+              subscriptionId,
+              productId: productPath,
+              tier,
+              timestamp: new Date().toISOString(),
+              linkMethod: 'email'
+            });
           }
           
           return res.status(200).send('ok');
@@ -426,7 +493,21 @@ export async function handleFastSpringWebhook(req, res) {
         if (profileError) {
           logger.error('[FastSpring] Failed to update profile:', profileError);
         } else {
-          logger.info(`[FastSpring] ✅ Updated user ${userId} to tier ${tier}`);
+          // ✅ SECURITY LOG: User updated (existing subscription)
+          const productPath = typeof event.data?.product === 'string'
+            ? event.data?.product
+            : event.data?.product?.path || event.data?.items?.[0]?.product?.path || event.data?.product || '';
+
+          logger.info('[FastSpring][SECURITY] User linked and updated', {
+            userId,
+            accountId: fastspringAccountId,
+            email: customerEmail || event?.data?.account?.email || null,
+            subscriptionId,
+            productId: productPath,
+            tier,
+            timestamp: new Date().toISOString(),
+            linkMethod: 'existing'
+          });
         }
         
         break;
