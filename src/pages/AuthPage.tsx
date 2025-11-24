@@ -133,6 +133,48 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
             }).catch(() => {
               // Silent catch - welcome notification failure shouldn't affect signup
             });
+
+            // ✅ Sync to MailerLite for welcome email (non-blocking - fire and forget)
+            // Note: We can't use the regular mailerLiteService here because the user doesn't have a session yet
+            // Instead, we'll trigger the backend sync endpoint which will process the signup queue
+            try {
+              // Option 1: Direct API call to trigger MailerLite sync
+              const syncEndpoint = getApiEndpoint('/api/mailerlite/signup-sync');
+              fetch(syncEndpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: data.user.id,
+                  email: data.user.email,
+                  tier: 'free',
+                  gdpr_accepted: gdprAccepted,
+                  marketing_opt_in: marketingOptIn,
+                }),
+              }).catch(() => {
+                // Silent catch - this is fire-and-forget
+              });
+              
+              // Option 2: Also try the client-side service (in case session is available)
+              import('../services/mailerLiteService').then(({ mailerLiteService }) => {
+                mailerLiteService.createOrUpdateSubscriber({
+                  email: data.user.email!,
+                  tier: 'free',
+                  signup_date: new Date().toISOString(),
+                  subscription_status: 'active',
+                  custom_fields: {
+                    gdpr_accepted: gdprAccepted,
+                    marketing_opt_in: marketingOptIn,
+                  }
+                }).catch(() => {
+                  // Silent catch - fallback attempt
+                });
+              });
+            } catch (mailerError) {
+              // Silent catch - MailerLite sync failure shouldn't affect signup
+              console.log('[AuthPage] MailerLite sync failed (non-blocking):', mailerError);
+            }
           }
         }
       }

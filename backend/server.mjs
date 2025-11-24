@@ -5615,6 +5615,85 @@ app.post('/api/magicbell/welcome', verifyJWT, async (req, res) => {
   }
 });
 
+// MailerLite signup sync endpoint (called immediately after signup)
+app.post('/api/mailerlite/signup-sync', async (req, res) => {
+  try {
+    const { userId, email, tier = 'free', gdpr_accepted, marketing_opt_in } = req.body;
+    
+    if (!userId || !email) {
+      return res.status(400).json({ error: 'Missing required fields: userId, email' });
+    }
+    
+    // Import and call the sync function directly
+    const { syncMailerLiteOnSignup } = await import('./services/userOnboardingService.mjs');
+    
+    // Queue the signup for processing (backup in case direct sync fails)
+    if (supabase) {
+      await supabase
+        .from('user_signup_queue')
+        .insert({
+          user_id: userId,
+          email: email,
+          processed: false,
+          created_at: new Date().toISOString()
+        })
+        .single()
+        .catch(err => {
+          logger.debug('[SignupSync] Failed to queue signup (non-critical):', err.message);
+        });
+    }
+    
+    // Attempt direct sync
+    await syncMailerLiteOnSignup(userId);
+    
+    logger.info(`[SignupSync] ✅ MailerLite sync triggered for ${email}`);
+    
+    return res.json({ 
+      success: true,
+      message: 'MailerLite sync initiated' 
+    });
+  } catch (error) {
+    logger.error('[SignupSync] Error:', error);
+    // Don't return error - this should be fire-and-forget
+    return res.json({ 
+      success: false,
+      message: 'MailerLite sync queued for later processing' 
+    });
+  }
+});
+
+// Process signup queue endpoint (for cron job or manual trigger)
+app.post('/internal/process-signup-queue', async (req, res) => {
+  try {
+    // Verify internal secret for security
+    const authHeader = req.headers.authorization;
+    const expectedSecret = process.env.INTERNAL_SECRET || process.env.RAILWAY_INTERNAL_SECRET;
+    
+    if (!expectedSecret || !authHeader || authHeader !== `Bearer ${expectedSecret}`) {
+      logger.warn('[SignupQueue] Unauthorized access attempt');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Import and run the queue processor
+    const { processSignupQueue } = await import('./services/signupQueueProcessor.mjs');
+    const results = await processSignupQueue();
+
+    logger.info(`[SignupQueue] Processing complete: ${results.processed} processed, ${results.errors.length} errors`);
+
+    return res.json({
+      success: true,
+      processed: results.processed,
+      errors: results.errors.length > 0 ? results.errors : undefined
+    });
+  } catch (error) {
+    logger.error('[SignupQueue] Processing error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to process signup queue',
+      details: error.message 
+    });
+  }
+});
+
 // User profile endpoint with fallback creation
 app.get('/v1/user_profiles/:id', verifyJWT, async (req, res) => {
   try {
