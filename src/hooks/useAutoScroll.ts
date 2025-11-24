@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<HTMLDivElement | null>) => {
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -7,7 +7,8 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
 
-  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+  // ✅ FIX: Memoize scrollToBottom to prevent recreation on every render
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     const container = containerRef?.current;
     if (!container) {
       // Fallback to bottomRef if containerRef not available
@@ -15,13 +16,16 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
       return;
     }
 
+    // ✅ FIX: Use double RAF for better reliability on mobile/web
     requestAnimationFrame(() => {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior,
+      requestAnimationFrame(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior,
+        });
       });
     });
-  };
+  }, [containerRef]);
 
   // FIXED: Proper scroll detection
   useEffect(() => {
@@ -81,7 +85,7 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
         timers.forEach(timer => clearTimeout(timer));
       };
     }
-  }, [deps, hasInitiallyScrolled]);
+  }, [deps, hasInitiallyScrolled, scrollToBottom]);
 
   // Handle new messages after initial load
   useEffect(() => {
@@ -96,7 +100,7 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
           return () => clearTimeout(timeout);
         }
     }
-  }, deps);
+  }, [hasInitiallyScrolled, isAtBottom, scrollToBottom, deps.length]);
 
   return { bottomRef, scrollToBottom, showScrollButton, shouldGlow };
 };
