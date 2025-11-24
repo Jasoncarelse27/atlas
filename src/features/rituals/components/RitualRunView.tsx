@@ -486,14 +486,15 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
   // POST-RITUAL: Completion screen
   if (runner.isComplete) {
     return (
-      <div className="min-h-screen h-[100dvh] overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 pb-32 sm:pb-6 overscroll-contain safe-top safe-bottom" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px) + 6rem)' }}>
-        <div className="max-w-2xl mx-auto">
-          {/* Celebration Header */}
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎉</div>
-            <h1 className="text-3xl font-bold text-[#3B3632] dark:text-white mb-2">Ritual Complete!</h1>
-            <p className="text-[#8B7E74] dark:text-gray-400">Great work completing {ritual.title}</p>
-          </div>
+      <>
+        <div className="min-h-screen h-[100dvh] overflow-y-auto bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 p-6 pb-32 sm:pb-6 overscroll-contain safe-top safe-bottom" style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom, 0px) + 6rem)' }}>
+          <div className="max-w-2xl mx-auto">
+            {/* Celebration Header */}
+            <div className="text-center mb-8">
+              <div className="text-6xl mb-4">🎉</div>
+              <h1 className="text-3xl font-bold text-[#3B3632] dark:text-white mb-2">Ritual Complete!</h1>
+              <p className="text-[#8B7E74] dark:text-gray-400">Great work completing {ritual.title}</p>
+            </div>
 
           {/* Mood After Selection - Mobile Optimized */}
           <div className="bg-white/80 dark:bg-gray-800/80 rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg mb-4 safe-area-inset">
@@ -583,6 +584,61 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
           </button>
         </div>
       </div>
+      
+      {/* ✅ FIX: RitualRewardModal renders inside completion screen for mobile/web */}
+      {completedRitualData && (
+        <RitualRewardModal
+          isOpen={showRewardModal}
+          onClose={async () => {
+            setShowRewardModal(false);
+            // ✅ FIX: Fallback navigation if user closes modal without clicking button
+            navigateToLastConversation(navigate);
+          }}
+          ritualData={{
+            title: completedRitualData.title,
+            durationMinutes: completedRitualData.durationMinutes,
+            moodBefore: completedRitualData.moodBefore,
+            moodAfter: completedRitualData.moodAfter,
+            reflection: completedRitualData.reflection,
+          }}
+          onContinueToChat={async () => {
+            // ✅ FIX: Wait for conversationId if still posting (max 2 seconds)
+            let targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
+            
+            if (!targetConversationId) {
+              const maxWait = 2000; // 2 seconds max wait
+              const startTime = Date.now();
+              while (!targetConversationId && (Date.now() - startTime) < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
+              }
+            }
+            
+            // Close modal
+            setShowRewardModal(false);
+            
+            // Navigate safely  
+            if (targetConversationId) {
+              localStorage.setItem('atlas:lastConversationId', targetConversationId);
+              const targetUrl = `/chat?conversation=${targetConversationId}`;
+              logger.info('[RitualRunView] 🚪 Navigating to chat:', targetUrl);
+              navigate(targetUrl);
+            } else {
+              logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to last conversation');
+              navigateToLastConversation(navigate);
+            }
+          }}
+          onViewInsights={() => {
+            setShowRewardModal(false);
+            navigate('/rituals/insights'); // ✅ FIX: Navigate to insights page
+          }}
+          onStartAnother={() => {
+            setShowRewardModal(false);
+            navigate('/rituals');
+          }}
+        />
+      )}
+      </>
     );
   }
 
@@ -775,59 +831,6 @@ ${notes ? `**Reflection:** ${notes}\n\n` : ''}✨ Great work! Your ritual is log
         </div>
       </div>
 
-      {/* ✨ Reward Modal */}
-      {completedRitualData && (
-        <RitualRewardModal
-          isOpen={showRewardModal}
-          onClose={async () => {
-            setShowRewardModal(false);
-            // ✅ FIX: Fallback navigation if user closes modal without clicking button
-            navigateToLastConversation(navigate);
-          }}
-          ritualData={{
-            title: completedRitualData.title,
-            durationMinutes: completedRitualData.durationMinutes,
-            moodBefore: completedRitualData.moodBefore,
-            moodAfter: completedRitualData.moodAfter,
-            reflection: completedRitualData.reflection,
-          }}
-          onContinueToChat={async () => {
-            // ✅ FIX: Wait for conversationId if still posting (max 2 seconds)
-            let targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
-            
-            if (!targetConversationId) {
-              const maxWait = 2000; // 2 seconds max wait
-              const startTime = Date.now();
-              while (!targetConversationId && (Date.now() - startTime) < maxWait) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                targetConversationId = ritualSummaryConversationId || completedRitualData?.conversationId;
-              }
-            }
-            
-            // Close modal
-            setShowRewardModal(false);
-            
-            // Navigate safely
-            if (targetConversationId) {
-              localStorage.setItem('atlas:lastConversationId', targetConversationId);
-              const targetUrl = `/chat?conversation=${targetConversationId}`;
-              logger.info('[RitualRunView] 🚪 Navigating to chat:', targetUrl);
-              navigate(targetUrl);
-            } else {
-              logger.warn('[RitualRunView] ⚠️ No conversationId available, navigating to last conversation');
-              navigateToLastConversation(navigate);
-            }
-          }}
-          onViewInsights={() => {
-            setShowRewardModal(false);
-            navigate('/rituals/insights'); // ✅ FIX: Navigate to insights page
-          }}
-          onStartAnother={() => {
-            setShowRewardModal(false);
-            navigate('/rituals');
-          }}
-        />
-      )}
     </div>
   );
 };
