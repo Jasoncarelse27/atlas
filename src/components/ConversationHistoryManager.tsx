@@ -74,12 +74,23 @@ export default function ConversationHistoryManager({
     if (!user) return;
     
     try {
+      const isCurrentConversation = conversationId === currentConversationId;
+      
+      // Delete the conversation first
       await conversationService.deleteConversation(conversationId, user.id);
       await loadConversations(); // Reload after deletion
       
-      // If we deleted the current conversation, clear selection
-      if (conversationId === currentConversationId) {
-        onConversationSelect('');
+      // ✅ FIX: Only clear selection if NOT current conversation
+      // If it's the current conversation, ChatPage's navigateToLastConversation handler will handle navigation
+      if (isCurrentConversation) {
+        // Don't clear immediately - let ChatPage handle navigation via conversationDeleted event
+        // This prevents the "no conversation" flicker
+        logger.debug('[ConversationHistoryManager] Current conversation deleted, ChatPage will handle navigation');
+      } else {
+        // Not current conversation - safe to clear selection if it was selected
+        if (conversationId === currentConversationId) {
+          onConversationSelect('');
+        }
       }
     } catch (error) {
       logger.error('[ConversationHistoryManager] Failed to delete conversation:', error);

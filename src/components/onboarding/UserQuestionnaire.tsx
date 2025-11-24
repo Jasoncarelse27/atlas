@@ -61,6 +61,12 @@ export function UserQuestionnaire({ isOpen, onClose, userId }: UserQuestionnaire
   };
 
   const handleSubmit = async () => {
+    // 🚫 Guard: skip save if no user
+    if (!userId) {
+      logger.info("[UserQuestionnaire] Skipping save — no user session");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {

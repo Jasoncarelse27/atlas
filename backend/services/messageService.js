@@ -307,7 +307,7 @@ function filterResponse(text) {
   return filtered.trim();
 }
 
-export async function processMessage(userId, text, conversationId = null) {
+export async function processMessage(userId, text, conversationId = null, timezone = null) {
   // ✅ CRITICAL: Validate userId before processing
   if (!userId || userId === 'anonymous') {
     logger.error('[MessageService] Invalid userId:', userId);
@@ -572,6 +572,194 @@ export async function processMessage(userId, text, conversationId = null) {
       }
     }
 
+    // 🧘 RITUAL AWARENESS: Fetch recent ritual completions for context
+    let ritualContext = '';
+    if (userId) {
+      try {
+        // Fetch recent ritual logs
+        const { data: ritualLogs, error: ritualError } = await getSupabase()
+          .from('ritual_logs')
+          .select('ritual_id, completed_at, duration_seconds, mood_before, mood_after, notes')
+          .eq('user_id', userId)
+          .order('completed_at', { ascending: false })
+          .limit(5);
+        
+        if (!ritualError && ritualLogs && ritualLogs.length > 0) {
+          // Fetch ritual titles separately (safer than joins)
+          const ritualIds = ritualLogs.map(log => log.ritual_id).filter(Boolean);
+          let ritualTitles = {};
+          
+          if (ritualIds.length > 0) {
+            const { data: rituals } = await getSupabase()
+              .from('rituals')
+              .select('id, title')
+              .in('id', ritualIds);
+            
+            if (rituals) {
+              ritualTitles = Object.fromEntries(rituals.map(r => [r.id, r.title]));
+            }
+          }
+          
+          // Build context string
+          const ritualSummaries = ritualLogs.map(log => {
+            const title = ritualTitles[log.ritual_id] || 'Ritual';
+            const minutes = Math.floor(log.duration_seconds / 60);
+            return `- ${title} (${minutes}min): ${log.mood_before} → ${log.mood_after}${log.notes ? ` - "${log.notes}"` : ''}`;
+          }).join('\n');
+          
+          ritualContext = `\n\n🧘 USER'S RECENT RITUALS:\n${ritualSummaries}\n\nWhen discussing rituals, mood, or emotional patterns, reference these recent completions. Help users understand patterns, celebrate progress, and suggest improvements based on their ritual history.`;
+          logger.debug(`🧘 [MessageService] Loaded ${ritualLogs.length} recent rituals for context`);
+        }
+      } catch (error) {
+        logger.warn('🧘 [MessageService] Failed to fetch ritual logs:', error);
+        // Fail-safe: Continue without ritual context
+      }
+    }
+
+    // 🕒 TIME AWARENESS (A2-SAFE)
+    let timeContext = "";
+    try {
+      const now = new Date();
+      // Default timezone is UTC, overridden by client timezone if provided
+      let userTZ = "UTC";
+      if (timezone && typeof timezone === "string") {
+        userTZ = timezone;
+      }
+
+      const localTime = now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: userTZ,
+      });
+
+      const localHour = Number(
+        now.toLocaleString("en-US", {
+          hour: "2-digit",
+          hour12: false,
+          timeZone: userTZ,
+        })
+      );
+
+      let timeGreeting = "Hello";
+      if (!Number.isNaN(localHour)) {
+        if (localHour < 12) timeGreeting = "Good morning";
+        else if (localHour < 17) timeGreeting = "Good afternoon";
+        else timeGreeting = "Good evening";
+      }
+
+      timeContext = `
+🕒 TIME CONTEXT:
+User timezone: ${userTZ}
+Local time: ${localTime}
+Greeting: ${timeGreeting}
+
+Use this to:
+- Adjust tone (morning vs late-night)
+- Suggest rest if it's late
+- Encourage morning routines
+- Acknowledge the user's time of day
+`;
+    } catch (err) {
+      logger.warn("[MessageService] Time context failed:", err);
+      // Fail-safe: no time context
+    }
+
+    // 📊 WEEKLY INSIGHTS + RITUAL PATTERN ANALYSIS (SAFE)
+    let insightContext = "";
+    if (userId) {
+      try {
+        const oneWeekAgo = new Date(
+          Date.now() - 7 * 24 * 60 * 60 * 1000
+        ).toISOString();
+
+        const { data: weeklyRituals, error } = await getSupabase()
+          .from("ritual_logs")
+          .select(`
+            id,
+            completed_at,
+            duration_seconds,
+            mood_before,
+            mood_after,
+            notes,
+            rituals (
+              id,
+              title
+            )
+          `)
+          .eq("user_id", userId)
+          .gte("completed_at", oneWeekAgo)
+          .order("completed_at", { ascending: false })
+          .limit(50); // ✅ limit for performance
+
+        if (!error && weeklyRituals?.length > 0) {
+          const MOOD_VALUES = {
+            stressed: 1,
+            anxious: 2,
+            tired: 2,
+            neutral: 3,
+            calm: 4,
+            relaxed: 4,
+            focused: 5,
+            energized: 5,
+          };
+
+          const total = weeklyRituals.length;
+          const totalDuration = weeklyRituals.reduce(
+            (sum, log) => sum + (log.duration_seconds || 60),
+            0
+          );
+          const avgDuration = Math.round(totalDuration / total / 60) || 1;
+
+          let improvements = 0;
+          let declines = 0;
+
+          weeklyRituals.forEach((log) => {
+            const before = MOOD_VALUES[log.mood_before] ?? 3;
+            const after = MOOD_VALUES[log.mood_after] ?? 3;
+            if (after > before) improvements++;
+            if (after < before) declines++;
+          });
+
+          const morning = weeklyRituals.filter((log) => {
+            const hour = new Date(log.completed_at).getUTCHours();
+            return hour >= 5 && hour < 12; // 5 AM–12 PM UTC
+          }).length;
+
+          const evening = weeklyRituals.filter((log) => {
+            const hour = new Date(log.completed_at).getUTCHours();
+            return hour >= 17 || hour < 5; // 5 PM–5 AM UTC
+          }).length;
+
+          insightContext = `
+📊 WEEKLY INSIGHTS SUMMARY (last 7 days)
+
+• Total rituals completed: ${total}
+• Average duration: ${avgDuration} minutes
+• Morning rituals: ${morning}
+• Evening rituals: ${evening}
+• Mood improved after ${improvements} rituals
+• Mood worsened after ${declines} rituals
+
+Use these insights to:
+- Comment on consistency
+- Highlight improvement patterns
+- Suggest optimal ritual times
+- Encourage healthier emotional routines
+- Reflect on mood trends
+`;
+        } else {
+          insightContext = `
+📊 WEEKLY INSIGHTS:
+The user has no recorded rituals in the last 7 days.
+Avoid mentioning weekly stats unless asked.
+`;
+        }
+      } catch (err) {
+        logger.warn("[MessageService] Weekly insights failed:", err);
+        // Fail-safe: continue without insights
+      }
+    }
+
     // ✅ COMPREHENSIVE ATLAS SYSTEM PROMPT - Matches detailed personality spec
     const enhancedContent = personalizedContent + `\n\nYou are Atlas — an emotionally intelligent productivity assistant designed for users in the US and EU.
 
@@ -704,7 +892,7 @@ TIER-AWARE RESPONSES:
 
 You are Atlas — warm, wise, structured, and strategic. 
 
-Your job is to help the user feel supported, understood, and empowered.`;
+Your job is to help the user feel supported, understood, and empowered.${timeContext}${ritualContext}${insightContext}`;
 
     // 🧠 MEMORY 100%: Get conversation history for context (Core/Studio only)
     let conversationHistory = [];

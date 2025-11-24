@@ -13,11 +13,20 @@ import { useTierQuery } from '../../hooks/useTierQuery';
 import { TUTORIAL_STEPS, getTutorialStepsForTier, type TutorialStep } from '../../config/tutorialSteps';
 import { logger } from '../../lib/logger';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useAuth } from '../../providers/AuthProvider';
 
 export function TutorialOverlay() {
   const { isTutorialActive, currentStep, nextStep, previousStep, skipTutorial, completeTutorial } = useTutorial();
   const { isMobile } = useMobileOptimization();
   const { tier } = useTierQuery();
+  
+  // 🚫 Guard: skip overlay if no user is logged in
+  const { user } = useAuth();
+  if (!user) {
+    logger.info("[TutorialOverlay] Skipping — no user session");
+    return null;
+  }
+  
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);

@@ -31,6 +31,15 @@ const pendingMessages = new Set<string>();
 // ✅ CRITICAL FIX: Prevent duplicate sends (attachment messages)
 let sendingLock = false;
 
+// 🕒 TIME AWARENESS: Get client timezone (safe fallback)
+function getClientTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 // Simple function to send messages with attachments (legacy function, kept for compatibility)
 export async function sendAttachmentMessage(
   _conversationId: string,
@@ -57,7 +66,8 @@ export async function sendAttachmentMessage(
       message: "Please analyze these attachments",
       userId: userId,
       tier: currentTier,
-      attachments: attachments
+      attachments: attachments,
+      timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
     }),
   });
 
@@ -223,7 +233,8 @@ export const chatService = {
               },
               body: JSON.stringify({ 
                 message: text, // Backend expects "message" field
-                conversationId: conversationId || null // ✅ Backend now gets userId from auth token
+                conversationId: conversationId || null, // ✅ Backend now gets userId from auth token
+                timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
                 // userId removed - backend uses req.user.id from auth middleware
               }),
               signal: combinedController.signal,
@@ -337,10 +348,12 @@ export const chatService = {
                     "Accept": "text/event-stream",
                     "Authorization": `Bearer ${refreshedToken}`
                   },
-                  body: JSON.stringify({ 
-                    message: text,
-                    conversationId: conversationId || null
-                  }),
+                body: JSON.stringify({ 
+                  message: text,
+                  conversationId: conversationId || null,
+                  timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
+                  timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
+                }),
                   signal: combinedController.signal,
                 });
                 
@@ -605,7 +618,8 @@ export const chatService = {
         body: JSON.stringify({ 
           message: "Please analyze these attachments",
           tier: imageTier,
-          attachments: message.attachments // Send attachments array
+          attachments: message.attachments, // Send attachments array
+          timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
         }),
       });
 
@@ -640,7 +654,8 @@ export const chatService = {
         const requestBody = { 
           message: "Please analyze this image",
           tier: imageTier,
-          imageUrl: imageUrl // Send image URL for analysis
+          imageUrl: imageUrl, // Send image URL for analysis
+          timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
         };
         
         // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment

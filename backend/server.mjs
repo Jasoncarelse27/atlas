@@ -704,7 +704,7 @@ function filterResponse(text) {
 }
 
 // Stream Anthropic response with proper SSE handling
-async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null, preferences = null, conversationId = null, enhancedSystemPrompt = null, enhancedUserPrompt = null }) {
+async function streamAnthropicResponse({ content, model, res, userId, conversationHistory = [], is_voice_call = false, tier = null, preferences = null, conversationId = null, enhancedSystemPrompt = null, enhancedUserPrompt = null, timezone = null }) {
   if (!ANTHROPIC_API_KEY) {
     logger.error('[streamAnthropicResponse] ❌ ANTHROPIC_API_KEY is missing or empty');
     throw new Error('Missing Anthropic API key - check Railway environment variables');
@@ -742,9 +742,148 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
     finalSystemPrompt = null;
   } else if (enhancedSystemPrompt && enhancedUserPrompt) {
     // ✅ Use enhanced prompts from orchestrator
-    finalSystemPrompt = enhancedSystemPrompt;
+    // 🕒 Add timeContext + insightContext to enhanced prompts
+    
+    let timeContext = "";
+    let insightContext = "";
+    let ritualContext = "";
+    
+    if (userId && !is_voice_call) {
+      try {
+        // Time awareness
+        const now = new Date();
+        let userTZ = "UTC";
+        if (timezone && typeof timezone === "string") {
+          userTZ = timezone;
+        }
+        const localTime = now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: userTZ,
+        });
+        const localHour = Number(
+          now.toLocaleString("en-US", {
+            hour: "2-digit",
+            hour12: false,
+            timeZone: userTZ,
+          })
+        );
+        let timeGreeting = "Hello";
+        if (!Number.isNaN(localHour)) {
+          if (localHour < 12) timeGreeting = "Good morning";
+          else if (localHour < 17) timeGreeting = "Good afternoon";
+          else timeGreeting = "Good evening";
+        }
+        timeContext = `
+🕒 TIME CONTEXT:
+User timezone: ${userTZ}
+Local time: ${localTime}
+Greeting: ${timeGreeting}
+
+Use this to:
+- Adjust tone (morning vs late-night)
+- Suggest rest if it's late
+- Encourage morning routines
+- Acknowledge the user's time of day
+`;
+
+        // Weekly insights
+        const { supabase } = await import('./config/supabaseClient.mjs');
+        const oneWeekAgo = new Date(
+          Date.now() - 7 * 24 * 60 * 60 * 1000
+        ).toISOString();
+
+        const { data: weeklyRituals, error } = await supabase
+          .from("ritual_logs")
+          .select(`
+            id,
+            completed_at,
+            duration_seconds,
+            mood_before,
+            mood_after,
+            notes,
+            rituals (
+              id,
+              title
+            )
+          `)
+          .eq("user_id", userId)
+          .gte("completed_at", oneWeekAgo)
+          .order("completed_at", { ascending: false })
+          .limit(50);
+
+        if (!error && weeklyRituals?.length > 0) {
+          const MOOD_VALUES = {
+            stressed: 1,
+            anxious: 2,
+            tired: 2,
+            neutral: 3,
+            calm: 4,
+            relaxed: 4,
+            focused: 5,
+            energized: 5,
+          };
+
+          const total = weeklyRituals.length;
+          const totalDuration = weeklyRituals.reduce(
+            (sum, log) => sum + (log.duration_seconds || 60),
+            0
+          );
+          const avgDuration = Math.round(totalDuration / total / 60) || 1;
+
+          let improvements = 0;
+          let declines = 0;
+
+          weeklyRituals.forEach((log) => {
+            const before = MOOD_VALUES[log.mood_before] ?? 3;
+            const after = MOOD_VALUES[log.mood_after] ?? 3;
+            if (after > before) improvements++;
+            if (after < before) declines++;
+          });
+
+          const morning = weeklyRituals.filter((log) => {
+            const hour = new Date(log.completed_at).getUTCHours();
+            return hour >= 5 && hour < 12;
+          }).length;
+
+          const evening = weeklyRituals.filter((log) => {
+            const hour = new Date(log.completed_at).getUTCHours();
+            return hour >= 17 || hour < 5;
+          }).length;
+
+          insightContext = `
+📊 WEEKLY INSIGHTS SUMMARY (last 7 days)
+
+• Total rituals completed: ${total}
+• Average duration: ${avgDuration} minutes
+• Morning rituals: ${morning}
+• Evening rituals: ${evening}
+• Mood improved after ${improvements} rituals
+• Mood worsened after ${declines} rituals
+
+Use these insights to:
+- Comment on consistency
+- Highlight improvement patterns
+- Suggest optimal ritual times
+- Encourage healthier emotional routines
+- Reflect on mood trends
+`;
+        } else {
+          insightContext = `
+📊 WEEKLY INSIGHTS:
+The user has no recorded rituals in the last 7 days.
+Avoid mentioning weekly stats unless asked.
+`;
+        }
+      } catch (err) {
+        logger.warn("[streamAnthropicResponse] Context building failed:", err);
+      }
+    }
+    
+    // Append contexts to enhanced prompts
+    finalSystemPrompt = enhancedSystemPrompt + (timeContext || "") + (ritualContext || "") + (insightContext || "");
     finalUserContent = enhancedUserPrompt;
-    logger.debug('[streamAnthropicResponse] ✅ Using enhanced prompts from orchestrator');
+    logger.debug('[streamAnthropicResponse] ✅ Using enhanced prompts with time/insight context');
   } else {
     // For text chat: Use full enhanced content with all instructions (existing logic)
     let userMemory = {};
@@ -779,6 +918,179 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
       }
     }
 
+    // 🕒 TIME AWARENESS (A2-SAFE) - For streaming path
+    let timeContext = "";
+    let insightContext = "";
+    let ritualContext = "";
+    
+    if (userId && !is_voice_call) {
+      try {
+        // Time awareness
+        const now = new Date();
+        let userTZ = "UTC";
+        if (timezone && typeof timezone === "string") {
+          userTZ = timezone;
+        }
+
+        const localTime = now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: userTZ,
+        });
+
+        const localHour = Number(
+          now.toLocaleString("en-US", {
+            hour: "2-digit",
+            hour12: false,
+            timeZone: userTZ,
+          })
+        );
+
+        let timeGreeting = "Hello";
+        if (!Number.isNaN(localHour)) {
+          if (localHour < 12) timeGreeting = "Good morning";
+          else if (localHour < 17) timeGreeting = "Good afternoon";
+          else timeGreeting = "Good evening";
+        }
+
+        timeContext = `
+🕒 TIME CONTEXT:
+User timezone: ${userTZ}
+Local time: ${localTime}
+Greeting: ${timeGreeting}
+
+Use this to:
+- Adjust tone (morning vs late-night)
+- Suggest rest if it's late
+- Encourage morning routines
+- Acknowledge the user's time of day
+`;
+
+        // Fetch recent ritual logs (for ritualContext)
+        const { supabase } = await import('./config/supabaseClient.mjs');
+        const { data: ritualLogs, error: ritualError } = await supabase
+          .from('ritual_logs')
+          .select('ritual_id, completed_at, duration_seconds, mood_before, mood_after, notes')
+          .eq('user_id', userId)
+          .order('completed_at', { ascending: false })
+          .limit(5);
+        
+        if (!ritualError && ritualLogs && ritualLogs.length > 0) {
+          const ritualIds = ritualLogs.map(log => log.ritual_id).filter(Boolean);
+          let ritualTitles = {};
+          
+          if (ritualIds.length > 0) {
+            const { data: rituals } = await supabase
+              .from('rituals')
+              .select('id, title')
+              .in('id', ritualIds);
+            
+            if (rituals) {
+              ritualTitles = Object.fromEntries(rituals.map(r => [r.id, r.title]));
+            }
+          }
+          
+          const ritualSummaries = ritualLogs.map(log => {
+            const title = ritualTitles[log.ritual_id] || 'Ritual';
+            const minutes = Math.floor(log.duration_seconds / 60);
+            return `- ${title} (${minutes}min): ${log.mood_before} → ${log.mood_after}${log.notes ? ` - "${log.notes}"` : ''}`;
+          }).join('\n');
+          
+          ritualContext = `\n\n🧘 USER'S RECENT RITUALS:\n${ritualSummaries}\n\nWhen discussing rituals, mood, or emotional patterns, reference these recent completions. Help users understand patterns, celebrate progress, and suggest improvements based on their ritual history.`;
+        }
+
+        // Weekly insights
+        const oneWeekAgo = new Date(
+          Date.now() - 7 * 24 * 60 * 60 * 1000
+        ).toISOString();
+
+        const { data: weeklyRituals, error } = await supabase
+          .from("ritual_logs")
+          .select(`
+            id,
+            completed_at,
+            duration_seconds,
+            mood_before,
+            mood_after,
+            notes,
+            rituals (
+              id,
+              title
+            )
+          `)
+          .eq("user_id", userId)
+          .gte("completed_at", oneWeekAgo)
+          .order("completed_at", { ascending: false })
+          .limit(50);
+
+        if (!error && weeklyRituals?.length > 0) {
+          const MOOD_VALUES = {
+            stressed: 1,
+            anxious: 2,
+            tired: 2,
+            neutral: 3,
+            calm: 4,
+            relaxed: 4,
+            focused: 5,
+            energized: 5,
+          };
+
+          const total = weeklyRituals.length;
+          const totalDuration = weeklyRituals.reduce(
+            (sum, log) => sum + (log.duration_seconds || 60),
+            0
+          );
+          const avgDuration = Math.round(totalDuration / total / 60) || 1;
+
+          let improvements = 0;
+          let declines = 0;
+
+          weeklyRituals.forEach((log) => {
+            const before = MOOD_VALUES[log.mood_before] ?? 3;
+            const after = MOOD_VALUES[log.mood_after] ?? 3;
+            if (after > before) improvements++;
+            if (after < before) declines++;
+          });
+
+          const morning = weeklyRituals.filter((log) => {
+            const hour = new Date(log.completed_at).getUTCHours();
+            return hour >= 5 && hour < 12;
+          }).length;
+
+          const evening = weeklyRituals.filter((log) => {
+            const hour = new Date(log.completed_at).getUTCHours();
+            return hour >= 17 || hour < 5;
+          }).length;
+
+          insightContext = `
+📊 WEEKLY INSIGHTS SUMMARY (last 7 days)
+
+• Total rituals completed: ${total}
+• Average duration: ${avgDuration} minutes
+• Morning rituals: ${morning}
+• Evening rituals: ${evening}
+• Mood improved after ${improvements} rituals
+• Mood worsened after ${declines} rituals
+
+Use these insights to:
+- Comment on consistency
+- Highlight improvement patterns
+- Suggest optimal ritual times
+- Encourage healthier emotional routines
+- Reflect on mood trends
+`;
+        } else {
+          insightContext = `
+📊 WEEKLY INSIGHTS:
+The user has no recorded rituals in the last 7 days.
+Avoid mentioning weekly stats unless asked.
+`;
+        }
+      } catch (err) {
+        logger.warn("[streamAnthropicResponse] Context building failed:", err);
+      }
+    }
+
     // ✅ COMPREHENSIVE ATLAS SYSTEM PROMPT - Matches detailed personality spec
     let personalizationNote = '';
     if (preferences) {
@@ -790,7 +1102,7 @@ async function streamAnthropicResponse({ content, model, res, userId, conversati
         personalizationNote = `\n\nPERSONALIZATION:\n${parts.join('\n')}`;
       }
     }
-    finalUserContent = personalizedContent + `\n\nYou are Atlas — an emotionally intelligent productivity assistant designed for users in the US and EU.${personalizationNote}
+    finalUserContent = personalizedContent + `\n\n${timeContext}${ritualContext}${insightContext}You are Atlas — an emotionally intelligent productivity assistant designed for users in the US and EU.${personalizationNote}
 
 Your primary goals:
 1. Help users think clearly
@@ -2165,7 +2477,8 @@ app.post('/message',
     }
 
     // Handle regular text messages
-    const result = await processMessage(userId || null, messageText, conversationId);
+    const { timezone } = req.body;
+    const result = await processMessage(userId || null, messageText, conversationId, timezone || null);
     
     // ✅ Check for limit reached
     if (result.success === false && result.error === 'MONTHLY_LIMIT_REACHED') {
@@ -2230,7 +2543,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
   }
 
   try {
-    const { message, conversationId, model = 'claude', is_voice_call, context } = req.body;
+    const { message, conversationId, model = 'claude', is_voice_call, context, timezone } = req.body;
     const userId = req.user?.id;
     
     // ✅ CRITICAL: Validate userId exists
@@ -2613,7 +2926,8 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
                   preferences: userPreferences, 
                   conversationId: finalConversationId,
                   enhancedSystemPrompt,
-                  enhancedUserPrompt
+                  enhancedUserPrompt,
+                  timezone: timezone || null // ✅ NEW
                 });
                 
                 // ✅ Check if response is an error message (indicates overloaded_error was handled)
@@ -2789,7 +3103,8 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
             tier: effectiveTier, 
             conversationId: finalConversationId,
             enhancedSystemPrompt,
-            enhancedUserPrompt
+            enhancedUserPrompt,
+            timezone: timezone || null // ✅ NEW
           });
           streamCompleted = true;
           logger.debug('✅ Claude fallback completed, final text length:', finalText.length);

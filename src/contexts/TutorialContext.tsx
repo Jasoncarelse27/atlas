@@ -41,6 +41,13 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
   // Check tutorial completion status on mount and when user changes
   useEffect(() => {
+    // 🚫 Guard: skip tutorial if no user is logged in
+    if (!user) {
+      logger.info("[TutorialContext] Skipping tutorial — no user session");
+      setIsLoading(false);
+      return;
+    }
+
     // ✅ DEBUG: Log when this effect runs (dev only)
     logger.debug('[TutorialContext] 🔄 Effect triggered', { 
       hasUser: !!user, 
