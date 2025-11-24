@@ -115,11 +115,9 @@ const BillingDashboard: React.FC = () => {
               userId={userId || undefined}
             />
           </div>
-          {userId && (
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <UsageCounter userId={userId} />
-            </div>
-          )}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+            <UsageCounter userId={userId || undefined} />
+          </div>
         </div>
 
         {/* Main Content */}
