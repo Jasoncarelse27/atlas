@@ -8,6 +8,12 @@ scripts/check-env.sh
 archive/**/*.md
 PUSH_VERIFICATION_OCT24.md
 
+# Ignore documentation files with redacted example secrets (false positives)
+COMPREHENSIVE_PROGRESS_REPORT_NOV_11_2025.md
+FASTSPRING_BEST_PRACTICE_AUDIT.md
+MAGICBELL_SENTRY_ERROR_FIX.md
+docs/VOICE_V2_WEEK2_VERIFICATION_100_PERCENT.md
+
 # IAP test harness scripts (contain mock tokens/keys for testing)
 test-iap-*.sh
 test-iap-*.js
