@@ -16,17 +16,11 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useAuth } from '../../providers/AuthProvider';
 
 export function TutorialOverlay() {
+  // ✅ CRITICAL FIX: Call ALL hooks unconditionally FIRST (Rules of Hooks)
+  const { user } = useAuth();
   const { isTutorialActive, currentStep, nextStep, previousStep, skipTutorial, completeTutorial } = useTutorial();
   const { isMobile } = useMobileOptimization();
   const { tier } = useTierQuery();
-  
-  // 🚫 Guard: skip overlay if no user is logged in
-  const { user } = useAuth();
-  if (!user) {
-    logger.info("[TutorialOverlay] Skipping — no user session");
-    return null;
-  }
-  
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -46,6 +40,12 @@ export function TutorialOverlay() {
     initialFocusRef: firstButtonRef,
     restoreFocus: true,
   });
+
+  // ✅ CRITICAL FIX: Guard AFTER all hooks (prevents React Error #310)
+  if (!user) {
+    logger.info("[TutorialOverlay] Skipping — no user session");
+    return null;
+  }
 
   // Get filtered steps based on tier
   const steps = getTutorialStepsForTier(tier || 'free');

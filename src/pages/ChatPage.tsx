@@ -2463,8 +2463,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                     onNewChat={() => setSidebarOpen(false)}
                   />
                   <UsageCounter userId={userId ?? ''} />
-                  {/* ✅ EMOTIONAL INSIGHTS WIDGETS: Show mood tracking and conversation analysis */}
-                  {userId && <EmotionalInsightsWidgets userId={userId} isOpen={sidebarOpen} />}
+                  {/* ✅ EMOTIONAL INSIGHTS WIDGETS: Always render to prevent hook violations (handles empty userId internally) */}
+                  <EmotionalInsightsWidgets userId={userId || undefined} isOpen={sidebarOpen} />
                   
                   {/* Rituals Button */}
                   <button

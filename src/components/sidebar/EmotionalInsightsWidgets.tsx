@@ -21,7 +21,7 @@ import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip } fr
 import { ritualAnalyticsService, type CompletionStats, type MoodTrend } from '@/features/rituals/services/ritualAnalyticsService';
 
 interface EmotionalInsightsWidgetsProps {
-  userId: string;
+  userId?: string; // ✅ FIX: Make optional to allow always rendering (prevents hook violations)
   isOpen: boolean; // Only load when sidebar is open
 }
 
