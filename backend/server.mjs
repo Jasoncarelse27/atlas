@@ -1102,6 +1102,24 @@ Avoid mentioning weekly stats unless asked.
         personalizationNote = `\n\nPERSONALIZATION:\n${parts.join('\n')}`;
       }
     }
+
+    // ✅ NEW: Add tone preference instructions
+    if (preferences?.tone_preference) {
+      const toneInstructions = {
+        warm: 'Use a warm, friendly, kind, human, and encouraging tone. Be supportive and emotionally intelligent.',
+        direct: 'Use a structured, efficient, and minimal-emotion tone. Be clear and concise.',
+        neutral: 'Use a balanced and factual tone. Be professional and objective.',
+        creative: 'Use a metaphorical, playful, and imaginative tone. Be creative and engaging.'
+      };
+      
+      const toneBlock = `\n\nTONE INSTRUCTIONS:\nThe user prefers the tone: "${preferences.tone_preference}".\n${toneInstructions[preferences.tone_preference] || toneInstructions.warm}\n\nMATCH THIS TONE CONSISTENTLY THROUGHOUT YOUR RESPONSE.`;
+      
+      if (personalizationNote) {
+        personalizationNote += toneBlock;
+      } else {
+        personalizationNote = toneBlock;
+      }
+    }
     finalUserContent = personalizedContent + `\n\n${timeContext}${ritualContext}${insightContext}You are Atlas — an emotionally intelligent productivity assistant designed for users in the US and EU.${personalizationNote}
 
 Your primary goals:
@@ -1254,11 +1272,13 @@ Your job is to help the user feel supported, understood, and empowered.`;
       return content.length > 0; // Only keep messages with real content
     });
 
-    messages.push(...validHistory);
+    // ✅ NEW: Limit to last 8 messages (prevents token bloat, improves performance)
+    const limitedHistory = validHistory.slice(-8);
+    messages.push(...limitedHistory);
     logger.debug(
-      `🧠 [Memory] Added ${validHistory.length} messages to context (filtered ${
+      `🧠 [Memory] Added ${limitedHistory.length} messages to context (filtered ${
         conversationHistory.length - validHistory.length
-      } empty messages)`
+      } empty messages, limited to last 8)`
     );
   } else if (is_voice_call && conversationHistory && conversationHistory.length > 0) {
     // ✅ CRITICAL FIX: Filter for voice calls as well (last 5 messages only)
@@ -2626,6 +2646,28 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
       // Preferences are optional, continue without them
     }
 
+    // ✅ NEW: Extract tone preference from request body or user preferences
+    let tonePreference = null;
+    if (req.body?.tonePreference) {
+      tonePreference = req.body.tonePreference; // Frontend override (user's current choice)
+      logger.debug(`[Message] Using tone preference from request: ${tonePreference}`);
+    } else if (userPreferences?.tone_preference) {
+      tonePreference = userPreferences.tone_preference; // From database
+      logger.debug(`[Message] Using tone preference from database: ${tonePreference}`);
+    } else {
+      tonePreference = 'warm'; // Default fallback
+      logger.debug(`[Message] Using default tone preference: warm`);
+    }
+
+    // ✅ NEW: Merge tone preference into userPreferences object
+    if (tonePreference) {
+      if (userPreferences) {
+        userPreferences.tone_preference = tonePreference;
+      } else {
+        userPreferences = { tone_preference: tonePreference };
+      }
+    }
+
     // ✅ CRITICAL FIX: Check paid tiers first to prevent false positives
     // Enforce Free tier monthly limit (15 messages/month) - Studio/Core unlimited
     if (effectiveTier === 'studio' || effectiveTier === 'core') {
@@ -2808,7 +2850,7 @@ app.post('/api/message', verifyJWT, messageRateLimit, tierGateMiddleware, cooldo
           .select('role, content, created_at')
           .eq('conversation_id', finalConversationId)
           .order('created_at', { ascending: true })
-          .limit(10); // Last 10 messages for context
+          .limit(8); // ✅ NEW: Last 8 messages for context (prevents token bloat)
         
         if (historyError) {
           logger.error('[Server] Error fetching history:', historyError.message || historyError);

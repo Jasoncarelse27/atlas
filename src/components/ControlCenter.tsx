@@ -864,6 +864,56 @@ const ControlCenter: React.FC<ControlCenterProps> = ({
         </div>
       </div>
       
+      {/* AI Response Style */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Response Style</h3>
+        
+        <div className="space-y-4">
+          {/* Tone Preference */}
+          <div>
+            <h4 className="font-medium text-gray-700 mb-2">Response Tone</h4>
+            <p className="text-sm text-gray-600 mb-3">Choose how Atlas responds to you</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { 
+                  value: 'warm', 
+                  label: 'Warm & Supportive', 
+                  description: 'Friendly, kind, encouraging' 
+                },
+                { 
+                  value: 'direct', 
+                  label: 'Direct & Concise', 
+                  description: 'Structured, efficient, minimal emotion' 
+                },
+                { 
+                  value: 'neutral', 
+                  label: 'Neutral Professional', 
+                  description: 'Balanced and factual' 
+                },
+                { 
+                  value: 'creative', 
+                  label: 'Creative & Playful', 
+                  description: 'Metaphorical, imaginative' 
+                }
+              ].map((tone) => (
+                <button
+                  key={tone.value}
+                  onClick={() => updateCustomization('preferences.tone_preference', tone.value)}
+                  className={`p-3 border rounded-lg text-left transition-colors ${
+                    customization?.preferences?.tone_preference === tone.value
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'
+                  }`}
+                >
+                  <div className="font-medium text-sm text-gray-900 dark:text-white">{tone.label}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">{tone.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      
       {/* Import/Export */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Import/Export</h3>

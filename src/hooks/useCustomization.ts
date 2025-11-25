@@ -32,6 +32,7 @@ interface UserCustomization {
     notifications: boolean;
     soundEffects: boolean;
     keyboardShortcuts: boolean;
+    tone_preference?: 'warm' | 'direct' | 'neutral' | 'creative'; // ✅ NEW: Tone preference
     accessibility: {
       highContrast: boolean;
       largeText: boolean;
@@ -236,6 +237,7 @@ const createDefaultCustomization = (userId: string): UserCustomization => ({
     notifications: true,
     soundEffects: true,
     keyboardShortcuts: true,
+    tone_preference: 'warm', // ✅ NEW: Default to warm tone
     accessibility: {
       highContrast: false,
       largeText: false,

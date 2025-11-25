@@ -152,6 +152,20 @@ export const chatService = {
       // Memory extraction is handled by the component layer
       // This keeps the service layer clean and avoids circular dependencies
 
+      // ✅ NEW: Get tone preference from customization
+      const getTonePreference = (): string => {
+        try {
+          const customizationStr = localStorage.getItem(`atlas-customization-${actualUserId}`);
+          if (customizationStr) {
+            const customization = JSON.parse(customizationStr);
+            return customization?.preferences?.tone_preference || 'warm';
+          }
+        } catch (e) {
+          // Fallback to default
+        }
+        return 'warm'; // Default fallback
+      };
+
       // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
       const messageEndpoint = getApiEndpoint('/api/message?stream=1');
       
@@ -234,7 +248,8 @@ export const chatService = {
               body: JSON.stringify({ 
                 message: text, // Backend expects "message" field
                 conversationId: conversationId || null, // ✅ Backend now gets userId from auth token
-                timezone: getClientTimezone() // ✅ NEW: optional, backend treats as optional
+                timezone: getClientTimezone(), // ✅ NEW: optional, backend treats as optional
+                tonePreference: getTonePreference() // ✅ NEW: Pass tone preference
                 // userId removed - backend uses req.user.id from auth middleware
               }),
               signal: combinedController.signal,
@@ -735,6 +750,20 @@ export async function sendMessageWithAttachments(
     throw new Error('User not authenticated');
   }
 
+  // ✅ NEW: Get tone preference helper (reuse same function)
+  const getTonePreference = (): string => {
+    try {
+      const customizationStr = localStorage.getItem(`atlas-customization-${finalUserId}`);
+      if (customizationStr) {
+        const customization = JSON.parse(customizationStr);
+        return customization?.preferences?.tone_preference || 'warm';
+      }
+    } catch (e) {
+      // Fallback to default
+    }
+    return 'warm';
+  };
+
   const messageId = generateUUID();
   const now = new Date().toISOString();
 
@@ -823,7 +852,8 @@ export async function sendMessageWithAttachments(
               attachments: uploadedAttachments.map(att => ({
                 type: att.type,
                 url: att.url || att.publicUrl
-              }))
+              })),
+              tonePreference: getTonePreference() // ✅ NEW: Pass tone preference
             })
           });
           
