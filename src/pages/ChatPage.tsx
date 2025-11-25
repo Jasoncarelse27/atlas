@@ -2802,6 +2802,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             conversationId={conversationId || undefined}
             inputRef={inputRef}
             isStreaming={isStreaming}
+            isVisible={!hasOpenModal}
+            disabled={hasOpenModal}
           />
         </div>
         </main>
