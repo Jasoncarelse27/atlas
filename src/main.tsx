@@ -15,6 +15,9 @@ import { initSentry, SentryErrorBoundary } from './services/sentryService'
 import './lib/cache-buster'; // ✅ Force cache invalidation
 import './lib/vercel-rebuild'
 
+// ✅ LAUNCH DAY: Health check utility for quick diagnostics
+import './utils/atlasHealthCheck'
+
 // ✅ DEPLOYMENT VERIFICATION: Log build version to verify deployment
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || Date.now().toString();
 const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();

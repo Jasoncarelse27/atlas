@@ -1240,17 +1240,43 @@ Your job is to help the user feel supported, understood, and empowered.`;
   // 🧠 MEMORY 100%: Build messages array with conversation history
   const messages = [];
   
-  // ✅ VOICE CALL FIX: Skip conversation history for voice calls to prevent confusion
-  // Voice calls should be fresh conversations without old "can't hear" messages polluting context
+  // ✅ CRITICAL FIX: Filter out messages with empty content before sending to Anthropic
+  // Prevents: "messages.X: all messages must have non-empty content except for the optional final assistant message"
   if (!is_voice_call && conversationHistory && conversationHistory.length > 0) {
-    messages.push(...conversationHistory);
-    logger.debug(`🧠 [Memory] Added ${conversationHistory.length} messages to context`);
+    const validHistory = conversationHistory.filter((msg) => {
+      const content =
+        typeof msg.content === "string"
+          ? msg.content.trim()
+          : typeof msg.content === "object" && msg.content?.text
+          ? String(msg.content.text).trim()
+          : "";
+
+      return content.length > 0; // Only keep messages with real content
+    });
+
+    messages.push(...validHistory);
+    logger.debug(
+      `🧠 [Memory] Added ${validHistory.length} messages to context (filtered ${
+        conversationHistory.length - validHistory.length
+      } empty messages)`
+    );
   } else if (is_voice_call && conversationHistory && conversationHistory.length > 0) {
-    // ✅ CRITICAL FIX: Enable conversation memory for voice calls (last 5 messages)
-    // This allows Atlas to remember context within the same voice call session
-    const voiceHistory = conversationHistory.slice(-5); // Last 5 messages for voice context
+    // ✅ CRITICAL FIX: Filter for voice calls as well (last 5 messages only)
+    const voiceHistory = conversationHistory
+      .slice(-5)
+      .filter((msg) => {
+        const content =
+          typeof msg.content === "string"
+            ? msg.content.trim()
+            : typeof msg.content === "object" && msg.content?.text
+            ? String(msg.content.text).trim()
+            : "";
+
+        return content.length > 0;
+      });
+
     messages.push(...voiceHistory);
-    logger.debug(`🧠 [VoiceCall] Added ${voiceHistory.length} messages for voice context`);
+    logger.debug(`🧠 [VoiceCall] Added ${voiceHistory.length} messages for voice context (filtered empty messages)`);
   } else if (is_voice_call) {
     logger.debug(`🧠 [VoiceCall] No conversation history available`);
   }

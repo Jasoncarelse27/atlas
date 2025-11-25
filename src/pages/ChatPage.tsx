@@ -2342,6 +2342,11 @@ const ChatPage: React.FC<ChatPageProps> = () => {
     );
   }
 
+  // ✅ CRITICAL FIX: Compute modal visibility OUTSIDE JSX and use it purely for CSS hiding.
+  // This keeps `EnhancedInputToolbar` always mounted, so its hooks run in a stable order.
+  const hasOpenModal =
+    sidebarOpen || showHistory || showProfile || showSearch || genericModalVisible || showQuestionnaire;
+
   return (
     <ErrorBoundary>
       <div 
@@ -2775,36 +2780,30 @@ const ChatPage: React.FC<ChatPageProps> = () => {
             </div>
           </div>
 
-        {/* ✅ ALWAYS RENDER TOOLBAR (prevents React Error #310 - hooks must run in same order) */}
-        {(() => {
-          const hasOpenModal = sidebarOpen || showHistory || showProfile || showSearch || genericModalVisible || showQuestionnaire;
-          
-          return (
-            <div
-              className={`
-                fixed bottom-[12px] left-0 right-0 z-[10000]
-                pt-3 pb-3 px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
-                sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0 sm:bottom-0
-                ${hasOpenModal ? 'hidden pointer-events-none' : ''}
-              `}
-              style={{
-                backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
-                backdropFilter: 'none',
-                WebkitBackdropFilter: 'none',
-                transform: 'translateZ(0)', // ✅ GPU acceleration
-              }}
-            >
-              <EnhancedInputToolbar
-                onSendMessage={handleTextMessage}
-                isProcessing={isProcessing}
-                placeholder="Ask Atlas anything..."
-                conversationId={conversationId || undefined}
-                inputRef={inputRef}
-                isStreaming={isStreaming}
-              />
-            </div>
-          );
-        })()}
+        {/* ✅ ALWAYS RENDER TOOLBAR (NO IIFE - prevents React Error #310) */}
+        <div
+          className={`
+            fixed bottom-[12px] left-0 right-0 z-[10000]
+            pt-3 pb-3 px-[max(8px,env(safe-area-inset-left,0px))] pr-[max(8px,env(safe-area-inset-right,0px))]
+            sm:static sm:z-auto sm:pt-0 sm:pb-0 sm:px-0 sm:pr-0 sm:bottom-0
+            ${hasOpenModal ? 'hidden pointer-events-none' : ''}
+          `}
+          style={{
+            backgroundColor: 'transparent', // ✅ TRANSPARENT: Allows chatbox to float above page background
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
+            transform: 'translateZ(0)', // ✅ GPU acceleration
+          }}
+        >
+          <EnhancedInputToolbar
+            onSendMessage={handleTextMessage}
+            isProcessing={isProcessing}
+            placeholder="Ask Atlas anything..."
+            conversationId={conversationId || undefined}
+            inputRef={inputRef}
+            isStreaming={isStreaming}
+          />
+        </div>
         </main>
 
         {/* Modern scroll-to-bottom button with golden sparkle - hide when drawer/modal is open */}
