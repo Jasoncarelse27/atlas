@@ -9,6 +9,7 @@ import { canUseAudio } from '../../config/featureAccess';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { resendService } from '../../services/resendService';
+import { cleanAssistantMessage } from '../../utils/cleanMarkdown';
 import type { Message } from '../../types/chat';
 import { UpgradeButton } from '../UpgradeButton';
 import { DeleteMessageModal } from '../modals/DeleteMessageModal';
@@ -127,37 +128,45 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
   const messageContent = (() => {
     if (!message.content) return '';
     
+    let finalText = '';
+    
     // Handle object format: {type: "text", text: "..."}
     if (typeof message.content === 'object' && !Array.isArray(message.content)) {
       const contentObj = message.content as any;
       // ✅ FIX: Try multiple text fields, never show raw JSON
       const text = contentObj.text || contentObj.content || contentObj.message || '';
-      return String(text); // Ensure it's a string
+      finalText = String(text); // Ensure it's a string
     }
-    
     // Handle array format
-    if (Array.isArray(message.content)) {
-      return message.content.join(' ');
+    else if (Array.isArray(message.content)) {
+      finalText = message.content.join(' ');
     }
-    
     // Handle plain string - BUT CHECK IF IT'S JSON!
-    if (typeof message.content === 'string') {
+    else if (typeof message.content === 'string') {
       // ✅ FIX: Parse JSON strings that look like {"type":"text","text":"..."}
       if (message.content.trim().startsWith('{') && 
           message.content.includes('"type"') && 
           message.content.includes('"text"')) {
         try {
           const parsed = JSON.parse(message.content);
-          return parsed.text || parsed.content || message.content;
+          finalText = parsed.text || parsed.content || message.content;
         } catch (e) {
           // Not valid JSON, return as-is
-          return message.content;
+          finalText = message.content;
         }
+      } else {
+        finalText = message.content;
       }
-      return message.content;
+    } else {
+      finalText = String(message.content);
     }
     
-    return message.content;
+    // ✅ CRITICAL FIX: Clean markdown and spacing for assistant messages
+    if (message.role === 'assistant' && typeof finalText === 'string') {
+      finalText = cleanAssistantMessage(finalText);
+    }
+    
+    return finalText;
   })();
   
   // Debug logging removed - displayedText now initializes correctly

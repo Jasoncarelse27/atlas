@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { logger } from '../../lib/logger';
 import { useMessageStore } from '../../stores/useMessageStore';
 import { useThemeMode } from '../../hooks/useThemeMode';
+import { cleanAssistantMessage } from '../../utils/cleanMarkdown';
 import type { Attachment, Message } from '../../types/chat';
 import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { AudioMessageBubble } from './AudioMessageBubble';
@@ -236,7 +237,12 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
   }
 
   // Handle text content (default)
-  const content = Array.isArray(message.content) ? message.content.join(' ') : message.content;
+  let content = Array.isArray(message.content) ? message.content.join(' ') : message.content;
+  
+  // ✅ CRITICAL FIX: Clean markdown and spacing for assistant messages only
+  if (message.role === 'assistant' && typeof content === 'string') {
+    content = cleanAssistantMessage(content);
+  }
   
   // ✅ Theme-aware prose styling
   const { isDarkMode } = useThemeMode();

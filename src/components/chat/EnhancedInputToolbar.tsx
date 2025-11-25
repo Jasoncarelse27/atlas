@@ -254,6 +254,11 @@ const EnhancedInputToolbar = React.memo(({
       setAttachmentPreviews([]);
       setText('');
     }
+    
+    // ✅ CRITICAL FIX: Always return cleanup function (prevents React Error #310)
+    return () => {
+      // No cleanup needed, but React requires consistent return type
+    };
   }, [conversationId]); // Only run when conversationId changes
 
   // ✅ Cleanup timers and preview URLs on unmount
@@ -296,12 +301,21 @@ const EnhancedInputToolbar = React.memo(({
       inputRef.current.focus();
       logger.debug('[EnhancedInputToolbar] ✅ Input focused on visibility change');
     }
+    
+    // ✅ CRITICAL FIX: Always return cleanup function (prevents React Error #310)
+    return () => {
+      // No cleanup needed, but React requires consistent return type
+    };
   }, [isVisible]);
 
   // ✅ Auto-expand textarea as user types (ChatGPT-style) - FIXED
   useEffect(() => {
     const textarea = inputRef.current;
-    if (!textarea) return;
+    if (!textarea) {
+      // ✅ CRITICAL FIX: Always return cleanup function (prevents React Error #310)
+      // React requires hooks to always return the same type (cleanup function or undefined)
+      return () => {};
+    }
 
     requestAnimationFrame(() => {
       // Reset to natural height first
@@ -315,6 +329,11 @@ const EnhancedInputToolbar = React.memo(({
       textarea.style.height = finalHeight + 'px';
       textarea.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
     });
+    
+    // ✅ CRITICAL FIX: Always return cleanup function (prevents React Error #310)
+    return () => {
+      // No cleanup needed, but React requires consistent return type
+    };
   }, [text]); // Re-run when text changes
 
   // Keyboard event handlers
