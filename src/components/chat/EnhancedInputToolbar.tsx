@@ -177,13 +177,22 @@ const EnhancedInputToolbar = React.memo(({
     
     // ✅ PRIVACY NOTICE: Check if user has seen privacy notice
     const hasSeenPrivacyNotice = localStorage.getItem('atlas-voice-privacy-notice-seen');
+    let timer: NodeJS.Timeout | null = null;
+    
     if (!hasSeenPrivacyNotice && supported) {
       // Show privacy notice after a short delay (not immediately)
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setShowPrivacyNotice(true);
       }, 2000);
-      return () => clearTimeout(timer);
     }
+    
+    // ✅ CRITICAL FIX: Always return cleanup function (prevents React Error #310)
+    // React requires hooks to always return the same type (cleanup function or undefined)
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, []);
   
   // ✅ SOUND CUES: Play subtle beep sounds

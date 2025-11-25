@@ -27,6 +27,7 @@ import { useTierQuery } from '../hooks/useTierQuery'; // 🔥 Use modern tier ho
 import { logger } from '../lib/logger';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { chatService } from '../services/chatService';
+import { ensureConversationExists } from '../services/conversationGuard';
 import { databaseMigration } from '../services/databaseMigration';
 import { startBackgroundSync, stopBackgroundSync } from '../services/syncService';
 import { autoGenerateTitle } from '../services/titleGenerationService';
@@ -895,8 +896,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       // ✅ CRITICAL FIX: Ensure conversation exists and save user message to Supabase
       // This ensures the message is persisted and will appear after any sync/reload
       try {
-        // First ensure the conversation exists
-        const { ensureConversationExists } = await import('../services/conversationGuard');
+        // First ensure the conversation exists (static import - prevents module load errors)
         const conversationExists = await ensureConversationExists(conversationId, userId);
         
         if (!conversationExists) {
