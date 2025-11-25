@@ -7,7 +7,6 @@ import { useSupabaseAuth } from '../../hooks/useSupabaseAuth';
 import { useFeatureAccess, useTierAccess } from '../../hooks/useTierAccess';
 import { sendMessageWithAttachments, stopMessageStream } from '../../services/chatService';
 import '../../styles/voice-animations.css';
-import type { Message } from '../../types/chat';
 // Removed useMessageStore import - using props from parent component
 import { logger } from '../../lib/logger';
 import { fileService } from '../../services/fileService';
@@ -830,18 +829,19 @@ const EnhancedInputToolbar = React.memo(({
             
             // ✅ CRITICAL FIX: Add audio to draft attachments instead of sending immediately
             // This allows users to combine image + voice note
+            let audioAttachment: any = null;
             try {
               // Upload audio to get URL
               const { voiceService } = await import('../../services/voiceService');
               const audioMetadata = await voiceService.uploadAudio(audioBlob);
               
               // Add to draft attachments
-              const audioAttachment = {
+              audioAttachment = {
                 id: generateUUID(),
                 type: 'audio' as const,
                 url: audioMetadata.url,
                 publicUrl: audioMetadata.url,
-                file: audioBlob,
+                file: audioBlob as any, // ✅ FIX: Type assertion for Blob compatibility
                 previewUrl: URL.createObjectURL(audioBlob), // Preview for UI
                 name: `voice-note-${Date.now()}.webm`
               };
@@ -888,7 +888,9 @@ const EnhancedInputToolbar = React.memo(({
               }
               
               // Clean up attachment if upload failed
-              setAttachmentPreviews(prev => prev.filter(att => att.id !== audioAttachment.id));
+              if (audioAttachment) {
+                setAttachmentPreviews(prev => prev.filter(att => att.id !== audioAttachment.id));
+              }
             } finally {
               setIsProcessingAudio(false);
             }
@@ -1017,10 +1019,18 @@ const EnhancedInputToolbar = React.memo(({
   // Desktop: Quick click = immediate start, Hold = press-and-hold
   // Mobile: Quick tap = immediate start, Hold = press-and-hold with slide-to-cancel
   const handleMicPress = async (e?: React.MouseEvent) => {
-    // Prevent double-triggering with onMouseDown/onTouchStart
-    // If press-hold timer is active or we just handled a press-hold, ignore onClick
-    if (pressHoldTimerRef.current || isPressHoldActive) {
-      return; // Already handled by onMouseDown/onTouchStart
+    // ✅ FIX: Only block if timer is STILL active (user is actively holding)
+    // If timer was cleared, it means user released quickly = quick tap, proceed
+    if (pressHoldTimerRef.current) {
+      // Timer still running = user is holding, let handleMicPressStart handle it
+      return;
+    }
+    
+    // ✅ FIX: If isPressHoldActive but timer cleared, it was a quick tap
+    // Clear the flag and proceed with quick click behavior
+    if (isPressHoldActive) {
+      setIsPressHoldActive(false);
+      // Continue to handle as quick click
     }
     
     // Don't preventDefault - let browser handle naturally
