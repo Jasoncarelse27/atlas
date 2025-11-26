@@ -1727,6 +1727,7 @@ const allowedOriginPatterns = [
   // Production domains
   /^https:\/\/atlas-ai\.app$/,
   /^https:\/\/www\.atlas-ai\.app$/,
+  /^https:\/\/atlas\.otiumcreations\.com$/,  // Production domain
   /^https:\/\/.*\.vercel\.app$/,  // All Vercel deployments (production + preview)
   /^https:\/\/.*\.up\.railway\.app$/,  // Railway preview URLs
   /^https:\/\/.*\.fly\.dev$/,  // Fly.io deployments
@@ -6049,7 +6050,11 @@ if (!process.env.RAILWAY_ENVIRONMENT && process.env.NODE_ENV !== 'production') {
     } else {
       // Frontend routes should go to Vercel, not Railway
       // ✅ MOBILE FIX: Return HTML redirect page instead of JSON for better mobile UX
-      const frontendUrl = 'https://atlas-xi-tawny.vercel.app';
+      // ✅ CORS FIX: Use environment variable for frontend URL (supports production domain)
+      const frontendUrl =
+        process.env.FRONTEND_URL ||
+        process.env.VITE_FRONTEND_URL ||
+        'https://atlas.otiumcreations.com';
       res.status(404).setHeader('Content-Type', 'text/html').send(`
         <!DOCTYPE html>
         <html lang="en">

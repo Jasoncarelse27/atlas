@@ -10,7 +10,8 @@ const supabase = createClient(
 // Allowed origins for dev + prod
 const allowedOrigins = [
   "http://localhost:5174",
-  "https://atlas-xi-tawny.vercel.app",
+  "https://atlas-xi-tawny.vercel.app", // legacy fallback
+  "https://atlas.otiumcreations.com",  // NEW production domain
   "https://atlas.app"
 ];
 
