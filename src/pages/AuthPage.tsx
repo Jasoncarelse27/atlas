@@ -1,6 +1,6 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { navigateToLastConversation } from '../utils/chatNavigation';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { getApiEndpoint } from '../utils/apiClient';
@@ -303,7 +303,30 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
 
 // Main Login Screen Component
 const AuthPage = () => {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [searchParams] = useSearchParams();
+  const urlMode = searchParams.get('mode');
+  const urlTier = searchParams.get('tier');
+  
+  // ✅ Read mode from URL, default to 'login'
+  const [mode, setMode] = useState<'login' | 'signup'>(
+    urlMode === 'signup' ? 'signup' : 'login'
+  );
+  
+  // ✅ Update mode when URL changes
+  useEffect(() => {
+    if (urlMode === 'signup') {
+      setMode('signup');
+    } else if (urlMode === 'login') {
+      setMode('login');
+    }
+  }, [urlMode]);
+  
+  // ✅ Store tier for analytics (optional - tracks which pricing button was clicked)
+  useEffect(() => {
+    if (urlTier && ['free', 'core', 'studio'].includes(urlTier)) {
+      localStorage.setItem('atlas:signup_tier', urlTier);
+    }
+  }, [urlTier]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F4E8E1] to-[#CEC1B8] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
