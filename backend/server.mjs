@@ -95,7 +95,15 @@ const app = express();
 app.post('/api/fastspring/webhook', express.raw({ type: 'application/json' }), handleFastSpringWebhook);
 
 // MailerLite webhook (requires raw body for HMAC signature verification)
+// ✅ CRITICAL: This route MUST be registered BEFORE any middleware to ensure it's accessible
+// ✅ CRITICAL: Always returns 200 to keep MailerLite webhook active
 app.post('/api/mailerlite/webhook', express.raw({ type: 'application/json' }), handleMailerLiteWebhook);
+
+// ✅ SIMPLE TEST ENDPOINT: Always returns 200 (for MailerLite webhook testing)
+app.post('/api/mailerlite/webhook-test', express.json(), (req, res) => {
+  logger.info('[MailerLite] Test webhook endpoint called');
+  return res.status(200).json({ ok: true, message: 'Webhook endpoint is working' });
+});
 
 // Track server readiness
 let serverReady = false;

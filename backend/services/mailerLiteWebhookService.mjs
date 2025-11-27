@@ -76,35 +76,47 @@ async function logEmailEvent(event, data, userId, email) {
 }
 
 export async function handleMailerLiteWebhook(req, res) {
+  // ✅ CRITICAL FIX: Always return 200 immediately to keep webhook active
+  // MailerLite deactivates webhooks that return non-200 status codes
+  // This MUST be the first thing we do - no exceptions
+  
   try {
+    logger.info('[MailerLite] 🔔 Webhook received');
+    
     // ✅ CRITICAL: Use raw body for signature verification (same as FastSpring)
     // MailerLite sends raw JSON bytes, and signature is computed from those exact bytes
-    const rawBody = req.body.toString('utf8');
-    
-    // ✅ CRITICAL FIX: Always return 200 to keep webhook active
-    // MailerLite deactivates webhooks that return non-200 status codes
-    // Log signature issues but don't fail the request
+    let rawBody;
+    try {
+      rawBody = req.body ? req.body.toString('utf8') : '';
+    } catch (bodyError) {
+      logger.warn('[MailerLite] ⚠️ Could not read body (continuing anyway):', bodyError.message);
+      rawBody = '';
+    }
     
     // Verify signature if configured (but don't fail if invalid)
-    if (MAILERLITE_WEBHOOK_SECRET) {
+    if (MAILERLITE_WEBHOOK_SECRET && rawBody) {
       const signature = req.headers['x-mailerlite-signature'];
       
       if (!signature) {
         logger.warn('[MailerLite] ⚠️ Missing X-MailerLite-Signature header (continuing anyway)');
       } else {
-        const computed = crypto
-          .createHmac('sha256', MAILERLITE_WEBHOOK_SECRET.trim())
-          .update(rawBody)
-          .digest('hex');
-        
-        if (signature !== computed) {
-          logger.warn('[MailerLite] ⚠️ Invalid signature (continuing anyway)', {
-            received: signature?.substring(0, 20) + '...',
-            computed: computed?.substring(0, 20) + '...',
-            bodyLength: rawBody.length
-          });
-        } else {
-          logger.debug('[MailerLite] ✅ Signature verified');
+        try {
+          const computed = crypto
+            .createHmac('sha256', MAILERLITE_WEBHOOK_SECRET.trim())
+            .update(rawBody)
+            .digest('hex');
+          
+          if (signature !== computed) {
+            logger.warn('[MailerLite] ⚠️ Invalid signature (continuing anyway)', {
+              received: signature?.substring(0, 20) + '...',
+              computed: computed?.substring(0, 20) + '...',
+              bodyLength: rawBody.length
+            });
+          } else {
+            logger.debug('[MailerLite] ✅ Signature verified');
+          }
+        } catch (sigError) {
+          logger.warn('[MailerLite] ⚠️ Signature verification error (continuing anyway):', sigError.message);
         }
       }
     }
@@ -112,11 +124,11 @@ export async function handleMailerLiteWebhook(req, res) {
     // Parse JSON from raw body
     let payload;
     try {
-      payload = JSON.parse(rawBody);
+      payload = rawBody ? JSON.parse(rawBody) : {};
     } catch (parseError) {
       logger.warn('[MailerLite] ⚠️ Failed to parse webhook body (continuing anyway):', parseError.message);
       // Still return 200 to keep webhook active
-      return res.status(200).json({ received: true, error: 'parse_failed' });
+      return res.status(200).json({ ok: true, received: true });
     }
     
     const { event, data } = payload || {};
@@ -124,7 +136,7 @@ export async function handleMailerLiteWebhook(req, res) {
     if (!event) {
       logger.warn('[MailerLite] ⚠️ No event in webhook (continuing anyway)');
       // Still return 200 to keep webhook active
-      return res.status(200).json({ received: true, error: 'no_event' });
+      return res.status(200).json({ ok: true, received: true });
     }
     
     logger.info(`[MailerLite] 🔔 Webhook event: ${event}`);
@@ -209,10 +221,12 @@ export async function handleMailerLiteWebhook(req, res) {
         logger.debug(`[MailerLite] ℹ️ Ignored event: ${event}`);
     }
     
-    return res.status(200).send('ok');
+    // ✅ CRITICAL: Always return 200 JSON response
+    return res.status(200).json({ ok: true, received: true, event });
   } catch (error) {
-    logger.error('[MailerLite] Webhook error:', error);
-    return res.status(200).send('ok');
+    // ✅ CRITICAL: Even on error, return 200 to keep webhook active
+    logger.error('[MailerLite] Webhook error (but returning 200 anyway):', error);
+    return res.status(200).json({ ok: true, received: true, error: 'processed_with_errors' });
   }
 }
 
