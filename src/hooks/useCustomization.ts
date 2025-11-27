@@ -288,11 +288,12 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       const dbResult = await safeDbOperation(
         async () => {
           // ✅ FIX: Explicitly select columns to avoid 406 errors
+          // ✅ FIX: Use maybeSingle() instead of single() to avoid 400 errors when no row exists
           const { data, error: dbError } = await supabase
             .from('user_customizations')
             .select('id, user_id, preferences, theme, layout, pinned_items, recent_items, created_at, updated_at')
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
 
           // Handle 406 (Not Acceptable) - fallback gracefully
           if (dbError && dbError.code === '406') {
@@ -300,7 +301,8 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
             return { data: null, error: { code: 'FALLBACK', message: 'Using localStorage fallback' } };
           }
 
-          if (dbError && dbError.code !== 'PGRST116') {
+          // Handle 400 (Bad Request) or PGRST116 (Not Found) - both mean no row exists
+          if (dbError && dbError.code !== 'PGRST116' && dbError.code !== '400') {
             throw new Error(`Database error: ${dbError.message}`);
           }
 
