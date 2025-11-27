@@ -5425,27 +5425,39 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           return res.status(400).json({ error: 'Missing required fields: email, groupName' });
         }
 
-        // ✅ FIX: Get group ID from name
-        const groupId = await getGroupId(groupName);
-        if (!groupId) {
-          logger.error(`[MailerLite Proxy] ❌ Group ${groupName} not found - cannot add subscriber`);
-          return res.status(404).json({ 
+        try {
+          // ✅ FIX: Get group ID from name
+          const groupId = await getGroupId(groupName);
+          if (!groupId) {
+            logger.error(`[MailerLite Proxy] ❌ Group ${groupName} not found - cannot add subscriber`);
+            return res.status(404).json({ 
+              success: false,
+              error: `Group ${groupName} not found`,
+              details: 'Check group name or set MAILERLITE_GROUP_*_ID environment variable'
+            });
+          }
+
+          // ✅ FIX: Use group ID instead of group name
+          // ✅ FIX: Ensure groupId is string to prevent JavaScript precision loss
+          const groupIdStr = String(groupId);
+          logger.debug(`[MailerLite Proxy] Adding ${email} to group ${groupName} (ID: ${groupIdStr})`);
+          
+          response = await fetch(`${apiUrl}/groups/${groupIdStr}/subscribers`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+            },
+            body: JSON.stringify({ email }),
+          });
+        } catch (groupIdError) {
+          logger.error(`[MailerLite Proxy] Error getting group ID for ${groupName}:`, groupIdError);
+          return res.status(500).json({
             success: false,
-            error: `Group ${groupName} not found`,
-            details: 'Check group name or set MAILERLITE_GROUP_*_ID environment variable'
+            error: 'Failed to resolve group ID',
+            details: groupIdError instanceof Error ? groupIdError.message : String(groupIdError)
           });
         }
-
-        // ✅ FIX: Use group ID instead of group name
-        // ✅ FIX: Ensure groupId is string to prevent JavaScript precision loss
-        response = await fetch(`${apiUrl}/groups/${String(groupId)}/subscribers`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
-          },
-          body: JSON.stringify({ email }),
-        });
         break;
       }
 
