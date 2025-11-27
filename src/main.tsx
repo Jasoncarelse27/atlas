@@ -21,7 +21,7 @@ import './utils/atlasHealthCheck'
 // ✅ DEPLOYMENT VERIFICATION: Log build version to verify deployment
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || import.meta.env.VITE_APP_VERSION || Date.now().toString();
 const deployTime = import.meta.env.VITE_DEPLOY_TIME || new Date().toISOString();
-const CACHE_BUSTER_VERSION = 'magicbell-fix-v1'; // ✅ Force cache clear for MagicBell fix
+const CACHE_BUSTER_VERSION = 'react-310-fix-v1'; // ✅ Force cache clear for React #310 fix (Vercel stale build)
 
 // ✅ CRITICAL: Check if cached version matches current version
 const CACHE_KEY = 'atlas-app-version';
