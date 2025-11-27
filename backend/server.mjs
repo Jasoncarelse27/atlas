@@ -5216,7 +5216,7 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
     const getGroupId = async (groupName) => {
       // First check environment variable map
       if (GROUP_ID_MAP[groupName]) {
-        return GROUP_ID_MAP[groupName];
+        return String(GROUP_ID_MAP[groupName]); // ✅ FIX: Convert to string to preserve precision (IDs exceed MAX_SAFE_INTEGER)
       }
       
       // If not in map, fetch from MailerLite API
@@ -5233,7 +5233,7 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           const group = groups.data?.find(g => g.name === groupName);
           if (group) {
             logger.debug(`[MailerLite Proxy] ✅ Found group ID for ${groupName}: ${group.id}`);
-            return group.id;
+            return String(group.id); // ✅ FIX: Convert to string to preserve precision (IDs exceed MAX_SAFE_INTEGER)
           } else {
             logger.warn(`[MailerLite Proxy] ⚠️ Group ${groupName} not found in MailerLite`);
           }
@@ -5296,7 +5296,7 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           const groupId = await getGroupId(groupName);
           if (groupId) {
             try {
-              const groupResponse = await fetch(`${apiUrl}/groups/${groupId}/subscribers`, {
+              const groupResponse = await fetch(`${apiUrl}/groups/${String(groupId)}/subscribers`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -5386,7 +5386,8 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
         }
 
         // ✅ FIX: Use group ID instead of group name
-        response = await fetch(`${apiUrl}/groups/${groupId}/subscribers`, {
+        // ✅ FIX: Ensure groupId is string to prevent JavaScript precision loss
+        response = await fetch(`${apiUrl}/groups/${String(groupId)}/subscribers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -5416,7 +5417,8 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
         }
 
         // ✅ FIX: Use group ID instead of group name
-        response = await fetch(`${apiUrl}/groups/${groupId}/subscribers/${encodeURIComponent(email)}`, {
+        // ✅ FIX: Ensure groupId is string to prevent JavaScript precision loss
+        response = await fetch(`${apiUrl}/groups/${String(groupId)}/subscribers/${encodeURIComponent(email)}`, {
           method: 'DELETE',
           headers: {
             'X-MailerLite-ApiKey': MAILERLITE_API_KEY,

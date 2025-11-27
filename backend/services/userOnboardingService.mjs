@@ -126,7 +126,7 @@ export async function syncMailerLiteOnSignup(userId) {
       
       if (GROUP_ID_MAP[groupName]) {
         logger.debug(`[UserOnboarding] Using env var for group ${groupName}: ${GROUP_ID_MAP[groupName]}`);
-        return GROUP_ID_MAP[groupName];
+        return String(GROUP_ID_MAP[groupName]); // ✅ FIX: Convert to string to preserve precision (IDs exceed MAX_SAFE_INTEGER)
       }
       
       // Fallback: fetch from API
@@ -145,7 +145,7 @@ export async function syncMailerLiteOnSignup(userId) {
           
           if (group) {
             logger.info(`[UserOnboarding] ✅ Found group ID for ${groupName}: ${group.id}`);
-            return group.id;
+            return String(group.id); // ✅ FIX: Convert to string to preserve precision (IDs exceed MAX_SAFE_INTEGER)
           } else {
             logger.warn(`[UserOnboarding] ⚠️ Group ${groupName} not found in MailerLite. Available groups:`, 
               Array.isArray(groups) ? groups.map(g => g.name).join(', ') : 'unknown');
@@ -167,8 +167,10 @@ export async function syncMailerLiteOnSignup(userId) {
       
       if (groupId) {
         // ✅ FIX: Use group ID instead of group name
-        logger.info(`[UserOnboarding] Adding ${email} to group ${groupName} (ID: ${groupId})...`);
-        const addResponse = await fetch(`https://api.mailerlite.com/api/v2/groups/${groupId}/subscribers`, {
+        // ✅ FIX: Ensure groupId is string to prevent JavaScript precision loss (IDs exceed MAX_SAFE_INTEGER)
+        const groupIdStr = String(groupId);
+        logger.info(`[UserOnboarding] Adding ${email} to group ${groupName} (ID: ${groupIdStr})...`);
+        const addResponse = await fetch(`https://api.mailerlite.com/api/v2/groups/${groupIdStr}/subscribers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -178,7 +180,7 @@ export async function syncMailerLiteOnSignup(userId) {
         });
         
         if (addResponse.ok) {
-          logger.info(`[UserOnboarding] ✅ Successfully added ${email} to group ${groupName} (ID: ${groupId}) - welcome email automation will trigger`);
+          logger.info(`[UserOnboarding] ✅ Successfully added ${email} to group ${groupName} (ID: ${groupIdStr}) - welcome email automation will trigger`);
         } else {
           const errorData = await addResponse.json().catch(() => ({ message: 'Unknown error' }));
           logger.error(`[UserOnboarding] ❌ Failed to add ${email} to group ${groupName}: ${addResponse.status} - ${errorData.message || JSON.stringify(errorData)}`);
