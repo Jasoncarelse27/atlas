@@ -5408,20 +5408,30 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
           return res.status(400).json({ error: 'Missing required fields: email, event' });
         }
 
-        // MailerLite v2 API uses custom fields for events
-        const eventFields = {
-          last_event: event,
-          last_event_time: new Date().toISOString(),
-          ...properties,
+        // ✅ FIX: Use MailerLite NEW API (connect.mailerlite.com) for automation triggers
+        // Format: { "event": "automation_triggered", "data": { "email": "..." } }
+        const eventsApiUrl = 'https://connect.mailerlite.com/api/events';
+        
+        // Map our internal event names to MailerLite automation trigger format
+        // MailerLite expects the event name to match the automation name in their dashboard
+        // For now, use "automation_triggered" as the event type, with our event name in data
+        const eventPayload = {
+          event: 'automation_triggered',
+          data: {
+            email: email,
+            event_name: event,
+            event_properties: properties || {},
+            timestamp: new Date().toISOString(),
+          },
         };
 
-        response = await fetch(`${apiUrl}/subscribers/${encodeURIComponent(email)}`, {
-          method: 'PUT',
+        response = await fetch(eventsApiUrl, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
           },
-          body: JSON.stringify({ fields: eventFields }),
+          body: JSON.stringify(eventPayload),
         });
         break;
       }
