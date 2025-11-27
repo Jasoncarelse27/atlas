@@ -161,20 +161,42 @@ export function TutorialOverlay() {
               top: window.innerHeight / 2, 
               left: window.innerWidth / 2 
             });
+            setTargetElement(element); // Set body as target for centered steps
             return; // Early return for centered mobile steps
           }
         } else {
           // Try querySelector first
           element = document.querySelector(currentStepData.targetSelector) as HTMLElement;
 
-          // Fallback: try to find by data attribute or aria-label
+          // ✅ FIX STEP 4: Better fallback for attachment/voice buttons
           if (!element) {
-            const allButtons = document.querySelectorAll('button');
-            for (const btn of allButtons) {
-              const ariaLabel = btn.getAttribute('aria-label') || '';
-              if (ariaLabel.toLowerCase().includes('menu')) {
-                element = btn;
-                break;
+            // For Step 4 (voice-image-features), try multiple selectors
+            if (currentStepData.id === 'voice-image-features') {
+              // Try attachment button variations
+              element = document.querySelector('button[aria-label*="attachment" i]') as HTMLElement ||
+                        document.querySelector('button[aria-label*="attach" i]') as HTMLElement ||
+                        document.querySelector('button:has(svg[class*="Paperclip"])') as HTMLElement ||
+                        document.querySelector('button:has(svg[class*="Attachment"])') as HTMLElement ||
+                        null;
+              
+              // If still not found on mobile, use center position (informational step)
+              if (!element && isMobile) {
+                logger.debug('[TutorialOverlay] Step 4 element not found on mobile, using center position');
+                setTooltipPosition({ top: window.innerHeight / 2, left: window.innerWidth / 2 });
+                setTargetElement(document.body); // Use body as target for centered display
+                return;
+              }
+            }
+            
+            // Fallback: try to find by data attribute or aria-label (for menu button)
+            if (!element && currentStepData.id === 'sidebar-features') {
+              const allButtons = document.querySelectorAll('button');
+              for (const btn of allButtons) {
+                const ariaLabel = btn.getAttribute('aria-label') || '';
+                if (ariaLabel.toLowerCase().includes('menu')) {
+                  element = btn;
+                  break;
+                }
               }
             }
           }
@@ -185,12 +207,14 @@ export function TutorialOverlay() {
           calculateTooltipPosition(element);
         } else {
           logger.warn('[TutorialOverlay] Target element not found:', currentStepData.targetSelector);
-          // Fallback to center position
+          // ✅ FIX: Always set a target element (body) and center position for missing elements
+          setTargetElement(document.body);
           setTooltipPosition({ top: window.innerHeight / 2, left: window.innerWidth / 2 });
         }
       } catch (error) {
         logger.error('[TutorialOverlay] Error finding target element:', error);
-        // Fallback to center position
+        // ✅ FIX: Always set fallback values to prevent React hooks error
+        setTargetElement(document.body);
         setTooltipPosition({ top: window.innerHeight / 2, left: window.innerWidth / 2 });
       }
     };

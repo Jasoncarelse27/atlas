@@ -115,7 +115,7 @@ export async function syncMailerLiteOnSignup(userId) {
       studio: 'studio_subscribers',
     };
 
-    // ✅ FIX: Helper to get group ID from name
+    // ✅ FIX: Helper to get group ID from name (with better error handling)
     const getGroupId = async (groupName) => {
       // Check environment variables first
       const GROUP_ID_MAP = {
@@ -125,11 +125,13 @@ export async function syncMailerLiteOnSignup(userId) {
       };
       
       if (GROUP_ID_MAP[groupName]) {
+        logger.debug(`[UserOnboarding] Using env var for group ${groupName}: ${GROUP_ID_MAP[groupName]}`);
         return GROUP_ID_MAP[groupName];
       }
       
       // Fallback: fetch from API
       try {
+        logger.debug(`[UserOnboarding] Fetching group ID for ${groupName} from MailerLite API...`);
         const groupsResponse = await fetch('https://api.mailerlite.com/api/v2/groups', {
           headers: {
             'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
@@ -137,15 +139,23 @@ export async function syncMailerLiteOnSignup(userId) {
         });
         
         if (groupsResponse.ok) {
-          const groups = await groupsResponse.json();
-          const group = groups.data?.find(g => g.name === groupName);
+          const groupsData = await groupsResponse.json();
+          const groups = groupsData.data || groupsData; // Handle different response formats
+          const group = Array.isArray(groups) ? groups.find(g => g.name === groupName) : null;
+          
           if (group) {
-            logger.debug(`[UserOnboarding] Found group ID for ${groupName}: ${group.id}`);
+            logger.info(`[UserOnboarding] ✅ Found group ID for ${groupName}: ${group.id}`);
             return group.id;
+          } else {
+            logger.warn(`[UserOnboarding] ⚠️ Group ${groupName} not found in MailerLite. Available groups:`, 
+              Array.isArray(groups) ? groups.map(g => g.name).join(', ') : 'unknown');
           }
+        } else {
+          const errorText = await groupsResponse.text();
+          logger.warn(`[UserOnboarding] ⚠️ Failed to fetch groups: ${groupsResponse.status} - ${errorText}`);
         }
       } catch (error) {
-        logger.debug(`[UserOnboarding] Failed to fetch group ID for ${groupName}:`, error);
+        logger.error(`[UserOnboarding] ❌ Error fetching group ID for ${groupName}:`, error.message || error);
       }
       
       return null;
@@ -157,29 +167,31 @@ export async function syncMailerLiteOnSignup(userId) {
       
       if (groupId) {
         // ✅ FIX: Use group ID instead of group name
-        await fetch(`https://api.mailerlite.com/api/v2/groups/${groupId}/subscribers`, {
+        logger.info(`[UserOnboarding] Adding ${email} to group ${groupName} (ID: ${groupId})...`);
+        const addResponse = await fetch(`https://api.mailerlite.com/api/v2/groups/${groupId}/subscribers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
           },
           body: JSON.stringify({ email }),
-        }).then(response => {
-          if (!response.ok) {
-            return response.json().then(errorData => {
-              logger.warn(`[UserOnboarding] MailerLite group add failed: ${response.status}`, errorData);
-            }).catch(() => {
-              logger.warn(`[UserOnboarding] MailerLite group add failed: ${response.status}`);
-            });
-          } else {
-            logger.debug(`[UserOnboarding] ✅ Added ${email} to group ${groupName} (ID: ${groupId})`);
-          }
-        }).catch(error => {
-          logger.debug('[UserOnboarding] MailerLite group add failed (non-critical):', error);
         });
+        
+        if (addResponse.ok) {
+          logger.info(`[UserOnboarding] ✅ Successfully added ${email} to group ${groupName} (ID: ${groupId}) - welcome email automation will trigger`);
+        } else {
+          const errorData = await addResponse.json().catch(() => ({ message: 'Unknown error' }));
+          logger.error(`[UserOnboarding] ❌ Failed to add ${email} to group ${groupName}: ${addResponse.status} - ${errorData.message || JSON.stringify(errorData)}`);
+          
+          // ✅ CRITICAL: If group add fails, welcome email won't send - log this prominently
+          logger.error(`[UserOnboarding] 🚨 WELCOME EMAIL WON'T SEND - User ${email} not added to ${groupName} group`);
+        }
       } else {
-        logger.warn(`[UserOnboarding] ⚠️ Group ${groupName} not found - subscriber created but not added to group. Set MAILERLITE_GROUP_*_ID env vars.`);
+        logger.error(`[UserOnboarding] ❌ Group ${groupName} not found - subscriber created but NOT added to group. Welcome email automation will NOT trigger.`);
+        logger.error(`[UserOnboarding] 💡 Fix: Set MAILERLITE_GROUP_FREE_ID env var or ensure group exists in MailerLite dashboard`);
       }
+    } else {
+      logger.warn(`[UserOnboarding] ⚠️ No group mapping for tier ${tier} - welcome email may not trigger`);
     }
 
     logger.debug(`[UserOnboarding] ✅ MailerLite synced for new user ${email}`);
