@@ -287,11 +287,18 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       // Try to load from database first with network error handling
       const dbResult = await safeDbOperation(
         async () => {
+          // ✅ FIX: Explicitly select columns to avoid 406 errors
           const { data, error: dbError } = await supabase
             .from('user_customizations')
-            .select('*')
+            .select('id, user_id, preferences, theme, layout, pinned_items, recent_items, created_at, updated_at')
             .eq('user_id', user.id)
             .single();
+
+          // Handle 406 (Not Acceptable) - fallback gracefully
+          if (dbError && dbError.code === '406') {
+            logger.warn('[useCustomization] 406 error - falling back to localStorage');
+            return { data: null, error: { code: 'FALLBACK', message: 'Using localStorage fallback' } };
+          }
 
           if (dbError && dbError.code !== 'PGRST116') {
             throw new Error(`Database error: ${dbError.message}`);
