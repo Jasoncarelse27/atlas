@@ -5404,38 +5404,17 @@ app.post('/api/mailerlite/proxy', verifyJWT, async (req, res) => {
       }
 
       case 'triggerEvent': {
-        const { email, event, properties } = data;
+        // --- DISABLED: MailerLite Events API is deprecated ---
+        // This endpoint (connect.mailerlite.com/api/events) no longer exists,
+        // causing 404 and 500 errors in production. All automations must now rely
+        // exclusively on group membership via the v2 Groups API.
         
-        if (!email || !event) {
-          return res.status(400).json({ error: 'Missing required fields: email, event' });
-        }
-
-        // ✅ FIX: Use MailerLite NEW API (connect.mailerlite.com) for automation triggers
-        // Format: { "event": "automation_triggered", "data": { "email": "..." } }
-        const eventsApiUrl = 'https://connect.mailerlite.com/api/events';
-        
-        // Map our internal event names to MailerLite automation trigger format
-        // MailerLite expects the event name to match the automation name in their dashboard
-        // For now, use "automation_triggered" as the event type, with our event name in data
-        const eventPayload = {
-          event: 'automation_triggered',
-          data: {
-            email: email,
-            event_name: event,
-            event_properties: properties || {},
-            timestamp: new Date().toISOString(),
-          },
-        };
-
-        response = await fetch(eventsApiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
-          },
-          body: JSON.stringify(eventPayload),
+        logger.warn('[MailerLite Proxy] triggerEvent disabled — Events API deprecated. Automations trigger via group membership.');
+        return res.json({
+          success: true,
+          disabled: true,
+          message: 'Events API deprecated — use group membership instead.'
         });
-        break;
       }
 
       case 'segmentSubscriber': {

@@ -177,52 +177,10 @@ class MailerLiteService {
    * ✅ FIXED: Checks authentication before attempting token refresh to prevent rate limits
    */
   async triggerEvent(params: TriggerEventParams): Promise<void> {
-    try {
-      // ✅ FIXED: Check if user is authenticated BEFORE trying to get token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        logger.debug('[MailerLite] No session - skipping event trigger');
-      return;
-    }
-
-      const token = await getAuthToken().catch(() => null);
-      if (!token) {
-        logger.debug('[MailerLite] Not authenticated - skipping event trigger');
-        return;
-      }
-
-      const response = await fetch(getApiEndpoint('/api/mailerlite/proxy'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          operation: 'triggerEvent',
-          data: {
-            email: params.email,
-            event: params.event,
-            properties: params.properties,
-          },
-        }),
-      });
-
-      const result = await response.json().catch(() => ({}));
-      
-      if (result.disabled) {
-        logger.debug('[MailerLite] Not configured on backend - skipping event trigger');
-        return;
-      }
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.details || result.message || `MailerLite API error: ${response.status}`);
-      }
-
-      logger.debug(`[MailerLite] ✅ Event ${params.event} triggered for ${params.email}`);
-    } catch (error) {
-      logger.error('[MailerLite] Failed to trigger event:', error);
-      // Don't throw - MailerLite failures shouldn't break the app
-    }
+    // --- DISABLED: MailerLite Events API deprecated ---
+    // We intentionally no-op this to prevent frontend errors.
+    logger.debug('[MailerLite] triggerEvent disabled — Events API deprecated');
+    return;
   }
 
   /**
