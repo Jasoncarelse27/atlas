@@ -144,7 +144,7 @@ export async function handleMailerLiteWebhook(req, res) {
     const email = data?.email;
     if (!email) {
       logger.warn('[MailerLite] ⚠️ No email in webhook data');
-      return res.status(200).send('ok');
+      return res.status(200).json({ ok: true, received: true });
     }
     
     // Find user by email
@@ -156,12 +156,12 @@ export async function handleMailerLiteWebhook(req, res) {
     
     if (profileError) {
       logger.error('[MailerLite] Database error:', profileError);
-      return res.status(200).send('ok');
+      return res.status(200).json({ ok: true, received: true });
     }
     
     if (!profile) {
       logger.warn(`[MailerLite] ⚠️ Profile not found for email: ${email}`);
-      return res.status(200).send('ok');
+      return res.status(200).json({ ok: true, received: true });
     }
     
     switch (event) {
