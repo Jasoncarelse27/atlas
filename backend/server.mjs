@@ -5109,7 +5109,51 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
       complete: 'atlas_complete_bundle',
     };
 
-    const targetGroup = tierGroupMapping[tier];
+    const targetGroupName = tierGroupMapping[tier];
+    
+    // ✅ FIX: Map group names to group IDs (MailerLite V2 requires numeric IDs)
+    const GROUP_ID_MAP = {
+      'atlas_free_users': process.env.MAILERLITE_GROUP_FREE_ID || null,
+      'atlas_premium_monthly': process.env.MAILERLITE_GROUP_CORE_ID || null,
+      'atlas_premium_yearly': process.env.MAILERLITE_GROUP_STUDIO_ID || null,
+      'atlas_complete_bundle': process.env.MAILERLITE_GROUP_STUDIO_ID || null, // Fallback to studio
+    };
+    
+    // ✅ FIX: Helper function to get group ID from name (with API fallback)
+    const getGroupId = async (groupName) => {
+      // First check environment variable map
+      if (GROUP_ID_MAP[groupName]) {
+        return String(GROUP_ID_MAP[groupName]); // ✅ FIX: Convert to string to preserve precision
+      }
+      
+      // If not in map, fetch from MailerLite API
+      try {
+        logger.debug(`[MailerLite Subscriber] Fetching group ID for ${groupName} from API...`);
+        const groupsResponse = await fetch('https://api.mailerlite.com/api/v2/groups', {
+          headers: {
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+          },
+        });
+        
+        if (groupsResponse.ok) {
+          const groups = await groupsResponse.json();
+          const group = groups.data?.find(g => g.name === groupName);
+          if (group) {
+            logger.debug(`[MailerLite Subscriber] ✅ Found group ID for ${groupName}: ${group.id}`);
+            return String(group.id); // ✅ FIX: Convert to string to preserve precision
+          } else {
+            logger.warn(`[MailerLite Subscriber] ⚠️ Group ${groupName} not found in MailerLite`);
+          }
+        } else {
+          const errorData = await groupsResponse.json().catch(() => ({}));
+          logger.warn(`[MailerLite Subscriber] Failed to fetch groups: ${groupsResponse.status} - ${errorData.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        logger.warn(`[MailerLite Subscriber] Error fetching group ID for ${groupName}:`, error);
+      }
+      
+      return null;
+    };
     
     // Create or update subscriber via v2 API
     const subscriberData = {
@@ -5144,18 +5188,25 @@ app.post('/api/mailerlite/subscriber', async (req, res) => {
     const result = await createResponse.json();
     logger.debug(`✅ Subscriber ${email} synced successfully`);
 
-    // Add to appropriate group
-    if (targetGroup) {
+    // ✅ FIX: Add to appropriate group (convert name to ID first)
+    if (targetGroupName) {
       try {
-        await fetch(`https://api.mailerlite.com/api/v2/groups/${targetGroup}/subscribers`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
-          },
-          body: JSON.stringify({ email }),
-        });
-        logger.debug(`✅ Subscriber ${email} added to group ${targetGroup}`);
+        const groupId = await getGroupId(targetGroupName);
+        if (groupId) {
+          // ✅ FIX: Ensure groupId is string to prevent JavaScript precision loss
+          const groupIdStr = String(groupId);
+          await fetch(`https://api.mailerlite.com/api/v2/groups/${groupIdStr}/subscribers`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
+            },
+            body: JSON.stringify({ email }),
+          });
+          logger.debug(`✅ Subscriber ${email} added to group ${targetGroupName} (ID: ${groupIdStr})`);
+        } else {
+          logger.warn(`[MailerLite Subscriber] ⚠️ Could not find group ID for ${targetGroupName} - subscriber created but not added to group`);
+        }
       } catch (groupError) {
         logger.error('[Server] Error adding subscriber to group:', groupError.message || groupError);
       }

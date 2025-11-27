@@ -155,22 +155,68 @@ async function syncMailerLite(
       // Don't throw - continue even if event update fails
     }
 
-    // Add/remove from tier-specific groups
+    // ✅ FIX: Add/remove from tier-specific groups (convert names to IDs first)
     const tierGroups: Record<string, string> = {
       free: 'atlas_free_users',
       core: 'core_subscribers',
       studio: 'studio_subscribers',
     };
 
+    // ✅ FIX: Helper function to get group ID from name (with API fallback)
+    const getGroupId = async (groupName: string): Promise<string | null> => {
+      // First check environment variable map (if available)
+      const GROUP_ID_MAP: Record<string, string | undefined> = {
+        'atlas_free_users': Deno.env.get("MAILERLITE_GROUP_FREE_ID"),
+        'core_subscribers': Deno.env.get("MAILERLITE_GROUP_CORE_ID"),
+        'studio_subscribers': Deno.env.get("MAILERLITE_GROUP_STUDIO_ID"),
+      };
+      
+      if (GROUP_ID_MAP[groupName]) {
+        return String(GROUP_ID_MAP[groupName]); // ✅ FIX: Convert to string to preserve precision
+      }
+      
+      // If not in map, fetch from MailerLite API
+      try {
+        console.debug(`[FastSpring Webhook] Fetching group ID for ${groupName} from API...`);
+        const groupsResponse = await fetch('https://api.mailerlite.com/api/v2/groups', {
+          headers: {
+            'X-MailerLite-ApiKey': MAILERLITE_API_KEY!,
+          },
+        });
+        
+        if (groupsResponse.ok) {
+          const groups = await groupsResponse.json();
+          const group = groups.data?.find((g: any) => g.name === groupName);
+          if (group) {
+            console.debug(`[FastSpring Webhook] ✅ Found group ID for ${groupName}: ${group.id}`);
+            return String(group.id); // ✅ FIX: Convert to string to preserve precision
+          } else {
+            console.warn(`[FastSpring Webhook] ⚠️ Group ${groupName} not found in MailerLite`);
+          }
+        } else {
+          const errorData = await groupsResponse.text().catch(() => "Unknown error");
+          console.warn(`[FastSpring Webhook] Failed to fetch groups: ${groupsResponse.status} - ${errorData}`);
+        }
+      } catch (error) {
+        console.warn(`[FastSpring Webhook] Error fetching group ID for ${groupName}:`, error);
+      }
+      
+      return null;
+    };
+
     // Remove from old tier group
     if (oldTier && tierGroups[oldTier]) {
       try {
-        await fetch(`https://api.mailerlite.com/api/v2/groups/${tierGroups[oldTier]}/subscribers/${encodeURIComponent(email)}`, {
-          method: "DELETE",
-          headers: {
-            "X-MailerLite-ApiKey": MAILERLITE_API_KEY,
-          },
-        });
+        const groupId = await getGroupId(tierGroups[oldTier]);
+        if (groupId) {
+          const groupIdStr = String(groupId); // ✅ FIX: Ensure string
+          await fetch(`https://api.mailerlite.com/api/v2/groups/${groupIdStr}/subscribers/${encodeURIComponent(email)}`, {
+            method: "DELETE",
+            headers: {
+              "X-MailerLite-ApiKey": MAILERLITE_API_KEY!,
+            },
+          });
+        }
       } catch (error) {
         // Ignore errors when removing from group
         console.debug(`[FastSpring Webhook] Could not remove from old tier group: ${error}`);
@@ -180,14 +226,18 @@ async function syncMailerLite(
     // Add to new tier group
     if (tierGroups[newTier]) {
       try {
-        await fetch(`https://api.mailerlite.com/api/v2/groups/${tierGroups[newTier]}/subscribers`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-MailerLite-ApiKey": MAILERLITE_API_KEY,
-          },
-          body: JSON.stringify({ email }),
-        });
+        const groupId = await getGroupId(tierGroups[newTier]);
+        if (groupId) {
+          const groupIdStr = String(groupId); // ✅ FIX: Ensure string
+          await fetch(`https://api.mailerlite.com/api/v2/groups/${groupIdStr}/subscribers`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-MailerLite-ApiKey": MAILERLITE_API_KEY!,
+            },
+            body: JSON.stringify({ email }),
+          });
+        }
       } catch (error) {
         // Ignore errors when adding to group
         console.debug(`[FastSpring Webhook] Could not add to new tier group: ${error}`);
