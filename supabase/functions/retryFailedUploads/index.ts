@@ -11,7 +11,9 @@ const supabase = createClient(
 const allowedOrigins = [
   "http://localhost:5174",
   "https://atlas-xi-tawny.vercel.app", // legacy fallback
-  "https://atlas.otiumcreations.com",  // NEW production domain
+  "https://atlas.otiumcreations.com",  // Production Atlas domain
+  "https://www.otiumcreations.com",    // Marketing website domain
+  "https://otiumcreations.com",        // Root marketing domain
   "https://atlas.app"
 ];
 
