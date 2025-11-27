@@ -26,6 +26,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // ✅ FIX: If session exists but might be expired, refresh it
         if (session && !sessionError) {
+          // --- FIX: Ghost user cleanup ---
+          const { data: { user: userData }, error: userError } = await supabase.auth.getUser();
+          if (userError || !userData) {
+            console.warn('[AuthProvider] 🚨 Ghost/stale session detected — clearing.');
+            await supabase.auth.signOut();
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+          
           // Check if token is expired (within 5 minutes of expiry)
           const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
           const now = Date.now();

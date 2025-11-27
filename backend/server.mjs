@@ -1598,34 +1598,34 @@ const verifyJWT = async (req, res, next) => {
     try {
       const { supabasePublic } = await import('./config/supabaseClient.mjs');
       
-      // Enhanced Supabase JWT verification with better error handling
-      const { data: { user }, error } = await supabasePublic.auth.getUser(token);
+      // --- FIX: Stable JWT verification + ghost user cleanup ---
+      const { data, error } = await supabasePublic.auth.getUser(token);
       
-      if (error) {
-        logger.error('[verifyJWT] ❌ Token verification failed:', {
-          error: error.message,
-          status: error.status,
-          code: error.code,
-          hint: error.hint
+      const errMsg = error?.message || '';
+      const errCode = error?.code || '';
+      
+      const ghostUser =
+        error ||
+        !data?.user ||
+        errMsg.includes('does not exist') ||
+        errCode === 'user_not_found' ||
+        errMsg.includes('User from sub claim');
+      
+      if (ghostUser) {
+        logger.warn('[verifyJWT] ⚠️ Ghost/stale session detected. Clearing.', {
+          errMsg,
+          errCode
         });
         
-        return res.status(401).json({ 
-          error: 'Invalid or expired token',
-          details: error.message,
-          code: 'TOKEN_VERIFICATION_FAILED'
-        });
-      }
-      
-      if (!user) {
-        logger.error('[verifyJWT] ❌ No user found in token');
-        return res.status(401).json({ 
-          error: 'No user found in token',
-          details: 'Token may be expired or invalid',
-          code: 'NO_USER_IN_TOKEN'
+        return res.status(401).json({
+          error: 'Session invalid',
+          details: 'User no longer exists',
+          code: 'USER_NOT_FOUND',
+          clearSession: true
         });
       }
 
-      req.user = user;
+      req.user = data.user;
       next();
     } catch (importError) {
       logger.error('[verifyJWT] ❌ Failed to import supabasePublic:', importError);

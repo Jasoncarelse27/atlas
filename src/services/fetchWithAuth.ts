@@ -56,5 +56,15 @@ export async function fetchWithAuthJSON(
   options: RequestInit = {}
 ): Promise<any> {
   const response = await fetchWithAuth(url, options);
-  return response.json();
+  const json = await response.json();
+  
+  // --- FIX: server instructs frontend to clear invalid session ---
+  if (json?.clearSession) {
+    console.warn('[API] Server requested session clear — wiping session.');
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+    throw new Error('Session invalid');
+  }
+  
+  return json;
 }

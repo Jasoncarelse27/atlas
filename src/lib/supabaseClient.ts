@@ -71,10 +71,17 @@ export const supabase = (() => {
     // ✅ FIX: Graceful Supabase Auth Handling - Clean Implementation
     // Listen for auth state changes for traceability
     if (typeof window !== 'undefined') {
-      supabaseInstance.auth.onAuthStateChange((event, session) => {
+      supabaseInstance.auth.onAuthStateChange(async (event, session) => {
+        // --- FIX: Clear stale sessions automatically ---
+        if (!session?.user) {
+          console.warn('[Auth] Clearing stale session (event:', event, ')');
+          await supabase.auth.signOut();
+          return;
+        }
+        
         switch (event) {
           case 'TOKEN_REFRESHED':
-            logger.debug('[Supabase] 🔄 Token refreshed successfully');
+            logger.debug('[Supabase] 🔄 Token refreshed');
             break;
           case 'SIGNED_OUT':
             logger.warn('[Supabase] 🚪 Signed out');
