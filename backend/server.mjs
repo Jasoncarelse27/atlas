@@ -1736,6 +1736,8 @@ const allowedOriginPatterns = [
   /^https:\/\/atlas-ai\.app$/,
   /^https:\/\/www\.atlas-ai\.app$/,
   /^https:\/\/atlas\.otiumcreations\.com$/,  // Production domain
+  /^https:\/\/www\.otiumcreations\.com$/,      // Marketing website domain
+  /^https:\/\/otiumcreations\.com$/,           // Root marketing domain
   /^https:\/\/.*\.vercel\.app$/,  // All Vercel deployments (production + preview)
   /^https:\/\/.*\.up\.railway\.app$/,  // Railway preview URLs
   /^https:\/\/.*\.fly\.dev$/,  // Fly.io deployments

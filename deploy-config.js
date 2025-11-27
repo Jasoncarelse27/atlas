@@ -4,7 +4,7 @@ module.exports = {
   production: {
     NODE_ENV: 'production',
     PORT: 8000,
-    ALLOWED_ORIGINS: 'https://otiumcreations.com,https://www.otiumcreations.com',
+    ALLOWED_ORIGINS: 'https://atlas.otiumcreations.com,https://www.otiumcreations.com,https://otiumcreations.com',
     CORS_ORIGIN: 'https://otiumcreations.com',
     
     // Supabase configuration
