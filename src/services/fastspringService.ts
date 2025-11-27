@@ -4,8 +4,8 @@
 import { FASTSPRING_CONFIG, isPaidTier } from '../config/featureAccess';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabaseClient';
-import { getApiEndpoint } from '../utils/apiClient';
 import type { Tier } from '../types/tier';
+import { getApiEndpoint } from '../utils/apiClient';
 import { subscriptionApi } from './subscriptionApi';
 
 // TypeScript const for placeholder detection
@@ -218,7 +218,10 @@ class FastSpringService {
     if (isMockMode) {
       logger.warn('⏳ FastSpring credentials pending 2FA - using mock checkout (development only)');
       // Development mode: Mock checkout for testing without FastSpring credentials
-      return `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
+      // ✅ SAFE FALLBACK: Default to atlas.otiumcreations.com for production
+      const frontendBaseUrl = import.meta.env.VITE_FRONTEND_URL || 
+                              (import.meta.env.PROD ? 'https://atlas.otiumcreations.com' : window.location.origin);
+      return `${frontendBaseUrl}/subscription/mock-checkout?tier=${tier}&userId=${userId}`;
     }
 
     const product = FASTSPRING_CONFIG.products[tier];
@@ -228,6 +231,10 @@ class FastSpringService {
 
     try {
       // ✅ CRITICAL FIX: Use centralized API client for production Vercel deployment
+      // ✅ SAFE FALLBACK: Always redirect to atlas.otiumcreations.com (not marketing site)
+      const frontendBaseUrl = import.meta.env.VITE_FRONTEND_URL || 
+                              (import.meta.env.PROD ? 'https://atlas.otiumcreations.com' : window.location.origin);
+      
       const response = await fetch(getApiEndpoint('/api/fastspring/create-checkout'), {
         method: 'POST',
         headers: {
@@ -238,8 +245,8 @@ class FastSpringService {
           tier,
           email,
           productId: product.productId,
-          successUrl: `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/success?tier=${tier}`,
-          cancelUrl: `${import.meta.env.VITE_FRONTEND_URL || window.location.origin}/subscription/cancel?tier=${tier}`
+          successUrl: `${frontendBaseUrl}/subscription/success?tier=${tier}`,
+          cancelUrl: `${frontendBaseUrl}/subscription/cancel?tier=${tier}`
         })
       });
 
