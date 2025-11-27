@@ -33,6 +33,7 @@ export const RitualRunView: React.FC = () => {
   const [selectedMoodAfter, setSelectedMoodAfter] = useState<string | null>(null);
   const [completionNotes, setCompletionNotes] = useState('');
   const [hasStarted, setHasStarted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // ✨ NEW: Reward modal state
   const [showRewardModal, setShowRewardModal] = useState(false);
@@ -103,6 +104,7 @@ export const RitualRunView: React.FC = () => {
     }
   }, [runner.isComplete]);
 
+  // ✅ NOW safe to return early - all hooks called
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#F5F0E8] to-[#E8DDD2] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
@@ -152,8 +154,6 @@ export const RitualRunView: React.FC = () => {
   };
 
   // Handle complete ritual
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
   const handleComplete = async () => {
     if (!selectedMoodAfter || isSubmitting) return;
     

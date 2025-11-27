@@ -55,47 +55,29 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Early return with safe defaults if ritual is undefined
-  if (!ritual || !ritual.steps) {
-    return {
-      currentStepIndex: 0,
-      timeRemaining: 0,
-      isPaused: true,
-      isComplete: false,
-      moodBefore: null,
-      moodAfter: null,
-      notes: '',
-      startTime: null,
-      start: () => {},
-      pause: () => {},
-      resume: () => {},
-      nextStep: () => {},
-      previousStep: () => {},
-      complete: async () => {},
-      reset: () => {},
-      currentStep: null,
-      progress: 0,
-      totalDuration: 0,
-    };
-  }
+  // ✅ FIX: Compute values safely (no hooks, just calculations)
+  const totalDuration = !ritual?.steps 
+    ? 0 
+    : ritual.steps.reduce((sum, step) => sum + step.duration, 0);
 
-  // Calculate total duration in seconds
-  // ✅ FIX: Duration is already in seconds in ritualTemplates.ts, don't multiply by 60
-  const totalDuration = ritual.steps.reduce((sum, step) => sum + step.duration, 0);
+  const currentStep = !ritual?.steps || currentStepIndex >= ritual.steps.length
+    ? null
+    : ritual.steps[currentStepIndex] || null;
 
-  // Current step
-  const currentStep = ritual.steps[currentStepIndex] || null;
-
-  // Progress percentage
   const elapsedTime = totalDuration - timeRemaining;
   const progress = totalDuration > 0 ? Math.round((elapsedTime / totalDuration) * 100) : 0;
 
-  // Timer logic
+  // ✅ FIX: Timer logic - guard INSIDE the hook
   useEffect(() => {
     // ✅ EXPLICIT CLEANUP: Clear interval when paused or when dependencies change
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+
+    // Only run timer if ritual exists and is not paused
+    if (!ritual?.steps || isPaused || timeRemaining <= 0) {
+      return;
     }
 
     // Only start timer when not paused and time remaining
@@ -113,7 +95,7 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
             }
             
             // Step complete - move to next
-            if (currentStepIndex < ritual.steps.length - 1) {
+            if (ritual?.steps && currentStepIndex < ritual.steps.length - 1) {
               setCurrentStepIndex((i) => i + 1);
               // ✅ FIX: Duration is already in seconds, don't multiply by 60
               return ritual.steps[currentStepIndex + 1].duration;
@@ -136,10 +118,11 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
         timerRef.current = null;
       }
     };
-  }, [isPaused, timeRemaining, currentStepIndex, ritual.steps]);
+  }, [isPaused, timeRemaining, currentStepIndex, ritual?.steps]);
 
   // Start ritual
   const start = useCallback((mood: string) => {
+    if (!ritual?.steps) return;
     setMoodBefore(mood);
     setStartTime(new Date());
     setCurrentStepIndex(0);
@@ -171,6 +154,7 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
 
   // Next step
   const nextStep = useCallback(() => {
+    if (!ritual?.steps) return;
     if (currentStepIndex < ritual.steps.length - 1) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
@@ -180,20 +164,22 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
       setIsComplete(true);
       setIsPaused(true);
     }
-  }, [currentStepIndex, ritual.steps]);
+  }, [currentStepIndex, ritual?.steps]);
 
   // Previous step
   const previousStep = useCallback(() => {
+    if (!ritual?.steps) return;
     if (currentStepIndex > 0) {
       const prevIndex = currentStepIndex - 1;
       setCurrentStepIndex(prevIndex);
       setTimeRemaining(ritual.steps[prevIndex].duration); // ✅ Duration already in seconds
       logger.debug('[RitualRunner] Went back to step:', prevIndex);
     }
-  }, [currentStepIndex, ritual.steps]);
+  }, [currentStepIndex, ritual?.steps]);
 
   // Complete ritual
   const complete = useCallback(async (mood: string, notesText?: string) => {
+    if (!ritual) return;
     setMoodAfter(mood);
     if (notesText) setNotes(notesText);
     
@@ -217,7 +203,7 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
       logger.error('[RitualRunner] Failed to log completion:', error);
       throw error;
     }
-  }, [ritual.id, ritual.title, userId, moodBefore, startTime, totalDuration, logCompletion]);
+  }, [ritual, userId, moodBefore, startTime, totalDuration, logCompletion]);
 
   // Reset
   const reset = useCallback(() => {
@@ -234,6 +220,30 @@ export function useRitualRunner({ ritual, userId }: UseRitualRunnerProps): Ritua
     }
     logger.debug('[RitualRunner] Reset');
   }, []);
+
+  // ✅ NOW safe to return early - ALL hooks have been called
+  if (!ritual || !ritual.steps) {
+    return {
+      currentStepIndex: 0,
+      timeRemaining: 0,
+      isPaused: true,
+      isComplete: false,
+      moodBefore: null,
+      moodAfter: null,
+      notes: '',
+      startTime: null,
+      start: () => {},
+      pause: () => {},
+      resume: () => {},
+      nextStep: () => {},
+      previousStep: () => {},
+      complete: async () => {},
+      reset: () => {},
+      currentStep: null,
+      progress: 0,
+      totalDuration: 0,
+    };
+  }
 
   return {
     // State

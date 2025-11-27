@@ -238,22 +238,40 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       } catch (fetchError: any) {
-        // Network error (TypeError: Load failed)
+        // Network error (TypeError: Load failed, ERR_CONNECTION_CLOSED, etc.)
         lastError = fetchError;
         
-        // Don't retry if it's not a network error
-        if (!(fetchError instanceof TypeError) || !fetchError.message?.includes('Load failed')) {
-          error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+        // ✅ CRITICAL FIX: Detect all connection errors (ERR_CONNECTION_CLOSED, Failed to fetch, etc.)
+        const errorMessage = fetchError?.message || String(fetchError || '');
+        const isConnectionError = 
+          (fetchError instanceof TypeError && errorMessage.includes('Load failed')) ||
+          errorMessage.includes('ERR_CONNECTION_CLOSED') ||
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('NetworkError') ||
+          errorMessage.includes('network error');
+        
+        // Don't retry if it's not a network/connection error
+        if (!isConnectionError) {
+          error = { message: errorMessage, code: 'NETWORK_ERROR' };
           break;
         }
         
-        // Retry network errors with exponential backoff
+        // ✅ CRITICAL FIX: Track connection failures for circuit breaker
+        circuitBreakerFailures++;
+        if (circuitBreakerFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+          circuitBreakerOpenUntil = Date.now() + CIRCUIT_BREAKER_RESET_TIME;
+          logger.warn(`[useTierQuery] ⚠️ Circuit breaker opened after ${circuitBreakerFailures} connection failures (resets in ${CIRCUIT_BREAKER_RESET_TIME / 1000}s)`);
+          error = { message: 'Connection closed - circuit breaker active', code: 'CONNECTION_CLOSED' };
+          break; // Stop retrying immediately
+        }
+        
+        // Retry connection errors with exponential backoff (only if circuit breaker not open)
         if (attempt < MAX_RETRIES - 1) {
           const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-          logger.debug(`[useTierQuery] ⚡ Network error, retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
+          logger.debug(`[useTierQuery] ⚡ Connection error (${circuitBreakerFailures}/${CIRCUIT_BREAKER_THRESHOLD}), retry ${attempt + 1}/${MAX_RETRIES} after ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          error = { message: fetchError.message, code: 'NETWORK_ERROR' };
+          error = { message: errorMessage, code: 'CONNECTION_CLOSED' };
         }
       }
     }
@@ -316,15 +334,21 @@ async function fetchTier(forceRefresh = false): Promise<TierData> {
     
       return result;
     } catch (fetchError) {
-      // ✅ CATCH NETWORK ERRORS: Better diagnostics for "Failed to fetch"
-      const isNetworkError = fetchError instanceof TypeError && fetchError.message?.includes('Load failed');
+      // ✅ CRITICAL FIX: Detect all connection errors (ERR_CONNECTION_CLOSED, Failed to fetch, etc.)
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError || '');
+      const isConnectionError = 
+        (fetchError instanceof TypeError && errorMessage.includes('Load failed')) ||
+        errorMessage.includes('ERR_CONNECTION_CLOSED') ||
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('NetworkError') ||
+        errorMessage.includes('network error');
       
-      // ✅ NETWORK FIX: Circuit breaker - track consecutive failures
-      if (isNetworkError) {
+      // ✅ NETWORK FIX: Circuit breaker - track consecutive connection failures
+      if (isConnectionError) {
         circuitBreakerFailures++;
         if (circuitBreakerFailures >= CIRCUIT_BREAKER_THRESHOLD) {
           circuitBreakerOpenUntil = requestStartTime + CIRCUIT_BREAKER_RESET_TIME;
-          logger.warn(`[useTierQuery] ⚠️ Circuit breaker opened after ${circuitBreakerFailures} failures (resets in ${CIRCUIT_BREAKER_RESET_TIME / 1000}s)`);
+          logger.warn(`[useTierQuery] ⚠️ Circuit breaker opened after ${circuitBreakerFailures} connection failures (resets in ${CIRCUIT_BREAKER_RESET_TIME / 1000}s)`);
           circuitBreakerFailures = 0; // Reset counter
         }
       } else {
