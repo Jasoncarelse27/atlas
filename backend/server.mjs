@@ -5987,16 +5987,51 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
     logger.info(`[FastSpring] API Response:`, JSON.stringify(checkoutData));
     
     // FastSpring Sessions API should return the checkout URL directly
-    // If not, we need to construct it ourselves
     let checkoutUrl = checkoutData.url || checkoutData.checkoutUrl;
     
+    // ✅ FIX: If no URL in response, query account API to get storefront URL
+    if (!checkoutUrl && checkoutData.account) {
+      try {
+        logger.debug(`[FastSpring] No URL in response, querying account API for storefront URL...`);
+        const accountResponse = await fetch(`${apiBaseUrl}/accounts/${checkoutData.account}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Basic ${authString}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (accountResponse.ok) {
+          const accountData = await accountResponse.json();
+          // FastSpring account response may include storefront URL
+          const storefrontUrl = accountData.storefront || accountData.storefrontUrl || accountData.store?.storefront;
+          
+          if (storefrontUrl) {
+            checkoutUrl = `${storefrontUrl}/popup-${checkoutData.id}`;
+            logger.info(`[FastSpring] ✅ Got storefront URL from account API: ${storefrontUrl}`);
+          } else {
+            logger.warn(`[FastSpring] Account API response doesn't include storefront URL`);
+          }
+        }
+      } catch (accountError) {
+        logger.warn(`[FastSpring] Failed to query account API:`, accountError.message);
+      }
+    }
+    
+    // ✅ FALLBACK: Construct URL manually if still no URL
     if (!checkoutUrl && checkoutData.id) {
-      // Fallback: construct URL manually
-      const storeDomain = FASTSPRING_STORE_ID.replace(/_/g, '-');
+      // Try using account ID as storefront identifier
+      const storeDomain = checkoutData.account 
+        ? checkoutData.account.replace(/_/g, '-').toLowerCase()
+        : FASTSPRING_STORE_ID.replace(/_/g, '-');
+      
       const storefront = FASTSPRING_ENVIRONMENT === 'live' 
         ? `https://${storeDomain}.onfastspring.com`
         : `https://${storeDomain}.test.onfastspring.com`;
       checkoutUrl = `${storefront}/popup-${checkoutData.id}`;
+      
+      logger.warn(`[FastSpring] ⚠️ Constructed checkout URL manually (may not work): ${checkoutUrl}`);
+      logger.warn(`[FastSpring] 💡 Check FastSpring Dashboard → Store Settings → Storefront URL for correct domain`);
     }
     
     logger.info(`[FastSpring] Checkout created: ${checkoutUrl}`);
