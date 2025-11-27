@@ -183,6 +183,32 @@ export async function syncMailerLiteOnSignup(userId) {
     }
 
     logger.debug(`[UserOnboarding] ✅ MailerLite synced for new user ${email}`);
+    
+    // ✅ LOG EMAIL: Log welcome email trigger (MailerLite automation will send it)
+    // MailerLite automations trigger automatically when subscribers are added, so we log the trigger
+    if (supabase) {
+      try {
+        await supabase
+          .from('email_logs')
+          .insert({
+            flow_type: 'welcome',
+            recipient_email: email,
+            recipient_user_id: userId,
+            sent_at: new Date().toISOString(),
+            status: 'triggered', // Will be updated to 'sent' when MailerLite webhook confirms
+            metadata: {
+              source: 'signup_sync',
+              tier: tier,
+              group: tierGroups[tier] || null,
+            }
+          })
+          .catch(err => {
+            logger.debug('[UserOnboarding] Failed to log welcome email trigger (non-critical):', err.message);
+          });
+      } catch (logError) {
+        logger.debug('[UserOnboarding] Email logging error (non-critical):', logError);
+      }
+    }
   } catch (error) {
     logger.error('[UserOnboarding] MailerLite sync error:', error);
     // Don't throw - MailerLite failures shouldn't break signup
