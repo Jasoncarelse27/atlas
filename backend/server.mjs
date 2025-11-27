@@ -6020,18 +6020,28 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
     
     // ✅ FALLBACK: Construct URL manually if still no URL
     if (!checkoutUrl && checkoutData.id) {
-      // Try using account ID as storefront identifier
-      const storeDomain = checkoutData.account 
-        ? checkoutData.account.replace(/_/g, '-').toLowerCase()
-        : FASTSPRING_STORE_ID.replace(/_/g, '-');
-      
-      const storefront = FASTSPRING_ENVIRONMENT === 'live' 
-        ? `https://${storeDomain}.onfastspring.com`
-        : `https://${storeDomain}.test.onfastspring.com`;
-      checkoutUrl = `${storefront}/popup-${checkoutData.id}`;
-      
-      logger.warn(`[FastSpring] ⚠️ Constructed checkout URL manually (may not work): ${checkoutUrl}`);
-      logger.warn(`[FastSpring] 💡 Check FastSpring Dashboard → Store Settings → Storefront URL for correct domain`);
+      // ✅ PRIORITY 1: Use explicit storefront URL from env var (most reliable)
+      const FASTSPRING_STOREFRONT_URL = process.env.FASTSPRING_STOREFRONT_URL;
+      if (FASTSPRING_STOREFRONT_URL) {
+        // Remove trailing slash if present
+        const baseUrl = FASTSPRING_STOREFRONT_URL.replace(/\/$/, '');
+        checkoutUrl = `${baseUrl}/popup-${checkoutData.id}`;
+        logger.info(`[FastSpring] ✅ Using storefront URL from env var: ${baseUrl}`);
+      } else {
+        // ✅ PRIORITY 2: Try using account ID as storefront identifier
+        const storeDomain = checkoutData.account 
+          ? checkoutData.account.replace(/_/g, '-').toLowerCase()
+          : FASTSPRING_STORE_ID.replace(/_/g, '-');
+        
+        const storefront = FASTSPRING_ENVIRONMENT === 'live' 
+          ? `https://${storeDomain}.onfastspring.com`
+          : `https://${storeDomain}.test.onfastspring.com`;
+        checkoutUrl = `${storefront}/popup-${checkoutData.id}`;
+        
+        logger.warn(`[FastSpring] ⚠️ Constructed checkout URL manually (may not work): ${checkoutUrl}`);
+        logger.warn(`[FastSpring] 💡 Set FASTSPRING_STOREFRONT_URL env var in Railway with exact URL from FastSpring Dashboard`);
+        logger.warn(`[FastSpring] 💡 Find it at: FastSpring Dashboard → Store Settings → Storefront → Storefront URL`);
+      }
     }
     
     logger.info(`[FastSpring] Checkout created: ${checkoutUrl}`);
