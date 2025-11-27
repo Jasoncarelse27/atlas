@@ -73,10 +73,29 @@ export async function sendAttachmentMessage(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    
+    // --- FIX: Handle server-requested session clear (ghost user) ---
+    if (errorData?.clearSession || errorData?.code === 'USER_NOT_FOUND') {
+      console.warn('[chatService] 🚨 Server requested session clear (ghost user)');
+      const { supabase } = await import('../lib/supabaseClient');
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+      throw new Error('Session invalid - user no longer exists');
+    }
+    
     throw new Error(`Backend error: ${errorData.error || response.statusText}`);
   }
 
   const data = await response.json();
+  
+  // --- FIX: Check for clearSession in success response too ---
+  if (data?.clearSession || data?.code === 'USER_NOT_FOUND') {
+    console.warn('[chatService] 🚨 Server requested session clear in response');
+    const { supabase } = await import('../lib/supabaseClient');
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+    throw new Error('Session invalid - user no longer exists');
+  }
   
   return data;
 }
@@ -332,6 +351,16 @@ export const chatService = {
             
             // Parse error data ONCE (response body can only be read once)
             const errorData = await response.json().catch(() => ({ error: 'Invalid or expired token' }));
+            
+            // --- FIX: Handle server-requested session clear (ghost user) ---
+            if (errorData?.clearSession || errorData?.code === 'USER_NOT_FOUND') {
+              logger.warn('[ChatService] 🚨 Server requested session clear (ghost user)');
+              await supabase.auth.signOut();
+              window.location.href = '/login';
+              const authError = new Error('Session invalid - user no longer exists') as AuthError;
+              authError.isAuthError = true;
+              throw authError;
+            }
             
             // Only attempt token refresh once per request
             if (!tokenRefreshAttempted) {

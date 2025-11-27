@@ -14,8 +14,27 @@ export default async function authMiddleware(req, res, next) {
     const { supabasePublic } = await import('../config/supabaseClient.mjs');
     const { data: { user }, error: authError } = await supabasePublic.auth.getUser(token);
     
-    if (authError || !user) {
-      return res.status(401).json({ error: "UNAUTHORIZED", message: "Invalid token" });
+    // --- FIX: Handle ghost users (user deleted but token still valid) ---
+    const errMsg = authError?.message || '';
+    const errCode = authError?.code || '';
+    const ghostUser =
+      authError ||
+      !user ||
+      errMsg.includes('does not exist') ||
+      errCode === 'user_not_found' ||
+      errMsg.includes('User from sub claim');
+    
+    if (ghostUser) {
+      logger.warn('[authMiddleware] ⚠️ Ghost/stale session detected. Clearing.', {
+        errMsg,
+        errCode
+      });
+      return res.status(401).json({ 
+        error: "UNAUTHORIZED", 
+        message: "Session invalid - user no longer exists",
+        code: 'USER_NOT_FOUND',
+        clearSession: true
+      });
     }
 
     const userId = user.id;

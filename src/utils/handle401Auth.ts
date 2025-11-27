@@ -40,6 +40,23 @@ export async function handle401Auth({
     return response; // Not a 401, return as-is
   }
 
+  // --- FIX: Check if server requested session clear (ghost user) ---
+  try {
+    const errorData = await response.clone().json().catch(() => null);
+    if (errorData?.clearSession || errorData?.code === 'USER_NOT_FOUND') {
+      logger.warn('[handle401Auth] 🚨 Server requested session clear (ghost user)');
+      await supabase.auth.signOut();
+      if (!preventRedirect) {
+        setTimeout(() => {
+          navigateTo('/login', true);
+        }, 100);
+      }
+      throw new Error('Session invalid - user no longer exists');
+    }
+  } catch (parseError) {
+    // Not JSON or already handled, continue with refresh logic
+  }
+
   logger.warn('[handle401Auth] 🔄 401 Unauthorized - attempting token refresh...');
 
   try {

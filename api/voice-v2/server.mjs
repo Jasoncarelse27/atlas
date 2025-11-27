@@ -308,14 +308,26 @@ wss.on('connection', (ws, req) => {
               const supabase = createClient(supabaseUrl, supabaseKey);
               const { data: { user }, error } = await supabase.auth.getUser(authToken);
               
-              if (error || !user) {
+              // --- FIX: Handle ghost users (user deleted but token still valid) ---
+              const errMsg = error?.message || '';
+              const errCode = error?.code || '';
+              const ghostUser =
+                error ||
+                !user ||
+                errMsg.includes('does not exist') ||
+                errCode === 'user_not_found' ||
+                errMsg.includes('User from sub claim');
+              
+              if (ghostUser) {
+                console.warn('[VoiceV2] ⚠️ Ghost/stale session detected. Clearing.');
                 ws.send(JSON.stringify({
                   type: 'error',
-                  message: 'Invalid or expired authentication token',
-                  code: 'AUTH_INVALID',
+                  message: 'Session invalid - user no longer exists',
+                  code: 'USER_NOT_FOUND',
+                  clearSession: true,
                   sessionId,
                 }));
-                ws.close(4001, 'Authentication failed');
+                ws.close(4001, 'User not found');
                 return;
               }
 

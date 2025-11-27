@@ -1,6 +1,7 @@
 import { logger } from '../lib/logger';
 import { getAuthToken as getAuthTokenHelper } from './getAuthToken';
 import { navigateTo } from './navigation';
+import { supabase } from '../lib/supabaseClient';
 
 // Environment variable safety check
 if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
@@ -66,6 +67,24 @@ export async function fetchWithAuth(
 
     // Handle 401 Unauthorized
     if (response.status === 401) {
+      // --- FIX: Check if server requested session clear (ghost user) ---
+      try {
+        const errorData = await response.clone().json().catch(() => null);
+        if (errorData?.clearSession || errorData?.code === 'USER_NOT_FOUND') {
+          logger.warn('[AuthFetch] 🚨 Server requested session clear (ghost user)');
+          await supabase.auth.signOut();
+          if (!preventRedirect) {
+            setTimeout(() => {
+              navigateTo('/login', true);
+            }, 100);
+          }
+          const errorData: ApiError = { error: 'UNAUTHORIZED', message: 'Session invalid - user no longer exists' };
+          throw new Error(JSON.stringify(errorData));
+        }
+      } catch (parseError) {
+        // Not JSON or already handled, continue with refresh logic
+      }
+      
       if (retryOn401) {
         logger.debug('[AuthFetch] 401 received, attempting token refresh...');
         
