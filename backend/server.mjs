@@ -5910,7 +5910,7 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
     const FASTSPRING_API_USERNAME = process.env.FASTSPRING_API_USERNAME;
     const FASTSPRING_API_PASSWORD = process.env.FASTSPRING_API_PASSWORD;
     const FASTSPRING_STORE_ID = process.env.FASTSPRING_STORE_ID;
-    const FASTSPRING_ENVIRONMENT = process.env.VITE_FASTSPRING_ENVIRONMENT || 'test';
+    const FASTSPRING_ENVIRONMENT = process.env.FASTSPRING_ENVIRONMENT || process.env.VITE_FASTSPRING_ENVIRONMENT || 'test';
     
     // ✅ PRE-LAUNCH HARDENING: Helper function to check FastSpring configuration
     const isFastSpringConfigured = () => {
