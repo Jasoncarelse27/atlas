@@ -41,38 +41,32 @@ export function TutorialOverlay() {
     restoreFocus: true,
   });
 
-  // ✅ CRITICAL FIX: Guard AFTER all hooks (prevents React Error #310)
-  if (!user) {
-    logger.info("[TutorialOverlay] Skipping — no user session");
-    return null;
-  }
+  // ✅ CRITICAL FIX: Get filtered steps BEFORE early return (needed for hooks)
+  const steps = user ? getTutorialStepsForTier(tier || 'free') : [];
+  const currentStepData = user && steps.length > 0 ? steps[currentStep] : null;
 
-  // Get filtered steps based on tier
-  const steps = getTutorialStepsForTier(tier || 'free');
-  const currentStepData = steps[currentStep];
-
-  // Safety check: if step is out of bounds, complete tutorial
+  // ✅ CRITICAL FIX: Safety check - must be called BEFORE early return (prevents React Error #310)
   useEffect(() => {
-    if (isTutorialActive && (!currentStepData || currentStep >= steps.length)) {
+    if (!user || !isTutorialActive || !currentStepData) return;
+    if (currentStep >= steps.length) {
       logger.warn('[TutorialOverlay] Step out of bounds, completing tutorial');
       completeTutorial();
     }
-  }, [isTutorialActive, currentStep, currentStepData, steps.length, completeTutorial]);
+  }, [user, isTutorialActive, currentStep, currentStepData, steps.length, completeTutorial]);
 
-  // Body scroll lock (follows Atlas modal pattern)
+  // ✅ CRITICAL FIX: Body scroll lock - must be called BEFORE early return (prevents React Error #310)
   useEffect(() => {
-    if (isTutorialActive) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [isTutorialActive]);
+    if (!user || !isTutorialActive) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [user, isTutorialActive]);
 
-  // Calculate tooltip position (memoized for performance)
+  // ✅ CRITICAL FIX: Calculate tooltip position - must be called BEFORE early return (prevents React Error #310)
   const calculateTooltipPosition = useCallback((element: HTMLElement) => {
-    if (!currentStepData) return;
+    if (!user || !currentStepData) return;
     
     const rect = element.getBoundingClientRect();
     const position = isMobile ? currentStepData.position.mobile : currentStepData.position.desktop;
@@ -141,11 +135,11 @@ export function TutorialOverlay() {
     }
 
     setTooltipPosition({ top, left });
-  }, [currentStepData, isMobile]);
+  }, [user, currentStepData, isMobile]);
 
-  // Find target element and calculate tooltip position
+  // ✅ CRITICAL FIX: Find target element - must be called BEFORE early return (prevents React Error #310)
   useEffect(() => {
-    if (!isTutorialActive || !currentStepData) return;
+    if (!user || !isTutorialActive || !currentStepData) return;
 
     const findTargetElement = () => {
       try {
@@ -247,11 +241,11 @@ export function TutorialOverlay() {
       window.removeEventListener('scroll', handleScroll, true);
       window.visualViewport?.removeEventListener('resize', handleResize);
     };
-  }, [isTutorialActive, currentStep, currentStepData, isMobile, targetElement, calculateTooltipPosition]);
+  }, [user, isTutorialActive, currentStep, currentStepData, isMobile, targetElement, calculateTooltipPosition]);
 
-  // Handle keyboard navigation (WCAG AA)
+  // ✅ CRITICAL FIX: Handle keyboard navigation - must be called BEFORE early return (prevents React Error #310)
   useEffect(() => {
-    if (!isTutorialActive) return;
+    if (!user || !isTutorialActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -265,7 +259,13 @@ export function TutorialOverlay() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isTutorialActive, currentStep, steps.length, nextStep, previousStep, skipTutorial]);
+  }, [user, isTutorialActive, currentStep, steps.length, nextStep, previousStep, skipTutorial]);
+
+  // ✅ CRITICAL FIX: Guard AFTER all hooks (prevents React Error #310)
+  if (!user) {
+    logger.info("[TutorialOverlay] Skipping — no user session");
+    return null;
+  }
 
   if (!isTutorialActive || !currentStepData || !tooltipPosition) {
     return null;

@@ -77,13 +77,36 @@ export function UpgradeButton({
       // Redirect to FastSpring checkout (external URL)
       window.location.href = checkoutUrl;
       } catch (fastspringError) {
-        // ✅ FASTSPRING PENDING: Show message if not approved yet
+        // ✅ IMPROVED: Log full error details for mobile debugging
+        logger.error('FastSpring checkout failed:', {
+          error: fastspringError,
+          message: fastspringError instanceof Error ? fastspringError.message : String(fastspringError),
+          stack: fastspringError instanceof Error ? fastspringError.stack : undefined,
+          userAgent: navigator.userAgent,
+          isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+          userId: user.id,
+          targetTier
+        });
+        
         toast.dismiss(loadingToastId);
-        logger.warn('FastSpring checkout not available yet:', fastspringError);
-        toast.info(
-          'Checkout is being set up. Please check back soon or contact support for early access.',
-          { duration: 5000 }
-        );
+        
+        // ✅ IMPROVED: Show actual error instead of always showing generic message
+        const errorMessage = fastspringError instanceof Error 
+          ? fastspringError.message 
+          : 'Unknown error occurred';
+        
+        // Only show "Checkout is being set up" if it's actually a setup issue
+        if (errorMessage.includes('PENDING') || 
+            errorMessage.includes('not approved') || 
+            errorMessage.includes('account id not found')) {
+          toast.info(
+            'Checkout is being set up. Please check back soon or contact support for early access.',
+            { duration: 5000 }
+          );
+        } else {
+          // Show actual error for debugging
+          toast.error(`Unable to open checkout: ${errorMessage}`, { duration: 5000 });
+        }
         
         // Fallback to showing upgrade modal
         showUpgradeModal('subscription');
