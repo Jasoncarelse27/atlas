@@ -6007,7 +6007,11 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
           const storefrontUrl = accountData.storefront || accountData.storefrontUrl || accountData.store?.storefront;
           
           if (storefrontUrl) {
-            checkoutUrl = `${storefrontUrl}/popup-${checkoutData.id}`;
+            // ✅ WEB CHECKOUT MODE — popup checkout disabled
+            // No more popup-<id> URLs (FastSpring store does not have Popup enabled)
+            // Use product page instead: https://<storefront>/<productId>
+            // Example: https://otiumcreations.onfastspring.com/atlas-core
+            checkoutUrl = `${storefrontUrl}/${productId}`;
             logger.info(`[FastSpring] ✅ Got storefront URL from account API: ${storefrontUrl}`);
           } else {
             logger.warn(`[FastSpring] Account API response doesn't include storefront URL`);
@@ -6025,7 +6029,9 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
       if (FASTSPRING_STOREFRONT_URL) {
         // Remove trailing slash if present
         const baseUrl = FASTSPRING_STOREFRONT_URL.replace(/\/$/, '');
-        checkoutUrl = `${baseUrl}/popup-${checkoutData.id}`;
+        // ✅ WEB CHECKOUT MODE — popup checkout disabled
+        // Use product page instead: https://<storefront>/<productId>
+        checkoutUrl = `${baseUrl}/${productId}`;
         logger.info(`[FastSpring] ✅ Using storefront URL from env var: ${baseUrl}`);
       } else {
         // ✅ PRIORITY 2: Try using account ID as storefront identifier
@@ -6036,7 +6042,9 @@ app.post('/api/fastspring/create-checkout', async (req, res) => {
         const storefront = FASTSPRING_ENVIRONMENT === 'live' 
           ? `https://${storeDomain}.onfastspring.com`
           : `https://${storeDomain}.test.onfastspring.com`;
-        checkoutUrl = `${storefront}/popup-${checkoutData.id}`;
+        // ✅ WEB CHECKOUT FALLBACK
+        // Use product page instead: https://<storefront>/<productId>
+        checkoutUrl = `${storefront}/${productId}`;
         
         logger.warn(`[FastSpring] ⚠️ Constructed checkout URL manually (may not work): ${checkoutUrl}`);
         logger.warn(`[FastSpring] 💡 Set FASTSPRING_STOREFRONT_URL env var in Railway with exact URL from FastSpring Dashboard`);
