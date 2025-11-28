@@ -5,8 +5,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { navigateToLastConversation } from '../utils/chatNavigation';
 import { toast } from 'sonner';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 // Removed - Using VoiceUpgradeModal for all upgrades for consistent warm UI
 // import EnhancedUpgradeModal from '../components/EnhancedUpgradeModal';
 import Dexie from 'dexie';
@@ -54,7 +54,7 @@ import { useMobileOptimization } from '../hooks/useMobileOptimization'; // ✅ U
 import { useRealtimeConversations } from '../hooks/useRealtimeConversations';
 import { useTierRefreshOnFocus } from '../hooks/useTierRefreshOnFocus';
 import { useTutorial } from '../hooks/useTutorial';
-import { stableMessageSort, appendMessageSafely } from '../utils/messageSort';
+import { appendMessageSafely, stableMessageSort } from '../utils/messageSort';
 
 interface ChatPageProps {
   user?: { id: string; email?: string };
@@ -1927,7 +1927,7 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [userId, isCompleted, tutorialLoading, startTutorial]);
+  }, [userId, isCompleted, tutorialLoading]); // ✅ FIX: startTutorial deliberately excluded - stable callback (depends on isCompleted which is already in deps, prevents React #310 loop)
 
   // ✅ FIX: Handle URL changes using React Router's useSearchParams (detects navigate() calls)
   // This works for both React Router navigation AND browser back/forward
