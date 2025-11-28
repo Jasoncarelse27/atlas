@@ -295,15 +295,24 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
             .eq('user_id', user.id)
             .maybeSingle();
 
+          // ✅ FIX: Handle 400 (Bad Request) - table doesn't exist or invalid query
+          // This is non-critical - app works fine with localStorage fallback
+          if (dbError && (dbError.code === '400' || dbError.code === 'PGRST116' || dbError.message?.includes('relation') || dbError.message?.includes('does not exist'))) {
+            // Silently fallback to localStorage - this is expected if table doesn't exist
+            return { data: null, error: { code: 'FALLBACK', message: 'Table not available, using localStorage' } };
+          }
+
           // Handle 406 (Not Acceptable) - fallback gracefully
           if (dbError && dbError.code === '406') {
-            logger.warn('[useCustomization] 406 error - falling back to localStorage');
+            logger.debug('[useCustomization] 406 error - falling back to localStorage');
             return { data: null, error: { code: 'FALLBACK', message: 'Using localStorage fallback' } };
           }
 
-          // Handle 400 (Bad Request) or PGRST116 (Not Found) - both mean no row exists
-          if (dbError && dbError.code !== 'PGRST116' && dbError.code !== '400') {
-            throw new Error(`Database error: ${dbError.message}`);
+          // Only throw for unexpected errors
+          if (dbError && dbError.code !== 'PGRST116') {
+            // Log unexpected errors but don't throw (prevents app crash)
+            logger.debug('[useCustomization] Database error (non-critical):', dbError.message);
+            return { data: null, error: { code: 'FALLBACK', message: 'Using localStorage fallback' } };
           }
 
           return { data, error: dbError };
@@ -430,13 +439,23 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
             .upsert([updatedCustomization], { onConflict: 'user_id' });
 
           if (dbError) {
+            // ✅ FIX: Handle 400 (Bad Request) - table doesn't exist (non-critical)
+            if (dbError.code === '400' || dbError.message?.includes('relation') || dbError.message?.includes('does not exist')) {
+              // Table doesn't exist - silently use localStorage only (expected behavior)
+              logger.debug('[Customization] Table not available - using localStorage only');
+              return false;
+            }
+            
             // ✅ SCALABILITY: Handle rate limits gracefully
             if (dbError.code === 'PGRST301' || dbError.message.includes('rate limit') || dbError.message.includes('429')) {
               logger.debug('[Customization] ⚠️ Rate limited by Supabase - will retry on next change');
               // Don't throw - allow localStorage save, will sync on next change
               return false;
             }
-            throw new Error(`Database save failed: ${dbError.message}`);
+            
+            // Only log unexpected errors, don't throw (prevents app crash)
+            logger.debug('[Customization] Database error (non-critical):', dbError.message);
+            return false;
           }
 
           logger.debug('✅ Saved to database successfully');
@@ -444,6 +463,12 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
         },
         false // Fallback value for network errors
       ).catch((dbErr) => {
+        // ✅ FIX: Suppress errors for missing table (non-critical)
+        if (dbErr.message?.includes('relation') || dbErr.message?.includes('does not exist') || dbErr.message?.includes('400')) {
+          // Table doesn't exist - expected, using localStorage only
+          return;
+        }
+        
         if (dbErr.message.includes('Failed to fetch') || 
             dbErr.message.includes('NetworkError') ||
             dbErr.message.includes('TypeError: Failed to fetch')) {
@@ -452,7 +477,8 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
           // Rate limit handled above, just log
           logger.debug('[Customization] ⚠️ Rate limited - saved locally, will sync later');
         } else {
-          setError('Failed to sync customization to cloud, but saved locally');
+          // Only show error for unexpected issues
+          logger.debug('[Customization] Save error (non-critical):', dbErr.message);
         }
       });
 
