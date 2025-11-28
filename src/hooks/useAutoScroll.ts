@@ -62,34 +62,63 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
   }, [containerRef, deps]); // Re-run when deps change too
 
   // Initial scroll to bottom on page load/refresh
+  // ✅ FIX: Handle new users with 0 messages - don't try to scroll empty containers
   useEffect(() => {
-    if (!hasInitiallyScrolled && deps.length > 0) {
-      // Force scroll to bottom on initial load with multiple attempts
-      const scrollAttempts = [100, 300, 500]; // Try at different intervals
-      const timers: NodeJS.Timeout[] = [];
+    if (!hasInitiallyScrolled && containerRef?.current) {
+      const container = containerRef.current;
+      const hasScrollableContent = container.scrollHeight > container.clientHeight;
+      const messageCount = Array.isArray(deps) && deps.length > 0 ? deps[0] : 0;
       
-      scrollAttempts.forEach((delay) => {
-        const timer = setTimeout(() => {
-          scrollToBottom();
-        }, delay);
-        timers.push(timer);
-      });
-      
-      const finalTimer = setTimeout(() => {
+      // ✅ FIX: Only attempt scroll if there's actual content OR if we have messages
+      // For new users with 0 messages, just mark as scrolled to prevent future attempts
+      if (hasScrollableContent || messageCount > 0) {
+        // Force scroll to bottom on initial load with multiple attempts
+        const scrollAttempts = [100, 300, 500]; // Try at different intervals
+        const timers: NodeJS.Timeout[] = [];
+        
+        scrollAttempts.forEach((delay) => {
+          const timer = setTimeout(() => {
+            // ✅ FIX: Double-check container still exists and has content before scrolling
+            if (containerRef?.current && containerRef.current.scrollHeight > containerRef.current.clientHeight) {
+              scrollToBottom();
+            }
+          }, delay);
+          timers.push(timer);
+        });
+        
+        const finalTimer = setTimeout(() => {
+          setHasInitiallyScrolled(true);
+        }, 600);
+        timers.push(finalTimer);
+        
+        // ✅ MEMORY LEAK FIX: Cleanup all timers
+        return () => {
+          timers.forEach(timer => clearTimeout(timer));
+        };
+      } else {
+        // ✅ FIX: For new users with no messages, mark as scrolled immediately
+        // This prevents scroll attempts on empty containers
         setHasInitiallyScrolled(true);
-      }, 600);
-      timers.push(finalTimer);
-      
-      // ✅ MEMORY LEAK FIX: Cleanup all timers
-      return () => {
-        timers.forEach(timer => clearTimeout(timer));
-      };
+      }
+    } else if (!hasInitiallyScrolled && !containerRef?.current) {
+      // ✅ FIX: If container not ready yet, mark as scrolled after short delay
+      // Prevents infinite waiting for container that might never exist
+      const timer = setTimeout(() => {
+        setHasInitiallyScrolled(true);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  }, [deps, hasInitiallyScrolled, scrollToBottom]);
+  }, [deps, hasInitiallyScrolled, scrollToBottom, containerRef]);
 
   // Handle new messages after initial load
+  // ✅ FIX: Only auto-scroll if there are actual messages (not empty state)
   useEffect(() => {
-    if (hasInitiallyScrolled && deps.length > 0) {
+    if (hasInitiallyScrolled && containerRef?.current) {
+      const messageCount = Array.isArray(deps) && deps.length > 0 ? deps[0] : 0;
+      const hasScrollableContent = containerRef.current.scrollHeight > containerRef.current.clientHeight;
+      
+      // ✅ FIX: Only attempt scroll if we have messages AND scrollable content
+      if (messageCount > 0 && hasScrollableContent) {
         if (isAtBottom) {
           // User is at bottom → auto-scroll to new messages
           scrollToBottom();
@@ -99,8 +128,9 @@ export const useAutoScroll = (deps: any[] = [], containerRef?: React.RefObject<H
           const timeout = setTimeout(() => setShouldGlow(false), 1200);
           return () => clearTimeout(timeout);
         }
+      }
     }
-  }, [hasInitiallyScrolled, isAtBottom, scrollToBottom, deps.length]);
+  }, [hasInitiallyScrolled, isAtBottom, scrollToBottom, deps, containerRef]);
 
   return { bottomRef, scrollToBottom, showScrollButton, shouldGlow };
 };
