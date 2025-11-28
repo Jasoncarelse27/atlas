@@ -18,8 +18,8 @@ export default function UpgradePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
-      <div className="text-center max-w-2xl mx-auto px-4">
+    <div className="h-dvh bg-white dark:bg-gray-900 flex items-start justify-center px-4 py-4 overflow-y-auto">
+      <div className="text-center max-w-2xl mx-auto px-4 my-auto">
         {/* Back to Chat Button */}
         <div className="mb-6">
           <button

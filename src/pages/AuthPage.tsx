@@ -349,8 +349,8 @@ const AuthPage = () => {
   }, [urlTier]);
 
   return (
-    <div className="min-h-dvh bg-gradient-to-b from-[#F4E8E1] to-[#CEC1B8] dark:from-gray-900 dark:to-gray-800 flex items-start justify-center px-4 py-4 overflow-y-auto">
-      <div className="w-full max-w-sm bg-[#F9F6F3] dark:bg-gray-900 rounded-3xl shadow-lg p-6 space-y-6 border border-[#E8DDD2] dark:border-gray-700">
+    <div className="h-dvh bg-gradient-to-b from-[#F4E8E1] to-[#CEC1B8] dark:from-gray-900 dark:to-gray-800 flex items-start justify-center px-4 py-4 overflow-y-auto">
+      <div className="w-full max-w-sm bg-[#F9F6F3] dark:bg-gray-900 rounded-3xl shadow-lg p-6 space-y-6 border border-[#E8DDD2] dark:border-gray-700 my-auto">
         {/* Atlas Logo and Branding */}
         <div className="text-center">
           <img

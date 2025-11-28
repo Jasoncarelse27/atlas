@@ -34,8 +34,8 @@ export default function SubscriptionCancel() {
   }
 
   return (
-    <div className="min-h-screen bg-atlas-pearl dark:bg-[#0F121A] flex items-center justify-center safe-top safe-bottom px-4">
-      <div className="max-w-md w-full bg-white dark:bg-[#1A1D26] rounded-2xl shadow-xl border border-atlas-border dark:border-[#2A2E3A] p-8 text-center">
+    <div className="h-dvh bg-atlas-pearl dark:bg-[#0F121A] flex items-start justify-center safe-top safe-bottom px-4 py-4 overflow-y-auto">
+      <div className="max-w-md w-full bg-white dark:bg-[#1A1D26] rounded-2xl shadow-xl border border-atlas-border dark:border-[#2A2E3A] p-8 text-center my-auto">
         {/* Cancel Icon */}
         <div className="flex justify-center mb-6">
           <div className="w-20 h-20 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">

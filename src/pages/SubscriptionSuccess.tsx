@@ -68,8 +68,8 @@ export default function SubscriptionSuccess() {
 
   if (isRefreshing) {
     return (
-      <div className="min-h-screen bg-atlas-pearl dark:bg-[#0F121A] flex items-center justify-center safe-top safe-bottom">
-        <div className="text-center">
+      <div className="h-dvh bg-atlas-pearl dark:bg-[#0F121A] flex items-start justify-center safe-top safe-bottom px-4 py-4 overflow-y-auto">
+        <div className="text-center my-auto">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-atlas-text-medium dark:text-gray-300">
             Activating your subscription...
@@ -111,8 +111,8 @@ export default function SubscriptionSuccess() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0F121A] flex items-center justify-center safe-top safe-bottom px-4 py-8">
-      <div className="max-w-lg w-full bg-white dark:bg-[#1A1D26] rounded-2xl shadow-xl border border-gray-200 dark:border-[#2A2E3A] overflow-hidden">
+    <div className="h-dvh bg-gray-50 dark:bg-[#0F121A] flex items-start justify-center safe-top safe-bottom px-4 py-4 overflow-y-auto">
+      <div className="max-w-lg w-full bg-white dark:bg-[#1A1D26] rounded-2xl shadow-xl border border-gray-200 dark:border-[#2A2E3A] overflow-hidden my-auto">
         {/* Header Section */}
         <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 px-8 pt-8 pb-6 text-center">
           {/* Success Icon */}
