@@ -5698,7 +5698,12 @@ app.post('/api/mailerlite/signup-sync', async (req, res) => {
       message: 'MailerLite sync initiated' 
     });
   } catch (error) {
-    logger.error('[SignupSync] Error:', error);
+    logger.error('[SignupSync] Error:', {
+      message: error?.message || 'Unknown error',
+      stack: error?.stack,
+      name: error?.name,
+      error: error
+    });
     // Don't return error - this should be fire-and-forget
     return res.json({ 
       success: false,

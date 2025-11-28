@@ -4,10 +4,11 @@
  * Follows Atlas context patterns (similar to UpgradeModalContext)
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { logger } from '../lib/logger';
 import { useAuth } from '../providers/AuthProvider';
 import { checkTutorialCompletion, markTutorialCompleted } from '../services/tutorialService';
-import { logger } from '../lib/logger';
 
 interface TutorialContextType {
   isTutorialActive: boolean;
@@ -30,6 +31,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 🔥 Guard ref to prevent concurrent tutorial completion checks (prevents React #310 loops)
+  const checkingRef = useRef(false);
+
   // ✅ DEBUG: Log when TutorialProvider initializes (dev only)
   useEffect(() => {
     logger.debug('[TutorialContext] 🚀 TutorialProvider mounted', { 
@@ -39,38 +43,54 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Check tutorial completion status on mount and when user changes
+  // ✅ Check tutorial completion status on mount and when user changes
+  // 🔥 FIX: Added checkingRef guard to prevent infinite loops (React #310)
   useEffect(() => {
-    // 🚫 Guard: skip tutorial if no user is logged in
-    if (!user) {
+    // 🔥 Guard 1 — auth still loading → do nothing
+    if (authLoading) {
+      logger.debug('[TutorialContext] ⏳ Auth still loading...');
+      return;
+    }
+
+    // 🔥 Guard 2 — no user → clear and exit
+    if (!user?.id) {
       logger.info("[TutorialContext] Skipping tutorial — no user session");
       setIsLoading(false);
       return;
     }
 
-    // ✅ DEBUG: Log when this effect runs (dev only)
+    // 🔥 Guard 3 — a check is already in progress → skip to avoid loops
+    if (checkingRef.current) {
+      logger.debug('[TutorialContext] ⏳ Tutorial check already in progress, skipping re-run', {
+        userId: user.id,
+      });
+      return;
+    }
+
+    checkingRef.current = true;
+
     logger.debug('[TutorialContext] 🔄 Effect triggered', { 
       hasUser: !!user, 
-      userId: user?.id,
+      userId: user.id,
       authLoading 
     });
 
     const checkCompletion = async () => {
       setIsLoading(true);
-      logger.debug('[TutorialContext] 🔍 Checking tutorial completion...', { userId: user?.id });
-      logger.info('[TutorialContext] 🔍 Checking tutorial completion...', { userId: user?.id });
+      logger.debug('[TutorialContext] 🔍 Checking tutorial completion...', { userId: user.id });
+      logger.info('[TutorialContext] 🔍 Checking tutorial completion...', { userId: user.id });
       
       try {
-        const status = await checkTutorialCompletion(user?.id || null);
+        const status = await checkTutorialCompletion(user.id);
         logger.debug('[TutorialContext] ✅ Check complete:', { 
           isCompleted: status.isCompleted, 
           source: status.source,
-          userId: user?.id 
+          userId: user.id 
         });
         logger.info('[TutorialContext] ✅ Check complete:', { 
           isCompleted: status.isCompleted, 
           source: status.source,
-          userId: user?.id 
+          userId: user.id 
         });
         
         setIsCompleted(status.isCompleted);
@@ -84,27 +104,19 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
           logger.info('[TutorialContext] ✅ Tutorial NOT completed, ready to show');
         }
       } catch (error) {
-        logger.error('[TutorialContext] ❌ Error checking tutorial completion:', error);
+        logger.error('[TutorialContext] ❌ Error checking tutorial completion', {
+          error,
+          userId: user.id
+        });
         // On error, assume not completed (safer to show tutorial than hide it)
         setIsCompleted(false);
       } finally {
         setIsLoading(false);
+        checkingRef.current = false; // 🔑 Reset guard to allow future legitimate checks
       }
     };
 
-    // Wait for auth to finish loading, then check
-    if (!authLoading) {
-      if (user?.id) {
-        checkCompletion();
-      } else {
-        logger.debug('[TutorialContext] ⏳ No user after auth loaded');
-        logger.info('[TutorialContext] ⏳ No user after auth loaded');
-        setIsLoading(false);
-      }
-    } else {
-      logger.debug('[TutorialContext] ⏳ Auth still loading...');
-      logger.info('[TutorialContext] ⏳ Auth still loading...');
-    }
+    void checkCompletion();
   }, [user?.id, authLoading]);
 
   // ✅ 100% BEST PRACTICES: Memoize callbacks to prevent unnecessary re-renders
