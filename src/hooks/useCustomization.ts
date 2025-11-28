@@ -255,6 +255,48 @@ const createDefaultCustomization = (userId: string): UserCustomization => ({
   updated_at: new Date().toISOString()
 });
 
+// ✅ CIRCUIT BREAKER: Cache "table doesn't exist" state to prevent repeated 400 errors
+// Uses localStorage pattern similar to useTierQuery for consistency
+const TABLE_EXISTS_CACHE_KEY = 'atlas:customization_table_exists';
+const TABLE_CHECK_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes - same as tier cache
+
+function getTableExistsCache(): { exists: boolean; checkedAt: number } | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = localStorage.getItem(TABLE_EXISTS_CACHE_KEY);
+    if (!cached) return null;
+    
+    const { exists, checkedAt } = JSON.parse(cached);
+    const cacheAge = Date.now() - checkedAt;
+    
+    // Return cache if still valid
+    if (cacheAge < TABLE_CHECK_CACHE_DURATION) {
+      return { exists, checkedAt };
+    }
+    
+    // Cache expired - clear it
+    localStorage.removeItem(TABLE_EXISTS_CACHE_KEY);
+    return null;
+  } catch (e) {
+    // Invalid cache, ignore
+    return null;
+  }
+}
+
+function setTableExistsCache(exists: boolean): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(TABLE_EXISTS_CACHE_KEY, JSON.stringify({
+      exists,
+      checkedAt: Date.now()
+    }));
+  } catch (e) {
+    // localStorage full or disabled, ignore
+  }
+}
+
 export const useCustomization = (user: User | null): UseCustomizationReturn => {
   const [customization, setCustomization] = useState<UserCustomization | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -279,6 +321,27 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       return;
     }
 
+    // ✅ CIRCUIT BREAKER: Check cache first - skip DB request if table doesn't exist
+    const tableCache = getTableExistsCache();
+    if (tableCache && !tableCache.exists) {
+      logger.debug('[useCustomization] Table doesn\'t exist (cached), using localStorage only');
+      const localData = localStorage.getItem(`atlas-customization-${user.id}`);
+      let loadedCustomization: UserCustomization;
+      
+      if (localData) {
+        loadedCustomization = JSON.parse(localData);
+      } else {
+        loadedCustomization = createDefaultCustomization(user.id);
+      }
+      
+      setCustomization(loadedCustomization);
+      setOriginalCustomization(deepClone(loadedCustomization) as UserCustomization);
+      applyCustomization(loadedCustomization);
+      setHasUnsavedChanges(false);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -298,8 +361,15 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
           // ✅ FIX: Handle 400 (Bad Request) - table doesn't exist or invalid query
           // This is non-critical - app works fine with localStorage fallback
           if (dbError && (dbError.code === '400' || dbError.code === 'PGRST116' || dbError.message?.includes('relation') || dbError.message?.includes('does not exist'))) {
+            // ✅ CIRCUIT BREAKER: Cache "table doesn't exist" to prevent future requests
+            setTableExistsCache(false);
             // Silently fallback to localStorage - this is expected if table doesn't exist
             return { data: null, error: { code: 'FALLBACK', message: 'Table not available, using localStorage' } };
+          }
+
+          // ✅ CIRCUIT BREAKER: Mark table as existing if we got data or no error (PGRST116 = no row, but table exists)
+          if (!dbError || dbError.code === 'PGRST116') {
+            setTableExistsCache(true);
           }
 
           // Handle 406 (Not Acceptable) - fallback gracefully
@@ -431,6 +501,19 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
       // Save to localStorage first (always works)
       localStorage.setItem(`atlas-customization-${user.id}`, JSON.stringify(updatedCustomization));
 
+      // ✅ CIRCUIT BREAKER: Skip database save if we know table doesn't exist
+      const tableCache = getTableExistsCache();
+      if (tableCache && !tableCache.exists) {
+        logger.debug('[Customization] Table doesn\'t exist (cached), saving to localStorage only');
+        // localStorage already saved above, just return
+        setCustomization(updatedCustomization);
+        const clonedUpdated = deepClone(updatedCustomization) as UserCustomization;
+        setOriginalCustomization(clonedUpdated);
+        applyCustomization(updatedCustomization);
+        setHasUnsavedChanges(false);
+        return;
+      }
+
       // Try to save to database with network error handling
       await safeDbOperation(
         async () => {
@@ -441,6 +524,8 @@ export const useCustomization = (user: User | null): UseCustomizationReturn => {
           if (dbError) {
             // ✅ FIX: Handle 400 (Bad Request) - table doesn't exist (non-critical)
             if (dbError.code === '400' || dbError.message?.includes('relation') || dbError.message?.includes('does not exist')) {
+              // ✅ CIRCUIT BREAKER: Cache "table doesn't exist" to prevent future requests
+              setTableExistsCache(false);
               // Table doesn't exist - silently use localStorage only (expected behavior)
               logger.debug('[Customization] Table not available - using localStorage only');
               return false;
