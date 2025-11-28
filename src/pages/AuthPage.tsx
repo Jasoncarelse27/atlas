@@ -1,10 +1,10 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { navigateToLastConversation } from '../utils/chatNavigation';
 import { checkSupabaseHealth, supabase } from '../lib/supabaseClient';
 import { getApiEndpoint } from '../utils/apiClient';
 import { fetchWithAuth } from '../utils/authFetch';
+import { navigateToLastConversation } from '../utils/chatNavigation';
 
 // Login Toggle Component
 const LoginToggle = ({ mode, setMode }: { mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void }) => (
@@ -42,6 +42,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [gdprAccepted, setGdprAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [ageVerified, setAgeVerified] = useState(false);
   const navigate = useNavigate();
 
   // Check Supabase health on component mount
@@ -113,7 +114,9 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
                 gdpr_accepted: gdprAccepted,
                 gdpr_accepted_at: new Date().toISOString(),
                 marketing_opt_in: marketingOptIn,
-                marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null
+                marketing_opt_in_at: marketingOptIn ? new Date().toISOString() : null,
+                age_verified: ageVerified,
+                age_verified_at: ageVerified ? new Date().toISOString() : null
               }, {
                 onConflict: 'id'
               });
@@ -151,6 +154,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
                   tier: 'free',
                   gdpr_accepted: gdprAccepted,
                   marketing_opt_in: marketingOptIn,
+                  age_verified: ageVerified,
                 }),
               }).catch(() => {
                 // Silent catch - this is fire-and-forget
@@ -283,13 +287,29 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
             I would like to receive product updates and tips via email
           </span>
         </label>
+
+        {/* Required: Age Verification - Only show on signup */}
+        {mode === 'signup' && (
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={ageVerified}
+              onChange={(e) => setAgeVerified(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-[#E8DDD2] dark:border-gray-600 text-[#8FA67E] focus:ring-[#8FA67E] dark:focus:ring-gray-500"
+              required={mode === 'signup'}
+            />
+            <span className="text-sm text-[#3B3632] dark:text-gray-300">
+              I am 18 years or older
+            </span>
+          </label>
+        )}
       </div>
 
       {/* Login Button - Full Width, Green Background */}
       <button
         type="submit"
         className="w-full bg-[#8FA67E] dark:bg-gray-700 hover:bg-[#7E9570] dark:hover:bg-gray-600 text-white py-3 rounded-xl font-semibold flex justify-center items-center transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-        disabled={loading || !gdprAccepted}
+        disabled={loading || !gdprAccepted || (mode === 'signup' && !ageVerified)}
       >
         {loading ? 'Signing In...' : (
           <>
