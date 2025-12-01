@@ -34,7 +34,8 @@ class EmailAgentService {
     this.mailboxMap = {
       'info': 'info@otiumcreations.com',
       'jason': 'jason@otiumcreations.com',
-      'rima': 'rima@otiumcreations.com'
+      'rima': 'rima@otiumcreations.com',
+      'admin': 'admin@otiumcreations.com'
     };
 
     // Token cache for Gmail API (tokens valid for 1 hour)

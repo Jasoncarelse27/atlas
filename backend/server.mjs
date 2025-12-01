@@ -1829,6 +1829,23 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// ✅ Web Agent routes (FAQ, Onboarding, Tech Support)
+// Auth is optional - supports both logged-in and anonymous users
+import webAgentRouter from './routes/web-agent.mjs';
+app.use('/api/agents', webAgentRouter);
+
+// ✅ Email Agent routes (Admin only - Gmail API integration)
+import emailAgentRouter from './routes/email-agent.mjs';
+app.use('/api/agents/email', emailAgentRouter);
+
+// ✅ Social Media Agent routes (Admin only)
+import socialAgentRouter from './routes/social-agent.mjs';
+app.use('/api/agents/social', socialAgentRouter);
+
+// ✅ Escalation Agent routes (Cron-safe, can be called by service role)
+import escalationAgentRouter from './routes/escalation-agent.mjs';
+app.use('/api/agents/escalation', escalationAgentRouter);
+
 // Usage log endpoint with service role
 app.post('/api/usage-log', verifyJWT, async (req, res) => {
   try {

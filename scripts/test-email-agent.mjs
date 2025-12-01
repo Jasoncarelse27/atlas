@@ -4,8 +4,8 @@
 // Tests JWT authentication, email fetching, and parsing
 
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { EmailAgentService } from '../backend/services/emailAgentService.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -98,8 +98,8 @@ async function testEmailAgent() {
   logSection('Test 1: Gmail API Authentication');
   
   try {
-    const testMailbox = 'info';
-    const delegatedUser = emailAgent.mailboxMap[testMailbox];
+    // Use GMAIL_DELEGATED_USER from environment, or fallback to 'admin' mailbox
+    const delegatedUser = process.env.GMAIL_DELEGATED_USER || emailAgent.mailboxMap['admin'] || 'admin@otiumcreations.com';
     
     logInfo(`Testing authentication for: ${delegatedUser}`);
     const accessToken = await emailAgent.getGmailAccessToken(delegatedUser);
