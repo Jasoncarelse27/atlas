@@ -56,6 +56,12 @@ GROQ_API_KEY=your-groq-key  # Optional alternative AI
 # Speech-to-Text (Deepgram) - Required for voice calls
 DEEPGRAM_API_KEY=your-deepgram-api-key  # Get from https://console.deepgram.com/
 
+# Email Agent (Gmail API) - Admin-only email processing
+EMAIL_AGENT_ENABLED=false  # Set to 'true' to enable Gmail email fetching (disabled by default for safety)
+GMAIL_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com
+GMAIL_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"  # Service account private key
+GMAIL_DELEGATED_USER=info@otiumcreations.com  # Email to impersonate via domain-wide delegation
+
 # FastSpring Backend Configuration
 FASTSPRING_API_KEY=your-api-key
 FASTSPRING_WEBHOOK_SECRET=your-webhook-secret
