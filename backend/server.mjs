@@ -1,3 +1,4 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { execSync } from 'child_process';
 import compression from 'compression';
@@ -1845,6 +1846,195 @@ app.use('/api/agents/social', socialAgentRouter);
 // ✅ Escalation Agent routes (Cron-safe, can be called by service role)
 import escalationAgentRouter from './routes/escalation-agent.mjs';
 app.use('/api/agents/escalation', escalationAgentRouter);
+
+//
+// GET /api/notifications
+//
+app.get('/api/notifications', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { supabase } = await import('./config/supabaseClient.mjs');
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    res.json({ notifications: data || [] });
+  } catch (err) {
+    logger.error('[Notifications] Error:', err);
+    res.status(500).json({ error: 'Failed to load notifications' });
+  }
+});
+
+//
+// POST /api/notifications/mark-read
+//
+app.post('/api/notifications/mark-read', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { notificationId } = req.body;
+    const { supabase } = await import('./config/supabaseClient.mjs');
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('[Notifications] Mark-read error:', err);
+    res.status(500).json({ error: 'Failed to mark notification read' });
+  }
+});
+
+//
+// GET /api/business-notes
+//
+app.get('/api/business-notes', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { supabase } = await import('./config/supabaseClient.mjs');
+
+    const { data, error } = await supabase
+      .from('business_notes')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    res.json({ notes: data || [] });
+  } catch (err) {
+    logger.error('[Business Notes] Error:', err);
+    res.status(500).json({ error: 'Failed to load notes' });
+  }
+});
+
+//
+// POST /api/business-notes
+//
+app.post('/api/business-notes', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { content } = req.body;
+    const { supabase } = await import('./config/supabaseClient.mjs');
+
+    const { data, error } = await supabase
+      .from('business_notes')
+      .insert({
+        user_id: userId,
+        content: content.trim(),
+        source: 'manual'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ note: data });
+  } catch (err) {
+    logger.error('[Business Notes] Insert error:', err);
+    res.status(500).json({ error: 'Failed to save note' });
+  }
+});
+
+//
+// POST /api/business-chat
+// Memory + summary + LLM reply
+//
+app.post('/api/business-chat', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { content } = req.body;
+    const { supabase } = await import('./config/supabaseClient.mjs');
+
+    // Save note
+    await supabase
+      .from('business_notes')
+      .insert({
+        user_id: userId,
+        content: content.trim(),
+        source: 'manual'
+      });
+
+    // Load last notes
+    const { data: notes } = await supabase
+      .from('business_notes')
+      .select('content')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const notesText = (notes || []).map(n => n.content).join('\n---\n');
+
+    // Load existing summary
+    const { data: summaryRow } = await supabase
+      .from('memory_auto_summaries')
+      .select('summary')
+      .eq('user_id', userId)
+      .single();
+
+    const prevSummary = summaryRow?.summary || '';
+
+    // LLM context
+    const systemPrompt = `
+You are Atlas Memory Agent.
+Summaries must stay under 2000 characters.
+Keep stable long-term memory.
+`;
+
+    const userPrompt = `
+Recent notes:
+
+${notesText}
+
+Previous summary:
+
+${prevSummary}
+
+Update the summary.
+`;
+
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+
+    const llmResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    });
+
+    const newSummary = llmResponse.content[0].text.slice(0, 2000);
+
+    // Upsert summary
+    await supabase
+      .from('memory_auto_summaries')
+      .upsert({
+        user_id: userId,
+        summary: newSummary,
+        updated_at: new Date().toISOString()
+      });
+
+    res.json({
+      reply: llmResponse.content[0].text,
+      summary: newSummary
+    });
+  } catch (err) {
+    logger.error('[Business Chat] Error:', err);
+    res.status(500).json({ error: 'Failed to generate memory response' });
+  }
+});
 
 // Usage log endpoint with service role
 app.post('/api/usage-log', verifyJWT, async (req, res) => {

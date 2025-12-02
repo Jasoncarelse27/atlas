@@ -1,12 +1,20 @@
 // backend/routes/email-agent.mjs
 // Email Agent Route - Gmail API integration, classification, draft generation
 // POST /api/agents/email (admin only)
+//
+// Gmail OAuth Setup Required:
+// 1. Place credentials.json in backend/config/ (from Google Cloud Console)
+// 2. Run: node backend/scripts/generate-gmail-token.mjs
+// 3. This generates token.json in backend/config/
+// 4. Set EMAIL_AGENT_ENABLED=true in .env
+//
+// The Email Agent uses OAuth 2.0 to access the authenticated user's Gmail inbox.
 
 import express from 'express';
+import { supabase } from '../config/supabaseClient.mjs';
 import { logger } from '../lib/simpleLogger.mjs';
 import { requireAdmin } from '../middleware/adminAuth.mjs';
 import { emailAgentService } from '../services/emailAgentService.mjs';
-import { supabase } from '../config/supabaseClient.mjs';
 
 const router = express.Router();
 
@@ -48,9 +56,18 @@ router.post('/fetch', async (req, res) => {
     const fetchResult = await emailAgentService.fetchNewEmails(mailbox, sinceDate);
 
     if (!fetchResult.ok) {
-      return res.status(500).json({
+      // Check if it's an OAuth configuration error
+      const isConfigError = fetchResult.error?.includes('OAuth not configured') || 
+                           fetchResult.error?.includes('credentials.json') ||
+                           fetchResult.error?.includes('token.json');
+      
+      return res.status(isConfigError ? 500 : 500).json({
         ok: false,
-        error: fetchResult.error || 'Failed to fetch emails'
+        error: fetchResult.error || 'Failed to fetch emails',
+        ...(isConfigError && {
+          setupRequired: true,
+          setupInstructions: 'Place credentials.json in backend/config/ and run: node backend/scripts/generate-gmail-token.mjs'
+        })
       });
     }
 
@@ -74,13 +91,13 @@ router.post('/fetch', async (req, res) => {
           continue;
         }
 
-        // Classify email
-        const classificationResult = await emailAgentService.classifyEmail(email);
-        const classification = classificationResult.classification || 'other';
-
-        // Extract structured data
+        // Extract structured data first to get userId for tier-based model selection
         const extractionResult = await emailAgentService.extractStructuredData(email);
         const { userId, tier, extractedData } = extractionResult;
+
+        // Classify email (pass userId for tier-aware model selection)
+        const classificationResult = await emailAgentService.classifyEmail(email, userId);
+        const classification = classificationResult.classification || 'other';
 
         // Check if critical
         const criticalCheck = await emailAgentService.isCriticalIssue(email, classification);
@@ -134,8 +151,8 @@ router.post('/fetch', async (req, res) => {
           continue;
         }
 
-        // Generate draft reply
-        const draftResult = await emailAgentService.generateDraftReply(email, classification);
+        // Generate draft reply (pass userId for tier-aware model selection)
+        const draftResult = await emailAgentService.generateDraftReply(email, classification, userId);
         if (draftResult.ok && draftResult.draftText) {
           await supabase
             .from('email_draft_replies')
@@ -151,6 +168,29 @@ router.post('/fetch', async (req, res) => {
             .from('email_threads')
             .update({ status: 'draft_generated' })
             .eq('id', thread.id);
+
+          // Insert notification for important emails
+          try {
+            const importantTypes = ['support', 'billing', 'bug_report', 'partnership'];
+
+            if (importantTypes.includes(classification)) {
+              const userId = req.user?.id;
+              if (userId) {
+                await supabase.from('notifications').insert({
+                  user_id: userId,
+                  title: `New ${classification} email`,
+                  body: email.subject,
+                  type: `email_agent.${classification}`,
+                  metadata: {
+                    messageId: email.messageId,
+                    subject: email.subject
+                  }
+                });
+              }
+            }
+          } catch (err) {
+            logger.error('[EmailAgent] Notification insert error:', err);
+          }
         }
 
         processedThreads.push({

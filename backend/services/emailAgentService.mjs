@@ -1,20 +1,25 @@
 // backend/services/emailAgentService.mjs
 // Email Agent Service - Gmail API integration, classification, draft generation
-// Milestone 3: Full implementation
+// Uses OAuth 2.0 for Gmail API access
+// Uses tier-based hybrid model selection (Haiku for classification, Sonnet for draft generation)
 
 import Anthropic from '@anthropic-ai/sdk';
-import { google } from 'googleapis';
 import { logger } from '../lib/simpleLogger.mjs';
 import { supabase } from '../config/supabaseClient.mjs';
+import { getGmailClient, isGmailConfigured } from '../config/gmailClient.mjs';
+import { selectOptimalModel } from '../config/intelligentTierSystem.mjs';
+import { getUserTier } from '../services/tierService.mjs';
 
 /**
  * Email Agent Service
  * Handles fetching, classifying, and generating draft replies for emails via Gmail API
  * 
- * NOTE: Gmail API credentials must be configured via environment variables:
- * - GMAIL_CLIENT_EMAIL: Service account email
- * - GMAIL_PRIVATE_KEY: Service account private key (base64 or raw)
- * - GMAIL_DELEGATED_USER: Email to impersonate (info@otiumcreations.com, etc.)
+ * NOTE: Gmail OAuth must be configured:
+ * 1. Place credentials.json in backend/config/ (from Google Cloud Console)
+ * 2. Run: node backend/scripts/generate-gmail-token.mjs
+ * 3. This will generate token.json in backend/config/
+ * 
+ * The Email Agent accesses the authenticated user's Gmail inbox directly.
  */
 class EmailAgentService {
   constructor() {
@@ -24,13 +29,7 @@ class EmailAgentService {
     const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
     this.anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;
     
-    // Gmail API configuration
-    this.gmailClientEmail = process.env.GMAIL_CLIENT_EMAIL;
-    // Convert \n escape sequences to actual newlines for private key
-    this.gmailPrivateKey = process.env.GMAIL_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    this.gmailDelegatedUser = process.env.GMAIL_DELEGATED_USER;
-    
-    // Mailbox mapping
+    // Mailbox mapping (for reference - OAuth uses authenticated user's inbox)
     this.mailboxMap = {
       'info': 'info@otiumcreations.com',
       'jason': 'jason@otiumcreations.com',
@@ -38,11 +37,8 @@ class EmailAgentService {
       'admin': 'admin@otiumcreations.com'
     };
 
-    // Token cache for Gmail API (tokens valid for 1 hour)
-    this.accessTokenCache = {
-      token: null,
-      expiresAt: null
-    };
+    // Check Gmail OAuth configuration (async check will happen on first use)
+    this.gmailConfigured = null; // Will be checked lazily
 
     if (!this.enabled) {
       logger.info('[EmailAgentService] Email Agent is disabled (EMAIL_AGENT_ENABLED=false). Set to true to enable.');
@@ -52,87 +48,33 @@ class EmailAgentService {
       logger.warn('[EmailAgentService] ⚠️ Anthropic API key not found - classification will not work');
     }
 
-    if (!this.gmailClientEmail || !this.gmailPrivateKey) {
-      logger.warn('[EmailAgentService] ⚠️ Gmail API credentials not configured - email fetching will not work');
-    }
-
     logger.debug('[EmailAgentService] Service initialized', {
       enabled: this.enabled,
-      hasGmailCreds: !!(this.gmailClientEmail && this.gmailPrivateKey),
       hasAnthropic: !!this.anthropic
     });
   }
 
   /**
-   * Get Gmail API access token using service account with domain-wide delegation
+   * Check if Gmail OAuth is configured
    * @private
-   * @param {string} delegatedUser - Email address to impersonate
-   * @returns {Promise<string>} Access token
+   * @returns {Promise<boolean>}
    */
-  async getGmailAccessToken(delegatedUser) {
-    if (!this.enabled) {
-      throw new Error('Email Agent is disabled (EMAIL_AGENT_ENABLED=false)');
-    }
-
-    if (!this.gmailClientEmail || !this.gmailPrivateKey) {
-      throw new Error('Gmail API credentials not configured');
-    }
-
-    if (!delegatedUser) {
-      throw new Error('Delegated user email is required');
-    }
-
-    // Check if we have a valid cached token
-    if (this.accessTokenCache.token && this.accessTokenCache.expiresAt) {
-      const now = Date.now();
-      // Refresh token 5 minutes before expiration
-      if (now < this.accessTokenCache.expiresAt - 5 * 60 * 1000) {
-        logger.debug('[EmailAgentService] Using cached access token');
-        return this.accessTokenCache.token;
+  async checkGmailConfigured() {
+    if (this.gmailConfigured === null) {
+      this.gmailConfigured = await isGmailConfigured();
+      if (!this.gmailConfigured) {
+        logger.warn('[EmailAgentService] ⚠️ Gmail OAuth not configured - email fetching will not work');
+        logger.warn('[EmailAgentService] Setup: Place credentials.json in backend/config/ and run generate-gmail-token.mjs');
       }
     }
-
-    try {
-      // Create JWT for service account authentication
-      const jwtClient = new google.auth.JWT(
-        this.gmailClientEmail,
-        null,
-        this.gmailPrivateKey,
-        ['https://www.googleapis.com/auth/gmail.readonly'],
-        delegatedUser // Subject (user to impersonate)
-      );
-
-      // Request access token
-      const tokens = await jwtClient.authorize();
-      
-      if (!tokens.access_token) {
-        throw new Error('Failed to obtain access token from Google OAuth2');
-      }
-
-      // Cache the token (tokens typically valid for 1 hour)
-      this.accessTokenCache.token = tokens.access_token;
-      this.accessTokenCache.expiresAt = Date.now() + ((tokens.expiry_date || 3600000) - Date.now());
-
-      logger.debug('[EmailAgentService] Successfully obtained Gmail API access token', {
-        delegatedUser,
-        expiresIn: Math.round((this.accessTokenCache.expiresAt - Date.now()) / 1000) + 's'
-      });
-
-      return tokens.access_token;
-
-    } catch (error) {
-      logger.error('[EmailAgentService] Error obtaining Gmail API access token:', {
-        error: error.message,
-        delegatedUser,
-        hasCredentials: !!(this.gmailClientEmail && this.gmailPrivateKey)
-      });
-      throw new Error(`Gmail API authentication failed: ${error.message}`);
-    }
+    return this.gmailConfigured;
   }
+
 
   /**
    * Fetch new emails from a mailbox via Gmail API
-   * @param {string} mailbox - 'info' | 'jason' | 'rima'
+   * Uses OAuth 2.0 to access the authenticated user's Gmail inbox
+   * @param {string} mailbox - 'info' | 'jason' | 'rima' (for reference/logging)
    * @param {Date} since - Fetch emails since this date (optional)
    * @returns {Promise<{ok: boolean, emails?: Array, error?: string}>}
    */
@@ -146,15 +88,18 @@ class EmailAgentService {
       };
     }
 
-    if (!this.gmailClientEmail || !this.gmailPrivateKey) {
+    // Check Gmail OAuth configuration
+    const isConfigured = await this.checkGmailConfigured();
+    if (!isConfigured) {
       return {
         ok: false,
-        error: 'Gmail API credentials not configured'
+        error: 'Gmail OAuth not configured. Place credentials.json in backend/config/ and run generate-gmail-token.mjs'
       };
     }
 
-    const delegatedUser = this.mailboxMap[mailbox];
-    if (!delegatedUser) {
+    // Validate mailbox (for reference/logging)
+    const mailboxEmail = this.mailboxMap[mailbox];
+    if (!mailboxEmail) {
       return {
         ok: false,
         error: `Invalid mailbox: ${mailbox}. Must be 'info', 'jason', or 'rima'`
@@ -162,15 +107,8 @@ class EmailAgentService {
     }
 
     try {
-      // Get access token
-      const accessToken = await this.getGmailAccessToken(delegatedUser);
-
-      // Create OAuth2 client with access token
-      const oauth2Client = new google.auth.OAuth2();
-      oauth2Client.setCredentials({ access_token: accessToken });
-
-      // Create Gmail API client
-      const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+      // Get authenticated Gmail client (OAuth 2.0)
+      const gmail = await getGmailClient();
 
       // Build query for unread emails since specified date
       const queryParts = ['is:unread'];
@@ -182,7 +120,7 @@ class EmailAgentService {
 
       logger.debug('[EmailAgentService] Fetching emails from Gmail API', {
         mailbox,
-        delegatedUser,
+        mailboxEmail,
         query,
         since: since?.toISOString()
       });
@@ -356,8 +294,20 @@ Body: ${(email.body_text || email.body || '').substring(0, 1000)}
 
 Respond with ONLY the category name (e.g., "support", "billing", etc.).`;
 
+      // Classification is a simple task - use Haiku for cost efficiency
+      // But still check tier for consistency (though it will likely route to Haiku anyway)
+      const userTier = userId ? await getUserTier(userId) : 'free';
+      const model = selectOptimalModel(userTier, classificationPrompt, 'classification');
+      
+      logger.debug('[EmailAgentService] Classification model selection', {
+        userId: userId || 'unknown',
+        tier: userTier,
+        model,
+        task: 'classification'
+      });
+
       const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
+        model: model,
         max_tokens: 50,
         messages: [
           {
@@ -462,11 +412,13 @@ Respond with ONLY the category name (e.g., "support", "billing", etc.).`;
 
   /**
    * Generate a draft reply for an email using Anthropic
+   * Uses tier-based model selection: Haiku for simple, Sonnet for complex (Core/Studio)
    * @param {object} email - Email object
    * @param {string} classification - Email classification
+   * @param {string|null} userId - Optional user ID for tier-based model selection
    * @returns {Promise<{ok: boolean, draftText?: string, draftHtml?: string, error?: string}>}
    */
-  async generateDraftReply(email, classification) {
+  async generateDraftReply(email, classification, userId = null) {
     if (!this.anthropic) {
       return {
         ok: false,
@@ -491,8 +443,23 @@ For support questions, provide clear, helpful answers.
 
 Do NOT include email headers (To:, Subject:, etc.) - just the body text.`;
 
+      // Draft generation is a complex task - use Sonnet for Core/Studio users
+      const userTier = userId ? await getUserTier(userId) : 'free';
+      const isComplexDraft = classification === 'billing' || classification === 'bug_report' || (email.body_text || email.body || '').length > 500;
+      const requestType = isComplexDraft ? 'draft_generation' : 'simple_draft';
+      const model = selectOptimalModel(userTier, draftPrompt, requestType);
+      
+      logger.debug('[EmailAgentService] Draft generation model selection', {
+        userId: userId || 'unknown',
+        tier: userTier,
+        model,
+        classification,
+        task: 'draft_generation',
+        isComplex: isComplexDraft
+      });
+
       const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
+        model: model,
         max_tokens: 500,
         messages: [
           {

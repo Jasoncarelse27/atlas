@@ -76,6 +76,8 @@ export default defineConfig(({ mode }) => {
       esbuildOptions: {
         // Don't transform zustand - keep it as ESM
         target: 'esnext',
+        // ✅ FIX: Externalize Node.js modules to prevent browser bundling
+        external: ['stream', 'http', 'https', 'url', 'fs', 'path', 'os', 'crypto', 'util', 'events', 'net', 'tls', 'zlib', 'querystring', 'child_process'],
       }
     },
     base: process.env.NODE_ENV === 'production' ? '/' : '/',
@@ -120,8 +122,21 @@ export default defineConfig(({ mode }) => {
         plugins: [preserveZustand(), stripSourcemapComments()], // ✅ Apply safeguard plugins
         // ✅ CRITICAL FIX: Preserve entry signatures to keep exports (must be at root level)
         preserveEntrySignatures: 'strict',
-        // ✅ CRITICAL FIX: Ensure zustand is bundled, not externalized
-        external: [],
+        // ✅ CRITICAL FIX: Externalize Node.js modules to prevent browser bundling
+        external: (id) => {
+          // Externalize Node.js built-in modules
+          if (id === 'stream' || id === 'http' || id === 'https' || id === 'url' || 
+              id === 'fs' || id === 'path' || id === 'os' || id === 'crypto' ||
+              id === 'util' || id === 'events' || id === 'net' || id === 'tls' ||
+              id === 'zlib' || id === 'querystring' || id === 'child_process') {
+            return true;
+          }
+          // Externalize Node.js modules that start with 'node:'
+          if (id.startsWith('node:')) {
+            return true;
+          }
+          return false;
+        },
         output: {
           // ✅ CRITICAL FIX: Ensure exports are preserved
           exports: 'named',

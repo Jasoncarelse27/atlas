@@ -1,20 +1,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect } from "react";
+import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
-import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
+import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
 import { TutorialProvider } from "./contexts/TutorialContext";
+import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
+import { atlasDB } from "./database/atlasDB";
+import { useTierQuery } from "./hooks/useTierQuery";
+import { logger } from "./lib/logger";
 import { AuthProvider, useAuth } from "./providers/AuthProvider";
 import { useSettingsStore } from "./stores/useSettingsStore";
-import { setGlobalNavigate } from "./utils/navigation";
-import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
-import { handleLaunchUrl } from "./utils/handleLaunchUrl";
-import { useTierQuery } from "./hooks/useTierQuery";
-import { atlasDB } from "./database/atlasDB";
-import { logger } from "./lib/logger";
 import { navigateToLastConversation } from "./utils/chatNavigation";
+import { handleLaunchUrl } from "./utils/handleLaunchUrl";
+import { setGlobalNavigate } from "./utils/navigation";
 
 // 🚀 Route-based code splitting for better performance
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -29,6 +29,7 @@ const RitualBuilder = lazy(() => import("./features/rituals/components/RitualBui
 const RitualRunView = lazy(() => import("./features/rituals/components/RitualRunView").then(m => ({ default: m.RitualRunView })));
 const RitualInsightsDashboard = lazy(() => import("./features/rituals/components/RitualInsightsDashboard").then(m => ({ default: m.RitualInsightsDashboard })));
 const BillingDashboard = lazy(() => import("./pages/BillingDashboard"));
+const AgentsPage = lazy(() => import("./pages/AgentsPage"));
 
 // 🚀 Production-grade Query Client configuration
 const queryClient = new QueryClient({
@@ -126,6 +127,19 @@ function ProtectedBillingRoute() {
   return (
     <ErrorBoundary>
       <BillingDashboard />
+    </ErrorBoundary>
+  );
+}
+
+function ProtectedAgentsRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return (
+    <ErrorBoundary>
+      <AgentsPage />
     </ErrorBoundary>
   );
 }
@@ -250,6 +264,7 @@ function App() {
                             <Route path="/rituals/run/:ritualId" element={<ProtectedRitualRunRoute />} />
                             <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
                             <Route path="/billing" element={<ProtectedBillingRoute />} />
+                            <Route path="/agents" element={<ProtectedAgentsRoute />} />
                             <Route path="/upgrade" element={<UpgradePage />} />
                             <Route path="/subscription/success" element={<SubscriptionSuccess />} />
                             <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
