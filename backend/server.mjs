@@ -695,19 +695,60 @@ function filterResponse(text) {
   filtered = filtered.replace(/\s+\*\*\s+/g, ' ');    // Remove ** surrounded by spaces
   filtered = filtered.replace(/\*\*\s*$/g, '');       // Remove trailing **
   
-  // Step 7: Fix glued words: WhichFeels → Which Feels, Yourexpression → Your expression, Massappears → Mass appears
-  // Pattern 1: lowercase→uppercase→lowercase (most common)
-  filtered = filtered.replace(/([a-z])([A-Z][a-z])/g, '$1 $2');
+  // ✅ BEST PRACTICE: Exception list for camelCase identifiers (don't split these)
+  const camelCaseExceptions = [
+    'JavaScript', 'TypeScript', 'GitHub', 'OpenAI', 'ChatGPT', 'DeepSeek',
+    'ReactNative', 'NodeJS', 'NextJS', 'FastAPI', 'MongoDB', 'PostgreSQL',
+    'YouTube', 'LinkedIn', 'TikTok', 'WhatsApp', 'FaceBook', 'MailerLite',
+    'iPhone', 'iPad', 'macOS', 'iOS', 'APIs', 'URLs', 'HTML', 'CSS'
+  ];
+  
+  // Step 7: Fix glued words - AGGRESSIVE patterns (handles Tabmanagement, Performancetuning, workflowdesign)
+  // Pattern 1: Universal Capital→lowercase boundary detector (most effective)
+  filtered = filtered.replace(/([a-z])([A-Z])/g, (match, p1, p2) => {
+    // Check if this is a known camelCase exception
+    const beforeMatch = filtered.substring(0, filtered.indexOf(match) + 1);
+    const afterMatch = filtered.substring(filtered.indexOf(match));
+    const fullWord = beforeMatch.split(/\s/).pop() + afterMatch.split(/\s/)[0];
+    if (camelCaseExceptions.some(exc => fullWord?.includes(exc))) {
+      return match; // Keep camelCase exceptions intact
+    }
+    return `${p1} ${p2}`;
+  });
+  
   // Pattern 2: word ending with lowercase→uppercase→lowercase (handles "Massappears", "Yourcommitment")
   filtered = filtered.replace(/([A-Z][a-z]+)([A-Z][a-z])/g, '$1 $2');
-  // Pattern 3: all lowercase glued words (handles "pleaseclarify", "offersseveral")
+  
+  // Pattern 3: all lowercase glued words (handles "pleaseclarify", "offersseveral", "workflowdesign")
+  // ✅ IMPROVED: More aggressive with longer common word lists
   filtered = filtered.replace(/([a-z]{3,})([a-z]{3,})/g, (match, p1, p2) => {
-    // Only fix if both parts look like words (not single letters or very short)
     if (p1.length >= 3 && p2.length >= 3) {
-      // Check if p1 ends with common word endings and p2 starts with common word starts
-      const commonEnds = ['ly', 'ed', 'ing', 'er', 'al', 'ic', 'ous', 'ful', 'ive', 'ant', 'ent'];
-      const commonStarts = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'];
+      // Extended common word endings
+      const commonEnds = [
+        'ly', 'ed', 'ing', 'er', 'al', 'ic', 'ous', 'ful', 'ive', 'ant', 'ent',
+        'se', 're', 'le', 'ce', 'ty', 'ry', 'cy', 'ny', 'gy', 'py', 'ay', 'ey',
+        'on', 'en', 'an', 'un', 'or', 'ar', 'ir', 'ur', 'at', 'et', 'it', 'ut',
+        'ab', 'ob', 'ub', 'ib', 'eb', 'ck', 'nk', 'sk', 'lk', 'rk', 'wk',
+        'ss', 'ff', 'll', 'nn', 'tt', 'pp', 'rr', 'mm', 'dd', 'gg', 'zz',
+        'ment', 'ness', 'tion', 'sion', 'ance', 'ence', 'able', 'ible'
+      ];
+      // Extended common word starts  
+      const commonStarts = [
+        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her',
+        'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how',
+        'its', 'may', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy',
+        'did', 'let', 'put', 'say', 'she', 'too', 'use', 'tab', 'per', 'man',
+        'des', 'tun', 'flow', 'work', 'plan', 'app', 'off', 'sev', 'clar',
+        'bring', 'think', 'about', 'with', 'from', 'this', 'that', 'have',
+        'been', 'were', 'will', 'would', 'could', 'should', 'there', 'their',
+        'what', 'which', 'where', 'when', 'your', 'some', 'very', 'just',
+        'management', 'performance', 'tuning', 'design', 'workflow'
+      ];
       if (commonEnds.some(end => p1.endsWith(end)) || commonStarts.some(start => p2.startsWith(start))) {
+        return `${p1} ${p2}`;
+      }
+      // ✅ NEW: Consonant-consonant boundary often indicates word boundary
+      if (/[bcdfghjklmnpqrstvwxyz]$/.test(p1) && /^[bcdfghjklmnpqrstvwxyz]/.test(p2)) {
         return `${p1} ${p2}`;
       }
     }
@@ -718,17 +759,50 @@ function filterResponse(text) {
   filtered = filtered.replace(/([a-z])([0-9])/g, '$1 $2');
   filtered = filtered.replace(/([0-9])([a-z])/g, '$1 $2');
   
-  // Step 8: Fix broken words: "Signif I cance" → "Significance" (if pattern detected)
-  filtered = filtered.replace(/([A-Z][a-z]{3,})\s+I\s+([a-z]{3,})/g, (match, p1, p2) => {
-    const combined = p1 + p2;
-    // Common word endings that might be split this way
-    if (combined.endsWith('ance') || combined.endsWith('ence') || combined.endsWith('tion') || combined.endsWith('sion') || 
-        combined.endsWith('ing') || combined.endsWith('ed') || combined.endsWith('ly') ||
-        combined.endsWith('ant') || combined.endsWith('ent') || combined.endsWith('ive') ||
-        combined.endsWith('ous') || combined.endsWith('ful')) {
-      return combined.charAt(0).toUpperCase() + combined.slice(1);
+  // Step 8: Fix broken words - COMPREHENSIVE patterns
+  // ✅ IMPROVED: Handles "bring ing", "perfor mance", "plan ning", "func tion"
+  
+  // Pattern 1: "Signif I cance" style (Capital + I + lowercase)
+  filtered = filtered.replace(/([A-Z][a-z]{2,})\s+I\s+([a-z]{2,})/g, (match, p1, p2) => {
+    const combined = p1.toLowerCase() + p2;
+    const validEndings = ['ance', 'ence', 'tion', 'sion', 'ing', 'ed', 'ly', 'ant', 'ent', 'ive', 'ous', 'ful', 'ment', 'ness'];
+    if (validEndings.some(end => combined.endsWith(end))) {
+      return p1 + p2; // Merge without 'I'
     }
-    return match; // Keep original if unsure
+    return match;
+  });
+  
+  // Pattern 2: "bring ing" style (word + space + common suffix)
+  // Handles: bring ing, perform ance, plan ning, func tion, think ing
+  filtered = filtered.replace(/(\w{3,})\s+(ing|ed|ly|tion|sion|ance|ence|ment|ness|ive|ous|ful|able|ible|er|est|al|ity)\b/gi, (match, p1, p2) => {
+    const combined = p1 + p2;
+    const lastChar = p1[p1.length - 1].toLowerCase();
+    const suffix = p2.toLowerCase();
+    
+    // Common patterns that should be merged
+    if (suffix === 'ing' && /[a-z]/.test(lastChar)) return combined;
+    if (suffix === 'ed' && /[a-z]/.test(lastChar)) return combined;
+    if (suffix === 'ly' && /[a-z]/.test(lastChar)) return combined;
+    if (suffix === 'tion' && /[aeiou]/.test(lastChar)) return combined;
+    if (suffix === 'ance' && /[a-z]/.test(lastChar)) return combined;
+    if (suffix === 'ence' && /[a-z]/.test(lastChar)) return combined;
+    if (suffix === 'ment' && /[a-z]/.test(lastChar)) return combined;
+    if (suffix === 'ness' && /[a-z]/.test(lastChar)) return combined;
+    
+    return combined; // Default: merge
+  });
+  
+  // Pattern 3: Short fragment + space + short fragment (likely one word split)
+  // Handles: "per for mance" → "performance", "sig nif icance"
+  filtered = filtered.replace(/\b([a-z]{2,5})\s+([a-z]{2,5})\s+([a-z]{2,6})\b/gi, (match, p1, p2, p3) => {
+    const combined = p1 + p2 + p3;
+    if (combined.length >= 8 && combined.length <= 15) {
+      const validEndings = ['ance', 'ence', 'tion', 'sion', 'ment', 'ness', 'ive', 'ous', 'ful', 'able', 'ible'];
+      if (validEndings.some(end => combined.toLowerCase().endsWith(end))) {
+        return combined;
+      }
+    }
+    return match;
   });
   
   // Step 9: Fix punctuation spacing and glued words (via existing helper)

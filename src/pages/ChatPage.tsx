@@ -132,6 +132,51 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const completionCallbackRef = useRef<(() => void) | null>(null);
   
+  // ✅ CHATGPT-STYLE THINKING INDICATOR: Track start time for minimum visibility window
+  const thinkingStartRef = useRef<number | null>(null);
+  const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // ✅ BEST PRACTICE: Clear thinking indicator with 500ms minimum visibility (ChatGPT-style)
+  const clearThinkingIndicator = useCallback(() => {
+    const MIN_THINK_TIME = 500; // ChatGPT-style smoothness window (ms)
+    const now = Date.now();
+    
+    // Clear any pending timeout
+    if (thinkingTimeoutRef.current) {
+      clearTimeout(thinkingTimeoutRef.current);
+      thinkingTimeoutRef.current = null;
+    }
+    
+    if (!thinkingStartRef.current) {
+      // No timestamp recorded - clear immediately
+      setIsTyping(false);
+      setIsStreaming(false);
+      isProcessingRef.current = false;
+      return;
+    }
+    
+    const elapsed = now - thinkingStartRef.current;
+    
+    if (elapsed >= MIN_THINK_TIME) {
+      // Safe to clear now - enough time has passed
+      setIsTyping(false);
+      setIsStreaming(false);
+      isProcessingRef.current = false;
+      thinkingStartRef.current = null;
+      logger.debug('[ChatPage] ✅ Thinking indicator cleared (elapsed: ' + elapsed + 'ms)');
+    } else {
+      // Wait the remaining time before clearing
+      const remainingTime = MIN_THINK_TIME - elapsed;
+      thinkingTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+        setIsStreaming(false);
+        isProcessingRef.current = false;
+        thinkingStartRef.current = null;
+        logger.debug('[ChatPage] ✅ Thinking indicator cleared after delay (total: ' + MIN_THINK_TIME + 'ms)');
+      }, remainingTime);
+    }
+  }, []);
+  
   // Custom hooks (may depend on router/context/state)
   // ✅ ANDROID BEST PRACTICE: Handle back button and keyboard
   // Note: useAndroidBackButton internally calls useNavigate/useLocation - that's fine, React handles it
@@ -608,17 +653,19 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           // ✅ FIX: Only clear streaming indicators for USER messages
           // Assistant messages: Call completion callback to clear isStreaming when stream ends
           if (incomingMessage.role !== 'assistant') {
+            // User messages - clear immediately (no min visibility needed)
             setIsTyping(false);
             setIsStreaming(false);
             isProcessingRef.current = false;
           } else {
             // Assistant message received via window event
-            // ✅ FIX: Only clear streaming indicators if message has actual content
-            // Empty or minimal content means streaming is still in progress
-            const hasContent = incomingMessage.content && 
-                               incomingMessage.content.trim() && 
-                               incomingMessage.content.trim() !== '...' &&
-                               incomingMessage.content.trim().length > 50; // ✅ FIX: Increased from 3 to 50
+            // ✅ BEST PRACTICE: Check for meaningful first token, not just length
+            const trimmed = incomingMessage.content?.trim() || '';
+            const hasContent = trimmed && 
+                               trimmed !== '...' &&
+                               trimmed.length > 10 && // Meaningful content threshold
+                               !/^#{1,5}\s*$/.test(trimmed) && // Not just header markers
+                               !/^[*>`]+$/.test(trimmed);       // Not just markdown boilerplate
             
             if (hasContent && completionCallbackRef.current) {
               // Message has content - stream is complete
@@ -933,6 +980,8 @@ const ChatPage: React.FC<ChatPageProps> = () => {
 
       // ✅ SIMPLIFIED: Realtime will handle message updates - no need to reload
       // Optimistic message is already in state, realtime will replace with synced version
+      // ✅ CHATGPT-STYLE: Record start time for minimum visibility window
+      thinkingStartRef.current = Date.now();
       setIsTyping(true);
       setIsStreaming(true);
       
@@ -945,11 +994,10 @@ const ChatPage: React.FC<ChatPageProps> = () => {
       });
       
       // Store completion callback in ref so handlers can call it when assistant message arrives
+      // ✅ CHATGPT-STYLE: Use latency-based clearing with 500ms minimum visibility
       completionCallbackRef.current = () => {
-        setIsStreaming(false);
-        setIsTyping(false);
-        isProcessingRef.current = false;
-        logger.debug('[ChatPage] ✅ Stream completed, cleared thinking indicators');
+        clearThinkingIndicator();
+        logger.debug('[ChatPage] ✅ Stream completed, thinking indicator clearing with min visibility');
         completionCallbackRef.current = null; // Clear after calling
       };
 
@@ -1129,19 +1177,22 @@ const ChatPage: React.FC<ChatPageProps> = () => {
           
           // ✅ FIX: Only clear indicators if we found an assistant message WITH CONTENT
           // Check if we have assistant messages with meaningful content in the fallback results
-          const hasAssistantMessageWithContent = fallbackMessages.some(msg => 
-            msg.role === 'assistant' && 
-            msg.content && 
-            msg.content.trim() && 
-            msg.content.trim() !== '...' &&
-            msg.content.trim().length > 50 // ✅ FIX: Increased from 3 to 50 to prevent premature clearing
-          );
+          // ✅ BEST PRACTICE: Check for meaningful first token, not just length
+          const hasAssistantMessageWithContent = fallbackMessages.some(msg => {
+            if (msg.role !== 'assistant' || !msg.content) return false;
+            const trimmed = msg.content.trim();
+            if (!trimmed || trimmed === '...') return false;
+            // ✅ Check for meaningful content (not just markdown prefix)
+            const isMeaningful = trimmed.length > 10 && 
+              !/^#{1,5}\s*$/.test(trimmed) && // Pure header markers
+              !/^[*>`]+$/.test(trimmed);       // Markdown boilerplate
+            return isMeaningful;
+          });
           
           if (hasAssistantMessageWithContent) {
             // Assistant message with content found - stream is complete
-            setIsTyping(false);
-            setIsStreaming(false);
-            isProcessingRef.current = false;
+            // ✅ CHATGPT-STYLE: Use latency-based clearing
+            clearThinkingIndicator();
             
             // Call completion callback if it exists
             if (completionCallbackRef.current) {
@@ -1325,6 +1376,12 @@ const ChatPage: React.FC<ChatPageProps> = () => {
   // ✅ Stop generation handler
   const handleStopGeneration = () => {
     chatService.stopMessageStream();
+    // ✅ IMMEDIATE: User-initiated stop should clear immediately (no min visibility)
+    thinkingStartRef.current = null;
+    if (thinkingTimeoutRef.current) {
+      clearTimeout(thinkingTimeoutRef.current);
+      thinkingTimeoutRef.current = null;
+    }
     setIsTyping(false);
     setIsStreaming(false);
     
