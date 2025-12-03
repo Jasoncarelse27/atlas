@@ -673,167 +673,20 @@ function fixPunctuationSpacing(text) {
 function filterResponse(text) {
   if (!text) return text;
   
-  // ✅ SAFARI-COMPATIBLE: Protect markdown bold first (no lookbehinds)
-  // Step 1: Protect markdown bold **text** with placeholders
-  let filtered = text.replace(/\*\*([^*]+)\*\*/g, '___BOLD_START___$1___BOLD_END___');
+  // ✅ MINIMAL CLEANUP - ChatGPT-style: DO NOT modify model output
+  // Only collapse multiple spaces and replace branding
+  let filtered = text;
   
-  // Step 2: Remove stage directions *text* (single asterisks only)
-  filtered = filtered.replace(/\*([^*\n]+)\*/g, '');
-  
-  // Step 3: Remove square bracket stage directions [text]
-  filtered = filtered.replace(/\[[^\]]+\]/g, '');
-  
-  // Step 4: Restore markdown bold
-  filtered = filtered.replace(/___BOLD_START___([^_]+)___BOLD_END___/g, '**$1**');
-  
-  // Step 5: Fix markdown headers missing space: ##Header → ## Header
-  filtered = filtered.replace(/(##+)([A-Za-z])/g, '$1 $2');
-  
-  // Step 6: Clean up orphaned asterisks (leftover ** from partial markdown)
-  filtered = filtered.replace(/\s*\*\*\s*$/gm, '');   // Remove ** at end of lines
-  filtered = filtered.replace(/^\s*\*\*\s*/gm, '');   // Remove ** at start of lines  
-  filtered = filtered.replace(/\s+\*\*\s+/g, ' ');    // Remove ** surrounded by spaces
-  filtered = filtered.replace(/\*\*\s*$/g, '');       // Remove trailing **
-  
-  // ✅ BEST PRACTICE: Exception list for camelCase identifiers (don't split these)
-  const camelCaseExceptions = [
-    'JavaScript', 'TypeScript', 'GitHub', 'OpenAI', 'ChatGPT', 'DeepSeek',
-    'ReactNative', 'NodeJS', 'NextJS', 'FastAPI', 'MongoDB', 'PostgreSQL',
-    'YouTube', 'LinkedIn', 'TikTok', 'WhatsApp', 'FaceBook', 'MailerLite',
-    'iPhone', 'iPad', 'macOS', 'iOS', 'APIs', 'URLs', 'HTML', 'CSS'
-  ];
-  
-  // Step 7: Fix glued words - AGGRESSIVE patterns (handles Tabmanagement, Performancetuning, workflowdesign)
-  // Pattern 1: Universal Capital→lowercase boundary detector (most effective)
-  filtered = filtered.replace(/([a-z])([A-Z])/g, (match, p1, p2) => {
-    // Check if this is a known camelCase exception
-    const beforeMatch = filtered.substring(0, filtered.indexOf(match) + 1);
-    const afterMatch = filtered.substring(filtered.indexOf(match));
-    const fullWord = beforeMatch.split(/\s/).pop() + afterMatch.split(/\s/)[0];
-    if (camelCaseExceptions.some(exc => fullWord?.includes(exc))) {
-      return match; // Keep camelCase exceptions intact
-    }
-    return `${p1} ${p2}`;
-  });
-  
-  // Pattern 2: word ending with lowercase→uppercase→lowercase (handles "Massappears", "Yourcommitment")
-  filtered = filtered.replace(/([A-Z][a-z]+)([A-Z][a-z])/g, '$1 $2');
-  
-  // Pattern 3: all lowercase glued words (handles "pleaseclarify", "offersseveral", "workflowdesign")
-  // ✅ IMPROVED: More aggressive with longer common word lists
-  filtered = filtered.replace(/([a-z]{3,})([a-z]{3,})/g, (match, p1, p2) => {
-    if (p1.length >= 3 && p2.length >= 3) {
-      // Extended common word endings
-      const commonEnds = [
-        'ly', 'ed', 'ing', 'er', 'al', 'ic', 'ous', 'ful', 'ive', 'ant', 'ent',
-        'se', 're', 'le', 'ce', 'ty', 'ry', 'cy', 'ny', 'gy', 'py', 'ay', 'ey',
-        'on', 'en', 'an', 'un', 'or', 'ar', 'ir', 'ur', 'at', 'et', 'it', 'ut',
-        'ab', 'ob', 'ub', 'ib', 'eb', 'ck', 'nk', 'sk', 'lk', 'rk', 'wk',
-        'ss', 'ff', 'll', 'nn', 'tt', 'pp', 'rr', 'mm', 'dd', 'gg', 'zz',
-        'ment', 'ness', 'tion', 'sion', 'ance', 'ence', 'able', 'ible'
-      ];
-      // Extended common word starts  
-      const commonStarts = [
-        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her',
-        'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how',
-        'its', 'may', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy',
-        'did', 'let', 'put', 'say', 'she', 'too', 'use', 'tab', 'per', 'man',
-        'des', 'tun', 'flow', 'work', 'plan', 'app', 'off', 'sev', 'clar',
-        'bring', 'think', 'about', 'with', 'from', 'this', 'that', 'have',
-        'been', 'were', 'will', 'would', 'could', 'should', 'there', 'their',
-        'what', 'which', 'where', 'when', 'your', 'some', 'very', 'just',
-        'management', 'performance', 'tuning', 'design', 'workflow'
-      ];
-      if (commonEnds.some(end => p1.endsWith(end)) || commonStarts.some(start => p2.startsWith(start))) {
-        return `${p1} ${p2}`;
-      }
-      // ✅ NEW: Consonant-consonant boundary often indicates word boundary
-      if (/[bcdfghjklmnpqrstvwxyz]$/.test(p1) && /^[bcdfghjklmnpqrstvwxyz]/.test(p2)) {
-        return `${p1} ${p2}`;
-      }
-    }
-    return match;
-  });
-  
-  // Fix glued words with numbers: Even10 → Even 10
-  filtered = filtered.replace(/([a-z])([0-9])/g, '$1 $2');
-  filtered = filtered.replace(/([0-9])([a-z])/g, '$1 $2');
-  
-  // Step 8: Fix broken words - COMPREHENSIVE patterns
-  // ✅ IMPROVED: Handles "bring ing", "perfor mance", "plan ning", "func tion"
-  
-  // Pattern 1: "Signif I cance" style (Capital + I + lowercase)
-  filtered = filtered.replace(/([A-Z][a-z]{2,})\s+I\s+([a-z]{2,})/g, (match, p1, p2) => {
-    const combined = p1.toLowerCase() + p2;
-    const validEndings = ['ance', 'ence', 'tion', 'sion', 'ing', 'ed', 'ly', 'ant', 'ent', 'ive', 'ous', 'ful', 'ment', 'ness'];
-    if (validEndings.some(end => combined.endsWith(end))) {
-      return p1 + p2; // Merge without 'I'
-    }
-    return match;
-  });
-  
-  // Pattern 2: "bring ing" style (word + space + common suffix)
-  // Handles: bring ing, perform ance, plan ning, func tion, think ing
-  filtered = filtered.replace(/(\w{3,})\s+(ing|ed|ly|tion|sion|ance|ence|ment|ness|ive|ous|ful|able|ible|er|est|al|ity)\b/gi, (match, p1, p2) => {
-    const combined = p1 + p2;
-    const lastChar = p1[p1.length - 1].toLowerCase();
-    const suffix = p2.toLowerCase();
-    
-    // Common patterns that should be merged
-    if (suffix === 'ing' && /[a-z]/.test(lastChar)) return combined;
-    if (suffix === 'ed' && /[a-z]/.test(lastChar)) return combined;
-    if (suffix === 'ly' && /[a-z]/.test(lastChar)) return combined;
-    if (suffix === 'tion' && /[aeiou]/.test(lastChar)) return combined;
-    if (suffix === 'ance' && /[a-z]/.test(lastChar)) return combined;
-    if (suffix === 'ence' && /[a-z]/.test(lastChar)) return combined;
-    if (suffix === 'ment' && /[a-z]/.test(lastChar)) return combined;
-    if (suffix === 'ness' && /[a-z]/.test(lastChar)) return combined;
-    
-    return combined; // Default: merge
-  });
-  
-  // Pattern 3: Short fragment + space + short fragment (likely one word split)
-  // Handles: "per for mance" → "performance", "sig nif icance"
-  filtered = filtered.replace(/\b([a-z]{2,5})\s+([a-z]{2,5})\s+([a-z]{2,6})\b/gi, (match, p1, p2, p3) => {
-    const combined = p1 + p2 + p3;
-    if (combined.length >= 8 && combined.length <= 15) {
-      const validEndings = ['ance', 'ence', 'tion', 'sion', 'ment', 'ness', 'ive', 'ous', 'ful', 'able', 'ible'];
-      if (validEndings.some(end => combined.toLowerCase().endsWith(end))) {
-        return combined;
-      }
-    }
-    return match;
-  });
-  
-  // Step 9: Fix punctuation spacing and glued words (via existing helper)
-  filtered = fixPunctuationSpacing(filtered);
-  
-  // Step 10: Normalize spaces (preserve single spaces, collapse multiples)
+  // Step 1: Collapse multiple spaces → single space (ONLY cleanup needed)
   filtered = filtered.replace(/\s{2,}/g, ' ');
-  filtered = filtered.replace(/\n{3,}/g, '\n\n'); // Multiple newlines to double
   
-  // Direct identity reveals
+  // Step 2: Branding only - replace Claude references with Atlas
   filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
   filtered = filtered.replace(/I'm Claude/gi, "I'm Atlas");
-  filtered = filtered.replace(/called Claude/gi, "called Atlas");
-  filtered = filtered.replace(/named Claude/gi, "named Atlas");
+  filtered = filtered.replace(/Claude/gi, "Atlas");
+  filtered = filtered.replace(/Anthropic/gi, "the Atlas team");
   
-  // Company mentions
-  filtered = filtered.replace(/created by Anthropic/gi, "built by the Atlas team");
-  filtered = filtered.replace(/made by Anthropic/gi, "built by the Atlas team");
-  filtered = filtered.replace(/Anthropic/gi, "the Atlas development team");
-  
-  // Model mentions
-  filtered = filtered.replace(/Claude Opus/gi, "Atlas Studio");
-  filtered = filtered.replace(/Claude Sonnet/gi, "Atlas Core");
-  filtered = filtered.replace(/Claude Haiku/gi, "Atlas Free");
-  
-  // Generic AI mentions that reveal architecture
-  filtered = filtered.replace(/as an AI assistant created by/gi, "as your AI companion built by");
-  filtered = filtered.replace(/I aim to be direct and honest in my responses\./gi, "I'm here to support your growth with honesty and care.");
-  
-  // ✅ CRITICAL: Only trim final result, not intermediate chunks
-  return filtered.trim();
+  return filtered;
 }
 
 // Stream Anthropic response with proper SSE handling
@@ -1478,61 +1331,26 @@ You are having a natural voice conversation. Respond as if you can hear them cle
           try {
             const parsed = JSON.parse(data);
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-              // ✅ SAFE FIX: Only handle split words, preserve all other spacing
+              // ✅ MINIMAL FIX: Just pass through text as-is
+              // Anthropic handles spacing correctly - don't mess with it!
               const rawText = parsed.delta.text;
+              sentenceBuffer += rawText;
               
-              if (sentenceBuffer.length > 0) {
-                const lastChar = sentenceBuffer[sentenceBuffer.length - 1];
-                
-                // ✅ ONLY fix: Strip leading space ONLY when it's clearly a split word
-                // Pattern: lowercase letter + space + lowercase letter = split word
-                // Example: "supp" + " ort" → "support" (strip space)
-                // NOT: "your" + " productivity" → keep space (legitimate word boundary)
-                const isLastLowercase = /[a-z]/.test(lastChar);
-                if (isLastLowercase && /^\s+[a-z]/.test(rawText)) {
-                  // This is a split word - strip the leading space
-                  const stripped = rawText.replace(/^\s+/, '');
-                  sentenceBuffer += stripped;
-                } else {
-                  // Normal case: preserve spacing as-is (Anthropic handles it correctly)
-                  sentenceBuffer += rawText;
-                }
-              } else {
-                // Empty buffer - just append
-                sentenceBuffer += rawText;
-              }
-              
-              // ✅ IMPROVED: Flush on sentence end OR newline OR reasonable length OR paragraph break
-              const FLUSH_LENGTH = 300; // Coalesce small chunks to avoid mid-word splits
+              // Flush on sentence end OR reasonable length
+              const FLUSH_LENGTH = 300;
               const shouldFlush = 
-                /[.!?\n]/.test(rawText) ||           // Sentence end or newline
-                sentenceBuffer.length > FLUSH_LENGTH || // Buffer getting long
-                rawText.includes('\n\n');              // Paragraph break detected
+                /[.!?\n]/.test(rawText) ||
+                sentenceBuffer.length > FLUSH_LENGTH ||
+                rawText.includes('\n\n');
               
               if (shouldFlush) {
-                // ✅ FINAL FIX: Filter stage directions BEFORE branding leaks
-                // This preserves all content while removing stage directions
-                let cleaned = sentenceBuffer
-                  .replace(/\*[^*]+\*/g, '')      // remove *stage directions*
-                  .replace(/\[[^\]]+\]/g, '');    // remove [annotations]
-                const filtered = filterBrandingLeaks(cleaned);
+                // Only filter branding (Claude → Atlas), nothing else
+                const filtered = filterBrandingLeaks(sentenceBuffer);
                 fullText += filtered;
                 writeSSE(res, { chunk: filtered });
-                
-                // Reset buffer
                 sentenceBuffer = '';
-              } else {
-                // ✅ FIX: Check if buffer contains stage directions and filter them early
-                // This prevents stage directions from accumulating but doesn't trim yet
-                // ✅ CRITICAL: Don't collapse spaces/newlines here - preserve them
-                if (sentenceBuffer.includes('*') || sentenceBuffer.includes('[')) {
-                  // Stage direction detected - filter it but preserve whitespace
-                  sentenceBuffer = sentenceBuffer.replace(/\*[^*]+\*/g, '').replace(/\[[^\]]+\]/g, '');
-                  // ✅ PRESERVE: Don't collapse spaces/newlines - ReactMarkdown needs them
-                }
-                // Accumulate partial sentence
-                // This prevents sending "I am Clau" before we can filter "Claude"
               }
+              // Just accumulate - no modifications while buffering
             } else if (parsed.type === 'message_stop' || parsed.type === 'content_block_stop') {
               // ✅ TOKEN TRACKING: Capture usage data from stream completion
               // ✅ ENHANCED: Check both event types (some models send usage in content_block_stop)
