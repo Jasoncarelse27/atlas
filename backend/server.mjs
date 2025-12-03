@@ -664,10 +664,11 @@ async function getUserMemory(userId) {
 }
 
 // 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
-// ✅ ENHANCED GRAMMAR FIX: Legacy function kept for backward compatibility
-// Now uses comprehensive text cleaner that automatically detects concatenated words
+// ✅ MINIMAL TEXT CLEANER - DO NOT MODIFY MODEL OUTPUT
+// Claude sends properly formatted text, we only collapse multiple spaces
 function fixPunctuationSpacing(text) {
-  return cleanAIResponse(text);
+  if (!text) return text;
+  return text.replace(/\s{2,}/g, ' ').trim();
 }
 
 function filterResponse(text) {

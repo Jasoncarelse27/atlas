@@ -177,133 +177,31 @@ async function getUserTier(userId) {
  * Process a message with Claude based on subscription tier
  * Now with conversation history support
  */
-// ✅ GRAMMAR FIX: Ensure proper spacing after punctuation marks AND between words
+// ✅ MINIMAL TEXT CLEANER - DO NOT MODIFY MODEL OUTPUT
+// Claude sends properly formatted text, we only collapse multiple spaces
 function fixPunctuationSpacing(text) {
   if (!text) return text;
   
-  let fixed = text;
-  
-  // ✅ STEP 1: Fix missing spaces after punctuation marks
-  // Fix spacing after exclamation marks, question marks, periods, colons, semicolons
-  fixed = fixed.replace(/([!?.])([A-Za-z])/g, '$1 $2');
-  
-  // Fix spacing after commas (but preserve numbers like "1,000")
-  fixed = fixed.replace(/(,)([A-Za-z])/g, '$1 $2');
-  
-  // Fix spacing after colons and semicolons
-  fixed = fixed.replace(/([:;])([A-Za-z])/g, '$1 $2');
-  
-  // ✅ STEP 2: Fix missing spaces between words (common patterns)
-  // Fix: lowercase letter followed by uppercase letter (e.g., "Iremember" → "I remember")
-  fixed = fixed.replace(/([a-z])([A-Z])/g, '$1 $2');
-  
-  // ✅ STEP 3: Fix missing spaces after punctuation (more comprehensive)
-  // Fix: word + punctuation + letter (catches "now.I", "be.Asyour", "anything.I'm")
-  fixed = fixed.replace(/([a-z])([!?.])([A-Za-z])/g, '$1$2 $3');
-  
-  // Fix: punctuation + any non-space character + letter (catches "you.✨ Inthe", "you.💪 Inthe")
-  // This handles emojis and other characters between punctuation and letters
-  fixed = fixed.replace(/([!?.])([^\s])([A-Za-z])/g, '$1$2 $3');
-  
-  // Fix: word + number (catches "Even10-15" → "Even 10-15")
-  fixed = fixed.replace(/([a-z])([0-9])/g, '$1 $2');
-  
-  // Fix: number + word (catches "10-15minutes" → "10-15 minutes")
-  fixed = fixed.replace(/([0-9])([a-z])/g, '$1 $2');
-  
-  // ✅ STEP 4: Fix specific common concatenations
-  // Fix common words that get concatenated incorrectly
-  const commonFixes = [
-    { from: /Iremember/gi, to: 'I remember' },
-    { from: /adance/gi, to: 'a dance' },
-    { from: /Asyour/gi, to: 'As your' },
-    { from: /Sinceyou/gi, to: 'Since you' },
-    { from: /puttogether/gi, to: 'put together' },
-    { from: /manydays/gi, to: 'many days' },
-    { from: /Withthose/gi, to: 'With those' },
-    { from: /Foryou/gi, to: 'For you' },
-    { from: /Toyou/gi, to: 'To you' },
-    { from: /Inyour/gi, to: 'In your' },
-    { from: /Onyour/gi, to: 'On your' },
-    { from: /Inthe/gi, to: 'In the' },
-    { from: /Howmany/gi, to: 'How many' },
-    { from: /Howdoes/gi, to: 'How does' },
-    { from: /Howare/gi, to: 'How are' },
-    { from: /Whatare/gi, to: 'What are' },
-    { from: /Whereare/gi, to: 'Where are' },
-    { from: /Whenare/gi, to: 'When are' },
-    { from: /Whyare/gi, to: 'Why are' },
-    { from: /Doyou/gi, to: 'Do you' },
-    { from: /Areyou/gi, to: 'Are you' },
-    { from: /Canyou/gi, to: 'Can you' },
-    { from: /Willyou/gi, to: 'Will you' },
-    { from: /Wouldyou/gi, to: 'Would you' },
-    { from: /Shouldyou/gi, to: 'Should you' },
-    { from: /Haveyou/gi, to: 'Have you' },
-    { from: /Hasyou/gi, to: 'Has you' },
-    { from: /Pleaselet/gi, to: 'Please let' },
-    { from: /Iam/gi, to: 'I am' },
-    { from: /Ihave/gi, to: 'I have' },
-    { from: /Iwill/gi, to: 'I will' },
-    { from: /Ican/gi, to: 'I can' },
-    { from: /Ido/gi, to: 'I do' },
-    { from: /Idid/gi, to: 'I did' },
-    { from: /Iwas/gi, to: 'I was' },
-    { from: /Iwere/gi, to: 'I were' },
-  ];
-  
-  for (const { from, to } of commonFixes) {
-    fixed = fixed.replace(from, to);
-  }
-  
-  // ✅ STEP 5: Collapse multiple spaces back to single space
-  fixed = fixed.replace(/\s{2,}/g, ' ');
-  
-  // ✅ STEP 6: Trim and clean up
-  fixed = fixed.trim();
-  
-  return fixed;
+  // ✅ ONLY collapse multiple spaces - nothing else
+  return text.replace(/\s{2,}/g, ' ').trim();
 }
 
 // 🔒 BRANDING FILTER: Rewrite any mentions of Claude/Anthropic to maintain Atlas identity
-// 🎭 STAGE DIRECTION FILTER: Remove stage directions like "*speaks in a friendly voice*"
-// ✅ GRAMMAR FIX: Fix spacing after punctuation marks
+// ✅ MINIMAL: Only collapse spaces and do branding - NO text manipulation
 function filterResponse(text) {
   if (!text) return text;
   
-  // Case-insensitive replacements
   let filtered = text;
   
-  // ✅ CRITICAL FIX: Remove stage directions (text in asterisks OR square brackets)
-  // Examples: "*speaks in a friendly voice*", "*responds warmly*", "[In a clear, conversational voice]", "*clears voice*", "*clears throat*"
-  // This prevents stage directions from appearing in transcripts or being spoken
-  filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
-  filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
+  // ✅ ONLY collapse multiple spaces - nothing else
+  filtered = filtered.replace(/\s{2,}/g, ' ');
   
-  // ✅ GRAMMAR FIX: Fix spacing after punctuation marks BEFORE collapsing spaces
-  filtered = fixPunctuationSpacing(filtered);
-  
-  // Direct identity reveals
+  // Branding only - replace Claude references with Atlas
   filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
   filtered = filtered.replace(/I'm Claude/gi, "I'm Atlas");
-  filtered = filtered.replace(/called Claude/gi, "called Atlas");
-  filtered = filtered.replace(/named Claude/gi, "named Atlas");
+  filtered = filtered.replace(/Claude/gi, "Atlas");
+  filtered = filtered.replace(/Anthropic/gi, "the Atlas team");
   
-  // Company mentions
-  filtered = filtered.replace(/created by Anthropic/gi, "built by the Atlas team");
-  filtered = filtered.replace(/made by Anthropic/gi, "built by the Atlas team");
-  filtered = filtered.replace(/Anthropic/gi, "the Atlas development team");
-  
-  // Model mentions
-  filtered = filtered.replace(/Claude Opus/gi, "Atlas Studio");
-  filtered = filtered.replace(/Claude Sonnet/gi, "Atlas Core");
-  filtered = filtered.replace(/Claude Haiku/gi, "Atlas Free");
-  
-  // Generic AI mentions that reveal architecture
-  filtered = filtered.replace(/as an AI assistant created by/gi, "as your AI companion built by");
-  filtered = filtered.replace(/I aim to be direct and honest in my responses\./gi, "I'm here to support your growth with honesty and care.");
-  
-  // ✅ CRITICAL: Only trim final result, not intermediate chunks
   return filtered.trim();
 }
 
