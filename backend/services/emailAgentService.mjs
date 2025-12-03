@@ -270,7 +270,7 @@ class EmailAgentService {
    * @param {object} email - Email object with subject, body, from, etc.
    * @returns {Promise<{ok: boolean, classification?: string, tags?: Array, error?: string}>}
    */
-  async classifyEmail(email) {
+  async classifyEmail(email, userId = null) {
     if (!this.anthropic) {
       return {
         ok: false,

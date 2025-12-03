@@ -65,7 +65,7 @@ router.post('/fetch', async (req, res) => {
         const classificationResult = await socialAgentService.classifyComment(comment);
         if (!classificationResult.ok) continue;
 
-        const { classification, sentiment } = classificationResult;
+        let { classification, sentiment } = classificationResult;
 
         // Check if critical
         const criticalCheck = await socialAgentService.isCriticalIssue(comment, classification);

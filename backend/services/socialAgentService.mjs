@@ -234,7 +234,7 @@ Respond in JSON format:
    * @param {object} insight - Social insight object (from social_insights table)
    * @returns {Promise<{ok: boolean, draftText?: string, error?: string}>}
    */
-  async generateDraftReply(insight) {
+  async generateDraftReply(insight, userId = null) {
     if (!this.anthropic) {
       return {
         ok: false,
