@@ -1256,11 +1256,30 @@ Avoid mentioning weekly stats unless asked.
     finalUserContent = personalizedContent + `\n\n${timeContext}${ritualContext}${insightContext}You are Atlas — a warm, emotionally intelligent productivity assistant.${personalizationNote}
 
 RESPONSE FORMAT (CRITICAL):
-1. Start with a 1–2 sentence summary
-2. Use clear section headings (##)
-3. Use bullet points or numbered lists
-4. Keep paragraphs short (2–3 sentences max)
-5. Avoid long philosophical reflections or metaphors
+1. Start with a 1–2 sentence summary.
+2. ALWAYS use clear section headings using markdown syntax (## Heading).
+3. ALWAYS organize your response with multiple sections. Every major idea must have a heading.
+4. Use bullet points or numbered lists when describing multiple items.
+5. Use **bold** to highlight key terms.
+6. Keep paragraphs short (1–3 sentences).
+7. Preserve all markdown formatting and newlines exactly as written.
+8. Avoid long philosophical reflections or metaphors.
+
+EXAMPLE RESPONSE FORMAT:
+
+## Overview
+Brief 1–2 sentence summary.
+
+## Key Points
+- Point one
+- Point two
+- Point three
+
+## Recommendations
+Short actionable steps here.
+
+## Next Steps
+Final suggestions and a closing sentence.
 
 TONE: Warm, grounded, professional. Be concise and structured. Avoid rambling.
 
@@ -1492,13 +1511,16 @@ You are having a natural voice conversation. Respond as if you can hear them cle
                 rawText.includes('\n\n');              // Paragraph break detected
               
               if (shouldFlush) {
-                // ✅ CRITICAL FIX: Filter stage directions ONLY when sending (not on every chunk)
+                // ✅ FINAL FIX: Filter stage directions BEFORE branding leaks
                 // This preserves all content while removing stage directions
-                const filteredText = filterBrandingLeaks(sentenceBuffer);
-                fullText += filteredText;
-                writeSSE(res, { chunk: filteredText });
+                let cleaned = sentenceBuffer
+                  .replace(/\*[^*]+\*/g, '')      // remove *stage directions*
+                  .replace(/\[[^\]]+\]/g, '');    // remove [annotations]
+                const filtered = filterBrandingLeaks(cleaned);
+                fullText += filtered;
+                writeSSE(res, { chunk: filtered });
                 
-                // Clear buffer
+                // Reset buffer
                 sentenceBuffer = '';
               } else {
                 // ✅ FIX: Check if buffer contains stage directions and filter them early
