@@ -1478,42 +1478,29 @@ You are having a natural voice conversation. Respond as if you can hear them cle
           try {
             const parsed = JSON.parse(data);
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-              // ✅ OPTION B: Complete mid-word merge strategy (ChatGPT-grade)
-              // Handles Anthropic tokenizer quirks like "supp" + " ort" → "support"
-              let rawText = parsed.delta.text;
+              // ✅ SAFE FIX: Only handle split words, preserve all other spacing
+              const rawText = parsed.delta.text;
               
               if (sentenceBuffer.length > 0) {
                 const lastChar = sentenceBuffer[sentenceBuffer.length - 1];
+                
+                // ✅ ONLY fix: Strip leading space ONLY when it's clearly a split word
+                // Pattern: lowercase letter + space + lowercase letter = split word
+                // Example: "supp" + " ort" → "support" (strip space)
+                // NOT: "your" + " productivity" → keep space (legitimate word boundary)
                 const isLastLowercase = /[a-z]/.test(lastChar);
-                
-                // ✅ CRITICAL FIX: Detect and merge split words
-                // Anthropic tokenizer sends " ort" when it should be "ort" (continuing "supp")
-                // Pattern: buffer ends lowercase + chunk starts with space + lowercase = split word
                 if (isLastLowercase && /^\s+[a-z]/.test(rawText)) {
-                  // Strip leading whitespace - this is a split word, not a new word
-                  rawText = rawText.replace(/^\s+/, '');
+                  // This is a split word - strip the leading space
+                  const stripped = rawText.replace(/^\s+/, '');
+                  sentenceBuffer += stripped;
+                } else {
+                  // Normal case: preserve spacing as-is (Anthropic handles it correctly)
+                  sentenceBuffer += rawText;
                 }
-                
-                // Now check if we need to ADD a space (for actual word boundaries)
-                const firstChar = rawText.length > 0 ? rawText[0] : '';
-                const isLastLetter = /[A-Za-z]/.test(lastChar);
-                const isFirstLetter = /[A-Za-z]/.test(firstChar);
-                
-                if (isLastLetter && isFirstLetter) {
-                  // Both are letters - only add space for camelCase boundaries
-                  if (/[a-z]/.test(lastChar) && /[A-Z]/.test(firstChar)) {
-                    // lowercase→uppercase = word boundary (e.g., "myVar" → "my Var")
-                    sentenceBuffer += ' ';
-                  }
-                  // Otherwise, same word continues - no space needed
-                } else if (!/[.!?\s\n]$/.test(sentenceBuffer) && !/^\s/.test(rawText)) {
-                  // Buffer doesn't end with space/punctuation AND chunk doesn't start with space
-                  // This is a genuine word boundary - add space
-                  sentenceBuffer += ' ';
-                }
+              } else {
+                // Empty buffer - just append
+                sentenceBuffer += rawText;
               }
-              
-              sentenceBuffer += rawText;
               
               // ✅ IMPROVED: Flush on sentence end OR newline OR reasonable length OR paragraph break
               const FLUSH_LENGTH = 300; // Coalesce small chunks to avoid mid-word splits
