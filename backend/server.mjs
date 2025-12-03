@@ -1478,25 +1478,37 @@ You are having a natural voice conversation. Respond as if you can hear them cle
           try {
             const parsed = JSON.parse(data);
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-              // ✅ IMPROVED: Better mid-word detection + newline preservation
-              const rawText = parsed.delta.text;
-              
-              // ✅ NEW: Detect letter→letter mid-word splits
-              const lastChar = sentenceBuffer.length > 0 ? sentenceBuffer[sentenceBuffer.length - 1] : '';
-              const firstChar = rawText.length > 0 ? rawText[0] : '';
-              const isLastLetter = /[A-Za-z]/.test(lastChar);
-              const isFirstLetter = /[A-Za-z]/.test(firstChar);
+              // ✅ OPTION B: Complete mid-word merge strategy (ChatGPT-grade)
+              // Handles Anthropic tokenizer quirks like "supp" + " ort" → "support"
+              let rawText = parsed.delta.text;
               
               if (sentenceBuffer.length > 0) {
+                const lastChar = sentenceBuffer[sentenceBuffer.length - 1];
+                const isLastLowercase = /[a-z]/.test(lastChar);
+                
+                // ✅ CRITICAL FIX: Detect and merge split words
+                // Anthropic tokenizer sends " ort" when it should be "ort" (continuing "supp")
+                // Pattern: buffer ends lowercase + chunk starts with space + lowercase = split word
+                if (isLastLowercase && /^\s+[a-z]/.test(rawText)) {
+                  // Strip leading whitespace - this is a split word, not a new word
+                  rawText = rawText.replace(/^\s+/, '');
+                }
+                
+                // Now check if we need to ADD a space (for actual word boundaries)
+                const firstChar = rawText.length > 0 ? rawText[0] : '';
+                const isLastLetter = /[A-Za-z]/.test(lastChar);
+                const isFirstLetter = /[A-Za-z]/.test(firstChar);
+                
                 if (isLastLetter && isFirstLetter) {
-                  // Both are letters - check if it's a word boundary or continuation
+                  // Both are letters - only add space for camelCase boundaries
                   if (/[a-z]/.test(lastChar) && /[A-Z]/.test(firstChar)) {
-                    // lowercase→uppercase = word boundary (camelCase like "myVar")
+                    // lowercase→uppercase = word boundary (e.g., "myVar" → "my Var")
                     sentenceBuffer += ' ';
                   }
-                  // Otherwise, same word continues - no space (prevents "supp ort", "timez one")
+                  // Otherwise, same word continues - no space needed
                 } else if (!/[.!?\s\n]$/.test(sentenceBuffer) && !/^\s/.test(rawText)) {
-                  // Not both letters, but need space - add it
+                  // Buffer doesn't end with space/punctuation AND chunk doesn't start with space
+                  // This is a genuine word boundary - add space
                   sentenceBuffer += ' ';
                 }
               }
