@@ -9,8 +9,8 @@ import { canUseAudio } from '../../config/featureAccess';
 import { logger } from '../../lib/logger';
 import { supabase } from '../../lib/supabaseClient';
 import { resendService } from '../../services/resendService';
-import { cleanAssistantMessage } from '../../utils/cleanMarkdown';
 import type { Message } from '../../types/chat';
+import { fixSpacingOnly } from '../../utils/cleanMarkdown';
 import { UpgradeButton } from '../UpgradeButton';
 import { DeleteMessageModal } from '../modals/DeleteMessageModal';
 import { ImageGallery } from './ImageGallery';
@@ -161,9 +161,11 @@ const EnhancedMessageBubble = ({ message, isLatest = false, isLatestUserMessage 
       finalText = String(message.content);
     }
     
-    // ✅ CRITICAL FIX: Clean markdown and spacing for assistant messages
+    // ✅ CRITICAL FIX: Fix spacing issues for assistant messages, but preserve markdown structure
+    // LegacyMessageRenderer uses ReactMarkdown which needs markdown (## headers, etc.) to format properly
+    // We only fix spacing/glued words, not remove markdown
     if (message.role === 'assistant' && typeof finalText === 'string') {
-      finalText = cleanAssistantMessage(finalText);
+      finalText = fixSpacingOnly(finalText);
     }
     
     return finalText;

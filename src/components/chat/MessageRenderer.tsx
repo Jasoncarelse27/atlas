@@ -5,11 +5,11 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
+import { useThemeMode } from '../../hooks/useThemeMode';
 import { logger } from '../../lib/logger';
 import { useMessageStore } from '../../stores/useMessageStore';
-import { useThemeMode } from '../../hooks/useThemeMode';
-import { cleanAssistantMessage } from '../../utils/cleanMarkdown';
 import type { Attachment, Message } from '../../types/chat';
+import { fixSpacingOnly } from '../../utils/cleanMarkdown';
 import ImageMessageBubble from '../messages/ImageMessageBubble';
 import { AudioMessageBubble } from './AudioMessageBubble';
 
@@ -239,9 +239,11 @@ export function MessageRenderer({ message, className = '' }: MessageRendererProp
   // Handle text content (default)
   let content = Array.isArray(message.content) ? message.content.join(' ') : message.content;
   
-  // ✅ CRITICAL FIX: Clean markdown and spacing for assistant messages only
+  // ✅ CRITICAL FIX: Fix spacing issues BEFORE ReactMarkdown, but preserve markdown structure
+  // ReactMarkdown needs markdown (## headers, etc.) to format properly
+  // We only fix spacing/glued words, not remove markdown
   if (message.role === 'assistant' && typeof content === 'string') {
-    content = cleanAssistantMessage(content);
+    content = fixSpacingOnly(content);
   }
   
   // ✅ Theme-aware prose styling

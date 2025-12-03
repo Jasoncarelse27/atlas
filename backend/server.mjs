@@ -682,10 +682,12 @@ function filterResponse(text) {
   filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
   filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
   
-  // ✅ GRAMMAR FIX: Fix spacing after punctuation marks BEFORE collapsing spaces
+  // ✅ GRAMMAR FIX: Fix spacing after punctuation marks and glued words BEFORE collapsing spaces
+  // This function handles: missing spaces, glued words (Yourexpression → Your expression), punctuation spacing
   filtered = fixPunctuationSpacing(filtered);
   
-  // Collapse multiple spaces (after spacing fixes)
+  // ✅ CRITICAL FIX: Only collapse multiple consecutive spaces (2+), preserve single spaces
+  // This ensures words don't get glued together while cleaning up excessive whitespace
   filtered = filtered.replace(/\s{2,}/g, ' ');
   
   // Direct identity reveals
@@ -1336,6 +1338,22 @@ You are having a natural voice conversation. Respond as if you can hear them cle
             const parsed = JSON.parse(data);
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
               const rawText = parsed.delta.text;
+              
+              // ✅ CRITICAL FIX: Preserve spaces when concatenating chunks
+              // If buffer doesn't end with space/punctuation and new chunk doesn't start with space,
+              // check if we need to add a space (detect glued words pattern)
+              if (sentenceBuffer.length > 0 && 
+                  !/[.!?\s]$/.test(sentenceBuffer) && 
+                  !/^\s/.test(rawText)) {
+                // Check if this looks like a glued word boundary (lowercase followed by uppercase)
+                const lastChar = sentenceBuffer[sentenceBuffer.length - 1];
+                const firstChar = rawText[0];
+                if (/[a-z]/.test(lastChar) && /[A-Z]/.test(firstChar)) {
+                  // Likely glued words - add space
+                  sentenceBuffer += ' ';
+                }
+              }
+              
               sentenceBuffer += rawText;
               
               // Check if we have a complete sentence (ends with . ! ? or newline)
@@ -1351,9 +1369,12 @@ You are having a natural voice conversation. Respond as if you can hear them cle
               } else {
                 // ✅ FIX: Check if buffer contains stage directions and filter them early
                 // This prevents stage directions from accumulating but doesn't trim yet
+                // ✅ CRITICAL: Don't collapse spaces here - preserve single spaces between words
                 if (sentenceBuffer.includes('*') || sentenceBuffer.includes('[')) {
-                  // Stage direction detected - filter it but don't trim (preserve whitespace)
-                  sentenceBuffer = sentenceBuffer.replace(/\*[^*]+\*/g, '').replace(/\[[^\]]+\]/g, '').replace(/\s{2,}/g, ' ');
+                  // Stage direction detected - filter it but preserve whitespace
+                  sentenceBuffer = sentenceBuffer.replace(/\*[^*]+\*/g, '').replace(/\[[^\]]+\]/g, '');
+                  // Only collapse multiple consecutive spaces (2+), preserve single spaces
+                  sentenceBuffer = sentenceBuffer.replace(/\s{3,}/g, '  '); // Keep double spaces, collapse 3+
                 }
                 // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"
