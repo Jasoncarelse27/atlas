@@ -10,12 +10,18 @@ export function cleanMarkdown(text: string): string {
     // ✅ CRITICAL: DO NOT remove markdown headers (##, ###) - let ReactMarkdown handle them
     // ✅ CRITICAL: DO NOT remove markdown formatting - ReactMarkdown needs it
     
-    // Remove stage directions (text in asterisks or brackets) - these are not markdown
-    .replace(/\*[^*]+\*/g, "") // Remove *stage directions*
-    .replace(/\[[^\]]+\]/g, "") // Remove [stage directions]
+    // ✅ STEP 1: Remove stage directions (*action*) - single asterisks only, NOT markdown bold
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "")
+    // Remove square bracket stage directions
+    .replace(/\[[^\]]+\]/g, "")
     
-    // Fix glued words: WhichFeels → Which Feels, Yourexpression → Your expression
-    // Only fix if it's clearly two words (lowercase followed by uppercase)
+    // ✅ STEP 2: Clean up orphaned asterisks (leftover ** from partial markdown)
+    .replace(/\s*\*\*\s*$/gm, "")   // Remove ** at end of lines
+    .replace(/^\s*\*\*\s*/gm, "")   // Remove ** at start of lines
+    .replace(/\s+\*\*\s+/g, " ")    // Remove ** surrounded by spaces
+    .replace(/\*\*\s*$/g, "")       // Remove trailing **
+    
+    // ✅ STEP 3: Fix glued words: WhichFeels → Which Feels, Yourexpression → Your expression
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     
     // Fix glued words with numbers: Even10 → Even 10
@@ -67,12 +73,18 @@ export function fixSpacingOnly(text: string): string {
   if (!text || typeof text !== 'string') return "";
   
   return text
-    // Remove stage directions (text in asterisks or brackets) - these are not markdown
-    .replace(/\*[^*]+\*/g, "") // Remove *stage directions*
-    .replace(/\[[^\]]+\]/g, "") // Remove [stage directions]
+    // ✅ STEP 1: Remove stage directions (*action*) - single asterisks only, NOT markdown bold
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "")
+    // Remove square bracket stage directions
+    .replace(/\[[^\]]+\]/g, "")
     
-    // Fix glued words: WhichFeels → Which Feels, Yourexpression → Your expression
-    // Only fix if it's clearly two words (lowercase followed by uppercase)
+    // ✅ STEP 2: Clean up orphaned asterisks (leftover ** from partial markdown)
+    .replace(/\s*\*\*\s*$/gm, "")   // Remove ** at end of lines
+    .replace(/^\s*\*\*\s*/gm, "")   // Remove ** at start of lines
+    .replace(/\s+\*\*\s+/g, " ")    // Remove ** surrounded by spaces
+    .replace(/\*\*\s*$/g, "")       // Remove trailing **
+    
+    // ✅ STEP 3: Fix glued words: WhichFeels → Which Feels, Yourexpression → Your expression
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     
     // Fix glued words with numbers: Even10 → Even 10

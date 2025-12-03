@@ -3,11 +3,11 @@
 // POST /api/agents/social (admin only)
 
 import express from 'express';
+import { supabase } from '../config/supabaseClient.mjs';
 import { logger } from '../lib/simpleLogger.mjs';
 import { requireAdmin } from '../middleware/adminAuth.mjs';
-import { socialAgentService } from '../services/socialAgentService.mjs';
-import { supabase } from '../config/supabaseClient.mjs';
 import { escalationAgentService } from '../services/escalationAgentService.mjs';
+import { socialAgentService } from '../services/socialAgentService.mjs';
 
 const router = express.Router();
 

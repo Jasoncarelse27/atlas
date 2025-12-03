@@ -676,18 +676,24 @@ function filterResponse(text) {
   // Case-insensitive replacements
   let filtered = text;
   
-  // ✅ CRITICAL FIX: Remove stage directions (text in asterisks OR square brackets)
-  // Examples: "*speaks in a friendly voice*", "*responds warmly*", "[In a clear, conversational voice]", "*clears voice*", "*clears throat*"
-  // This prevents stage directions from appearing in transcripts or being spoken
-  filtered = filtered.replace(/\*[^*]+\*/g, ''); // Remove text between asterisks (includes "*clears voice*", "*clears throat*")
-  filtered = filtered.replace(/\[[^\]]+\]/g, ''); // Remove text between square brackets
+  // ✅ STEP 1: Remove stage directions (*action*) - single asterisks only
+  // Match *text* but NOT **text** (markdown bold)
+  // Stage directions: "*speaks warmly*", "*clears throat*"
+  filtered = filtered.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '');
   
-  // ✅ GRAMMAR FIX: Fix spacing after punctuation marks and glued words BEFORE collapsing spaces
-  // This function handles: missing spaces, glued words (Yourexpression → Your expression), punctuation spacing
+  // ✅ STEP 2: Remove square bracket stage directions [action]
+  filtered = filtered.replace(/\[[^\]]+\]/g, '');
+  
+  // ✅ STEP 3: Clean up orphaned asterisks (leftover ** from partial markdown)
+  filtered = filtered.replace(/\s*\*\*\s*$/gm, '');   // Remove ** at end of lines
+  filtered = filtered.replace(/^\s*\*\*\s*/gm, '');   // Remove ** at start of lines  
+  filtered = filtered.replace(/\s+\*\*\s+/g, ' ');    // Remove ** surrounded by spaces
+  filtered = filtered.replace(/\*\*\s*$/g, '');       // Remove trailing **
+  
+  // ✅ STEP 4: Fix glued words and punctuation spacing
   filtered = fixPunctuationSpacing(filtered);
   
-  // ✅ CRITICAL FIX: Only collapse multiple consecutive spaces (2+), preserve single spaces
-  // This ensures words don't get glued together while cleaning up excessive whitespace
+  // ✅ STEP 5: Normalize spaces (preserve single spaces, collapse multiples)
   filtered = filtered.replace(/\s{2,}/g, ' ');
   
   // Direct identity reveals

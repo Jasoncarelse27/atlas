@@ -4,9 +4,8 @@
 // Uses tier-based hybrid model selection (Haiku for classification, Sonnet for draft generation)
 
 import Anthropic from '@anthropic-ai/sdk';
-import { logger } from '../lib/simpleLogger.mjs';
-import { supabase } from '../config/supabaseClient.mjs';
 import { selectOptimalModel } from '../config/intelligentTierSystem.mjs';
+import { logger } from '../lib/simpleLogger.mjs';
 import { getUserTier } from '../services/tierService.mjs';
 
 /**
