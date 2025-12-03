@@ -2720,9 +2720,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                           );
                         })}
                         
-        {/* ✅ ENHANCED UX: "Atlas is thinking..." message bubble */}
-        {/* ✅ FIX: Only show thinking bubble if no assistant message is already showing */}
-        {isStreaming && !messages.some(m => m.role === 'assistant' && m.id !== 'atlas-thinking-indicator') && (
+        {/* ✅ ENHANCED UX: "Atlas is thinking..." message bubble (ChatGPT-like) */}
+        {/* ✅ FIX: Show thinking bubble when streaming AND latest message is from user (waiting for response) */}
+        {isStreaming && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
           <EnhancedMessageBubble
             message={{
               id: 'atlas-thinking-indicator',
