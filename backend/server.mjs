@@ -1459,27 +1459,39 @@ You are having a natural voice conversation. Respond as if you can hear them cle
           try {
             const parsed = JSON.parse(data);
             if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              // ✅ IMPROVED: Better mid-word detection + newline preservation
               const rawText = parsed.delta.text;
               
-              // ✅ CRITICAL FIX: Preserve spaces when concatenating chunks
-              // If buffer doesn't end with space/punctuation and new chunk doesn't start with space,
-              // check if we need to add a space (detect glued words pattern)
-              if (sentenceBuffer.length > 0 && 
-                  !/[.!?\s]$/.test(sentenceBuffer) && 
-                  !/^\s/.test(rawText)) {
-                // Check if this looks like a glued word boundary (lowercase followed by uppercase)
-                const lastChar = sentenceBuffer[sentenceBuffer.length - 1];
-                const firstChar = rawText[0];
-                if (/[a-z]/.test(lastChar) && /[A-Z]/.test(firstChar)) {
-                  // Likely glued words - add space
+              // ✅ NEW: Detect letter→letter mid-word splits
+              const lastChar = sentenceBuffer.length > 0 ? sentenceBuffer[sentenceBuffer.length - 1] : '';
+              const firstChar = rawText.length > 0 ? rawText[0] : '';
+              const isLastLetter = /[A-Za-z]/.test(lastChar);
+              const isFirstLetter = /[A-Za-z]/.test(firstChar);
+              
+              if (sentenceBuffer.length > 0) {
+                if (isLastLetter && isFirstLetter) {
+                  // Both are letters - check if it's a word boundary or continuation
+                  if (/[a-z]/.test(lastChar) && /[A-Z]/.test(firstChar)) {
+                    // lowercase→uppercase = word boundary (camelCase like "myVar")
+                    sentenceBuffer += ' ';
+                  }
+                  // Otherwise, same word continues - no space (prevents "supp ort", "timez one")
+                } else if (!/[.!?\s\n]$/.test(sentenceBuffer) && !/^\s/.test(rawText)) {
+                  // Not both letters, but need space - add it
                   sentenceBuffer += ' ';
                 }
               }
               
               sentenceBuffer += rawText;
               
-              // Check if we have a complete sentence (ends with . ! ? or newline)
-              if (/[.!?\n]/.test(rawText)) {
+              // ✅ IMPROVED: Flush on sentence end OR newline OR reasonable length OR paragraph break
+              const FLUSH_LENGTH = 300; // Coalesce small chunks to avoid mid-word splits
+              const shouldFlush = 
+                /[.!?\n]/.test(rawText) ||           // Sentence end or newline
+                sentenceBuffer.length > FLUSH_LENGTH || // Buffer getting long
+                rawText.includes('\n\n');              // Paragraph break detected
+              
+              if (shouldFlush) {
                 // ✅ CRITICAL FIX: Filter stage directions ONLY when sending (not on every chunk)
                 // This preserves all content while removing stage directions
                 const filteredText = filterBrandingLeaks(sentenceBuffer);
@@ -1491,12 +1503,11 @@ You are having a natural voice conversation. Respond as if you can hear them cle
               } else {
                 // ✅ FIX: Check if buffer contains stage directions and filter them early
                 // This prevents stage directions from accumulating but doesn't trim yet
-                // ✅ CRITICAL: Don't collapse spaces here - preserve single spaces between words
+                // ✅ CRITICAL: Don't collapse spaces/newlines here - preserve them
                 if (sentenceBuffer.includes('*') || sentenceBuffer.includes('[')) {
                   // Stage direction detected - filter it but preserve whitespace
                   sentenceBuffer = sentenceBuffer.replace(/\*[^*]+\*/g, '').replace(/\[[^\]]+\]/g, '');
-                  // Only collapse multiple consecutive spaces (2+), preserve single spaces
-                  sentenceBuffer = sentenceBuffer.replace(/\s{3,}/g, '  '); // Keep double spaces, collapse 3+
+                  // ✅ PRESERVE: Don't collapse spaces/newlines - ReactMarkdown needs them
                 }
                 // Accumulate partial sentence
                 // This prevents sending "I am Clau" before we can filter "Claude"

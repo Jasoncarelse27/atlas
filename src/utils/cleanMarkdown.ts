@@ -145,9 +145,11 @@ export function cleanMarkdown(text: string): string {
     return match;
   });
   
-  // Step 9: Normalize spacing
-  cleaned = cleaned.replace(/\s{2,}/g, " ");  // Multiple spaces to single
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n"); // Multiple newlines to double
+  // Step 9: Normalize spacing (preserve paragraph breaks)
+  // ✅ FIX: Don't collapse spaces across newlines
+  cleaned = cleaned.replace(/([^\S\r\n]){2,}/g, " ");  // Multiple spaces to single (not across newlines)
+  cleaned = cleaned.replace(/\n{4,}/g, "\n\n\n"); // Collapse excessive blank lines (4+) to max 3
+  // ✅ PRESERVE: Keep \n\n for paragraphs (ReactMarkdown needs this)
   
   // Step 10: Trim leading/trailing whitespace
   return cleaned.trim();
@@ -315,9 +317,11 @@ export function fixSpacingOnly(text: string): string {
     return match;
   });
   
-  // Step 9: Normalize spacing
-  cleaned = cleaned.replace(/\s{2,}/g, " ");  // Multiple spaces to single
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n"); // Multiple newlines to double
+  // Step 9: Normalize spacing (preserve paragraph breaks)
+  // ✅ FIX: Don't collapse spaces across newlines
+  cleaned = cleaned.replace(/([^\S\r\n]){2,}/g, " ");  // Multiple spaces to single (not across newlines)
+  cleaned = cleaned.replace(/\n{4,}/g, "\n\n\n"); // Collapse excessive blank lines (4+) to max 3
+  // ✅ PRESERVE: Keep \n\n for paragraphs (ReactMarkdown needs this)
   
   // Step 10: Trim leading/trailing whitespace
   return cleaned.trim();
