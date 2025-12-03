@@ -2721,8 +2721,9 @@ const ChatPage: React.FC<ChatPageProps> = () => {
                         })}
                         
         {/* ✅ ENHANCED UX: "Atlas is thinking..." message bubble (ChatGPT-like) */}
-        {/* ✅ FIX: Show thinking bubble when streaming AND latest message is from user (waiting for response) */}
-        {isStreaming && messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
+        {/* ✅ FIX: Show thinking bubble when both isStreaming AND isTyping are true */}
+        {/* Both flags are set when user sends message, cleared when response has content */}
+        {isStreaming && isTyping && (
           <EnhancedMessageBubble
             message={{
               id: 'atlas-thinking-indicator',
