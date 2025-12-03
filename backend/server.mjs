@@ -673,28 +673,70 @@ function fixPunctuationSpacing(text) {
 function filterResponse(text) {
   if (!text) return text;
   
-  // Case-insensitive replacements
-  let filtered = text;
+  // ✅ SAFARI-COMPATIBLE: Protect markdown bold first (no lookbehinds)
+  // Step 1: Protect markdown bold **text** with placeholders
+  let filtered = text.replace(/\*\*([^*]+)\*\*/g, '___BOLD_START___$1___BOLD_END___');
   
-  // ✅ STEP 1: Remove stage directions (*action*) - single asterisks only
-  // Match *text* but NOT **text** (markdown bold)
-  // Stage directions: "*speaks warmly*", "*clears throat*"
-  filtered = filtered.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '');
+  // Step 2: Remove stage directions *text* (single asterisks only)
+  filtered = filtered.replace(/\*([^*\n]+)\*/g, '');
   
-  // ✅ STEP 2: Remove square bracket stage directions [action]
+  // Step 3: Remove square bracket stage directions [text]
   filtered = filtered.replace(/\[[^\]]+\]/g, '');
   
-  // ✅ STEP 3: Clean up orphaned asterisks (leftover ** from partial markdown)
+  // Step 4: Restore markdown bold
+  filtered = filtered.replace(/___BOLD_START___([^_]+)___BOLD_END___/g, '**$1**');
+  
+  // Step 5: Fix markdown headers missing space: ##Header → ## Header
+  filtered = filtered.replace(/(##+)([A-Za-z])/g, '$1 $2');
+  
+  // Step 6: Clean up orphaned asterisks (leftover ** from partial markdown)
   filtered = filtered.replace(/\s*\*\*\s*$/gm, '');   // Remove ** at end of lines
   filtered = filtered.replace(/^\s*\*\*\s*/gm, '');   // Remove ** at start of lines  
   filtered = filtered.replace(/\s+\*\*\s+/g, ' ');    // Remove ** surrounded by spaces
   filtered = filtered.replace(/\*\*\s*$/g, '');       // Remove trailing **
   
-  // ✅ STEP 4: Fix glued words and punctuation spacing
+  // Step 7: Fix glued words: WhichFeels → Which Feels, Yourexpression → Your expression, Massappears → Mass appears
+  // Pattern 1: lowercase→uppercase→lowercase (most common)
+  filtered = filtered.replace(/([a-z])([A-Z][a-z])/g, '$1 $2');
+  // Pattern 2: word ending with lowercase→uppercase→lowercase (handles "Massappears", "Yourcommitment")
+  filtered = filtered.replace(/([A-Z][a-z]+)([A-Z][a-z])/g, '$1 $2');
+  // Pattern 3: all lowercase glued words (handles "pleaseclarify", "offersseveral")
+  filtered = filtered.replace(/([a-z]{3,})([a-z]{3,})/g, (match, p1, p2) => {
+    // Only fix if both parts look like words (not single letters or very short)
+    if (p1.length >= 3 && p2.length >= 3) {
+      // Check if p1 ends with common word endings and p2 starts with common word starts
+      const commonEnds = ['ly', 'ed', 'ing', 'er', 'al', 'ic', 'ous', 'ful', 'ive', 'ant', 'ent'];
+      const commonStarts = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'];
+      if (commonEnds.some(end => p1.endsWith(end)) || commonStarts.some(start => p2.startsWith(start))) {
+        return `${p1} ${p2}`;
+      }
+    }
+    return match;
+  });
+  
+  // Fix glued words with numbers: Even10 → Even 10
+  filtered = filtered.replace(/([a-z])([0-9])/g, '$1 $2');
+  filtered = filtered.replace(/([0-9])([a-z])/g, '$1 $2');
+  
+  // Step 8: Fix broken words: "Signif I cance" → "Significance" (if pattern detected)
+  filtered = filtered.replace(/([A-Z][a-z]{3,})\s+I\s+([a-z]{3,})/g, (match, p1, p2) => {
+    const combined = p1 + p2;
+    // Common word endings that might be split this way
+    if (combined.endsWith('ance') || combined.endsWith('ence') || combined.endsWith('tion') || combined.endsWith('sion') || 
+        combined.endsWith('ing') || combined.endsWith('ed') || combined.endsWith('ly') ||
+        combined.endsWith('ant') || combined.endsWith('ent') || combined.endsWith('ive') ||
+        combined.endsWith('ous') || combined.endsWith('ful')) {
+      return combined.charAt(0).toUpperCase() + combined.slice(1);
+    }
+    return match; // Keep original if unsure
+  });
+  
+  // Step 9: Fix punctuation spacing and glued words (via existing helper)
   filtered = fixPunctuationSpacing(filtered);
   
-  // ✅ STEP 5: Normalize spaces (preserve single spaces, collapse multiples)
+  // Step 10: Normalize spaces (preserve single spaces, collapse multiples)
   filtered = filtered.replace(/\s{2,}/g, ' ');
+  filtered = filtered.replace(/\n{3,}/g, '\n\n'); // Multiple newlines to double
   
   // Direct identity reveals
   filtered = filtered.replace(/I am Claude/gi, "I'm Atlas");
