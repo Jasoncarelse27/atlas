@@ -77,13 +77,25 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
     setSuccess(null);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
 
-      if (error) throw error;
+      if (error) {
+        // ✅ IMPROVED: Better error messages for common issues
+        if (error.message.includes('rate limit') || error.message.includes('too many')) {
+          throw new Error('Too many reset requests. Please wait a few minutes and try again.');
+        } else if (error.message.includes('not found') || error.message.includes('user')) {
+          // Don't reveal if email exists for security, but provide helpful message
+          throw new Error('If an account exists with this email, a password reset link has been sent.');
+        } else {
+          throw error;
+        }
+      }
 
-      setSuccess('Password reset email sent! Please check your inbox and follow the link to reset your password.');
+      // ✅ IMPROVED: Always show success message (Supabase doesn't reveal if email exists)
+      // This prevents email enumeration attacks
+      setSuccess('If an account exists with this email, a password reset link has been sent. Please check your inbox (and spam folder).');
       setShowForgotPassword(false);
     } catch (err: unknown) {
       const error = err as Error;
