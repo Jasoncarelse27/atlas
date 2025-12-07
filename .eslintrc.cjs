@@ -24,5 +24,11 @@ module.exports = {
     'no-undef': 'off',
     'no-console': 'warn',
   },
-  ignorePatterns: ['dist', 'node_modules', '*.config.js'],
+  ignorePatterns: [
+    'dist',
+    'node_modules',
+    '*.config.js',
+    'admin-console/**',
+    'create-agent-config.mjs',
+  ],
 };

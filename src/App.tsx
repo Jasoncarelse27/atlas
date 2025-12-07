@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -15,21 +15,52 @@ import { useSettingsStore } from "./stores/useSettingsStore";
 import { navigateToLastConversation } from "./utils/chatNavigation";
 import { handleLaunchUrl } from "./utils/handleLaunchUrl";
 import { setGlobalNavigate } from "./utils/navigation";
+import { ReactQueryDevtoolsWrapper } from "./components/ReactQueryDevtoolsWrapper";
+import { supabase } from './lib/supabaseClient';
 
 // 🚀 Route-based code splitting for better performance
-const AuthPage = lazy(() => import("./pages/AuthPage"));
-const ChatPage = lazy(() => import("./pages/ChatPage"));
-const UpgradePage = lazy(() => import("./pages/UpgradePage"));
-const SubscriptionSuccess = lazy(() => import("./pages/SubscriptionSuccess"));
-const SubscriptionCancel = lazy(() => import("./pages/SubscriptionCancel"));
-const TermsPage = lazy(() => import("./pages/TermsPage"));
-const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
-const RitualLibrary = lazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary })));
-const RitualBuilder = lazy(() => import("./features/rituals/components/RitualBuilder").then(m => ({ default: m.RitualBuilder })));
-const RitualRunView = lazy(() => import("./features/rituals/components/RitualRunView").then(m => ({ default: m.RitualRunView })));
-const RitualInsightsDashboard = lazy(() => import("./features/rituals/components/RitualInsightsDashboard").then(m => ({ default: m.RitualInsightsDashboard })));
-const BillingDashboard = lazy(() => import("./pages/BillingDashboard"));
-const AgentsPage = lazy(() => import("./pages/AgentsPage"));
+// ✅ SAFE LAZY LOADING: Wrapped with error handling and validation
+const safeLazy = <T extends React.ComponentType<any>>(
+  importFn: () => Promise<{ default: T }>
+): React.LazyExoticComponent<T> => {
+  return lazy(async () => {
+    try {
+      const module = await importFn();
+      if (!module?.default) {
+        const error = new Error('Lazy import failed: module.default is undefined');
+        logger.error('[App] Lazy import validation failed:', error);
+        throw error;
+      }
+      // Validate that default export is a valid React component
+      if (typeof module.default !== 'function') {
+        const error = new Error(`Lazy import failed: module.default is not a function (got ${typeof module.default})`);
+        logger.error('[App] Lazy import validation failed:', error);
+        throw error;
+      }
+      return module;
+    } catch (error) {
+      logger.error('[App] Lazy import failed:', error);
+      // Re-throw to let React's error boundary handle it
+      throw error;
+    }
+  });
+};
+
+const AuthPage = safeLazy(() => import("./pages/AuthPage"));
+const ChatPage = safeLazy(() => import("./pages/ChatPage"));
+const UpgradePage = safeLazy(() => import("./pages/UpgradePage"));
+const SubscriptionSuccess = safeLazy(() => import("./pages/SubscriptionSuccess"));
+const SubscriptionCancel = safeLazy(() => import("./pages/SubscriptionCancel"));
+const TermsPage = safeLazy(() => import("./pages/TermsPage"));
+const PrivacyPage = safeLazy(() => import("./pages/PrivacyPage"));
+const RitualLibrary = safeLazy(() => import("./features/rituals/components/RitualLibrary").then(m => ({ default: m.RitualLibrary })));
+const RitualBuilder = safeLazy(() => import("./features/rituals/components/RitualBuilder").then(m => ({ default: m.RitualBuilder })));
+const RitualRunView = safeLazy(() => import("./features/rituals/components/RitualRunView").then(m => ({ default: m.RitualRunView })));
+const RitualInsightsDashboard = safeLazy(() => import("./features/rituals/components/RitualInsightsDashboard").then(m => ({ default: m.RitualInsightsDashboard })));
+const BillingDashboard = safeLazy(() => import("./pages/BillingDashboard"));
+const AgentsPage = safeLazy(() => import("./pages/AgentsPage"));
+const BusinessPerformancePage = safeLazy(() => import("./pages/BusinessPerformancePage"));
+const ResetPasswordPage = safeLazy(() => import("./pages/ResetPasswordPage"));
 
 // 🚀 Production-grade Query Client configuration
 const queryClient = new QueryClient({
@@ -52,7 +83,9 @@ function ProtectedChatRoute() {
 
   return (
     <ErrorBoundary>
-      <ChatPage user={user} />
+      <Suspense fallback={<LoadingSpinner />}>
+        <ChatPage user={user} />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -63,7 +96,11 @@ function PublicAuthRoute() {
   if (loading) return <LoadingSpinner />;
   if (user) return <Navigate to="/chat" replace />;
 
-  return <AuthPage />;
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <AuthPage />
+    </Suspense>
+  );
 }
 
 function ProtectedRitualRoute() {
@@ -74,7 +111,9 @@ function ProtectedRitualRoute() {
 
   return (
     <ErrorBoundary>
-      <RitualLibrary />
+      <Suspense fallback={<LoadingSpinner />}>
+        <RitualLibrary />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -87,7 +126,9 @@ function ProtectedRitualBuilderRoute() {
 
   return (
     <ErrorBoundary>
-      <RitualBuilder />
+      <Suspense fallback={<LoadingSpinner />}>
+        <RitualBuilder />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -100,7 +141,9 @@ function ProtectedRitualRunRoute() {
 
   return (
     <ErrorBoundary>
-      <RitualRunView />
+      <Suspense fallback={<LoadingSpinner />}>
+        <RitualRunView />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -113,7 +156,9 @@ function ProtectedRitualInsightsRoute() {
 
   return (
     <ErrorBoundary>
-      <RitualInsightsDashboard />
+      <Suspense fallback={<LoadingSpinner />}>
+        <RitualInsightsDashboard />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -126,20 +171,139 @@ function ProtectedBillingRoute() {
 
   return (
     <ErrorBoundary>
-      <BillingDashboard />
+      <Suspense fallback={<LoadingSpinner />}>
+        <BillingDashboard />
+      </Suspense>
     </ErrorBoundary>
   );
 }
 
 function ProtectedAgentsRoute() {
   const { user, loading } = useAuth();
+  const [isAuthorized, setIsAuthorized] = React.useState<boolean | null>(null);
 
-  if (loading) return <LoadingSpinner />;
+  React.useEffect(() => {
+    const checkAccess = async () => {
+      if (!user) {
+        setIsAuthorized(false);
+        return;
+      }
+
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const email = authUser?.email?.toLowerCase() || '';
+        
+        // ✅ RESTRICTED: Only Rima and Jason can access
+        const allowedEmails = [
+          'rima@otiumcreations.com',
+          'jason@otiumcreations.com', 
+          'jasonc.jpg@gmail.com'
+        ];
+        
+        const isAllowed = allowedEmails.some(allowed => 
+          email === allowed.toLowerCase() || email.includes(allowed.split('@')[0])
+        );
+        
+        setIsAuthorized(isAllowed);
+      } catch (error) {
+        logger.error('[ProtectedAgentsRoute] Access check failed:', error);
+        setIsAuthorized(false);
+      }
+    };
+
+    if (user) {
+      checkAccess();
+    }
+  }, [user]);
+
+  if (loading || isAuthorized === null) return <LoadingSpinner />;
   if (!user) return <Navigate to="/login" replace />;
+  
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#F4E5D9] dark:bg-gray-900">
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            This dashboard is only available to authorized users.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
-      <AgentsPage />
+      <Suspense fallback={<LoadingSpinner />}>
+        <AgentsPage />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+function ProtectedBusinessPerformanceRoute() {
+  const { user, loading } = useAuth();
+  const [isAuthorized, setIsAuthorized] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    const checkAccess = async () => {
+      if (!user) {
+        setIsAuthorized(false);
+        return;
+      }
+
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const email = authUser?.email?.toLowerCase() || '';
+        
+        // ✅ RESTRICTED: Only Rima and Jason can access
+        const allowedEmails = [
+          'rima@otiumcreations.com',
+          'jason@otiumcreations.com', 
+          'jasonc.jpg@gmail.com'
+        ];
+        
+        const isAllowed = allowedEmails.some(allowed => 
+          email === allowed.toLowerCase() || email.includes(allowed.split('@')[0])
+        );
+        
+        setIsAuthorized(isAllowed);
+      } catch (error) {
+        logger.error('[ProtectedBusinessPerformanceRoute] Access check failed:', error);
+        setIsAuthorized(false);
+      }
+    };
+
+    if (user) {
+      checkAccess();
+    }
+  }, [user]);
+
+  if (loading || isAuthorized === null) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+  
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#F4E5D9] dark:bg-gray-900">
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            This dashboard is only available to authorized users.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingSpinner />}>
+        <BusinessPerformancePage />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -265,11 +429,13 @@ function App() {
                             <Route path="/rituals/insights" element={<ProtectedRitualInsightsRoute />} />
                             <Route path="/billing" element={<ProtectedBillingRoute />} />
                             <Route path="/agents" element={<ProtectedAgentsRoute />} />
-                            <Route path="/upgrade" element={<UpgradePage />} />
-                            <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-                            <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
-                            <Route path="/terms" element={<TermsPage />} />
-                            <Route path="/privacy" element={<PrivacyPage />} />
+                            <Route path="/business-performance" element={<ProtectedBusinessPerformanceRoute />} />
+                            <Route path="/upgrade" element={<Suspense fallback={<LoadingSpinner />}><UpgradePage /></Suspense>} />
+                            <Route path="/subscription/success" element={<Suspense fallback={<LoadingSpinner />}><SubscriptionSuccess /></Suspense>} />
+                            <Route path="/subscription/cancel" element={<Suspense fallback={<LoadingSpinner />}><SubscriptionCancel /></Suspense>} />
+                            <Route path="/terms" element={<Suspense fallback={<LoadingSpinner />}><TermsPage /></Suspense>} />
+                            <Route path="/privacy" element={<Suspense fallback={<LoadingSpinner />}><PrivacyPage /></Suspense>} />
+                            <Route path="/reset-password" element={<Suspense fallback={<LoadingSpinner />}><ResetPasswordPage /></Suspense>} />
                             <Route path="/" element={<Navigate to="/chat" replace />} />
                             <Route path="*" element={<Navigate to="/chat" replace />} />
                           </Routes>
@@ -279,6 +445,8 @@ function App() {
           </TutorialProvider>
         </UpgradeModalProvider>
       </AuthProvider>
+      {/* ✅ PRODUCTION-SAFE: Devtools wrapper handles conditional loading */}
+      <ReactQueryDevtoolsWrapper />
     </QueryClientProvider>
   );
 }

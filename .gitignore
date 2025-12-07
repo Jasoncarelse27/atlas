@@ -94,3 +94,14 @@ test-iap-*.sh
 test-iap-*.js
 APPLY_THIS_SQL_NOW.sql
 verify-test-results.sql
+backend/keys/
+
+# Build directories
+admin-console/.next/
+admin-console/out/
+admin-console/build/
+
+# Script files (not part of main codebase)
+create-agent-config.mjs
+admin-console/.next/
+create-agent-config.mjs

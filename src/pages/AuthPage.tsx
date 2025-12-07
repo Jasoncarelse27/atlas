@@ -38,8 +38,10 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [gdprAccepted, setGdprAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [ageVerified, setAgeVerified] = useState(false);
@@ -56,6 +58,40 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
   }, []);
 
   const togglePassword = () => setShowPassword((prev) => !prev);
+
+  const handleForgotPassword = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowForgotPassword(true);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleSendResetEmail = async () => {
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+
+      if (error) throw error;
+
+      setSuccess('Password reset email sent! Please check your inbox and follow the link to reset your password.');
+      setShowForgotPassword(false);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || 'Failed to send reset email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,6 +237,75 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
     );
   }
 
+  // Show forgot password form
+  if (showForgotPassword) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-semibold text-[#3B3632] dark:text-white mb-2">
+            Reset Password
+          </h2>
+          <p className="text-sm text-[#8B7E74] dark:text-gray-400">
+            Enter your email address and we'll send you a link to reset your password.
+          </p>
+        </div>
+
+        {/* Email Input */}
+        <div className="flex items-center border border-[#E8DDD2] dark:border-gray-700 rounded-xl px-4 py-3 bg-white dark:bg-gray-800 shadow-sm focus-within:ring-2 focus-within:ring-[#8FA67E] dark:focus-within:ring-gray-500 focus-within:border-[#8FA67E] dark:focus-within:border-gray-500 transition-all duration-200">
+          <Mail className="w-5 h-5 text-[#8B7E74] dark:text-gray-400 mr-3" />
+          <input
+            type="email"
+            placeholder="you@example.com"
+            className="w-full outline-none text-[#3B3632] dark:text-white placeholder-[#B8A9A0] dark:placeholder-gray-500"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            autoFocus
+          />
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="text-[#A67571] dark:text-red-400 text-sm text-center bg-[#CF9A96]/10 dark:bg-red-900/20 border border-[#CF9A96]/30 dark:border-red-800/30 rounded-lg py-2">
+            {error}
+          </div>
+        )}
+
+        {/* Success Message */}
+        {success && (
+          <div className="text-[#8FA67E] dark:text-green-400 text-sm text-center bg-[#8FA67E]/10 dark:bg-green-900/20 border border-[#8FA67E]/30 dark:border-green-800/30 rounded-lg py-2">
+            {success}
+          </div>
+        )}
+
+        {/* Buttons */}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowForgotPassword(false);
+              setError(null);
+              setSuccess(null);
+            }}
+            className="flex-1 px-4 py-3 border border-[#E8DDD2] dark:border-gray-700 text-[#8B7E74] dark:text-gray-400 rounded-xl font-medium hover:bg-[#F0E6DC] dark:hover:bg-gray-800 transition-colors"
+            disabled={loading}
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={handleSendResetEmail}
+            className="flex-1 bg-[#8FA67E] dark:bg-gray-700 hover:bg-[#7E9570] dark:hover:bg-gray-600 text-white py-3 rounded-xl font-semibold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={loading || !email}
+          >
+            {loading ? 'Sending...' : 'Send Reset Link'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Email Input */}
@@ -208,7 +313,7 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         <Mail className="w-5 h-5 text-[#8B7E74] dark:text-gray-400 mr-3" />
         <input
           type="email"
-          placeholder="jasonc.jpg@gmail.com"
+          placeholder="you@example.com"
           className="w-full outline-none text-[#3B3632] dark:text-white placeholder-[#B8A9A0] dark:placeholder-gray-500"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -245,12 +350,25 @@ const AuthForm = ({ mode }: { mode: 'login' | 'signup' }) => {
         </div>
       )}
 
-      {/* Forgot Password - Right Aligned */}
-      <div className="flex justify-end">
-        <a href="#" className="text-sm text-[#8B7E74] dark:text-gray-400 hover:text-[#5A524A] dark:hover:text-gray-300 hover:underline transition-colors">
-          Forgot Password?
-        </a>
-      </div>
+      {/* Success Message */}
+      {success && (
+        <div className="text-[#8FA67E] dark:text-green-400 text-sm text-center bg-[#8FA67E]/10 dark:bg-green-900/20 border border-[#8FA67E]/30 dark:border-green-800/30 rounded-lg py-2">
+          {success}
+        </div>
+      )}
+
+      {/* Forgot Password - Right Aligned - Only show on login */}
+      {mode === 'login' && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            className="text-sm text-[#8B7E74] dark:text-gray-400 hover:text-[#5A524A] dark:hover:text-gray-300 hover:underline transition-colors"
+          >
+            Forgot Password?
+          </button>
+        </div>
+      )}
 
       {/* GDPR Compliance Checkboxes */}
       <div className="space-y-3 py-2">
