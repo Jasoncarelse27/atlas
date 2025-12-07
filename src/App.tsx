@@ -4,19 +4,19 @@ import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavig
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
+import { ReactQueryDevtoolsWrapper } from "@/components/ReactQueryDevtoolsWrapper";
 import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
 import { TutorialProvider } from "./contexts/TutorialContext";
 import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
 import { atlasDB } from "./database/atlasDB";
 import { useTierQuery } from "./hooks/useTierQuery";
 import { logger } from "./lib/logger";
+import { supabase } from './lib/supabaseClient';
 import { AuthProvider, useAuth } from "./providers/AuthProvider";
 import { useSettingsStore } from "./stores/useSettingsStore";
 import { navigateToLastConversation } from "./utils/chatNavigation";
 import { handleLaunchUrl } from "./utils/handleLaunchUrl";
 import { setGlobalNavigate } from "./utils/navigation";
-import { ReactQueryDevtoolsWrapper } from "./components/ReactQueryDevtoolsWrapper";
-import { supabase } from './lib/supabaseClient';
 
 // 🚀 Route-based code splitting for better performance
 // ✅ SAFE LAZY LOADING: Wrapped with error handling and validation
@@ -194,14 +194,18 @@ function ProtectedAgentsRoute() {
         const email = authUser?.email?.toLowerCase() || '';
         
         // ✅ RESTRICTED: Only Rima and Jason can access
+        // ✅ SECURITY FIX: Use exact email matching only (no substring matching)
         const allowedEmails = [
           'rima@otiumcreations.com',
           'jason@otiumcreations.com', 
           'jasonc.jpg@gmail.com'
         ];
         
+        // ✅ SECURITY: Exact email match only - prevents substring matching vulnerability
+        // e.g., 'jasonattacker@malicious.com' would NOT match 'jason@otiumcreations.com'
+        const normalizedEmail = email.toLowerCase().trim();
         const isAllowed = allowedEmails.some(allowed => 
-          email === allowed.toLowerCase() || email.includes(allowed.split('@')[0])
+          normalizedEmail === allowed.toLowerCase()
         );
         
         setIsAuthorized(isAllowed);
@@ -259,14 +263,18 @@ function ProtectedBusinessPerformanceRoute() {
         const email = authUser?.email?.toLowerCase() || '';
         
         // ✅ RESTRICTED: Only Rima and Jason can access
+        // ✅ SECURITY FIX: Use exact email matching only (no substring matching)
         const allowedEmails = [
           'rima@otiumcreations.com',
           'jason@otiumcreations.com', 
           'jasonc.jpg@gmail.com'
         ];
         
+        // ✅ SECURITY: Exact email match only - prevents substring matching vulnerability
+        // e.g., 'jasonattacker@malicious.com' would NOT match 'jason@otiumcreations.com'
+        const normalizedEmail = email.toLowerCase().trim();
         const isAllowed = allowedEmails.some(allowed => 
-          email === allowed.toLowerCase() || email.includes(allowed.split('@')[0])
+          normalizedEmail === allowed.toLowerCase()
         );
         
         setIsAuthorized(isAllowed);
