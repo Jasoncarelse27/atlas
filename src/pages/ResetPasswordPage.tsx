@@ -12,6 +12,7 @@ const ResetPasswordPage = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [codeExchanged, setCodeExchanged] = useState(false);
+  const [isExchanging, setIsExchanging] = useState(true); // Track code exchange state
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -23,6 +24,7 @@ const ResetPasswordPage = () => {
       
       if (!code) {
         setError('Invalid or missing reset code. Please request a new password reset.');
+        setIsExchanging(false);
         return;
       }
 
@@ -30,9 +32,11 @@ const ResetPasswordPage = () => {
       // Only validate if present
       if (type && type !== 'recovery') {
         setError('Invalid reset link type. Please request a new password reset.');
+        setIsExchanging(false);
         return;
       }
 
+      setIsExchanging(true);
       try {
         // Exchange the authorization code for a session
         const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -65,6 +69,8 @@ const ResetPasswordPage = () => {
         const error = err as Error;
         setError(error.message || 'Failed to verify reset link. Please request a new password reset.');
         setCodeExchanged(false);
+      } finally {
+        setIsExchanging(false);
       }
     };
 
@@ -146,9 +152,17 @@ const ResetPasswordPage = () => {
           </p>
         </div>
 
+        {/* Loading State - Show while exchanging code */}
+        {isExchanging && (
+          <div className="text-center py-6">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#8FA67E] dark:border-gray-400 mb-3"></div>
+            <p className="text-sm text-[#8B7E74] dark:text-gray-400">Verifying reset link...</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* New Password Input */}
-          <div className="flex items-center border border-[#E8DDD2] dark:border-gray-700 rounded-xl px-4 py-3 bg-white dark:bg-gray-800 shadow-sm focus-within:ring-2 focus-within:ring-[#8FA67E] dark:focus-within:ring-gray-500 focus-within:border-[#8FA67E] dark:focus-within:border-gray-500 transition-all duration-200">
+          <div className={`flex items-center border border-[#E8DDD2] dark:border-gray-700 rounded-xl px-4 py-3 bg-white dark:bg-gray-800 shadow-sm focus-within:ring-2 focus-within:ring-[#8FA67E] dark:focus-within:ring-gray-500 focus-within:border-[#8FA67E] dark:focus-within:border-gray-500 transition-all duration-200 ${isExchanging ? 'opacity-50 pointer-events-none' : ''}`}>
             <Lock className="w-5 h-5 text-[#8B7E74] dark:text-gray-400 mr-3" />
             <input
               type={showPassword ? 'text' : 'password'}
@@ -170,7 +184,7 @@ const ResetPasswordPage = () => {
           </div>
 
           {/* Confirm Password Input */}
-          <div className="flex items-center border border-[#E8DDD2] dark:border-gray-700 rounded-xl px-4 py-3 bg-white dark:bg-gray-800 shadow-sm focus-within:ring-2 focus-within:ring-[#8FA67E] dark:focus-within:ring-gray-500 focus-within:border-[#8FA67E] dark:focus-within:border-gray-500 transition-all duration-200">
+          <div className={`flex items-center border border-[#E8DDD2] dark:border-gray-700 rounded-xl px-4 py-3 bg-white dark:bg-gray-800 shadow-sm focus-within:ring-2 focus-within:ring-[#8FA67E] dark:focus-within:ring-gray-500 focus-within:border-[#8FA67E] dark:focus-within:border-gray-500 transition-all duration-200 ${isExchanging ? 'opacity-50 pointer-events-none' : ''}`}>
             <Lock className="w-5 h-5 text-[#8B7E74] dark:text-gray-400 mr-3" />
             <input
               type={showConfirmPassword ? 'text' : 'password'}
@@ -207,10 +221,10 @@ const ResetPasswordPage = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-[#8FA67E] dark:bg-gray-700 hover:bg-[#7E9570] dark:hover:bg-gray-600 text-white py-3 rounded-xl font-semibold flex justify-center items-center transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-            disabled={loading || !password || !confirmPassword || !codeExchanged}
+            className="w-full bg-[#8FA67E] dark:bg-gray-700 hover:bg-[#7E9570] dark:hover:bg-gray-600 text-white py-3 rounded-xl font-semibold flex justify-center items-center transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed min-h-[48px] touch-manipulation"
+            disabled={loading || !password || !confirmPassword || !codeExchanged || isExchanging}
           >
-            {loading ? 'Resetting Password...' : !codeExchanged ? 'Verifying Reset Link...' : 'Reset Password'}
+            {loading ? 'Resetting Password...' : isExchanging ? 'Verifying Reset Link...' : !codeExchanged ? 'Link Verification Failed' : 'Reset Password'}
           </button>
         </form>
 

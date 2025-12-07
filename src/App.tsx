@@ -443,7 +443,7 @@ function App() {
                             <Route path="/subscription/cancel" element={<Suspense fallback={<LoadingSpinner />}><SubscriptionCancel /></Suspense>} />
                             <Route path="/terms" element={<Suspense fallback={<LoadingSpinner />}><TermsPage /></Suspense>} />
                             <Route path="/privacy" element={<Suspense fallback={<LoadingSpinner />}><PrivacyPage /></Suspense>} />
-                            <Route path="/reset-password" element={<Suspense fallback={<LoadingSpinner />}><ResetPasswordPage /></Suspense>} />
+                            <Route path="/reset-password" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><ResetPasswordPage /></Suspense></ErrorBoundary>} />
                             <Route path="/" element={<Navigate to="/chat" replace />} />
                             <Route path="*" element={<Navigate to="/chat" replace />} />
                           </Routes>
