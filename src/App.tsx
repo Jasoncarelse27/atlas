@@ -1,10 +1,10 @@
+import { ReactQueryDevtoolsWrapper } from "@/components/ReactQueryDevtoolsWrapper";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React, { Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
-import { ReactQueryDevtoolsWrapper } from "@/components/ReactQueryDevtoolsWrapper";
 import { TutorialOverlay } from "./components/tutorial/TutorialOverlay";
 import { TutorialProvider } from "./contexts/TutorialContext";
 import { UpgradeModalProvider } from "./contexts/UpgradeModalContext";
@@ -59,7 +59,7 @@ const RitualRunView = safeLazy(() => import("./features/rituals/components/Ritua
 const RitualInsightsDashboard = safeLazy(() => import("./features/rituals/components/RitualInsightsDashboard").then(m => ({ default: m.RitualInsightsDashboard })));
 const BillingDashboard = safeLazy(() => import("./pages/BillingDashboard"));
 const AgentsPage = safeLazy(() => import("./pages/AgentsPage"));
-const BusinessPerformancePage = safeLazy(() => import("./pages/BusinessPerformancePage"));
+const BusinessPerformancePage = safeLazy(() => import("@/pages/BusinessPerformancePage"));
 const ResetPasswordPage = safeLazy(() => import("./pages/ResetPasswordPage"));
 
 // 🚀 Production-grade Query Client configuration
