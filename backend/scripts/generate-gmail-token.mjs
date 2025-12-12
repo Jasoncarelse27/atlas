@@ -18,8 +18,13 @@ const CREDENTIALS_PATH = process.env.GMAIL_CREDENTIALS_PATH ||
 const TOKEN_PATH = process.env.GMAIL_TOKEN_PATH || 
   path.join(__dirname, '..', 'config', 'token.json');
 
-// Gmail API scopes - must match gmailClient.mjs
-const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
+// ✅ SAFETY: Gmail API scopes - must match gmailClient.mjs exactly
+// Request all required scopes: readonly (fetch), modify (mark as read), send (future: send replies)
+const SCOPES = [
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.modify',
+  'https://www.googleapis.com/auth/gmail.send'
+];
 
 /**
  * Prompt user for input

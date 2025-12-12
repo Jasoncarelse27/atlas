@@ -1,16 +1,26 @@
 // Environment-based service selection
 import { mailerService as mockService } from "./mailerService.mock";
-import { mailerService as realService } from "./mailerService.real";
 import * as Templates from "./emailTemplates";
 
 // Export MailerLite service (for subscriber management and events)
 export { mailerLiteService } from "./mailerLiteService";
 export type { MailerLiteEvent, SubscriberData } from "./mailerLiteService";
 
-const useMock =
-  process.env.NODE_ENV === "test" || process.env.USE_MOCK_MAILER === "true";
+// ✅ CRITICAL FIX: Prevent Node.js-only imports in browser
+// mailerService.real.ts uses node-fetch which cannot run in browser
+// Browser should ALWAYS use mockService (realService is backend-only)
 
-const baseService = useMock ? mockService : realService;
+// Vite uses import.meta.env in client code (not process.env)
+const isTestMode = import.meta.env.MODE === "test";
+const useMockEnv = import.meta.env.VITE_USE_MOCK_MAILER === "true";
+const isBrowser = typeof window !== "undefined";
+
+// Final decision: browser always uses mock
+const useMock = isBrowser || isTestMode || useMockEnv;
+
+// ✅ SAFE: Browser always uses mockService
+// Real service is NEVER imported in browser builds to prevent node-fetch bundling
+const baseService = mockService;
 
 // Create enhanced mailerService with template helpers and wrapper functions
 export const mailerService = {

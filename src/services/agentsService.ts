@@ -128,3 +128,46 @@ export async function businessChat(content: string): Promise<BusinessChatRespons
   }
 }
 
+export interface EmailFetchResponse {
+  ok: boolean;
+  processed: number;
+  threads: Array<{
+    threadId: string;
+    subject: string;
+    classification: string;
+    critical: boolean;
+    incidentId: string | null;
+  }>;
+  error?: string;
+}
+
+/**
+ * Fetch emails from Gmail via Email Agent
+ * @param mailbox - 'info' | 'jason' | 'rima'
+ * @param since - Optional ISO date string to fetch emails since this date
+ */
+export async function fetchEmails(mailbox: 'info' | 'jason' | 'rima' = 'jason', since?: string): Promise<EmailFetchResponse> {
+  try {
+    const endpoint = getApiEndpoint('/api/agents/email/fetch');
+    const body: { mailbox: string; since?: string } = { mailbox };
+    if (since) {
+      body.since = since;
+    }
+    
+    const data = await fetchWithAuthJSON(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }) as EmailFetchResponse;
+    
+    logger.debug('[AgentsAPI] Fetched emails:', {
+      processed: data.processed,
+      threads: data.threads?.length || 0
+    });
+    
+    return data;
+  } catch (error) {
+    logger.error('[AgentsAPI] Failed to fetch emails:', error);
+    throw new Error('Failed to fetch emails. Please try again.');
+  }
+}
+

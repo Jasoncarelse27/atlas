@@ -11,15 +11,50 @@
 // The Email Agent uses OAuth 2.0 to access the authenticated user's Gmail inbox.
 
 import express from 'express';
+import pkg from 'express-rate-limit';
+const rateLimit = pkg.default || pkg;
 import { supabase } from '../config/supabaseClient.mjs';
 import { logger } from '../lib/simpleLogger.mjs';
+import authMiddleware from '../middleware/authMiddleware.mjs';
 import { requireAdmin } from '../middleware/adminAuth.mjs';
 import { emailAgentService } from '../services/emailAgentService.mjs';
 
 const router = express.Router();
 
-// All routes require admin authentication
+// ✅ SAFETY: Explicit authentication chain
+// 1. Verify JWT and set req.user (authMiddleware)
+// 2. Check admin status (requireAdmin)
+// 3. Rate limit (10 requests per minute per admin)
+router.use(authMiddleware);
 router.use(requireAdmin);
+
+// ✅ SAFETY: Rate limiting - 10 requests per minute per admin
+const emailAgentRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 requests per minute
+  keyGenerator: (req) => req.user?.id || req.ip || 'unknown',
+  message: 'Too many email fetch requests. Please wait a minute before trying again.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn('[EmailAgent] Rate limit exceeded', {
+      userId: req.user?.id,
+      ip: req.ip
+    });
+    res.status(429).json({
+      ok: false,
+      error: 'Too many requests',
+      message: 'Please wait a minute before trying again',
+      retryAfter: 60
+    });
+  }
+});
+
+// ✅ SAFETY: Email body size limit (1MB)
+const MAX_EMAIL_BODY_SIZE = 1024 * 1024; // 1MB
+
+// ✅ SAFETY: Gmail API timeout (30 seconds)
+const GMAIL_API_TIMEOUT_MS = 30000;
 
 /**
  * POST /api/agents/email/fetch
@@ -34,10 +69,11 @@ router.use(requireAdmin);
  * - processed: number - Number of emails processed
  * - threads: Array - Email threads created
  */
-router.post('/fetch', async (req, res) => {
+router.post('/fetch', emailAgentRateLimit, async (req, res) => {
   try {
     const { mailbox, since } = req.body;
 
+    // ✅ SAFETY: Input validation
     if (!mailbox || !['info', 'jason', 'rima'].includes(mailbox)) {
       return res.status(400).json({
         ok: false,
@@ -45,11 +81,20 @@ router.post('/fetch', async (req, res) => {
       });
     }
 
+    // ✅ SAFETY: Date validation
     const sinceDate = since ? new Date(since) : new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: last 24 hours
+    if (isNaN(sinceDate.getTime())) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Invalid date format. Use ISO 8601 format (e.g., 2025-01-01T00:00:00Z)'
+      });
+    }
 
     logger.info('[EmailAgent] Fetching emails', {
       mailbox,
-      since: sinceDate.toISOString()
+      since: sinceDate.toISOString(),
+      adminUserId: req.user?.id,
+      adminEmail: req.user?.email
     });
 
     // Fetch emails
@@ -77,6 +122,18 @@ router.post('/fetch', async (req, res) => {
     // Process each email
     for (const email of emails) {
       try {
+        // ✅ SAFETY: Validate and truncate email body size (prevent memory issues)
+        if (email.body_text && email.body_text.length > MAX_EMAIL_BODY_SIZE) {
+          logger.warn('[EmailAgent] Email body too large, truncating', {
+            originalSize: email.body_text.length,
+            messageId: email.id
+          });
+          email.body_text = email.body_text.substring(0, MAX_EMAIL_BODY_SIZE) + '\n...[truncated - email body exceeded 1MB limit]';
+        }
+        if (email.body_html && email.body_html.length > MAX_EMAIL_BODY_SIZE) {
+          email.body_html = email.body_html.substring(0, MAX_EMAIL_BODY_SIZE) + '\n...[truncated - email body exceeded 1MB limit]';
+        }
+
         // Check if thread already exists
         const { data: existingThread } = await supabase
           .from('email_threads')
@@ -174,22 +231,31 @@ router.post('/fetch', async (req, res) => {
             const importantTypes = ['support', 'billing', 'bug_report', 'partnership'];
 
             if (importantTypes.includes(classification)) {
-              const userId = req.user?.id;
-              if (userId) {
+              // ✅ SAFETY: Use admin user ID from auth middleware (guaranteed to exist)
+              const adminUserId = req.user?.id;
+              if (adminUserId) {
                 await supabase.from('notifications').insert({
-                  user_id: userId,
+                  user_id: adminUserId,
                   title: `New ${classification} email`,
-                  body: email.subject,
+                  body: email.subject || 'No subject',
                   type: `email_agent.${classification}`,
                   metadata: {
                     messageId: email.messageId,
-                    subject: email.subject
+                    subject: email.subject,
+                    threadId: thread.id
                   }
                 });
+                logger.debug('[EmailAgent] Created notification for important email', {
+                  classification,
+                  adminUserId
+                });
+              } else {
+                logger.warn('[EmailAgent] Cannot create notification - admin user ID not found');
               }
             }
           } catch (err) {
             logger.error('[EmailAgent] Notification insert error:', err);
+            // Don't fail the entire request if notification fails
           }
         }
 

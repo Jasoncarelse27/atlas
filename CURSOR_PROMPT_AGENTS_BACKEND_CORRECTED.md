@@ -566,3 +566,11 @@ Tell the engineer:
 
 **Ready to paste into Cursor.**
 
+
+
+
+
+
+
+
+

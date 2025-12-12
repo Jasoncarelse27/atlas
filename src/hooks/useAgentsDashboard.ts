@@ -11,9 +11,11 @@ import {
   getBusinessNotes,
   createBusinessNote,
   businessChat,
+  fetchEmails,
   type Notification,
   type BusinessNote,
-  type BusinessChatResponse
+  type BusinessChatResponse,
+  type EmailFetchResponse
 } from '../services/agentsService';
 
 /**
@@ -120,6 +122,34 @@ export function useBusinessChat() {
     onError: (error) => {
       logger.error('[useBusinessChat] Mutation error:', error);
       toast.error('Failed to generate response');
+    }
+  });
+}
+
+/**
+ * Mutation hook for fetching emails via Email Agent
+ * Invalidates notifications and business-notes queries on success
+ */
+export function useFetchEmails() {
+  const queryClient = useQueryClient();
+
+  return useMutation<EmailFetchResponse, Error, { mailbox?: 'info' | 'jason' | 'rima'; since?: string }>({
+    mutationFn: ({ mailbox = 'jason', since } = {}) => fetchEmails(mailbox, since),
+    onSuccess: (data) => {
+      // Invalidate notifications and business notes since emails create both
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['business-notes'] });
+      
+      if (data.ok && data.processed > 0) {
+        toast.success(`Fetched ${data.processed} email${data.processed === 1 ? '' : 's'}`);
+      } else if (data.ok && data.processed === 0) {
+        toast.info('No new emails found');
+      }
+    },
+    onError: (error) => {
+      logger.error('[useFetchEmails] Mutation error:', error);
+      const errorMessage = error.message || 'Failed to fetch emails';
+      toast.error(errorMessage);
     }
   });
 }

@@ -1,5 +1,4 @@
 import { QueryClient } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 // Query client configuration optimized for chat app
 export const queryClient = new QueryClient({
@@ -119,8 +118,9 @@ export const mutationKeys = {
   },
 } as const;
 
-// React Query DevTools component
-export { ReactQueryDevtools };
+// ✅ REMOVED: ReactQueryDevtools export
+// Use ReactQueryDevtoolsWrapper component from @/components/ReactQueryDevtoolsWrapper instead
+// This ensures proper tree-shaking and production safety
 
 // Export types for use in other files
     export type { QueryClient } from '@tanstack/react-query';

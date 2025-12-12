@@ -73,8 +73,8 @@ class EmailAgentService {
 
   /**
    * Fetch new emails from a mailbox via Gmail API
-   * Uses OAuth 2.0 to access the authenticated user's Gmail inbox
-   * @param {string} mailbox - 'info' | 'jason' | 'rima' (for reference/logging)
+   * Uses Service Account (Domain-wide Delegation) or OAuth 2.0 to access Gmail inbox
+   * @param {string} mailbox - 'info' | 'jason' | 'rima' | 'admin' (for reference/logging)
    * @param {Date} since - Fetch emails since this date (optional)
    * @returns {Promise<{ok: boolean, emails?: Array, error?: string}>}
    */
@@ -88,27 +88,30 @@ class EmailAgentService {
       };
     }
 
-    // Check Gmail OAuth configuration
+    // Check Gmail configuration (Service Account or OAuth 2.0)
     const isConfigured = await this.checkGmailConfigured();
     if (!isConfigured) {
       return {
         ok: false,
-        error: 'Gmail OAuth not configured. Place credentials.json in backend/config/ and run generate-gmail-token.mjs'
+        error: 'Gmail not configured. ' +
+          'Service Account: Place atlas-email-agent.json in backend/keys/ or set GMAIL_CLIENT_EMAIL + GMAIL_PRIVATE_KEY env vars. ' +
+          'OAuth 2.0: Place credentials.json in backend/config/ and run generate-gmail-token.mjs'
       };
     }
 
-    // Validate mailbox (for reference/logging)
+    // Validate mailbox and get email address
     const mailboxEmail = this.mailboxMap[mailbox];
     if (!mailboxEmail) {
       return {
         ok: false,
-        error: `Invalid mailbox: ${mailbox}. Must be 'info', 'jason', or 'rima'`
+        error: `Invalid mailbox: ${mailbox}. Must be 'info', 'jason', 'rima', or 'admin'`
       };
     }
 
     try {
-      // Get authenticated Gmail client (OAuth 2.0)
-      const gmail = await getGmailClient();
+      // Get authenticated Gmail client (Service Account with domain-wide delegation or OAuth 2.0)
+      // Pass mailboxEmail to impersonate that user (for service account)
+      const gmail = await getGmailClient(mailboxEmail);
 
       // Build query for unread emails since specified date
       const queryParts = ['is:unread'];
@@ -125,12 +128,26 @@ class EmailAgentService {
         since: since?.toISOString()
       });
 
-      // List messages
-      const listResponse = await gmail.users.messages.list({
-        userId: 'me',
-        q: query,
-        maxResults: 50 // Limit to 50 emails per fetch
-      });
+      // ✅ SAFETY: Add timeout wrapper for Gmail API calls
+      const GMAIL_API_TIMEOUT_MS = 30000; // 30 seconds
+      const fetchWithTimeout = async (promise, timeoutMs) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Gmail API timeout - request took longer than 30 seconds')), timeoutMs)
+          )
+        ]);
+      };
+
+      // List messages (with timeout)
+      const listResponse = await fetchWithTimeout(
+        gmail.users.messages.list({
+          userId: 'me',
+          q: query,
+          maxResults: 50 // Limit to 50 emails per fetch
+        }),
+        GMAIL_API_TIMEOUT_MS
+      );
 
       const messages = listResponse.data.messages || [];
       
@@ -147,21 +164,34 @@ class EmailAgentService {
         count: messages.length
       });
 
-      // Fetch full message details
+      // ✅ SAFETY: Fetch full message details with timeout
+      // Note: GMAIL_API_TIMEOUT_MS and fetchWithTimeout already declared above (reused)
+
       const emailPromises = messages.slice(0, 50).map(async (msg) => {
         try {
-          const messageResponse = await gmail.users.messages.get({
-            userId: 'me',
-            id: msg.id,
-            format: 'full'
-          });
+          const messageResponse = await fetchWithTimeout(
+            gmail.users.messages.get({
+              userId: 'me',
+              id: msg.id,
+              format: 'full'
+            }),
+            GMAIL_API_TIMEOUT_MS
+          );
 
           return this.parseGmailMessage(messageResponse.data);
         } catch (error) {
-          logger.error('[EmailAgentService] Error fetching message details:', {
-            messageId: msg.id,
-            error: error.message
-          });
+          // ✅ SAFETY: Handle timeout errors specifically
+          if (error.message?.includes('timeout')) {
+            logger.warn('[EmailAgentService] Gmail API timeout fetching message:', {
+              messageId: msg.id,
+              error: error.message
+            });
+          } else {
+            logger.error('[EmailAgentService] Error fetching message details:', {
+              messageId: msg.id,
+              error: error.message
+            });
+          }
           return null;
         }
       });
@@ -317,6 +347,13 @@ Respond with ONLY the category name (e.g., "support", "billing", etc.).`;
         ]
       });
 
+      // ✅ SAFETY: Track cost for classification
+      const inputTokens = response.usage?.input_tokens || 0;
+      const outputTokens = response.usage?.output_tokens || 0;
+      await this.trackCost('email_classification', model, inputTokens, outputTokens, userId).catch(err => {
+        logger.debug('[EmailAgentService] Cost tracking failed (non-critical):', err.message);
+      });
+
       const classification = (response.content[0]?.text || 'other').toLowerCase().trim();
       
       // Validate classification
@@ -469,6 +506,13 @@ Do NOT include email headers (To:, Subject:, etc.) - just the body text.`;
         ]
       });
 
+      // ✅ SAFETY: Track cost for draft generation
+      const inputTokens = response.usage?.input_tokens || 0;
+      const outputTokens = response.usage?.output_tokens || 0;
+      await this.trackCost('email_draft_generation', model, inputTokens, outputTokens, userId).catch(err => {
+        logger.debug('[EmailAgentService] Cost tracking failed (non-critical):', err.message);
+      });
+
       const draftText = response.content[0]?.text || '';
 
       return {
@@ -592,6 +636,66 @@ Do NOT include email headers (To:, Subject:, etc.) - just the body text.`;
         userId: null,
         tier: null
       };
+    }
+  }
+
+  /**
+   * Track Anthropic API costs for email agent operations
+   * @private
+   * @param {string} operation - 'email_classification' | 'email_draft_generation'
+   * @param {string} model - Model name (e.g., 'claude-3-haiku-20240307')
+   * @param {number} inputTokens - Input tokens used
+   * @param {number} outputTokens - Output tokens used
+   * @param {string|null} userId - User ID (if matched from email)
+   */
+  async trackCost(operation, model, inputTokens, outputTokens, userId = null) {
+    try {
+      // Anthropic pricing (per 1M tokens)
+      const PRICING = {
+        'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+        'claude-3-5-haiku-20241022': { input: 0.25, output: 1.25 },
+        'claude-3-sonnet-20240229': { input: 3.0, output: 15.0 },
+        'claude-3-5-sonnet-20241022': { input: 3.0, output: 15.0 },
+        'claude-3-opus-20240229': { input: 15.0, output: 75.0 },
+        'claude-3-5-opus-20241022': { input: 15.0, output: 75.0 },
+      };
+
+      const modelPricing = PRICING[model] || PRICING['claude-3-haiku-20240307'];
+      const cost = (inputTokens / 1_000_000 * modelPricing.input) + (outputTokens / 1_000_000 * modelPricing.output);
+
+      // Log to usage_logs table (non-blocking)
+      if (cost > 0) {
+        await supabase.from('usage_logs').insert({
+          user_id: userId || 'system', // Use 'system' if no user matched
+          event: 'email_agent_operation',
+          feature: operation,
+          tier: null, // Email agent is admin-only, tier not applicable
+          tokens_used: inputTokens + outputTokens,
+          estimated_cost: cost,
+          metadata: {
+            operation,
+            model,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            source: 'email_agent'
+          },
+          created_at: new Date().toISOString()
+        }).catch(err => {
+          logger.debug('[EmailAgentService] Failed to log cost (non-critical):', err.message);
+        });
+
+        logger.debug('[EmailAgentService] Cost tracked', {
+          operation,
+          model,
+          inputTokens,
+          outputTokens,
+          cost: cost.toFixed(6),
+          userId: userId || 'system'
+        });
+      }
+    } catch (error) {
+      // Non-blocking - don't fail the operation if cost tracking fails
+      logger.debug('[EmailAgentService] Cost tracking error (non-critical):', error.message);
     }
   }
 }

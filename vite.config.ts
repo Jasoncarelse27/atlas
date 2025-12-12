@@ -67,7 +67,9 @@ export default defineConfig(({ mode }) => {
         'expo-image-manipulator',
         'react-native',
         'react-native-web',
-        'zustand' // ✅ CRITICAL: Exclude Zustand from pre-bundling to prevent export stripping
+        'zustand', // ✅ CRITICAL: Exclude Zustand from pre-bundling to prevent export stripping
+        './src/services/mailerService.real', // ✅ FIX: Exclude Node.js-only service from browser bundling
+        'node-fetch' // ✅ FIX: Exclude node-fetch (Node.js-only, cannot run in browser)
       ],
       include: [
         'react-is' // ✅ Fix Railway build: Ensure react-is is pre-bundled
