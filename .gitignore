@@ -105,3 +105,9 @@ admin-console/build/
 create-agent-config.mjs
 admin-console/.next/
 create-agent-config.mjs
+
+# Internal docs
+internal-docs/
+*_DIAGNOSTIC.md
+*_FIX_SUMMARY.md
+SESSION_SUMMARY_*.md
